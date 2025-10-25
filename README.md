@@ -144,7 +144,7 @@ DB_PASSWORD=your_password
 DB_NAME=billing_database
 
 # Server
-PORT=3001
+PORT=3000
 NODE_ENV=development
 
 # Session
@@ -172,7 +172,7 @@ pm2 start ecosystem.config.js
 npm run dev
 ```
 
-**Application URL**: `http://localhost:3001`
+**Application URL**: `http://localhost:3000`
 
 ---
 
