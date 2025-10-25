@@ -97,9 +97,15 @@ fix-*.html
 # ========================================
 # Documentation (Optional - keep in repo)
 # ========================================
-# Uncomment if you don't want to track MD files:
-# *.md
-# !README.md
+# Local documentation (Git setup guides)
+docs/PANDUAN_MUDAH_GIT.md
+docs/CHEAT_SHEET_GIT.txt
+docs/VISUAL_GUIDE.txt
+docs/LOKASI_ICON_CURSOR.md
+docs/GIT_SETUP_GUIDE.md
+docs/CLEANUP_REPORT.md
+panduan-git-visual.html
+env.example.txt
 
 # ========================================
 # IDE & Editor

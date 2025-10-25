@@ -58,10 +58,9 @@ import { BulkOperationsController } from '../controllers/bulkOperationsControlle
 import { 
     getAboutPage,
     checkUpdates,
-    updateApp,
-    toggleAutoUpdate,
-    createAppBackup,
-    restoreAppBackup
+    updateAppVersion,
+    updateSettings,
+    getUpdateHistoryPage
 } from '../controllers/aboutController';
 import { 
     getDatabaseManagement,
@@ -3786,10 +3785,9 @@ router.post('/billing/dashboard/send-notifications', (req, res) => BillingDashbo
 // About routes
 router.get('/about', getAboutPage);
 router.get('/about/check-updates', checkUpdates);
-router.post('/about/update', updateApp);
-router.post('/about/update-settings', toggleAutoUpdate);
-router.post('/about/backup/create', createAppBackup);
-router.post('/about/backup/:backupId/restore', restoreAppBackup);
+router.post('/about/update', updateAppVersion);
+router.post('/about/update-settings', updateSettings);
+router.get('/about/update-history', getUpdateHistoryPage);
 
 // Database Management routes
 router.get('/database/management', getDatabaseManagement);
