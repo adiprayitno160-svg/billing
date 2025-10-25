@@ -1,0 +1,171 @@
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900">Billing Dashboard</h1>
+                        <p class="mt-2 text-sm text-gray-600">Kelola sistem billing dan tagihan pelanggan</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Tambah Tagihan
+                        </button>
+                        <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-download mr-2"></i>Export Laporan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Invoices -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Tagihan</p>
+                        <p class="text-3xl font-bold text-gray-900"><%= stats.totalInvoices %></p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-file-invoice text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-sm text-gray-500">Semua tagihan</span>
+                </div>
+            </div>
+
+            <!-- Paid Invoices -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Tagihan Lunas</p>
+                        <p class="text-3xl font-bold text-green-600"><%= stats.paidInvoices %></p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-sm text-gray-500">Sudah dibayar</span>
+                </div>
+            </div>
+
+            <!-- Unpaid Invoices -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Tagihan Belum Lunas</p>
+                        <p class="text-3xl font-bold text-yellow-600"><%= stats.unpaidInvoices %></p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-sm text-gray-500">Menunggu pembayaran</span>
+                </div>
+            </div>
+
+            <!-- Overdue Invoices -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Tagihan Jatuh Tempo</p>
+                        <p class="text-3xl font-bold text-red-600"><%= stats.overdueInvoices %></p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-sm text-gray-500">Perlu ditindaklanjuti</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Total Revenue -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Pendapatan</p>
+                        <p class="text-3xl font-bold text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(stats.totalRevenue) %></p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-green-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-sm text-gray-500">Semua waktu</span>
+                </div>
+            </div>
+
+            <!-- Monthly Revenue -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Pendapatan Bulan Ini</p>
+                        <p class="text-3xl font-bold text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(stats.monthlyRevenue) %></p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-calendar-alt text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-sm text-gray-500">Bulan <%= new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) %></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="/billing/tagihan" class="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-list text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900">Lihat Tagihan</p>
+                        <p class="text-sm text-gray-500">Kelola semua tagihan</p>
+                    </div>
+                </a>
+                
+                <a href="/billing/invoices/create" class="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-plus text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900">Buat Tagihan</p>
+                        <p class="text-sm text-gray-500">Tagihan baru</p>
+                    </div>
+                </a>
+                
+                <a href="/billing/reports" class="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-chart-bar text-purple-600"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900">Laporan</p>
+                        <p class="text-sm text-gray-500">Analisis pendapatan</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto refresh stats every 30 seconds
+    setInterval(() => {
+        // You can add AJAX call here to refresh stats
+    }, 30000);
+</script>
+

@@ -1,0 +1,215 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Tambah ODC</h2>
+        <a href="/ftth/odc<%= oltId ? ('?olt_id=' + oltId) : '' %>" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
+    </div>
+    <form method="post" action="/ftth/odc" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Pilih OLT</label>
+            <select name="olt_id" required class="w-full rounded border border-slate-300 px-2 py-1.5">
+                <option value="">-- Pilih OLT --</option>
+                <% (olts || []).forEach(function(olt){ %>
+                <option value="<%= olt.id %>" <%= (oltId && oltId == olt.id) ? 'selected' : '' %>>
+                    <%= olt.name %> (Sisa: <%= olt.total_ports - olt.used_ports %> port)
+                </option>
+                <% }) %>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Nama</label>
+            <input name="name" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Lokasi</label>
+            <input name="location" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Latitude</label>
+            <input name="latitude" type="number" step="0.0000001" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Longitude</label>
+            <input name="longitude" type="number" step="0.0000001" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Total Port</label>
+            <input name="total_ports" type="number" min="0" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Terpakai</label>
+            <input name="used_ports" type="number" min="0" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Baris Kartu OLT</label>
+            <select name="olt_card" class="w-full rounded border border-slate-300 px-2 py-1.5">
+                <option value="">-- Pilih Baris --</option>
+                <% (olts || []).forEach(function(olt){ %>
+                <% const maxCards = (olt.line_cards || 0); %>
+                <% for (var c = 1; c <= maxCards; c++) { %>
+                <option value="<%= c %>">Baris <%= c %> - <%= olt.name %></option>
+                <% } %>
+                <% }) %>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Port OLT</label>
+            <select name="olt_port" class="w-full rounded border border-slate-300 px-2 py-1.5">
+                <option value="">-- Pilih Port --</option>
+                <% (olts || []).forEach(function(olt){ %>
+                <% const maxPorts = (olt.total_ports || 0); %>
+                <% for (var p = 1; p <= maxPorts; p++) { %>
+                <option value="<%= p %>">Port <%= p %> - <%= olt.name %></option>
+                <% } %>
+                <% }) %>
+            </select>
+        </div>
+        <div class="sm:col-span-2">
+            <label class="block text-xs text-slate-600 mb-1">Catatan</label>
+            <textarea name="notes" class="w-full rounded border border-slate-300 px-2 py-1.5"></textarea>
+        </div>
+        <div class="sm:col-span-2">
+            <label class="block text-xs text-slate-600 mb-1">Peta Lokasi</label>
+            <div id="mapOdc" class="h-64 w-full rounded border border-slate-200"></div>
+            <button type="button" id="btnGetLocation" class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">Ambil Lokasi Saat Ini</button>
+        </div>
+        <div class="sm:col-span-2 flex justify-end gap-2">
+            <a href="/ftth/odc<%= oltId ? ('?olt_id=' + oltId) : '' %>" class="px-3 py-1.5 rounded border border-slate-300">Batal</a>
+            <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+        </div>
+    </form>
+</div>
+
+<!-- Leaflet di-load global dari layout utama -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let map, marker;
+    
+    function waitForLeaflet() {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 detik maksimal
+            
+            const checkLeaflet = () => {
+                attempts++;
+                if (typeof L !== 'undefined') {
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    reject(new Error('Leaflet tidak dapat dimuat dalam waktu yang ditentukan'));
+                } else {
+                    setTimeout(checkLeaflet, 100);
+                }
+            };
+            
+            checkLeaflet();
+        });
+    }
+    
+    function initMap() {
+        try {
+            // Pastikan elemen map ada
+            const mapElement = document.getElementById('mapOdc');
+            if (!mapElement) {
+                console.error('Map element not found');
+                return;
+            }
+            
+            // Pastikan container map terlihat
+            if (mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
+                console.warn('Map container has no dimensions, retrying...');
+                setTimeout(initMap, 200);
+                return;
+            }
+            
+            // Hapus map yang sudah ada jika ada
+            if (map) {
+                map.remove();
+            }
+            
+            // Inisialisasi map
+            map = L.map('mapOdc', {
+                preferCanvas: false
+            }).setView([-6.2, 106.8], 11);
+            
+            // Tambahkan tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Tambahkan marker default
+            marker = L.marker([-6.2, 106.8]).addTo(map);
+            
+            // Event click pada map untuk mengubah lokasi
+            map.on('click', function(e) {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+                
+                // Update marker
+                marker.setLatLng([lat, lng]);
+                
+                // Update form fields
+                const latInput = document.querySelector('input[name="latitude"]');
+                const lngInput = document.querySelector('input[name="longitude"]');
+                if (latInput) latInput.value = lat.toFixed(7);
+                if (lngInput) lngInput.value = lng.toFixed(7);
+            });
+            
+            // Trigger resize untuk memastikan map ter-render dengan benar
+            setTimeout(() => {
+                if (map) {
+                    map.invalidateSize();
+                }
+            }, 100);
+            
+            console.log('Map initialized successfully');
+        } catch (error) {
+            console.error('Error initializing map:', error);
+        }
+    }
+    
+    // Ambil lokasi saat ini
+    const getLocationBtn = document.getElementById('btnGetLocation');
+    if (getLocationBtn) {
+        getLocationBtn.addEventListener('click', function() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // Update map view
+                    if (map) {
+                        map.setView([lat, lng], 15);
+                        marker.setLatLng([lat, lng]);
+                    }
+                    
+                    // Update form fields
+                    const latInput = document.querySelector('input[name="latitude"]');
+                    const lngInput = document.querySelector('input[name="longitude"]');
+                    if (latInput) latInput.value = lat.toFixed(7);
+                    if (lngInput) lngInput.value = lng.toFixed(7);
+                }, function(error) {
+                    alert('Tidak dapat mengambil lokasi: ' + error.message);
+                });
+            } else {
+                alert('Browser tidak mendukung geolocation');
+            }
+        });
+    }
+    
+    // Initialize map dengan menunggu Leaflet siap
+    waitForLeaflet().then(() => {
+        console.log('Leaflet loaded, initializing map...');
+        setTimeout(initMap, 100);
+    }).catch((error) => {
+        console.error('Failed to load Leaflet:', error);
+        // Fallback: coba lagi setelah delay lebih lama
+        setTimeout(() => {
+            if (typeof L !== 'undefined') {
+                initMap();
+            }
+        }, 2000);
+    });
+});
+</script>
+
+

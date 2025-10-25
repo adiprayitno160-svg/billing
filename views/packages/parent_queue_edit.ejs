@@ -1,0 +1,35 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Edit Parent Queue</h2>
+        <a href="/packages/parent-queues" class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">← Kembali</a>
+    </div>
+
+    <% if (error && error.length > 0) { %>
+    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded"><%= error[0] %></div>
+    <% } %>
+
+    <form method="post" action="/packages/parent-queues/<%= pq.id %>" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Parent *</label>
+            <input name="name" value="<%= pq.name %>" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+            <select name="status" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="active" <%= pq.status === 'active' ? 'selected' : '' %>>Aktif</option>
+                <option value="inactive" <%= pq.status === 'inactive' ? 'selected' : '' %>>Nonaktif</option>
+            </select>
+        </div>
+        <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label>
+            <textarea name="description" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"><%= pq.description || '' %></textarea>
+        </div>
+        <div class="sm:col-span-2 flex justify-end gap-3">
+            <a href="/packages/parent-queues" class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
+            <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Update</button>
+        </div>
+    </form>
+</div>
+
+
+

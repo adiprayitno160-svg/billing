@@ -1,0 +1,936 @@
+<div class="space-y-6">
+	<!-- Header Section -->
+	<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-modern-blue-900">Data Pelanggan</h1>
+				<p class="text-modern-blue-600 mt-1">Kelola data pelanggan sistem billing</p>
+			</div>
+			<div class="flex items-center gap-3">
+				<button id="exportExcelBtn" class="px-4 py-2 bg-gradient-to-r from-modern-green-500 to-modern-emerald-500 text-white rounded-lg hover:from-modern-green-600 hover:to-modern-emerald-600 transition-all duration-300 font-medium shadow-lg">
+					📊 Export Excel
+				</button>
+				<button id="showImportModalBtn" class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+					📥 Import Excel
+				</button>
+				<button id="downloadTemplateHeaderBtnTop" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
+					📄 Template
+				</button>
+				<a href="/customers/new-pppoe" class="px-4 py-2 bg-gradient-to-r from-modern-blue-500 to-modern-cyan-500 text-white rounded-lg hover:from-modern-blue-600 hover:to-modern-cyan-600 transition-all duration-300 font-medium shadow-lg">
+					+ Tambah Pelanggan PPPOE
+				</a>
+				<a href="/customers/new-static-ip" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
+					+ Tambah IP Statis
+				</a>
+			</div>
+		</div>
+	</div>
+
+	<!-- Stats Cards -->
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+		<div class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-modern-green-50 to-modern-emerald-50 p-6 shadow-lg">
+			<div class="flex items-center justify-between">
+				<div>
+					<div class="text-sm font-medium text-modern-green-600">Total Pelanggan</div>
+					<div class="text-3xl font-bold text-modern-green-900"><%= customers ? customers.length : 0 %></div>
+				</div>
+				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-green-500 to-modern-emerald-500 flex items-center justify-center text-white shadow-lg">
+					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+						<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+					</svg>
+				</div>
+			</div>
+		</div>
+
+		<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+			<div class="flex items-center justify-between">
+				<div>
+					<div class="text-sm font-medium text-modern-blue-600">Pelanggan Aktif</div>
+					<div class="text-3xl font-bold text-modern-blue-900"><%= customers ? customers.filter(c => c.status === 'active').length : 0 %></div>
+				</div>
+				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-blue-500 to-modern-cyan-500 flex items-center justify-center text-white shadow-lg">
+					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+					</svg>
+				</div>
+			</div>
+		</div>
+
+		<div class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-modern-orange-50 to-modern-amber-50 p-6 shadow-lg">
+			<div class="flex items-center justify-between">
+				<div>
+					<div class="text-sm font-medium text-modern-orange-600">Pelanggan Nonaktif</div>
+					<div class="text-3xl font-bold text-modern-orange-900">0</div>
+				</div>
+				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-orange-500 to-modern-amber-500 flex items-center justify-center text-white shadow-lg">
+					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+					</svg>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Data Table -->
+	<div class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
+		<div class="flex items-center justify-between mb-6">
+			<h2 class="text-lg font-bold text-modern-purple-900">Daftar Pelanggan</h2>
+			<div class="flex items-center gap-3">
+				<input type="text" placeholder="Cari pelanggan..." class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+			<button class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+					Filter
+				</button>
+			<button id="bulkDeleteBtn" class="px-4 py-2 bg-gradient-to-r from-modern-red-500 to-modern-pink-600 text-white rounded-lg hover:from-modern-red-600 hover:to-modern-pink-700 transition-all duration-300 font-medium shadow-lg disabled:opacity-40" disabled>
+				🗑️ Hapus Terpilih
+			</button>
+			<button id="downloadTemplateHeaderBtn" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
+				📄 Template
+			</button>
+			</div>
+		</div>
+		
+		<div class="overflow-x-auto">
+			<table class="min-w-full">
+				<thead>
+					<tr class="border-b border-modern-purple-200">
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">
+							<input type="checkbox" id="selectAll">
+						</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">ID</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Nama</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Telepon</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Jenis Koneksi</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Sistem</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Paket</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Status</th>
+						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Aksi</th>
+					</tr>
+				</thead>
+				<tbody>
+					<% if (customers && customers.length > 0) { %>
+						<% customers.forEach(customer => { %>
+						<tr class="border-b border-modern-purple-100">
+							<td class="py-4 px-4">
+							<input type="checkbox" class="rowCheckbox" value="<%= customer.id %>">
+							</td>
+							<td class="py-4 px-4 text-modern-purple-800 font-medium">
+								<div class="font-semibold"><%= customer.id %></div>
+								<div class="text-sm text-modern-purple-600"><%= customer.customer_code || '-' %></div>
+							</td>
+							<td class="py-4 px-4 text-modern-purple-800 font-medium">
+								<div class="font-semibold"><%= customer.name %></div>
+								<div class="text-sm text-modern-purple-600"><%= customer.email || '-' %></div>
+							</td>
+							<td class="py-4 px-4 text-modern-purple-700"><%= customer.phone || '-' %></td>
+							<td class="py-4 px-4 text-modern-purple-700">
+								<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
+									<%= customer.connection_type_display || 'PPPOE' %>
+								</span>
+							</td>
+							<td class="py-4 px-4 text-modern-purple-700">
+								<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= (customer.billing_mode || 'postpaid') === 'prepaid' ? 'bg-modern-purple-100 text-modern-purple-700' : 'bg-modern-orange-100 text-modern-orange-700' %>">
+									<%= (customer.billing_mode || 'postpaid') === 'prepaid' ? 'Prepaid' : 'Postpaid' %>
+								</span>
+								<% if ((customer.billing_mode || 'postpaid') === 'prepaid' && customer.portal_id) { %>
+									<div class="text-xs text-modern-gray-500 mt-1">ID: <%= customer.portal_id %></div>
+								<% } %>
+							</td>
+							<td class="py-4 px-4 text-modern-purple-700">
+								<% if (customer.package_name) { %>
+									<span class="inline-flex items-center rounded-full px-3 py-1 text-xs bg-modern-blue-100 text-modern-blue-700">
+										<%= customer.package_name %>
+									</span>
+								<% } else { %>
+									<span class="text-modern-gray-500">Belum ada paket</span>
+								<% } %>
+							</td>
+							<td class="py-4 px-4">
+								<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.status === 'active' ? 'bg-modern-green-100 text-modern-green-700' : 'bg-modern-red-100 text-modern-red-700' %>">
+									<%= customer.status === 'active' ? 'Aktif' : 'Tidak Aktif' %>
+								</span>
+							</td>
+							<td class="py-4 px-4">
+								<div class="flex items-center gap-2">
+									<a href="/customers/<%= customer.id %>" class="text-modern-blue-600 hover:text-modern-blue-800 transition-colors duration-300" title="Lihat Detail">
+										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+											<path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+											<path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+										</svg>
+									</a>
+									<a href="/customers/<%= customer.id %>/edit" class="text-modern-green-600 hover:text-modern-green-800 transition-colors duration-300" title="Edit">
+										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+											<path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+										</svg>
+									</a>
+									
+									<% if ((customer.billing_mode || 'postpaid') === 'postpaid') { %>
+										<!-- Tombol Migrasi ke Prepaid -->
+										<button class="migrateToPrepaidBtn text-modern-purple-600 hover:text-modern-purple-800 transition-colors duration-300" 
+											data-id="<%= customer.id %>" 
+											data-name="<%= customer.name %>"
+											title="Migrasi ke Prepaid">
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+												<path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
+												<path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
+											</svg>
+										</button>
+									<% } else { %>
+										<!-- Tombol Kembalikan ke Postpaid -->
+										<button class="migrateToPostpaidBtn text-modern-orange-600 hover:text-modern-orange-800 transition-colors duration-300" 
+											data-id="<%= customer.id %>" 
+											data-name="<%= customer.name %>"
+											title="Kembalikan ke Postpaid">
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+											</svg>
+										</button>
+									<% } %>
+									
+									<button class="deleteCustomerBtn text-modern-red-600 hover:text-modern-red-800 transition-colors duration-300" data-id="<%= customer.id %>" data-name="<%= customer.name %>" title="Hapus">
+										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+											<path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+										</svg>
+									</button>
+								</div>
+							</td>
+						</tr>
+						<% }) %>
+					<% } else { %>
+						<tr class="border-b border-modern-purple-100">
+							<td class="py-4 px-4 text-modern-purple-800 font-medium">-</td>
+							<td class="py-4 px-4 text-modern-purple-800 font-medium">Belum ada data</td>
+							<td class="py-4 px-4 text-modern-purple-700">-</td>
+							<td class="py-4 px-4 text-modern-purple-700">-</td>
+							<td class="py-4 px-4 text-modern-purple-700">-</td>
+							<td class="py-4 px-4 text-modern-purple-700">-</td>
+							<td class="py-4 px-4">
+								<span class="inline-flex items-center rounded-full bg-modern-gray-100 px-3 py-1 text-xs text-modern-gray-700">
+									Kosong
+								</span>
+							</td>
+							<td class="py-4 px-4">-</td>
+						</tr>
+					<% } %>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+<!-- Import Excel Modal -->
+<div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-modern-blue-900">Import Data Excel</h3>
+                    <button id="closeImportModalIconBtn" class="text-modern-gray-400 hover:text-modern-gray-600">
+                        <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-modern-gray-700 mb-2">Pilih File Excel</label>
+                        <input type="file" id="excelFile" name="excelFile" accept=".xlsx,.xls" class="w-full px-3 py-2 border border-modern-gray-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200" required>
+                        <p class="text-xs text-modern-gray-500 mt-1">Format yang didukung: .xlsx, .xls (Maksimal 10MB)</p>
+                    </div>
+                    
+                    <div class="mb-4 p-3 bg-modern-blue-50 rounded-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-sm font-medium text-modern-blue-900">Format Excel yang Diperlukan:</h4>
+                            <button type="button" id="downloadTemplateBtn" class="text-xs bg-modern-blue-500 text-white px-2 py-1 rounded hover:bg-modern-blue-600 transition-colors">
+                                📥 Download Template
+                            </button>
+                        </div>
+                        <ul class="text-xs text-modern-blue-700 space-y-1">
+                            <li>• <strong>Nama</strong> (wajib)</li>
+                            <li>• <strong>Alamat</strong> (opsional)</li>
+                            <li>• <strong>Nomor Telepon</strong> (wajib)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button type="button" id="closeImportModalBtn" class="flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit" class="flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium">
+                            Import Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteCustomer(id, name) {
+    if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
+        fetch(`/customers/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(async response => {
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok) {
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    if (contentType.includes('application/json')) {
+                        const data = await response.json();
+                        errorMessage = data.error || JSON.stringify(data);
+                    } else {
+                        const text = await response.text();
+                        errorMessage = text?.slice(0, 500) || errorMessage;
+                    }
+                } catch (_) {}
+                throw new Error(errorMessage);
+            }
+            return contentType.includes('application/json') ? response.json() : { success: true };
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Pelanggan berhasil dihapus!');
+                location.reload();
+            } else {
+                alert('Gagal menghapus pelanggan: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat menghapus pelanggan: ' + (error?.message || error));
+        });
+    }
+}
+
+function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => parseInt(cb.value, 10));
+}
+
+function toggleSelectAll(source) {
+    const checkboxes = document.querySelectorAll('.rowCheckbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+    updateBulkState();
+}
+
+function updateBulkState() {
+    const ids = getSelectedIds();
+    const btn = document.getElementById('bulkDeleteBtn');
+    btn.disabled = ids.length === 0;
+}
+
+function bulkDeleteSelected() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    if (!confirm(`Hapus ${ids.length} pelanggan terpilih? Pelanggan dengan tagihan aktif akan dilewati.`)) return;
+
+    fetch('/customers/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ids })
+    })
+    .then(async res => {
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok) {
+            let errorMessage = `HTTP ${res.status}`;
+            try {
+                if (contentType.includes('application/json')) {
+                    const data = await res.json();
+                    errorMessage = data.error || JSON.stringify(data);
+                } else {
+                    const text = await res.text();
+                    errorMessage = text?.slice(0, 500) || errorMessage;
+                }
+            } catch (_) {}
+            throw new Error(errorMessage);
+        }
+        return contentType.includes('application/json') ? res.json() : { success: false, error: 'Respon tidak valid' };
+    })
+    .then(data => {
+        if (data.success) {
+            const skipped = data.results?.skipped?.length || 0;
+            const deleted = data.results?.deleted?.length || 0;
+            alert(`Hapus massal selesai. Dihapus: ${deleted}, Dilewati: ${skipped}`);
+            location.reload();
+        } else {
+            alert('Gagal melakukan hapus massal: ' + (data.error || 'Tidak diketahui'));
+        }
+    })
+    .catch(err => {
+        console.error('Bulk delete error:', err);
+        alert('Terjadi kesalahan saat hapus massal: ' + (err?.message || err));
+    });
+}
+
+function exportToExcel() {
+    // Get current filter parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const exportUrl = `/customers/export?${urlParams.toString()}`;
+    
+    // Create a temporary link to download the file
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.download = `data_pelanggan_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function showImportModal() {
+    document.getElementById('importModal').classList.remove('hidden');
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').classList.add('hidden');
+    document.getElementById('importForm').reset();
+}
+
+function processImport(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    
+    fetch('/customers/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            if (data.details && data.details.errors.length > 0) {
+                console.log('Import errors:', data.details.errors);
+            }
+            location.reload();
+        } else {
+            alert('Gagal mengimport data: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat mengimport data');
+    });
+}
+
+function downloadTemplate() {
+    // Create a temporary link to download the template
+    const link = document.createElement('a');
+    link.href = '/customers/template';
+    link.download = 'template_import_pelanggan.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+<script>
+// Initialize checkbox behaviors and bulk button state on page load
+document.addEventListener('DOMContentLoaded', function() {
+	const selectAllCheckbox = document.getElementById('selectAll');
+	const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const exportBtn = document.getElementById('exportExcelBtn');
+    const showImportBtn = document.getElementById('showImportModalBtn');
+    const closeImportBtn = document.getElementById('closeImportModalBtn');
+    const closeImportIconBtn = document.getElementById('closeImportModalIconBtn');
+    const importForm = document.getElementById('importForm');
+    const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+
+	function refreshHeaderCheckboxState() {
+		const checkboxes = Array.from(document.querySelectorAll('.rowCheckbox'));
+		const checkedCount = checkboxes.filter(cb => cb.checked).length;
+		if (!selectAllCheckbox) return;
+		selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+		selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+	}
+
+	// Bind change event for header select-all checkbox (in addition to inline handler)
+	if (selectAllCheckbox) {
+		selectAllCheckbox.addEventListener('change', function() {
+			const checkboxes = document.querySelectorAll('.rowCheckbox');
+			checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+			updateBulkState();
+			refreshHeaderCheckboxState();
+		});
+	}
+
+	// Bind change events for all row checkboxes to keep UI in sync
+	const rowCheckboxes = document.querySelectorAll('.rowCheckbox');
+	rowCheckboxes.forEach(cb => {
+		cb.addEventListener('change', function() {
+			updateBulkState();
+			refreshHeaderCheckboxState();
+		});
+	});
+
+	// Ensure bulk delete button click is bound (in case inline onclick is restricted)
+	if (bulkDeleteBtn) {
+		bulkDeleteBtn.addEventListener('click', function() {
+			bulkDeleteSelected();
+		});
+	}
+
+    // Export Excel
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            exportToExcel();
+        });
+    }
+
+    // Show import modal
+    if (showImportBtn) {
+        showImportBtn.addEventListener('click', function() {
+            const m = document.getElementById('importModal');
+            if (m) m.classList.remove('hidden');
+        });
+    }
+
+    // Close import modal buttons
+    function handleCloseImport() {
+        const m = document.getElementById('importModal');
+        if (m) m.classList.add('hidden');
+        const f = document.getElementById('importForm');
+        if (f && typeof f.reset === 'function') f.reset();
+    }
+    if (closeImportBtn) closeImportBtn.addEventListener('click', handleCloseImport);
+    if (closeImportIconBtn) closeImportIconBtn.addEventListener('click', handleCloseImport);
+
+    // Import form submit
+    if (importForm) {
+        importForm.addEventListener('submit', function(e) {
+            processImport(e);
+        });
+    }
+
+    // Download template
+    if (downloadTemplateBtn) {
+        downloadTemplateBtn.addEventListener('click', function() {
+            downloadTemplate();
+        });
+    }
+    const downloadTemplateHeaderBtn = document.getElementById('downloadTemplateHeaderBtn');
+    if (downloadTemplateHeaderBtn) {
+        downloadTemplateHeaderBtn.addEventListener('click', function() {
+            downloadTemplate();
+        });
+    }
+    const downloadTemplateHeaderBtnTop = document.getElementById('downloadTemplateHeaderBtnTop');
+    if (downloadTemplateHeaderBtnTop) {
+        downloadTemplateHeaderBtnTop.addEventListener('click', function() {
+            downloadTemplate();
+        });
+    }
+
+    // Bind delete buttons per row
+    document.querySelectorAll('.deleteCustomerBtn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const name = this.getAttribute('data-name') || '';
+            if (id) deleteCustomer(parseInt(id, 10), name);
+        });
+    });
+
+	// Initial state
+	updateBulkState();
+	refreshHeaderCheckboxState();
+
+	// ===================
+	// MIGRATION HANDLERS
+	// ===================
+	
+	// Migrate to Prepaid
+	document.querySelectorAll('.migrateToPrepaidBtn').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			const customerId = this.getAttribute('data-id');
+			const customerName = this.getAttribute('data-name');
+			showMigrationConfirmModal(customerId, customerName, 'prepaid');
+		});
+	});
+	
+	// Migrate to Postpaid
+	document.querySelectorAll('.migrateToPostpaidBtn').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			const customerId = this.getAttribute('data-id');
+			const customerName = this.getAttribute('data-name');
+			showMigrationConfirmModal(customerId, customerName, 'postpaid');
+		});
+	});
+});
+
+// Migration functions
+function showMigrationConfirmModal(customerId, customerName, toMode) {
+	const modal = document.getElementById('migrationConfirmModal');
+	const modalContent = document.getElementById('migrationModalContent');
+	
+	let content = '';
+	if (toMode === 'prepaid') {
+		content = `
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-bold text-modern-blue-900">⚠️ Migrasi ke Sistem Prepaid</h3>
+					<button class="closeMigrationBtn text-modern-gray-400 hover:text-modern-gray-600">
+						<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+						</svg>
+					</button>
+				</div>
+				
+				<div class="mb-4">
+					<p class="text-modern-gray-700 mb-2"><strong>Customer:</strong> ${customerName}</p>
+					<p class="text-modern-gray-700 mb-4"><strong>ID:</strong> ${customerId}</p>
+					
+					<div class="bg-modern-yellow-50 border border-modern-yellow-200 rounded-lg p-4 mb-4">
+						<p class="text-sm font-semibold text-modern-yellow-800 mb-2">⚠️ YANG AKAN TERJADI:</p>
+						<ul class="text-sm text-modern-yellow-700 space-y-1">
+							<li>✓ Paket postpaid akan <strong>DINONAKTIFKAN</strong></li>
+							<li>✓ Internet customer akan <strong>DI-REDIRECT</strong> ke portal</li>
+							<li>✓ Customer harus <strong>LOGIN & BELI</strong> paket prepaid</li>
+							<li>✓ Tagihan lama <strong>TETAP HARUS DIBAYAR</strong></li>
+							<li>✓ Portal ID & PIN akan di-generate</li>
+						</ul>
+					</div>
+					
+					<div class="bg-modern-blue-50 border border-modern-blue-200 rounded-lg p-4">
+						<p class="text-sm font-semibold text-modern-blue-800 mb-2">🔧 AUTO-SETUP MIKROTIK:</p>
+						<ul class="text-sm text-modern-blue-700 space-y-1">
+							<li>✓ Create address list (jika belum ada)</li>
+							<li>✓ Add IP customer ke redirect list</li>
+							<li>✓ Setup NAT rule (jika belum ada)</li>
+						</ul>
+					</div>
+				</div>
+				
+				<div class="flex gap-3">
+					<button class="cancelMigrationBtn flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
+						Batal
+					</button>
+					<button class="executeMigrationBtn flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium" data-customer-id="${customerId}" data-customer-name="${customerName}" data-mode="prepaid">
+						✅ MIGRASI SEKARANG
+					</button>
+				</div>
+			</div>
+		`;
+	} else {
+		content = `
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-bold text-modern-orange-900">🔙 Kembalikan ke Sistem Postpaid</h3>
+					<button class="closeMigrationBtn text-modern-gray-400 hover:text-modern-gray-600">
+						<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+						</svg>
+					</button>
+				</div>
+				
+				<div class="mb-4">
+					<p class="text-modern-gray-700 mb-2"><strong>Customer:</strong> ${customerName}</p>
+					<p class="text-modern-gray-700 mb-4"><strong>ID:</strong> ${customerId}</p>
+					
+					<div class="bg-modern-blue-50 border border-modern-blue-200 rounded-lg p-4 mb-4">
+						<p class="text-sm font-semibold text-modern-blue-800 mb-2">🔧 YANG AKAN TERJADI:</p>
+						<ul class="text-sm text-modern-blue-700 space-y-1">
+							<li>✓ Subscription prepaid akan dinonaktifkan</li>
+							<li>✓ Customer kembali ke sistem postpaid</li>
+							<li>✓ IP dihapus dari portal-redirect list</li>
+							<li>✓ Portal access tetap tersimpan (untuk history)</li>
+						</ul>
+					</div>
+				</div>
+				
+				<div class="flex gap-3">
+					<button class="cancelMigrationBtn flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
+						Batal
+					</button>
+					<button class="executeMigrationBtn flex-1 px-4 py-2 bg-gradient-to-r from-modern-orange-500 to-modern-amber-500 text-white rounded-lg hover:from-modern-orange-600 hover:to-modern-amber-600 transition-all duration-300 font-medium" data-customer-id="${customerId}" data-customer-name="${customerName}" data-mode="postpaid">
+						✅ KEMBALIKAN SEKARANG
+					</button>
+				</div>
+			</div>
+		`;
+	}
+	
+	modalContent.innerHTML = content;
+	modal.classList.remove('hidden');
+	
+	// Attach event listeners after modal content is added
+	attachModalEventListeners();
+}
+
+function closeMigrationModal() {
+	const modal = document.getElementById('migrationConfirmModal');
+	modal.classList.add('hidden');
+}
+
+function attachModalEventListeners() {
+	// Close buttons
+	document.querySelectorAll('.closeMigrationBtn, .cancelMigrationBtn').forEach(btn => {
+		btn.addEventListener('click', closeMigrationModal);
+	});
+	
+	// Execute migration button
+	const executeBtn = document.querySelector('.executeMigrationBtn');
+	if (executeBtn) {
+		executeBtn.addEventListener('click', function() {
+			const customerId = this.getAttribute('data-customer-id');
+			const customerName = this.getAttribute('data-customer-name');
+			const mode = this.getAttribute('data-mode');
+			executeMigration(customerId, customerName, mode);
+		});
+	}
+}
+
+function executeMigration(customerId, customerName, toMode) {
+	// Show loading
+	const modalContent = document.getElementById('migrationModalContent');
+	modalContent.innerHTML = `
+		<div class="p-6 text-center">
+			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-modern-blue-500 mx-auto mb-4"></div>
+			<p class="text-modern-gray-700">Memproses migrasi...</p>
+		</div>
+	`;
+	
+	const endpoint = toMode === 'prepaid' 
+		? `/customers/${customerId}/migrate-to-prepaid`
+		: `/customers/${customerId}/migrate-to-postpaid`;
+	
+	fetch(endpoint, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Accept': 'application/json'
+		},
+		credentials: 'same-origin'
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.success) {
+			showMigrationResultModal(data, customerName, toMode);
+		} else {
+			showMigrationErrorModal(data.error || 'Terjadi kesalahan');
+		}
+	})
+	.catch(error => {
+		console.error('Migration error:', error);
+		showMigrationErrorModal('Terjadi kesalahan saat migrasi: ' + error.message);
+	});
+}
+
+function showMigrationResultModal(data, customerName, toMode) {
+	const modalContent = document.getElementById('migrationModalContent');
+	
+	let content = '';
+	if (toMode === 'prepaid') {
+		const portalId = data.portal_id || 'EXISTING';
+		const portalPin = data.portal_pin || '(gunakan PIN yang ada)';
+		const portalUrl = window.location.origin + '/prepaid/portal/login';
+		
+		content = `
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-bold text-modern-green-900">✅ Migrasi Berhasil!</h3>
+					<button class="closeResultBtn text-modern-gray-400 hover:text-modern-gray-600">
+						<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+						</svg>
+					</button>
+				</div>
+				
+				<div class="mb-4">
+					<p class="text-modern-gray-700 mb-4"><strong>Customer:</strong> ${customerName}</p>
+					
+					<div class="bg-modern-green-50 border border-modern-green-200 rounded-lg p-4 mb-4">
+						<p class="text-sm font-semibold text-modern-green-800 mb-3">🔑 INFO LOGIN PORTAL:</p>
+						<div class="bg-white rounded p-3 text-sm space-y-2">
+							<div><strong>Portal ID:</strong> <span class="font-mono text-modern-blue-600">${portalId}</span></div>
+							<div><strong>Portal PIN:</strong> <span class="font-mono text-modern-purple-600">${portalPin}</span></div>
+							<div><strong>URL Login:</strong> <a href="${portalUrl}" target="_blank" class="text-modern-blue-600 hover:underline">${portalUrl}</a></div>
+						</div>
+					</div>
+					
+					<div class="bg-modern-blue-50 border border-modern-blue-200 rounded-lg p-4 mb-4">
+						<p class="text-sm font-semibold text-modern-blue-800 mb-2">📱 KIRIM KE CUSTOMER:</p>
+						<div class="flex gap-2">
+							<button class="copyInfoBtn flex-1 px-3 py-2 bg-white border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-colors text-sm" data-portal-id="${portalId}" data-portal-pin="${portalPin}" data-portal-url="${portalUrl}">
+								📋 Copy Text
+							</button>
+							<button class="sendWhatsAppBtn flex-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm" data-customer-name="${customerName}" data-portal-id="${portalId}" data-portal-pin="${portalPin}">
+								💬 WhatsApp
+							</button>
+						</div>
+					</div>
+				</div>
+				
+				<button class="okResultBtn w-full px-4 py-2 bg-modern-green-500 text-white rounded-lg hover:bg-modern-green-600 transition-colors font-medium">
+					OK
+				</button>
+			</div>
+		`;
+	} else {
+		content = `
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-bold text-modern-green-900">✅ Kembalikan ke Postpaid Berhasil!</h3>
+					<button class="closeResultBtn text-modern-gray-400 hover:text-modern-gray-600">
+						<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+						</svg>
+					</button>
+				</div>
+				
+				<div class="mb-4">
+					<p class="text-modern-gray-700 mb-4"><strong>Customer:</strong> ${customerName}</p>
+					
+					<div class="bg-modern-green-50 border border-modern-green-200 rounded-lg p-4">
+						<p class="text-sm text-modern-green-700">
+							Customer telah dikembalikan ke sistem postpaid. IP telah dihapus dari portal-redirect list.
+						</p>
+					</div>
+				</div>
+				
+				<button class="okResultBtn w-full px-4 py-2 bg-modern-green-500 text-white rounded-lg hover:bg-modern-green-600 transition-colors font-medium">
+					OK
+				</button>
+			</div>
+		`;
+	}
+	
+	modalContent.innerHTML = content;
+	attachResultEventListeners();
+}
+
+function showMigrationErrorModal(errorMessage) {
+	const modalContent = document.getElementById('migrationModalContent');
+	modalContent.innerHTML = `
+		<div class="p-6">
+			<div class="flex items-center justify-between mb-4">
+				<h3 class="text-lg font-bold text-modern-red-900">❌ Migrasi Gagal</h3>
+				<button class="closeErrorBtn text-modern-gray-400 hover:text-modern-gray-600">
+					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+					</svg>
+				</button>
+			</div>
+			
+			<div class="mb-4">
+				<div class="bg-modern-red-50 border border-modern-red-200 rounded-lg p-4">
+					<p class="text-sm text-modern-red-700">${errorMessage}</p>
+				</div>
+			</div>
+			
+			<button class="closeErrorOkBtn w-full px-4 py-2 bg-modern-red-500 text-white rounded-lg hover:bg-modern-red-600 transition-colors font-medium">
+				Tutup
+			</button>
+		</div>
+	`;
+	attachErrorEventListeners();
+}
+
+function closeMigrationModalAndReload() {
+	closeMigrationModal();
+	location.reload();
+}
+
+function attachResultEventListeners() {
+	// Close and OK buttons
+	document.querySelectorAll('.closeResultBtn, .okResultBtn').forEach(btn => {
+		btn.addEventListener('click', closeMigrationModalAndReload);
+	});
+	
+	// Copy info button
+	const copyBtn = document.querySelector('.copyInfoBtn');
+	if (copyBtn) {
+		copyBtn.addEventListener('click', function() {
+			const portalId = this.getAttribute('data-portal-id');
+			const portalPin = this.getAttribute('data-portal-pin');
+			const portalUrl = this.getAttribute('data-portal-url');
+			copyPortalInfo(portalId, portalPin, portalUrl);
+		});
+	}
+	
+	// WhatsApp button
+	const waBtn = document.querySelector('.sendWhatsAppBtn');
+	if (waBtn) {
+		waBtn.addEventListener('click', function() {
+			const customerName = this.getAttribute('data-customer-name');
+			const portalId = this.getAttribute('data-portal-id');
+			const portalPin = this.getAttribute('data-portal-pin');
+			sendWhatsApp(customerName, portalId, portalPin);
+		});
+	}
+}
+
+function attachErrorEventListeners() {
+	// Close buttons for error modal
+	document.querySelectorAll('.closeErrorBtn, .closeErrorOkBtn').forEach(btn => {
+		btn.addEventListener('click', closeMigrationModal);
+	});
+}
+
+function copyPortalInfo(portalId, portalPin, portalUrl) {
+	const text = `🔐 INFO LOGIN PORTAL PREPAID
+
+Portal ID: ${portalId}
+Portal PIN: ${portalPin}
+URL: ${portalUrl}
+
+Silakan login di portal untuk membeli paket internet.`;
+	
+	navigator.clipboard.writeText(text).then(() => {
+		alert('✅ Info portal berhasil dicopy!');
+	}).catch(() => {
+		alert('❌ Gagal copy. Silakan copy manual.');
+	});
+}
+
+function sendWhatsApp(customerName, portalId, portalPin) {
+	const portalUrl = window.location.origin + '/prepaid/portal/login';
+	
+	const message = `Halo ${customerName},
+
+Akun prepaid Anda sudah aktif! 🎉
+
+📱 *INFO LOGIN PORTAL PREPAID:*
+━━━━━━━━━━━━━━━━━━━━━
+🆔 Portal ID: *${portalId}*
+🔐 Portal PIN: *${portalPin}*
+🌐 URL: ${portalUrl}
+━━━━━━━━━━━━━━━━━━━━━
+
+*CARA MENGGUNAKAN:*
+1. Buka link portal di browser
+2. Login dengan ID & PIN di atas
+3. Pilih & beli paket internet
+4. Bayar & aktivasi otomatis
+
+Internet Anda akan aktif setelah pembelian paket.
+
+Terima kasih! 🙏`;
+
+	// Encode message for WhatsApp URL
+	const encodedMessage = encodeURIComponent(message);
+	const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+	
+	// Open WhatsApp in new tab
+	window.open(whatsappUrl, '_blank');
+}
+</script>
+
+<!-- Migration Modal -->
+<div id="migrationConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+	<div class="flex items-center justify-center min-h-screen p-4">
+		<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+			<div id="migrationModalContent">
+				<!-- Content will be dynamically inserted here -->
+			</div>
+		</div>
+	</div>
+</div>
+
+

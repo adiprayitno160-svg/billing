@@ -1,0 +1,335 @@
+<!-- Page Header -->
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+        <i class="fas fa-database mr-3"></i>Backup & Restore
+    </h1>
+    <p class="text-gray-600">Kelola backup dan restore untuk database dan source code</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <!-- Total Backups -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Total Backup</p>
+                <h3 class="text-2xl font-bold text-gray-800"><%= stats.totalBackups %></h3>
+            </div>
+            <div style="background-color: #dbeafe;" class="p-3 rounded-full">
+                <i class="fas fa-archive text-xl" style="color: #2563eb;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Size -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Total Ukuran</p>
+                <h3 class="text-2xl font-bold text-gray-800"><%= formatSize(stats.totalSize) %></h3>
+            </div>
+            <div style="background-color: #dcfce7;" class="p-3 rounded-full">
+                <i class="fas fa-hdd text-xl" style="color: #16a34a;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest Backup -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Backup Terbaru</p>
+                <h3 class="text-sm font-bold text-gray-800">
+                    <% if (stats.newestBackup) { %>
+                        <%= new Date(stats.newestBackup).toLocaleDateString('id-ID') %>
+                    <% } else { %>
+                        -
+                    <% } %>
+                </h3>
+            </div>
+            <div style="background-color: #f3e8ff;" class="p-3 rounded-full">
+                <i class="fas fa-clock text-xl" style="color: #9333ea;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Oldest Backup -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Backup Terlama</p>
+                <h3 class="text-sm font-bold text-gray-800">
+                    <% if (stats.oldestBackup) { %>
+                        <%= new Date(stats.oldestBackup).toLocaleDateString('id-ID') %>
+                    <% } else { %>
+                        -
+                    <% } %>
+                </h3>
+            </div>
+            <div style="background-color: #ffedd5;" class="p-3 rounded-full">
+                <i class="fas fa-calendar text-xl" style="color: #ea580c;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backup Actions -->
+<div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-download mr-2"></i>Buat Backup Baru
+    </h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Backup Database -->
+        <form action="/backup/database" method="POST" class="flex flex-col">
+            <button type="submit" style="background-color: #2563eb; color: white;" class="flex items-center justify-center hover:opacity-90 font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                <i class="fas fa-database mr-2"></i>
+                Backup Database
+            </button>
+            <p class="text-xs text-gray-500 mt-2 text-center">Backup hanya database MySQL</p>
+        </form>
+
+        <!-- Backup Source Code -->
+        <form action="/backup/source" method="POST" class="flex flex-col">
+            <button type="submit" style="background-color: #16a34a; color: white;" class="flex items-center justify-center hover:opacity-90 font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                <i class="fas fa-code mr-2"></i>
+                Backup Source Code
+            </button>
+            <p class="text-xs text-gray-500 mt-2 text-center">Backup hanya source code aplikasi</p>
+        </form>
+
+        <!-- Backup Full -->
+        <form action="/backup/full" method="POST" class="flex flex-col">
+            <button type="submit" style="background-color: #9333ea; color: white;" class="flex items-center justify-center hover:opacity-90 font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                <i class="fas fa-archive mr-2"></i>
+                Backup Lengkap
+            </button>
+            <p class="text-xs text-gray-500 mt-2 text-center">Backup database & source code</p>
+        </form>
+    </div>
+</div>
+
+<!-- Upload & Restore -->
+<div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-upload mr-2"></i>Upload & Restore Backup
+    </h2>
+    
+    <form action="/backup/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- File Upload -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">File Backup</label>
+                <input type="file" name="backupFile" accept=".sql,.zip" required 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <p class="text-xs text-gray-500 mt-1">Format: .sql (database) atau .zip (source code)</p>
+            </div>
+
+            <!-- Backup Type -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Backup</label>
+                <select name="backupType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="database">Database (.sql)</option>
+                    <option value="source">Source Code (.zip)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button type="submit" style="background-color: #4f46e5; color: white;" class="hover:opacity-90 font-semibold py-2 px-6 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                <i class="fas fa-upload mr-2"></i>
+                Upload & Restore
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Backup List -->
+<div class="bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-list mr-2"></i>Daftar Backup
+    </h2>
+
+    <% if (backups.length === 0) { %>
+        <div class="text-center py-8">
+            <i class="fas fa-folder-open text-gray-300 text-6xl mb-4"></i>
+            <p class="text-gray-500 text-lg">Belum ada backup tersedia</p>
+            <p class="text-gray-400 text-sm">Buat backup baru untuk memulai</p>
+        </div>
+    <% } else { %>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama File</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ukuran</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <% backups.forEach(backup => { %>
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i class="fas fa-<%= backup.type === 'database' ? 'database' : backup.type === 'source' ? 'code' : 'archive' %> text-gray-400 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-900"><%= backup.filename %></span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <% if (backup.type === 'database') { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full" style="background-color: #dbeafe; color: #1e40af;">
+                                        Database
+                                    </span>
+                                <% } else if (backup.type === 'source') { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full" style="background-color: #dcfce7; color: #166534;">
+                                        Source Code
+                                    </span>
+                                <% } else { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full" style="background-color: #f3e8ff; color: #6b21a8;">
+                                        Full
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <%= formatSize(backup.size) %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <%= new Date(backup.date).toLocaleString('id-ID') %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    <!-- Download -->
+                                    <a href="/backup/download/<%= backup.filename %>" 
+                                       style="color: #2563eb;" class="hover:opacity-75 transition-opacity" 
+                                       title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+
+                                    <!-- Restore (only for database) -->
+                                    <% if (backup.type === 'database') { %>
+                                        <button onclick="confirmRestore('<%= backup.filename %>')" 
+                                                style="color: #16a34a; border: none; background: none; cursor: pointer;" 
+                                                class="hover:opacity-75 transition-opacity" 
+                                                title="Restore">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    <% } %>
+
+                                    <!-- Delete -->
+                                    <button onclick="confirmDelete('<%= backup.filename %>')" 
+                                            style="color: #dc2626; border: none; background: none; cursor: pointer;" 
+                                            class="hover:opacity-75 transition-opacity" 
+                                            title="Hapus">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full" style="background-color: #fee2e2;">
+                <i class="fas fa-exclamation-triangle text-2xl" style="color: #dc2626;"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Hapus Backup?</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    Apakah Anda yakin ingin menghapus backup ini? Tindakan ini tidak dapat dibatalkan.
+                </p>
+            </div>
+            <form id="deleteForm" method="POST" action="/backup/delete">
+                <input type="hidden" name="filename" id="deleteFilename">
+                <div class="items-center px-4 py-3 flex justify-center space-x-3">
+                    <button type="button" onclick="closeDeleteModal()" 
+                            style="background-color: #d1d5db; color: #1f2937;" 
+                            class="px-4 py-2 text-base font-medium rounded-md shadow-sm hover:opacity-90 focus:outline-none">
+                        Batal
+                    </button>
+                    <button type="submit" 
+                            style="background-color: #dc2626; color: white;" 
+                            class="px-4 py-2 text-base font-medium rounded-md shadow-sm hover:opacity-90 focus:outline-none">
+                        Hapus
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Confirmation Modal -->
+<div id="restoreModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full" style="background-color: #fef3c7;">
+                <i class="fas fa-exclamation-triangle text-2xl" style="color: #d97706;"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Restore Database?</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    Apakah Anda yakin ingin restore database? Data saat ini akan diganti dengan data dari backup.
+                </p>
+                <p class="text-sm text-red-600 font-semibold mt-2">
+                    Pastikan Anda sudah membuat backup data saat ini!
+                </p>
+            </div>
+            <form id="restoreForm" method="POST" action="/backup/restore">
+                <input type="hidden" name="filename" id="restoreFilename">
+                <div class="items-center px-4 py-3 flex justify-center space-x-3">
+                    <button type="button" onclick="closeRestoreModal()" 
+                            style="background-color: #d1d5db; color: #1f2937;" 
+                            class="px-4 py-2 text-base font-medium rounded-md shadow-sm hover:opacity-90 focus:outline-none">
+                        Batal
+                    </button>
+                    <button type="submit" 
+                            style="background-color: #16a34a; color: white;" 
+                            class="px-4 py-2 text-base font-medium rounded-md shadow-sm hover:opacity-90 focus:outline-none">
+                        Restore
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmDelete(filename) {
+        document.getElementById('deleteFilename').value = filename;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+
+    function confirmRestore(filename) {
+        document.getElementById('restoreFilename').value = filename;
+        document.getElementById('restoreModal').classList.remove('hidden');
+    }
+
+    function closeRestoreModal() {
+        document.getElementById('restoreModal').classList.add('hidden');
+    }
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        const deleteModal = document.getElementById('deleteModal');
+        const restoreModal = document.getElementById('restoreModal');
+        
+        if (event.target === deleteModal) {
+            closeDeleteModal();
+        }
+        if (event.target === restoreModal) {
+            closeRestoreModal();
+        }
+    }
+</script>

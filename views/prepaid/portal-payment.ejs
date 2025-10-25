@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Pembayaran</h1>
+                    <p class="text-blue-100 text-sm">Selesaikan pembayaran Anda</p>
+                </div>
+                <a href="/prepaid/portal/packages" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Kembali
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Order Summary -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow-lg p-6 sticky top-4">
+                        <h3 class="font-bold text-lg mb-4 pb-4 border-b">
+                            <i class="fas fa-receipt text-blue-600 mr-2"></i>Ringkasan Pesanan
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Paket</p>
+                                <p class="font-semibold text-gray-800"><%= package.name %></p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Kecepatan</p>
+                                <p class="font-semibold text-gray-800">
+                                    <%= package.download_mbps %>/<%= package.upload_mbps %> Mbps
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Durasi</p>
+                                <p class="font-semibold text-gray-800">
+                                    <% if (package.package_type === 'daily') { %>
+                                        <%= Math.floor(package.duration_hours / 24) %> Hari
+                                    <% } else if (package.package_type === 'weekly') { %>
+                                        7 Hari
+                                    <% } else if (package.package_type === 'monthly') { %>
+                                        30 Hari
+                                    <% } else { %>
+                                        <%= package.duration_hours %> Jam
+                                    <% } %>
+                                </p>
+                            </div>
+
+                            <div class="border-t pt-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Subtotal</span>
+                                    <span class="font-semibold">Rp <%= package.price.toLocaleString('id-ID') %></span>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-lg font-bold text-gray-800">Total</span>
+                                    <span class="text-2xl font-bold text-blue-600">
+                                        Rp <%= package.price.toLocaleString('id-ID') %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Form -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="font-bold text-lg mb-6 pb-4 border-b">
+                            <i class="fas fa-credit-card text-blue-600 mr-2"></i>Metode Pembayaran
+                        </h3>
+
+                        <% if (error) { %>
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+                            <p class="text-red-700"><%= error %></p>
+                        </div>
+                        <% } %>
+
+                        <form action="/prepaid/portal/payment/process" method="POST" id="paymentForm">
+                            <input type="hidden" name="package_id" value="<%= package.id %>">
+
+                            <!-- Payment Methods -->
+                            <div class="space-y-4 mb-6">
+                                <!-- Cash (for testing) -->
+                                <label class="block cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 transition">
+                                        <div class="flex items-center">
+                                            <input type="radio" name="payment_method" value="cash" class="w-4 h-4 text-blue-600" checked>
+                                            <div class="ml-3 flex-1">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-semibold text-gray-800">
+                                                        <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
+                                                        Bayar Tunai / Transfer Manual
+                                                    </span>
+                                                    <span class="text-sm text-gray-500">Instant</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mt-1">
+                                                    Bayar ke kasir atau transfer manual lalu konfirmasi
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <!-- QRIS -->
+                                <% if (gateways && gateways.length > 0) { %>
+                                <label class="block cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 transition">
+                                        <div class="flex items-center">
+                                            <input type="radio" name="payment_method" value="qris" class="w-4 h-4 text-blue-600">
+                                            <div class="ml-3 flex-1">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-semibold text-gray-800">
+                                                        <i class="fas fa-qrcode text-blue-600 mr-2"></i>
+                                                        QRIS
+                                                    </span>
+                                                    <span class="text-sm bg-green-100 text-green-700 px-2 py-1 rounded">Rekomendasi</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mt-1">
+                                                    Scan QR dengan GoPay, OVO, DANA, atau mobile banking
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <!-- Bank Transfer -->
+                                <label class="block cursor-pointer">
+                                    <div class="border-2 rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 transition">
+                                        <div class="flex items-center">
+                                            <input type="radio" name="payment_method" value="bank_transfer" class="w-4 h-4 text-blue-600">
+                                            <div class="ml-3 flex-1">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-semibold text-gray-800">
+                                                        <i class="fas fa-university text-purple-600 mr-2"></i>
+                                                        Transfer Bank
+                                                    </span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mt-1">
+                                                    BCA, Mandiri, BNI, BRI
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                                <% } %>
+                            </div>
+
+                            <!-- Terms & Conditions -->
+                            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                                <label class="flex items-start cursor-pointer">
+                                    <input type="checkbox" required class="mt-1 w-4 h-4 text-blue-600">
+                                    <span class="ml-3 text-sm text-gray-700">
+                                        Saya setuju dengan <a href="#" class="text-blue-600 hover:underline">syarat dan ketentuan</a> 
+                                        yang berlaku. Paket akan aktif otomatis setelah pembayaran dikonfirmasi.
+                                    </span>
+                                </label>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" 
+                                    class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-6 rounded-lg hover:shadow-lg transform hover:scale-105 transition duration-200">
+                                <i class="fas fa-check-circle mr-2"></i>Konfirmasi & Bayar
+                            </button>
+                        </form>
+
+                        <!-- Security Notice -->
+                        <div class="mt-6 flex items-center justify-center text-sm text-gray-500">
+                            <i class="fas fa-lock mr-2"></i>
+                            <span>Pembayaran Anda aman dan terenkripsi</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-12 py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2025 Portal Prepaid. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
+

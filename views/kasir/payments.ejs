@@ -1,0 +1,911 @@
+<!-- Halaman Pembayaran Kasir - Modern Version -->
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header with Live Clock -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-lg p-6 text-white">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-3xl font-bold mb-2">
+                    💳 Proses Pembayaran
+                </h2>
+                <p class="text-blue-100">Sistem pembayaran tagihan internet</p>
+            </div>
+            <div class="text-right bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3">
+                <div class="text-sm text-blue-100">Waktu Server</div>
+                <div class="text-xl font-bold" id="currentDateTime"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Search & Customer Selection -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Step 1: Search Customer -->
+            <div class="bg-white rounded-2xl shadow-sm border-2 border-gray-100 overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mr-3">
+                            <span class="text-white font-bold text-lg">1</span>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Cari Pelanggan</h3>
+                            <p class="text-sm text-gray-600">Masukkan kode atau nama pelanggan</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400 text-lg"></i>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="customerSearch" 
+                            placeholder="Ketik kode pelanggan, nama, atau no. HP..." 
+                            class="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all"
+                            autofocus
+                        >
+                    </div>
+
+                    <!-- Quick Search Results -->
+                    <div id="searchResults" class="hidden mt-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">Hasil Pencarian:</div>
+                        <div id="customerList" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Customer Info & Invoices (Hidden until customer selected) -->
+            <div id="customerInfoCard" class="hidden bg-white rounded-2xl shadow-sm border-2 border-gray-100 overflow-hidden">
+                <div class="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-green-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center mr-3">
+                                <span class="text-white font-bold text-lg">2</span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Data Pelanggan</h3>
+                                <p class="text-sm text-gray-600">Informasi dan tagihan</p>
+                            </div>
+                        </div>
+                        <button 
+                            onclick="resetForm()" 
+                            class="text-gray-600 hover:text-gray-900 transition"
+                            title="Ganti Pelanggan"
+                        >
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <!-- Customer Info Card -->
+                    <div id="customerInfo" class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 mb-6 border border-gray-200">
+                        <!-- Will be populated by JS -->
+                    </div>
+
+                    <!-- Invoices List -->
+                    <div id="invoicesSection">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-file-invoice text-blue-600 mr-2"></i>
+                                Tagihan Pending
+                            </h4>
+                            <span id="invoiceCount" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold"></span>
+                        </div>
+                        <div id="invoicesList" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Payment Form -->
+        <div class="lg:col-span-1">
+            <div class="sticky top-6">
+                <!-- Step 3: Payment Process -->
+                <div id="paymentCard" class="hidden bg-white rounded-2xl shadow-lg border-2 border-gray-100 overflow-hidden">
+                    <div class="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-b border-purple-200">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center mr-3">
+                                <span class="text-white font-bold text-lg">3</span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Pembayaran</h3>
+                                <p class="text-sm text-gray-600">Pilih metode bayar</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="paymentForm" action="/kasir/payments" method="POST" class="p-6">
+                        <input type="hidden" name="customerId" id="customerId">
+                        <input type="hidden" name="paymentType" id="paymentType">
+                        <input type="hidden" name="amount" id="hiddenAmount">
+                        
+                        <!-- Payment Type -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-3">
+                                Jenis Pembayaran
+                            </label>
+                            <div class="space-y-3">
+                                <div class="payment-type-btn border-2 border-gray-200 rounded-xl p-4 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all" data-type="full">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                                            <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-900">Bayar Lunas</div>
+                                            <div class="text-xs text-gray-600">Semua tagihan</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-type-btn border-2 border-gray-200 rounded-xl p-4 cursor-pointer hover:border-yellow-400 hover:bg-yellow-50 transition-all" data-type="partial">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                                            <i class="fas fa-coins text-yellow-600 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-900">Bayar Sebagian</div>
+                                            <div class="text-xs text-gray-600">Cicilan</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-type-btn border-2 border-gray-200 rounded-xl p-4 cursor-pointer hover:border-red-400 hover:bg-red-50 transition-all" data-type="debt">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                                            <i class="fas fa-file-invoice text-red-600 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-900">Catat Hutang</div>
+                                            <div class="text-xs text-gray-600">Bayar nanti</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amount Field (Partial Only) -->
+                        <div id="amountField" class="hidden mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                Jumlah Bayar
+                            </label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-4 text-gray-500 font-semibold">Rp</span>
+                                <input 
+                                    type="text" 
+                                    id="amount"
+                                    class="w-full pl-12 pr-4 py-3 text-lg font-bold border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500"
+                                    placeholder="0"
+                                >
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Total: <span id="totalDue" class="font-bold text-gray-900">Rp 0</span>
+                            </p>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div id="paymentMethodField" class="hidden mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                Metode Pembayaran
+                            </label>
+                            <select 
+                                name="paymentMethod" 
+                                id="paymentMethod"
+                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-semibold"
+                            >
+                                <option value="">Pilih Metode</option>
+                                <option value="cash">💵 Tunai</option>
+                                <option value="transfer">🏦 Transfer</option>
+                                <option value="ewallet">📱 E-Wallet</option>
+                                <option value="qris">📊 QRIS</option>
+                            </select>
+                        </div>
+
+                        <!-- Cash Calculation -->
+                        <div id="cashCalculation" class="hidden mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">Uang Diterima</label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-3 text-gray-500">Rp</span>
+                                        <input 
+                                            type="text" 
+                                            id="cashReceived"
+                                            class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg font-bold"
+                                            placeholder="0"
+                                        >
+                                    </div>
+                                </div>
+                                <div class="border-t pt-3">
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-sm text-gray-600">Total Bayar:</span>
+                                        <span class="font-bold text-gray-900" id="totalPayment">Rp 0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-sm font-bold text-gray-900">Kembalian:</span>
+                                        <span class="text-xl font-bold text-green-600" id="change">Rp 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Summary -->
+                        <div id="paymentSummary" class="hidden mb-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border-2 border-blue-200">
+                            <h4 class="font-bold text-gray-900 mb-3 flex items-center">
+                                <i class="fas fa-receipt text-blue-600 mr-2"></i>
+                                Ringkasan
+                            </h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-700">Total Tagihan:</span>
+                                    <span class="font-bold text-gray-900" id="summarySubtotal">Rp 0</span>
+                                </div>
+                                <div id="summaryRemaining" class="hidden flex justify-between text-sm bg-yellow-100 rounded-lg p-2 -mx-2">
+                                    <span class="text-yellow-800 font-semibold">Sisa:</span>
+                                    <span class="font-bold text-yellow-800" id="summaryRemainingAmount">Rp 0</span>
+                                </div>
+                                <div class="border-t-2 border-blue-300 pt-2 mt-2">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold text-gray-900">Dibayar:</span>
+                                        <span class="text-2xl font-black text-blue-600" id="summaryTotal">Rp 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                Catatan <span class="font-normal text-gray-400">(opsional)</span>
+                            </label>
+                            <textarea 
+                                name="notes" 
+                                id="notes"
+                                rows="2"
+                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500"
+                                placeholder="Catatan tambahan..."
+                            ></textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="space-y-3">
+                            <button 
+                                type="submit" 
+                                class="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition duration-200 font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            >
+                                <i class="fas fa-check-circle mr-2"></i>Proses Pembayaran
+                            </button>
+                            <button 
+                                type="button" 
+                                onclick="resetForm()"
+                                class="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition duration-200 font-semibold"
+                            >
+                                <i class="fas fa-times mr-2"></i>Batal
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Customers -->
+    <div id="customerListTable" class="bg-white rounded-2xl shadow-sm border-2 border-gray-100 overflow-hidden">
+        <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                <i class="fas fa-users text-blue-600 mr-2"></i>
+                Pelanggan dengan Tagihan
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">Klik untuk memproses pembayaran</p>
+        </div>
+        
+        <% if (recentCustomers && recentCustomers.length > 0) { %>
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="bg-gray-50 border-b-2 border-gray-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase">Kode</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase">Pelanggan</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase">Paket</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase">Tagihan</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase">Total</th>
+                            <th class="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <% recentCustomers.forEach(customer => { %>
+                            <tr class="hover:bg-blue-50 transition duration-150 cursor-pointer customer-row" data-customer='<%= JSON.stringify(customer) %>'>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="font-bold text-gray-900"><%= customer.customer_code %></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mr-3 shadow-sm">
+                                            <i class="fas fa-user text-white"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-900"><%= customer.name %></div>
+                                            <div class="text-xs text-gray-500"><%= customer.phone || '-' %></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center text-sm font-semibold text-gray-900">
+                                        <i class="fas fa-wifi text-blue-600 mr-2"></i>
+                                        <%= customer.package_name || 'No Paket' %>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <% 
+                                    // Ensure we have valid status values
+                                    const customerStatus = customer.status || 'active';
+                                    const isIsolatedValue = customer.is_isolated || 0;
+                                    const isIsolated = (isIsolatedValue == 1 || isIsolatedValue === true || isIsolatedValue === '1' || customerStatus === 'isolated' || customerStatus === 'suspended');
+                                    %>
+                                    <% if (isIsolated) { %>
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-red-100 text-red-700">
+                                            <i class="fas fa-ban mr-1"></i>ISOLIR
+                                        </span>
+                                    <% } else if (customerStatus === 'active') { %>
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-green-100 text-green-700">
+                                            <i class="fas fa-check-circle mr-1"></i>AKTIF
+                                        </span>
+                                    <% } else { %>
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700">
+                                            <i class="fas fa-circle mr-1"></i><%= (customerStatus || 'ACTIVE').toUpperCase() %>
+                                        </span>
+                                    <% } %>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <% if (customer.pending_count > 0) { %>
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-orange-100 text-orange-700">
+                                            <i class="fas fa-file-invoice mr-1"></i>
+                                            <%= customer.pending_count %> Tagihan
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-xs text-green-600 font-semibold">
+                                            <i class="fas fa-check-circle mr-1"></i>Lunas
+                                        </span>
+                                    <% } %>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <% if (customer.total_pending && customer.total_pending > 0) { %>
+                                        <div class="font-bold text-red-600 text-lg">
+                                            Rp <%= customer.total_pending.toLocaleString('id-ID') %>
+                                        </div>
+                                    <% } else { %>
+                                        <div class="text-gray-400">-</div>
+                                    <% } %>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <button 
+                                        class="select-customer-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition duration-150 font-bold shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                                        data-customer-id="<%= customer.id %>"
+                                        data-customer-name="<%= customer.name %>"
+                                        data-customer-code="<%= customer.customer_code %>"
+                                        data-customer-phone="<%= customer.phone || '' %>"
+                                        data-customer-package="<%= customer.package_name || '' %>"
+                                        data-customer-isolated="<%= customer.is_isolated %>"
+                                        data-customer-pending="<%= customer.pending_count %>"
+                                        data-customer-total="<%= customer.total_pending || 0 %>"
+                                    >
+                                        <i class="fas fa-credit-card mr-1"></i>Bayar
+                                    </button>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="text-center py-16">
+                <div class="inline-block w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                    <i class="fas fa-users text-gray-400 text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Tidak Ada Tagihan Pending</h3>
+                <p class="text-gray-600">Gunakan pencarian untuk mencari pelanggan</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<style>
+.payment-type-btn {
+    position: relative;
+    transition: all 0.2s ease;
+}
+.payment-type-btn.selected {
+    border-color: #3B82F6 !important;
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%) !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+    transform: scale(1.02);
+}
+.payment-type-btn.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #3B82F6;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>
+
+<script>
+let searchTimeout;
+let selectedCustomer = null;
+let pendingInvoices = [];
+let selectedPaymentType = null;
+let totalDueAmount = 0;
+
+// Update date time
+function updateDateTime() {
+    const now = new Date();
+    const options = {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    };
+    document.getElementById('currentDateTime').textContent = now.toLocaleString('id-ID', options);
+}
+setInterval(updateDateTime, 1000);
+updateDateTime();
+
+// Search customer
+document.getElementById('customerSearch').addEventListener('input', function(e) {
+    const query = e.target.value.trim();
+    
+    clearTimeout(searchTimeout);
+    
+    if (query.length < 2) {
+        document.getElementById('searchResults').classList.add('hidden');
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        searchCustomers(query);
+    }, 300);
+});
+
+async function searchCustomers(query) {
+    try {
+        const response = await fetch(`/kasir/api/search-customer?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success && data.data.length > 0) {
+            displaySearchResults(data.data);
+        } else {
+            document.getElementById('customerList').innerHTML = '<div class="text-center py-4 text-gray-500">Tidak ada hasil ditemukan</div>';
+            document.getElementById('searchResults').classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error searching customers:', error);
+    }
+}
+
+function displaySearchResults(customers) {
+    const listEl = document.getElementById('customerList');
+    listEl.innerHTML = customers.map(customer => `
+        <div class="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-all transform hover:scale-[1.02]" onclick='selectCustomer(${JSON.stringify(customer)})'>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center flex-1">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mr-4 shadow-sm">
+                        <i class="fas fa-user text-white text-lg"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-bold text-gray-900 text-lg">${customer.name}</div>
+                        <div class="text-sm text-gray-600 flex items-center gap-3 mt-1">
+                            <span><i class="fas fa-id-card text-blue-600 mr-1"></i>${customer.customer_code}</span>
+                            <span><i class="fas fa-phone text-green-600 mr-1"></i>${customer.phone || '-'}</span>
+                            ${(customer.is_isolated == 1 || customer.is_isolated === true || customer.is_isolated === '1' || customer.status === 'isolated' || customer.status === 'suspended') ? '<span class="text-red-600 font-semibold"><i class="fas fa-ban mr-1"></i>Isolir</span>' : '<span class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Aktif</span>'}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right ml-4">
+                    ${customer.pending_count > 0 ? 
+                        `<div class="px-4 py-2 bg-red-100 text-red-800 rounded-lg font-bold text-sm mb-1">
+                            ${customer.pending_count} Tagihan
+                        </div>
+                        <div class="font-bold text-red-600 text-lg">Rp ${(customer.total_pending || 0).toLocaleString('id-ID')}</div>` : 
+                        '<div class="text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i>Lunas</div>'}
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    document.getElementById('searchResults').classList.remove('hidden');
+}
+
+function selectCustomerFromTable(customer) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('customerSearch').value = `${customer.name} (${customer.customer_code})`;
+    selectCustomer(customer);
+}
+
+async function selectCustomer(customer) {
+    selectedCustomer = customer;
+    
+    // Hide search and table
+    document.getElementById('searchResults').classList.add('hidden');
+    document.getElementById('customerListTable').style.display = 'none';
+    
+    // Show customer info and payment card
+    displayCustomerInfo(customer);
+    document.getElementById('customerInfoCard').classList.remove('hidden');
+    document.getElementById('paymentCard').classList.remove('hidden');
+    
+    // Load invoices
+    await loadCustomerInvoices(customer.id);
+}
+
+function displayCustomerInfo(customer) {
+    // Consistent status checking
+    const isIsolated = (customer.is_isolated == 1 || customer.is_isolated === true || customer.is_isolated === '1' || customer.status === 'isolated' || customer.status === 'suspended');
+    const statusClass = isIsolated ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100';
+    const statusIcon = isIsolated ? 'ban' : 'check-circle';
+    const statusText = isIsolated ? 'ISOLIR' : 'AKTIF';
+    
+    document.getElementById('customerInfo').innerHTML = `
+        <div class="flex items-center mb-4">
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+                <i class="fas fa-user text-white text-2xl"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-2xl font-bold text-gray-900">${customer.name}</div>
+                <div class="text-sm text-gray-600 mt-1">
+                    <span class="font-semibold">${customer.customer_code}</span>
+                </div>
+            </div>
+            <div>
+                <span class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-bold ${statusClass}">
+                    <i class="fas fa-${statusIcon} mr-1"></i>${statusText}
+                </span>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="text-center p-3 bg-white rounded-xl border border-gray-200">
+                <div class="text-xs text-gray-600 mb-1">Telepon</div>
+                <div class="font-bold text-gray-900">${customer.phone || '-'}</div>
+            </div>
+            <div class="text-center p-3 bg-white rounded-xl border border-gray-200">
+                <div class="text-xs text-gray-600 mb-1">Paket Internet</div>
+                <div class="font-bold text-gray-900">${customer.package_name || '-'}</div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('customerId').value = customer.id;
+}
+
+async function loadCustomerInvoices(customerId) {
+    try {
+        const response = await fetch(`/kasir/api/customer/${customerId}/invoices`);
+        const data = await response.json();
+        
+        if (data.success) {
+            pendingInvoices = data.data;
+            displayInvoices(data.data);
+        }
+    } catch (error) {
+        console.error('Error loading invoices:', error);
+    }
+}
+
+function displayInvoices(invoices) {
+    const listEl = document.getElementById('invoicesList');
+    const countEl = document.getElementById('invoiceCount');
+    
+    if (invoices.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-8 bg-green-50 rounded-xl border-2 border-green-200"><div class="text-green-600 font-bold text-lg"><i class="fas fa-check-circle mr-2"></i>Tidak ada tagihan pending</div></div>';
+        countEl.textContent = '0 Tagihan';
+        totalDueAmount = 0;
+        document.getElementById('totalDue').textContent = 'Rp 0';
+        return;
+    }
+    
+    const totalDue = invoices.reduce((sum, inv) => sum + (inv.remaining_amount || inv.total_amount), 0);
+    totalDueAmount = totalDue;
+    countEl.textContent = `${invoices.length} Tagihan`;
+    
+    listEl.innerHTML = invoices.map(invoice => {
+        const amount = invoice.remaining_amount || invoice.total_amount;
+        const statusConfig = {
+            'overdue': { bg: 'bg-red-100', text: 'text-red-700', icon: 'exclamation-circle', label: 'TERLAMBAT' },
+            'partial': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'clock', label: 'SEBAGIAN' },
+            'sent': { bg: 'bg-blue-100', text: 'text-blue-700', icon: 'file-invoice', label: 'PENDING' }
+        };
+        const status = statusConfig[invoice.status] || statusConfig['sent'];
+        
+        return `
+            <div class="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:bg-blue-50 transition-all">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <div class="font-bold text-gray-900 text-lg">${invoice.invoice_number}</div>
+                        <div class="text-sm text-gray-600 mt-1">
+                            <i class="fas fa-calendar text-blue-600 mr-1"></i>
+                            Periode: ${invoice.period}
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1.5 ${status.bg} ${status.text} rounded-lg text-xs font-bold">
+                        <i class="fas fa-${status.icon} mr-1"></i>${status.label}
+                    </span>
+                </div>
+                <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
+                    <span class="text-sm text-gray-600 font-semibold">Total:</span>
+                    <span class="text-xl font-bold text-red-600">Rp ${amount.toLocaleString('id-ID')}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('totalDue').textContent = `Rp ${totalDue.toLocaleString('id-ID')}`;
+}
+
+// Payment type selection
+document.querySelectorAll('.payment-type-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const type = this.dataset.type;
+        selectPaymentType(type, this);
+    });
+});
+
+function selectPaymentType(type, element) {
+    selectedPaymentType = type;
+    document.getElementById('paymentType').value = type;
+    
+    // Update UI
+    document.querySelectorAll('.payment-type-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    element.classList.add('selected');
+    
+    // Show/hide fields
+    const amountField = document.getElementById('amountField');
+    const paymentMethodField = document.getElementById('paymentMethodField');
+    const paymentSummary = document.getElementById('paymentSummary');
+    
+    if (type === 'partial') {
+        amountField.classList.remove('hidden');
+        paymentMethodField.classList.remove('hidden');
+    } else if (type === 'full') {
+        amountField.classList.add('hidden');
+        paymentMethodField.classList.remove('hidden');
+        document.getElementById('amount').value = totalDueAmount.toLocaleString('id-ID');
+    } else if (type === 'debt') {
+        amountField.classList.add('hidden');
+        paymentMethodField.classList.add('hidden');
+        document.getElementById('cashCalculation').classList.add('hidden');
+    }
+    
+    updatePaymentSummary();
+    paymentSummary.classList.remove('hidden');
+}
+
+function updatePaymentSummary() {
+    let amount = 0;
+    let remaining = 0;
+    
+    if (selectedPaymentType === 'full') {
+        amount = totalDueAmount;
+        remaining = 0;
+    } else if (selectedPaymentType === 'partial') {
+        const inputAmount = document.getElementById('amount').value.replace(/\D/g, '');
+        amount = parseFloat(inputAmount) || 0;
+        remaining = Math.max(0, totalDueAmount - amount);
+    } else if (selectedPaymentType === 'debt') {
+        amount = 0;
+        remaining = totalDueAmount;
+    }
+    
+    document.getElementById('summarySubtotal').textContent = `Rp ${totalDueAmount.toLocaleString('id-ID')}`;
+    document.getElementById('summaryTotal').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
+    
+    if (remaining > 0) {
+        document.getElementById('summaryRemaining').classList.remove('hidden');
+        document.getElementById('summaryRemainingAmount').textContent = `Rp ${remaining.toLocaleString('id-ID')}`;
+    } else {
+        document.getElementById('summaryRemaining').classList.add('hidden');
+    }
+}
+
+// Format currency input
+document.getElementById('amount').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    e.target.value = value ? parseInt(value).toLocaleString('id-ID') : '';
+    updatePaymentSummary();
+    calculateChange();
+});
+
+document.getElementById('cashReceived').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    e.target.value = value ? parseInt(value).toLocaleString('id-ID') : '';
+    calculateChange();
+});
+
+// Payment method change
+document.getElementById('paymentMethod').addEventListener('change', function() {
+    if (this.value === 'cash') {
+        document.getElementById('cashCalculation').classList.remove('hidden');
+        calculateChange();
+    } else {
+        document.getElementById('cashCalculation').classList.add('hidden');
+    }
+});
+
+function calculateChange() {
+    let amount = 0;
+    if (selectedPaymentType === 'full') {
+        amount = totalDueAmount;
+    } else if (selectedPaymentType === 'partial') {
+        const inputAmount = document.getElementById('amount').value.replace(/\D/g, '');
+        amount = parseFloat(inputAmount) || 0;
+    }
+    
+    const cashReceivedValue = document.getElementById('cashReceived').value.replace(/\D/g, '');
+    const cashReceived = parseFloat(cashReceivedValue) || 0;
+    const change = cashReceived - amount;
+    
+    document.getElementById('totalPayment').textContent = `Rp ${amount.toLocaleString('id-ID')}`;
+    document.getElementById('change').textContent = `Rp ${Math.max(0, change).toLocaleString('id-ID')}`;
+    
+    if (change < 0) {
+        document.getElementById('change').classList.add('text-red-600');
+        document.getElementById('change').classList.remove('text-green-600');
+    } else {
+        document.getElementById('change').classList.add('text-green-600');
+        document.getElementById('change').classList.remove('text-red-600');
+    }
+}
+
+// Form submission
+document.getElementById('paymentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!selectedPaymentType) {
+        alert('❌ Pilih jenis pembayaran terlebih dahulu');
+        return false;
+    }
+    
+    let amount = 0;
+    if (selectedPaymentType === 'full') {
+        amount = totalDueAmount;
+    } else if (selectedPaymentType === 'partial') {
+        const inputAmount = document.getElementById('amount').value.replace(/\D/g, '');
+        amount = parseFloat(inputAmount) || 0;
+        if (amount <= 0) {
+            alert('❌ Jumlah pembayaran harus lebih dari 0');
+            return false;
+        }
+        if (amount > totalDueAmount) {
+            alert('❌ Jumlah pembayaran melebihi total tagihan');
+            return false;
+        }
+    }
+    
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    if (selectedPaymentType !== 'debt' && !paymentMethod) {
+        alert('❌ Pilih metode pembayaran');
+        return false;
+    }
+    
+    if (paymentMethod === 'cash' && selectedPaymentType !== 'debt') {
+        const cashReceivedValue = document.getElementById('cashReceived').value.replace(/\D/g, '');
+        const cashReceived = parseFloat(cashReceivedValue) || 0;
+        if (cashReceived < amount) {
+            alert('❌ Uang diterima kurang dari jumlah pembayaran');
+            return false;
+        }
+    }
+    
+    // Confirmation
+    let confirmMsg = `💳 KONFIRMASI PEMBAYARAN\n\n`;
+    confirmMsg += `👤 ${selectedCustomer.name}\n`;
+    confirmMsg += `🆔 ${selectedCustomer.customer_code}\n\n`;
+    
+    if (selectedPaymentType === 'full') {
+        confirmMsg += `✅ BAYAR LUNAS\n`;
+        confirmMsg += `💰 Rp ${amount.toLocaleString('id-ID')}\n`;
+        confirmMsg += `💵 ${paymentMethod.toUpperCase()}\n`;
+    } else if (selectedPaymentType === 'partial') {
+        const remaining = totalDueAmount - amount;
+        confirmMsg += `💵 BAYAR SEBAGIAN\n`;
+        confirmMsg += `💰 Rp ${amount.toLocaleString('id-ID')}\n`;
+        confirmMsg += `💵 ${paymentMethod.toUpperCase()}\n`;
+        confirmMsg += `📊 Sisa: Rp ${remaining.toLocaleString('id-ID')}`;
+    } else if (selectedPaymentType === 'debt') {
+        confirmMsg += `📝 CATAT HUTANG\n`;
+        confirmMsg += `💰 Rp ${totalDueAmount.toLocaleString('id-ID')}`;
+    }
+    
+    confirmMsg += `\n\nProses pembayaran?`;
+    
+    if (!confirm(confirmMsg)) {
+        return false;
+    }
+    
+    // Set hidden amount field
+    document.getElementById('hiddenAmount').value = amount;
+    
+    // Submit form
+    this.submit();
+});
+
+function resetForm() {
+    document.getElementById('customerSearch').value = '';
+    document.getElementById('searchResults').classList.add('hidden');
+    document.getElementById('customerInfoCard').classList.add('hidden');
+    document.getElementById('paymentCard').classList.add('hidden');
+    document.getElementById('customerListTable').style.display = 'block';
+    document.getElementById('paymentForm').reset();
+    
+    selectedCustomer = null;
+    pendingInvoices = [];
+    selectedPaymentType = null;
+    totalDueAmount = 0;
+    
+    document.querySelectorAll('.payment-type-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    document.getElementById('paymentSummary').classList.add('hidden');
+    document.getElementById('amountField').classList.add('hidden');
+    document.getElementById('paymentMethodField').classList.add('hidden');
+    document.getElementById('cashCalculation').classList.add('hidden');
+    
+    document.getElementById('customerSearch').focus();
+}
+
+// Event listeners for customer rows
+document.addEventListener('DOMContentLoaded', function() {
+    // Click on row
+    document.querySelectorAll('.customer-row').forEach(row => {
+        row.addEventListener('click', function() {
+            const customerData = this.getAttribute('data-customer');
+            if (customerData) {
+                try {
+                    const customer = JSON.parse(customerData);
+                    selectCustomerFromTable(customer);
+                } catch (e) {
+                    console.error('Error parsing customer data:', e);
+                }
+            }
+        });
+    });
+    
+    // Click on button
+    document.querySelectorAll('.select-customer-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const customer = {
+                id: this.dataset.customerId,
+                name: this.dataset.customerName,
+                customer_code: this.dataset.customerCode,
+                phone: this.dataset.customerPhone,
+                package_name: this.dataset.customerPackage,
+                is_isolated: this.dataset.customerIsolated === 'true' || this.dataset.customerIsolated === '1',
+                pending_count: parseInt(this.dataset.customerPending) || 0,
+                total_pending: parseFloat(this.dataset.customerTotal) || 0
+            };
+            selectCustomerFromTable(customer);
+        });
+    });
+});
+
+// Focus on search
+document.getElementById('customerSearch').focus();
+</script>

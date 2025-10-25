@@ -1,0 +1,250 @@
+<!-- Create Maintenance Schedule -->
+<div class="container mx-auto px-4 py-6">
+            <!-- Header -->
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-900">Create Maintenance Schedule</h1>
+                <p class="text-gray-600 mt-1">Schedule planned maintenance and notify customers</p>
+            </div>
+
+            <!-- Form -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <form id="maintenanceForm" method="POST" action="/monitoring/maintenance">
+                    <!-- Title -->
+                    <div class="mb-6">
+                        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                            Maintenance Title *
+                        </label>
+                        <input type="text" 
+                               id="title" 
+                               name="title" 
+                               required
+                               placeholder="e.g. Router Upgrade - Area Besole"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-6">
+                        <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                            Description
+                        </label>
+                        <textarea id="description" 
+                                  name="description" 
+                                  rows="3"
+                                  placeholder="Maintenance details..."
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Date & Time -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label for="start_time" class="block text-sm font-medium text-gray-700 mb-2">
+                                Start Time *
+                            </label>
+                            <input type="datetime-local" 
+                                   id="start_time" 
+                                   name="start_time" 
+                                   required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="end_time" class="block text-sm font-medium text-gray-700 mb-2">
+                                End Time *
+                            </label>
+                            <input type="datetime-local" 
+                                   id="end_time" 
+                                   name="end_time" 
+                                   required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Affected Customers -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Affected Customers *
+                        </label>
+                        
+                        <!-- Selection Type -->
+                        <div class="flex gap-4 mb-4">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" 
+                                       name="selection_type" 
+                                       value="area" 
+                                       checked
+                                       class="mr-2">
+                                <span class="text-sm">Select by Area</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" 
+                                       name="selection_type" 
+                                       value="manual"
+                                       class="mr-2">
+                                <span class="text-sm">Select Manually</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" 
+                                       name="selection_type" 
+                                       value="all"
+                                       class="mr-2">
+                                <span class="text-sm">All Customers</span>
+                            </label>
+                        </div>
+
+                        <!-- Area Selection -->
+                        <div id="areaSelection" class="space-y-2">
+                            <label class="block text-sm text-gray-600 mb-2">Select Areas:</label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <% areas.forEach(function(area) { %>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" 
+                                           name="areas[]" 
+                                           value="<%= area.area %>"
+                                           class="mr-2">
+                                    <span class="text-sm">
+                                        <%= area.area %> 
+                                        <span class="text-gray-500">(<%= area.customer_count %>)</span>
+                                    </span>
+                                </label>
+                                <% }); %>
+                            </div>
+                        </div>
+
+                        <!-- Manual Selection -->
+                        <div id="manualSelection" class="hidden">
+                            <label class="block text-sm text-gray-600 mb-2">Select Customers:</label>
+                            <select multiple 
+                                    id="customerSelect"
+                                    class="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <% customers.forEach(function(customer) { %>
+                                <option value="<%= customer.id %>">
+                                    <%= customer.name %> - <%= customer.area %> (<%= customer.service_type %>)
+                                </option>
+                                <% }); %>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple customers</p>
+                        </div>
+
+                        <!-- All Customers Info -->
+                        <div id="allSelection" class="hidden">
+                            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p class="text-sm text-blue-800">
+                                    ⚠️ All active customers will be affected by this maintenance
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="flex justify-end gap-4 pt-4 border-t">
+                        <a href="/monitoring/maintenance" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                            <i class="fas fa-save mr-2"></i>
+                            Create Schedule
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    <script>
+        // Handle selection type toggle
+        const selectionTypes = document.querySelectorAll('input[name="selection_type"]');
+        const areaSelection = document.getElementById('areaSelection');
+        const manualSelection = document.getElementById('manualSelection');
+        const allSelection = document.getElementById('allSelection');
+
+        selectionTypes.forEach(radio => {
+            radio.addEventListener('change', function() {
+                areaSelection.classList.add('hidden');
+                manualSelection.classList.add('hidden');
+                allSelection.classList.add('hidden');
+                
+                if (this.value === 'area') {
+                    areaSelection.classList.remove('hidden');
+                } else if (this.value === 'manual') {
+                    manualSelection.classList.remove('hidden');
+                } else if (this.value === 'all') {
+                    allSelection.classList.remove('hidden');
+                }
+            });
+        });
+
+        // Form submission
+        document.getElementById('maintenanceForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const selectionType = formData.get('selection_type');
+            
+            // Build affected customers array based on selection type
+            let affectedCustomers = [];
+            
+            if (selectionType === 'area') {
+                const selectedAreas = formData.getAll('areas[]');
+                if (selectedAreas.length === 0) {
+                    alert('Please select at least one area');
+                    return;
+                }
+                affectedCustomers = selectedAreas;
+            } else if (selectionType === 'manual') {
+                const customerSelect = document.getElementById('customerSelect');
+                const selectedOptions = Array.from(customerSelect.selectedOptions);
+                if (selectedOptions.length === 0) {
+                    alert('Please select at least one customer');
+                    return;
+                }
+                affectedCustomers = selectedOptions.map(opt => parseInt(opt.value));
+            } else if (selectionType === 'all') {
+                affectedCustomers = ['all'];
+            }
+            
+            // Prepare data
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                start_time: formData.get('start_time'),
+                end_time: formData.get('end_time'),
+                selection_type: selectionType,
+                affected_customers: affectedCustomers
+            };
+            
+            try {
+                const response = await fetch('/monitoring/maintenance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Maintenance schedule created successfully!');
+                    window.location.href = '/monitoring/maintenance';
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to create maintenance schedule');
+            }
+        });
+
+        // Set minimum date to now
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        const dateTimeLocal = now.toISOString().slice(0, 16);
+        document.getElementById('start_time').min = dateTimeLocal;
+        document.getElementById('end_time').min = dateTimeLocal;
+
+        // Auto-update end_time when start_time changes
+        document.getElementById('start_time').addEventListener('change', function() {
+            const startTime = new Date(this.value);
+            startTime.setHours(startTime.getHours() + 2); // Default 2 hours maintenance
+            const endTimeValue = startTime.toISOString().slice(0, 16);
+            document.getElementById('end_time').value = endTimeValue;
+        });
+    </script>

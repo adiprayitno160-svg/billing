@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Tagihan Area <%= odc.name %></title>
+    <style>
+        @page {
+            size: 58mm auto;
+            margin: 2mm 3mm;
+        }
+        
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                width: 58mm;
+            }
+            .no-print {
+                display: none;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 8pt;
+            line-height: 1.3;
+            color: #000;
+            width: 58mm;
+            max-width: 58mm;
+        }
+        
+        .invoice {
+            margin-bottom: 10mm;
+            padding-bottom: 5mm;
+        }
+        
+        .separator {
+            text-align: center;
+            margin: 8mm 0;
+            font-size: 10pt;
+            font-weight: bold;
+            border-top: 2px dashed #000;
+            border-bottom: 2px dashed #000;
+            padding: 3mm 0;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 5mm;
+            padding-bottom: 3mm;
+            border-bottom: 1px dashed #000;
+        }
+        
+        .header h1 {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 2mm;
+        }
+        
+        .header h2 {
+            font-size: 9pt;
+            font-weight: bold;
+        }
+        
+        .info-section {
+            margin-bottom: 5mm;
+            font-size: 7pt;
+            padding-bottom: 3mm;
+            border-bottom: 1px dashed #000;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+        }
+        
+        .label {
+            font-weight: normal;
+        }
+        
+        .value {
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .items-section {
+            margin-bottom: 5mm;
+            font-size: 7pt;
+        }
+        
+        .item {
+            margin-bottom: 3mm;
+            padding-bottom: 3mm;
+            border-bottom: 1px dotted #000;
+        }
+        
+        .item-name {
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+        
+        .item-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5mm;
+        }
+        
+        .total-section {
+            margin-top: 5mm;
+            padding-top: 3mm;
+            border-top: 1px solid #000;
+            font-size: 8pt;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+        }
+        
+        .total-row.grand-total {
+            font-size: 9pt;
+            font-weight: bold;
+            border-top: 1px solid #000;
+            padding-top: 2mm;
+            margin-top: 2mm;
+        }
+        
+        .footer {
+            margin-top: 5mm;
+            text-align: center;
+            font-size: 6pt;
+            border-top: 1px dashed #000;
+            padding-top: 3mm;
+        }
+        
+        .btn-print {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 5px;
+        }
+        
+        .btn-print:hover {
+            background: #0056b3;
+        }
+        
+        .print-controls {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        @media screen {
+            body {
+                width: auto;
+                max-width: 100%;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .invoice {
+                background: white;
+                padding: 10mm;
+                margin-bottom: 5mm;
+                box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-controls no-print">
+        <button id="btnPrintThermal" class="btn-print">
+            <i class="fas fa-print"></i> Print Semua Invoice (58mm)
+        </button>
+        <button id="btnClosePage" class="btn-print" style="background: #6c757d;">
+            <i class="fas fa-times"></i> Tutup
+        </button>
+        <p style="margin-top: 10px; font-size: 12px;">
+            Area: <strong><%= odc.name %></strong> | 
+            Total: <strong><%= invoices.length %> Invoice</strong>
+        </p>
+    </div>
+
+    <% if (invoices && invoices.length > 0) { %>
+        <% invoices.forEach(function(invoice, index) { %>
+            <div class="invoice">
+                <!-- Header Invoice -->
+                <div class="header">
+                    <h1>TAGIHAN PEMBAYARAN</h1>
+                    <h2><%= invoice.customer_name %></h2>
+                </div>
+
+                <!-- Info Invoice -->
+                <div class="info-section">
+                    <div class="info-row">
+                        <span class="label">No. Invoice:</span>
+                        <span class="value"><%= invoice.invoice_number %></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Tanggal:</span>
+                        <span class="value"><%= new Date(invoice.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) %></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Periode:</span>
+                        <span class="value"><%= invoice.period %></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Jatuh Tempo:</span>
+                        <span class="value"><%= new Date(invoice.due_date).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) %></span>
+                    </div>
+                </div>
+
+                <!-- Info Customer -->
+                <div class="info-section">
+                    <div class="info-row">
+                        <span class="label">Kode:</span>
+                        <span class="value"><%= invoice.customer_code %></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Telepon:</span>
+                        <span class="value"><%= invoice.customer_phone || '-' %></span>
+                    </div>
+                    <% if (invoice.customer_address) { %>
+                    <div style="margin-top: 2mm; font-size: 7pt;">
+                        <div class="label">Alamat:</div>
+                        <div style="margin-top: 1mm;"><%= invoice.customer_address %></div>
+                    </div>
+                    <% } %>
+                </div>
+
+                <!-- Items -->
+                <div class="items-section">
+                    <div style="font-weight: bold; margin-bottom: 2mm; font-size: 8pt;">RINCIAN TAGIHAN:</div>
+                    <div class="item">
+                        <div class="item-name">Layanan Internet</div>
+                        <div class="item-detail">
+                            <span>Periode: <%= invoice.period %></span>
+                        </div>
+                        <div class="item-detail">
+                            <span>Jumlah:</span>
+                            <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total -->
+                <div class="total-section">
+                    <div class="total-row">
+                        <span>Subtotal:</span>
+                        <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                    </div>
+                    <% if (invoice.paid_amount > 0) { %>
+                    <div class="total-row">
+                        <span>Terbayar:</span>
+                        <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount) %></span>
+                    </div>
+                    <% } %>
+                    <div class="total-row grand-total">
+                        <span>TOTAL:</span>
+                        <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount - (invoice.paid_amount || 0)) %></span>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div style="text-align: center; margin-top: 5mm; padding: 2mm; border: 1px solid #000;">
+                    <div style="font-size: 7pt; margin-bottom: 1mm;">STATUS:</div>
+                    <div style="font-size: 9pt; font-weight: bold;">
+                        <% 
+                        let statusText = '';
+                        switch(invoice.status) {
+                            case 'paid': statusText = 'LUNAS'; break;
+                            case 'sent':
+                            case 'unpaid': statusText = 'BELUM LUNAS'; break;
+                            case 'partial': statusText = 'SEBAGIAN'; break;
+                            case 'overdue': statusText = 'JATUH TEMPO'; break;
+                            case 'cancelled': statusText = 'DIBATALKAN'; break;
+                            default: statusText = invoice.status.toUpperCase();
+                        }
+                        %>
+                        <%= statusText %>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <p>Terima kasih atas pembayaran Anda</p>
+                    <p>Sistem Billing FTTH</p>
+                    <p>Area: <%= odc.name %></p>
+                    <p>Dicetak: <%= new Date().toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></p>
+                </div>
+            </div>
+
+            <!-- Separator between invoices -->
+            <% if (index < invoices.length - 1) { %>
+            <div class="separator page-break">
+                ═══════════════════════════
+                <br>INVOICE <%= index + 2 %> dari <%= invoices.length %>
+                <br>═══════════════════════════
+            </div>
+            <% } %>
+        <% }); %>
+    <% } else { %>
+        <div style="text-align: center; padding: 20mm;">
+            <p style="font-size: 10pt;">Tidak ada tagihan untuk area ODC ini</p>
+            <p style="font-size: 8pt; margin-top: 5mm;">ODC: <%= odc.name %></p>
+            <p style="font-size: 8pt;">Periode: <%= period %></p>
+        </div>
+    <% } %>
+
+    <script>
+        // Add event listeners for buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            // Print button
+            const btnPrint = document.getElementById('btnPrintThermal');
+            if (btnPrint) {
+                btnPrint.addEventListener('click', function() {
+                    window.print();
+                });
+            }
+            
+            // Close button
+            const btnClose = document.getElementById('btnClosePage');
+            if (btnClose) {
+                btnClose.addEventListener('click', function() {
+                    window.close();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || 'Form Pembayaran' %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .payment-type-card {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .payment-type-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .payment-type-card.selected {
+            border-color: #3B82F6 !important;
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        .payment-type-card.selected::before {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #3B82F6;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .calculation-box {
+            background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+            border-left: 4px solid #3B82F6;
+        }
+        .discount-badge {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .input-currency::before {
+            content: 'Rp';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6B7280;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 min-h-screen">
+    <div class="min-h-screen py-8">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Header with animated gradient -->
+            <div class="mb-8">
+                <a href="/billing/tagihan/<%= invoice.id %>" class="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4 font-medium transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i>Kembali ke Detail Tagihan
+                </a>
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-xl">
+                    <h1 class="text-3xl font-bold flex items-center">
+                        <i class="fas fa-wallet mr-3"></i>Form Pembayaran
+                    </h1>
+                    <p class="text-blue-100 mt-2">Proses pembayaran untuk tagihan <span class="font-semibold"><%= invoice.invoice_number %></span></p>
+                </div>
+            </div>
+
+            <!-- Invoice Summary with modern design -->
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 mb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-file-invoice-dollar text-blue-600 mr-3"></i>
+                        Ringkasan Tagihan
+                    </h2>
+                    <span class="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">
+                        <i class="fas fa-calendar-alt mr-1"></i>
+                        <%= invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'}) : (invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'}) : '-') %>
+                    </span>
+            </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-hashtag text-blue-600 mr-2"></i>
+                            <p class="text-sm text-blue-700 font-medium">Nomor Tagihan</p>
+                        </div>
+                        <p class="font-bold text-gray-900 text-lg"><%= invoice.invoice_number %></p>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-user text-purple-600 mr-2"></i>
+                            <p class="text-sm text-purple-700 font-medium">Pelanggan</p>
+                        </div>
+                        <p class="font-bold text-gray-900 text-lg truncate"><%= invoice.customer_name %></p>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
+                            <p class="text-sm text-green-700 font-medium">Total Tagihan</p>
+                    </div>
+                        <p class="font-bold text-gray-900 text-lg">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-exclamation-circle text-red-600 mr-2"></i>
+                            <p class="text-sm text-red-700 font-medium">Sisa Pembayaran</p>
+                    </div>
+                        <p class="font-bold text-red-700 text-lg">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Form with Modern Design -->
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-credit-card text-blue-600 mr-3"></i>
+                    Pilih Jenis Pembayaran
+                </h2>
+                
+                <form id="payment-form">
+                    <!-- Payment Type Selection with Modern Cards -->
+                    <div class="mb-8">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="payment-type-card border-2 border-gray-200 rounded-xl p-6 cursor-pointer" data-type="full">
+                                <input type="radio" name="payment_type" value="full" id="type-full" class="hidden">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-check-circle text-green-600 text-3xl"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 text-lg mb-2">Bayar Penuh</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Lunas semua tagihan</p>
+                                    <div class="bg-green-50 rounded-lg p-2">
+                                        <p class="text-xs text-green-700 font-semibold">
+                                            <i class="fas fa-bolt mr-1"></i>Auto Approve
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="payment-type-card border-2 border-gray-200 rounded-xl p-6 cursor-pointer" data-type="partial">
+                                <input type="radio" name="payment_type" value="partial" id="type-partial" class="hidden">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-coins text-yellow-600 text-3xl"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 text-lg mb-2">Bayar Cicilan</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Pembayaran bertahap</p>
+                                    <div class="bg-yellow-50 rounded-lg p-2">
+                                        <p class="text-xs text-yellow-700 font-semibold">
+                                            <i class="fas fa-calculator mr-1"></i>Cicilan Fleksibel
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="payment-type-card border-2 border-gray-200 rounded-xl p-6 cursor-pointer" data-type="debt">
+                                <input type="radio" name="payment_type" value="debt" id="type-debt" class="hidden">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-file-invoice text-red-600 text-3xl"></i>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 text-lg mb-2">Catat Hutang</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Bayar nanti (100%)</p>
+                                    <div class="bg-red-50 rounded-lg p-2">
+                                        <p class="text-xs text-red-700 font-semibold">
+                                            <i class="fas fa-clock mr-1"></i>Tunda Pembayaran
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLA Discount Section (Auto-Applied) -->
+                    <% if (typeof slaDiscount !== 'undefined' && slaDiscount && slaDiscount.applicable) { %>
+                    <div class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-300">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-shield-alt text-white text-lg"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-lg">Kompensasi SLA (Service Level Agreement)</h3>
+                                    <p class="text-xs text-gray-600">Garansi uptime minimal <%= slaDiscount.sla_target.toFixed(0) %>%</p>
+                                </div>
+                            </div>
+                            <div class="px-4 py-2 bg-blue-600 text-white rounded-full font-bold text-lg discount-badge">
+                                <%= slaDiscount.discount_percentage.toFixed(1) %>% OFF
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-white rounded-lg p-4 border border-blue-200">
+                                <div class="flex items-center mb-2">
+                                    <i class="fas fa-signal text-blue-600 mr-2"></i>
+                                    <p class="text-xs text-gray-600 font-medium">Uptime Aktual</p>
+                                </div>
+                                <p class="text-2xl font-bold <%= slaDiscount.sla_met ? 'text-green-600' : 'text-red-600' %>">
+                                    <%= slaDiscount.uptime_percentage.toFixed(2) %>%
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Target: <%= slaDiscount.sla_target.toFixed(0) %>% 
+                                    <%= slaDiscount.sla_met ? '✓' : '✗' %>
+                                </p>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg p-4 border border-blue-200">
+                                <div class="flex items-center mb-2">
+                                    <i class="fas fa-clock text-orange-600 mr-2"></i>
+                                    <p class="text-xs text-gray-600 font-medium">Total Downtime</p>
+                                </div>
+                                <p class="text-2xl font-bold text-orange-600">
+                                    <%= Math.floor(slaDiscount.total_downtime_minutes / 60) %>h <%= slaDiscount.total_downtime_minutes % 60 %>m
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1"><%= slaDiscount.incident_count %> incident(s)</p>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg p-4 border border-green-200">
+                                <div class="flex items-center mb-2">
+                                    <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
+                                    <p class="text-xs text-gray-600 font-medium">Kompensasi SLA</p>
+                                </div>
+                                <p class="text-2xl font-bold text-green-600">
+                                    Rp <%= new Intl.NumberFormat('id-ID').format(slaDiscount.discount_amount) %>
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <%= slaDiscount.discount_percentage.toFixed(1) %>% dari tagihan
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-blue-100 rounded-lg p-3 flex items-start">
+                            <i class="fas fa-calculator text-blue-600 mt-1 mr-2"></i>
+                            <p class="text-xs text-blue-800">
+                                <strong>Formula Kompensasi:</strong> 
+                                Selisih = Target (<%= slaDiscount.sla_target.toFixed(0) %>%) - Aktual (<%= slaDiscount.uptime_percentage.toFixed(2) %>%) 
+                                = <strong><%= slaDiscount.discount_percentage.toFixed(1) %>%</strong> diskon 
+                                <%= slaDiscount.discount_percentage >= 30 ? '(maksimum cap 30%)' : '' %>.
+                                Kompensasi <strong>otomatis diterapkan</strong> pada pembayaran ini.
+                            </p>
+                        </div>
+                        
+                        <input type="hidden" id="sla-discount-amount" value="<%= slaDiscount.discount_amount %>">
+                        <input type="hidden" id="sla-discount-percentage" value="<%= slaDiscount.discount_percentage %>">
+                    </div>
+                    <% } %>
+
+                    <!-- Discount Section (Manual) -->
+                    <div class="mb-6 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border-2 border-orange-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <label class="flex items-center text-base font-semibold text-gray-900">
+                                <i class="fas fa-tags text-orange-600 mr-2"></i>
+                                Diskon Pembayaran Tambahan
+                            </label>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="discount-toggle" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                            </label>
+                        </div>
+                        
+                        <div id="discount-fields" class="hidden space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Diskon</label>
+                                    <select id="discount_type" name="discount_type" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                                        <option value="percentage">Persentase (%)</option>
+                                        <option value="fixed">Nominal (Rp)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nilai Diskon</label>
+                                    <input type="number" id="discount_value" name="discount_value" min="0" step="0.01"
+                                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                           placeholder="Masukkan nilai diskon">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Alasan Diskon</label>
+                                <input type="text" id="discount_reason" name="discount_reason"
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                       placeholder="Contoh: Promo pelanggan setia, Diskon early bird">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Amount (for partial payment) -->
+                    <div id="amount-field" class="mb-6 hidden">
+                        <label class="block text-base font-semibold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-calculator text-blue-600 mr-2"></i>
+                            Jumlah Pembayaran Cicilan
+                        </label>
+                        <div class="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                            <div class="relative mb-4">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-semibold text-lg">Rp</span>
+                            <input type="number" name="payment_amount" id="payment_amount" 
+                                       class="w-full pl-14 pr-4 py-4 text-lg font-bold border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="0" min="1000" step="1000">
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">Minimal: <span class="font-semibold text-gray-900">Rp 1.000</span></span>
+                                <span class="text-gray-600">Maksimal: <span class="font-semibold text-red-600">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span></span>
+                            </div>
+                            <!-- Quick Amount Buttons -->
+                            <div class="grid grid-cols-4 gap-2 mt-4">
+                                <button type="button" class="quick-amount-btn px-3 py-2 bg-white border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 font-semibold text-sm transition-all" data-percent="25">
+                                    25%
+                                </button>
+                                <button type="button" class="quick-amount-btn px-3 py-2 bg-white border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 font-semibold text-sm transition-all" data-percent="50">
+                                    50%
+                                </button>
+                                <button type="button" class="quick-amount-btn px-3 py-2 bg-white border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 font-semibold text-sm transition-all" data-percent="75">
+                                    75%
+                                </button>
+                                <button type="button" class="quick-amount-btn px-3 py-2 bg-white border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 font-semibold text-sm transition-all" data-percent="100">
+                                    100%
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Calculation Display -->
+                    <div id="calculation-display" class="mb-6 hidden">
+                        <div class="calculation-box rounded-xl p-6">
+                            <h3 class="font-bold text-gray-900 mb-4 flex items-center">
+                                <i class="fas fa-receipt text-blue-600 mr-2"></i>
+                                Rincian Pembayaran
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center py-2">
+                                    <span class="text-gray-700">Subtotal Tagihan:</span>
+                                    <span class="font-semibold text-gray-900" id="calc-subtotal">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
+                                </div>
+                                <div id="calc-discount-row" class="flex justify-between items-center py-2 text-orange-600 hidden">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-tag mr-2"></i>
+                                        Diskon <span id="calc-discount-label" class="ml-1"></span>:
+                                    </span>
+                                    <span class="font-semibold" id="calc-discount">- Rp 0</span>
+                                </div>
+                                <div class="border-t-2 border-gray-300 pt-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-lg font-bold text-gray-900">Total Bayar:</span>
+                                        <span class="text-2xl font-bold text-blue-600" id="calc-total">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
+                                    </div>
+                                </div>
+                                <div id="calc-remaining-row" class="flex justify-between items-center py-2 bg-yellow-50 rounded-lg px-3 hidden">
+                                    <span class="text-yellow-700 font-medium">Sisa Setelah Bayar:</span>
+                                    <span class="font-bold text-yellow-700" id="calc-remaining">Rp 0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method (Hidden - Default to Cash for Manual Billing) -->
+                    <input type="hidden" name="payment_method" id="payment_method" value="cash">
+                    
+                    <div class="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-blue-600 text-xl mr-3"></i>
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900">Metode Pembayaran</p>
+                                <p class="text-sm text-blue-700">Pembayaran manual billing menggunakan <span class="font-bold">TUNAI</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-6">
+                        <label class="block text-base font-semibold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-sticky-note text-blue-600 mr-2"></i>
+                            Catatan Pembayaran (Opsional)
+                        </label>
+                        <textarea name="notes" id="notes" rows="3"
+                                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Tambahkan catatan pembayaran jika diperlukan..."></textarea>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button type="submit" id="submit-btn" disabled
+                                class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed disabled:shadow-none font-bold text-lg">
+                            <i class="fas fa-check-circle mr-2"></i>Proses Pembayaran
+                        </button>
+                        <a href="/billing/tagihan/<%= invoice.id %>" 
+                           class="bg-gray-500 text-white px-8 py-4 rounded-xl hover:bg-gray-600 transition-all text-center font-bold text-lg shadow-lg">
+                            <i class="fas fa-times-circle mr-2"></i>Batal
+                        </a>
+                    </div>
+
+                    <!-- Auto-Approve Notice for Full Payment -->
+                    <div id="auto-approve-notice" class="mt-6 hidden">
+                        <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4 flex items-start">
+                            <i class="fas fa-info-circle text-green-600 text-xl mr-3 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold text-green-900 mb-1">Pembayaran Penuh - Auto Approve</h4>
+                                <p class="text-sm text-green-700">Pembayaran akan langsung disetujui dan status tagihan berubah menjadi LUNAS.</p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        let selectedType = null;
+        const invoiceId = <%= invoice.id %>;
+        const remainingAmount = <%= invoice.remaining_amount %>;
+        let currentDiscount = 0;
+        let finalAmount = remainingAmount;
+
+        // Format currency
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID').format(Math.round(number));
+        }
+
+        // Calculate discount
+        function calculateDiscount() {
+            let totalDiscount = 0;
+            
+            // 1. SLA Discount (Auto-applied)
+            const slaDiscountInput = document.getElementById('sla-discount-amount');
+            if (slaDiscountInput) {
+                totalDiscount += parseFloat(slaDiscountInput.value) || 0;
+            }
+            
+            // 2. Manual Discount (Optional)
+            const discountToggle = document.getElementById('discount-toggle');
+            if (discountToggle.checked) {
+                const discountType = document.getElementById('discount_type').value;
+                const discountValue = parseFloat(document.getElementById('discount_value').value) || 0;
+
+                let baseAmount = remainingAmount;
+                if (selectedType === 'partial') {
+                    const partialAmount = parseFloat(document.getElementById('payment_amount').value) || 0;
+                    baseAmount = partialAmount;
+                }
+
+                if (discountType === 'percentage') {
+                    totalDiscount += (baseAmount * discountValue) / 100;
+                } else {
+                    totalDiscount += Math.min(discountValue, baseAmount);
+                }
+            }
+            
+            return totalDiscount;
+        }
+
+        // Update calculation display
+        function updateCalculation() {
+            if (!selectedType) return;
+
+            const calcDisplay = document.getElementById('calculation-display');
+            const calcSubtotal = document.getElementById('calc-subtotal');
+            const calcDiscountRow = document.getElementById('calc-discount-row');
+            const calcDiscount = document.getElementById('calc-discount');
+            const calcDiscountLabel = document.getElementById('calc-discount-label');
+            const calcTotal = document.getElementById('calc-total');
+            const calcRemainingRow = document.getElementById('calc-remaining-row');
+            const calcRemaining = document.getElementById('calc-remaining');
+
+            let subtotal = remainingAmount;
+            
+            if (selectedType === 'partial') {
+                subtotal = parseFloat(document.getElementById('payment_amount').value) || 0;
+            } else if (selectedType === 'debt') {
+                // For debt, show full remaining amount in calculation
+                subtotal = remainingAmount;
+            }
+
+            // Calculate discount
+            currentDiscount = calculateDiscount();
+            finalAmount = Math.max(0, subtotal - currentDiscount);
+
+            // Update display
+            calcSubtotal.textContent = 'Rp ' + formatRupiah(subtotal);
+            calcTotal.textContent = 'Rp ' + formatRupiah(finalAmount);
+
+            // Show/hide discount
+            if (currentDiscount > 0) {
+                // Build discount label showing both SLA and manual discount
+                let discountLabel = '';
+                const slaDiscountInput = document.getElementById('sla-discount-amount');
+                const slaDiscount = slaDiscountInput ? parseFloat(slaDiscountInput.value) || 0 : 0;
+                const manualDiscountToggle = document.getElementById('discount-toggle');
+                
+                if (slaDiscount > 0) {
+                    discountLabel = 'SLA Discount';
+                }
+                
+                if (manualDiscountToggle && manualDiscountToggle.checked) {
+                    const discountType = document.getElementById('discount_type').value;
+                    const discountValue = parseFloat(document.getElementById('discount_value').value) || 0;
+                    const manualLabel = discountType === 'percentage' ? `Manual (${discountValue}%)` : 'Manual Discount';
+                    
+                    if (discountLabel) {
+                        discountLabel += ' + ' + manualLabel;
+                    } else {
+                        discountLabel = manualLabel;
+                    }
+                }
+                
+                calcDiscountLabel.textContent = discountLabel ? `(${discountLabel})` : '';
+                calcDiscount.textContent = '- Rp ' + formatRupiah(currentDiscount);
+                calcDiscountRow.classList.remove('hidden');
+            } else {
+                calcDiscountRow.classList.add('hidden');
+            }
+
+            // Show remaining for partial payment or debt
+            if ((selectedType === 'partial' || selectedType === 'debt') && finalAmount > 0) {
+                let remaining = 0;
+                if (selectedType === 'partial') {
+                    remaining = Math.max(0, remainingAmount - finalAmount);
+                } else if (selectedType === 'debt') {
+                    // For debt, remaining is the full amount (since nothing is paid)
+                    remaining = finalAmount;
+                }
+                calcRemaining.textContent = 'Rp ' + formatRupiah(remaining);
+                calcRemainingRow.classList.remove('hidden');
+                
+                // Update label for debt
+                if (selectedType === 'debt') {
+                    document.querySelector('#calc-remaining-row .text-yellow-700').textContent = 'Total Hutang Tercatat:';
+                } else {
+                    document.querySelector('#calc-remaining-row .text-yellow-700').textContent = 'Sisa Setelah Bayar:';
+                }
+            } else {
+                calcRemainingRow.classList.add('hidden');
+            }
+
+            calcDisplay.classList.remove('hidden');
+        }
+
+        // Select payment type
+        function selectPaymentType(type) {
+            selectedType = type;
+            console.log('Payment type selected:', type);
+            
+            // Update UI
+            document.querySelectorAll('.payment-type-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            const selectedCard = document.querySelector(`.payment-type-card[data-type="${type}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+            
+            // Check radio
+            document.getElementById(`type-${type}`).checked = true;
+            
+            // Show/hide fields based on type
+            const amountField = document.getElementById('amount-field');
+            const autoApproveNotice = document.getElementById('auto-approve-notice');
+            
+            if (type === 'partial') {
+                amountField.classList.remove('hidden');
+                autoApproveNotice.classList.add('hidden');
+                document.getElementById('payment_amount').required = true;
+            } else {
+                amountField.classList.add('hidden');
+                document.getElementById('payment_amount').required = false;
+                
+                if (type === 'full') {
+                    autoApproveNotice.classList.remove('hidden');
+                } else {
+                    autoApproveNotice.classList.add('hidden');
+                }
+            }
+            
+            // Enable submit button
+            document.getElementById('submit-btn').disabled = false;
+            
+            // Update calculation
+            updateCalculation();
+        }
+
+        // DOM Ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Payment form initialized');
+            
+            // Payment type cards - CSP compliant
+            document.querySelectorAll('.payment-type-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const type = this.dataset.type;
+                    selectPaymentType(type);
+                });
+            });
+
+            // Discount toggle
+            document.getElementById('discount-toggle').addEventListener('change', function() {
+                const discountFields = document.getElementById('discount-fields');
+                if (this.checked) {
+                    discountFields.classList.remove('hidden');
+            } else {
+                    discountFields.classList.add('hidden');
+                }
+                updateCalculation();
+            });
+
+            // Discount value changes
+            document.getElementById('discount_type').addEventListener('change', updateCalculation);
+            document.getElementById('discount_value').addEventListener('input', updateCalculation);
+
+            // Payment amount input
+            const paymentAmountInput = document.getElementById('payment_amount');
+            if (paymentAmountInput) {
+                paymentAmountInput.addEventListener('input', updateCalculation);
+            }
+
+            // Quick amount buttons
+            document.querySelectorAll('.quick-amount-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const percent = parseInt(this.dataset.percent);
+                    const amount = Math.round((remainingAmount * percent) / 100);
+                    document.getElementById('payment_amount').value = amount;
+                    updateCalculation();
+                });
+            });
+
+            // Payment method is always cash for manual billing (no event listener needed)
+
+        // Form submission
+        document.getElementById('payment-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!selectedType) {
+                    alert('❌ Pilih jenis pembayaran terlebih dahulu');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            const data = {
+                invoice_id: invoiceId,
+                    payment_method: 'cash', // Always cash for manual billing
+                notes: formData.get('notes') || ''
+            };
+            
+                // Handle payment amount for different types
+            if (selectedType === 'partial') {
+                const amount = parseFloat(formData.get('payment_amount'));
+                if (!amount || amount <= 0) {
+                        alert('❌ Masukkan jumlah pembayaran yang valid (minimal Rp 1.000)');
+                    return;
+                }
+                if (amount > remainingAmount) {
+                        alert('❌ Jumlah pembayaran melebihi sisa tagihan');
+                    return;
+                }
+                data.payment_amount = amount;
+                } else if (selectedType === 'full') {
+                    data.payment_amount = remainingAmount;
+                } else if (selectedType === 'debt') {
+                    data.payment_amount = 0;
+                }
+                
+                // Handle discount (total includes SLA + manual)
+                if (currentDiscount > 0) {
+                    data.discount_amount = currentDiscount;
+                    
+                    // SLA Discount info
+                    const slaDiscountInput = document.getElementById('sla-discount-amount');
+                    if (slaDiscountInput) {
+                        const slaDiscount = parseFloat(slaDiscountInput.value) || 0;
+                        if (slaDiscount > 0) {
+                            data.sla_discount_amount = slaDiscount;
+                            data.sla_discount_percentage = parseFloat(document.getElementById('sla-discount-percentage').value) || 0;
+                        }
+                    }
+                    
+                    // Manual discount info
+                    const discountToggle = document.getElementById('discount-toggle');
+                    if (discountToggle.checked) {
+                        data.manual_discount_type = document.getElementById('discount_type').value;
+                        data.manual_discount_value = parseFloat(document.getElementById('discount_value').value) || 0;
+                        data.discount_reason = document.getElementById('discount_reason').value || 'Diskon pembayaran manual';
+                    }
+                }
+                
+                // Confirmation
+                let confirmMsg = `💳 KONFIRMASI PEMBAYARAN\n\n`;
+                confirmMsg += `📋 Tagihan: <%= invoice.invoice_number %>\n`;
+                confirmMsg += `👤 Pelanggan: <%= invoice.customer_name %>\n\n`;
+                
+                if (selectedType === 'full') {
+                    confirmMsg += `✅ BAYAR PENUH (Auto Approve)\n`;
+                    confirmMsg += `💰 Jumlah: Rp ${formatRupiah(remainingAmount)}\n`;
+                    if (currentDiscount > 0) {
+                        confirmMsg += `🏷️ Diskon: Rp ${formatRupiah(currentDiscount)}\n`;
+                        confirmMsg += `💵 Total Bayar: Rp ${formatRupiah(finalAmount)}\n`;
+                    }
+                    confirmMsg += `\n✅ Status tagihan akan berubah menjadi LUNAS`;
+                } else if (selectedType === 'partial') {
+                    const amount = parseFloat(data.payment_amount);
+                    const afterPayment = remainingAmount - (currentDiscount > 0 ? finalAmount : amount);
+                    confirmMsg += `💵 BAYAR CICILAN\n`;
+                    confirmMsg += `💰 Jumlah: Rp ${formatRupiah(amount)}\n`;
+                    if (currentDiscount > 0) {
+                        confirmMsg += `🏷️ Diskon: Rp ${formatRupiah(currentDiscount)}\n`;
+                        confirmMsg += `💵 Total Bayar: Rp ${formatRupiah(finalAmount)}\n`;
+                    }
+                    confirmMsg += `📊 Sisa: Rp ${formatRupiah(afterPayment)}`;
+                } else if (selectedType === 'debt') {
+                    confirmMsg += `📝 CATAT HUTANG\n`;
+                    confirmMsg += `⚠️ Pembayaran ditunda\n`;
+                    confirmMsg += `💰 Total Hutang: Rp ${formatRupiah(remainingAmount)}\n`;
+                    if (currentDiscount > 0) {
+                        confirmMsg += `🏷️ Diskon (dicatat): Rp ${formatRupiah(currentDiscount)}\n`;
+                        confirmMsg += `💰 Hutang Bersih: Rp ${formatRupiah(finalAmount)}`;
+                    }
+                }
+                
+                confirmMsg += `\n\n💵 Metode: TUNAI (Manual Billing)`;
+                if (data.notes) {
+                    confirmMsg += `\n📝 Catatan: ${data.notes}`;
+                }
+                confirmMsg += `\n\nℹ️ WhatsApp notifikasi akan dikirim otomatis`;
+                confirmMsg += `\n\nLanjutkan pembayaran?`;
+                
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+            
+            // Determine endpoint
+            let endpoint = '';
+            if (selectedType === 'full') {
+                endpoint = '/billing/payments/full';
+            } else if (selectedType === 'partial') {
+                endpoint = '/billing/payments/partial';
+            } else if (selectedType === 'debt') {
+                endpoint = '/billing/payments/debt';
+            }
+            
+            try {
+                    const submitBtn = document.getElementById('submit-btn');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses Pembayaran...';
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                        let successMsg = '✅ PEMBAYARAN BERHASIL!\n\n';
+                        if (selectedType === 'full') {
+                            successMsg += '🎉 Tagihan telah LUNAS!\n';
+                        } else if (selectedType === 'partial') {
+                            successMsg += '💵 Pembayaran cicilan berhasil dicatat\n';
+                        } else if (selectedType === 'debt') {
+                            successMsg += '📝 Hutang berhasil dicatat\n';
+                        }
+                        successMsg += '\nHalaman akan refresh...';
+                        
+                        alert(successMsg);
+                    window.location.href = '/billing/tagihan/' + invoiceId;
+                } else {
+                        alert('❌ GAGAL!\n\n' + (result.message || 'Terjadi kesalahan'));
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Proses Pembayaran';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                    alert('❌ TERJADI KESALAHAN!\n\n' + error.message);
+                    const submitBtn = document.getElementById('submit-btn');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Proses Pembayaran';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

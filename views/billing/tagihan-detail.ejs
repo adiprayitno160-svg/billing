@@ -1,0 +1,432 @@
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-4 mb-2">
+                            <a href="/billing/tagihan" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-arrow-left"></i> Kembali
+                            </a>
+                        </div>
+                        <h1 class="text-3xl font-bold text-gray-900">Detail Tagihan</h1>
+                        <p class="mt-2 text-sm text-gray-600"><%= invoice.invoice_number %></p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <!-- Print Dropdown -->
+                        <div class="relative inline-block">
+                            <button onclick="togglePrintDropdown()" 
+                                    class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                                <i class="fas fa-print mr-2"></i>Print
+                                <i class="fas fa-chevron-down ml-2"></i>
+                            </button>
+                            <div id="printDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                                <a href="/billing/tagihan/<%= invoice.id %>/print" 
+                                   target="_blank" 
+                                   class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg border-b">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i>Print A4 (PDF)
+                                </a>
+                                <a href="/billing/tagihan/<%= invoice.id %>/print-thermal" 
+                                   target="_blank" 
+                                   class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg">
+                                    <i class="fas fa-receipt mr-2 text-purple-500"></i>Print Thermal 58mm
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <% if (invoice.status !== 'paid' && invoice.status !== 'cancelled') { %>
+                            <a href="/billing/tagihan/<%= invoice.id %>/pay" 
+                               class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                <i class="fas fa-money-bill-wave mr-2"></i>Bayar
+                            </a>
+                        <% } %>
+                        
+                        <button onclick="deleteInvoice()" 
+                                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                            <i class="fas fa-trash mr-2"></i>Hapus
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Invoice Details -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Invoice Information Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-semibold text-gray-900">Informasi Tagihan</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">Nomor Tagihan</label>
+                                <p class="text-lg font-semibold text-gray-900"><%= invoice.invoice_number %></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">Status</label>
+                                <% 
+                                    let statusClass = '';
+                                    let statusText = '';
+                                    switch(invoice.status) {
+                                        case 'paid':
+                                            statusClass = 'bg-green-100 text-green-800';
+                                            statusText = 'Lunas';
+                                            break;
+                                        case 'unpaid':
+                                            statusClass = 'bg-yellow-100 text-yellow-800';
+                                            statusText = 'Belum Lunas';
+                                            break;
+                                        case 'overdue':
+                                            statusClass = 'bg-red-100 text-red-800';
+                                            statusText = 'Jatuh Tempo';
+                                            break;
+                                        case 'partial':
+                                            statusClass = 'bg-orange-100 text-orange-800';
+                                            statusText = 'Dibayar Sebagian';
+                                            break;
+                                        case 'cancelled':
+                                            statusClass = 'bg-gray-100 text-gray-800';
+                                            statusText = 'Dibatalkan';
+                                            break;
+                                        default:
+                                            statusClass = 'bg-blue-100 text-blue-800';
+                                            statusText = 'Draft';
+                                    }
+                                %>
+                                <span class="inline-flex px-3 py-1 text-sm font-semibold rounded-full <%= statusClass %>">
+                                    <%= statusText %>
+                                </span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">Periode</label>
+                                <p class="text-base text-gray-900"><%= invoice.period %></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">Tanggal Jatuh Tempo</label>
+                                <p class="text-base text-gray-900"><%= new Date(invoice.due_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">Tanggal Dibuat</label>
+                                <p class="text-base text-gray-900"><%= new Date(invoice.created_at).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-500 mb-1">Tanggal Update</label>
+                                <p class="text-base text-gray-900"><%= new Date(invoice.updated_at).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Items -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-semibold text-gray-900">Item Tagihan</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deskripsi</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Satuan</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <% if (items && items.length > 0) { %>
+                                    <% items.forEach(function(item) { %>
+                                        <tr>
+                                            <td class="px-6 py-4 text-sm text-gray-900"><%= item.description %></td>
+                                            <td class="px-6 py-4 text-sm text-right text-gray-900"><%= item.quantity %></td>
+                                            <td class="px-6 py-4 text-sm text-right text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %></td>
+                                            <td class="px-6 py-4 text-sm text-right font-medium text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="4" class="px-6 py-8 text-center text-gray-500">Tidak ada item</td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Subtotal</td>
+                                    <td class="px-6 py-4 text-right font-medium text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.subtotal) %></td>
+                                </tr>
+                                <% if (invoice.discount_amount > 0) { %>
+                                    <tr>
+                                        <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Diskon</td>
+                                        <td class="px-6 py-4 text-right font-medium text-red-600">- Rp <%= new Intl.NumberFormat('id-ID').format(invoice.discount_amount) %></td>
+                                    </tr>
+                                <% } %>
+                                <tr class="border-t-2 border-gray-300">
+                                    <td colspan="3" class="px-6 py-4 text-right font-bold text-gray-900">Total</td>
+                                    <td class="px-6 py-4 text-right font-bold text-xl text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Dibayar</td>
+                                    <td class="px-6 py-4 text-right font-medium text-green-600">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount) %></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Sisa</td>
+                                    <td class="px-6 py-4 text-right font-medium text-red-600">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Payment History -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-semibold text-gray-900">Riwayat Pembayaran</h3>
+                    </div>
+                    <div class="p-6">
+                        <% if (payments && payments.length > 0) { %>
+                            <div class="space-y-4">
+                                <% payments.forEach(function(payment) { %>
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                                                <i class="fas fa-check text-green-600"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(payment.amount) %></p>
+                                                <p class="text-xs text-gray-500"><%= new Date(payment.payment_date).toLocaleDateString('id-ID', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></p>
+                                                <% if (payment.payment_method) { %>
+                                                    <p class="text-xs text-gray-500">Via: <%= payment.payment_method %></p>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <%= payment.status %>
+                                            </span>
+                                            <% if (payment.notes) { %>
+                                                <p class="text-xs text-gray-500 mt-1"><%= payment.notes %></p>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } else { %>
+                            <div class="text-center py-8">
+                                <i class="fas fa-receipt text-4xl text-gray-300 mb-3"></i>
+                                <p class="text-gray-500">Belum ada pembayaran</p>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Debt Tracking -->
+                <% if (debts && debts.length > 0) { %>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
+                            <h3 class="text-lg font-semibold text-red-900">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>Hutang Aktif
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <% debts.forEach(function(debt) { %>
+                                    <div class="p-4 bg-red-50 rounded-lg border border-red-200">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <p class="text-sm font-semibold text-red-900">Jumlah Hutang: Rp <%= new Intl.NumberFormat('id-ID').format(debt.debt_amount) %></p>
+                                            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                <%= debt.status %>
+                                            </span>
+                                        </div>
+                                        <p class="text-xs text-red-700">Dibuat: <%= new Date(debt.created_at).toLocaleDateString('id-ID') %></p>
+                                        <% if (debt.days_overdue > 0) { %>
+                                            <p class="text-xs text-red-700 mt-1">Terlambat: <%= debt.days_overdue %> hari</p>
+                                        <% } %>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- Right Column - Customer Information -->
+            <div class="space-y-6">
+                <!-- Customer Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-semibold text-gray-900">Informasi Pelanggan</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="text-center mb-6">
+                            <div class="w-20 h-20 rounded-full bg-blue-100 mx-auto mb-3 flex items-center justify-center">
+                                <i class="fas fa-user text-3xl text-blue-600"></i>
+                            </div>
+                            <h4 class="text-xl font-bold text-gray-900"><%= invoice.customer_name %></h4>
+                            <p class="text-sm text-gray-500"><%= invoice.customer_code %></p>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-3">
+                                <i class="fas fa-phone text-gray-400 mt-1"></i>
+                                <div>
+                                    <p class="text-xs text-gray-500">Telepon</p>
+                                    <p class="text-sm text-gray-900"><%= invoice.customer_phone || '-' %></p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3">
+                                <i class="fas fa-envelope text-gray-400 mt-1"></i>
+                                <div>
+                                    <p class="text-xs text-gray-500">Email</p>
+                                    <p class="text-sm text-gray-900"><%= invoice.customer_email || '-' %></p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3">
+                                <i class="fas fa-map-marker-alt text-gray-400 mt-1"></i>
+                                <div>
+                                    <p class="text-xs text-gray-500">Alamat</p>
+                                    <p class="text-sm text-gray-900"><%= invoice.customer_address || '-' %></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-semibold text-gray-900">Aksi Cepat</h3>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        <button onclick="sendWhatsApp()" 
+                                class="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors text-sm">
+                            <i class="fab fa-whatsapp mr-2"></i>Kirim via WhatsApp
+                        </button>
+                        
+                        <button onclick="sendEmail()" 
+                                class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                            <i class="fas fa-envelope mr-2"></i>Kirim via Email
+                        </button>
+                        
+                        <% if (invoice.status === 'draft') { %>
+                            <button onclick="changeStatus('sent')" 
+                                    class="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm">
+                                <i class="fas fa-paper-plane mr-2"></i>Tandai Terkirim
+                            </button>
+                        <% } %>
+                        
+                        <% if (invoice.status !== 'cancelled') { %>
+                            <button onclick="changeStatus('cancelled')" 
+                                    class="w-full bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm">
+                                <i class="fas fa-ban mr-2"></i>Batalkan Tagihan
+                            </button>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Toggle print dropdown
+    function togglePrintDropdown() {
+        const dropdown = document.getElementById('printDropdown');
+        dropdown.classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('printDropdown');
+        const button = event.target.closest('button');
+        if (button && button.onclick === togglePrintDropdown) return;
+        if (!dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Send via WhatsApp
+    function sendWhatsApp() {
+        if (confirm('Kirim tagihan via WhatsApp ke <%= invoice.customer_name %>?')) {
+            fetch('/billing/tagihan/<%= invoice.id %>/send-whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Tagihan berhasil dikirim via WhatsApp');
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ Terjadi kesalahan saat mengirim WhatsApp');
+            });
+        }
+    }
+
+    // Send via Email
+    function sendEmail() {
+        alert('Fitur kirim email akan segera tersedia');
+    }
+
+    // Change invoice status
+    function changeStatus(newStatus) {
+        const statusNames = {
+            'sent': 'Terkirim',
+            'cancelled': 'Dibatalkan'
+        };
+        
+        if (confirm(`Ubah status tagihan menjadi ${statusNames[newStatus]}?`)) {
+            fetch('/billing/tagihan/<%= invoice.id %>/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Status berhasil diubah');
+                    location.reload();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ Terjadi kesalahan');
+            });
+        }
+    }
+
+    // Delete invoice
+    function deleteInvoice() {
+        if (confirm('⚠️ PERHATIAN!\n\nApakah Anda yakin ingin menghapus tagihan <%= invoice.invoice_number %>?\n\n• Data pembayaran terkait juga akan dihapus\n• Tindakan ini tidak dapat dibatalkan')) {
+            fetch('/billing/tagihan/<%= invoice.id %>', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Tagihan berhasil dihapus');
+                    window.location.href = '/billing/tagihan';
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ Terjadi kesalahan saat menghapus tagihan');
+            });
+        }
+    }
+</script>

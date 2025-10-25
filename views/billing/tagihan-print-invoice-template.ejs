@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Pembayaran</title>
+    <style>
+        @page {
+            size: 58mm auto;
+            margin: 2mm 3mm;
+        }
+        
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                width: 58mm;
+            }
+            .no-print {
+                display: none;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 7pt;
+            line-height: 1.2;
+            color: #000;
+            width: 58mm;
+            max-width: 58mm;
+        }
+        
+        .invoice {
+            margin-bottom: 5mm;
+            padding-bottom: 3mm;
+        }
+        
+        .separator {
+            text-align: center;
+            margin: 5mm 0;
+            font-size: 6pt;
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 2mm 0;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3mm;
+            padding-bottom: 2mm;
+            border-bottom: 1px solid #000;
+        }
+        
+        .header h1 {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            letter-spacing: 0.5pt;
+        }
+        
+        .header h2 {
+            font-size: 8pt;
+            font-weight: bold;
+        }
+        
+        .section {
+            margin-bottom: 3mm;
+            padding-bottom: 2mm;
+            border-bottom: 1px dashed #000;
+        }
+        
+        .section-title {
+            font-size: 7pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            text-align: center;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        table td {
+            padding: 0.5mm 0;
+            font-size: 7pt;
+            vertical-align: top;
+        }
+        
+        table td:first-child {
+            width: 40%;
+        }
+        
+        table td:nth-child(2) {
+            width: 5%;
+            text-align: center;
+        }
+        
+        table td:last-child {
+            width: 55%;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .items-table {
+            margin: 2mm 0;
+        }
+        
+        .items-table td {
+            border-bottom: 1px dotted #ccc;
+            padding: 1mm 0;
+        }
+        
+        .total-section {
+            margin-top: 3mm;
+            padding-top: 2mm;
+            border-top: 1px solid #000;
+        }
+        
+        .total-row {
+            font-size: 7pt;
+        }
+        
+        .total-row.grand {
+            font-size: 8pt;
+            font-weight: bold;
+            border-top: 1px solid #000;
+            padding-top: 1mm;
+            margin-top: 1mm;
+        }
+        
+        .status-box {
+            text-align: center;
+            margin: 3mm 0;
+            padding: 2mm;
+            border: 2px solid #000;
+        }
+        
+        .status-label {
+            font-size: 6pt;
+            margin-bottom: 0.5mm;
+        }
+        
+        .status-value {
+            font-size: 8pt;
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 3mm;
+            text-align: center;
+            font-size: 6pt;
+            border-top: 1px dashed #000;
+            padding-top: 2mm;
+            line-height: 1.4;
+        }
+        
+        .btn-print {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 5px;
+        }
+        
+        .btn-print:hover {
+            background: #0056b3;
+        }
+        
+        .print-controls {
+            text-align: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        @media screen {
+            body {
+                width: auto;
+                max-width: 100%;
+                padding: 20px;
+                background: #e9ecef;
+            }
+            .invoice {
+                background: white;
+                padding: 5mm;
+                margin-bottom: 5mm;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                border-radius: 2mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-controls no-print">
+        <button id="btnPrint" class="btn-print">
+            🖨️ Print Invoice (58mm)
+        </button>
+        <button id="btnClose" class="btn-print" style="background: #6c757d;">
+            ✕ Tutup
+        </button>
+    </div>
+
+    <!-- EXAMPLE INVOICE -->
+    <div class="invoice">
+        <!-- Header -->
+        <div class="header">
+            <h1>INVOICE PEMBAYARAN</h1>
+            <h2>CUSTOMER NAME</h2>
+        </div>
+
+        <!-- Info Invoice -->
+        <div class="section">
+            <table>
+                <tr>
+                    <td>No. Invoice</td>
+                    <td>:</td>
+                    <td>INV/2025/10/0001</td>
+                </tr>
+                <tr>
+                    <td>Tanggal</td>
+                    <td>:</td>
+                    <td>25/10/2025</td>
+                </tr>
+                <tr>
+                    <td>Periode</td>
+                    <td>:</td>
+                    <td>Oktober 2025</td>
+                </tr>
+                <tr>
+                    <td>Jatuh Tempo</td>
+                    <td>:</td>
+                    <td>30/10/2025</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Info Pelanggan -->
+        <div class="section">
+            <table>
+                <tr>
+                    <td>Kode Pelanggan</td>
+                    <td>:</td>
+                    <td>CUST001</td>
+                </tr>
+                <tr>
+                    <td>Telepon</td>
+                    <td>:</td>
+                    <td>08123456789</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding-top: 1mm;">
+                        <div style="font-size: 6pt;">Alamat:</div>
+                        <div style="font-size: 7pt; margin-top: 0.5mm;">
+                            Jl. Contoh No. 123, Kota
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Rincian Tagihan -->
+        <div class="section">
+            <div class="section-title">RINCIAN TAGIHAN</div>
+            <table class="items-table">
+                <tr>
+                    <td style="font-weight: bold;">Layanan Internet</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>Periode</td>
+                    <td>:</td>
+                    <td>Oktober 2025</td>
+                </tr>
+                <tr>
+                    <td>Paket</td>
+                    <td>:</td>
+                    <td>10 Mbps</td>
+                </tr>
+                <tr>
+                    <td>Biaya</td>
+                    <td>:</td>
+                    <td>Rp 150.000</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Total -->
+        <div class="total-section">
+            <table>
+                <tr class="total-row">
+                    <td>Subtotal</td>
+                    <td>:</td>
+                    <td>Rp 150.000</td>
+                </tr>
+                <tr class="total-row">
+                    <td>Terbayar</td>
+                    <td>:</td>
+                    <td>Rp 0</td>
+                </tr>
+                <tr class="total-row grand">
+                    <td>TOTAL</td>
+                    <td>:</td>
+                    <td>Rp 150.000</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Status -->
+        <div class="status-box">
+            <div class="status-label">STATUS PEMBAYARAN</div>
+            <div class="status-value">BELUM LUNAS</div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            Terima kasih atas pembayaran Anda<br>
+            Sistem Billing FTTH<br>
+            Dicetak: 25/10/2025 10:30
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnPrint = document.getElementById('btnPrint');
+            if (btnPrint) {
+                btnPrint.addEventListener('click', function() {
+                    window.print();
+                });
+            }
+            
+            const btnClose = document.getElementById('btnClose');
+            if (btnClose) {
+                btnClose.addEventListener('click', function() {
+                    window.close();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

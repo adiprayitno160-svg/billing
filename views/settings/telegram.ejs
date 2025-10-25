@@ -1,0 +1,266 @@
+<!-- Settings Telegram Page -->
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <i class="fab fa-telegram text-blue-500"></i> Pengaturan Telegram Bot
+        </h2>
+        <p class="text-gray-600 mt-1">Konfigurasi bot Telegram untuk notifikasi dan monitoring</p>
+    </div>
+
+    <!-- Status Bot -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-<%= botInfo.isInitialized ? 'green' : 'red' %>-100 flex items-center justify-center">
+                    <i class="fas fa-robot text-<%= botInfo.isInitialized ? 'green' : 'red' %>-600 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Status Bot</h3>
+                    <% if (botInfo.isInitialized) { %>
+                        <p class="text-sm text-green-600 flex items-center gap-1">
+                            <i class="fas fa-check-circle"></i> Bot Aktif dan Terhubung
+                        </p>
+                    <% } else { %>
+                        <p class="text-sm text-red-600 flex items-center gap-1">
+                            <i class="fas fa-times-circle"></i> Bot Tidak Aktif
+                        </p>
+                    <% } %>
+                </div>
+            </div>
+            <% if (botInfo.isInitialized) { %>
+                <span class="px-4 py-2 bg-green-500 text-white rounded-full text-sm font-medium">
+                    Online
+                </span>
+            <% } else { %>
+                <span class="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium">
+                    Offline
+                </span>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Form Konfigurasi -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Konfigurasi Bot Token</h3>
+        
+        <form id="telegramSettingsForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Bot Token <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="botToken" 
+                        name="bot_token" 
+                        class="w-full border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg px-4 py-2.5 outline-none transition" 
+                        placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                        value="<%= settings.bot_token || '' %>"
+                    />
+                    <button 
+                        type="button" 
+                        onclick="togglePasswordVisibility('botToken', 'eyeIcon')"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                        <i class="fas fa-eye" id="eyeIcon"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                    Token yang Anda dapatkan dari @BotFather di Telegram
+                </p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        name="auto_start" 
+                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        <%= settings.auto_start ? 'checked' : '' %>
+                    />
+                    <span class="text-sm text-gray-700">Auto-start bot saat server dimulai</span>
+                </label>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+                <button 
+                    type="submit" 
+                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <i class="fas fa-save"></i> Simpan Pengaturan
+                </button>
+                <button 
+                    type="button"
+                    onclick="testBotConnection()"
+                    class="px-6 py-2.5 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <i class="fas fa-plug"></i> Test Koneksi
+                </button>
+                <% if (botInfo.isInitialized) { %>
+                <button 
+                    type="button"
+                    onclick="restartBot()"
+                    class="px-6 py-2.5 border border-orange-600 text-orange-600 hover:bg-orange-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <i class="fas fa-sync"></i> Restart Bot
+                </button>
+                <% } %>
+            </div>
+        </form>
+    </div>
+
+    <!-- Panduan Setup -->
+    <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg shadow-sm p-6 mb-6 border border-blue-200">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-yellow-500"></i> Cara Mendapatkan Bot Token
+        </h3>
+        <div class="space-y-3 text-sm text-gray-700">
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                <p>Buka Telegram dan cari <strong>@BotFather</strong></p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                <p>Kirim perintah <code class="bg-white px-2 py-1 rounded">/newbot</code> untuk membuat bot baru</p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                <p>Ikuti instruksi BotFather (beri nama dan username untuk bot Anda)</p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                <p>BotFather akan memberikan <strong>token</strong>, copy dan paste ke form di atas</p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                <p>Klik "Simpan Pengaturan" dan server akan restart otomatis untuk mengaktifkan bot</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bot Info (jika aktif) -->
+    <% if (botInfo.isInitialized && botInfo.username) { %>
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informasi Bot</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm text-gray-600">Username Bot</p>
+                <p class="font-medium text-gray-900">@<%= botInfo.username %></p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600">Nama Bot</p>
+                <p class="font-medium text-gray-900"><%= botInfo.first_name || '-' %></p>
+            </div>
+        </div>
+        <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p class="text-sm text-gray-700">
+                <i class="fas fa-info-circle text-blue-600"></i>
+                Untuk mendaftar ke bot, buka Telegram dan cari <strong>@<%= botInfo.username %></strong>, 
+                lalu kirim perintah <code class="bg-white px-2 py-1 rounded">/register</code>
+            </p>
+        </div>
+    </div>
+    <% } %>
+</div>
+
+<script>
+// Toggle password visibility
+function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Form submit
+document.getElementById('telegramSettingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        bot_token: formData.get('bot_token'),
+        auto_start: formData.get('auto_start') === 'on'
+    };
+    
+    try {
+        const response = await fetch('/settings/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Pengaturan berhasil disimpan!\n\nServer akan restart untuk mengaktifkan bot.');
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            alert('❌ Gagal menyimpan pengaturan:\n' + result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Terjadi kesalahan saat menyimpan pengaturan');
+    }
+});
+
+// Test bot connection
+async function testBotConnection() {
+    const botToken = document.getElementById('botToken').value;
+    
+    if (!botToken) {
+        alert('⚠️ Masukkan bot token terlebih dahulu');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/settings/telegram/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_token: botToken })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Koneksi berhasil!\n\nBot: @${result.data.username}\nNama: ${result.data.first_name}`);
+        } else {
+            alert('❌ Koneksi gagal:\n' + result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Terjadi kesalahan saat test koneksi');
+    }
+}
+
+// Restart bot
+async function restartBot() {
+    if (!confirm('Restart bot Telegram?')) return;
+    
+    try {
+        const response = await fetch('/settings/telegram/restart', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Bot berhasil direstart');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            alert('❌ Gagal restart bot:\n' + result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Terjadi kesalahan saat restart bot');
+    }
+}
+</script>
+

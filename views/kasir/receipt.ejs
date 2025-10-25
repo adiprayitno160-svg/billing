@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt <%= payment.id %></title>
+    <style>
+        @page {
+            size: 58mm auto;
+            margin: 2mm 3mm;
+        }
+        
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                width: 58mm;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 8pt;
+            line-height: 1.3;
+            color: #000;
+            width: 58mm;
+            max-width: 58mm;
+            margin: 0 auto;
+            background: white;
+            padding: 2mm;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 5px;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 5px;
+        }
+        
+        .header h1 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .header p {
+            font-size: 7pt;
+            margin: 1px 0;
+        }
+        
+        .section {
+            margin: 5px 0;
+            padding: 5px 0;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            font-size: 9pt;
+            margin-bottom: 3px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+            font-size: 8pt;
+        }
+        
+        .row-label {
+            flex: 0 0 auto;
+            width: 50%;
+        }
+        
+        .row-value {
+            flex: 1;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+        
+        .total-row {
+            font-size: 10pt;
+            font-weight: bold;
+            padding: 3px 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px dashed #000;
+            font-size: 7pt;
+        }
+        
+        .status {
+            text-align: center;
+            font-weight: bold;
+            font-size: 11pt;
+            margin: 5px 0;
+            padding: 3px;
+            background: #000;
+            color: #fff;
+        }
+        
+        .buttons {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .btn-print {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-print:hover {
+            background: #45a049;
+        }
+        
+        .btn-back {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-back:hover {
+            background: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Buttons -->
+    <div class="buttons no-print">
+        <button onclick="window.print()" class="btn btn-print">
+            🖨️ Print Receipt
+        </button>
+        <button onclick="window.location.href='/kasir/payments'" class="btn btn-back">
+            ← Kembali
+        </button>
+    </div>
+
+    <!-- Receipt Content -->
+    <div class="header">
+        <h1>RECEIPT PEMBAYARAN</h1>
+        <p>Billing System ISP</p>
+        <p>================================</p>
+    </div>
+
+    <!-- Receipt Info -->
+    <div class="section">
+        <div class="row">
+            <span class="row-label">No. Receipt:</span>
+            <span class="row-value">#<%= payment.id %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">Tanggal:</span>
+            <span class="row-value"><%= new Date(payment.payment_date).toLocaleString('id-ID', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            }) %></span>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Customer Info -->
+    <div class="section">
+        <div class="section-title">Data Pelanggan</div>
+        <div class="row">
+            <span class="row-label">ID:</span>
+            <span class="row-value"><%= payment.customer_code %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">Nama:</span>
+            <span class="row-value"><%= payment.customer_name %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">No. HP:</span>
+            <span class="row-value"><%= payment.customer_phone || '-' %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">Paket:</span>
+            <span class="row-value"><%= payment.package_name || '-' %></span>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Invoice Info -->
+    <div class="section">
+        <div class="section-title">Detail Tagihan</div>
+        <div class="row">
+            <span class="row-label">No. Invoice:</span>
+            <span class="row-value"><%= payment.invoice_number %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">Periode:</span>
+            <span class="row-value"><%= payment.period %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">Total Tagihan:</span>
+            <span class="row-value">Rp <%= (payment.invoice_total || 0).toLocaleString('id-ID') %></span>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Payment Info -->
+    <div class="section">
+        <div class="section-title">Detail Pembayaran</div>
+        <div class="row">
+            <span class="row-label">Metode:</span>
+            <span class="row-value"><%= payment.payment_method.toUpperCase() %></span>
+        </div>
+        <div class="row">
+            <span class="row-label">Referensi:</span>
+            <span class="row-value"><%= payment.reference_number || '-' %></span>
+        </div>
+        <% if (payment.notes) { %>
+        <div class="row">
+            <span class="row-label">Catatan:</span>
+            <span class="row-value"><%= payment.notes %></span>
+        </div>
+        <% } %>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Total -->
+    <div class="section">
+        <div class="row total-row">
+            <span class="row-label">JUMLAH BAYAR:</span>
+            <span class="row-value">Rp <%= (payment.amount || 0).toLocaleString('id-ID') %></span>
+        </div>
+    </div>
+
+    <div class="status">
+        ✓ LUNAS
+    </div>
+
+    <!-- Kasir Info -->
+    <div class="section">
+        <div class="row">
+            <span class="row-label">Kasir:</span>
+            <span class="row-value"><%= payment.kasir_name || 'System' %></span>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Terima kasih atas pembayaran Anda!</p>
+        <p>Simpan struk ini sebagai bukti pembayaran</p>
+        <p>================================</p>
+        <p style="font-size: 6pt; margin-top: 3px;">
+            Printed: <%= new Date().toLocaleString('id-ID') %>
+        </p>
+    </div>
+
+    <script>
+        // Auto print when page loads (after 500ms delay)
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    </script>
+</body>
+</html>
+
+
+

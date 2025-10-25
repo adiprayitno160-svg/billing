@@ -1,0 +1,190 @@
+<!-- Maintenance List Page -->
+        <div class="flex-1 p-8 max-w-7xl mx-auto w-full">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-tools mr-3 text-orange-600"></i>
+                            Maintenance Schedule
+                        </h1>
+                        <p class="text-gray-600">Jadwal maintenance dan downtime terencana</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <a href="/monitoring/dashboard" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Kembali
+                        </a>
+                        <button id="createMaintenanceBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>
+                            Schedule Maintenance
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select id="statusFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Semua</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipe</label>
+                        <select id="typeFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Semua</option>
+                            <option value="planned">Planned</option>
+                            <option value="emergency">Emergency</option>
+                            <option value="upgrade">Upgrade</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Dari Tanggal</label>
+                        <input type="date" id="startDateFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="applyFiltersBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-filter mr-2"></i>Filter
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance List -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Judul
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tipe
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Waktu Mulai
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Durasi
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Affected
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Action
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <% if (schedules && schedules.length > 0) { %>
+                                <% schedules.forEach(function(maint) { %>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-medium text-gray-900"><%= maint.title %></div>
+                                        <div class="text-sm text-gray-500"><%= maint.description || '-' %></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                            <%= maint.maintenance_type === 'emergency' ? 'bg-red-100 text-red-800' : 
+                                                maint.maintenance_type === 'upgrade' ? 'bg-purple-100 text-purple-800' : 
+                                                'bg-blue-100 text-blue-800' %>">
+                                            <%= maint.maintenance_type %>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <%= new Date(maint.start_time).toLocaleString('id-ID') %>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <% 
+                                        const duration = Math.round((new Date(maint.end_time) - new Date(maint.start_time)) / 60000);
+                                        const hours = Math.floor(duration / 60);
+                                        const minutes = duration % 60;
+                                        %>
+                                        <%= hours %>h <%= minutes %>m
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <%= maint.customer_count || 0 %> customers
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                            <%= maint.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : 
+                                                maint.status === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 
+                                                maint.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                'bg-gray-100 text-gray-800' %>">
+                                            <%= maint.status %>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <a href="/monitoring/maintenance/<%= maint.id %>" 
+                                           class="text-blue-600 hover:text-blue-900 font-medium">
+                                            View Detail →
+                                        </a>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                            <% } else { %>
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center">
+                                    <div class="text-gray-400">
+                                        <i class="fas fa-calendar-check text-4xl mb-3"></i>
+                                        <p class="text-lg">Tidak ada maintenance schedule</p>
+                                        <button id="createFirstBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                            <i class="fas fa-plus mr-2"></i>Schedule Maintenance Pertama
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const createMaintenanceBtn = document.getElementById('createMaintenanceBtn');
+    const createFirstBtn = document.getElementById('createFirstBtn');
+    
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', applyFilters);
+    }
+    
+    if (createMaintenanceBtn) {
+        createMaintenanceBtn.addEventListener('click', function() {
+            window.location.href = '/monitoring/maintenance/create';
+        });
+    }
+    
+    if (createFirstBtn) {
+        createFirstBtn.addEventListener('click', function() {
+            window.location.href = '/monitoring/maintenance/create';
+        });
+    }
+});
+
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const type = document.getElementById('typeFilter').value;
+    const startDate = document.getElementById('startDateFilter').value;
+    
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (type) params.append('type', type);
+    if (startDate) params.append('start_date', startDate);
+    
+    window.location.href = '/monitoring/maintenance?' + params.toString();
+}
+</script>

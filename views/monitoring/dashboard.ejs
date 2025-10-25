@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Billing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <%- include('../partials/navbar') %>
+    
+    <div class="flex">
+        <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-monitor-heart-rate mr-3 text-blue-600"></i>
+                    Dashboard Monitoring
+                </h1>
+                <p class="text-gray-600">Monitor status pelanggan PPPoE dan Static IP secara real-time</p>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Total PPPoE -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Total PPPoE</p>
+                            <h3 class="text-3xl font-bold text-gray-800"><%= pppoeStats.total %></h3>
+                        </div>
+                        <div class="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-2xl text-blue-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-green-600 font-medium"><%= pppoeStats.active %> Active</span>
+                        <span class="text-gray-400 mx-2">•</span>
+                        <span class="text-red-600 font-medium"><%= pppoeStats.isolated %> Isolated</span>
+                    </div>
+                </div>
+
+                <!-- Online PPPoE -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">PPPoE Online</p>
+                            <h3 class="text-3xl font-bold text-green-600"><%= onlinePPPoE %></h3>
+                        </div>
+                        <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-signal text-2xl text-green-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                                 style="width: <%= pppoeStats.total > 0 ? (onlinePPPoE / pppoeStats.total * 100).toFixed(1) : 0 %>%"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <%= pppoeStats.total > 0 ? (onlinePPPoE / pppoeStats.total * 100).toFixed(1) : 0 %>% dari total PPPoE
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Total Static IP -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Total Static IP</p>
+                            <h3 class="text-3xl font-bold text-gray-800"><%= staticIpStats.total %></h3>
+                        </div>
+                        <div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-network-wired text-2xl text-purple-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-green-600 font-medium"><%= staticIpStats.active %> Active</span>
+                        <span class="text-gray-400 mx-2">•</span>
+                        <span class="text-gray-600 font-medium"><%= staticIpStats.total - staticIpStats.active %> Inactive</span>
+                    </div>
+                </div>
+
+                <!-- Total All -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Total Semua Pelanggan</p>
+                            <h3 class="text-3xl font-bold text-gray-800"><%= pppoeStats.total + staticIpStats.total %></h3>
+                        </div>
+                        <div class="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-chart-pie text-2xl text-orange-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-blue-600 font-medium"><%= pppoeStats.total %> PPPoE</span>
+                        <span class="text-gray-400 mx-2">•</span>
+                        <span class="text-purple-600 font-medium"><%= staticIpStats.total %> Static IP</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- PPPoE Monitoring -->
+                <a href="/monitoring/pppoe" class="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-users-line mr-2 text-blue-600"></i>
+                            Monitor PPPoE
+                        </h3>
+                        <i class="fas fa-arrow-right text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4">
+                        Monitor status koneksi, session aktif, dan bandwidth pelanggan PPPoE
+                    </p>
+                    <div class="flex items-center text-sm">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                            <%= onlinePPPoE %> Online
+                        </span>
+                        <span class="ml-2 text-gray-500">dari <%= pppoeStats.total %> total</span>
+                    </div>
+                </a>
+
+                <!-- Static IP Monitoring -->
+                <a href="/monitoring/static-ip" class="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-network-wired mr-2 text-purple-600"></i>
+                            Monitor Static IP
+                        </h3>
+                        <i class="fas fa-arrow-right text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4">
+                        Monitor status dan konektivitas pelanggan dengan Static IP
+                    </p>
+                    <div class="flex items-center text-sm">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <%= staticIpStats.active %> Active
+                        </span>
+                        <span class="ml-2 text-gray-500">dari <%= staticIpStats.total %> total</span>
+                    </div>
+                </a>
+            </div>
+
+            <!-- System Info -->
+            <div class="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 text-xl mt-1 mr-3"></i>
+                    <div>
+                        <h4 class="font-semibold text-blue-900 mb-1">Informasi Monitoring</h4>
+                        <p class="text-sm text-blue-800">
+                            Data monitoring diambil secara real-time dari MikroTik Router dan database.
+                            Status online PPPoE diambil dari active session di MikroTik.
+                            Refresh halaman untuk mendapatkan data terbaru.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Auto refresh setiap 30 detik
+        setTimeout(() => {
+            location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>

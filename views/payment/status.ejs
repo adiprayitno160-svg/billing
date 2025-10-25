@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status Pembayaran</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .payment-status-card {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .status-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .status-success { color: #28a745; }
+        .status-pending { color: #ffc107; }
+        .status-failed { color: #dc3545; }
+        .payment-details {
+            background-color: #f8f9fa;
+            border-radius: 0.375rem;
+            padding: 1rem;
+        }
+        .qr-code {
+            max-width: 200px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card payment-status-card mt-5">
+                    <div class="card-body text-center">
+                        <!-- Status Icon -->
+                        <div id="statusIcon" class="status-icon">
+                            <i class="fas fa-clock status-pending"></i>
+                        </div>
+                        
+                        <!-- Status Title -->
+                        <h2 id="statusTitle" class="mb-3">Menunggu Pembayaran</h2>
+                        
+                        <!-- Status Description -->
+                        <p id="statusDescription" class="text-muted mb-4">
+                            Silakan lakukan pembayaran sesuai dengan instruksi di bawah ini.
+                        </p>
+
+                        <!-- Payment Details -->
+                        <div class="payment-details mb-4">
+                            <h5 class="mb-3">Detail Pembayaran</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>ID Transaksi:</strong><br><span id="transactionId">-</span></p>
+                                    <p><strong>Jumlah:</strong><br><span id="amount">-</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Gateway:</strong><br><span id="gateway">-</span></p>
+                                    <p><strong>Metode:</strong><br><span id="paymentMethod">-</span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Instructions -->
+                        <div id="paymentInstructions" class="mb-4">
+                            <!-- Instructions will be loaded dynamically -->
+                        </div>
+
+                        <!-- Payment URL/QR Code -->
+                        <div id="paymentAction" class="mb-4">
+                            <!-- Payment action will be loaded dynamically -->
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                            <button class="btn btn-primary" id="payButton" onclick="openPaymentUrl()">
+                                <i class="fas fa-external-link-alt me-1"></i>Bayar Sekarang
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="checkPaymentStatus()">
+                                <i class="fas fa-sync-alt me-1"></i>Periksa Status
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="cancelPayment()" id="cancelButton">
+                                <i class="fas fa-times me-1"></i>Batalkan
+                            </button>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="mt-4">
+                            <div class="progress">
+                                <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted mt-2 d-block">Status pembayaran akan diperbarui secara otomatis</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment History -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Riwayat Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="statusHistory">
+                            <!-- Status history will be loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let transactionId = '';
+        let paymentUrl = '';
+        let statusCheckInterval;
+
+        // Get transaction ID from URL parameter
+        function getTransactionIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // Load payment status
+        function loadPaymentStatus() {
+            transactionId = getTransactionIdFromUrl();
+            if (!transactionId) {
+                alert('Transaction ID tidak ditemukan');
+                return;
+            }
+
+            fetch(`/payment/status/${transactionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updatePaymentStatus(data.data);
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading payment status:', error);
+                    alert('Terjadi kesalahan saat memuat status pembayaran');
+                });
+        }
+
+        // Update payment status display
+        function updatePaymentStatus(transaction) {
+            // Update basic info
+            document.getElementById('transactionId').textContent = transaction.external_id;
+            document.getElementById('amount').textContent = 'Rp ' + parseFloat(transaction.amount).toLocaleString('id-ID');
+            document.getElementById('gateway').textContent = transaction.gateway_name;
+            document.getElementById('paymentMethod').textContent = transaction.method_name;
+
+            // Update status display
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusDescription = document.getElementById('statusDescription');
+            const payButton = document.getElementById('payButton');
+            const cancelButton = document.getElementById('cancelButton');
+
+            switch(transaction.status) {
+                case 'completed':
+                case 'paid':
+                    statusIcon.innerHTML = '<i class="fas fa-check-circle status-success"></i>';
+                    statusTitle.textContent = 'Pembayaran Berhasil';
+                    statusDescription.textContent = 'Pembayaran Anda telah berhasil diproses.';
+                    payButton.style.display = 'none';
+                    cancelButton.style.display = 'none';
+                    updateProgressBar(100);
+                    break;
+                case 'failed':
+                case 'expired':
+                case 'cancelled':
+                    statusIcon.innerHTML = '<i class="fas fa-times-circle status-failed"></i>';
+                    statusTitle.textContent = 'Pembayaran Gagal';
+                    statusDescription.textContent = 'Pembayaran gagal atau telah dibatalkan.';
+                    payButton.style.display = 'none';
+                    cancelButton.style.display = 'none';
+                    updateProgressBar(0);
+                    break;
+                case 'pending':
+                case 'processing':
+                default:
+                    statusIcon.innerHTML = '<i class="fas fa-clock status-pending"></i>';
+                    statusTitle.textContent = 'Menunggu Pembayaran';
+                    statusDescription.textContent = 'Silakan lakukan pembayaran sesuai dengan instruksi di bawah ini.';
+                    payButton.style.display = 'inline-block';
+                    cancelButton.style.display = 'inline-block';
+                    updateProgressBar(50);
+                    break;
+            }
+
+            // Update payment instructions and action
+            updatePaymentInstructions(transaction);
+        }
+
+        // Update payment instructions based on payment method
+        function updatePaymentInstructions(transaction) {
+            const instructionsDiv = document.getElementById('paymentInstructions');
+            const actionDiv = document.getElementById('paymentAction');
+            
+            const gatewayResponse = transaction.gateway_response ? JSON.parse(transaction.gateway_response) : {};
+            
+            if (transaction.method_name === 'Virtual Account') {
+                instructionsDiv.innerHTML = `
+                    <h6>Instruksi Pembayaran Virtual Account:</h6>
+                    <ol>
+                        <li>Buka aplikasi mobile banking atau internet banking Anda</li>
+                        <li>Pilih menu "Transfer" atau "Pembayaran"</li>
+                        <li>Masukkan nomor virtual account: <strong>${gatewayResponse.account_number || 'Loading...'}</strong></li>
+                        <li>Masukkan nominal: <strong>Rp ${parseFloat(transaction.amount).toLocaleString('id-ID')}</strong></li>
+                        <li>Konfirmasi dan selesaikan pembayaran</li>
+                    </ol>
+                `;
+            } else if (transaction.method_name === 'E-Wallet') {
+                instructionsDiv.innerHTML = `
+                    <h6>Instruksi Pembayaran E-Wallet:</h6>
+                    <ol>
+                        <li>Buka aplikasi e-wallet Anda</li>
+                        <li>Pilih menu "Bayar" atau "Pembayaran"</li>
+                        <li>Scan QR code atau masukkan kode pembayaran</li>
+                        <li>Konfirmasi pembayaran</li>
+                    </ol>
+                `;
+                
+                if (gatewayResponse.pay_url) {
+                    actionDiv.innerHTML = `
+                        <div class="qr-code">
+                            <img src="${gatewayResponse.pay_url}" alt="QR Code" class="img-fluid">
+                        </div>
+                    `;
+                }
+            } else if (transaction.method_name === 'Retail Outlet') {
+                instructionsDiv.innerHTML = `
+                    <h6>Instruksi Pembayaran Retail Outlet:</h6>
+                    <ol>
+                        <li>Datang ke ${gatewayResponse.retail_outlet_name || 'outlet terdekat'}</li>
+                        <li>Berikan kode pembayaran: <strong>${gatewayResponse.payment_code || 'Loading...'}</strong></li>
+                        <li>Bayar sesuai nominal: <strong>Rp ${parseFloat(transaction.amount).toLocaleString('id-ID')}</strong></li>
+                        <li>Simpan struk pembayaran</li>
+                    </ol>
+                `;
+            }
+
+            // Set payment URL
+            if (transaction.payment_url) {
+                paymentUrl = transaction.payment_url;
+            }
+        }
+
+        // Update progress bar
+        function updateProgressBar(percentage) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percentage + '%';
+            progressBar.setAttribute('aria-valuenow', percentage);
+        }
+
+        // Open payment URL
+        function openPaymentUrl() {
+            if (paymentUrl) {
+                window.open(paymentUrl, '_blank');
+            } else {
+                alert('URL pembayaran tidak tersedia');
+            }
+        }
+
+        // Check payment status
+        function checkPaymentStatus() {
+            loadPaymentStatus();
+        }
+
+        // Cancel payment
+        function cancelPayment() {
+            if (confirm('Apakah Anda yakin ingin membatalkan pembayaran ini?')) {
+                // Implement cancel payment logic
+                alert('Pembayaran dibatalkan');
+            }
+        }
+
+        // Auto-refresh status
+        function startStatusCheck() {
+            statusCheckInterval = setInterval(() => {
+                loadPaymentStatus();
+            }, 30000); // Check every 30 seconds
+        }
+
+        function stopStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+        }
+
+        // Load status history
+        function loadStatusHistory() {
+            // Implement status history loading
+            const historyDiv = document.getElementById('statusHistory');
+            historyDiv.innerHTML = `
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6>Transaksi Dibuat</h6>
+                            <small class="text-muted">${new Date().toLocaleString('id-ID')}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPaymentStatus();
+            loadStatusHistory();
+            startStatusCheck();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopStatusCheck();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Edit ODP</h2>
+        <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
+    </div>
+    <form method="post" action="/ftth/odp/<%= item.id %>" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Pilih ODC</label>
+            <select name="odc_id" required class="w-full rounded border border-slate-300 px-2 py-1.5">
+                <% (odcs || []).forEach(function(odc){ %>
+                <option value="<%= odc.id %>" <%= (item.odc_id == odc.id) ? 'selected' : '' %>><%= odc.name %></option>
+                <% }) %>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Nama</label>
+            <input name="name" value="<%= item.name %>" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Lokasi</label>
+            <input name="location" value="<%= item.location || '' %>" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Latitude</label>
+            <input name="latitude" type="number" step="0.0000001" value="<%= item.latitude || '' %>" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Longitude</label>
+            <input name="longitude" type="number" step="0.0000001" value="<%= item.longitude || '' %>" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Total Port</label>
+            <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Terpakai</label>
+            <input name="used_ports" type="number" min="0" value="<%= item.used_ports %>" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Baris Kartu OLT</label>
+            <select name="olt_card" id="odpOltCard" class="w-full rounded border border-slate-300 px-2 py-1.5"></select>
+        </div>
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Port OLT</label>
+            <select name="olt_port" id="odpOltPort" class="w-full rounded border border-slate-300 px-2 py-1.5"></select>
+        </div>
+        <div class="sm:col-span-2">
+            <label class="block text-xs text-slate-600 mb-1">Catatan</label>
+            <textarea name="notes" class="w-full rounded border border-slate-300 px-2 py-1.5"><%= item.notes || '' %></textarea>
+        </div>
+        <div class="sm:col-span-2 flex justify-end gap-2">
+            <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>" class="px-3 py-1.5 rounded border border-slate-300">Batal</a>
+            <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+        </div>
+    </form>
+    <script>
+    (function(){
+        const odcToOlt = <%- JSON.stringify(odcToOlt || {}) %>;
+        const odcSelect = document.querySelector('select[name="odc_id"]');
+        const cardSelect = document.getElementById('odpOltCard');
+        const portSelect = document.getElementById('odpOltPort');
+        function fillOptions(sel, count, label, selected){
+            sel.innerHTML = '<option value="">-- Pilih ' + label + ' --</option>';
+            const n = Number(count||0);
+            for(let i=1;i<=n;i++){
+                const opt = document.createElement('option');
+                opt.value = String(i);
+                opt.textContent = label + ' ' + i;
+                if (selected && Number(selected) === i) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        }
+        function refreshFromOdc(){
+            const odcId = odcSelect && odcSelect.value ? String(odcSelect.value) : '';
+            const meta = odcToOlt[odcId] || {};
+            fillOptions(cardSelect, meta.line_cards, 'Baris', <%- JSON.stringify(item.olt_card || null) %>);
+            fillOptions(portSelect, meta.total_ports, 'Port', <%- JSON.stringify(item.olt_port || null) %>);
+        }
+        if (odcSelect){
+            odcSelect.addEventListener('change', refreshFromOdc);
+            refreshFromOdc();
+        }
+    })();
+    </script>
+</div>
+
+

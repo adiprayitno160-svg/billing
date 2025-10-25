@@ -1,0 +1,534 @@
+<div class="space-y-6">
+	<!-- Header Section -->
+	<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-modern-blue-900">Edit Pelanggan</h1>
+				<p class="text-modern-blue-600 mt-1">Ubah data pelanggan sistem billing</p>
+			</div>
+			<div class="flex items-center gap-3">
+				<a href="/customers/list" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
+					← Kembali ke Daftar
+				</a>
+			</div>
+		</div>
+	</div>
+
+	<!-- Edit Form -->
+	<div class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
+		<form method="POST" action="/customers/<%= customer.id %>" class="space-y-6">
+			<!-- Connection Type Selection -->
+			<div class="rounded-xl border border-modern-blue-200 bg-white p-6">
+				<h3 class="text-lg font-bold text-modern-blue-900 mb-4">Jenis Koneksi</h3>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<label class="group relative cursor-pointer block">
+						<input type="radio" name="connection_type" value="pppoe" <%= customer.connection_type === 'pppoe' ? 'checked' : '' %> class="sr-only">
+						<div class="p-5 rounded-lg border transition-all duration-300 
+							<%= customer.connection_type === 'pppoe' ? 'border-modern-blue-500 bg-modern-blue-50' : 'border-slate-200 hover:border-modern-blue-300' %>">
+							<div class="flex items-start gap-4">
+								<div class="mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center 
+									<%= customer.connection_type === 'pppoe' ? 'border-modern-blue-500 bg-modern-blue-500' : 'border-slate-300 group-hover:border-modern-blue-400' %>">
+									<% if (customer.connection_type === 'pppoe') { %>
+									<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+									<% } %>
+								</div>
+								<div class="flex-1">
+									<div class="flex items-center gap-2">
+										<span class="font-semibold text-modern-blue-900">PPPOE</span>
+										<span class="px-2 py-0.5 text-xs rounded-full bg-modern-blue-100 text-modern-blue-700">Username/Password</span>
+									</div>
+									<p class="mt-1 text-sm text-slate-600">Koneksi PPPOE menggunakan kredensial autentikasi.</p>
+								</div>
+							</div>
+						</div>
+					</label>
+
+					<label class="group relative cursor-pointer block">
+						<input type="radio" name="connection_type" value="static_ip" <%= customer.connection_type === 'static_ip' ? 'checked' : '' %> class="sr-only">
+						<div class="p-5 rounded-lg border transition-all duration-300 
+							<%= customer.connection_type === 'static_ip' ? 'border-modern-green-500 bg-modern-green-50' : 'border-slate-200 hover:border-modern-green-300' %>">
+							<div class="flex items-start gap-4">
+								<div class="mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center 
+									<%= customer.connection_type === 'static_ip' ? 'border-modern-green-500 bg-modern-green-500' : 'border-slate-300 group-hover:border-modern-green-400' %>">
+									<% if (customer.connection_type === 'static_ip') { %>
+									<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+									<% } %>
+								</div>
+								<div class="flex-1">
+									<div class="flex items-center gap-2">
+										<span class="font-semibold text-modern-green-900">IP Static</span>
+										<span class="px-2 py-0.5 text-xs rounded-full bg-modern-green-100 text-modern-green-700">Alamat Tetap</span>
+									</div>
+									<p class="mt-1 text-sm text-slate-600">Koneksi dengan IP address tetap pada interface tertentu.</p>
+								</div>
+							</div>
+						</div>
+					</label>
+				</div>
+			</div>
+
+			<!-- Basic Information -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<!-- Nama -->
+				<div>
+					<label for="name" class="block text-sm font-medium text-modern-purple-700 mb-2">Nama Lengkap *</label>
+					<input type="text" id="name" name="name" value="<%= customer.name %>" required
+						class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+				</div>
+
+				<!-- Customer Code -->
+				<div>
+					<label for="customer_code" class="block text-sm font-medium text-modern-purple-700 mb-2">Kode Pelanggan *</label>
+					<input type="text" id="customer_code" name="customer_code" value="<%= customer.customer_code || '' %>" required
+						class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+				</div>
+
+				<!-- Email -->
+				<div>
+					<label for="email" class="block text-sm font-medium text-modern-purple-700 mb-2">Email</label>
+					<input type="email" id="email" name="email" value="<%= customer.email || '' %>"
+						class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300" placeholder="static@example.com">
+					<p class="text-xs text-slate-500 mt-1">Otomatis: nama_pelanggan@id.net (bisa diubah)</p>
+				</div>
+
+				<!-- Telepon -->
+				<div>
+					<label for="phone" class="block text-sm font-medium text-modern-purple-700 mb-2">Nomor Telepon</label>
+					<input type="tel" id="phone" name="phone" value="<%= customer.phone || '' %>"
+						class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+				</div>
+
+				<!-- Status -->
+				<div>
+					<label for="status" class="block text-sm font-medium text-modern-purple-700 mb-2">Status</label>
+					<select id="status" name="status" required
+						class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+						<option value="active" <%= customer.status === 'active' ? 'selected' : '' %>>Aktif</option>
+						<option value="inactive" <%= customer.status === 'inactive' ? 'selected' : '' %>>Tidak Aktif</option>
+					</select>
+				</div>
+
+				<!-- Alamat -->
+				<div class="md:col-span-2">
+					<label for="address" class="block text-sm font-medium text-modern-purple-700 mb-2">Alamat</label>
+					<textarea id="address" name="address" rows="3"
+						class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300"><%= customer.address || '' %></textarea>
+				</div>
+			</div>
+
+			<!-- PPPOE Configuration -->
+			<div id="pppoe-config" class="<%= customer.connection_type === 'pppoe' ? '' : 'hidden' %>">
+				<div class="rounded-xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6">
+					<h3 class="text-lg font-bold text-modern-blue-900 mb-4">Konfigurasi PPPOE</h3>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <div class="flex items-center justify-between">
+                                <label for="pppoe_secret_select" class="block text-sm font-medium text-modern-blue-700 mb-2">Pilih PPPoE Secret (opsional)</label>
+                                <button type="button" id="reload_secrets_btn" class="text-xs px-2 py-1 border border-modern-blue-300 rounded hover:bg-modern-blue-50">Muat Ulang</button>
+                            </div>
+                            <select id="pppoe_secret_select" class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
+                                <option value="">— Memuat daftar dari MikroTik —</option>
+                            </select>
+                            <p class="text-xs text-modern-blue-600 mt-1">Memilih secret akan mengisi username. Catatan: MikroTik biasanya tidak mengembalikan password.</p>
+                        </div>
+						<div>
+							<label for="pppoe_username" class="block text-sm font-medium text-modern-blue-700 mb-2">Username PPPOE *</label>
+							<input type="text" id="pppoe_username" name="pppoe_username" value="<%= customer.pppoe_username || '' %>" required
+								class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
+							<p class="text-xs text-modern-blue-600 mt-1">Username untuk koneksi PPPOE</p>
+						</div>
+						<div>
+							<label for="pppoe_password" class="block text-sm font-medium text-modern-blue-700 mb-2">Password PPPOE *</label>
+							<input type="password" id="pppoe_password" name="pppoe_password" placeholder="Masukkan password baru" required
+								class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
+							<p class="text-xs text-modern-blue-600 mt-1">Password untuk koneksi PPPOE</p>
+						</div>
+						<div>
+							<label for="pppoe_profile_id" class="block text-sm font-medium text-modern-blue-700 mb-2">Profile ID</label>
+							<input type="number" id="pppoe_profile_id" name="pppoe_profile_id" value="<%= customer.pppoe_profile_id || '' %>"
+								class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
+							<p class="text-xs text-modern-blue-600 mt-1">ID profil PPPOE (opsional)</p>
+						</div>
+						<div>
+							<label for="pppoe_package" class="block text-sm font-medium text-modern-blue-700 mb-2">Paket Internet</label>
+							<select id="pppoe_package" name="pppoe_package" 
+								class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
+								<option value="">Pilih Paket Internet</option>
+								<% if (packages && packages.length > 0) { %>
+									<% packages.forEach(pkg => { %>
+										<option value="<%= pkg.id %>" <%= customer.package_id == pkg.id ? 'selected' : '' %>>
+											<%= pkg.name %> - Rp <%= pkg.price.toLocaleString('id-ID') %>
+											<% if (pkg.rate_limit_rx && pkg.rate_limit_tx) { %>
+												(<%= pkg.rate_limit_rx %>/<%= pkg.rate_limit_tx %>)
+											<% } %>
+										</option>
+									<% }); %>
+								<% } else { %>
+									<option value="">Tidak ada paket tersedia</option>
+								<% } %>
+							</select>
+							<p class="text-xs text-modern-blue-600 mt-1">Pilih paket internet untuk pelanggan</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- IP Static Configuration -->
+			<div id="static-ip-config" class="<%= customer.connection_type === 'static_ip' ? '' : 'hidden' %>">
+				<div class="rounded-xl border border-modern-green-200 bg-gradient-to-br from-modern-green-50 to-modern-emerald-50 p-6">
+					<h3 class="text-lg font-bold text-modern-green-900 mb-4">Konfigurasi IP Static</h3>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div>
+							<label for="ip_address" class="block text-sm font-medium text-modern-green-700 mb-2">IP Address *</label>
+							<input type="text" id="ip_address" name="ip_address" value="<%= customer.ip_address || '' %>" placeholder="192.168.1.1/30" required
+								class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
+							<p class="text-xs text-modern-green-600 mt-1">Format: IP/CIDR (contoh: 192.168.1.1/30)</p>
+						</div>
+						<div>
+							<label for="interface" class="block text-sm font-medium text-modern-green-700 mb-2">Interface *</label>
+							<input type="text" id="interface" name="interface" value="<%= customer.interface || '' %>" placeholder="ether1" required
+								class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
+							<p class="text-xs text-modern-green-600 mt-1">Interface MikroTik (contoh: ether1)</p>
+						</div>
+						<div>
+							<label for="static_ip_package" class="block text-sm font-medium text-modern-green-700 mb-2">Paket Internet</label>
+							<select id="static_ip_package" name="static_ip_package" 
+								class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
+								<option value="">Pilih Paket Internet</option>
+								<% if (packages && packages.length > 0) { %>
+									<% packages.forEach(pkg => { %>
+										<option value="<%= pkg.id %>" <%= customer.package_id == pkg.id ? 'selected' : '' %>>
+											<%= pkg.name %> - Rp <%= pkg.price.toLocaleString('id-ID') %>
+											<% if (pkg.max_limit_upload && pkg.max_limit_download) { %>
+												(<%= pkg.max_limit_download %>/<%= pkg.max_limit_upload %>)
+											<% } %>
+										</option>
+									<% }); %>
+								<% } else { %>
+									<option value="">Tidak ada paket tersedia</option>
+								<% } %>
+							</select>
+							<p class="text-xs text-modern-green-600 mt-1">Pilih paket internet untuk pelanggan</p>
+						</div>
+						<div>
+							<label for="gateway" class="block text-sm font-medium text-modern-green-700 mb-2">Gateway</label>
+							<input type="text" id="gateway" name="gateway" value="<%= customer.gateway || '' %>" placeholder="192.168.1.1"
+								class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
+							<p class="text-xs text-modern-green-600 mt-1">Gateway untuk koneksi (opsional)</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Location Information -->
+			<div class="rounded-xl border border-modern-orange-200 bg-gradient-to-br from-modern-orange-50 to-modern-amber-50 p-6">
+				<h3 class="text-lg font-bold text-modern-orange-900 mb-4">Informasi Lokasi</h3>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+					<div>
+						<label for="latitude" class="block text-sm font-medium text-modern-orange-700 mb-2">Latitude</label>
+						<input type="number" id="latitude" name="latitude" value="<%= customer.latitude || '' %>" step="any" placeholder="-6.200000"
+							class="w-full px-4 py-3 border border-modern-orange-300 rounded-lg focus:border-modern-orange-500 focus:ring-2 focus:ring-modern-orange-200 transition-all duration-300">
+					</div>
+					<div>
+						<label for="longitude" class="block text-sm font-medium text-modern-orange-700 mb-2">Longitude</label>
+						<input type="number" id="longitude" name="longitude" value="<%= customer.longitude || '' %>" step="any" placeholder="106.816666"
+							class="w-full px-4 py-3 border border-modern-orange-300 rounded-lg focus:border-modern-orange-500 focus:ring-2 focus:ring-modern-orange-200 transition-all duration-300">
+					</div>
+				</div>
+
+				<div class="mt-6">
+					<div class="flex items-center justify-between mb-2">
+						<label class="block text-sm font-medium text-modern-orange-700">Peta Lokasi</label>
+						<button type="button" id="btnMyLocation" class="text-xs px-2 py-1 border border-amber-300 rounded hover:bg-amber-50">Lokasi Saya</button>
+					</div>
+					<div id="editLocationMap" style="height: 260px; width: 100%; border: 1px solid #e2e8f0; border-radius: 0.75rem;" class="rounded-lg shadow-sm bg-white"></div>
+					<p class="text-xs text-modern-orange-700 mt-2">Klik pada peta untuk mengisi latitude/longitude, atau gunakan “Lokasi Saya”.</p>
+				</div>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="flex items-center justify-end gap-4 pt-6 border-t border-modern-purple-200">
+				<a href="/customers/list" class="px-6 py-3 border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300 font-medium">
+					Batal
+				</a>
+				<button type="submit" class="px-6 py-3 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+					Simpan Perubahan
+				</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<script>
+function toggleConnectionFields() {
+    const connectionType = document.querySelector('input[name="connection_type"]:checked').value;
+    const pppoeConfig = document.getElementById('pppoe-config');
+    const staticIpConfig = document.getElementById('static-ip-config');
+    
+    if (connectionType === 'pppoe') {
+        pppoeConfig.classList.remove('hidden');
+        staticIpConfig.classList.add('hidden');
+        
+        // Set required fields for PPPOE
+        document.getElementById('pppoe_username').required = true;
+        document.getElementById('pppoe_password').required = true;
+        document.getElementById('ip_address').required = false;
+        document.getElementById('interface').required = false;
+        
+    } else if (connectionType === 'static_ip') {
+        pppoeConfig.classList.add('hidden');
+        staticIpConfig.classList.remove('hidden');
+        
+        // Set required fields for Static IP
+        document.getElementById('pppoe_username').required = false;
+        document.getElementById('pppoe_password').required = false;
+        document.getElementById('ip_address').required = true;
+        document.getElementById('interface').required = true;
+    }
+}
+
+// Form validation
+function validateForm() {
+    const connectionType = document.querySelector('input[name="connection_type"]:checked').value;
+    
+    if (connectionType === 'pppoe') {
+        const username = document.getElementById('pppoe_username').value.trim();
+        const password = document.getElementById('pppoe_password').value.trim();
+        
+        if (!username) {
+            alert('Username PPPOE harus diisi');
+            return false;
+        }
+        if (!password) {
+            alert('Password PPPOE harus diisi');
+            return false;
+        }
+    } else if (connectionType === 'static_ip') {
+        const ipAddress = document.getElementById('ip_address').value.trim();
+        const interface = document.getElementById('interface').value.trim();
+        
+        if (!ipAddress) {
+            alert('IP Address harus diisi');
+            return false;
+        }
+        if (!interface) {
+            alert('Interface harus diisi');
+            return false;
+        }
+        
+        // Validate IP format
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
+        if (!ipRegex.test(ipAddress)) {
+            alert('Format IP Address tidak valid. Gunakan format: 192.168.1.1/30');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Function to update package dropdown based on connection type
+async function updatePackageDropdown(connectionType) {
+    const pppoePackageSelect = document.getElementById('pppoe_package');
+    const staticIpPackageSelect = document.getElementById('static_ip_package');
+    
+    try {
+        const response = await fetch(`/api/packages/${connectionType}`);
+        const packages = await response.json();
+        
+        if (connectionType === 'pppoe') {
+            // Update PPPOE package dropdown
+            pppoePackageSelect.innerHTML = '<option value="">Pilih Paket Internet</option>';
+            packages.forEach(pkg => {
+                const option = document.createElement('option');
+                option.value = pkg.id;
+                option.textContent = `${pkg.name} - Rp ${pkg.price.toLocaleString('id-ID')}${pkg.rate_limit_rx && pkg.rate_limit_tx ? ` (${pkg.rate_limit_rx}/${pkg.rate_limit_tx})` : ''}`;
+                pppoePackageSelect.appendChild(option);
+            });
+        } else if (connectionType === 'static_ip') {
+            // Update Static IP package dropdown
+            staticIpPackageSelect.innerHTML = '<option value="">Pilih Paket Internet</option>';
+            packages.forEach(pkg => {
+                const option = document.createElement('option');
+                option.value = pkg.id;
+                option.textContent = `${pkg.name} - Rp ${pkg.price.toLocaleString('id-ID')}${pkg.max_limit_upload && pkg.max_limit_download ? ` (${pkg.max_limit_download}/${pkg.max_limit_upload})` : ''}`;
+                staticIpPackageSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading packages:', error);
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial toggle based on current selection
+    toggleConnectionFields();
+    
+    // Add event listeners to radio buttons for real-time toggle
+    const connectionTypeRadios = document.querySelectorAll('input[name="connection_type"]');
+    connectionTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            toggleConnectionFields();
+            // Update package dropdown when connection type changes
+            updatePackageDropdown(this.value);
+        });
+    });
+    
+    // Add form validation on submit
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        if (!validateForm()) {
+            e.preventDefault();
+        }
+    });
+
+    // Leaflet map for location
+    const latEl = document.getElementById('latitude');
+    const lngEl = document.getElementById('longitude');
+    const mapContainer = document.getElementById('editLocationMap');
+    let map, marker;
+    function parseNum(v){ const n = parseFloat(v); return isNaN(n) ? null : n; }
+    function ensureMap(){
+        if (map || !mapContainer) return;
+        const lat0 = parseNum(latEl && latEl.value) ?? -6.200000;
+        const lng0 = parseNum(lngEl && lngEl.value) ?? 106.816666;
+        map = L.map('editLocationMap').setView([lat0, lng0], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+        marker = L.marker([lat0, lng0]).addTo(map);
+        map.on('click', function(e){
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            if (latEl) latEl.value = lat;
+            if (lngEl) lngEl.value = lng;
+            marker.setLatLng([lat, lng]);
+            map.setView([lat, lng], map.getZoom());
+        });
+    }
+    function syncMarker(){
+        if (!map) return;
+        const lat = parseNum(latEl && latEl.value);
+        const lng = parseNum(lngEl && lngEl.value);
+        if (lat == null || lng == null) return;
+        marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], map.getZoom());
+    }
+    if (mapContainer) {
+        ensureMap();
+        if (latEl) latEl.addEventListener('input', syncMarker);
+        if (lngEl) lngEl.addEventListener('input', syncMarker);
+    }
+
+    // My Location (Geolocation API)
+    const btnMyLocation = document.getElementById('btnMyLocation');
+    if (btnMyLocation) {
+        btnMyLocation.addEventListener('click', function(){
+            if (!navigator.geolocation) {
+                alert('Geolocation tidak didukung di browser ini.');
+                return;
+            }
+            btnMyLocation.disabled = true;
+            btnMyLocation.textContent = 'Mendeteksi...';
+            navigator.geolocation.getCurrentPosition(function(pos){
+                const lat = pos.coords.latitude.toFixed(6);
+                const lng = pos.coords.longitude.toFixed(6);
+                if (latEl) latEl.value = lat;
+                if (lngEl) lngEl.value = lng;
+                ensureMap();
+                if (marker && map) {
+                    marker.setLatLng([lat, lng]);
+                    map.setView([lat, lng], 16);
+                }
+                btnMyLocation.disabled = false;
+                btnMyLocation.textContent = 'Lokasi Saya';
+            }, function(err){
+                console.error('Geolocation error:', err);
+                alert('Gagal mendapatkan lokasi. Pastikan izin lokasi diizinkan.');
+                btnMyLocation.disabled = false;
+                btnMyLocation.textContent = 'Lokasi Saya';
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+        });
+    }
+
+    // Auto-fill email dari nama → nama_pelanggan@id.net (tanpa menimpa jika user edit manual)
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    let emailTouched = false;
+    if (emailInput) emailInput.addEventListener('input', ()=>{ emailTouched = true; });
+    function slugifyNameToEmailLocal(name){
+        return (name || '')
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '.')
+            .replace(/^\.+|\.+$/g, '')
+            .slice(0, 32);
+    }
+    if (nameInput && emailInput) {
+        nameInput.addEventListener('input', function(){
+            if (emailTouched) return;
+            const local = slugifyNameToEmailLocal(this.value);
+            emailInput.value = local ? `${local}@id.net` : '';
+        });
+        if (!emailInput.value && nameInput.value) {
+            const local = slugifyNameToEmailLocal(nameInput.value);
+            emailInput.value = local ? `${local}@id.net` : '';
+        }
+    }
+
+    // Load PPPoE secrets to dropdown and wire auto-fill
+        const secretSelect = document.getElementById('pppoe_secret_select');
+    const userEl = document.getElementById('pppoe_username');
+    const passEl = document.getElementById('pppoe_password');
+        function loadSecrets() {
+            if (!secretSelect) return;
+            secretSelect.disabled = true;
+            secretSelect.innerHTML = '<option value="">— Memuat daftar dari MikroTik —</option>';
+            fetch('/api/pppoe/secrets')
+                .then(r => r.json())
+                .then(list => {
+                    secretSelect.innerHTML = '<option value="">— Pilih dari MikroTik —</option>';
+                    if (!Array.isArray(list)) return;
+                    if (list.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.value = '';
+                        opt.textContent = 'Tidak ada secret ditemukan / gagal memuat';
+                        secretSelect.appendChild(opt);
+                        return;
+                    }
+                    list.forEach(item => {
+                        if (!item || !item.name) return;
+                        const opt = document.createElement('option');
+                        opt.value = item.name;
+                        opt.textContent = item.profile ? `${item.name} (${item.profile})` : item.name;
+                        // Password biasanya tidak tersedia dari RouterOS API untuk secret
+                        secretSelect.appendChild(opt);
+                    });
+                })
+                .catch(err => {
+                    console.error('Load PPPoE secrets error:', err);
+                    secretSelect.innerHTML = '<option value="">— Gagal memuat. Coba lagi —</option>';
+                })
+                .finally(() => {
+                    secretSelect.disabled = false;
+                });
+        }
+        if (secretSelect) {
+            loadSecrets();
+            const reloadBtn = document.getElementById('reload_secrets_btn');
+            if (reloadBtn) reloadBtn.addEventListener('click', loadSecrets);
+            secretSelect.addEventListener('change', function(){
+                const selected = this.options[this.selectedIndex];
+                if (!selected || !userEl) return;
+                if (selected.value) {
+                    userEl.value = selected.value;
+                    // Hapus opsi yang sudah dipilih agar tidak muncul lagi saat mencari
+                    const removeIndex = this.selectedIndex;
+                    if (removeIndex > 0) {
+                        this.remove(removeIndex);
+                        this.selectedIndex = 0;
+                    }
+                }
+            });
+        }
+});
+</script>

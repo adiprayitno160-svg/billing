@@ -1,0 +1,56 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Daftar Profil PPPoE</h2>
+        <form method="post" action="/packages/pppoe/profiles/sync" class="inline">
+            <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+                Sync dari MikroTik
+            </button>
+        </form>
+    </div>
+    
+    <% if (success && success.length > 0) { %>
+    <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
+        <%= success[0] %>
+    </div>
+    <% } %>
+    
+    <% if (error && error.length > 0) { %>
+    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+        <%= error[0] %>
+    </div>
+    <% } %>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="text-left text-slate-600">
+                <tr>
+                    <th class="py-2 pr-4">Nama</th>
+                    <th class="py-2 pr-4">Local Address</th>
+                    <th class="py-2 pr-4">Remote Pool</th>
+                    <th class="py-2 pr-4">DNS Server</th>
+                    <th class="py-2 pr-4">Session Timeout</th>
+                    <th class="py-2 pr-4">Idle Timeout</th>
+                    <th class="py-2 pr-4">Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% (profiles || []).forEach(function(profile){ %>
+                <tr class="border-t border-slate-100">
+                    <td class="py-2 pr-4 font-medium"><%= profile.name %></td>
+                    <td class="py-2 pr-4"><%= profile.local_address || '-' %></td>
+                    <td class="py-2 pr-4"><%= profile.remote_address_pool || '-' %></td>
+                    <td class="py-2 pr-4"><%= profile.dns_server || '-' %></td>
+                    <td class="py-2 pr-4"><%= profile.session_timeout || '-' %></td>
+                    <td class="py-2 pr-4"><%= profile.idle_timeout || '-' %></td>
+                    <td class="py-2 pr-4"><%= profile.comment || '-' %></td>
+                </tr>
+                <% }) %>
+                <% if (!profiles || profiles.length === 0) { %>
+                <tr><td colspan="7" class="py-6 text-center text-slate-500">Belum ada profil. Klik "Sync dari MikroTik" untuk mengambil data dari MikroTik.</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+

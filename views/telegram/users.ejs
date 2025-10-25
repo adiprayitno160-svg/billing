@@ -1,0 +1,308 @@
+<!-- Header -->
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <i class="fas fa-users text-blue-600"></i> Telegram Users
+        </h2>
+        <p class="text-gray-600 mt-1">Kelola user yang terdaftar di sistem Telegram Bot</p>
+    </div>
+    <div>
+        <a href="/telegram/dashboard" class="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+            <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Filter Section -->
+<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <form method="GET" action="/telegram/users" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Role</label>
+            <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" name="role" onchange="this.form.submit()">
+                <option value="">Semua Role</option>
+                <option value="superadmin" <%= role === 'superadmin' ? 'selected' : '' %>>Superadmin</option>
+                <option value="admin" <%= role === 'admin' ? 'selected' : '' %>>Admin</option>
+                <option value="teknisi" <%= role === 'teknisi' ? 'selected' : '' %>>Teknisi</option>
+                <option value="kasir" <%= role === 'kasir' ? 'selected' : '' %>>Kasir</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Area</label>
+            <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" name="area" value="<%= area || '' %>" placeholder="Cari area...">
+        </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-search"></i> Filter
+            </button>
+            <a href="/telegram/users" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-redo"></i> Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Users Summary -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <h3 class="text-3xl font-bold text-blue-600 mb-1"><%= users.length %></h3>
+        <p class="text-gray-600">Total Users</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <h3 class="text-3xl font-bold text-green-600 mb-1"><%= users.filter(u => u.notification_enabled).length %></h3>
+        <p class="text-gray-600">Notifikasi Aktif</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <h3 class="text-3xl font-bold text-yellow-600 mb-1"><%= users.filter(u => u.role === 'teknisi').length %></h3>
+        <p class="text-gray-600">Teknisi</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <h3 class="text-3xl font-bold text-cyan-600 mb-1"><%= users.filter(u => u.role === 'admin').length %></h3>
+        <p class="text-gray-600">Admin</p>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-200">
+        <h5 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <i class="fas fa-list text-blue-600"></i> Daftar User Aktif
+        </h5>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telegram</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area Coverage</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notifikasi</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <% if (users && users.length > 0) { %>
+                    <% users.forEach(user => { %>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-bold">
+                                        <%= user.first_name ? user.first_name.charAt(0).toUpperCase() : 'U' %>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900"><%= user.first_name %> <%= user.last_name || '' %></div>
+                                        <% if (user.phone_number) { %>
+                                            <div class="text-sm text-gray-500"><%= user.phone_number %></div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <% if (user.role === 'superadmin') { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">SUPERADMIN</span>
+                                <% } else if (user.role === 'admin') { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">ADMIN</span>
+                                <% } else if (user.role === 'teknisi') { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">TEKNISI</span>
+                                <% } else if (user.role === 'kasir') { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-cyan-100 text-cyan-800">KASIR</span>
+                                <% } else { %>
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800"><%= user.role.toUpperCase() %></span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <% if (user.telegram_username) { %>
+                                    <div class="text-sm text-gray-900">
+                                        <i class="fab fa-telegram text-blue-500"></i> @<%= user.telegram_username %>
+                                    </div>
+                                <% } else { %>
+                                    <span class="text-gray-400">-</span>
+                                <% } %>
+                                <div class="text-xs text-gray-500">ID: <%= user.telegram_chat_id %></div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <% if (user.area_coverage && user.area_coverage.length > 0) { %>
+                                    <div class="flex flex-wrap gap-1">
+                                        <% user.area_coverage.forEach(area => { %>
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"><%= area %></span>
+                                        <% }) %>
+                                    </div>
+                                <% } else { %>
+                                    <span class="text-gray-500 text-sm">Semua Area</span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <% if (user.notification_enabled) { %>
+                                    <span class="text-green-600 flex items-center gap-1">
+                                        <i class="fas fa-bell"></i>
+                                        <span class="text-sm">Aktif</span>
+                                    </span>
+                                <% } else { %>
+                                    <span class="text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-bell-slash"></i>
+                                        <span class="text-sm">Nonaktif</span>
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <%= new Date(user.registered_at).toLocaleString('id-ID', { 
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }) %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <% if (user.last_active_at) { %>
+                                    <%= new Date(user.last_active_at).toLocaleString('id-ID', { 
+                                        day: '2-digit',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }) %>
+                                <% } else { %>
+                                    <span class="text-gray-400">-</span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex gap-2">
+                                    <button onclick="editUser(<%= user.id %>)" class="text-blue-600 hover:text-blue-900" title="Edit Settings">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deactivateUser(<%= user.id %>, '<%= user.first_name %>')" class="text-red-600 hover:text-red-900" title="Deactivate">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center text-gray-400">
+                                <i class="fas fa-inbox text-5xl mb-3"></i>
+                                <p class="text-lg">Tidak ada user yang ditemukan</p>
+                            </div>
+                        </td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-lg bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Edit User Settings</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="editUserForm">
+            <input type="hidden" id="editUserId">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notifikasi</label>
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="editNotificationEnabled" class="sr-only peer">
+                    <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span class="ms-3 text-sm font-medium text-gray-700">Aktifkan notifikasi untuk user ini</span>
+                </label>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Area Coverage</label>
+                <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="editAreaCoverage" placeholder="Area A, Area B, Area C">
+                <p class="text-xs text-gray-500 mt-1">Pisahkan dengan koma. Kosongkan untuk semua area.</p>
+            </div>
+        </form>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                Batal
+            </button>
+            <button onclick="saveUserSettings()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-save"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function editUser(userId) {
+        try {
+            const response = await fetch(`/telegram/api/users?userId=${userId}`);
+            const result = await response.json();
+            
+            if (result.success && result.data.length > 0) {
+                const user = result.data[0];
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('editNotificationEnabled').checked = user.notification_enabled;
+                document.getElementById('editAreaCoverage').value = user.area_coverage.join(', ');
+                document.getElementById('editUserModal').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Gagal mengambil data user');
+        }
+    }
+    
+    function closeEditModal() {
+        document.getElementById('editUserModal').classList.add('hidden');
+    }
+    
+    async function saveUserSettings() {
+        const userId = document.getElementById('editUserId').value;
+        const notificationEnabled = document.getElementById('editNotificationEnabled').checked;
+        const areaCoverageStr = document.getElementById('editAreaCoverage').value;
+        const areaCoverage = areaCoverageStr ? areaCoverageStr.split(',').map(a => a.trim()).filter(a => a) : [];
+        
+        try {
+            const response = await fetch(`/telegram/api/users/${userId}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notificationEnabled, areaCoverage })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Settings berhasil diupdate');
+                closeEditModal();
+                location.reload();
+            } else {
+                alert('Gagal update settings: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan');
+        }
+    }
+    
+    async function deactivateUser(userId, userName) {
+        if (!confirm(`Apakah Anda yakin ingin menonaktifkan user ${userName}?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/telegram/api/users/${userId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('User berhasil dinonaktifkan');
+                location.reload();
+            } else {
+                alert('Gagal menonaktifkan user: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan');
+        }
+    }
+</script>
+

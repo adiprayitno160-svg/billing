@@ -1,0 +1,500 @@
+<!-- Header -->
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <i class="fab fa-telegram text-blue-500"></i> Telegram Bot Dashboard
+        </h2>
+        <p class="text-gray-600 mt-1">Sistem Notifikasi untuk Admin & Teknisi</p>
+    </div>
+    <div>
+        <% if (botInfo.isInitialized) { %>
+            <span class="px-4 py-2 bg-green-500 text-white rounded-full text-sm font-medium flex items-center gap-2 inline-flex">
+                <i class="fas fa-check-circle"></i> Bot Aktif
+            </span>
+        <% } else { %>
+            <span class="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium flex items-center gap-2 inline-flex">
+                <i class="fas fa-times-circle"></i> Bot Nonaktif
+            </span>
+        <% } %>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="flex flex-wrap gap-3 mb-6">
+    <button onclick="openCreateInviteModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+        <i class="fas fa-plus"></i> Buat Kode Undangan
+    </button>
+    <button onclick="openSendNotificationModal()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+        <i class="fas fa-paper-plane"></i> Kirim Notifikasi
+    </button>
+    <button onclick="refreshStats()" class="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2">
+        <i class="fas fa-sync"></i> Refresh
+    </button>
+    <a href="/telegram/users" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+        <i class="fas fa-users"></i> Lihat Semua User
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <!-- Total Users -->
+    <div class="bg-white rounded-lg shadow-sm p-6 hover:-translate-y-1 transition-transform duration-200">
+        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center text-white text-2xl mb-4">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-1"><%= usersByRole.admin + usersByRole.teknisi + usersByRole.kasir + usersByRole.superadmin %></div>
+        <div class="text-gray-600 text-sm">Total User Aktif</div>
+    </div>
+    
+    <!-- Messages Today -->
+    <div class="bg-white rounded-lg shadow-sm p-6 hover:-translate-y-1 transition-transform duration-200">
+        <div class="w-12 h-12 bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-lg flex items-center justify-center text-white text-2xl mb-4">
+            <i class="fas fa-comments"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-1"><%= stats.total_messages || 0 %></div>
+        <div class="text-gray-600 text-sm">Pesan Hari Ini</div>
+    </div>
+    
+    <!-- Commands Today -->
+    <div class="bg-white rounded-lg shadow-sm p-6 hover:-translate-y-1 transition-transform duration-200">
+        <div class="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-lg flex items-center justify-center text-white text-2xl mb-4">
+            <i class="fas fa-terminal"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-1"><%= stats.total_commands || 0 %></div>
+        <div class="text-gray-600 text-sm">Command Hari Ini</div>
+    </div>
+    
+    <!-- Notifications Sent -->
+    <div class="bg-white rounded-lg shadow-sm p-6 hover:-translate-y-1 transition-transform duration-200">
+        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-700 rounded-lg flex items-center justify-center text-white text-2xl mb-4">
+            <i class="fas fa-bell"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-1"><%= stats.total_notifications || 0 %></div>
+        <div class="text-gray-600 text-sm">Notifikasi Terkirim</div>
+    </div>
+</div>
+
+<!-- User Distribution and Stats -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h5 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
+            <i class="fas fa-chart-pie text-blue-600"></i> Distribusi User
+        </h5>
+        <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">SUPERADMIN</span>
+                <span class="font-bold text-gray-900"><%= usersByRole.superadmin || 0 %> user</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">ADMIN</span>
+                <span class="font-bold text-gray-900"><%= usersByRole.admin || 0 %> user</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">TEKNISI</span>
+                <span class="font-bold text-gray-900"><%= usersByRole.teknisi || 0 %> user</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-xs font-semibold">KASIR</span>
+                <span class="font-bold text-gray-900"><%= usersByRole.kasir || 0 %> user</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h5 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
+            <i class="fas fa-chart-line text-blue-600"></i> Statistik Pengiriman
+        </h5>
+        <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <span class="flex items-center gap-2 text-gray-700">
+                    <i class="fas fa-check-circle text-green-500"></i> Berhasil
+                </span>
+                <span class="font-bold text-gray-900"><%= stats.successful_sends || 0 %></span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="flex items-center gap-2 text-gray-700">
+                    <i class="fas fa-times-circle text-red-500"></i> Gagal
+                </span>
+                <span class="font-bold text-gray-900"><%= stats.failed_sends || 0 %></span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="flex items-center gap-2 text-gray-700">
+                    <i class="fas fa-percentage text-cyan-500"></i> Success Rate
+                </span>
+                <span class="font-bold text-gray-900">
+                    <% if (stats.successful_sends > 0 || stats.failed_sends > 0) { %>
+                        <%= ((stats.successful_sends / (stats.successful_sends + stats.failed_sends)) * 100).toFixed(1) %>%
+                    <% } else { %>
+                        0%
+                    <% } %>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <!-- Recent Chat Logs -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h5 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
+            <i class="fas fa-comments text-blue-600"></i> Chat Logs Terbaru
+        </h5>
+        <div class="max-h-[500px] overflow-y-auto space-y-3">
+            <% if (recentChats && recentChats.length > 0) { %>
+                <% recentChats.forEach(chat => { %>
+                    <div class="bg-white border-l-4 <%= !chat.is_success ? 'border-red-500' : 'border-blue-500' %> p-4 rounded shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <strong class="text-gray-900"><%= chat.first_name || 'Unknown' %></strong>
+                                <% if (chat.role) { %>
+                                    <span class="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"><%= chat.role %></span>
+                                <% } %>
+                            </div>
+                            <small class="text-gray-500 text-xs">
+                                <%= new Date(chat.created_at).toLocaleString('id-ID', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: 'short'
+                                }) %>
+                            </small>
+                        </div>
+                        <div class="mb-1">
+                            <span class="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded"><%= chat.message_type %></span>
+                            <span class="text-sm text-gray-600 ml-2"><%= chat.message_content %></span>
+                        </div>
+                        <% if (!chat.is_success && chat.error_message) { %>
+                            <div class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                                <i class="fas fa-exclamation-circle"></i> <%= chat.error_message %>
+                            </div>
+                        <% } %>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-inbox text-5xl mb-3"></i>
+                    <p>Belum ada chat logs</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+    
+    <!-- Recent Notifications -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h5 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
+            <i class="fas fa-bell text-blue-600"></i> Notifikasi Terbaru
+        </h5>
+        <div class="max-h-[500px] overflow-y-auto space-y-3">
+            <% if (recentNotifications && recentNotifications.length > 0) { %>
+                <% recentNotifications.forEach(notif => { %>
+                    <div class="bg-white p-4 rounded shadow-sm border-l-4 <%= notif.priority === 'critical' ? 'border-red-500' : notif.priority === 'high' ? 'border-orange-500' : notif.priority === 'medium' ? 'border-yellow-500' : 'border-cyan-500' %>">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <strong class="text-gray-900"><%= notif.title %></strong>
+                                <div class="mt-1 flex flex-wrap gap-1">
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"><%= notif.notification_type %></span>
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded"><%= notif.priority %></span>
+                                    <span class="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded"><%= notif.target_role %></span>
+                                </div>
+                            </div>
+                            <small class="text-gray-500 text-xs">
+                                <%= new Date(notif.created_at).toLocaleString('id-ID', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: 'short'
+                                }) %>
+                            </small>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2"><%= notif.message %></p>
+                        <div class="flex justify-between items-center text-sm">
+                            <div class="flex items-center gap-3">
+                                <span class="flex items-center gap-1 text-green-600">
+                                    <i class="fas fa-check"></i> <%= notif.sent_count %> sent
+                                </span>
+                                <% if (notif.failed_count > 0) { %>
+                                    <span class="flex items-center gap-1 text-red-600">
+                                        <i class="fas fa-times"></i> <%= notif.failed_count %> failed
+                                    </span>
+                                <% } %>
+                            </div>
+                            <span class="px-2 py-1 <%= notif.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' %> text-xs rounded">
+                                <%= notif.status %>
+                            </span>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-bell-slash text-5xl mb-3"></i>
+                    <p>Belum ada notifikasi</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- Bot Info -->
+<div class="bg-white rounded-lg shadow-sm p-6">
+    <h5 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
+        <i class="fas fa-robot text-blue-600"></i> Bot Information
+    </h5>
+    <div class="space-y-3">
+        <div class="flex items-center gap-3 py-2">
+            <div class="w-48 text-gray-700 flex items-center gap-2">
+                <i class="fas fa-circle-notch"></i> Status
+            </div>
+            <div>
+                <% if (botInfo.isInitialized) { %>
+                    <span class="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full font-medium">Aktif & Terhubung</span>
+                <% } else { %>
+                    <span class="px-3 py-1 bg-red-100 text-red-800 text-sm rounded-full font-medium">Nonaktif</span>
+                <% } %>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 py-2">
+            <div class="w-48 text-gray-700 flex items-center gap-2">
+                <i class="fas fa-key"></i> Bot Token
+            </div>
+            <div>
+                <code class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm"><%= botInfo.botToken %></code>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 py-2">
+            <div class="w-48 text-gray-700 flex items-center gap-2">
+                <i class="fas fa-info-circle"></i> Cara Registrasi
+            </div>
+            <div class="text-gray-600">
+                User harus menggunakan command: <code class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm">/register &lt;KODE_UNDANGAN&gt;</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create Invite Code -->
+<div id="createInviteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-lg bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Buat Kode Undangan</h3>
+            <button onclick="closeCreateInviteModal()" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="inviteForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="inviteRole" required>
+                    <option value="">-- Pilih Role --</option>
+                    <option value="admin">Admin</option>
+                    <option value="teknisi">Teknisi</option>
+                    <option value="kasir">Kasir</option>
+                    <option value="superadmin">Superadmin</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Area Coverage (untuk Teknisi)</label>
+                <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="inviteArea" placeholder="Area A, Area B, Area C">
+                <p class="text-xs text-gray-500 mt-1">Pisahkan dengan koma. Kosongkan untuk semua area.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Berlaku Selama (Hari)</label>
+                <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="inviteExpiry" value="7" min="1" max="90">
+            </div>
+        </form>
+        <div id="inviteResult" class="hidden mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <strong class="text-green-800">Kode Undangan:</strong>
+            <div class="mt-2 flex items-center gap-2">
+                <code id="inviteCodeDisplay" class="text-lg font-mono bg-white px-3 py-1 rounded border border-green-300"></code>
+                <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700" onclick="copyInviteCode()">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+            <small class="block mt-2 text-green-700">
+                Kirim ke user: <code class="bg-white px-2 py-1 rounded border border-green-300">/register <span id="inviteCodeCmd"></span></code>
+            </small>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeCreateInviteModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                Tutup
+            </button>
+            <button onclick="createInvite()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-plus"></i> Buat Kode
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Send Notification -->
+<div id="sendNotificationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-lg bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Kirim Notifikasi</h3>
+            <button onclick="closeSendNotificationModal()" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="notificationForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tipe</label>
+                <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="notifType" required>
+                    <option value="system">System</option>
+                    <option value="custom">Custom</option>
+                    <option value="downtime">Downtime</option>
+                    <option value="invoice">Invoice</option>
+                    <option value="payment">Payment</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Prioritas</label>
+                <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="notifPriority" required>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Target</label>
+                <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="notifTarget" required>
+                    <option value="all">Semua User</option>
+                    <option value="admin">Admin</option>
+                    <option value="teknisi">Teknisi</option>
+                    <option value="kasir">Kasir</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Target Area (opsional, untuk Teknisi)</label>
+                <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="notifArea" placeholder="Area A">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Judul</label>
+                <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="notifTitle" required placeholder="Notifikasi Penting">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Pesan</label>
+                <textarea class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="notifMessage" rows="4" required placeholder="Masukkan pesan notifikasi..."></textarea>
+            </div>
+        </form>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeSendNotificationModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                Batal
+            </button>
+            <button onclick="sendNotification()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-paper-plane"></i> Kirim
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Modal management
+    function openCreateInviteModal() {
+        document.getElementById('createInviteModal').classList.remove('hidden');
+    }
+    
+    function closeCreateInviteModal() {
+        document.getElementById('createInviteModal').classList.add('hidden');
+        document.getElementById('inviteResult').classList.add('hidden');
+    }
+    
+    function openSendNotificationModal() {
+        document.getElementById('sendNotificationModal').classList.remove('hidden');
+    }
+    
+    function closeSendNotificationModal() {
+        document.getElementById('sendNotificationModal').classList.add('hidden');
+    }
+
+    // Create Invite Code
+    async function createInvite() {
+        const role = document.getElementById('inviteRole').value;
+        const areaStr = document.getElementById('inviteArea').value;
+        const expiryDays = document.getElementById('inviteExpiry').value;
+        
+        if (!role) {
+            alert('Pilih role terlebih dahulu');
+            return;
+        }
+        
+        const areaCoverage = areaStr ? areaStr.split(',').map(a => a.trim()).filter(a => a) : [];
+        
+        try {
+            const response = await fetch('/telegram/api/invite-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, areaCoverage, expiryDays: parseInt(expiryDays) })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('inviteCodeDisplay').textContent = result.data.inviteCode;
+                document.getElementById('inviteCodeCmd').textContent = result.data.inviteCode;
+                document.getElementById('inviteResult').classList.remove('hidden');
+            } else {
+                alert('Gagal membuat kode undangan: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan');
+        }
+    }
+    
+    // Copy Invite Code
+    function copyInviteCode() {
+        const code = document.getElementById('inviteCodeDisplay').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            alert('Kode berhasil dicopy!');
+        });
+    }
+    
+    // Send Notification
+    async function sendNotification() {
+        const type = document.getElementById('notifType').value;
+        const priority = document.getElementById('notifPriority').value;
+        const targetRole = document.getElementById('notifTarget').value;
+        const targetArea = document.getElementById('notifArea').value;
+        const title = document.getElementById('notifTitle').value;
+        const message = document.getElementById('notifMessage').value;
+        
+        if (!title || !message) {
+            alert('Judul dan pesan harus diisi');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/telegram/api/notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type,
+                    priority,
+                    title,
+                    message,
+                    targetRole,
+                    targetArea: targetArea || null
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                document.getElementById('notificationForm').reset();
+                closeSendNotificationModal();
+                location.reload();
+            } else {
+                alert('Gagal mengirim notifikasi: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan');
+        }
+    }
+    
+    // Refresh Stats
+    function refreshStats() {
+        location.reload();
+    }
+</script>

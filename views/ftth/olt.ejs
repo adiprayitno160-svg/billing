@@ -1,0 +1,48 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Daftar OLT</h2>
+        <a href="/ftth/olt/add" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Tambah OLT</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="text-left text-slate-600">
+                <tr>
+                    <th class="py-2 pr-4">ID</th>
+                    <th class="py-2 pr-4">Nama</th>
+                    <th class="py-2 pr-4">Lokasi</th>
+                    <th class="py-2 pr-4">IP Address</th>
+                    <th class="py-2 pr-4">Status</th>
+                    <th class="py-2 pr-4">Total Ports</th>
+                    <th class="py-2 pr-4">Used Ports</th>
+                    <th class="py-2 pr-4">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% (items || []).forEach(function(olt){ %>
+                <tr class="border-t border-slate-100">
+                    <td class="py-2 pr-4">#<%= olt.id %></td>
+                    <td class="py-2 pr-4"><%= olt.name %></td>
+                    <td class="py-2 pr-4"><%= olt.location || '-' %></td>
+                    <td class="py-2 pr-4"><%= olt.ip_address || '-' %></td>
+                    <td class="py-2 pr-4">
+                        <span class="px-2 py-1 text-xs rounded <%= olt.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' %>">
+                            <%= olt.status || 'offline' %>
+                        </span>
+                    </td>
+                    <td class="py-2 pr-4"><%= olt.total_ports || 0 %></td>
+                    <td class="py-2 pr-4"><%= olt.used_ports || 0 %></td>
+                    <td class="py-2 pr-4 flex gap-2">
+                        <a href="/ftth/olt/<%= olt.id %>" class="px-2 py-1 text-xs rounded border border-slate-300">Edit</a>
+                        <form method="post" action="/ftth/olt/<%= olt.id %>/delete" onsubmit="return confirm('Hapus OLT ini?');">
+                            <button type="submit" class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                <% }) %>
+                <% if (!items || items.length === 0) { %>
+                <tr><td colspan="8" class="py-6 text-center text-slate-500">Belum ada data</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>

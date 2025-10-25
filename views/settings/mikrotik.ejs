@@ -1,0 +1,114 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2">
+<form method="post" action="/settings/mikrotik" class="space-y-4" id="mt-form">
+	<div>
+		<label class="block text-sm mb-1 text-indigo-800">Host</label>
+		<input name="host" class="w-full border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" value="<%= settings?.host || '' %>" required />
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div>
+			<label class="block text-sm mb-1 text-indigo-800">Port</label>
+			<input type="number" name="port" class="w-full border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" value="<%= settings?.port || 8728 %>" required />
+		</div>
+		<div>
+			<label class="block text-sm mb-1 text-indigo-800">Use TLS</label>
+			<input type="checkbox" class="accent-indigo-600" name="use_tls" <%= settings?.use_tls ? 'checked' : '' %> />
+		</div>
+	</div>
+	<div>
+		<label class="block text-sm mb-1 text-indigo-800">Username</label>
+		<input name="username" class="w-full border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" value="<%= settings?.username || '' %>" required />
+	</div>
+	<div>
+		<label class="block text-sm mb-1 text-indigo-800">Password</label>
+		<input type="password" name="password" class="w-full border border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" value="<%= settings?.password || '' %>" />
+	</div>
+	<div class="flex items-center gap-3">
+		<button type="submit" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded shadow-sm transition">Simpan</button>
+    <button type="button" id="mt-test" class="px-4 py-2 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded transition">Tes Koneksi</button>
+	</div>
+</form>
+  </div>
+  <div>
+    <div class="rounded-lg border border-slate-200 bg-white p-4" id="mt-status-panel">
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-semibold text-slate-900">Status Koneksi</div>
+        <div class="text-xs <%= (typeof status !== 'undefined' && status && status.connected) ? 'text-emerald-700' : 'text-rose-700' %>"><%= (typeof status !== 'undefined' && status && status.connected) ? 'Terhubung' : 'Terputus' %></div>
+      </div>
+      <% if (typeof status !== 'undefined' && status && status.connected && status.info) { %>
+      <div class="mt-4 space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Identity</span><span class="text-slate-900"><%= status.info.identity || '-' %></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Version</span><span class="text-slate-900"><%= status.info.version || '-' %></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Uptime</span><span class="text-slate-900"><%= status.info.uptime || '-' %></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">CPU Load</span><span class="text-slate-900"><%= status.info.cpuLoad || '-' %>%</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Mem (free/total)</span><span class="text-slate-900"><%= status.info.freeMemory || '-' %> / <%= status.info.totalMemory || '-' %></span></div>
+      </div>
+      <% } else if (typeof status !== 'undefined' && status && status.error) { %>
+      <div class="mt-4 text-sm text-rose-700"><%= status.error %></div>
+      <% } %>
+    </div>
+    <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+      <div class="text-sm font-semibold text-slate-900 mb-3">Detail MikroTik</div>
+      <% if (typeof status !== 'undefined' && status && status.connected && status.info) { %>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><span class="text-slate-500">Board Name</span><div class="text-slate-900"><%= status.info['board-name'] || '-' %></div></div>
+        <div><span class="text-slate-500">CPU</span><div class="text-slate-900"><%= status.info['cpu'] || '-' %></div></div>
+        <div><span class="text-slate-500">CPU Count</span><div class="text-slate-900"><%= status.info['cpu-count'] || '-' %></div></div>
+        <div><span class="text-slate-500">HDD Space</span><div class="text-slate-900"><%= status.info['free-hdd-space'] || '-' %> / <%= status.info['total-hdd-space'] || '-' %></div></div>
+        <div><span class="text-slate-500">Architecture</span><div class="text-slate-900"><%= status.info['architecture-name'] || '-' %></div></div>
+        <div><span class="text-slate-500">Build Time</span><div class="text-slate-900"><%= status.info['build-time'] || '-' %></div></div>
+      </div>
+      <% } else { %>
+      <div class="text-sm text-slate-500">Belum tersedia. Simpan atau Tes Koneksi untuk memuat detail.</div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<script src="/assets/mikrotik.js" defer></script>
+<script>
+/* moved to /assets/mikrotik.js to comply with CSP */
+function applyStatus(json){
+  const panel = document.getElementById('mt-status-panel');
+  if(!panel) return;
+  const statusEl = panel.querySelector('.text-xs');
+  if(json.ok){
+    statusEl.textContent = 'Terhubung';
+    statusEl.className = 'text-xs text-emerald-700';
+  } else {
+    statusEl.textContent = 'Terputus';
+    statusEl.className = 'text-xs text-rose-700';
+  }
+  if(json.info){
+    const container = document.createElement('div');
+    container.className = 'mt-4 space-y-2 text-sm';
+    container.innerHTML = `
+      <div class="flex justify-between"><span class="text-slate-500">Identity</span><span class="text-slate-900">${json.info.identity||'-'}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Version</span><span class="text-slate-900">${json.info.version||'-'}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Uptime</span><span class="text-slate-900">${json.info.uptime||'-'}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">CPU Load</span><span class="text-slate-900">${json.info.cpuLoad||'-'}%</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Mem (free/total)</span><span class="text-slate-900">${json.info.freeMemory||'-'} / ${json.info.totalMemory||'-'}</span></div>
+    `;
+    const oldDetails = panel.querySelector('.mt-4.space-y-2.text-sm');
+    if(oldDetails) oldDetails.remove();
+    panel.appendChild(container);
+  }
+}
+
+async function doTest(silent){
+  const form = document.getElementById('mt-form');
+  if(!form) return;
+  const data = new FormData(form);
+  const body = Object.fromEntries(data.entries());
+  if(!('use_tls' in body)) body.use_tls = false;
+  const res = await fetch('/settings/mikrotik/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const json = await res.json();
+  if(!silent){
+    alert(json.ok ? 'Koneksi berhasil' : ('Gagal: ' + (json.error||'')));
+  }
+  applyStatus(json);
+}
+
+// moved to /assets/mikrotik.js
+</script>
+
+

@@ -1,0 +1,131 @@
+# ========================================
+# CRITICAL - Sensitive Data (NEVER COMMIT!)
+# ========================================
+.env
+.env.*
+*.env
+
+# ========================================
+# Dependencies
+# ========================================
+node_modules/
+package-lock.json
+
+# ========================================
+# Build Output (Can be regenerated)
+# ========================================
+dist/
+build/
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# ========================================
+# User Data & Sessions (IMPORTANT!)
+# ========================================
+# User uploads
+uploads/
+public/uploads/*
+!public/uploads/.gitkeep
+
+# WhatsApp session data
+whatsapp-session/
+test-session/
+.wwebjs_cache/
+.wwebjs_auth/
+
+# Backups (contains database dumps)
+backups/
+*.backup
+*.bak
+
+# ========================================
+# Database
+# ========================================
+*.sql.gz
+*.sql.backup
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================
+# Logs
+# ========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+combined-*.log
+err-*.log
+out-*.log
+
+# ========================================
+# PM2 Process Manager
+# ========================================
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+ecosystem.config.js.backup
+
+# ========================================
+# Temporary & Debug Files
+# ========================================
+*.tmp
+*.temp
+.cache/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+
+# Debug/Test HTML files
+test-*.html
+fix-*.html
+*-debug.html
+
+# Batch files (usually for local testing)
+*.bat
+!START_SERVER.bat
+!compile-and-restart.bat
+!restart-server.bat
+
+# ========================================
+# Documentation (Optional - keep in repo)
+# ========================================
+# Uncomment if you don't want to track MD files:
+# *.md
+# !README.md
+
+# ========================================
+# IDE & Editor
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========================================
+# Testing
+# ========================================
+coverage/
+.nyc_output/
+
+# ========================================
+# OS Specific
+# ========================================
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ========================================
+# Git
+# ========================================
+.git/
+.gitattributes

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title><%= typeof title !== 'undefined' ? title : 'Billing' %></title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/styles.css" />
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+	<!-- Chart.js temporarily disabled -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans" style="font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-blue-600 text-white border-r border-blue-700 h-full overflow-y-auto shadow-lg flex-shrink-0">
+			<%- include('../partials/sidebar') %>
+		</aside>
+        <main class="flex-1 h-full overflow-y-auto pb-16">
+            <div class="w-full p-6">
+                <header class="mb-6">
+                    <%- include('../partials/header') %>
+                </header>
+                <%- include('../partials/flash') %>
+                <section>
+                    <%- body %>
+                </section>
+            </div>
+		</main>
+    </div>
+    <%- include('../partials/footer') %>
+<script src="/assets/sidebar.js" defer></script>
+<script src="/assets/dashboard.js" defer></script>
+</body>
+</html>
+
+

@@ -1,0 +1,250 @@
+<%- include('../../layouts/header') %>
+
+<div class="container-fluid px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">📱 Telegram Users Management</h1>
+                <p class="text-gray-600 mt-1">Manage internal staff registration via Telegram bot</p>
+            </div>
+            
+            <a href="/monitoring/telegram/create-invite" 
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                ➕ Create Invite Code
+            </a>
+        </div>
+    </div>
+
+    <!-- Bot Info Card -->
+    <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-md p-6 mb-6 text-white">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <p class="text-blue-100 text-sm">Bot Status</p>
+                <p class="text-2xl font-bold mt-1">
+                    <% if (botInfo.isInitialized) { %>
+                    ✅ Active
+                    <% } else { %>
+                    ❌ Inactive
+                    <% } %>
+                </p>
+            </div>
+            <div>
+                <p class="text-blue-100 text-sm">Total Users</p>
+                <p class="text-2xl font-bold mt-1"><%= users.length %></p>
+            </div>
+            <div>
+                <p class="text-blue-100 text-sm">Active Users</p>
+                <p class="text-2xl font-bold mt-1">
+                    <%= users.filter(u => u.is_active).length %>
+                </p>
+            </div>
+            <div>
+                <p class="text-blue-100 text-sm">Bot Token</p>
+                <p class="text-sm font-mono mt-1"><%= botInfo.botToken %></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Registered Users</h2>
+        
+        <% if (users && users.length > 0) { %>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Area Coverage</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Incidents</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Active</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <% users.forEach(user => { 
+                        const areas = JSON.parse(user.area_coverage || '[]');
+                    %>
+                    <tr class="hover:bg-gray-50" id="user-row-<%= user.id %>">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <%= user.first_name %> <%= user.last_name || '' %>
+                                    </div>
+                                    <% if (user.system_username) { %>
+                                    <div class="text-xs text-gray-500">System: @<%= user.system_username %></div>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                <% if (user.telegram_username) { %>
+                                @<%= user.telegram_username %>
+                                <% } else { %>
+                                <span class="text-gray-400">-</span>
+                                <% } %>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                ID: <%= user.telegram_chat_id %>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 text-xs font-semibold rounded-full <%= 
+                                user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                                user.role === 'teknisi' ? 'bg-blue-100 text-blue-800' :
+                                'bg-green-100 text-green-800'
+                            %>">
+                                <%= user.role.toUpperCase() %>
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">
+                                <% if (areas.length > 0) { %>
+                                    <%= areas.join(', ') %>
+                                <% } else { %>
+                                    <span class="text-gray-400">All areas</span>
+                                <% } %>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <% if (user.active_incidents > 0) { %>
+                            <span class="px-3 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full">
+                                <%= user.active_incidents %>
+                            </span>
+                            <% } else { %>
+                            <span class="text-gray-400">-</span>
+                            <% } %>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <% if (user.last_active_at) { %>
+                                <%= new Date(user.last_active_at).toLocaleDateString('id-ID') %>
+                                <% if (user.days_since_active > 7) { %>
+                                <br><span class="text-xs text-red-500">(inactive <%= user.days_since_active %> days)</span>
+                                <% } %>
+                            <% } else { %>
+                                <span class="text-gray-400">Never</span>
+                            <% } %>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <% if (user.is_active) { %>
+                            <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                                ACTIVE
+                            </span>
+                            <% } else { %>
+                            <span class="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full">
+                                INACTIVE
+                            </span>
+                            <% } %>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <div class="flex gap-2">
+                                <% if (user.is_active) { %>
+                                <button onclick="toggleUserStatus(<%= user.id %>, 'deactivate')" 
+                                        class="text-orange-600 hover:text-orange-900 font-medium">
+                                    Deactivate
+                                </button>
+                                <% } else { %>
+                                <button onclick="toggleUserStatus(<%= user.id %>, 'activate')" 
+                                        class="text-green-600 hover:text-green-900 font-medium">
+                                    Activate
+                                </button>
+                                <% } %>
+                                <button onclick="deleteUser(<%= user.id %>)" 
+                                        class="text-red-600 hover:text-red-900 font-medium ml-2">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+        <% } else { %>
+        <div class="text-center py-12 text-gray-500">
+            <svg class="w-16 h-16 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p class="text-lg font-medium">No registered users yet</p>
+            <p class="text-sm mt-2">Create an invite code to get started</p>
+        </div>
+        <% } %>
+    </div>
+
+    <!-- Instructions Card -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-bold text-blue-900 mb-3">📖 How to Register Staff</h3>
+        <ol class="list-decimal list-inside space-y-2 text-blue-800">
+            <li>Click "Create Invite Code" button above</li>
+            <li>Select role (Admin, Teknisi, or Kasir) and area coverage</li>
+            <li>Copy the generated invite code</li>
+            <li>Send the invite code to staff via WhatsApp or Email</li>
+            <li>Staff opens Telegram, searches for your bot</li>
+            <li>Staff sends: <code class="bg-blue-100 px-2 py-1 rounded">/register YOUR_CODE</code></li>
+            <li>Bot will activate their account automatically</li>
+        </ol>
+    </div>
+</div>
+
+<script>
+async function toggleUserStatus(userId, action) {
+    if (!confirm(`Are you sure you want to ${action} this user?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/monitoring/telegram/users/${userId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteUser(userId) {
+    if (!confirm('Are you sure you want to DELETE this user? This cannot be undone!')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/monitoring/telegram/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            document.getElementById('user-row-' + userId).remove();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+
+<%- include('../../layouts/footer') %>
+

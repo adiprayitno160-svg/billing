@@ -1,0 +1,296 @@
+<div class="container-fluid px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+            <i class="fas fa-chart-line text-yellow-600 mr-3"></i>
+            Dashboard Prepaid System
+        </h1>
+        <p class="text-gray-600">Overview sistem prepaid dan statistik real-time</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <!-- Active Customers -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-users text-2xl"></i>
+                </div>
+                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Active</span>
+            </div>
+            <div class="text-3xl font-bold mb-1"><%= stats ? stats.active_customers : 0 %></div>
+            <div class="text-blue-100 text-sm">Customer Aktif</div>
+        </div>
+
+        <!-- Expired Customers -->
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Expired</span>
+            </div>
+            <div class="text-3xl font-bold mb-1"><%= stats ? stats.expired_customers : 0 %></div>
+            <div class="text-red-100 text-sm">Customer Expired</div>
+        </div>
+
+        <!-- Expiring Soon -->
+        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">7 Days</span>
+            </div>
+            <div class="text-3xl font-bold mb-1"><%= stats ? stats.expiring_soon : 0 %></div>
+            <div class="text-yellow-100 text-sm">Akan Berakhir</div>
+        </div>
+
+        <!-- Revenue Today -->
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-2xl"></i>
+                </div>
+                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Today</span>
+            </div>
+            <div class="text-3xl font-bold mb-1">
+                Rp <%= revenueToday && revenueToday.revenue ? revenueToday.revenue.toLocaleString('id-ID') : '0' %>
+            </div>
+            <div class="text-green-100 text-sm">Pendapatan Hari Ini (<%= revenueToday ? revenueToday.total_transactions : 0 %> transaksi)</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Active Customers List -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                    Customer Aktif
+                </h3>
+                <a href="/prepaid/customers" class="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                    Lihat Semua <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+
+            <% if (activeCustomers && activeCustomers.length > 0) { %>
+            <div class="space-y-3">
+                <% activeCustomers.forEach(function(customer) { %>
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                            <%= customer.name ? customer.name.charAt(0).toUpperCase() : 'C' %>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-800"><%= customer.name %></div>
+                            <div class="text-sm text-gray-600">
+                                <%= customer.package_name %> - <%= customer.download_mbps %>/<%= customer.upload_mbps %> Mbps
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-600">Berakhir:</div>
+                        <div class="font-semibold text-gray-800">
+                            <%= customer.days_remaining %> hari lagi
+                        </div>
+                    </div>
+                </div>
+                <% }); %>
+            </div>
+            <% } else { %>
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-inbox text-4xl mb-2"></i>
+                <p>Belum ada customer aktif</p>
+            </div>
+            <% } %>
+        </div>
+
+        <!-- Expiring Soon List -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-exclamation-circle text-yellow-600 mr-2"></i>
+                    Akan Berakhir (7 Hari)
+                </h3>
+                <a href="/prepaid/subscriptions" class="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                    Lihat Semua <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+
+            <% if (expiringSoon && expiringSoon.length > 0) { %>
+            <div class="space-y-3">
+                <% expiringSoon.forEach(function(customer) { %>
+                <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                            <%= customer.name ? customer.name.charAt(0).toUpperCase() : 'C' %>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-800"><%= customer.name %></div>
+                            <div class="text-sm text-gray-600">
+                                <%= customer.package_name %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-lg font-bold text-yellow-700">
+                            <%= customer.days_remaining %> hari
+                        </div>
+                        <div class="text-xs text-gray-600">
+                            <%= new Date(customer.expiry_date).toLocaleDateString('id-ID') %>
+                        </div>
+                    </div>
+                </div>
+                <% }); %>
+            </div>
+            <% } else { %>
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-check-circle text-4xl mb-2 text-green-500"></i>
+                <p>Tidak ada customer yang akan berakhir</p>
+            </div>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">
+                <i class="fas fa-receipt text-purple-600 mr-2"></i>
+                Transaksi Terbaru
+            </h3>
+            <a href="/prepaid/reports" class="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                Lihat Laporan <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+
+        <% if (recentTransactions && recentTransactions.length > 0) { %>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Invoice</th>
+                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Customer</th>
+                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Tanggal</th>
+                        <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600">Total</th>
+                        <th class="text-center py-3 px-4 text-sm font-semibold text-gray-600">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% recentTransactions.forEach(function(trx) { %>
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td class="py-3 px-4">
+                            <span class="font-mono text-sm"><%= trx.invoice_number %></span>
+                        </td>
+                        <td class="py-3 px-4">
+                            <div class="font-semibold text-gray-800"><%= trx.customer_name %></div>
+                            <div class="text-xs text-gray-500"><%= trx.customer_code %></div>
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-600">
+                            <%= new Date(trx.created_at).toLocaleDateString('id-ID') %>
+                        </td>
+                        <td class="py-3 px-4 text-right font-semibold text-gray-800">
+                            Rp <%= trx.total_amount.toLocaleString('id-ID') %>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <% if (trx.status === 'paid') { %>
+                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <i class="fas fa-check-circle mr-1"></i>Lunas
+                            </span>
+                            <% } else if (trx.status === 'partial') { %>
+                            <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <i class="fas fa-clock mr-1"></i>Partial
+                            </span>
+                            <% } else { %>
+                            <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <%= trx.status %>
+                            </span>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+        <% } else { %>
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-receipt text-4xl mb-2"></i>
+            <p>Belum ada transaksi</p>
+        </div>
+        <% } %>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <a href="/prepaid/customers" class="bg-blue-50 hover:bg-blue-100 rounded-lg p-4 flex items-center justify-between transition">
+            <div>
+                <div class="font-semibold text-blue-900">Kelola Customer</div>
+                <div class="text-sm text-blue-600">Lihat & kelola customer prepaid</div>
+            </div>
+            <i class="fas fa-users text-2xl text-blue-600"></i>
+        </a>
+        <a href="/prepaid/packages" class="bg-green-50 hover:bg-green-100 rounded-lg p-4 flex items-center justify-between transition">
+            <div>
+                <div class="font-semibold text-green-900">Kelola Paket</div>
+                <div class="text-sm text-green-600">Atur paket & harga</div>
+            </div>
+            <i class="fas fa-box text-2xl text-green-600"></i>
+        </a>
+        <a href="/prepaid/reports" class="bg-purple-50 hover:bg-purple-100 rounded-lg p-4 flex items-center justify-between transition">
+            <div>
+                <div class="font-semibold text-purple-900">Lihat Laporan</div>
+                <div class="text-sm text-purple-600">Revenue & statistik</div>
+            </div>
+            <i class="fas fa-chart-bar text-2xl text-purple-600"></i>
+        </a>
+        <button onclick="runScheduler()" class="bg-orange-50 hover:bg-orange-100 rounded-lg p-4 flex items-center justify-between transition">
+            <div>
+                <div class="font-semibold text-orange-900">Run Scheduler</div>
+                <div class="text-sm text-orange-600">Cek expiry & notifikasi</div>
+            </div>
+            <i class="fas fa-sync text-2xl text-orange-600"></i>
+        </button>
+    </div>
+
+    <script>
+    async function runScheduler() {
+        if (!confirm('Jalankan scheduler sekarang?\n\nScheduler akan:\n- Deactivate expired subscriptions\n- Send expiry notifications\n- Restore renewed customers')) {
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        const icon = btn.querySelector('i');
+        const originalText = btn.querySelector('.font-semibold').textContent;
+        
+        btn.querySelector('.font-semibold').textContent = 'Running...';
+        icon.classList.add('fa-spin');
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/prepaid/trigger-scheduler', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ Scheduler berhasil dijalankan!\n\nRefresh halaman untuk melihat update.');
+                location.reload();
+            } else {
+                alert('❌ Error: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        } finally {
+            btn.querySelector('.font-semibold').textContent = originalText;
+            icon.classList.remove('fa-spin');
+            btn.disabled = false;
+        }
+    }
+    </script>
+</div>
+
+<%- include('../../partials/footer') %>
+

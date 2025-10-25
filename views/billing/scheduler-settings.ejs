@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .toggle-checkbox:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .toggle-checkbox:checked ~ .toggle-label {
+            background-color: #10b981;
+        }
+        .radio-card:has(input:checked) {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .number-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Modern Header with Gradient -->
+    <div class="gradient-bg text-white shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center backdrop-blur">
+                                <i class="fas fa-cog text-2xl"></i>
+                            </div>
+                            <div>
+                                <h1 class="text-3xl font-bold">Pengaturan Scheduler & Otomasi</h1>
+                                <p class="mt-1 text-blue-100">Kelola otomatisasi sistem billing Anda</p>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/billing/tagihan" class="bg-white bg-opacity-20 backdrop-blur text-white px-6 py-3 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center space-x-2">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Kembali</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-blue-500 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Status Scheduler</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1">
+                            <%= settings.auto_generate_enabled ? 'Aktif' : 'Nonaktif' %>
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <i class="fas <%= settings.auto_generate_enabled ? 'fa-check-circle text-blue-600' : 'fa-times-circle text-gray-400' %> text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-green-500 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">WhatsApp Reminder</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1">
+                            <%= settings.whatsapp_reminder_enabled ? 'Aktif' : 'Nonaktif' %>
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <i class="fab fa-whatsapp text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Auto Isolir</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1">
+                            <%= settings.auto_isolir_enabled ? 'Aktif' : 'Nonaktif' %>
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-ban text-red-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-purple-500 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Generate Tanggal</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1">
+                            <%= settings.generation_date || 1 %>
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-calendar-day text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Settings Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- LEFT COLUMN -->
+            <div class="space-y-6">
+                <!-- Invoice Generation Settings -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="number-badge bg-white text-blue-600">1</div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Pembuatan Tagihan Otomatis</h2>
+                                <p class="text-blue-100 text-sm">Atur jadwal generate invoice</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="invoiceSettingsForm" class="p-6 space-y-6">
+                        <!-- Auto Generate Toggle -->
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border-2 border-blue-200">
+                            <label class="flex items-start space-x-4 cursor-pointer group">
+                                <div class="relative">
+                                    <input type="checkbox" 
+                                           name="auto_generate_enabled" 
+                                           id="auto_generate_enabled"
+                                           value="true"
+                                           <%= settings.auto_generate_enabled ? 'checked' : '' %>
+                                           class="sr-only toggle-checkbox">
+                                    <div class="w-14 h-8 bg-gray-300 rounded-full shadow-inner toggle-label transition-all duration-300"></div>
+                                    <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow transition-transform duration-300 transform" 
+                                         style="<%= settings.auto_generate_enabled ? 'transform: translateX(24px);' : '' %>"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-bold text-gray-900 text-lg flex items-center">
+                                        <i class="fas fa-power-off mr-2 text-blue-600"></i>
+                                        Aktifkan Generate Otomatis
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">Sistem akan membuat tagihan secara otomatis sesuai jadwal</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Generation Date & Time -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="fas fa-calendar-day text-blue-600 mr-2"></i>Tanggal Generate
+                                </label>
+                                <select name="generation_date" id="generation_date"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                    <% for(let i = 1; i <= 28; i++) { %>
+                                        <option value="<%= i %>" <%= (settings.generation_date || 1) == i ? 'selected' : '' %>>
+                                            Tanggal <%= i %>
+                                        </option>
+                                    <% } %>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="fas fa-clock text-blue-600 mr-2"></i>Waktu Generate
+                                </label>
+                                <input type="time" name="generation_time" id="generation_time"
+                                       value="<%= settings.generation_time || '01:00' %>"
+                                       class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            </div>
+                        </div>
+
+                        <!-- Due Date Settings -->
+                        <div class="space-y-4 border-2 border-gray-100 rounded-xl p-5 bg-gray-50">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-hourglass-half text-blue-600 mr-2"></i>Aktifkan Tenggat Pembayaran
+                                    </label>
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        Otomatis set due date setelah invoice dibuat
+                                    </p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="enable_due_date" id="enable_due_date"
+                                           <%= (settings.enable_due_date !== false) ? 'checked' : '' %>
+                                           class="sr-only peer">
+                                    <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div id="dueDateOffsetContainer" class="<%= (settings.enable_due_date !== false) ? '' : 'opacity-50 pointer-events-none' %>">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="fas fa-calendar-check text-blue-600 mr-2"></i>Jangka Waktu Tenggat
+                                </label>
+                                <div class="flex items-center space-x-3">
+                                    <input type="number" name="due_date_offset" id="due_date_offset"
+                                           value="<%= settings.due_date_offset || 7 %>"
+                                           min="1" max="90"
+                                           class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                    <span class="text-gray-600 font-medium">Hari</span>
+                                </div>
+                                <p class="mt-2 text-xs text-gray-500">
+                                    <i class="fas fa-info-circle text-blue-500"></i>
+                                    Jangka waktu dari invoice dibuat hingga jatuh tempo (1-90 hari)
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <i class="fas fa-save mr-2"></i>Simpan Pengaturan Tagihan
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Manual Trigger -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="number-badge bg-white text-green-600">2</div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Generate Manual</h2>
+                                <p class="text-green-100 text-sm">Buat tagihan kapan saja</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="manualTriggerForm" class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-calendar-alt text-green-600 mr-2"></i>Pilih Periode
+                            </label>
+                            <input type="month" name="period" id="manual_period"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all">
+                        </div>
+                        
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <i class="fas fa-rocket mr-2"></i>Generate Sekarang
+                        </button>
+
+                        <div id="manualTriggerResults" class="mt-4 hidden animate-fade-in"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="space-y-6">
+                <!-- WhatsApp Reminder -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-gradient-to-r from-green-500 to-teal-600 px-6 py-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="number-badge bg-white text-green-600">3</div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Notifikasi WhatsApp</h2>
+                                <p class="text-green-100 text-sm">Pengingat otomatis ke pelanggan</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="whatsappSettingsForm" class="p-6 space-y-6">
+                        <!-- Toggle -->
+                        <div class="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-5 border-2 border-green-200">
+                            <label class="flex items-start space-x-4 cursor-pointer group">
+                                <div class="relative">
+                                    <input type="checkbox" 
+                                           name="whatsapp_reminder_enabled" 
+                                           id="whatsapp_reminder_enabled"
+                                           value="true"
+                                           <%= settings.whatsapp_reminder_enabled ? 'checked' : '' %>
+                                           class="sr-only toggle-checkbox">
+                                    <div class="w-14 h-8 bg-gray-300 rounded-full shadow-inner toggle-label transition-all duration-300"></div>
+                                    <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow transition-transform duration-300 transform"
+                                         style="<%= settings.whatsapp_reminder_enabled ? 'transform: translateX(24px);' : '' %>"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-bold text-gray-900 text-lg flex items-center">
+                                        <i class="fab fa-whatsapp mr-2 text-green-600"></i>
+                                        Aktifkan Reminder WhatsApp
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">Kirim pengingat pembayaran otomatis</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Reminder Days Selection -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-bell text-green-600 mr-2"></i>Kirim Berapa Hari Sebelum Jatuh Tempo?
+                            </label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <% [3, 7, 10].forEach(days => { %>
+                                <label class="radio-card relative flex flex-col items-center justify-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:border-green-300">
+                                    <input type="radio" name="reminder_days_before" value="<%= days %>"
+                                           <%= (settings.reminder_days_before || 3) == days ? 'checked' : '' %>
+                                           class="sr-only">
+                                    <div class="text-3xl font-bold text-gray-900"><%= days %></div>
+                                    <div class="text-xs text-gray-600 mt-1">Hari</div>
+                                </label>
+                                <% }); %>
+                            </div>
+                            <p class="mt-3 text-xs text-gray-500">
+                                <i class="fas fa-info-circle text-green-500"></i>
+                                Notifikasi dikirim X hari <strong>SEBELUM</strong> tanggal jatuh tempo
+                            </p>
+                        </div>
+
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-green-500 to-teal-600 text-white px-6 py-4 rounded-xl hover:from-green-600 hover:to-teal-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <i class="fas fa-save mr-2"></i>Simpan Pengaturan WhatsApp
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Auto Isolir -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-gradient-to-r from-red-500 to-pink-600 px-6 py-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="number-badge bg-white text-red-600">4</div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Auto Isolir Pelanggan</h2>
+                                <p class="text-red-100 text-sm">Isolir otomatis yang nunggak</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="isolirSettingsForm" class="p-6 space-y-6">
+                        <!-- Toggle -->
+                        <div class="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-5 border-2 border-red-200">
+                            <label class="flex items-start space-x-4 cursor-pointer group">
+                                <div class="relative">
+                                    <input type="checkbox" 
+                                           name="auto_isolir_enabled" 
+                                           id="auto_isolir_enabled"
+                                           value="true"
+                                           <%= settings.auto_isolir_enabled ? 'checked' : '' %>
+                                           class="sr-only toggle-checkbox">
+                                    <div class="w-14 h-8 bg-gray-300 rounded-full shadow-inner toggle-label transition-all duration-300"></div>
+                                    <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow transition-transform duration-300 transform"
+                                         style="<%= settings.auto_isolir_enabled ? 'transform: translateX(24px);' : '' %>"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-bold text-gray-900 text-lg flex items-center">
+                                        <i class="fas fa-ban mr-2 text-red-600"></i>
+                                        Aktifkan Isolir Otomatis
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-1">Isolir pelanggan yang belum bayar</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Isolir Mode -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-cog text-red-600 mr-2"></i>Mode Isolir
+                            </label>
+                            <div class="space-y-3">
+                                <label class="radio-card flex items-start p-4 border-2 border-red-300 bg-red-50 rounded-xl cursor-pointer transition-all">
+                                    <input type="radio" name="isolir_mode" value="fixed_date"
+                                           <%= (settings.isolir_mode || 'fixed_date') == 'fixed_date' ? 'checked' : '' %>
+                                           class="mt-1 text-red-600 focus:ring-red-500">
+                                    <div class="ml-3 flex-1">
+                                        <div class="font-semibold text-gray-900 flex items-center">
+                                            <span>Tanggal Tetap Setiap Bulan</span>
+                                            <span class="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">REKOMENDASI</span>
+                                        </div>
+                                        <div class="text-sm text-gray-700 mt-1">
+                                            <strong>Isolir semua yang belum bayar pada tanggal tertentu</strong><br>
+                                            Contoh: Tanggal 1 → Isolir semua yang belum bayar tagihan bulan lalu
+                                        </div>
+                                    </div>
+                                </label>
+                                
+                                <label class="radio-card flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all">
+                                    <input type="radio" name="isolir_mode" value="per_customer"
+                                           <%= (settings.isolir_mode || 'fixed_date') == 'per_customer' ? 'checked' : '' %>
+                                           class="mt-1 text-red-600 focus:ring-red-500">
+                                    <div class="ml-3 flex-1">
+                                        <div class="font-semibold text-gray-900">Per Due Date Customer</div>
+                                        <div class="text-sm text-gray-600 mt-1">
+                                            Isolir berdasarkan due date masing-masing customer<br>
+                                            <span class="text-xs">Otomatis isolir sehari setelah due date lewat</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Fixed Date Settings -->
+                        <div id="fixedDateSettings" class="<%= (settings.isolir_mode || 'fixed_date') == 'per_customer' ? 'hidden' : '' %>">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-calendar-times text-red-600 mr-2"></i>Tanggal Isolir Setiap Bulan
+                            </label>
+                            <select name="isolir_date" id="isolir_date"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all">
+                                <% for(let i = 1; i <= 31; i++) { %>
+                                    <option value="<%= i %>" <%= (settings.isolir_date || 1) == i ? 'selected' : '' %>>
+                                        Tanggal <%= i %><%= i === 1 ? ' (Awal Bulan - REKOMENDASI)' : '' %><%= i === 31 ? ' (Akhir Bulan)' : '' %>
+                                    </option>
+                                <% } %>
+                            </select>
+                            <p class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-lightbulb text-yellow-500"></i>
+                                <strong>REKOMENDASI:</strong> Gunakan <strong>Tanggal 1</strong> untuk isolir pelanggan yang belum bayar bulan sebelumnya
+                            </p>
+                        </div>
+
+                        <!-- Per Customer Settings -->
+                        <div id="perCustomerSettings" class="<%= (settings.isolir_mode || 'fixed_date') == 'fixed_date' ? 'hidden' : '' %>">
+                            <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                                <div class="flex items-start space-x-3">
+                                    <i class="fas fa-info-circle text-blue-600 text-xl mt-1"></i>
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-gray-900 mb-1">Isolir Otomatis Per Customer</h4>
+                                        <p class="text-sm text-gray-600">
+                                            Sistem akan isolir berdasarkan due date masing-masing pelanggan. 
+                                            Setelah melewati tanggal jatuh tempo dan belum bayar, otomatis diisolir.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Execution Time -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-clock text-red-600 mr-2"></i>Waktu Eksekusi Isolir
+                            </label>
+                            <input type="time" name="isolir_execution_time" id="isolir_execution_time"
+                                   value="<%= settings.isolir_execution_time || '01:00' %>"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all">
+                            <p class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-info-circle text-red-500"></i>
+                                Waktu otomatis menjalankan proses isolir setiap hari
+                            </p>
+                        </div>
+
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white px-6 py-4 rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <i class="fas fa-save mr-2"></i>Simpan Pengaturan Isolir
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed top-6 right-6 bg-white rounded-2xl shadow-2xl border border-gray-200 p-5 max-w-md z-50 animate-fade-in">
+        <div class="flex items-center">
+            <div id="toastIcon" class="mr-4"></div>
+            <div class="flex-1">
+                <p id="toastMessage" class="text-sm font-semibold text-gray-900"></p>
+            </div>
+            <button onclick="document.getElementById('toast').classList.add('hidden')" class="ml-4 text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Toggle switches animation
+        document.querySelectorAll('.toggle-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const dot = this.nextElementSibling.nextElementSibling;
+                if (this.checked) {
+                    dot.style.transform = 'translateX(24px)';
+                    this.nextElementSibling.style.backgroundColor = '#10b981';
+                } else {
+                    dot.style.transform = 'translateX(0)';
+                    this.nextElementSibling.style.backgroundColor = '#d1d5db';
+                }
+            });
+        });
+
+        // Isolir mode toggle
+        document.querySelectorAll('input[name="isolir_mode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const fixedDateSettings = document.getElementById('fixedDateSettings');
+                const perCustomerSettings = document.getElementById('perCustomerSettings');
+                
+                if (this.value === 'fixed_date') {
+                    fixedDateSettings.classList.remove('hidden');
+                    perCustomerSettings.classList.add('hidden');
+                } else {
+                    fixedDateSettings.classList.add('hidden');
+                    perCustomerSettings.classList.remove('hidden');
+                }
+            });
+        });
+
+        // Form submissions
+        document.getElementById('invoiceSettingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const generationDate = formData.get('generation_date');
+            const generationTime = formData.get('generation_time');
+            const [hour, minute] = generationTime.split(':');
+            
+            const data = {
+                auto_generate_enabled: formData.get('auto_generate_enabled') === 'true',
+                generation_date: parseInt(generationDate),
+                cron_schedule: `${minute} ${hour} ${generationDate} * *`,
+                due_date_offset: parseInt(formData.get('due_date_offset')),
+                enable_due_date: document.getElementById('enable_due_date').checked
+            };
+
+            await saveSettings('/billing/scheduler/settings', data, 'Pengaturan tagihan berhasil disimpan');
+        });
+
+        document.getElementById('whatsappSettingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                whatsapp_reminder_enabled: formData.get('whatsapp_reminder_enabled') === 'true',
+                reminder_days_before: parseInt(formData.get('reminder_days_before'))
+            };
+
+            await saveSettings('/billing/scheduler/whatsapp-settings', data, 'Pengaturan WhatsApp berhasil disimpan');
+        });
+
+        document.getElementById('isolirSettingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                auto_isolir_enabled: formData.get('auto_isolir_enabled') === 'true',
+                isolir_mode: formData.get('isolir_mode'),
+                isolir_date: parseInt(formData.get('isolir_date')),
+                isolir_execution_time: formData.get('isolir_execution_time')
+            };
+
+            await saveSettings('/billing/scheduler/isolir-settings', data, 'Pengaturan auto isolir berhasil disimpan');
+        });
+
+        // Toggle isolir mode
+        document.querySelectorAll('input[name="isolir_mode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const fixedDateSettings = document.getElementById('fixedDateSettings');
+                const perCustomerSettings = document.getElementById('perCustomerSettings');
+                
+                if (this.value === 'fixed_date') {
+                    fixedDateSettings.classList.remove('hidden');
+                    perCustomerSettings.classList.add('hidden');
+                } else {
+                    fixedDateSettings.classList.add('hidden');
+                    perCustomerSettings.classList.remove('hidden');
+                }
+            });
+        });
+
+        // Manual trigger
+        document.getElementById('manualTriggerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const period = formData.get('period');
+
+            if (!period) {
+                showToast('error', 'Harap pilih periode terlebih dahulu');
+                return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
+
+            try {
+                const response = await fetch('/billing/scheduler/run-now', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ period })
+                });
+
+                const result = await response.json();
+                const resultsDiv = document.getElementById('manualTriggerResults');
+                resultsDiv.classList.remove('hidden');
+
+                if (result.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 text-2xl mr-3 mt-1"></i>
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-green-900">${result.message}</h3>
+                                    ${result.created_count !== undefined ? `
+                                        <div class="mt-2 text-sm text-green-800 space-y-1">
+                                            <div>✓ Tagihan dibuat: <strong>${result.created_count}</strong></div>
+                                            ${result.error_count > 0 ? `<div>✗ Error: <strong>${result.error_count}</strong></div>` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    showToast('success', 'Scheduler berhasil dijalankan');
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-exclamation-circle text-red-500 text-2xl mr-3 mt-1"></i>
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-red-900">${result.message}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    showToast('error', 'Gagal menjalankan scheduler');
+                }
+            } catch (error) {
+                showToast('error', 'Terjadi kesalahan saat menjalankan scheduler');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+
+        async function saveSettings(url, data, successMessage) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('success', successMessage);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('error', result.message || 'Gagal menyimpan pengaturan');
+                }
+            } catch (error) {
+                showToast('error', 'Terjadi kesalahan saat menyimpan pengaturan');
+            }
+        }
+
+        function showToast(type, message) {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+
+            if (type === 'success') {
+                toastIcon.innerHTML = '<div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"><i class="fas fa-check-circle text-green-500 text-2xl"></i></div>';
+            } else {
+                toastIcon.innerHTML = '<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center"><i class="fas fa-exclamation-circle text-red-500 text-2xl"></i></div>';
+            }
+
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Set default month
+        const today = new Date();
+        document.getElementById('manual_period').value = today.toISOString().slice(0, 7);
+
+        // Handle due date toggle
+        const enableDueDateCheckbox = document.getElementById('enable_due_date');
+        const dueDateOffsetContainer = document.getElementById('dueDateOffsetContainer');
+        
+        if (enableDueDateCheckbox) {
+            enableDueDateCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    dueDateOffsetContainer.classList.remove('opacity-50', 'pointer-events-none');
+                } else {
+                    dueDateOffsetContainer.classList.add('opacity-50', 'pointer-events-none');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

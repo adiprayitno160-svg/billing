@@ -1,0 +1,196 @@
+<div class="space-y-6">
+	<!-- KPI Cards -->
+    <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="flex items-center justify-between">
+				<div>
+					<div class="text-sm font-medium text-gray-600">Pelanggan Aktif</div>
+					<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.activeCustomers %></div>
+				</div>
+				<div class="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M20 21a8 8 0 10-16 0" />
+						<path d="M12 11a4 4 0 100-8 4 4 0 000 8z" />
+					</svg>
+				</div>
+			</div>
+		</div>
+
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="flex items-center justify-between">
+				<div>
+                    <div class="text-sm font-medium text-gray-600">Total Pelanggan</div>
+                    <div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.totalCustomers %></div>
+				</div>
+				<div class="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M3 7l9-4 9 4-9 4-9-4z" />
+						<path d="M21 7v10l-9 4-9-4V7" />
+					</svg>
+				</div>
+			</div>
+		</div>
+
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="flex items-center justify-between">
+				<div>
+                    <div class="text-sm font-medium text-gray-600">Paket PPPOE</div>
+                    <div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.pppoePackages %></div>
+				</div>
+				<div class="h-10 w-10 bg-purple-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M12 5v14M5 12h14" />
+					</svg>
+				</div>
+			</div>
+		</div>
+
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="flex items-center justify-between">
+				<div>
+                    <div class="text-sm font-medium text-gray-600">Profil PPPOE</div>
+                    <div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.pppoeProfiles %></div>
+				</div>
+				<div class="h-10 w-10 bg-indigo-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M20 6L9 17l-5-5" />
+					</svg>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Additional Stats -->
+	<div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="text-sm font-medium text-gray-600">Pelanggan Nonaktif</div>
+			<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.inactiveCustomers %></div>
+		</div>
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="text-sm font-medium text-gray-600">FTTH OLT</div>
+			<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.oltCount %></div>
+		</div>
+		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+			<div class="text-sm font-medium text-gray-600">FTTH ODC</div>
+			<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.odcCount %></div>
+		</div>
+	</div>
+
+	<!-- Quick Actions -->
+	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+		<h2 class="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h2>
+		<div class="grid grid-cols-2 gap-3">
+			<a href="/customers/new-pppoe" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+				<div class="h-8 w-8 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M12 5v14M5 12h14"/>
+					</svg>
+				</div>
+				<span class="text-sm font-medium text-gray-700">Daftar Pelanggan PPPOE</span>
+			</a>
+			<a href="/packages/pppoe/packages" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+				<div class="h-8 w-8 bg-green-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M3 7l9-4 9 4-9 4-9-4z"/>
+						<path d="M21 7v10l-9 4-9-4V7"/>
+					</svg>
+				</div>
+				<span class="text-sm font-medium text-gray-700">Kelola Paket</span>
+			</a>
+			<a href="/settings/mikrotik" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+				<div class="h-8 w-8 bg-purple-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M12 8v8"/>
+						<path d="M8 12h8"/>
+					</svg>
+				</div>
+				<span class="text-sm font-medium text-gray-700">Atur MikroTik</span>
+			</a>
+			<a href="/customers/list" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+				<div class="h-8 w-8 bg-orange-500 rounded-lg flex items-center justify-center text-white">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M20 21a8 8 0 10-16 0"/>
+						<path d="M12 11a4 4 0 100-8 4 4 0 000 8z"/>
+					</svg>
+				</div>
+				<span class="text-sm font-medium text-gray-700">Data Pelanggan</span>
+			</a>
+		</div>
+	</div>
+
+	<!-- Recent Requests -->
+	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-lg font-semibold text-gray-900">Pendaftaran Terbaru</h2>
+			<a href="/customers/new-pppoe" class="text-sm text-blue-600 hover:text-blue-800">Tambah</a>
+		</div>
+		<div class="overflow-x-auto">
+			<table class="min-w-full text-sm">
+				<thead>
+					<tr class="text-left text-gray-600 border-b border-gray-200">
+						<th class="py-3 pr-4 font-medium">Nama</th>
+						<th class="py-3 pr-4 font-medium">Telepon</th>
+						<th class="py-3 pr-4 font-medium">Paket</th>
+						<th class="py-3 pr-4 font-medium">Status</th>
+					</tr>
+				</thead>
+				<tbody>
+					<% if (typeof recentRequests !== 'undefined' && recentRequests && recentRequests.length) { %>
+						<% recentRequests.forEach(function(r){ %>
+						<tr class="border-b border-gray-100">
+							<td class="py-3 pr-4 text-gray-800 font-medium"><%= r.full_name %></td>
+							<td class="py-3 pr-4 text-gray-600"><%= r.phone || '-' %></td>
+							<td class="py-3 pr-4 text-gray-600"><%= r.desired_package_id || '-' %></td>
+							<td class="py-3 pr-4">
+								<span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Baru</span>
+							</td>
+						</tr>
+						<% }) %>
+					<% } else { %>
+						<tr>
+							<td class="py-3 pr-4 text-gray-500" colspan="4">Belum ada pendaftaran.</td>
+						</tr>
+					<% } %>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- MikroTik Status -->
+	<% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo) { %>
+	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
+			<% if (connectionStatus.connected) { %>
+				<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+					<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>
+					Terhubung
+				</span>
+			<% } else { %>
+				<span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+					<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
+					Terputus
+				</span>
+			<% } %>
+		</div>
+		<div class="grid grid-cols-2 gap-4">
+			<div class="bg-gray-50 rounded-lg p-3">
+				<div class="text-sm text-gray-600 font-medium">Identity</div>
+				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.identity || '-' %></div>
+			</div>
+			<div class="bg-gray-50 rounded-lg p-3">
+				<div class="text-sm text-gray-600 font-medium">Version</div>
+				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.version || '-' %></div>
+			</div>
+			<div class="bg-gray-50 rounded-lg p-3">
+				<div class="text-sm text-gray-600 font-medium">Uptime</div>
+				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.uptime || '-' %></div>
+			</div>
+			<div class="bg-gray-50 rounded-lg p-3">
+				<div class="text-sm text-gray-600 font-medium">CPU Load</div>
+				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.cpuLoad || '-' %>%</div>
+			</div>
+		</div>
+	</div>
+	<% } %>
+</div>

@@ -1,0 +1,390 @@
+<div class="p-2">
+    <div class="flex items-center justify-between pt-3 pb-2 mb-4 border-b border-gray-200">
+        <h1 class="text-2xl font-semibold text-gray-900 flex items-center gap-2"><i class="fas fa-credit-card"></i> Payment Gateway Dashboard</h1>
+        <div>
+            <button type="button" onclick="showCreatePaymentModal()" class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-plus"></i>
+                Buat Pembayaran
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div class="rounded-xl bg-blue-600 text-white shadow">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm opacity-80">Total Transaksi</div>
+                        <div id="totalTransactions" class="text-3xl font-bold">0</div>
+                    </div>
+                    <i class="fas fa-receipt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="rounded-xl bg-green-600 text-white shadow">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm opacity-80">Pembayaran Berhasil</div>
+                        <div id="successfulPayments" class="text-3xl font-bold">0</div>
+                    </div>
+                    <i class="fas fa-check-circle text-2xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="rounded-xl bg-yellow-500 text-white shadow">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm opacity-80">Menunggu Pembayaran</div>
+                        <div id="pendingPayments" class="text-3xl font-bold">0</div>
+                    </div>
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="rounded-xl bg-cyan-600 text-white shadow">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm opacity-80">Total Revenue</div>
+                        <div id="totalRevenue" class="text-3xl font-bold">Rp 0</div>
+                    </div>
+                    <i class="fas fa-dollar-sign text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Gateways -->
+    <div class="mb-4">
+        <div class="mb-2"><h4 class="text-lg font-semibold text-gray-900">Payment Gateways</h4></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="rounded-xl bg-white shadow p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-indigo-600 text-white mx-auto mb-3 flex items-center justify-center text-2xl">
+                    <i class="fas fa-university"></i>
+                </div>
+                <div class="text-lg font-medium text-gray-900">Xendit</div>
+                <div class="text-sm text-gray-500">Virtual Account, E-Wallet, Retail Outlet</div>
+                <span class="inline-flex mt-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Aktif</span>
+            </div>
+            <div class="rounded-xl bg-white shadow p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-pink-600 text-white mx-auto mb-3 flex items-center justify-center text-2xl">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <div class="text-lg font-medium text-gray-900">Mitra</div>
+                <div class="text-sm text-gray-500">Bank Transfer, Virtual Account, E-Wallet</div>
+                <span class="inline-flex mt-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Aktif</span>
+            </div>
+            <div class="rounded-xl bg-white shadow p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-cyan-600 text-white mx-auto mb-3 flex items-center justify-center text-2xl">
+                    <i class="fas fa-store"></i>
+                </div>
+                <div class="text-lg font-medium text-gray-900">Tripay</div>
+                <div class="text-sm text-gray-500">Virtual Account, Bank Transfer, E-Wallet, Convenience Store</div>
+                <span class="inline-flex mt-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Aktif</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-xl shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h5 class="text-base font-semibold text-gray-900 flex items-center gap-2"><i class="fas fa-history"></i> Transaksi Terbaru</h5>
+        </div>
+        <div class="p-4">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm" id="transactionsTable">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th class="px-4 py-2 text-left">ID Transaksi</th>
+                            <th class="px-4 py-2 text-left">Customer</th>
+                            <th class="px-4 py-2 text-left">Gateway</th>
+                            <th class="px-4 py-2 text-left">Metode</th>
+                            <th class="px-4 py-2 text-left">Jumlah</th>
+                            <th class="px-4 py-2 text-left">Status</th>
+                            <th class="px-4 py-2 text-left">Tanggal</th>
+                            <th class="px-4 py-2 text-left">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <!-- Data akan dimuat via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Payment Modal (Tailwind) -->
+<div id="createPaymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h5 class="text-lg font-semibold text-gray-900">Buat Pembayaran Baru</h5>
+                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="closeCreatePaymentModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="createPaymentForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="invoiceId" class="block text-sm font-medium text-gray-700 mb-1">Invoice ID</label>
+                            <input type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2" id="invoiceId" required>
+                        </div>
+                        <div>
+                            <label for="customerId" class="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
+                            <input type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2" id="customerId" required>
+                        </div>
+                        <div>
+                            <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                            <input type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2" id="amount" step="0.01" required>
+                        </div>
+                        <div>
+                            <label for="currency" class="block text-sm font-medium text-gray-700 mb-1">Mata Uang</label>
+                            <select class="w-full border border-gray-300 rounded-lg px-3 py-2" id="currency">
+                                <option value="IDR">IDR</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="gatewayCode" class="block text-sm font-medium text-gray-700 mb-1">Payment Gateway</label>
+                            <select class="w-full border border-gray-300 rounded-lg px-3 py-2" id="gatewayCode" required>
+                                <option value="">Pilih Gateway</option>
+                                <option value="xendit">Xendit</option>
+                                <option value="mitra">Mitra</option>
+                                <option value="tripay">Tripay</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="paymentMethod" class="block text-sm font-medium text-gray-700 mb-1">Metode Pembayaran</label>
+                            <select class="w-full border border-gray-300 rounded-lg px-3 py-2" id="paymentMethod" required>
+                                <option value="">Pilih Metode</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="customerName" class="block text-sm font-medium text-gray-700 mb-1">Nama Customer</label>
+                            <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2" id="customerName" required>
+                        </div>
+                        <div>
+                            <label for="customerEmail" class="block text-sm font-medium text-gray-700 mb-1">Email Customer</label>
+                            <input type="email" class="w-full border border-gray-300 rounded-lg px-3 py-2" id="customerEmail">
+                        </div>
+                        <div>
+                            <label for="customerPhone" class="block text-sm font-medium text-gray-700 mb-1">Telepon Customer</label>
+                            <input type="tel" class="w-full border border-gray-300 rounded-lg px-3 py-2" id="customerPhone">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                            <textarea class="w-full border border-gray-300 rounded-lg px-3 py-2" id="description" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-xl flex items-center justify-end gap-3">
+                <button type="button" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100" onclick="closeCreatePaymentModal()">Batal</button>
+                <button type="button" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700" onclick="createPayment()">Buat Pembayaran</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+        function showCreatePaymentModal() {
+            document.getElementById('createPaymentModal').classList.remove('hidden');
+        }
+        function closeCreatePaymentModal() {
+            document.getElementById('createPaymentModal').classList.add('hidden');
+        }
+        // Load payment methods when gateway changes
+        document.getElementById('gatewayCode').addEventListener('change', function() {
+            const gatewayCode = this.value;
+            const paymentMethodSelect = document.getElementById('paymentMethod');
+            
+            if (gatewayCode) {
+                fetch(`/payment/methods?gateway=${gatewayCode}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        paymentMethodSelect.innerHTML = '<option value="">Pilih Metode</option>';
+                        data.data.forEach(method => {
+                            const option = document.createElement('option');
+                            option.value = method.method_code;
+                            option.textContent = method.method_name;
+                            paymentMethodSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error loading payment methods:', error));
+            } else {
+                paymentMethodSelect.innerHTML = '<option value="">Pilih Metode</option>';
+            }
+        });
+
+        // Create payment function
+        function createPayment() {
+            const formData = {
+                invoiceId: document.getElementById('invoiceId').value,
+                customerId: document.getElementById('customerId').value,
+                amount: document.getElementById('amount').value,
+                currency: document.getElementById('currency').value,
+                gatewayCode: document.getElementById('gatewayCode').value,
+                paymentMethod: document.getElementById('paymentMethod').value,
+                customerName: document.getElementById('customerName').value,
+                customerEmail: document.getElementById('customerEmail').value,
+                customerPhone: document.getElementById('customerPhone').value,
+                description: document.getElementById('description').value
+            };
+
+            fetch('/payment/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Pembayaran berhasil dibuat!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat membuat pembayaran');
+            });
+        }
+
+        // Load dashboard data
+        function loadDashboardData() {
+            // Load statistics
+            fetch('/payment/history?limit=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const transactions = data.data;
+                        const totalTransactions = transactions.length;
+                        const successfulPayments = transactions.filter(t => t.status === 'completed' || t.status === 'paid').length;
+                        const pendingPayments = transactions.filter(t => t.status === 'pending' || t.status === 'processing').length;
+                        const totalRevenue = transactions
+                            .filter(t => t.status === 'completed' || t.status === 'paid')
+                            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+                        document.getElementById('totalTransactions').textContent = totalTransactions;
+                        document.getElementById('successfulPayments').textContent = successfulPayments;
+                        document.getElementById('pendingPayments').textContent = pendingPayments;
+                        document.getElementById('totalRevenue').textContent = 'Rp ' + totalRevenue.toLocaleString('id-ID');
+
+                        // Load transactions table
+                        const tbody = document.querySelector('#transactionsTable tbody');
+                        tbody.innerHTML = '';
+                        transactions.slice(0, 10).forEach(transaction => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${transaction.external_id}</td>
+                                <td>${transaction.customer_name || 'N/A'}</td>
+                                <td>${transaction.gateway_name}</td>
+                                <td>${transaction.method_name}</td>
+                                <td>Rp ${parseFloat(transaction.amount).toLocaleString('id-ID')}</td>
+                                <td><span class="badge ${getStatusBadgeClass(transaction.status)}">${transaction.status}</span></td>
+                                <td>${new Date(transaction.created_at).toLocaleDateString('id-ID')}</td>
+                                <td>
+                                    <div class="flex space-x-1">
+                                        <button class="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500" onclick="viewTransaction('${transaction.external_id}')" title="Lihat Detail">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        ${transaction.status === 'pending' || transaction.status === 'processing' ? `
+                                            <button class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500" onclick="refreshTransaction('${transaction.external_id}')" title="Refresh Status">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        ` : ''}
+                                        ${transaction.status === 'pending' ? `
+                                            <button class="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500" onclick="cancelTransaction('${transaction.external_id}')" title="Batalkan">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error loading dashboard data:', error));
+        }
+
+        function getStatusBadgeClass(status) {
+            switch(status) {
+                case 'completed':
+                case 'paid':
+                    return 'inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
+                case 'pending':
+                case 'processing':
+                    return 'inline-flex px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800';
+                case 'failed':
+                case 'expired':
+                case 'cancelled':
+                    return 'inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
+                default:
+                    return 'inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800';
+            }
+        }
+
+        function viewTransaction(transactionId) {
+            // Implement view transaction details
+            window.open(`/payment/status/${transactionId}`, '_blank');
+        }
+
+        function refreshTransaction(transactionId) {
+            // Refresh transaction status
+            fetch(`/payment/refresh/${transactionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Status transaksi berhasil diperbarui!');
+                    loadDashboardData(); // Reload data
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat memperbarui status transaksi');
+            });
+        }
+
+        function cancelTransaction(transactionId) {
+            if (confirm('Apakah Anda yakin ingin membatalkan transaksi ini?')) {
+                fetch(`/payment/cancel/${transactionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Transaksi berhasil dibatalkan!');
+                        loadDashboardData(); // Reload data
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Terjadi kesalahan saat membatalkan transaksi');
+                });
+            }
+        }
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>

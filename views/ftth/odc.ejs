@@ -1,0 +1,49 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Daftar ODC <%= oltId ? ('(OLT #' + oltId + ')') : '' %></h2>
+        <a href="/ftth/odc/add<%= oltId ? ('?olt_id=' + oltId) : '' %>" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Tambah ODC</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="text-left text-slate-600">
+                <tr>
+                    <th class="py-2 pr-4">Nama</th>
+                    <th class="py-2 pr-4">OLT</th>
+                    <th class="py-2 pr-4">Lokasi</th>
+                    <th class="py-2 pr-4">Total</th>
+                    <th class="py-2 pr-4">Terpakai</th>
+                    <th class="py-2 pr-4">Sisa</th>
+                    <th class="py-2 pr-4">Koordinat</th>
+                    <th class="py-2 pr-4">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% (items || []).forEach(function(odc){ %>
+                <tr class="border-t border-slate-100">
+                    <td class="py-2 pr-4"><%= odc.name %></td>
+                    <td class="py-2 pr-4">#<%= odc.olt_id %></td>
+                    <td class="py-2 pr-4"><%= odc.location || '-' %></td>
+                    <td class="py-2 pr-4"><%= odc.total_ports %></td>
+                    <td class="py-2 pr-4"><%= odc.used_ports %></td>
+                    <td class="py-2 pr-4"><%= (odc.total_ports - odc.used_ports) %></td>
+                    <td class="py-2 pr-4"><%= (odc.latitude && odc.longitude) ? (odc.latitude + ', ' + odc.longitude) : '-' %></td>
+                    <td class="py-2 pr-4 flex gap-2">
+                        <a href="/ftth/odc/<%= odc.id %>" class="px-2 py-1 text-xs rounded border border-slate-300">Edit</a>
+                        <form method="post" action="/ftth/odc/<%= odc.id %>/delete" onsubmit="return confirm('Hapus ODC ini?');">
+                            <button type="submit" class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700">Hapus</button>
+                        </form>
+                        <a href="/ftth/odp?odc_id=<%= odc.id %>" class="px-2 py-1 text-xs rounded bg-indigo-50 text-indigo-700">Lihat ODP</a>
+                    </td>
+                </tr>
+                <% }) %>
+                <% if (!items || items.length === 0) { %>
+                <tr><td colspan="8" class="py-6 text-center text-slate-500">Belum ada data</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Dialihkan ke halaman tambah khusus: /ftth/odc/add -->
+
+
