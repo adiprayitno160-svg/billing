@@ -1,8 +1,8 @@
 # 🎉 Billing System - Complete Implementation
 
 **Status**: ✅ **PRODUCTION READY**  
-**Version**: 2.0.0  
-**Last Updated**: October 22, 2025
+**Version**: 1.1.0  
+**Last Updated**: October 25, 2025
 
 ---
 
@@ -72,32 +72,76 @@
 
 ## 🚀 Quick Start
 
-### 1️⃣ Installation
+### Prerequisites
+
+#### Install Node.js
+
+**Windows (Laragon):**
+- Node.js sudah include di Laragon
+- Pastikan Laragon sudah terinstall
+- Download: https://laragon.org/download/
+
+**Linux (Ubuntu/Debian):**
 ```bash
-cd c:\laragon\www\billing
+# Install Node.js 18.x LTS
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installation
+node --version
+npm --version
+```
+
+**Linux (aaPanel):**
+```bash
+# Via aaPanel Terminal
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install PM2 globally
+sudo npm install -g pm2
+```
+
+---
+
+## 📦 Installation Methods
+
+### Method 1: Manual Installation (Windows/Linux)
+
+#### 1️⃣ Clone Repository
+```bash
+# Clone from GitHub
+git clone https://github.com/adiprayitno160-svg/billing_system.git
+cd billing_system
+
+# Or download ZIP and extract
+```
+
+#### 2️⃣ Install Dependencies
+```bash
 npm install
 ```
 
-### 2️⃣ Database Setup
+#### 3️⃣ Database Setup
 ```bash
-# Import billing tables
-mysql -u root billing < sql_billing_tables.sql
+# Create database
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS billing_database;"
 
-# Import WhatsApp bot tables
-mysql -u root billing < sql_whatsapp_bot_tables.sql
+# Import system settings
+mysql -u root -p billing_database < migrations/create_system_settings.sql
 
-# Import Telegram bot tables (NEW!)
-mysql -u root billing < sql_telegram_bot_admin_teknisi.sql
+# Import other tables (if you have SQL files)
 ```
 
-### 3️⃣ Configuration
-Create/update `.env` file:
+#### 4️⃣ Configuration
+Create `.env` file:
 ```env
 # Database
 DB_HOST=localhost
+DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=
-DB_NAME=billing
+DB_PASSWORD=your_password
+DB_NAME=billing_database
 
 # Server
 PORT=3001
@@ -110,18 +154,318 @@ SESSION_SECRET=your-secret-key-here
 XENDIT_API_KEY=your-xendit-key
 MITRA_API_KEY=your-mitra-key
 TRIPAY_API_KEY=your-tripay-key
+
+# GitHub Auto-Update
+GITHUB_REPO_OWNER=adiprayitno160-svg
+GITHUB_REPO_NAME=billing_system
 ```
 
-### 4️⃣ Run Application
+#### 5️⃣ Build & Run
 ```bash
-# Development mode (with auto-reload)
-npm run dev
+# Build TypeScript
+npm run build
 
-# Production mode
-npm start
+# Start with PM2 (Production)
+pm2 start ecosystem.config.js
+
+# Or Development mode
+npm run dev
 ```
 
 **Application URL**: `http://localhost:3001`
+
+---
+
+### Method 2: aaPanel Installation (One-Click Setup)
+
+#### 🎯 Prerequisites
+- VPS/Server dengan Ubuntu 20.04+ atau Debian 10+
+- aaPanel sudah terinstall
+- Domain (optional, bisa pakai IP)
+
+#### 📥 Step 1: Install aaPanel
+```bash
+# Ubuntu/Debian
+wget -O install.sh http://www.aapanel.com/script/install-ubuntu_6.0_en.sh && sudo bash install.sh aapanel
+
+# CentOS
+wget -O install.sh http://www.aapanel.com/script/install_6.0_en.sh && sudo bash install.sh aapanel
+```
+
+Setelah install, login ke aaPanel: `http://YOUR_SERVER_IP:7800`
+
+#### 📦 Step 2: Install Required Software (via aaPanel)
+
+Di aaPanel, install software berikut:
+1. **Nginx** (Latest)
+2. **MySQL 8.0** atau **MariaDB 10.6**
+3. **PHP 8.1+** (untuk phpMyAdmin, optional)
+4. **PM2 Manager** (via App Store)
+
+#### 🚀 Step 3: Setup Node.js Application
+
+**Via aaPanel Terminal:**
+```bash
+# Navigate to web directory
+cd /www/wwwroot
+
+# Clone repository
+git clone https://github.com/adiprayitno160-svg/billing_system.git
+cd billing_system
+
+# Install Node.js (if not installed)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install dependencies
+npm install
+
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Build application
+npm run build
+```
+
+#### 🗄️ Step 4: Create Database
+
+**Via aaPanel Database Manager:**
+1. Go to **Database** menu
+2. Click **Add Database**
+3. Database name: `billing_database`
+4. Username: `billing_user`
+5. Password: (generate strong password)
+6. Click **Submit**
+
+**Import Tables:**
+```bash
+# Via terminal
+mysql -u billing_user -p billing_database < migrations/create_system_settings.sql
+```
+
+Or via **phpMyAdmin** (aaPanel → Database → phpMyAdmin)
+
+#### ⚙️ Step 5: Configure Application
+
+Create `.env` file:
+```bash
+nano .env
+```
+
+Paste this configuration:
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=billing_user
+DB_PASSWORD=your_database_password
+DB_NAME=billing_database
+
+# Server
+PORT=3001
+NODE_ENV=production
+
+# Session
+SESSION_SECRET=your-random-secret-key
+
+# GitHub Auto-Update
+GITHUB_REPO_OWNER=adiprayitno160-svg
+GITHUB_REPO_NAME=billing_system
+```
+
+Save: `Ctrl+O`, Exit: `Ctrl+X`
+
+#### 🚀 Step 6: Start Application with PM2
+
+```bash
+# Start application
+pm2 start ecosystem.config.js --name billing
+
+# Save PM2 config
+pm2 save
+
+# Setup auto-start on reboot
+pm2 startup
+# Copy and run the command shown
+
+# Check status
+pm2 status
+pm2 logs billing
+```
+
+#### 🌐 Step 7: Configure Nginx Reverse Proxy
+
+**Via aaPanel:**
+1. Go to **Website** menu
+2. Click **Add Site**
+3. **Domain:** Your domain (e.g., `billing.yourdomain.com`)
+4. **Root Directory:** `/www/wwwroot/billing_system`
+5. **PHP Version:** Pure Static
+6. Click **Submit**
+
+**Configure Reverse Proxy:**
+1. Click **Site Settings** on your domain
+2. Go to **Reverse Proxy** tab
+3. Click **Add Reverse Proxy**
+4. Target URL: `http://127.0.0.1:3001`
+5. Enable **WebSocket Support**
+6. Click **Save**
+
+**Nginx Configuration (Advanced):**
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+}
+```
+
+#### 🔒 Step 8: Setup SSL (Optional but Recommended)
+
+**Via aaPanel:**
+1. Go to your site settings
+2. Click **SSL** tab
+3. Choose **Let's Encrypt**
+4. Click **Apply**
+5. Enable **Force HTTPS**
+
+#### ✅ Step 9: Verify Installation
+
+Visit your domain:
+```
+https://billing.yourdomain.com
+```
+
+**Test endpoints:**
+- `/` - Main dashboard
+- `/login` - Admin login
+- `/about` - Check version & updates
+
+#### 🔧 Troubleshooting aaPanel Installation
+
+**Check PM2 Status:**
+```bash
+pm2 status
+pm2 logs billing --lines 50
+```
+
+**Check Nginx:**
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+```
+
+**Check Ports:**
+```bash
+sudo netstat -tulpn | grep 3001
+```
+
+**Restart Application:**
+```bash
+pm2 restart billing
+```
+
+**View Logs:**
+```bash
+pm2 logs billing
+tail -f logs/combined-0.log
+```
+
+---
+
+### Method 3: Quick Install Script (Auto Setup)
+
+Untuk instalasi super cepat, jalankan script ini:
+
+```bash
+#!/bin/bash
+# Quick Install Script for Billing System
+
+echo "🚀 Billing System - Quick Installer"
+echo "===================================="
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then 
+    echo "Please run as root (sudo)"
+    exit 1
+fi
+
+# Install Node.js
+echo "📦 Installing Node.js..."
+curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+apt-get install -y nodejs
+
+# Install PM2
+echo "📦 Installing PM2..."
+npm install -g pm2
+
+# Clone repository
+echo "📥 Cloning repository..."
+cd /var/www || cd /www/wwwroot
+git clone https://github.com/adiprayitno160-svg/billing_system.git
+cd billing_system
+
+# Install dependencies
+echo "📦 Installing dependencies..."
+npm install
+
+# Build application
+echo "🔨 Building application..."
+npm run build
+
+# Create database
+echo "🗄️  Setting up database..."
+read -p "Enter MySQL root password: " MYSQL_PASS
+mysql -u root -p"$MYSQL_PASS" -e "CREATE DATABASE IF NOT EXISTS billing_database;"
+mysql -u root -p"$MYSQL_PASS" billing_database < migrations/create_system_settings.sql
+
+# Create .env
+echo "⚙️  Creating configuration..."
+cat > .env << EOF
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=$MYSQL_PASS
+DB_NAME=billing_database
+PORT=3001
+NODE_ENV=production
+SESSION_SECRET=$(openssl rand -hex 32)
+GITHUB_REPO_OWNER=adiprayitno160-svg
+GITHUB_REPO_NAME=billing_system
+EOF
+
+# Start with PM2
+echo "🚀 Starting application..."
+pm2 start ecosystem.config.js --name billing
+pm2 save
+pm2 startup
+
+echo "✅ Installation complete!"
+echo ""
+echo "Access your application at: http://YOUR_SERVER_IP:3001"
+echo "Default login - Username: admin | Password: admin"
+echo ""
+echo "Next steps:"
+echo "1. Configure Nginx reverse proxy"
+echo "2. Setup SSL certificate"
+echo "3. Change default password"
+```
+
+Save as `install.sh` and run:
+```bash
+chmod +x install.sh
+sudo ./install.sh
+```
+
+---
+
+## 🔧 Post-Installation
 
 ### 5️⃣ Default Login Credentials
 
