@@ -87,12 +87,37 @@ ecosystem.config.js.backup
 test-*.html
 fix-*.html
 *-debug.html
+TEST_*.html
+PRINT_*_GUIDE.html
 
 # Batch files (usually for local testing)
 *.bat
 !START_SERVER.bat
 !compile-and-restart.bat
 !restart-server.bat
+
+# Debug/Fix documentation files
+FIX_*.md
+FIX-*.md
+*_FIX.md
+*_FIXES_*.md
+PRINT_*_COMPLETE*.md
+PRINT_*_IMPLEMENTATION*.md
+THERMAL_PRINT_*.md
+KASIR_*_FIX*.md
+*_PAGE_MODERNIZATION.md
+BACKUP_RESTORE_GUIDE.md
+
+# Debug/Test JS files
+check-*.js
+test-*.js
+fix-*.js
+*-debug.js
+
+# Debug/Test SQL files
+fix-*.sql
+test-*.sql
+FIX-*.sql
 
 # ========================================
 # Documentation (Optional - keep in repo)
