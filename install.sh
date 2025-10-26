@@ -153,6 +153,11 @@ install_mysql() {
         return
     fi
     
+    # Cleanup any previous failed installations
+    echo "Checking for previous failed installations..."
+    sudo dpkg --configure -a 2>/dev/null || true
+    sudo apt-get -f install -y 2>/dev/null || true
+    
     # Install MySQL Server
     echo "Running: sudo apt update..."
     export DEBIAN_FRONTEND=noninteractive
@@ -160,7 +165,27 @@ install_mysql() {
     echo ""
     echo "Installing MySQL Server package (this may take 2-5 minutes)..."
     echo "Download size: ~25-50 MB"
-    sudo apt install -y $MYSQL_PACKAGE
+    
+    # Try to install, if fails, cleanup and retry
+    if ! sudo apt install -y $MYSQL_PACKAGE; then
+        print_warning "First install attempt failed, cleaning up and retrying..."
+        
+        # Cleanup
+        sudo apt remove --purge -y mariadb-server mariadb-client mariadb-common mysql-server mysql-client mysql-common 2>/dev/null || true
+        sudo apt autoremove -y
+        sudo apt autoclean
+        sudo dpkg --configure -a
+        sudo apt-get -f install -y
+        
+        # Retry install
+        echo "Retrying installation..."
+        if ! sudo apt install -y $MYSQL_PACKAGE; then
+            print_error "MySQL/MariaDB installation failed"
+            echo "Please run manually: sudo apt install -y $MYSQL_PACKAGE"
+            echo "Then check logs: sudo journalctl -xeu mariadb"
+            exit 1
+        fi
+    fi
     echo ""
     
     # Start MySQL (try both mysql and mariadb service names)
