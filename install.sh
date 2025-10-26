@@ -83,8 +83,12 @@ check_os() {
 
 install_dependencies() {
     print_step "Installing system dependencies..."
+    echo "Running: sudo apt update..."
     sudo apt update
+    echo ""
+    echo "Installing: curl wget git build-essential software-properties-common..."
     sudo apt install -y curl wget git build-essential software-properties-common
+    echo ""
     print_success "System dependencies installed"
 }
 
@@ -131,24 +135,34 @@ install_mysql() {
     fi
     
     # Install MySQL Server 8.0
-    print_step "Installing MySQL Server 8.0..."
+    print_step "Installing MySQL Server 8.0 (this may take 2-5 minutes)..."
+    echo "Running: sudo apt update..."
     export DEBIAN_FRONTEND=noninteractive
     sudo apt update
+    echo ""
+    echo "Installing MySQL Server package..."
+    echo "Download size: ~25-50 MB"
+    echo "This will download and install MySQL..."
     sudo apt install -y mysql-server
+    echo ""
     
     # Start MySQL
+    echo "Starting MySQL service..."
     sudo systemctl start mysql
     sudo systemctl enable mysql
     
     # Wait for MySQL to be ready
+    echo "Waiting for MySQL to be ready..."
     sleep 5
     
     # Verify MySQL is running
+    echo "Verifying MySQL status..."
     if sudo systemctl is-active --quiet mysql; then
         print_success "MySQL Server installed and started"
     else
         print_error "MySQL failed to start"
         echo "Check MySQL status: sudo systemctl status mysql"
+        echo "Check MySQL logs: sudo tail -50 /var/log/mysql/error.log"
         exit 1
     fi
 }
@@ -262,11 +276,16 @@ clone_repository() {
 }
 
 install_app_dependencies() {
-    print_step "Installing application dependencies..."
+    print_step "Installing application dependencies (this may take 5-10 minutes)..."
+    echo "Total packages: ~200-300"
+    echo "Download size: ~50-100 MB"
+    echo "Please wait, downloading and installing..."
+    echo ""
     
     cd "$APP_DIR"
     npm install --production
     
+    echo ""
     print_success "Dependencies installed"
 }
 
@@ -314,11 +333,14 @@ EOF
 }
 
 build_application() {
-    print_step "Building application..."
+    print_step "Building application (compiling TypeScript to JavaScript)..."
+    echo "This may take 1-2 minutes..."
+    echo ""
     
     cd "$APP_DIR"
     npm run build
     
+    echo ""
     if [ ! -f "dist/server.js" ]; then
         print_error "Build failed - dist/server.js not found"
         exit 1
