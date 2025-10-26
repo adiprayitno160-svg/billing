@@ -122,19 +122,25 @@ install_pm2() {
 }
 
 install_mysql() {
-    print_step "Installing MySQL/MariaDB..."
+    print_step "Installing MySQL Server..."
     
     if command -v mysql &> /dev/null; then
-        print_success "MySQL/MariaDB already installed"
+        print_success "MySQL already installed"
         return
     fi
     
-    # Install MariaDB
-    sudo apt install -y mariadb-server mariadb-client
-    sudo systemctl start mariadb
-    sudo systemctl enable mariadb
+    # Install MySQL Server 8.0
+    export DEBIAN_FRONTEND=noninteractive
+    sudo apt install -y mysql-server
     
-    print_success "MariaDB installed and started"
+    # Start MySQL
+    sudo systemctl start mysql
+    sudo systemctl enable mysql
+    
+    # Wait for MySQL to be ready
+    sleep 3
+    
+    print_success "MySQL Server installed and started"
 }
 
 setup_database() {
