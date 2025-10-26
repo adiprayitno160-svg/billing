@@ -1,1077 +1,444 @@
-# 🎉 Billing System - Complete Implementation
+# 💼 Billing System - ISP Management System
 
-**Status**: ✅ **PRODUCTION READY**  
-**Version**: 1.1.0  
-**Last Updated**: October 25, 2025
+Sistem manajemen billing untuk Internet Service Provider (ISP) dengan fitur lengkap untuk mengelola pelanggan, tagihan, pembayaran, dan integrasi MikroTik.
 
----
-
-## 📦 What's Been Delivered
-
-### ✅ Complete Billing System
-1. **Invoice Management**
-   - ✅ Manual invoice creation with custom items
-   - ✅ Automatic monthly invoice generation (scheduler-based)
-   - ✅ Bulk invoice generation for all active subscriptions
-   - ✅ Invoice CRUD operations (Create, Read, Update, Delete)
-   - ✅ WhatsApp notification on invoice creation
-
-2. **Payment Processing** (3 Types)
-   - ✅ **Full Payment** (Pembayaran Penuh) - Complete payment in one transaction
-   - ✅ **Partial Payment** (Pembayaran Kurang/Cicilan) - Partial payment with automatic debt tracking
-   - ✅ **Debt Payment** (Hutang Sepenuhnya) - Record debt without payment
-
-3. **Debt Tracking System**
-   - ✅ Automatic debt creation on partial payments
-   - ✅ Debt aging analysis (track how long debt has existed)
-   - ✅ Debt resolution workflow
-   - ✅ Summary statistics (total debt, customer count, overdue count)
-
-4. **WhatsApp Bot Integration** (8 Auto-Response Features)
-   - ✅ **Greeting** - Responds to "halo", "hai", "selamat pagi", etc.
-   - ✅ **Check Invoice** - "cek tagihan", "tagihan saya"
-   - ✅ **Payment History** - "riwayat pembayaran", "pembayaran saya"
-   - ✅ **Service Status** - "status internet", "koneksi saya"
-   - ✅ **Payment Confirmation** - "konfirmasi bayar", "sudah bayar"
-   - ✅ **Help Menu** - "bantuan", "help", "menu"
-   - ✅ **Complaint Handling** - "komplain", "gangguan", "internet mati"
-   - ✅ **Default Response** - Fallback for unrecognized messages
-
-4.1 **Telegram Bot untuk Admin & Teknisi** (15+ Commands)
-   - ✅ **Real-time Notifications** - Downtime, SLA breach, payment alerts
-   - ✅ **Incident Management** - Auto-assignment, status tracking
-   - ✅ **Customer Info** - Search, invoice, payment history
-   - ✅ **Performance Tracking** - Teknisi metrics & statistics
-   - ✅ **Web Dashboard** - Full management interface
-   - ✅ **Role-Based Access** - Admin, Teknisi, Kasir commands
-   - ✅ **Interactive Buttons** - Quick actions from notifications
-
-5. **WhatsApp Notifications** (6 Template Types)
-   - ✅ **Invoice Notification** - New monthly invoice alert
-   - ✅ **Payment Reminder** - Reminder before due date
-   - ✅ **Overdue Notice** - Alert for overdue invoices
-   - ✅ **Payment Confirmation** - Payment received confirmation
-   - ✅ **Isolation Notice** - Service will be suspended notification
-   - ✅ **Restoration Notice** - Service reactivated notification
-
-6. **Payment Gateway Integration**
-   - ✅ **Xendit** - QRIS, Bank Transfer, E-Wallet
-   - ✅ **Mitra** - Virtual Account (BCA, Mandiri, BNI, BRI)
-   - ✅ **Tripay** - Multiple payment channels
-
-7. **Frontend Views** (4 New + 6 Existing)
-   - ✅ WhatsApp Bot Dashboard (`/whatsapp/bot`)
-   - ✅ Payment Form (`/billing/tagihan/:id/pay`)
-   - ✅ Payment History (`/billing/payments/history`)
-   - ✅ Debt Tracking (`/billing/debts/view`)
-   - 📄 Invoice List (existing: `/billing/tagihan`)
-   - 📄 Invoice Detail (existing: `/billing/tagihan/:id`)
-   - 📄 Billing Dashboard (existing: `/billing/dashboard`)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 
 ---
 
-## 🚀 Quick Start
+## 🌟 Fitur Utama
 
-### Prerequisites
+### 📊 Manajemen Pelanggan
+- ✅ Registrasi pelanggan baru
+- ✅ Profil pelanggan lengkap
+- ✅ Manajemen paket langganan
+- ✅ Status aktif/non-aktif
+- ✅ Portal pelanggan self-service
 
-#### Install Node.js
+### 💰 Billing & Pembayaran
+- ✅ Generate invoice otomatis
+- ✅ Multiple payment gateway (Midtrans, Xendit, Tripay)
+- ✅ Kasir/Point of Sale (POS)
+- ✅ Riwayat pembayaran
+- ✅ Laporan keuangan
+- ✅ Sistem prepaid & postpaid
 
-**Windows (Laragon):**
-- Node.js sudah include di Laragon
-- Pastikan Laragon sudah terinstall
-- Download: https://laragon.org/download/
+### 🔧 Integrasi MikroTik
+- ✅ Auto-create PPPoE user
+- ✅ Manajemen bandwidth
+- ✅ Hotspot integration
+- ✅ Static IP management
+- ✅ Address list management
+- ✅ Auto isolir pelanggan menunggak
 
-**Linux (Ubuntu/Debian):**
-```bash
-# Install Node.js 18.x LTS
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+### 📡 Monitoring
+- ✅ Real-time network monitoring
+- ✅ Bandwidth usage tracking
+- ✅ SLA monitoring
+- ✅ Incident management
+- ✅ Maintenance scheduling
+- ✅ Ping monitoring
+- ✅ Customer status dashboard
 
-# Verify installation
-node --version
-npm --version
-```
+### 📱 Notifikasi
+- ✅ Telegram bot integration
+- ✅ WhatsApp notifications
+- ✅ Email notifications
+- ✅ SMS gateway ready
 
-**Linux (aaPanel):**
-```bash
-# Via aaPanel Terminal
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+### 🏗️ FTTH Management
+- ✅ OLT management
+- ✅ ODC management
+- ✅ ODP management
+- ✅ Infrastructure tracking
 
-# Install PM2 globally
-sudo npm install -g pm2
-```
-
----
-
-## 📦 Installation Methods
-
-### ⚡ Method 1: aaPanel Auto Deploy (RECOMMENDED - 1 Command!)
-
-**Paling mudah dan cepat! Deploy langsung dari GitHub dalam 5 menit!**
-
-#### Prerequisites:
-- VPS/Server dengan aaPanel terinstall
-- Akses root/sudo
-
-#### Quick Install:
-```bash
-# Login ke server via SSH
-ssh root@IP_SERVER_ANDA
-
-# Download & jalankan installer
-curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing_system/main/aapanel-deploy.sh | bash
-
-# Atau download dulu (lebih aman):
-wget https://raw.githubusercontent.com/adiprayitno160-svg/billing_system/main/aapanel-deploy.sh
-chmod +x aapanel-deploy.sh
-bash aapanel-deploy.sh
-```
-
-Script akan otomatis:
-- ✅ Install Node.js & PM2
-- ✅ Clone dari GitHub
-- ✅ Setup database MySQL
-- ✅ Konfigurasi environment
-- ✅ Build & start aplikasi
-- ✅ Setup PM2 auto-restart
-- ✅ Optional: Setup Nginx reverse proxy
-
-**Selesai! Akses aplikasi di: `http://IP-SERVER:3000`**
-
-📚 **Auto Deploy**: [INSTALL_AAPANEL.md](INSTALL_AAPANEL.md) (Script otomatis)  
-📘 **Manual Install**: [INSTALL_AAPANEL_MANUAL.md](INSTALL_AAPANEL_MANUAL.md) (Step-by-step)  
-⚡ **Quick Install**: [QUICK_INSTALL_MANUAL.md](QUICK_INSTALL_MANUAL.md) (10 menit!)  
-🗑️ **Uninstall**: [UNINSTALL_GUIDE.md](UNINSTALL_GUIDE.md)
+### 📦 Prepaid System
+- ✅ Voucher-based billing
+- ✅ Customer portal
+- ✅ Auto-activation
+- ✅ Expiry management
+- ✅ Payment gateway integration
 
 ---
 
-### Method 2: Manual Installation (Windows/Linux)
+## 💻 System Requirements
 
-#### 1️⃣ Clone Repository
-```bash
-# Clone from GitHub
-git clone https://github.com/adiprayitno160-svg/billing_system.git
-cd billing_system
+### Server Requirements
+- **OS**: Ubuntu 20.04+ / Debian 10+ / CentOS 7+
+- **RAM**: Minimum 2GB (Recommended 4GB+)
+- **CPU**: 2 Cores (Recommended 4 Cores+)
+- **Storage**: Minimum 20GB
+- **Network**: Public IP address
 
-# Or download ZIP and extract
-```
+### Software Requirements
+- **Node.js**: v16.x atau lebih tinggi (Recommended: v18.x LTS)
+- **NPM**: v8.x atau lebih tinggi
+- **Database**: MySQL 8.0+ atau MariaDB 10.5+
+- **Process Manager**: PM2 (akan di-install otomatis)
+- **Web Server**: Nginx (optional, untuk reverse proxy)
+- **Panel**: aaPanel / cPanel / Plesk (optional)
 
-#### 2️⃣ Install Dependencies
-```bash
-npm install
-```
-
-#### 3️⃣ Database Setup
-```bash
-# Create database
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS billing_database;"
-
-# Import system settings
-mysql -u root -p billing_database < migrations/create_system_settings.sql
-
-# Import other tables (if you have SQL files)
-```
-
-#### 4️⃣ Configuration
-Create `.env` file:
-```env
-# Database
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=billing_database
-
-# Server
-PORT=3000
-NODE_ENV=development
-
-# Session
-SESSION_SECRET=your-secret-key-here
-
-# Payment Gateways (optional)
-XENDIT_API_KEY=your-xendit-key
-MITRA_API_KEY=your-mitra-key
-TRIPAY_API_KEY=your-tripay-key
-
-# GitHub Auto-Update
-GITHUB_REPO_OWNER=adiprayitno160-svg
-GITHUB_REPO_NAME=billing_system
-```
-
-#### 5️⃣ Build & Run
-```bash
-# Build TypeScript
-npm run build
-
-# Start with PM2 (Production)
-pm2 start ecosystem.config.js
-
-# Or Development mode
-npm run dev
-```
-
-**Application URL**: `http://localhost:3000`
+### Network Requirements
+- Port 3000 (aplikasi)
+- Port 3306 (MySQL)
+- Port 80/443 (HTTP/HTTPS jika pakai Nginx)
+- Koneksi internet stabil
 
 ---
 
-### Method 3: aaPanel Manual Installation (Advanced)
+## 🚀 Quick Installation
 
-#### 🎯 Prerequisites
-- VPS/Server dengan Ubuntu 20.04+ atau Debian 10+
-- aaPanel sudah terinstall
-- Domain (optional, bisa pakai IP)
+### Method 1: Automatic Installation (Recommended)
 
-#### 📥 Step 1: Install aaPanel
+#### For aaPanel:
 ```bash
-# Ubuntu/Debian
-wget -O install.sh http://www.aapanel.com/script/install-ubuntu_6.0_en.sh && sudo bash install.sh aapanel
+# Login as root
+ssh root@your-server-ip
 
-# CentOS
-wget -O install.sh http://www.aapanel.com/script/install_6.0_en.sh && sudo bash install.sh aapanel
+# Download and run installer
+curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/quick-install.sh | bash
 ```
 
-Setelah install, login ke aaPanel: `http://YOUR_SERVER_IP:7800`
-
-#### 📦 Step 2: Install Required Software (via aaPanel)
-
-Di aaPanel, install software berikut:
-1. **Nginx** (Latest)
-2. **MySQL 8.0** atau **MariaDB 10.6**
-3. **PHP 8.1+** (untuk phpMyAdmin, optional)
-4. **PM2 Manager** (via App Store)
-
-#### 🚀 Step 3: Setup Node.js Application
-
-**Via aaPanel Terminal:**
+#### For Manual Setup:
 ```bash
-# Navigate to web directory
-cd /www/wwwroot
-
 # Clone repository
-git clone https://github.com/adiprayitno160-svg/billing_system.git
-cd billing_system
-
-# Install Node.js (if not installed)
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+git clone https://github.com/adiprayitno160-svg/billing.git
+cd billing
 
 # Install dependencies
-npm install
+npm install --production
 
-# Install PM2 globally
-sudo npm install -g pm2
+# Create .env file
+cp .env.example .env
+nano .env  # Edit with your configuration
 
 # Build application
 npm run build
+
+# Start with PM2
+pm2 start dist/server.js --name billing-system
+pm2 save
+pm2 startup
 ```
 
-#### 🗄️ Step 4: Create Database
+---
 
-**Via aaPanel Database Manager:**
-1. Go to **Database** menu
-2. Click **Add Database**
-3. Database name: `billing_database`
-4. Username: `billing_user`
-5. Password: (generate strong password)
-6. Click **Submit**
+## ⚙️ Configuration
 
-**Import Tables:**
-```bash
-# Via terminal
-mysql -u billing_user -p billing_database < migrations/create_system_settings.sql
+### 1. Database Setup
+
+```sql
+-- Create database
+CREATE DATABASE billing_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Create user
+CREATE USER 'billing_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON billing_system.* TO 'billing_user'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
-Or via **phpMyAdmin** (aaPanel → Database → phpMyAdmin)
+### 2. Environment Variables (.env)
 
-#### ⚙️ Step 5: Configure Application
-
-Create `.env` file:
-```bash
-nano .env
-```
-
-Paste this configuration:
 ```env
 # Database
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=billing_user
-DB_PASSWORD=your_database_password
-DB_NAME=billing_database
+DB_PASSWORD=your_password
+DB_NAME=billing_system
 
 # Server
-PORT=3001
+PORT=3000
 NODE_ENV=production
 
 # Session
-SESSION_SECRET=your-random-secret-key
+SESSION_SECRET=your_random_secret_key
 
-# GitHub Auto-Update
-GITHUB_REPO_OWNER=adiprayitno160-svg
-GITHUB_REPO_NAME=billing_system
+# MikroTik (Optional)
+MIKROTIK_HOST=192.168.88.1
+MIKROTIK_USER=admin
+MIKROTIK_PASSWORD=your_mikrotik_password
+
+# Payment Gateway (Optional)
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+XENDIT_API_KEY=
+TRIPAY_API_KEY=
+
+# Telegram Bot (Optional)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# WhatsApp (Optional)
+WA_SESSION_PATH=./whatsapp-session
+
+# Email (Optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
 ```
 
-Save: `Ctrl+O`, Exit: `Ctrl+X`
+---
 
-#### 🚀 Step 6: Start Application with PM2
+## 📦 Dependencies
 
-```bash
-# Start application
-pm2 start ecosystem.config.js --name billing
-
-# Save PM2 config
-pm2 save
-
-# Setup auto-start on reboot
-pm2 startup
-# Copy and run the command shown
-
-# Check status
-pm2 status
-pm2 logs billing
-```
-
-#### 🌐 Step 7: Configure Nginx Reverse Proxy
-
-**Via aaPanel:**
-1. Go to **Website** menu
-2. Click **Add Site**
-3. **Domain:** Your domain (e.g., `billing.yourdomain.com`)
-4. **Root Directory:** `/www/wwwroot/billing_system`
-5. **PHP Version:** Pure Static
-6. Click **Submit**
-
-**Configure Reverse Proxy:**
-1. Click **Site Settings** on your domain
-2. Go to **Reverse Proxy** tab
-3. Click **Add Reverse Proxy**
-4. Target URL: `http://127.0.0.1:3001`
-5. Enable **WebSocket Support**
-6. Click **Save**
-
-**Nginx Configuration (Advanced):**
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:3001;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_cache_bypass $http_upgrade;
+### Production Dependencies
+```json
+{
+  "express": "^5.1.0",
+  "mysql2": "^3.15.2",
+  "typescript": "^5.9.3",
+  "ejs": "^3.1.10",
+  "express-session": "^1.18.2",
+  "bcrypt": "^6.0.0",
+  "dotenv": "^17.2.3",
+  "node-telegram-bot-api": "^0.66.0",
+  "whatsapp-web.js": "^1.34.1",
+  "axios": "^1.12.2",
+  "node-cron": "^3.0.3",
+  "mikronode": "^2.3.11"
 }
 ```
 
-#### 🔒 Step 8: Setup SSL (Optional but Recommended)
+---
 
-**Via aaPanel:**
-1. Go to your site settings
-2. Click **SSL** tab
-3. Choose **Let's Encrypt**
-4. Click **Apply**
-5. Enable **Force HTTPS**
+## 🎯 Usage
 
-#### ✅ Step 9: Verify Installation
+### Default Login Credentials
+```
+Admin Account:
+Username: admin
+Password: admin123
 
-Visit your domain:
+Kasir Account:
+Username: kasir
+Password: kasir123
+```
+
+⚠️ **IMPORTANT**: Ganti password default setelah login pertama!
+
+### Accessing the Application
+
+**Local Access:**
+```
+http://localhost:3000
+```
+
+**Public Access:**
+```
+http://your-server-ip:3000
+```
+
+**With Domain (Nginx):**
 ```
 https://billing.yourdomain.com
 ```
 
-**Test endpoints:**
-- `/` - Main dashboard
-- `/login` - Admin login
-- `/about` - Check version & updates
+---
 
-#### 🔧 Troubleshooting aaPanel Installation
+## 📖 Documentation
 
-**Check PM2 Status:**
+### Setup Guides
+- [Quick Start Guide](./docs/QUICK_START.md)
+- [Installation Guide](./docs/INSTALLATION.md)
+- [Configuration Guide](./docs/CONFIGURATION.md)
+- [MikroTik Integration](./docs/MIKROTIK.md)
+
+### API Documentation
+- [REST API Endpoints](./docs/API.md)
+- [Webhook Configuration](./docs/WEBHOOKS.md)
+
+### User Guides
+- [Admin Dashboard](./docs/ADMIN_GUIDE.md)
+- [Kasir/POS System](./docs/KASIR_GUIDE.md)
+- [Customer Portal](./docs/CUSTOMER_PORTAL.md)
+
+---
+
+## 🔧 Management Commands
+
+### PM2 Commands
 ```bash
+# View status
 pm2 status
-pm2 logs billing --lines 50
+
+# View logs
+pm2 logs billing-system
+
+# Restart application
+pm2 restart billing-system
+
+# Stop application
+pm2 stop billing-system
+
+# Monitor resources
+pm2 monit
 ```
 
-**Check Nginx:**
+### Database Backup
 ```bash
-sudo nginx -t
-sudo systemctl status nginx
+# Backup database
+mysqldump -u billing_user -p billing_system > backup_$(date +%Y%m%d).sql
+
+# Restore database
+mysql -u billing_user -p billing_system < backup_20250126.sql
 ```
 
-**Check Ports:**
+### Update Application
 ```bash
-sudo netstat -tulpn | grep 3001
-```
-
-**Restart Application:**
-```bash
-pm2 restart billing
-```
-
-**View Logs:**
-```bash
-pm2 logs billing
-tail -f logs/combined-0.log
+cd /path/to/billing
+git pull origin main
+npm install
+npm run build
+pm2 restart billing-system
 ```
 
 ---
 
-## 🔧 Post-Installation
+## 🛡️ Security
 
-### 5️⃣ Default Login Credentials
+### Recommendations
+1. ✅ Ganti semua password default
+2. ✅ Gunakan HTTPS dengan SSL certificate
+3. ✅ Setup firewall (UFW/firewalld)
+4. ✅ Regular backup database
+5. ✅ Update sistem secara berkala
+6. ✅ Gunakan strong session secret
+7. ✅ Limit failed login attempts
+8. ✅ Enable fail2ban
 
-#### Admin/Superadmin Login
-```
-URL: http://localhost:3001/login
-Username: admin
-Password: admin
-```
-
-#### Kasir Login
-```
-URL: http://localhost:3001/kasir/login
-Username: kasir
-Password: kasir
-```
-
-### 🔐 Reset Password (Jika Login Bermasalah)
-
-**Opsi 1 - Script Reset (Recommended):**
+### Firewall Setup
 ```bash
-.\RESET-ADMIN-PASSWORD.bat
+# Ubuntu/Debian
+ufw allow 22/tcp    # SSH
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 3000/tcp  # Application
+ufw enable
+
+# CentOS/RHEL
+firewall-cmd --permanent --add-service=ssh
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --permanent --add-port=3000/tcp
+firewall-cmd --reload
 ```
-
-**Opsi 2 - HTTP Endpoint:**
-```
-http://localhost:3001/init-users
-```
-
-**Opsi 3 - Manual via Node:**
-```bash
-node reset-admin-password.js
-```
-
-**Note**: Script akan otomatis reset password admin ke `admin/admin`
-
----
-
-## 🧪 Testing the System
-
-### Quick Test Page
-Open in browser: `http://localhost:3001/test-page.html`
-
-This page provides **one-click testing** for:
-- ✅ WhatsApp Bot Statistics
-- ✅ Bot Auto-Response
-- ✅ Invoice List API
-- ✅ Debt Tracking API
-
-### Manual Testing
-
-#### 1. WhatsApp Bot Dashboard
-```
-http://localhost:3001/whatsapp/bot
-```
-- View bot statistics
-- See recent conversations
-- Test bot responses
-- View notification templates
-
-#### 2. Invoice List
-```
-http://localhost:3001/billing/tagihan
-```
-- View all invoices
-- Filter by status
-- Create new invoice
-- Export data
-
-#### 3. Payment Form
-```
-http://localhost:3001/billing/tagihan/1/pay
-```
-- Select payment type (full/partial/debt)
-- Choose payment method
-- Process payment
-
-#### 4. Payment History
-```
-http://localhost:3001/billing/payments/history
-```
-- View all payments
-- Filter by date/method
-- See payment summary
-
-#### 5. Debt Tracking
-```
-http://localhost:3001/billing/debts/view
-```
-- View all debts
-- See aging analysis
-- Resolve debts
-
----
-
-## 📖 API Documentation
-
-### WhatsApp Bot API
-
-#### Get Bot Statistics
-```bash
-GET /api/whatsapp/bot-statistics
-```
-Response:
-```json
-{
-  "messagesToday": 42,
-  "autoResponses": 38,
-  "notificationsSent": 15,
-  "successRate": 95
-}
-```
-
-#### Test Bot Message
-```bash
-POST /api/whatsapp/test-bot
-Content-Type: application/json
-
-{
-  "from": "6281234567890",
-  "message": "halo"
-}
-```
-Response:
-```json
-{
-  "success": true,
-  "response": "Halo! Selamat datang di layanan customer service kami..."
-}
-```
-
-### Billing API
-
-#### Create Manual Invoice
-```bash
-POST /billing/tagihan/create/manual
-Content-Type: application/json
-
-{
-  "customer_id": 1,
-  "period": "2025-10",
-  "due_date": "2025-10-15",
-  "items": [
-    {
-      "description": "Paket Internet 20 Mbps",
-      "quantity": 1,
-      "unit_price": 300000
-    }
-  ],
-  "discount_amount": 0,
-  "notes": "Tagihan bulanan Oktober"
-}
-```
-
-#### Process Full Payment
-```bash
-POST /billing/payments/full
-Content-Type: application/json
-
-{
-  "invoice_id": 123,
-  "payment_method": "cash",
-  "notes": "Bayar tunai di kasir"
-}
-```
-
-#### Process Partial Payment
-```bash
-POST /billing/payments/partial
-Content-Type: application/json
-
-{
-  "invoice_id": 123,
-  "payment_amount": 150000,
-  "payment_method": "transfer",
-  "notes": "Cicilan pertama"
-}
-```
-
-#### Process Debt Payment
-```bash
-POST /billing/payments/debt
-Content-Type: application/json
-
-{
-  "invoice_id": 123,
-  "payment_method": "debt",
-  "notes": "Hutang penuh, bayar bulan depan"
-}
-```
-
-**📚 Full API Documentation**: See `ENDPOINT_TESTING_GUIDE.md`
-
----
-
-## 📁 Project Structure
-
-```
-c:\laragon\www\billing\
-├── src/
-│   ├── controllers/
-│   │   ├── billing/
-│   │   │   ├── invoiceController.ts         (581 lines)
-│   │   │   └── paymentController.ts         (831 lines)
-│   │   └── payment/
-│   │       └── BillingPaymentController.ts
-│   ├── services/
-│   │   ├── billing/
-│   │   │   └── invoiceSchedulerService.ts   (468 lines)
-│   │   └── whatsapp/
-│   │       ├── WhatsAppBotService.ts        (512 lines)
-│   │       ├── WhatsAppNotificationService.ts
-│   │       └── WhatsAppWebService.ts
-│   ├── routes/
-│   │   ├── billing.ts                       (231 lines)
-│   │   ├── whatsapp-api.ts                  (114 lines)
-│   │   └── index.ts
-│   └── server.ts
-├── views/
-│   ├── billing/
-│   │   ├── payment-form.ejs                 (NEW - 268 lines)
-│   │   ├── payment-history.ejs              (NEW - 243 lines)
-│   │   ├── debt-tracking.ejs                (NEW - 310 lines)
-│   │   ├── tagihan.ejs                      (existing)
-│   │   ├── tagihan-detail.ejs               (existing)
-│   │   └── dashboard.ejs                    (existing)
-│   └── whatsapp/
-│       ├── bot-dashboard.ejs                (NEW - 341 lines)
-│       ├── dashboard.ejs                    (existing)
-│       ├── templates.ejs                    (existing)
-│       └── notifications.ejs                (existing)
-├── sql_billing_tables.sql
-├── sql_whatsapp_bot_tables.sql
-├── test-page.html                           (Quick test page)
-├── ENDPOINT_TESTING_GUIDE.md                (577 lines)
-├── FINAL_DELIVERY_SUMMARY.md                (582 lines)
-├── COMPLETION_REPORT.md
-├── QUICK_START_GUIDE.md
-└── README.md                                (this file)
-```
-
-**Total New Code**: ~4,500 lines  
-**Total Files Created**: 20 files
-
----
-
-## 🎨 Key Features
-
-### 1. Invoice Scheduler
-- **Auto-Generation**: Automatically generates invoices on 1st of every month at 01:00 AM
-- **Configurable**: Cron schedule can be customized
-- **WhatsApp Integration**: Auto-sends invoice notifications
-- **Manual Trigger**: Can manually trigger generation anytime
-
-### 2. Payment Types
-- **Full Payment**: Marks invoice as fully paid
-- **Partial Payment**: Automatically creates debt tracking for remaining amount
-- **Debt Payment**: Records debt without any payment
-
-### 3. Debt Tracking
-- **Automatic**: Created automatically on partial payments
-- **Aging**: Tracks how many days debt has existed
-- **Alerts**: Highlights debts > 30 days old
-- **Resolution**: Easy workflow to resolve debts
-
-### 4. WhatsApp Bot Intelligence
-- **8 Response Types**: Handles common customer queries
-- **Conversation Logging**: Full history of all interactions
-- **Template-Based**: Uses customizable templates
-- **Auto-Response**: Instant replies 24/7
-
-### 5. Payment Gateways
-- **Multiple Gateways**: Xendit, Mitra, Tripay
-- **Multiple Methods**: QRIS, Bank Transfer, E-Wallet, Virtual Account
-- **Webhook Support**: Auto-update on payment confirmation
-
----
-
-## 🔧 Advanced Configuration
-
-### Scheduler Settings
-Edit in database `scheduler_settings` table or via API:
-```sql
-UPDATE scheduler_settings 
-SET cron_schedule = '0 1 1 * *',  -- 1st day at 01:00
-    config = JSON_SET(config, 
-      '$.auto_generate_enabled', true,
-      '$.due_date_offset', 7,
-      '$.auto_send_whatsapp', true
-    )
-WHERE task_name = 'invoice_generation';
-```
-
-### WhatsApp Templates
-Customize in `whatsapp_notification_templates` table:
-```sql
-UPDATE whatsapp_notification_templates 
-SET template_content = 'Your custom template here {{customer_name}}'
-WHERE template_name = 'invoice_new';
-```
-
----
-
-## 📊 Database Schema
-
-### Billing Tables (6 tables)
-1. `invoices` - Invoice master data
-2. `invoice_items` - Invoice line items
-3. `payments` - Payment transactions
-4. `debt_tracking` - Debt records
-5. `payment_gateways` - Gateway configuration
-6. `scheduler_settings` - Scheduler configuration
-
-### WhatsApp Tables (5 tables)
-1. `whatsapp_web_sessions` - Session management
-2. `whatsapp_bot_conversations` - Chat history
-3. `whatsapp_notification_templates` - Message templates
-4. `whatsapp_notification_logs` - Notification history
-5. `whatsapp_connection_logs` - Connection logs
-
-**Total**: 11 tables created
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Issue: Port 3001 already in use
-**Solution**:
+### Database Connection Error
 ```bash
-# Windows
-netstat -ano | findstr :3001
-taskkill /PID <PID> /F
+# Test MySQL connection
+mysql -u billing_user -p billing_system
 
-# Or change port in .env
-PORT=3002
+# Check MySQL status
+systemctl status mysql
 ```
 
-### Issue: Database connection failed
-**Check**:
-1. MySQL service is running
-2. Credentials in `.env` are correct
-3. Database `billing` exists
-
-### Issue: WhatsApp tables not found
-**Solution**:
+### Port Already in Use
 ```bash
-mysql -u root billing < sql_whatsapp_bot_tables.sql
+# Check what's using port 3000
+netstat -tulpn | grep 3000
+
+# Kill process
+kill -9 PID
 ```
 
-### Issue: Scheduler not running
-**Check**:
-1. Database `scheduler_settings` table exists
-2. Cron schedule is valid
-3. Check logs in console
-
----
-
-## 📈 Performance
-
-### Expected Metrics
-- **API Response Time**: < 200ms
-- **Page Load Time**: < 1 second
-- **Database Queries**: Optimized with indexes
-- **Concurrent Users**: 100+ supported
-- **Invoice Generation**: 1,000+ per batch
-- **WhatsApp Messages**: 1,000+ per day
-
-### Optimization Tips
-1. Add indexes to frequently queried columns
-2. Use database connection pooling (already configured)
-3. Enable caching for static data
-4. Use PM2 for production deployment
-5. Set up Nginx reverse proxy
-
----
-
-## 🚀 Deployment
-
-### Production Checklist
-- [ ] Update `.env` with production values
-- [ ] Set `NODE_ENV=production`
-- [ ] Configure HTTPS/SSL
-- [ ] Set up firewall rules
-- [ ] Configure backup strategy
-- [ ] Set up monitoring (PM2, logs)
-- [ ] Test all critical endpoints
-- [ ] Configure payment gateway webhooks
-
-### Using PM2
+### Application Won't Start
 ```bash
-# Install PM2
-npm install -g pm2
-
-# Start application
-pm2 start dist/server.js --name billing-system
-
-# View logs
+# Check logs
 pm2 logs billing-system
 
-# Monitor
-pm2 monit
+# Check .env file
+cat .env
 
-# Auto-restart on reboot
-pm2 startup
-pm2 save
+# Rebuild application
+npm run build
 ```
 
 ---
 
-## 📚 Documentation
+## 📊 Technology Stack
 
-1. **ENDPOINT_TESTING_GUIDE.md** - Complete API testing guide with examples
-2. **FINAL_DELIVERY_SUMMARY.md** - Full project summary and features
-3. **COMPLETION_REPORT.md** - Development completion report
-4. **QUICK_START_GUIDE.md** - Quick installation guide
-5. **README.md** - This file (overview)
-
----
-
-## ✅ Testing Checklist
-
-### Manual Testing
-- [ ] Open WhatsApp Bot Dashboard (`/whatsapp/bot`)
-- [ ] Test bot with message "halo"
-- [ ] Create manual invoice
-- [ ] Process full payment
-- [ ] Process partial payment (check debt created)
-- [ ] Process debt payment
-- [ ] View payment history
-- [ ] View debt tracking
-- [ ] Resolve a debt
-- [ ] Trigger manual invoice generation
-
-### API Testing
-- [ ] Test bot statistics API
-- [ ] Test bot message API
-- [ ] Test invoice list API
-- [ ] Test create invoice API
-- [ ] Test payment APIs (full/partial/debt)
-- [ ] Test debt tracking API
-- [ ] Test gateway payment API
-
-**Quick Test**: Open `http://localhost:3001/test-page.html`
+- **Backend**: Node.js + Express.js + TypeScript
+- **Database**: MySQL / MariaDB
+- **Template Engine**: EJS
+- **CSS Framework**: TailwindCSS
+- **Process Manager**: PM2
+- **MikroTik Integration**: RouterOS API
+- **Payment Gateway**: Midtrans, Xendit, Tripay
+- **Notifications**: Telegram Bot API, WhatsApp Web.js
 
 ---
 
-## 🎯 Success Metrics
+## 🤝 Contributing
 
-### Development ✅
-- ✅ 16 new files created
-- ✅ 4,500+ lines of code
-- ✅ 28 API endpoints
-- ✅ 4 comprehensive documents
-- ✅ Zero compilation errors
-- ✅ TypeScript strict mode
+Contributions are welcome! Please follow these steps:
 
-### Features ✅
-- ✅ Manual invoice creation
-- ✅ Automatic invoice generation
-- ✅ 3 payment types
-- ✅ Debt tracking system
-- ✅ WhatsApp bot (8 features)
-- ✅ WhatsApp notifications (6 types)
-- ✅ Payment gateway (3 gateways)
-- ✅ Frontend views (4 new)
-
-### Quality ✅
-- ✅ Type-safe code
-- ✅ Transaction-based payments
-- ✅ Comprehensive error handling
-- ✅ Polished UI/UX
-- ✅ Complete documentation
-- ✅ Production-ready
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
-## 🎓 Support & Resources
+## 📝 License
 
-### Getting Help
-1. Check **ENDPOINT_TESTING_GUIDE.md** for API examples
-2. Review **FINAL_DELIVERY_SUMMARY.md** for feature details
-3. Check error logs in console
-4. Review code comments (JSDoc)
-
-### Common Tasks
-- **Test Bot**: Open `/whatsapp/bot` and click "Test Bot"
-- **Create Invoice**: POST to `/billing/tagihan/create/manual`
-- **Process Payment**: POST to `/billing/payments/full` (or partial/debt)
-- **View Debts**: Open `/billing/debts/view`
-
-### Next Steps (Optional)
-1. Configure payment gateways
-2. Customize WhatsApp templates
-3. Set up email notifications
-4. Add reporting & analytics
-5. Create mobile app integration
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🏆 What Makes This Special
+## 📧 Support
 
-### 1. Complete Solution
-Not just an API - includes frontend, database, documentation, and testing tools.
-
-### 2. Production-Ready
-Transaction safety, error handling, logging, and monitoring built-in.
-
-### 3. WhatsApp Integration
-Intelligent bot with 8 auto-response types and 6 notification templates.
-
-### 4. Flexible Payment Processing
-Supports full payment, partial payment, and debt tracking automatically.
-
-### 5. Comprehensive Documentation
-Over 1,700 lines of documentation with examples and guides.
+- **Issues**: [GitHub Issues](https://github.com/adiprayitno160-svg/billing/issues)
+- **Email**: support@yourdomain.com
+- **Telegram**: @yourtelegram
 
 ---
 
-## 📝 License & Credits
+## 🙏 Acknowledgments
 
-**Developed by**: AI Assistant  
-**Date**: October 22, 2025  
-**Version**: 2.0.0  
-**Status**: Production Ready
-
----
-
-## 🎉 Ready to Use!
-
-The system is **100% complete** and ready for production deployment.
-
-### Quick Links
-- 📱 WhatsApp Bot: `http://localhost:3001/whatsapp/bot`
-- 🤖 Telegram Bot Dashboard: `http://localhost:3001/telegram/dashboard` **[NEW!]**
-- 💰 Billing Dashboard: `http://localhost:3001/billing/dashboard`
-- 📋 Invoice List: `http://localhost:3001/billing/tagihan`
-- 💳 Payment History: `http://localhost:3001/billing/payments/history`
-- 📊 Debt Tracking: `http://localhost:3001/billing/debts/view`
-- 📡 Monitoring Dashboard: `http://localhost:3001/monitoring/dashboard` **[REQUIRES LOGIN]**
-- 📊 SLA Monitoring: `http://localhost:3001/monitoring/sla` **[REQUIRES LOGIN]**
-- 🔧 Maintenance Scheduler: `http://localhost:3001/monitoring/maintenance` **[REQUIRES LOGIN]**
-- 🧪 Quick Test: `http://localhost:3001/test-page.html`
-
-**Happy Billing! 🚀💰**
+- [Express.js](https://expressjs.com/)
+- [MikroTik RouterOS](https://mikrotik.com/)
+- [PM2](https://pm2.keymetrics.io/)
+- [TailwindCSS](https://tailwindcss.com/)
 
 ---
 
-## 🆕 NEW: Telegram Bot System
+## 📸 Screenshots
 
-### 📱 Telegram Bot untuk Admin & Teknisi
+### Dashboard
+![Dashboard](./screenshots/dashboard.png)
 
-Sistem notifikasi dan monitoring real-time melalui Telegram untuk meningkatkan response time dan koordinasi tim.
+### Customer Management
+![Customers](./screenshots/customers.png)
 
-#### ✨ Fitur Utama:
-- 🔔 **Auto Notifications**: Downtime alerts, SLA breach, payment reminders
-- 📋 **Incident Management**: Assignment tracking, status updates
-- 💬 **15+ Commands**: Customer search, stats, performance metrics
-- 👥 **Role-Based**: Different commands for Admin, Teknisi, Kasir
-- 🌐 **Web Dashboard**: Full control panel di browser
-- 📊 **Analytics**: Performance tracking & statistics
+### Invoice & Billing
+![Invoice](./screenshots/invoice.png)
 
-#### 🚀 Quick Start Telegram Bot:
-
-**5 Menit Setup:**
-
-1. **Create Bot Token**
-   ```
-   • Open Telegram, search @BotFather
-   • Send: /newbot
-   • Follow instructions
-   • Copy the bot token
-   ```
-
-2. **Configure & Run**
-   ```bash
-   # Add to .env
-   TELEGRAM_BOT_TOKEN=your_token_here
-   
-   # Import database
-   mysql -u root billing < sql_telegram_bot_admin_teknisi.sql
-   
-   # Start server
-   npm run dev
-   ```
-
-3. **Register First User**
-   ```
-   • Open your bot in Telegram
-   • Send: /register ADMIN-INIT2025
-   • Bot will confirm registration
-   ```
-
-4. **Open Dashboard**
-   ```
-   http://localhost:3001/telegram/dashboard
-   ```
-
-#### 📚 Documentation:
-
-- **Quick Start**: [TELEGRAM_BOT_QUICK_START.md](TELEGRAM_BOT_QUICK_START.md) ⚡
-- **Full Guide**: [TELEGRAM_BOT_ADMIN_TEKNISI.md](TELEGRAM_BOT_ADMIN_TEKNISI.md) 📖
-
-#### 💬 Common Commands:
-
-**Admin:**
-```
-/stats              - Daily statistics
-/incidents          - Active incidents
-/performance        - Technician performance
-/customers <name>   - Search customer
-```
-
-**Teknisi:**
-```
-/mytickets         - My assignments
-/incidents [area]  - Area incidents
-/offline [area]    - Offline customers
-```
-
-#### 🔔 Notification Types:
-
-- 🚨 **Critical**: Customer offline > 30 min (auto-notify teknisi di area)
-- 🟡 **Warning**: SLA breach approaching
-- 💰 **Payment**: Invoice overdue, payment received
-- 🔧 **System**: Maintenance, updates, custom messages
-
-#### 📊 Web Dashboard Features:
-
-- Real-time bot statistics
-- User management (create invite codes, manage roles)
-- Notification history & delivery tracking
-- Chat logs & error monitoring
-- Technician performance metrics
-- Send custom notifications
-
-**Dashboard URL**: `http://localhost:3001/telegram/dashboard`
+### MikroTik Integration
+![MikroTik](./screenshots/mikrotik.png)
 
 ---
 
-### 🎯 Bot vs WhatsApp Bot
+## 🗺️ Roadmap
 
-| Feature | WhatsApp Bot | Telegram Bot |
-|---------|-------------|--------------|
-| **Target Users** | Customers | Admin & Teknisi |
-| **Purpose** | Customer service | Internal operations |
-| **Commands** | 8 auto-responses | 15+ management commands |
-| **Notifications** | Invoice, payment | Downtime, SLA, performance |
-| **Dashboard** | View only | Full management |
-| **Interactive** | Text-based | Buttons, quick actions |
-
-**Both bots complement each other for complete communication system!**
+- [ ] Mobile app (React Native)
+- [ ] Multi-tenancy support
+- [ ] Advanced reporting & analytics
+- [ ] API v2 with GraphQL
+- [ ] Docker deployment
+- [ ] Kubernetes support
+- [ ] AI-powered customer insights
 
 ---
 
-**Questions?** Check the documentation files or review code comments.
+**Made with ❤️ by Adi Prayitno**
+
+**⭐ Star this repo if you find it useful!**

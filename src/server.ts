@@ -20,7 +20,8 @@ import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
 import { companyInfoMiddleware } from './middlewares/companyInfoMiddleware';
 
-dotenv.config();
+// Load .env but don't override existing environment variables (e.g., from PM2)
+dotenv.config({ override: false });
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);

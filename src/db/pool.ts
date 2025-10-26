@@ -1,7 +1,8 @@
 import * as dotenv from 'dotenv';
 import * as mysql from 'mysql2/promise';
 
-dotenv.config();
+// Don't override environment variables from PM2/system
+dotenv.config({ override: false });
 
 const databaseHost = process.env.DB_HOST ?? 'localhost';
 const databasePort = Number(process.env.DB_PORT ?? 3306);
