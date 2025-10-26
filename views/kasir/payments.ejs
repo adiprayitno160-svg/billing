@@ -273,14 +273,21 @@
                         <div class="space-y-3">
                             <button 
                                 type="submit" 
-                                class="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition duration-200 font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                id="submitPaymentBtn"
+                                class="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition duration-200 font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                             >
+                                <span id="submitBtnText">
                                 <i class="fas fa-check-circle mr-2"></i>Proses Pembayaran
+                                </span>
+                                <span id="submitBtnLoading" class="hidden">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>Memproses...
+                                </span>
                             </button>
                             <button 
                                 type="button" 
+                                id="cancelPaymentBtn"
                                 onclick="resetForm()"
-                                class="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition duration-200 font-semibold"
+                                class="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <i class="fas fa-times mr-2"></i>Batal
                             </button>
@@ -294,11 +301,44 @@
     <!-- Recent Customers -->
     <div id="customerListTable" class="bg-white rounded-2xl shadow-sm border-2 border-gray-100 overflow-hidden">
         <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center mb-4">
                 <i class="fas fa-users text-blue-600 mr-2"></i>
-                Pelanggan dengan Tagihan
+                Daftar Pelanggan
             </h3>
-            <p class="text-sm text-gray-600 mt-1">Klik untuk memproses pembayaran</p>
+            
+            <!-- Tabs Navigation -->
+            <div class="flex space-x-2 bg-white rounded-xl p-1 border-2 border-gray-200">
+                <button 
+                    class="tab-btn flex-1 px-4 py-3 rounded-lg font-bold text-sm transition-all duration-200 active"
+                    data-tab="pending"
+                    onclick="switchTab('pending')"
+                >
+                    <i class="fas fa-file-invoice mr-2"></i>
+                    <span class="hidden sm:inline">Dengan Tagihan</span>
+                    <span class="sm:hidden">Tagihan</span>
+                    <span class="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-bold" id="pendingCount">0</span>
+                </button>
+                <button 
+                    class="tab-btn flex-1 px-4 py-3 rounded-lg font-bold text-sm transition-all duration-200"
+                    data-tab="paid"
+                    onclick="switchTab('paid')"
+                >
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <span class="hidden sm:inline">Lunas</span>
+                    <span class="sm:hidden">Lunas</span>
+                    <span class="ml-2 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-bold" id="paidCount">0</span>
+                </button>
+                <button 
+                    class="tab-btn flex-1 px-4 py-3 rounded-lg font-bold text-sm transition-all duration-200"
+                    data-tab="isolated"
+                    onclick="switchTab('isolated')"
+                >
+                    <i class="fas fa-ban mr-2"></i>
+                    <span class="hidden sm:inline">Isolir</span>
+                    <span class="sm:hidden">Isolir</span>
+                    <span class="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold" id="isolatedCount">0</span>
+                </button>
+            </div>
         </div>
         
         <% if (recentCustomers && recentCustomers.length > 0) { %>
@@ -316,8 +356,20 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        <% recentCustomers.forEach(customer => { %>
-                            <tr class="hover:bg-blue-50 transition duration-150 cursor-pointer customer-row" data-customer='<%= JSON.stringify(customer) %>'>
+                        <% recentCustomers.forEach(customer => { 
+                            const isIsolated = (customer.is_isolated == 1 || customer.is_isolated === true || customer.is_isolated === '1' || customer.status === 'isolated' || customer.status === 'suspended');
+                            const hasPendingBills = customer.pending_count > 0;
+                            let tabType = 'paid'; // default
+                            if (isIsolated) {
+                                tabType = 'isolated';
+                            } else if (hasPendingBills) {
+                                tabType = 'pending';
+                            }
+                        %>
+                            <tr class="hover:bg-blue-50 transition duration-150 cursor-pointer customer-row" 
+                                data-customer='<%= JSON.stringify(customer) %>'
+                                data-tab-type="<%= tabType %>"
+                            >
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="font-bold text-gray-900"><%= customer.customer_code %></div>
                                 </td>
@@ -439,6 +491,51 @@
     font-weight: bold;
     font-size: 14px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Tab Styles */
+.tab-btn {
+    color: #6B7280;
+    background: transparent;
+}
+.tab-btn.active {
+    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+.tab-btn:hover:not(.active) {
+    background: #F3F4F6;
+}
+.customer-row.hidden {
+    display: none !important;
+}
+
+/* Button Processing/Disabled States */
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+button.processing {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.select-customer-btn:disabled,
+.select-customer-btn.processing {
+    background: #9CA3AF !important;
+    transform: none !important;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
 }
 </style>
 
@@ -773,8 +870,15 @@ function calculateChange() {
 }
 
 // Form submission
+let isSubmitting = false;
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (isSubmitting) {
+        console.log('Form is already being submitted...');
+        return false;
+    }
     
     if (!selectedPaymentType) {
         alert('❌ Pilih jenis pembayaran terlebih dahulu');
@@ -841,11 +945,61 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
     // Set hidden amount field
     document.getElementById('hiddenAmount').value = amount;
     
+    // Disable submit button and show loading
+    isSubmitting = true;
+    const submitBtn = document.getElementById('submitPaymentBtn');
+    const cancelBtn = document.getElementById('cancelPaymentBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const submitBtnLoading = document.getElementById('submitBtnLoading');
+    
+    submitBtn.disabled = true;
+    cancelBtn.disabled = true;
+    submitBtnText.classList.add('hidden');
+    submitBtnLoading.classList.remove('hidden');
+    
+    // Disable all payment type buttons
+    document.querySelectorAll('.payment-type-btn').forEach(btn => {
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.5';
+    });
+    
     // Submit form
     this.submit();
 });
 
 function resetForm() {
+    // Reset submission state
+    isSubmitting = false;
+    
+    // Re-enable buttons
+    const submitBtn = document.getElementById('submitPaymentBtn');
+    const cancelBtn = document.getElementById('cancelPaymentBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const submitBtnLoading = document.getElementById('submitBtnLoading');
+    
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtnText.classList.remove('hidden');
+        submitBtnLoading.classList.add('hidden');
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+    }
+    
+    // Re-enable payment type buttons
+    document.querySelectorAll('.payment-type-btn').forEach(btn => {
+        btn.style.pointerEvents = '';
+        btn.style.opacity = '';
+        btn.classList.remove('selected');
+    });
+    
+    // Re-enable all customer select buttons
+    document.querySelectorAll('.select-customer-btn').forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('processing');
+    });
+    
     document.getElementById('customerSearch').value = '';
     document.getElementById('searchResults').classList.add('hidden');
     document.getElementById('customerInfoCard').classList.add('hidden');
@@ -857,10 +1011,6 @@ function resetForm() {
     pendingInvoices = [];
     selectedPaymentType = null;
     totalDueAmount = 0;
-    
-    document.querySelectorAll('.payment-type-btn').forEach(btn => {
-        btn.classList.remove('selected');
-    });
     
     document.getElementById('paymentSummary').classList.add('hidden');
     document.getElementById('amountField').classList.add('hidden');
@@ -891,6 +1041,18 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.select-customer-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
+            
+            // Prevent clicking if already processing
+            if (this.disabled || this.classList.contains('processing')) {
+                return;
+            }
+            
+            // Disable this button and show loading
+            this.disabled = true;
+            this.classList.add('processing');
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
+            
             const customer = {
                 id: this.dataset.customerId,
                 name: this.dataset.customerName,
@@ -901,6 +1063,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 pending_count: parseInt(this.dataset.customerPending) || 0,
                 total_pending: parseFloat(this.dataset.customerTotal) || 0
             };
+            
+            // Store button reference to re-enable later if needed
+            const buttonElement = this;
+            
+            // Re-enable button after 2 seconds (in case user cancels)
+            setTimeout(() => {
+                buttonElement.disabled = false;
+                buttonElement.classList.remove('processing');
+                buttonElement.innerHTML = originalHTML;
+            }, 2000);
+            
             selectCustomerFromTable(customer);
         });
     });
@@ -908,4 +1081,95 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Focus on search
 document.getElementById('customerSearch').focus();
+
+// Tab switching functionality
+let currentTab = 'pending';
+
+function switchTab(tab) {
+    currentTab = tab;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+    
+    // Filter customer rows
+    const rows = document.querySelectorAll('.customer-row');
+    rows.forEach(row => {
+        const rowTabType = row.getAttribute('data-tab-type');
+        if (rowTabType === tab) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+    
+    // Update empty state message if needed
+    updateEmptyState(tab);
+}
+
+function updateEmptyState(tab) {
+    const rows = document.querySelectorAll(`.customer-row[data-tab-type="${tab}"]`);
+    const visibleRows = Array.from(rows).filter(row => !row.classList.contains('hidden'));
+    
+    // Check if empty state container exists
+    let emptyStateContainer = document.getElementById('emptyStateContainer');
+    const tableBody = document.querySelector('.customer-row')?.closest('tbody');
+    
+    if (visibleRows.length === 0 && tableBody) {
+        // Show empty state
+        if (!emptyStateContainer) {
+            emptyStateContainer = document.createElement('tr');
+            emptyStateContainer.id = 'emptyStateContainer';
+            emptyStateContainer.innerHTML = `
+                <td colspan="7" class="px-6 py-16">
+                    <div class="text-center">
+                        <div class="inline-block w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                            <i class="fas fa-users text-gray-400 text-3xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2" id="emptyStateTitle">Tidak Ada Data</h3>
+                        <p class="text-gray-600" id="emptyStateText">Tidak ada pelanggan untuk kategori ini</p>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(emptyStateContainer);
+        } else {
+            emptyStateContainer.classList.remove('hidden');
+        }
+        
+        // Update empty state text based on tab
+        const emptyStateTitle = document.getElementById('emptyStateTitle');
+        const emptyStateText = document.getElementById('emptyStateText');
+        if (tab === 'pending') {
+            emptyStateTitle.textContent = 'Tidak Ada Tagihan Pending';
+            emptyStateText.textContent = 'Semua pelanggan sudah lunas';
+        } else if (tab === 'paid') {
+            emptyStateTitle.textContent = 'Tidak Ada Pelanggan Lunas';
+            emptyStateText.textContent = 'Belum ada pelanggan yang lunas';
+        } else if (tab === 'isolated') {
+            emptyStateTitle.textContent = 'Tidak Ada Pelanggan Isolir';
+            emptyStateText.textContent = 'Tidak ada pelanggan yang diisolir';
+        }
+    } else if (emptyStateContainer) {
+        emptyStateContainer.classList.add('hidden');
+    }
+}
+
+// Count customers by tab type
+function updateTabCounts() {
+    const pendingRows = document.querySelectorAll('.customer-row[data-tab-type="pending"]').length;
+    const paidRows = document.querySelectorAll('.customer-row[data-tab-type="paid"]').length;
+    const isolatedRows = document.querySelectorAll('.customer-row[data-tab-type="isolated"]').length;
+    
+    document.getElementById('pendingCount').textContent = pendingRows;
+    document.getElementById('paidCount').textContent = paidRows;
+    document.getElementById('isolatedCount').textContent = isolatedRows;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateTabCounts();
+    switchTab('pending'); // Show pending tab by default
+});
 </script>

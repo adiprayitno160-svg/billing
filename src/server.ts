@@ -46,7 +46,7 @@ app.use(helmet({
                 "https://cdn.tailwindcss.com",
                 "https://cdnjs.cloudflare.com"
             ],
-            scriptSrcAttr: ["'unsafe-hashes'"],
+            scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"],
             fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:", "http:"],
             connectSrc: [

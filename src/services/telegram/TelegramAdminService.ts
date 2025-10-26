@@ -33,17 +33,26 @@ interface NotificationPayload {
 
 export class TelegramAdminService {
     private bot: TelegramBot | null = null;
-    private readonly botToken: string;
+    private botToken: string;
     private isInitialized: boolean = false;
     private messageQueue: any[] = [];
     
     constructor() {
         this.botToken = process.env.TELEGRAM_BOT_TOKEN || '';
         
-        if (this.botToken) {
+        // Check if token is valid (not empty and not placeholder)
+        const isValidToken = this.botToken && 
+                            this.botToken.length > 10 && 
+                            !this.botToken.includes('your_') &&
+                            !this.botToken.includes('YOUR_') &&
+                            this.botToken !== 'your_telegram_bot_token_here';
+        
+        if (isValidToken) {
             this.initializeBot();
         } else {
-            console.warn('[TelegramAdmin] Bot token not configured. Set TELEGRAM_BOT_TOKEN in environment.');
+            console.warn('[TelegramAdmin] ⚠️ Bot token not configured or invalid.');
+            console.warn('[TelegramAdmin] 📝 Silakan atur token melalui: Settings > Telegram');
+            console.warn('[TelegramAdmin] 🔗 Cara mendapatkan token: https://t.me/BotFather');
         }
     }
     
@@ -199,7 +208,27 @@ export class TelegramAdminService {
     private setupErrorHandling(): void {
         if (!this.bot) return;
         
-        this.bot.on('polling_error', (error) => {
+        this.bot.on('polling_error', (error: any) => {
+            // Check for 401 Unauthorized error (invalid token)
+            if (error.message && error.message.includes('401')) {
+                console.error('[TelegramAdmin] ❌ FATAL: Invalid Bot Token (401 Unauthorized)');
+                console.error('[TelegramAdmin] Bot token tidak valid. Silakan periksa konfigurasi token di Settings > Telegram');
+                console.error('[TelegramAdmin] Stopping bot to prevent further errors...');
+                
+                // Stop polling to prevent spam
+                if (this.bot) {
+                    try {
+                        this.bot.stopPolling();
+                        this.isInitialized = false;
+                        console.log('[TelegramAdmin] Bot polling stopped.');
+                    } catch (stopError) {
+                        console.error('[TelegramAdmin] Error stopping bot:', stopError);
+                    }
+                }
+                return;
+            }
+            
+            // Log other polling errors
             console.error('[TelegramAdmin] Polling error:', error.message);
         });
         
@@ -1487,6 +1516,56 @@ export class TelegramAdminService {
             isInitialized: this.isInitialized,
             botToken: this.botToken ? '***' + this.botToken.slice(-8) : 'Not configured'
         };
+    }
+    
+    /**
+     * Stop bot polling
+     */
+    public stopBot(): void {
+        try {
+            if (this.bot) {
+                console.log('[TelegramAdmin] Stopping bot polling...');
+                this.bot.stopPolling();
+                this.bot = null;
+                this.isInitialized = false;
+                console.log('[TelegramAdmin] ✅ Bot stopped successfully');
+            }
+        } catch (error) {
+            console.error('[TelegramAdmin] Error stopping bot:', error);
+        }
+    }
+    
+    /**
+     * Reinitialize bot with new token
+     */
+    public reinitializeBot(newToken: string): void {
+        try {
+            console.log('[TelegramAdmin] 🔄 Reinitializing bot with new token...');
+            
+            // Stop current bot if running
+            this.stopBot();
+            
+            // Update token
+            this.botToken = newToken;
+            process.env.TELEGRAM_BOT_TOKEN = newToken;
+            
+            // Check if token is valid
+            const isValidToken = this.botToken && 
+                                this.botToken.length > 10 && 
+                                !this.botToken.includes('your_') &&
+                                !this.botToken.includes('YOUR_') &&
+                                this.botToken !== 'your_telegram_bot_token_here';
+            
+            if (isValidToken) {
+                // Initialize with new token
+                this.initializeBot();
+                console.log('[TelegramAdmin] ✅ Bot reinitialized successfully');
+            } else {
+                console.warn('[TelegramAdmin] ⚠️  Invalid token provided, bot not started');
+            }
+        } catch (error) {
+            console.error('[TelegramAdmin] ❌ Error reinitializing bot:', error);
+        }
     }
 }
 

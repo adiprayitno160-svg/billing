@@ -6,9 +6,12 @@ const router = Router();
 const kasirController = new KasirController();
 const authMiddleware = new AuthMiddleware();
 
-// Middleware to force kasir layout for all kasir routes
+// Middleware to force kasir layout for all kasir routes (except print pages)
 const forceKasirLayout = (req: Request, res: Response, next: NextFunction) => {
-    res.locals.layout = 'layouts/kasir';
+    // Skip layout for print pages
+    if (!req.path.startsWith('/print-checklist') && !req.path.startsWith('/receipt')) {
+        res.locals.layout = 'layouts/kasir';
+    }
     next();
 };
 
@@ -40,9 +43,11 @@ router.get('/api/payment/:id', kasirController.getPaymentDetail.bind(kasirContro
 
 // Reports
 router.get('/reports', kasirController.reports.bind(kasirController));
+router.get('/reports/export', kasirController.exportReports.bind(kasirController));
 
 // Print routes
 router.get('/print-group', kasirController.printGroup.bind(kasirController));
+router.get('/print-checklist/:odc_id', kasirController.printChecklist.bind(kasirController));
 
 // Print ODC - proxy to billing route with auth
 router.get('/print-odc/:odc_id', async (req, res) => {

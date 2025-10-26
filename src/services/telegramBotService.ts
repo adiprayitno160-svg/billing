@@ -33,10 +33,19 @@ export class TelegramBotService {
     constructor() {
         this.botToken = process.env.TELEGRAM_BOT_TOKEN || '';
         
-        if (this.botToken) {
+        // Check if token is valid (not empty and not placeholder)
+        const isValidToken = this.botToken && 
+                            this.botToken.length > 10 && 
+                            !this.botToken.includes('your_') &&
+                            !this.botToken.includes('YOUR_') &&
+                            this.botToken !== 'your_telegram_bot_token_here';
+        
+        if (isValidToken) {
             this.initializeBot();
         } else {
-            console.warn('[TelegramBot] Bot token not configured. Set TELEGRAM_BOT_TOKEN in environment.');
+            console.warn('[TelegramBot] ⚠️ Bot token not configured or invalid.');
+            console.warn('[TelegramBot] 📝 Silakan atur token melalui: Settings > Telegram');
+            console.warn('[TelegramBot] 🔗 Cara mendapatkan token: https://t.me/BotFather');
         }
     }
     

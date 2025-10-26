@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #333;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .header h2 {
+            font-size: 18px;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .info-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .info-item {
+            font-size: 14px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        
+        th {
+            background-color: #333;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .checkbox-col {
+            width: 40px;
+            text-align: center;
+        }
+        
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #333;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        .no-col {
+            width: 40px;
+            text-align: center;
+        }
+        
+        .name-col {
+            width: auto;
+        }
+        
+        .amount-col {
+            width: 120px;
+            text-align: right;
+        }
+        
+        .status-col {
+            width: 80px;
+            text-align: center;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-overdue {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-no-invoice {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #333;
+        }
+        
+        .signature-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-top: 30px;
+        }
+        
+        .signature-box {
+            text-align: center;
+        }
+        
+        .signature-line {
+            margin-top: 80px;
+            border-top: 2px solid #333;
+            padding-top: 5px;
+            font-weight: bold;
+        }
+        
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 14px;
+        }
+        
+        .summary-row.total {
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 2px solid #333;
+            padding-top: 10px;
+            margin-top: 5px;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none;
+            }
+            
+            @page {
+                margin: 1cm;
+            }
+        }
+        
+        .print-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .print-button:hover {
+            background: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">
+        🖨️ Print Checklist
+    </button>
+    
+    <div class="header">
+        <h1>DAFTAR CHECKLIST TAGIHAN</h1>
+        <h2>ODC: <%= odc.name %></h2>
+    </div>
+    
+    <div class="info-section">
+        <div class="info-item">
+            <span class="info-label">Lokasi ODC:</span> <%= odc.location || '-' %>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Tanggal Print:</span> <%= printDate %>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Total Pelanggan:</span> <%= customers.length %> orang
+        </div>
+        <div class="info-item">
+            <span class="info-label">Petugas:</span> _______________________
+        </div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th class="checkbox-col">☑</th>
+                <th class="no-col">No</th>
+                <th class="name-col">Nama Pelanggan</th>
+                <th class="amount-col">Tagihan</th>
+                <th class="status-col">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% 
+            let totalAmount = 0;
+            let invoiceCount = 0;
+            
+            customers.forEach((customer, index) => { 
+                const hasInvoice = customer.invoice_number ? true : false;
+                const amount = parseFloat(customer.remaining_amount) || 0;
+                
+                if (hasInvoice) {
+                    totalAmount += amount;
+                    invoiceCount++;
+                }
+                
+                let statusClass = 'status-no-invoice';
+                let statusText = 'Lunas';
+                
+                if (customer.invoice_status === 'overdue') {
+                    statusClass = 'status-overdue';
+                    statusText = 'Overdue';
+                } else if (customer.invoice_status === 'sent' || customer.invoice_status === 'partial') {
+                    statusClass = 'status-pending';
+                    statusText = 'Pending';
+                }
+            %>
+            <tr>
+                <td class="checkbox-col">
+                    <span class="checkbox"></span>
+                </td>
+                <td class="no-col"><%= index + 1 %></td>
+                <td class="name-col">
+                    <strong><%= customer.name %></strong>
+                    <% if (customer.address) { %>
+                    <br><small style="color: #666;"><%= customer.address %></small>
+                    <% } %>
+                </td>
+                <td class="amount-col">
+                    <% if (hasInvoice) { %>
+                        <strong>Rp <%= new Intl.NumberFormat('id-ID').format(amount) %></strong>
+                    <% } else { %>
+                        -
+                    <% } %>
+                </td>
+                <td class="status-col">
+                    <span class="status-badge <%= statusClass %>">
+                        <%= statusText %>
+                    </span>
+                </td>
+            </tr>
+            <% }); %>
+        </tbody>
+    </table>
+    
+    <div class="summary">
+        <div class="summary-row">
+            <span>Total Pelanggan:</span>
+            <strong><%= customers.length %> orang</strong>
+        </div>
+        <div class="summary-row">
+            <span>Pelanggan dengan Tagihan:</span>
+            <strong><%= invoiceCount %> orang</strong>
+        </div>
+        <div class="summary-row">
+            <span>Pelanggan Lunas:</span>
+            <strong><%= customers.length - invoiceCount %> orang</strong>
+        </div>
+        <div class="summary-row total">
+            <span>Total Tagihan yang Harus Ditagih:</span>
+            <strong>Rp <%= new Intl.NumberFormat('id-ID').format(totalAmount) %></strong>
+        </div>
+    </div>
+    
+    
+    <script>
+        // Auto print when page loads (optional)
+        // window.onload = function() { window.print(); }
+    </script>
+</body>
+</html>
+

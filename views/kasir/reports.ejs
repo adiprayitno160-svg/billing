@@ -300,11 +300,19 @@
 
 <script>
     function exportReport() {
-        // Simulate export functionality
-        alert('Laporan akan diekspor dalam format Excel...');
+        // Get current filter parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const startDate = urlParams.get('startDate') || '';
+        const endDate = urlParams.get('endDate') || '';
+        const type = urlParams.get('type') || 'daily';
         
-        // In a real implementation, this would trigger a download
-        // window.location.href = '/kasir/reports/export?startDate=' + startDate + '&endDate=' + endDate;
+        // Build export URL with current filters
+        let exportUrl = '/kasir/reports/export?type=' + type;
+        if (startDate) exportUrl += '&startDate=' + startDate;
+        if (endDate) exportUrl += '&endDate=' + endDate;
+        
+        // Trigger download
+        window.location.href = exportUrl;
     }
 
     // Auto-submit form when period type changes to custom
@@ -319,5 +327,4 @@
             document.querySelector('input[name="endDate"]').style.display = 'none';
         }
     });
-</script>
 </script>

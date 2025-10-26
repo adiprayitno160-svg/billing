@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @page {
+            size: 58mm auto;
+            margin: 2mm;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            line-height: 1.2;
+            width: 58mm;
+            margin: 0 auto;
+            padding: 1mm;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 2mm;
+            margin-bottom: 2mm;
+        }
+        
+        .header h1 {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 0.5mm;
+        }
+        
+        .header h2 {
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .info {
+            font-size: 8px;
+            margin-bottom: 2mm;
+            line-height: 1.2;
+        }
+        
+        .info-row {
+            margin-bottom: 0.5mm;
+        }
+        
+        .divider {
+            border-bottom: 1px dashed #000;
+            margin: 1mm 0;
+        }
+        
+        .customer {
+            margin-bottom: 2mm;
+            border-bottom: 1px dotted #000;
+            padding-bottom: 1mm;
+        }
+        
+        .customer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3mm;
+        }
+        
+        .customer-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5mm;
+            flex: 1;
+        }
+        
+        .customer-no {
+            font-size: 8px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .checkbox {
+            display: inline-block;
+            width: 2.5mm;
+            height: 2.5mm;
+            border: 1px solid #000;
+            vertical-align: middle;
+            margin-right: 0.3mm;
+        }
+        
+        .customer-info {
+            font-size: 8px;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .customer-name {
+            font-weight: bold;
+        }
+        
+        .customer-address {
+            font-size: 7px;
+            color: #555;
+        }
+        
+        .amount-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            font-weight: bold;
+            margin-top: 0.5mm;
+        }
+        
+        .status {
+            font-size: 8px;
+            display: inline-block;
+            padding: 0.5mm 1mm;
+            border: 1px solid #000;
+        }
+        
+        .status-overdue {
+            background: #000;
+            color: #fff;
+        }
+        
+        .summary {
+            border-top: 2px solid #000;
+            padding-top: 1mm;
+            margin-top: 2mm;
+            font-size: 8px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5mm;
+        }
+        
+        .summary-total {
+            font-weight: bold;
+            font-size: 9px;
+            border-top: 1px solid #000;
+            padding-top: 1mm;
+            margin-top: 1mm;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 2mm;
+            padding-top: 1mm;
+            border-top: 1px dashed #000;
+            font-size: 7px;
+        }
+        
+        @media print {
+            body {
+                width: 58mm;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CHECKLIST TAGIHAN</h1>
+        <h2><%= odc.name %></h2>
+    </div>
+    
+    <div class="info">
+        <div class="info-row">Lokasi: <%= odc.location || '-' %></div>
+        <div class="info-row">Tanggal: <%= printDate %></div>
+        <div class="info-row">Pelanggan: <%= customers.length %> org</div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <% 
+    let totalAmount = 0;
+    
+    customers.forEach(customer => { 
+        const amount = parseFloat(customer.remaining_amount) || 0;
+        totalAmount += amount;
+    });
+    %>
+    
+    <% customers.forEach((customer, index) => { 
+        const amount = parseFloat(customer.remaining_amount) || 0;
+        let statusText = 'LUNAS';
+        let statusClass = '';
+        
+        if (customer.invoice_number) {
+            if (customer.invoice_status === 'overdue') {
+                statusText = 'OVERDUE';
+                statusClass = 'status-overdue';
+            } else {
+                statusText = 'PENDING';
+            }
+        }
+    %>
+    <div class="customer">
+        <div class="customer-header">
+            <div class="customer-left">
+                <span class="customer-no">
+                    <span class="checkbox"></span><%= index + 1 %>.
+                </span>
+                <span class="customer-info">
+                    <span class="customer-name"><%= customer.name.substring(0, 12) %><%= customer.name.length > 12 ? '..' : '' %></span>
+                    <% if (customer.address) { %>
+                    <span class="customer-address"> - <%= customer.address.substring(0, 20) %><%= customer.address.length > 20 ? '..' : '' %></span>
+                    <% } %>
+                </span>
+            </div>
+            <span class="status <%= statusClass %>"><%= statusText %></span>
+        </div>
+        
+        <div class="amount-row">
+            <span>Tagihan:</span>
+            <span><%= customer.invoice_number ? 'Rp ' + new Intl.NumberFormat('id-ID').format(amount) : '-' %></span>
+        </div>
+    </div>
+    <% }); %>
+    
+    <div class="summary">
+        <div class="summary-row">
+            <span>Total Pelanggan:</span>
+            <strong><%= customers.length %></strong>
+        </div>
+        <div class="summary-row summary-total">
+            <span>TOTAL TAGIHAN:</span>
+            <strong>Rp <%= new Intl.NumberFormat('id-ID').format(totalAmount) %></strong>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <%= new Date().toLocaleString('id-ID') %>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+

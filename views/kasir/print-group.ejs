@@ -72,6 +72,16 @@
                         class="block w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-center font-semibold">
                     <i class="fas fa-file-pdf mr-2"></i>Print A4
                 </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btnChecklistThermal"
+                            class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-center font-semibold">
+                        <i class="fas fa-tasks mr-1"></i>Thermal
+                    </button>
+                    <button id="btnChecklistA4"
+                            class="px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-center font-semibold">
+                        <i class="fas fa-tasks mr-1"></i>A4
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -149,6 +159,16 @@
                         <i class="fas fa-file-pdf"></i> A4
                     </a>
                 </div>
+                <div class="mt-2 flex gap-2">
+                    <a href="/kasir/print-checklist/<%= odc.id %>?format=thermal" target="_blank"
+                       class="flex-1 px-3 py-2 bg-green-600 text-white rounded text-center text-sm hover:bg-green-700 transition font-semibold">
+                        <i class="fas fa-tasks"></i> Thermal
+                    </a>
+                    <a href="/kasir/print-checklist/<%= odc.id %>?format=a4" target="_blank"
+                       class="flex-1 px-3 py-2 bg-teal-600 text-white rounded text-center text-sm hover:bg-teal-700 transition font-semibold">
+                        <i class="fas fa-tasks"></i> A4
+                    </a>
+                </div>
             </div>
             <% }); %>
         </div>
@@ -173,6 +193,22 @@ document.addEventListener('DOMContentLoaded', function() {
             printODC('a4');
         });
     }
+
+    // Checklist Thermal button
+    const btnChecklistThermal = document.getElementById('btnChecklistThermal');
+    if (btnChecklistThermal) {
+        btnChecklistThermal.addEventListener('click', function() {
+            printChecklist('thermal');
+        });
+    }
+
+    // Checklist A4 button
+    const btnChecklistA4 = document.getElementById('btnChecklistA4');
+    if (btnChecklistA4) {
+        btnChecklistA4.addEventListener('click', function() {
+            printChecklist('a4');
+        });
+    }
 });
 
 function printODC(format) {
@@ -184,6 +220,18 @@ function printODC(format) {
     }
     
     const url = `/kasir/print-odc/${odcId}?format=${format}`;
+    window.open(url, '_blank');
+}
+
+function printChecklist(format) {
+    const odcId = document.getElementById('odcSelect').value;
+    
+    if (!odcId) {
+        alert('Silakan pilih ODC terlebih dahulu');
+        return;
+    }
+    
+    const url = `/kasir/print-checklist/${odcId}?format=${format}`;
     window.open(url, '_blank');
 }
 </script>

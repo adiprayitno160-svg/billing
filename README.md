@@ -106,7 +106,47 @@ sudo npm install -g pm2
 
 ## 📦 Installation Methods
 
-### Method 1: Manual Installation (Windows/Linux)
+### ⚡ Method 1: aaPanel Auto Deploy (RECOMMENDED - 1 Command!)
+
+**Paling mudah dan cepat! Deploy langsung dari GitHub dalam 5 menit!**
+
+#### Prerequisites:
+- VPS/Server dengan aaPanel terinstall
+- Akses root/sudo
+
+#### Quick Install:
+```bash
+# Login ke server via SSH
+ssh root@IP_SERVER_ANDA
+
+# Download & jalankan installer
+curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing_system/main/aapanel-deploy.sh | bash
+
+# Atau download dulu (lebih aman):
+wget https://raw.githubusercontent.com/adiprayitno160-svg/billing_system/main/aapanel-deploy.sh
+chmod +x aapanel-deploy.sh
+bash aapanel-deploy.sh
+```
+
+Script akan otomatis:
+- ✅ Install Node.js & PM2
+- ✅ Clone dari GitHub
+- ✅ Setup database MySQL
+- ✅ Konfigurasi environment
+- ✅ Build & start aplikasi
+- ✅ Setup PM2 auto-restart
+- ✅ Optional: Setup Nginx reverse proxy
+
+**Selesai! Akses aplikasi di: `http://IP-SERVER:3000`**
+
+📚 **Auto Deploy**: [INSTALL_AAPANEL.md](INSTALL_AAPANEL.md) (Script otomatis)  
+📘 **Manual Install**: [INSTALL_AAPANEL_MANUAL.md](INSTALL_AAPANEL_MANUAL.md) (Step-by-step)  
+⚡ **Quick Install**: [QUICK_INSTALL_MANUAL.md](QUICK_INSTALL_MANUAL.md) (10 menit!)  
+🗑️ **Uninstall**: [UNINSTALL_GUIDE.md](UNINSTALL_GUIDE.md)
+
+---
+
+### Method 2: Manual Installation (Windows/Linux)
 
 #### 1️⃣ Clone Repository
 ```bash
@@ -176,7 +216,7 @@ npm run dev
 
 ---
 
-### Method 2: aaPanel Installation (One-Click Setup)
+### Method 3: aaPanel Manual Installation (Advanced)
 
 #### 🎯 Prerequisites
 - VPS/Server dengan Ubuntu 20.04+ atau Debian 10+
@@ -375,92 +415,6 @@ pm2 restart billing
 ```bash
 pm2 logs billing
 tail -f logs/combined-0.log
-```
-
----
-
-### Method 3: Quick Install Script (Auto Setup)
-
-Untuk instalasi super cepat, jalankan script ini:
-
-```bash
-#!/bin/bash
-# Quick Install Script for Billing System
-
-echo "🚀 Billing System - Quick Installer"
-echo "===================================="
-
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then 
-    echo "Please run as root (sudo)"
-    exit 1
-fi
-
-# Install Node.js
-echo "📦 Installing Node.js..."
-curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-apt-get install -y nodejs
-
-# Install PM2
-echo "📦 Installing PM2..."
-npm install -g pm2
-
-# Clone repository
-echo "📥 Cloning repository..."
-cd /var/www || cd /www/wwwroot
-git clone https://github.com/adiprayitno160-svg/billing_system.git
-cd billing_system
-
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install
-
-# Build application
-echo "🔨 Building application..."
-npm run build
-
-# Create database
-echo "🗄️  Setting up database..."
-read -p "Enter MySQL root password: " MYSQL_PASS
-mysql -u root -p"$MYSQL_PASS" -e "CREATE DATABASE IF NOT EXISTS billing_database;"
-mysql -u root -p"$MYSQL_PASS" billing_database < migrations/create_system_settings.sql
-
-# Create .env
-echo "⚙️  Creating configuration..."
-cat > .env << EOF
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=$MYSQL_PASS
-DB_NAME=billing_database
-PORT=3001
-NODE_ENV=production
-SESSION_SECRET=$(openssl rand -hex 32)
-GITHUB_REPO_OWNER=adiprayitno160-svg
-GITHUB_REPO_NAME=billing_system
-EOF
-
-# Start with PM2
-echo "🚀 Starting application..."
-pm2 start ecosystem.config.js --name billing
-pm2 save
-pm2 startup
-
-echo "✅ Installation complete!"
-echo ""
-echo "Access your application at: http://YOUR_SERVER_IP:3001"
-echo "Default login - Username: admin | Password: admin"
-echo ""
-echo "Next steps:"
-echo "1. Configure Nginx reverse proxy"
-echo "2. Setup SSL certificate"
-echo "3. Change default password"
-```
-
-Save as `install.sh` and run:
-```bash
-chmod +x install.sh
-sudo ./install.sh
 ```
 
 ---

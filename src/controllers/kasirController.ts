@@ -3,6 +3,7 @@ import { UserService } from '../services/userService';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { databasePool } from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import * as XLSX from 'xlsx';
 
 export class KasirController {
     private userService: UserService;
@@ -183,7 +184,7 @@ export class KasirController {
         try {
             const conn = await databasePool.getConnection();
             try {
-                // Get recent customers with pending invoices
+                // Get all active customers with their invoice status
                 const [recentCustomers] = await conn.query<RowDataPacket[]>(`
                     SELECT 
                         c.id,
@@ -205,9 +206,14 @@ export class KasirController {
                          AND status IN ('sent', 'partial', 'overdue')) as total_pending
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
-                    WHERE c.status IN ('active', 'suspended')
-                    ORDER BY c.updated_at DESC
-                    LIMIT 50
+                    ORDER BY 
+                        CASE 
+                            WHEN c.is_isolated = 1 THEN 1
+                            WHEN (SELECT COUNT(*) FROM invoices WHERE customer_id = c.id AND status IN ('sent', 'partial', 'overdue')) > 0 THEN 2
+                            ELSE 3
+                        END,
+                        c.updated_at DESC
+                    LIMIT 100
                 `);
                 
                 res.render('kasir/payments', {
@@ -398,6 +404,76 @@ export class KasirController {
         }
     }
 
+    // Print checklist for ODC
+    public async printChecklist(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            console.log('=== PRINT CHECKLIST CALLED ===');
+            const { odc_id } = req.params;
+            const { format = 'a4' } = req.query; // Default to A4
+            console.log('ODC ID:', odc_id, 'Format:', format);
+            const conn = await databasePool.getConnection();
+            
+            try {
+                // Get ODC info
+                const [odcResult] = await conn.query<RowDataPacket[]>(
+                    'SELECT * FROM ftth_odc WHERE id = ?',
+                    [odc_id]
+                );
+                
+                if (odcResult.length === 0) {
+                    return res.status(404).send('ODC tidak ditemukan');
+                }
+                
+                const odc = odcResult[0];
+                
+                // Get customers with invoices in this ODC
+                const [customers] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        c.id,
+                        c.customer_code,
+                        c.name,
+                        c.phone,
+                        c.address,
+                        c.status,
+                        i.invoice_number,
+                        i.period,
+                        i.total_amount,
+                        i.paid_amount,
+                        i.status as invoice_status,
+                        i.due_date,
+                        COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
+                    FROM customers c
+                    LEFT JOIN invoices i ON i.customer_id = c.id 
+                        AND i.status IN ('sent', 'partial', 'overdue')
+                    WHERE c.odc_id = ?
+                    ORDER BY c.name ASC
+                `, [odc_id]);
+                
+                const printDate = new Date().toLocaleDateString('id-ID', { 
+                    day: '2-digit', 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+                
+                // Choose template based on format
+                const template = format === 'thermal' ? 'kasir/print-checklist-thermal' : 'kasir/print-checklist';
+                
+                res.render(template, {
+                    title: `Checklist Tagihan - ${odc.name}`,
+                    odc: odc,
+                    customers: customers,
+                    printDate: printDate,
+                    layout: false // No layout for print page
+                });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error generating checklist:', error);
+            res.status(500).send('Gagal membuat checklist');
+        }
+    }
+
     // Print receipt
     public async printReceipt(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
@@ -478,6 +554,93 @@ export class KasirController {
             res.status(500).render('error', {
                 title: 'Error',
                 message: 'Gagal memuat laporan'
+            });
+        }
+    }
+
+    // Export laporan kasir ke Excel
+    public async exportReports(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { startDate, endDate, type = 'daily' } = req.query;
+            
+            // Ambil data laporan
+            const reports = await this.getKasirReports(
+                startDate as string,
+                endDate as string,
+                type as string
+            );
+
+            // Prepare data for Excel
+            const summary = reports.summary || {};
+            const details = reports.details || [];
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+
+            // Summary sheet
+            const summaryData = [
+                ['LAPORAN TRANSAKSI KASIR'],
+                ['Periode:', `${reports.startDate} s/d ${reports.endDate}`],
+                [],
+                ['Ringkasan'],
+                ['Total Transaksi', summary.total_transactions || 0],
+                ['Total Pendapatan', `Rp ${new Intl.NumberFormat('id-ID').format(summary.total_revenue || 0)}`],
+                ['Pembayaran Tunai', `Rp ${new Intl.NumberFormat('id-ID').format(summary.cash_total || 0)}`],
+                ['Pembayaran Transfer', `Rp ${new Intl.NumberFormat('id-ID').format(summary.transfer_total || 0)}`],
+                ['Pembayaran Gateway', `Rp ${new Intl.NumberFormat('id-ID').format(summary.gateway_total || 0)}`],
+                ['Jumlah Hari', summary.days_count || 0],
+                [],
+                ['Rata-rata per Transaksi', `Rp ${new Intl.NumberFormat('id-ID').format(summary.total_transactions > 0 ? summary.total_revenue / summary.total_transactions : 0)}`],
+                ['Rata-rata per Hari', (summary.days_count > 0 ? (summary.total_transactions / summary.days_count).toFixed(1) : 0) + ' transaksi']
+            ];
+            const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+
+            // Details sheet
+            const detailsData = [
+                ['Tanggal', 'Transaksi', 'Tunai (Rp)', 'Transfer (Rp)', 'Gateway (Rp)', 'Total (Rp)']
+            ];
+            
+            details.forEach((detail: any) => {
+                const detailDate = new Date(detail.date);
+                detailsData.push([
+                    detailDate.toLocaleDateString('id-ID'),
+                    detail.transactions || 0,
+                    detail.cash || 0,
+                    detail.transfer || 0,
+                    detail.gateway || 0,
+                    detail.revenue || 0
+                ]);
+            });
+
+            // Add totals row
+            detailsData.push([
+                'TOTAL',
+                summary.total_transactions || 0,
+                summary.cash_total || 0,
+                summary.transfer_total || 0,
+                summary.gateway_total || 0,
+                summary.total_revenue || 0
+            ]);
+
+            const wsDetails = XLSX.utils.aoa_to_sheet(detailsData);
+            XLSX.utils.book_append_sheet(wb, wsDetails, 'Detail Harian');
+
+            // Generate buffer
+            const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+            // Set headers for download
+            const filename = `Laporan_Kasir_${reports.startDate}_${reports.endDate}.xlsx`;
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            
+            // Send file
+            res.send(excelBuffer);
+        } catch (error) {
+            console.error('Error exporting kasir reports:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal mengekspor laporan'
             });
         }
     }
@@ -955,3 +1118,4 @@ Status layanan Anda telah ${statusText}.
         return methods[method] || method;
     }
 }
+

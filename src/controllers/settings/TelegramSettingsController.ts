@@ -184,16 +184,23 @@ export class TelegramSettingsController {
      */
     private static async restartBotService(): Promise<{ success: boolean; message: string }> {
         try {
-            // Reload the service module
-            const telegramAdminServicePath = '../../services/telegram/TelegramAdminService';
+            // Get the singleton instance
+            const telegramAdminService = (await import('../../services/telegram/TelegramAdminService')).default;
             
-            // Clear module cache
-            delete require.cache[require.resolve(telegramAdminServicePath)];
+            // Get new token from env
+            const newToken = process.env.TELEGRAM_BOT_TOKEN || '';
             
-            // Reimport and reinitialize
-            const telegramAdminService = await import(telegramAdminServicePath);
+            if (!newToken) {
+                return {
+                    success: false,
+                    message: 'Token tidak ditemukan'
+                };
+            }
             
-            console.log('[TelegramSettings] Bot service restarted');
+            // Reinitialize bot dengan token baru
+            telegramAdminService.reinitializeBot(newToken);
+            
+            console.log('[TelegramSettings] Bot service restarted with new token');
             
             return {
                 success: true,
@@ -204,7 +211,7 @@ export class TelegramSettingsController {
             console.error('[TelegramSettings] Failed to restart bot service:', error);
             return {
                 success: false,
-                message: 'Gagal restart bot. Silakan restart server manual.'
+                message: 'Gagal restart bot: ' + (error instanceof Error ? error.message : 'Unknown error')
             };
         }
     }
