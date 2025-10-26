@@ -144,17 +144,48 @@ install_mysql() {
 setup_database() {
     print_step "Setting up database..."
     
+    # Ensure MySQL is running
+    sudo systemctl restart mysql >/dev/null 2>&1
+    sleep 2
+    
     # Generate random password
     DB_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-16)
     
-    # Create database and user
-    sudo mysql -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
-    sudo mysql -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';" 2>/dev/null || true
-    sudo mysql -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';" 2>/dev/null
-    sudo mysql -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';" 2>/dev/null
-    sudo mysql -e "FLUSH PRIVILEGES;" 2>/dev/null
+    print_step "Creating database and user..."
     
-    print_success "Database created successfully"
+    # Create database and user in one command
+    sudo mysql --connect-timeout=10 << EOF 2>/dev/null
+-- Create database
+CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Drop user if exists
+DROP USER IF EXISTS '${DB_USER}'@'localhost';
+
+-- Create user with mysql_native_password (compatible dengan MySQL 8.0)
+CREATE USER '${DB_USER}'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_PASSWORD}';
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
+
+-- Flush privileges
+FLUSH PRIVILEGES;
+EOF
+    
+    # Verify database created
+    if sudo mysql -e "USE ${DB_NAME};" 2>/dev/null; then
+        print_success "Database created successfully"
+    else
+        print_error "Failed to create database"
+        exit 1
+    fi
+    
+    # Verify user can connect
+    if mysql -u ${DB_USER} -p${DB_PASSWORD} -e "SELECT 1;" ${DB_NAME} >/dev/null 2>&1; then
+        print_success "Database user verified"
+    else
+        print_warning "User created but connection test failed (might be OK)"
+    fi
+    
     echo -e "${YELLOW}Database Credentials:${NC}"
     echo "  Database: ${DB_NAME}"
     echo "  User: ${DB_USER}"
