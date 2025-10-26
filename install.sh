@@ -126,7 +126,7 @@ install_pm2() {
 }
 
 install_mysql() {
-    print_step "Installing MySQL Server..."
+    print_step "Installing MySQL Server 8.0..."
     
     # Check if MySQL already installed and working
     if command -v mysql &> /dev/null && sudo systemctl is-active --quiet mysql 2>/dev/null; then
@@ -135,14 +135,12 @@ install_mysql() {
     fi
     
     # Install MySQL Server 8.0
-    print_step "Installing MySQL Server 8.0 (this may take 2-5 minutes)..."
     echo "Running: sudo apt update..."
     export DEBIAN_FRONTEND=noninteractive
     sudo apt update
     echo ""
-    echo "Installing MySQL Server package..."
+    echo "Installing MySQL Server package (this may take 2-5 minutes)..."
     echo "Download size: ~25-50 MB"
-    echo "This will download and install MySQL..."
     sudo apt install -y mysql-server
     echo ""
     
