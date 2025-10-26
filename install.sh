@@ -126,41 +126,64 @@ install_pm2() {
 }
 
 install_mysql() {
-    print_step "Installing MySQL Server 8.0..."
+    # Detect OS and set appropriate package
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        if [ "$ID" = "debian" ]; then
+            MYSQL_PACKAGE="default-mysql-server"
+            print_step "Installing MySQL/MariaDB Server..."
+        else
+            MYSQL_PACKAGE="mysql-server"
+            print_step "Installing MySQL Server 8.0..."
+        fi
+    else
+        MYSQL_PACKAGE="mysql-server"
+        print_step "Installing MySQL Server 8.0..."
+    fi
     
     # Check if MySQL already installed and working
     if command -v mysql &> /dev/null && sudo systemctl is-active --quiet mysql 2>/dev/null; then
-        print_success "MySQL already installed and running"
+        print_success "MySQL/MariaDB already installed and running"
         return
     fi
     
-    # Install MySQL Server 8.0
+    # Check if MariaDB service exists
+    if command -v mysql &> /dev/null && sudo systemctl is-active --quiet mariadb 2>/dev/null; then
+        print_success "MySQL/MariaDB already installed and running"
+        return
+    fi
+    
+    # Install MySQL Server
     echo "Running: sudo apt update..."
     export DEBIAN_FRONTEND=noninteractive
     sudo apt update
     echo ""
     echo "Installing MySQL Server package (this may take 2-5 minutes)..."
     echo "Download size: ~25-50 MB"
-    sudo apt install -y mysql-server
+    sudo apt install -y $MYSQL_PACKAGE
     echo ""
     
-    # Start MySQL
+    # Start MySQL (try both mysql and mariadb service names)
     echo "Starting MySQL service..."
-    sudo systemctl start mysql
-    sudo systemctl enable mysql
+    if sudo systemctl start mysql 2>/dev/null; then
+        sudo systemctl enable mysql
+    elif sudo systemctl start mariadb 2>/dev/null; then
+        sudo systemctl enable mariadb
+    fi
     
     # Wait for MySQL to be ready
     echo "Waiting for MySQL to be ready..."
     sleep 5
     
-    # Verify MySQL is running
+    # Verify MySQL is running (check both service names)
     echo "Verifying MySQL status..."
-    if sudo systemctl is-active --quiet mysql; then
+    if sudo systemctl is-active --quiet mysql 2>/dev/null || sudo systemctl is-active --quiet mariadb 2>/dev/null; then
         print_success "MySQL Server installed and started"
     else
         print_error "MySQL failed to start"
         echo "Check MySQL status: sudo systemctl status mysql"
-        echo "Check MySQL logs: sudo tail -50 /var/log/mysql/error.log"
+        echo "Or check MariaDB: sudo systemctl status mariadb"
+        echo "Check logs: sudo tail -50 /var/log/mysql/error.log"
         exit 1
     fi
 }
