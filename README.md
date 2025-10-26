@@ -8,6 +8,26 @@ Sistem manajemen billing untuk Internet Service Provider (ISP) dengan fitur leng
 
 ---
 
+## ⚡ Quick Start - One-Click Installation
+
+Deploy full Billing System dalam **10 menit**! 🚀
+
+### 🎯 Basic Setup (Testing/Development)
+```bash
+curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/install.sh | bash
+```
+**Installs**: Node.js + PM2 + MySQL + Application → Akses di `http://YOUR_IP:3000`
+
+### 🏢 Production Setup (Nginx + SSL)
+```bash
+curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/setup-complete.sh | bash
+```
+**Installs**: Everything above + Nginx + SSL + Auto-backup + Monitoring
+
+📖 **Panduan lengkap**: [Installation Scripts Guide](./docs/INSTALLATION_SCRIPTS.md)
+
+---
+
 ## 🌟 Fitur Utama
 
 ### 📊 Manajemen Pelanggan
@@ -90,38 +110,74 @@ Sistem manajemen billing untuk Internet Service Provider (ISP) dengan fitur leng
 
 ## 🚀 Quick Installation
 
-### Method 1: Automatic Installation (Recommended)
+### 🎯 One-Click Installation (Recommended)
 
-#### For aaPanel:
+**Install dalam 1 perintah!** Script ini akan otomatis:
+- ✅ Install Node.js, PM2, MySQL/MariaDB
+- ✅ Clone repository & install dependencies
+- ✅ Setup database & user
+- ✅ Build aplikasi
+- ✅ Start dengan PM2
+- ✅ Configure firewall
+
+#### Option 1: Quick Install (Basic Setup)
+
+Untuk instalasi cepat tanpa Nginx/SSL:
+
 ```bash
-# Login as root
-ssh root@your-server-ip
-
-# Download and run installer
-curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/quick-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/install.sh | bash
 ```
 
-#### For Manual Setup:
+Setelah selesai, akses: `http://YOUR_SERVER_IP:3000`
+
+#### Option 2: Complete Setup (Production Ready)
+
+Untuk setup lengkap dengan Nginx reverse proxy + SSL:
+
 ```bash
-# Clone repository
+curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/setup-complete.sh | bash
+```
+
+Setup ini akan menambahkan:
+- ✅ Nginx sebagai reverse proxy
+- ✅ SSL certificate (Let's Encrypt)
+- ✅ Auto backup harian
+- ✅ Monitoring tools (optional)
+
+#### Requirements:
+- **OS**: Ubuntu 20.04+ atau Debian 10+ (fresh install recommended)
+- **Access**: Root atau sudo privileges
+- **RAM**: Minimum 2GB
+- **Port**: 80, 443 (untuk Nginx), 3000 (untuk direct access)
+
+---
+
+### Manual Installation
+
+Jika ingin instalasi manual, ikuti langkah berikut:
+
+```bash
+# 1. Clone repository
 git clone https://github.com/adiprayitno160-svg/billing.git
 cd billing
 
-# Install dependencies
+# 2. Install dependencies
 npm install --production
 
-# Create .env file
+# 3. Create .env file
 cp .env.example .env
-nano .env  # Edit with your configuration
+nano .env  # Edit dengan konfigurasi Anda
 
-# Build application
+# 4. Build application
 npm run build
 
-# Start with PM2
+# 5. Start with PM2
 pm2 start dist/server.js --name billing-system
 pm2 save
 pm2 startup
 ```
+
+📖 **Panduan lengkap**: Lihat [INSTALL_NATIVE.md](./INSTALL_NATIVE.md) untuk step-by-step manual installation.
 
 ---
 
