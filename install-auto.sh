@@ -122,23 +122,33 @@ install_pm2() {
 install_mysql() {
     print_step "Installing MySQL Server..."
     
-    if command -v mysql &> /dev/null; then
-        print_success "MySQL already installed"
+    # Check if MySQL already installed and working
+    if command -v mysql &> /dev/null && sudo systemctl is-active --quiet mysql 2>/dev/null; then
+        print_success "MySQL already installed and running"
         return
     fi
     
     # Install MySQL Server 8.0
+    print_step "Installing MySQL Server 8.0..."
     export DEBIAN_FRONTEND=noninteractive
-    sudo apt install -y -qq mysql-server >/dev/null 2>&1
+    sudo apt update -qq >/dev/null 2>&1
+    sudo apt install -y mysql-server >/dev/null 2>&1
     
     # Start MySQL
     sudo systemctl start mysql
     sudo systemctl enable mysql >/dev/null 2>&1
     
     # Wait for MySQL to be ready
-    sleep 3
+    sleep 5
     
-    print_success "MySQL Server installed and started"
+    # Verify MySQL is running
+    if sudo systemctl is-active --quiet mysql; then
+        print_success "MySQL Server installed and started"
+    else
+        print_error "MySQL failed to start"
+        echo "Check MySQL status: sudo systemctl status mysql"
+        exit 1
+    fi
 }
 
 setup_database() {
