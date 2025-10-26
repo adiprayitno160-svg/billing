@@ -55,6 +55,31 @@ export async function ensureInitialSchema(): Promise<void> {
 	// Ensure essential table exists
 	const conn = await databasePool.getConnection();
 	try {
+		// Create customers table first (many other tables reference this)
+		await conn.query(`CREATE TABLE IF NOT EXISTS customers (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_code VARCHAR(191) UNIQUE NULL,
+			name VARCHAR(191) NOT NULL,
+			phone VARCHAR(50) NULL,
+			email VARCHAR(191) NULL,
+			address TEXT NULL,
+			odc_id INT NULL,
+			odp_id INT NULL,
+			connection_type ENUM('pppoe','static_ip','prepaid') DEFAULT 'pppoe',
+			status ENUM('active','inactive','suspended') DEFAULT 'active',
+			latitude DECIMAL(10,7) NULL,
+			longitude DECIMAL(10,7) NULL,
+			pppoe_username VARCHAR(191) NULL,
+			area VARCHAR(191) NULL,
+			odc_location VARCHAR(191) NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_code (customer_code),
+			INDEX idx_status (status),
+			INDEX idx_connection_type (connection_type),
+			INDEX idx_pppoe_username (pppoe_username)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
 		await conn.query(`CREATE TABLE IF NOT EXISTS mikrotik_settings (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			host VARCHAR(191) NOT NULL,
