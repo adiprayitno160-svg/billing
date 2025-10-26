@@ -252,15 +252,10 @@ clone_repository() {
     
     # Remove old directory if exists
     if [ -d "$APP_DIR" ]; then
-        print_warning "Directory $APP_DIR already exists"
-        read -p "Remove and reinstall? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sudo rm -rf "$APP_DIR"
-        else
-            print_error "Installation cancelled"
-            exit 1
-        fi
+        print_warning "Directory $APP_DIR already exists. Backing up and removing..."
+        BACKUP_DIR="/var/www/billing_backup_$(date +%Y%m%d_%H%M%S)"
+        sudo mv "$APP_DIR" "$BACKUP_DIR"
+        print_success "Old installation backed up to: $BACKUP_DIR"
     fi
     
     # Clone repository
@@ -510,13 +505,7 @@ main() {
     echo "  • MySQL Server 8.0"
     echo "  • Billing System Application"
     echo ""
-    read -p "Continue with installation? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_error "Installation cancelled"
-        exit 1
-    fi
-    
+    echo "Starting installation..."
     echo ""
     install_dependencies
     install_nodejs
