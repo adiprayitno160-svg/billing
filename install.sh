@@ -146,48 +146,74 @@ install_mysql() {
 setup_database() {
     print_step "Setting up database..."
     
-    # Ensure MySQL is running
-    sudo systemctl restart mysql
-    sleep 2
+    # Check if MySQL is actually running
+    if ! sudo systemctl is-active --quiet mysql; then
+        print_step "Starting MySQL..."
+        sudo systemctl start mysql
+        sleep 3
+    fi
+    
+    # Test MySQL connection with timeout
+    print_step "Testing MySQL connection..."
+    if ! timeout 5 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
+        print_error "MySQL is not responding. Attempting to fix..."
+        
+        # Try to restart MySQL
+        sudo systemctl restart mysql
+        sleep 5
+        
+        # Test again
+        if ! timeout 5 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
+            print_error "MySQL still not responding. Please check MySQL manually:"
+            echo "  sudo systemctl status mysql"
+            echo "  sudo tail -50 /var/log/mysql/error.log"
+            exit 1
+        fi
+    fi
+    print_success "MySQL connection OK"
     
     # Generate random password
     DB_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-16)
     
     print_step "Creating database and user..."
     
-    # Create database and user in one command
-    sudo mysql --connect-timeout=10 << EOF
--- Create database
+    # Create SQL file to avoid stdin issues
+    cat > /tmp/setup_db.sql << EOF
 CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Drop user if exists
 DROP USER IF EXISTS '${DB_USER}'@'localhost';
-
--- Create user with mysql_native_password (compatible dengan MySQL 8.0)
 CREATE USER '${DB_USER}'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_PASSWORD}';
-
--- Grant privileges
 GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
-
--- Flush privileges
 FLUSH PRIVILEGES;
 EOF
     
-    # Verify database created
-    if sudo mysql -e "USE ${DB_NAME};" 2>/dev/null; then
-        print_success "Database created successfully"
+    # Execute SQL file with timeout
+    if timeout 10 sudo mysql < /tmp/setup_db.sql >/dev/null 2>&1; then
+        print_success "Database setup completed"
     else
-        print_error "Failed to create database"
+        print_error "Database setup failed"
+        rm -f /tmp/setup_db.sql
+        exit 1
+    fi
+    
+    # Clean up SQL file
+    rm -f /tmp/setup_db.sql
+    
+    # Verify database created
+    if timeout 5 sudo mysql -e "USE ${DB_NAME};" 2>/dev/null; then
+        print_success "Database verified: ${DB_NAME}"
+    else
+        print_error "Database verification failed"
         exit 1
     fi
     
     # Verify user can connect
-    if mysql -u ${DB_USER} -p${DB_PASSWORD} -e "SELECT 1;" ${DB_NAME} 2>/dev/null; then
-        print_success "Database user verified"
+    if timeout 5 mysql -u ${DB_USER} -p${DB_PASSWORD} -e "SELECT 1;" ${DB_NAME} 2>/dev/null; then
+        print_success "User verified: ${DB_USER}"
     else
-        print_warning "User created but connection test failed (might be OK)"
+        print_warning "User connection test failed (might work anyway)"
     fi
     
+    echo ""
     echo -e "${YELLOW}Database Credentials:${NC}"
     echo "  Database: ${DB_NAME}"
     echo "  User: ${DB_USER}"
