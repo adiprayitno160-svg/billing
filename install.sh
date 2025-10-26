@@ -509,7 +509,7 @@ main() {
     echo "This script will install:"
     echo "  • Node.js ${NODE_VERSION}.x LTS"
     echo "  • PM2 Process Manager"
-    echo "  • MariaDB Database"
+    echo "  • MySQL Server 8.0"
     echo "  • Billing System Application"
     echo ""
     read -p "Continue with installation? (y/N): " -n 1 -r
