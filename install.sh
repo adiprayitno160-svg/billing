@@ -228,28 +228,48 @@ setup_database() {
     
     # Wait for socket to be ready
     echo "Waiting for MySQL/MariaDB socket..."
-    for i in {1..10}; do
+    for i in {1..15}; do
         if [ -S /var/run/mysqld/mysqld.sock ] || [ -S /run/mysqld/mysqld.sock ]; then
+            echo "Socket found, waiting for service to be fully ready..."
+            sleep 3
             break
         fi
         sleep 2
     done
     
-    # Test MySQL connection with timeout
+    # Test MySQL connection with retries (MariaDB can take time to fully initialize)
     print_step "Testing MySQL connection..."
-    if ! timeout 10 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
-        print_warning "MySQL is not responding. Attempting to fix..."
+    MYSQL_READY=false
+    
+    for attempt in {1..5}; do
+        if timeout 10 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
+            MYSQL_READY=true
+            break
+        fi
+        echo "Connection attempt $attempt/5 failed, waiting..."
+        sleep 3
+    done
+    
+    if [ "$MYSQL_READY" = false ]; then
+        print_warning "MySQL connection failed after retries. Attempting restart..."
         
         # Try to restart both possible services
         sudo systemctl restart mysql 2>/dev/null || sudo systemctl restart mariadb 2>/dev/null
-        sleep 10
+        sleep 15
         
-        # Test again
+        # Final test
         if ! timeout 10 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
-            print_error "MySQL still not responding. Please check manually:"
-            echo "  sudo systemctl status mysql || sudo systemctl status mariadb"
-            echo "  sudo journalctl -xeu mysql || sudo journalctl -xeu mariadb"
-            echo "  sudo tail -50 /var/log/mysql/error.log"
+            print_error "MySQL still not responding. Debugging info:"
+            echo ""
+            echo "Service status:"
+            sudo systemctl status mariadb 2>/dev/null || sudo systemctl status mysql
+            echo ""
+            echo "Recent logs:"
+            sudo journalctl -xeu mariadb -n 20 2>/dev/null || sudo journalctl -xeu mysql -n 20
+            echo ""
+            print_error "Manual fix required. Try:"
+            echo "  sudo mysql -e 'SELECT 1;'  # Test if you can connect manually"
+            echo "  sudo systemctl status mariadb"
             exit 1
         fi
     fi
