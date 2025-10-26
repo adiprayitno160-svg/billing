@@ -216,26 +216,39 @@ install_mysql() {
 setup_database() {
     print_step "Setting up database..."
     
-    # Check if MySQL is actually running
-    if ! sudo systemctl is-active --quiet mysql; then
-        print_step "Starting MySQL..."
-        sudo systemctl start mysql
-        sleep 3
+    # Check if MySQL/MariaDB is actually running (check both service names)
+    if ! sudo systemctl is-active --quiet mysql 2>/dev/null && ! sudo systemctl is-active --quiet mariadb 2>/dev/null; then
+        print_step "Starting MySQL/MariaDB..."
+        if sudo systemctl start mysql 2>/dev/null; then
+            sleep 5
+        elif sudo systemctl start mariadb 2>/dev/null; then
+            sleep 5
+        fi
     fi
+    
+    # Wait for socket to be ready
+    echo "Waiting for MySQL/MariaDB socket..."
+    for i in {1..10}; do
+        if [ -S /var/run/mysqld/mysqld.sock ] || [ -S /run/mysqld/mysqld.sock ]; then
+            break
+        fi
+        sleep 2
+    done
     
     # Test MySQL connection with timeout
     print_step "Testing MySQL connection..."
-    if ! timeout 5 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
-        print_error "MySQL is not responding. Attempting to fix..."
+    if ! timeout 10 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
+        print_warning "MySQL is not responding. Attempting to fix..."
         
-        # Try to restart MySQL
-        sudo systemctl restart mysql
-        sleep 5
+        # Try to restart both possible services
+        sudo systemctl restart mysql 2>/dev/null || sudo systemctl restart mariadb 2>/dev/null
+        sleep 10
         
         # Test again
-        if ! timeout 5 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
-            print_error "MySQL still not responding. Please check MySQL manually:"
-            echo "  sudo systemctl status mysql"
+        if ! timeout 10 sudo mysql -e "SELECT 1;" >/dev/null 2>&1; then
+            print_error "MySQL still not responding. Please check manually:"
+            echo "  sudo systemctl status mysql || sudo systemctl status mariadb"
+            echo "  sudo journalctl -xeu mysql || sudo journalctl -xeu mariadb"
             echo "  sudo tail -50 /var/log/mysql/error.log"
             exit 1
         fi
@@ -247,20 +260,22 @@ setup_database() {
     
     print_step "Creating database and user..."
     
-    # Create SQL file to avoid stdin issues
+    # Create SQL file - use simpler CREATE USER for compatibility with both MySQL and MariaDB
     cat > /tmp/setup_db.sql << EOF
 CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 DROP USER IF EXISTS '${DB_USER}'@'localhost';
-CREATE USER '${DB_USER}'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_PASSWORD}';
+CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
     
     # Execute SQL file with timeout
-    if timeout 10 sudo mysql < /tmp/setup_db.sql >/dev/null 2>&1; then
+    if timeout 15 sudo mysql < /tmp/setup_db.sql >/dev/null 2>&1; then
         print_success "Database setup completed"
     else
         print_error "Database setup failed"
+        echo "Attempting with verbose output..."
+        sudo mysql < /tmp/setup_db.sql 2>&1 | tail -10
         rm -f /tmp/setup_db.sql
         exit 1
     fi
