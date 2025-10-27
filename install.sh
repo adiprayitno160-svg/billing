@@ -18,9 +18,10 @@ NC='\033[0m' # No Color
 
 # Configuration
 NODE_VERSION="20"
-APP_DIR="/var/www/billing"
+APP_DIR="/opt/billing"
 DB_NAME="billing"
 DB_USER="billing_user"
+DB_PASS="Billing123!"
 APP_PORT="3000"
 
 # ============================================
