@@ -9,18 +9,13 @@ import { ResultSetHeader } from 'mysql2';
 const execAsync = promisify(exec);
 
 export class UpdateService {
-  private static projectRoot = path.join(__dirname, '../../..');
-  private static gitPath = 'C:\\laragon\\bin\\git\\bin\\git.exe';
+  private static projectRoot = path.resolve(__dirname, '../../..');
 
   /**
    * Check if Git is available
    */
   private static async isGitAvailable(): Promise<boolean> {
     try {
-      if (fs.existsSync(this.gitPath)) {
-        return true;
-      }
-      // Try system git
       await execAsync('git --version');
       return true;
     } catch {
@@ -32,15 +27,12 @@ export class UpdateService {
    * Execute git command
    */
   private static async execGit(command: string): Promise<string> {
-    const gitCmd = fs.existsSync(this.gitPath) ? this.gitPath : 'git';
-    const fullCommand = `"${gitCmd}" ${command}`;
-    
-    const { stdout, stderr } = await execAsync(fullCommand, {
+    const { stdout, stderr } = await execAsync(`git ${command}`, {
       cwd: this.projectRoot,
       timeout: 60000 // 1 minute
     });
 
-    if (stderr && !stderr.includes('warning')) {
+    if (stderr && !stderr.includes('warning') && !stderr.includes('Already')) {
       console.error('Git stderr:', stderr);
     }
 
@@ -126,12 +118,12 @@ export class UpdateService {
       console.log('Fetching from GitHub...');
       await this.execGit('fetch origin --tags');
 
-      // Checkout target version
-      console.log(`Checking out version ${targetVersion}...`);
-      await this.execGit(`checkout ${targetVersion}`);
+      // Ensure we're on main branch
+      console.log('Switching to main branch...');
+      await this.execGit('checkout main');
 
-      // Pull changes
-      console.log('Pulling changes...');
+      // Pull latest changes
+      console.log('Pulling latest changes...');
       await this.execGit('pull origin main');
 
       // Update database version
@@ -226,7 +218,7 @@ export class UpdateService {
   static async restartApplication(): Promise<void> {
     console.log('Restarting application...');
     try {
-      await execAsync('pm2 restart billing', {
+      await execAsync('pm2 restart billing-app', {
         timeout: 30000
       });
     } catch (error) {
