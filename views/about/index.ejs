@@ -328,15 +328,23 @@ function closeUpdateModal() {
 }
 
 function applyUpdate() {
+    console.log('🔧 applyUpdate() called');
+    console.log('📦 latestVersion:', latestVersion);
+    
     if (!latestVersion) {
-        alert('Versi update tidak ditemukan');
+        console.error('❌ No latestVersion set!');
+        alert('Versi update tidak ditemukan. Silakan cek update terlebih dahulu.');
         return;
     }
 
+    console.log('⚠️ Showing confirmation dialog...');
     if (!confirm('Update akan dimulai. Aplikasi akan restart otomatis. Lanjutkan?')) {
+        console.log('❌ User cancelled update');
         return;
     }
 
+    console.log('✅ User confirmed, creating form...');
+    
     // Create and submit form
     const form = document.createElement('form');
     form.method = 'POST';
@@ -349,6 +357,9 @@ function applyUpdate() {
     
     form.appendChild(versionInput);
     document.body.appendChild(form);
+    
+    console.log('📝 Form created and appended to body');
+    console.log('📤 Submitting form to:', form.action);
     
     closeUpdateModal();
     
@@ -368,7 +379,13 @@ function applyUpdate() {
     `;
     document.body.appendChild(loadingDiv);
     
-    form.submit();
+    console.log('🚀 Submitting form now...');
+    
+    // Small delay to ensure loading shows
+    setTimeout(() => {
+        form.submit();
+        console.log('✅ Form submitted!');
+    }, 100);
 }
 
 // Close modal on background click
@@ -376,5 +393,35 @@ document.getElementById('updateModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeUpdateModal();
     }
+});
+
+// Ensure update button is clickable - Add explicit event listener
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 Page loaded, setting up update button...');
+    
+    const updateBtn = document.getElementById('updateNowBtn');
+    if (updateBtn) {
+        console.log('✅ Update button found:', updateBtn);
+        
+        // Remove any existing onclick and add fresh one
+        updateBtn.onclick = null;
+        updateBtn.addEventListener('click', function(e) {
+            console.log('🖱️ Update button clicked!');
+            e.preventDefault();
+            e.stopPropagation();
+            applyUpdate();
+        });
+        
+        console.log('✅ Update button event listener attached');
+    } else {
+        console.error('❌ Update button not found!');
+    }
+    
+    // Test function - call this from console to test: testUpdate()
+    window.testUpdate = function() {
+        console.log('🧪 Testing update button...');
+        console.log('latestVersion:', latestVersion);
+        applyUpdate();
+    };
 });
 </script>
