@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS `connection_logs` (
   KEY `idx_status` (`status`),
   KEY `idx_lookup` (`customer_id`,`timestamp`,`status`),
   CONSTRAINT `connection_logs_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Connection status logs (checked every 1 minute)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Connection status logs (checked every 1 minute)';
 
 -- Dumping data for table billing.connection_logs: ~0 rows (approximately)
 DELETE FROM `connection_logs`;
@@ -646,7 +646,7 @@ CREATE TABLE IF NOT EXISTS `maintenance_notifications` (
   KEY `idx_status` (`status`),
   CONSTRAINT `maintenance_notifications_ibfk_1` FOREIGN KEY (`maintenance_id`) REFERENCES `maintenance_schedules` (`id`) ON DELETE CASCADE,
   CONSTRAINT `maintenance_notifications_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table billing.maintenance_notifications: ~0 rows (approximately)
 DELETE FROM `maintenance_notifications`;
@@ -672,7 +672,7 @@ CREATE TABLE IF NOT EXISTS `maintenance_schedules` (
   KEY `idx_type` (`maintenance_type`),
   KEY `created_by` (`created_by`),
   CONSTRAINT `maintenance_schedules_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table billing.maintenance_schedules: ~0 rows (approximately)
 DELETE FROM `maintenance_schedules`;
@@ -1246,7 +1246,7 @@ CREATE TABLE IF NOT EXISTS `sla_incidents` (
   KEY `idx_customer` (`customer_id`),
   KEY `idx_status` (`status`),
   CONSTRAINT `sla_incidents_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table billing.sla_incidents: ~0 rows (approximately)
 DELETE FROM `sla_incidents`;
@@ -1283,7 +1283,7 @@ CREATE TABLE IF NOT EXISTS `sla_records` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_customer_month` (`customer_id`,`month_year`),
   CONSTRAINT `sla_records_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table billing.sla_records: ~0 rows (approximately)
 DELETE FROM `sla_records`;
@@ -1487,7 +1487,7 @@ CREATE TABLE IF NOT EXISTS `static_ip_ping_status` (
   KEY `idx_status` (`status`),
   KEY `idx_ip` (`ip_address`),
   CONSTRAINT `static_ip_ping_status_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table billing.static_ip_ping_status: ~0 rows (approximately)
 DELETE FROM `static_ip_ping_status`;
@@ -1773,7 +1773,7 @@ CREATE TABLE IF NOT EXISTS `telegram_settings` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Pengaturan Telegram Bot';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Pengaturan Telegram Bot';
 
 -- Dumping data for table billing.telegram_settings: ~1 rows (approximately)
 DELETE FROM `telegram_settings`;
@@ -1859,11 +1859,11 @@ CREATE TABLE `v_active_incidents` (
 	`customer_name` VARCHAR(1) NOT NULL COLLATE 'utf8mb4_unicode_ci',
 	`area` VARCHAR(1) NULL COMMENT 'Geographic area' COLLATE 'utf8mb4_unicode_ci',
 	`odc_location` VARCHAR(1) NOT NULL COLLATE 'utf8mb4_unicode_ci',
-	`service_type` ENUM('pppoe','static_ip') NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
+	`service_type` ENUM('pppoe','static_ip') NOT NULL COLLATE 'utf8mb4_unicode_ci',
 	`start_time` TIMESTAMP NOT NULL,
 	`duration_minutes` INT NULL,
-	`incident_type` ENUM('downtime','degraded','maintenance') NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
-	`status` ENUM('ongoing','resolved','excluded') NULL COLLATE 'utf8mb4_0900_ai_ci',
+	`incident_type` ENUM('downtime','degraded','maintenance') NOT NULL COLLATE 'utf8mb4_unicode_ci',
+	`status` ENUM('ongoing','resolved','excluded') NULL COLLATE 'utf8mb4_unicode_ci',
 	`technician_name` VARBINARY(0) NULL,
 	`technician_chat_id` VARBINARY(0) NULL,
 	`alert_sent_telegram` TINYINT(1) NULL,
@@ -1897,7 +1897,7 @@ CREATE TABLE `v_current_connection_status` (
 	`area` VARCHAR(1) NULL COMMENT 'Geographic area' COLLATE 'utf8mb4_unicode_ci',
 	`connection_type` ENUM('pppoe','static_ip','hybrid') NULL COLLATE 'utf8mb4_unicode_ci',
 	`username` VARCHAR(1) NULL COLLATE 'utf8mb4_unicode_ci',
-	`current_status` VARCHAR(1) NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
+	`current_status` VARCHAR(1) NOT NULL COLLATE 'utf8mb4_unicode_ci',
 	`ping_ms` INT NULL,
 	`active_incidents` BIGINT NULL
 ) ENGINE=MyISAM;
