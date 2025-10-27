@@ -17,9 +17,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-NODE_VERSION="18"
+NODE_VERSION="20"
 APP_DIR="/var/www/billing"
-DB_NAME="billing_system"
+DB_NAME="billing"
 DB_USER="billing_user"
 APP_PORT="3000"
 
@@ -88,6 +88,28 @@ install_dependencies() {
     echo ""
     echo "Installing: curl wget git build-essential software-properties-common..."
     sudo apt install -y curl wget git build-essential software-properties-common
+    echo ""
+    
+    print_step "Installing Chromium dependencies for WhatsApp..."
+    sudo apt install -y \
+        ca-certificates \
+        fonts-liberation \
+        libappindicator3-1 \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libcups2 \
+        libdbus-1-3 \
+        libgbm1 \
+        libgtk-3-0 \
+        libnspr4 \
+        libnss3 \
+        libx11-xcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxrandr2 \
+        libxss1 \
+        xdg-utils
     echo ""
     print_success "System dependencies installed"
 }

@@ -38,25 +38,25 @@ sudo yum update -y
 sudo yum install -y curl wget git gcc-c++ make
 ```
 
-### Install Node.js 18.x LTS
+### Install Node.js 20.x LTS
 
 **Ubuntu/Debian:**
 ```bash
 # Add NodeSource repository
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 
 # Install Node.js
 sudo apt install -y nodejs
 
 # Verify installation
-node -v  # Should show v18.x.x
-npm -v   # Should show v9.x.x
+node -v  # Should show v20.x.x
+npm -v   # Should show v10.x.x
 ```
 
 **CentOS/RHEL:**
 ```bash
 # Add NodeSource repository
-curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
 
 # Install Node.js
 sudo yum install -y nodejs
@@ -92,6 +92,9 @@ sudo mysql_secure_installation
 # Start MySQL
 sudo systemctl start mysql
 sudo systemctl enable mysql
+
+# Login to MySQL
+sudo mysql -u root -p
 ```
 
 **CentOS/RHEL:**
@@ -151,14 +154,14 @@ sudo mysql -u root -p
 Jalankan SQL berikut:
 
 ```sql
--- Create database
-CREATE DATABASE billing_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Create database (IMPORTANT: Use 'billing' as database name)
+CREATE DATABASE billing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Create user
 CREATE USER 'billing_user'@'localhost' IDENTIFIED BY 'your_secure_password';
 
 -- Grant privileges
-GRANT ALL PRIVILEGES ON billing_system.* TO 'billing_user'@'localhost';
+GRANT ALL PRIVILEGES ON billing.* TO 'billing_user'@'localhost';
 
 -- Flush privileges
 FLUSH PRIVILEGES;
@@ -173,7 +176,7 @@ EXIT;
 
 Test connection:
 ```bash
-mysql -u billing_user -p billing_system -e "SELECT 'Connection OK' AS status;"
+mysql -u billing_user -p billing -e "SELECT 'Connection OK' AS status;"
 ```
 
 ---
@@ -222,7 +225,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=billing_user
 DB_PASSWORD=your_secure_password
-DB_NAME=billing_system
+DB_NAME=billing
 
 # Server
 PORT=3000
@@ -587,7 +590,7 @@ cd /var/www/billing
 pm2 stop billing-system
 
 # Backup database
-mysqldump -u billing_user -p billing_system > backup_$(date +%Y%m%d).sql
+mysqldump -u billing_user -p billing > backup_$(date +%Y%m%d).sql
 
 # Pull latest code
 git pull origin main
@@ -618,7 +621,7 @@ cd /var/www/billing
 
 # Backup database
 echo "📦 Creating database backup..."
-mysqldump -u billing_user -p'your_password' billing_system > backups/db_$(date +%Y%m%d_%H%M%S).sql
+mysqldump -u billing_user -p'your_password' billing > backups/db_$(date +%Y%m%d_%H%M%S).sql
 
 # Pull latest code
 echo "📥 Pulling latest code..."
@@ -665,7 +668,7 @@ BACKUP_DIR="/var/www/billing/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 DB_USER="billing_user"
 DB_PASS="your_password"
-DB_NAME="billing_system"
+DB_NAME="billing"
 
 mkdir -p $BACKUP_DIR
 
@@ -697,7 +700,7 @@ crontab -e
 
 ```bash
 # Restore from backup
-gunzip < backups/db_20250126_020000.sql.gz | mysql -u billing_user -p billing_system
+gunzip < backups/db_20250126_020000.sql.gz | mysql -u billing_user -p billing
 ```
 
 ---
@@ -720,7 +723,7 @@ pm2 logs billing-system --err
 
 ```bash
 # Test MySQL connection
-mysql -u billing_user -p billing_system
+mysql -u billing_user -p billing
 
 # Check MySQL status
 sudo systemctl status mysql

@@ -3,7 +3,7 @@
 Sistem manajemen billing untuk Internet Service Provider (ISP) dengan fitur lengkap untuk mengelola pelanggan, tagihan, pembayaran, dan integrasi MikroTik.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 
 ---
@@ -93,8 +93,8 @@ curl -fsSL https://raw.githubusercontent.com/adiprayitno160-svg/billing/main/set
 - **Network**: Public IP address
 
 ### Software Requirements
-- **Node.js**: v16.x atau lebih tinggi (Recommended: v18.x LTS)
-- **NPM**: v8.x atau lebih tinggi
+- **Node.js**: v18.x atau v20.x LTS (REQUIRED - v16 sudah EOL)
+- **NPM**: v9.x atau lebih tinggi
 - **Database**: MySQL 8.0+ atau MariaDB 10.5+
 - **Process Manager**: PM2 (akan di-install otomatis)
 - **Web Server**: Nginx (optional, untuk reverse proxy)
@@ -186,24 +186,24 @@ pm2 startup
 ### 1. Database Setup
 
 ```sql
--- Create database
-CREATE DATABASE billing_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Create database (IMPORTANT: Use 'billing' as database name)
+CREATE DATABASE billing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Create user
 CREATE USER 'billing_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON billing_system.* TO 'billing_user'@'localhost';
+GRANT ALL PRIVILEGES ON billing.* TO 'billing_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
 ### 2. Environment Variables (.env)
 
 ```env
-# Database
+# Database (IMPORTANT: Database name is 'billing', not 'billing_system')
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=billing_user
 DB_PASSWORD=your_password
-DB_NAME=billing_system
+DB_NAME=billing
 
 # Server
 PORT=3000
