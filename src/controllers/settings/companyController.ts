@@ -210,7 +210,7 @@ export class CompanyController {
                 }
             };
 
-            res.render('billing/invoices/print', previewData);
+            res.render('billing/tagihan-print-invoice-template', previewData);
         } catch (error) {
             console.error('Error previewing template:', error);
             req.flash('error', 'Gagal memuat preview template');
