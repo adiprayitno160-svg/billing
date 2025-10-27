@@ -49,10 +49,35 @@ tar -czf $BACKUP_FILE \
     . 2>/dev/null || echo "Warning: Some files skipped in backup"
 echo -e "${GREEN}✓ Backup created: $BACKUP_FILE${NC}\n"
 
-# Stash any local changes
-echo -e "${YELLOW}💾 Stashing local changes...${NC}"
-git stash || true
-echo -e "${GREEN}✓ Local changes stashed${NC}\n"
+# Check for local changes
+echo -e "${YELLOW}🔍 Checking for local changes...${NC}"
+if ! git diff-index --quiet HEAD --; then
+    echo -e "${YELLOW}⚠️  Local changes detected${NC}"
+    
+    # Show what files are modified
+    echo -e "${YELLOW}Modified files:${NC}"
+    git status --short
+    
+    # Option 1: Try to stash
+    echo -e "${YELLOW}💾 Attempting to stash local changes...${NC}"
+    if git stash; then
+        echo -e "${GREEN}✓ Local changes stashed${NC}"
+    else
+        # Option 2: If stash fails, backup and reset
+        echo -e "${YELLOW}⚠️  Stash failed, backing up and resetting...${NC}"
+        
+        # Backup modified files
+        MODIFIED_BACKUP="$BACKUP_DIR/modified-files-$(date +%Y%m%d-%H%M%S).tar.gz"
+        git diff HEAD | gzip > "$MODIFIED_BACKUP.diff.gz" 2>/dev/null || true
+        
+        # Reset hard to HEAD
+        git reset --hard HEAD
+        echo -e "${GREEN}✓ Local changes backed up to $MODIFIED_BACKUP.diff.gz${NC}"
+    fi
+else
+    echo -e "${GREEN}✓ No local changes${NC}"
+fi
+echo ""
 
 # Fetch latest changes
 echo -e "${YELLOW}📥 Fetching latest changes from GitHub...${NC}"
@@ -71,9 +96,21 @@ fi
 
 echo -e "${BLUE}Updating from ${CURRENT_VERSION} to ${LATEST_VERSION}...${NC}\n"
 
-# Pull latest changes
+# Ensure we're on main branch
+echo -e "${YELLOW}🌿 Ensuring we're on main branch...${NC}"
+git checkout main || { echo -e "${RED}❌ Failed to checkout main${NC}"; exit 1; }
+echo -e "${GREEN}✓ On main branch${NC}\n"
+
+# Pull latest changes with strategy
 echo -e "${YELLOW}⬇️  Pulling latest changes...${NC}"
-git pull origin main || { echo -e "${RED}❌ Failed to pull${NC}"; exit 1; }
+if ! git pull origin main; then
+    echo -e "${YELLOW}⚠️  Normal pull failed, trying with rebase...${NC}"
+    if ! git pull --rebase origin main; then
+        echo -e "${YELLOW}⚠️  Rebase failed, trying force pull...${NC}"
+        git fetch origin main
+        git reset --hard origin/main
+    fi
+fi
 echo -e "${GREEN}✓ Pulled latest changes${NC}\n"
 
 # Install/Update dependencies
