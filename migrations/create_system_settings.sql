@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS `system_settings` (
 INSERT INTO `system_settings` (`setting_key`, `setting_value`, `setting_type`, `description`) VALUES
 ('app_version', '1.0.0', 'string', 'Current application version'),
 ('github_repo_owner', 'adiprayitno160-svg', 'string', 'GitHub repository owner'),
-('github_repo_name', 'billing_system', 'string', 'GitHub repository name'),
+('github_repo_name', 'billing', 'string', 'GitHub repository name'),
 ('auto_update_enabled', 'false', 'boolean', 'Enable automatic updates'),
 ('update_channel', 'stable', 'string', 'Update channel: stable, beta, dev'),
 ('last_update_check', NULL, 'string', 'Last time update was checked'),
