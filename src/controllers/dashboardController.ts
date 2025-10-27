@@ -13,12 +13,45 @@ function getLastNDatesLabels(days: number): string[] {
 	return labels;
 }
 
+async function getTroubleCustomers(): Promise<any[]> {
+	try {
+		// Check if maintenance_schedules table exists
+		const [tables] = await databasePool.query(
+			"SHOW TABLES LIKE 'maintenance_schedules'"
+		);
+		
+		if (!tables || (Array.isArray(tables) && tables.length === 0)) {
+			// Table doesn't exist, return empty array
+			return [];
+		}
+
+		// Table exists, get trouble customers
+		const [rows] = await databasePool.query(`
+			SELECT c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+				   m.status as maintenance_status, m.issue_type, m.created_at as trouble_since
+			FROM customers c
+			LEFT JOIN maintenance_schedules m ON c.id = m.customer_id AND m.status IN ('scheduled', 'in_progress')
+			WHERE c.status IN ('active', 'suspended')
+			ORDER BY m.created_at DESC
+			LIMIT 10
+		`);
+		
+		return rows as any[];
+	} catch (error) {
+		console.error('Error fetching trouble customers:', error);
+		return [];
+	}
+}
+
 export async function getDashboard(req: Request, res: Response): Promise<void> {
 	// Parallel queries
 	const [
 		activeCustomersP,
 		totalCustomersP,
 		inactiveCustomersP,
+		suspendedCustomersP,
+		pppoeCustomersP,
+		staticIpCustomersP,
 		pppoePackagesP,
 		pppoeProfilesP,
 		newRequests7dP,
@@ -27,11 +60,15 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		oltCountP,
 		odcCountP,
 		odpCountP,
-		mtSettingsP
+		mtSettingsP,
+		troubleCustomersP
 	] = await Promise.all([
 		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
 		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='inactive'"),
+		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='suspended'"),
+		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='pppoe'"),
+		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='static_ip'"),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_packages'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_profiles'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_new_requests WHERE created_at >= (CURDATE() - INTERVAL 7 DAY)'),
@@ -40,7 +77,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_olt'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odc'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odp'),
-		databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1')
+		databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
+		getTroubleCustomers()
 	]);
 
 	const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -48,11 +86,15 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 	const pppoeProfiles = (pppoeProfilesP[0] as any)[0]?.cnt ?? 0;
 	const totalCustomers = (totalCustomersP[0] as any)[0]?.cnt ?? 0;
 	const inactiveCustomers = (inactiveCustomersP[0] as any)[0]?.cnt ?? 0;
+	const suspendedCustomers = (suspendedCustomersP[0] as any)[0]?.cnt ?? 0;
+	const pppoeCustomers = (pppoeCustomersP[0] as any)[0]?.cnt ?? 0;
+	const staticIpCustomers = (staticIpCustomersP[0] as any)[0]?.cnt ?? 0;
 	const oltCount = (oltCountP[0] as any)[0]?.cnt ?? 0;
 	const odcCount = (odcCountP[0] as any)[0]?.cnt ?? 0;
 	const odpCount = (odpCountP[0] as any)[0]?.cnt ?? 0;
 	const newRequests = (newRequests7dP[0] as any)[0]?.cnt ?? 0;
 	const recentRequests = (recentRequestsP[0] as any) ?? [];
+	const troubleCustomers = troubleCustomersP ?? [];
 
 	const labels = getLastNDatesLabels(7);
 	const pointsMap: Record<string, number> = Object.create(null);
@@ -89,14 +131,54 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 
 	res.render('dashboard/index', {
 		title: 'Dashboard',
-		stats: { activeCustomers, inactiveCustomers, totalCustomers, pppoePackages, pppoeProfiles, newRequests, oltCount, odcCount, odpCount },
+		stats: { 
+			activeCustomers, 
+			inactiveCustomers, 
+			suspendedCustomers,
+			totalCustomers, 
+			pppoeCustomers,
+			staticIpCustomers,
+			pppoePackages, 
+			pppoeProfiles, 
+			newRequests, 
+			oltCount, 
+			odcCount, 
+			odpCount 
+		},
 		recentRequests,
+		troubleCustomers,
 		chart: { labels, data: dataPoints },
 		settings: mtSettings,
 		mikrotikInfo,
 		interfaces,
 		connectionStatus
 	});
+}
+
+export async function getInterfaceStats(req: Request, res: Response): Promise<void> {
+	try {
+		const [mtSettingsRows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
+		const mtSettings = Array.isArray(mtSettingsRows) && mtSettingsRows.length ? (mtSettingsRows as any[])[0] : null;
+
+		if (!mtSettings) {
+			res.json([]);
+			return;
+		}
+
+		const config: MikroTikConfig = {
+			host: mtSettings.host,
+			port: mtSettings.port,
+			username: mtSettings.username,
+			password: mtSettings.password,
+			use_tls: mtSettings.use_tls
+		};
+
+		const interfaces = await getInterfaces(config);
+		res.json(interfaces);
+	} catch (error: any) {
+		console.error('Error fetching interface stats:', error);
+		res.json([]);
+	}
 }
 
 

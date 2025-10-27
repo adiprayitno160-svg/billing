@@ -1,196 +1,919 @@
-<div class="space-y-6">
-	<!-- KPI Cards -->
-    <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="flex items-center justify-between">
-				<div>
-					<div class="text-sm font-medium text-gray-600">Pelanggan Aktif</div>
-					<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.activeCustomers %></div>
-				</div>
-				<div class="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M20 21a8 8 0 10-16 0" />
-						<path d="M12 11a4 4 0 100-8 4 4 0 000 8z" />
-					</svg>
-				</div>
+<div class="space-y-4">
+	<!-- KPI Cards - Compact Modern Design -->
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem;">
+		<!-- Total Pelanggan -->
+		<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+					<path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+				</svg>
 			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.totalCustomers %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Total</div>
 		</div>
 
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="flex items-center justify-between">
-				<div>
-                    <div class="text-sm font-medium text-gray-600">Total Pelanggan</div>
-                    <div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.totalCustomers %></div>
-				</div>
-				<div class="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M3 7l9-4 9 4-9 4-9-4z" />
-						<path d="M21 7v10l-9 4-9-4V7" />
-					</svg>
-				</div>
+		<!-- Pelanggan Aktif -->
+		<div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+				</svg>
 			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.activeCustomers %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Aktif</div>
 		</div>
 
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="flex items-center justify-between">
-				<div>
-                    <div class="text-sm font-medium text-gray-600">Paket PPPOE</div>
-                    <div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.pppoePackages %></div>
-				</div>
-				<div class="h-10 w-10 bg-purple-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
-				</div>
+		<!-- PPPoE -->
+		<div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+				</svg>
 			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.pppoeCustomers %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">PPPoE</div>
 		</div>
 
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="flex items-center justify-between">
-				<div>
-                    <div class="text-sm font-medium text-gray-600">Profil PPPOE</div>
-                    <div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.pppoeProfiles %></div>
-				</div>
-				<div class="h-10 w-10 bg-indigo-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M20 6L9 17l-5-5" />
-					</svg>
-				</div>
+		<!-- IP Static -->
+		<div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+					<line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+				</svg>
 			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.staticIpCustomers %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Static IP</div>
+		</div>
+
+		<!-- Isolir -->
+		<div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+				</svg>
+			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.suspendedCustomers %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Isolir</div>
+		</div>
+
+		<!-- Nonaktif -->
+		<div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: #1f2937; text-align: center;">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.7;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+				</svg>
+			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.inactiveCustomers %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.8; font-weight: 500;">Nonaktif</div>
 		</div>
 	</div>
 
-	<!-- Additional Stats -->
-	<div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="text-sm font-medium text-gray-600">Pelanggan Nonaktif</div>
-			<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.inactiveCustomers %></div>
+	<!-- MikroTik Status & Interface Speed -->
+	<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+		<!-- Status MikroTik (Kiri) -->
+		<% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo) { %>
+		<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
+				<% if (connectionStatus.connected) { %>
+					<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+						<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>
+						Terhubung
+					</span>
+				<% } else { %>
+					<span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+						<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
+						Terputus
+					</span>
+				<% } %>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Identity</div>
+					<div class="text-sm font-bold text-gray-900 truncate"><%= mikrotikInfo.identity || '-' %></div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Version</div>
+					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.version || '-' %></div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Uptime</div>
+					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.uptime || '-' %></div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">CPU Load</div>
+					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.cpuLoad || '-' %>%</div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Board</div>
+					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo['board-name'] || '-' %></div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">CPU</div>
+					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.cpu || '-' %></div>
+				</div>
+			</div>
 		</div>
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="text-sm font-medium text-gray-600">FTTH OLT</div>
-			<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.oltCount %></div>
+		<% } else { %>
+		<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+			<h2 class="text-lg font-semibold text-gray-900 mb-4">Status MikroTik</h2>
+			<div class="text-center py-8">
+				<p class="text-gray-500">MikroTik belum dikonfigurasi</p>
+				<a href="/settings/mikrotik" class="text-blue-600 hover:text-blue-800 text-sm">Konfigurasi Sekarang</a>
+			</div>
 		</div>
-		<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-			<div class="text-sm font-medium text-gray-600">FTTH ODC</div>
-			<div class="mt-1 text-2xl font-bold text-gray-900"><%= stats.odcCount %></div>
+		<% } %>
+
+		<!-- Interface Speed Realtime (Kanan) -->
+		<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+			<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+				<h2 class="text-lg font-semibold text-gray-900">Interface Traffic Realtime</h2>
+				<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
+				<div style="position: relative;">
+					<button id="interfaceSelector" style="padding: 0.375rem 0.75rem; font-size: 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+						<svg xmlns="http://www.w3.org/2000/svg" style="width: 1rem; height: 1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<polyline points="6 9 12 15 18 9"/>
+						</svg>
+						Pilih Interface
+					</button>
+					<div id="interfaceDropdown" style="display: none; position: absolute; right: 0; top: 2.5rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); padding: 0.5rem; z-index: 10; min-width: 12rem; max-height: 20rem; overflow-y: auto;">
+						<% 
+						const chartColors = ['rgb(59, 130, 246)', 'rgb(34, 197, 94)', 'rgb(168, 85, 247)', 'rgb(249, 115, 22)', 'rgb(234, 88, 12)', 'rgb(236, 72, 153)'];
+						interfaces.forEach(function(iface, idx) { 
+						%>
+						<label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; cursor: pointer; border-radius: 0.25rem; font-size: 0.875rem;" class="hover:bg-gray-50">
+							<input type="checkbox" class="interface-checkbox" data-interface="<%= iface.name %>" data-color="<%= chartColors[idx % chartColors.length] %>" <%= idx === 0 ? 'checked' : '' %> style="width: 1rem; height: 1rem; cursor: pointer;">
+							<span style="height: 0.625rem; width: 0.625rem; border-radius: 9999px; background-color: <%= chartColors[idx % chartColors.length] %>;"></span>
+							<span style="font-weight: 500; color: #374151; flex: 1;"><%= iface.name %></span>
+							<% if (iface.running) { %>
+								<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: rgb(34, 197, 94);"></span>
+							<% } else { %>
+								<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: rgb(156, 163, 175);"></span>
+							<% } %>
+						</label>
+						<% }) %>
+					</div>
+				</div>
+				<% } %>
+			</div>
+			<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
+			<div style="height: 14rem; position: relative; margin-bottom: 0.75rem; background: #f9fafb; border-radius: 0.5rem;">
+				<canvas id="interfaceChart" style="width: 100%; height: 100%; display: block;"></canvas>
+				<div id="chartLoadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: block; z-index: 10;">
+					<div style="font-size: 0.875rem; color: #6b7280;">
+						<svg style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; animation: spin 1s linear infinite;" viewBox="0 0 24 24">
+							<circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+							<path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						Memuat grafik...
+					</div>
+				</div>
+				<div id="chartErrorIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; z-index: 10;">
+					<div style="font-size: 0.875rem; color: #ef4444;">❌ Gagal memuat grafik</div>
+					<div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">Cek console untuk detail</div>
+				</div>
+			</div>
+			<style>
+				@keyframes spin {
+					to { transform: rotate(360deg); }
+				}
+			</style>
+			<div id="interfaceLegend" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+				<% 
+				const legendColors = ['rgb(59, 130, 246)', 'rgb(34, 197, 94)', 'rgb(168, 85, 247)', 'rgb(249, 115, 22)'];
+				interfaces.slice(0, 4).forEach(function(iface, idx) { 
+				%>
+				<div data-interface-legend="<%= iface.name %>" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; line-height: 1rem;">
+					<span style="height: 0.75rem; width: 0.75rem; border-radius: 9999px; background-color: <%= legendColors[idx] %>;"></span>
+					<span style="font-weight: 500; color: #374151;"><%= iface.name %></span>
+					<% if (iface.running) { %>
+						<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; margin-left: auto; background-color: rgb(34, 197, 94);"></span>
+					<% } else { %>
+						<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; margin-left: auto; background-color: rgb(156, 163, 175);"></span>
+					<% } %>
+				</div>
+				<% }) %>
+			</div>
+			<% } else { %>
+			<div style="text-align: center; padding: 2rem 0;">
+				<p style="color: #6b7280; font-size: 0.875rem;">Data interface tidak tersedia</p>
+			</div>
+			<% } %>
 		</div>
 	</div>
 
-	<!-- Quick Actions -->
-	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-		<h2 class="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h2>
-		<div class="grid grid-cols-2 gap-3">
-			<a href="/customers/new-pppoe" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-				<div class="h-8 w-8 bg-blue-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M12 5v14M5 12h14"/>
-					</svg>
-				</div>
-				<span class="text-sm font-medium text-gray-700">Daftar Pelanggan PPPOE</span>
-			</a>
-			<a href="/packages/pppoe/packages" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-				<div class="h-8 w-8 bg-green-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M3 7l9-4 9 4-9 4-9-4z"/>
-						<path d="M21 7v10l-9 4-9-4V7"/>
-					</svg>
-				</div>
-				<span class="text-sm font-medium text-gray-700">Kelola Paket</span>
-			</a>
-			<a href="/settings/mikrotik" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-				<div class="h-8 w-8 bg-purple-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M12 8v8"/>
-						<path d="M8 12h8"/>
-					</svg>
-				</div>
-				<span class="text-sm font-medium text-gray-700">Atur MikroTik</span>
-			</a>
-			<a href="/customers/list" class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-				<div class="h-8 w-8 bg-orange-500 rounded-lg flex items-center justify-center text-white">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M20 21a8 8 0 10-16 0"/>
-						<path d="M12 11a4 4 0 100-8 4 4 0 000 8z"/>
-					</svg>
-				</div>
-				<span class="text-sm font-medium text-gray-700">Data Pelanggan</span>
-			</a>
-		</div>
-	</div>
+<script>
+	console.log('========================================');
+	console.log('=== 📡 INTERFACE DATA DEBUG (Initial Page Load) ===');
+	console.log('Interfaces defined:', typeof interfaces !== 'undefined');
+	console.log('Interfaces exists:', <%- typeof interfaces !== 'undefined' && interfaces ? 'true' : 'false' %>);
+	console.log('Interfaces is array:', <%- typeof interfaces !== 'undefined' && Array.isArray(interfaces) ? 'true' : 'false' %>);
+	console.log('Interfaces length:', <%- typeof interfaces !== 'undefined' && interfaces ? interfaces.length : 0 %>);
+	<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
+	console.log('✅ Interfaces data AVAILABLE, chart initialization script WILL be loaded');
+	console.log('First 2 interfaces:', <%- JSON.stringify(interfaces.slice(0, 2)) %>);
+	<% } else { %>
+	console.log('❌ CRITICAL: No interfaces data available!');
+	console.log('  - typeof interfaces:', '<%- typeof interfaces %>');
+	console.log('  - interfaces value:', <%- JSON.stringify(interfaces) %>);
+	console.log('  - Chart initialization script will NOT be loaded!');
+	<% } %>
+	console.log('========================================');
+</script>
 
-	<!-- Recent Requests -->
+<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous" onload="console.log('✅ Chart.js CDN loaded!');" onerror="console.error('❌ Failed to load Chart.js from CDN!');"></script>
+<script>
+(function() {
+	console.log('=== 🚀 DEBUG: Interface Chart Loading START ===');
+	console.log('Step 1: Script executing...');
+	console.log('Step 1.5: Chart.js script should be loaded above');
+	
+	const allInterfaces = <%- JSON.stringify(interfaces) %>;
+	console.log('Step 2: All interfaces data:', allInterfaces);
+	console.log('Step 3: Interfaces count:', allInterfaces.length);
+	
+	// DEBUG: Check if elements exist BEFORE DOMContentLoaded
+	console.log('🔍 Step 3.1: PRE-CHECK - Document ready state:', document.readyState);
+	console.log('🔍 Step 3.2: PRE-CHECK - Canvas exists?', !!document.getElementById('interfaceChart'));
+	console.log('🔍 Step 3.3: PRE-CHECK - Selector button exists?', !!document.getElementById('interfaceSelector'));
+	console.log('🔍 Step 3.4: PRE-CHECK - Dropdown exists?', !!document.getElementById('interfaceDropdown'));
+	console.log('🔍 Step 3.5: PRE-CHECK - All checkboxes:', document.querySelectorAll('.interface-checkbox').length);
+	console.log('🔍 Step 3.6: PRE-CHECK - Checked checkboxes:', document.querySelectorAll('.interface-checkbox:checked').length);
+	
+	const chartColors = ['rgb(59, 130, 246)', 'rgb(34, 197, 94)', 'rgb(168, 85, 247)', 'rgb(249, 115, 22)', 'rgb(234, 88, 12)', 'rgb(236, 72, 153)'];
+	
+	let chart = null;
+	let previousData = {};
+	let updateInterval = null;
+	
+	function showLoading() {
+		const loading = document.getElementById('chartLoadingIndicator');
+		const error = document.getElementById('chartErrorIndicator');
+		if (loading) loading.style.display = 'block';
+		if (error) error.style.display = 'none';
+	}
+	
+	function hideLoading() {
+		const loading = document.getElementById('chartLoadingIndicator');
+		if (loading) loading.style.display = 'none';
+	}
+	
+	function showError() {
+		const loading = document.getElementById('chartLoadingIndicator');
+		const error = document.getElementById('chartErrorIndicator');
+		if (loading) loading.style.display = 'none';
+		if (error) error.style.display = 'block';
+	}
+	
+	function initChart() {
+		console.log('========================================');
+		console.log('🎯 Step 4: initChart() called');
+		console.log('🎯 Step 5: Document ready state:', document.readyState);
+		
+		// DEBUG: Verify all elements exist NOW
+		console.log('🔍 POST-DOM CHECK:');
+		console.log('  - Canvas:', !!document.getElementById('interfaceChart'));
+		console.log('  - Selector button:', !!document.getElementById('interfaceSelector'));
+		console.log('  - Dropdown:', !!document.getElementById('interfaceDropdown'));
+		console.log('  - All checkboxes:', document.querySelectorAll('.interface-checkbox').length);
+		console.log('  - Checked checkboxes:', document.querySelectorAll('.interface-checkbox:checked').length);
+		
+		// Show checked checkboxes details
+		const checkedBoxes = document.querySelectorAll('.interface-checkbox:checked');
+		console.log('📋 Checked checkboxes details:');
+		checkedBoxes.forEach((cb, i) => {
+			console.log(`  ${i+1}. Interface: ${cb.dataset.interface}, Color: ${cb.dataset.color}, Checked: ${cb.checked}`);
+		});
+		
+		showLoading();
+		
+		const ctx = document.getElementById('interfaceChart');
+		console.log('Step 6: Canvas element:', ctx);
+		
+		if (!ctx) {
+			console.error('❌ ERROR: Canvas element not found!');
+			console.log('Available elements with id:', document.querySelectorAll('[id*="interface"]'));
+			showError();
+			return;
+		}
+
+		console.log('Step 7: Checking Chart.js...');
+		console.log('Step 8: typeof Chart:', typeof Chart);
+		
+		if (typeof Chart === 'undefined') {
+			console.error('❌ ERROR: Chart.js not loaded!');
+			console.log('Window.Chart:', window.Chart);
+			showError();
+			return;
+		}
+
+		console.log('✅ Step 9: Chart.js loaded successfully');
+
+		// Get selected interfaces
+		const selectedInterfaces = getSelectedInterfaces();
+		console.log('Step 10: Selected interfaces:', selectedInterfaces);
+		console.log('Step 11: Selected count:', selectedInterfaces.length);
+		
+		if (selectedInterfaces.length === 0) {
+			console.warn('⚠️ WARNING: No interfaces selected!');
+			showLoading();
+			const loading = document.getElementById('chartLoadingIndicator');
+			if (loading) {
+				loading.innerHTML = '<div style="font-size: 0.875rem; color: #6b7280; padding: 1rem;"><svg style="width: 2.5rem; height: 2.5rem; margin: 0 auto 0.75rem; color: #9ca3af;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div style="font-weight: 600; margin-bottom: 0.25rem;">Pilih Interface untuk Monitoring</div><div style="font-size: 0.75rem; color: #9ca3af;">Klik tombol "Pilih Interface" di atas untuk memilih interface yang ingin dimonitor</div></div>';
+				loading.style.display = 'block';
+			}
+			return;
+		}
+		
+		// Create chart
+		console.log('Step 12: Creating Chart instance...');
+		console.log('Step 12.1: Canvas element:', ctx);
+		console.log('Step 12.2: Canvas width:', ctx.width, 'height:', ctx.height);
+		console.log('Step 12.3: Canvas parent:', ctx.parentElement);
+		console.log('Step 12.4: Canvas visible:', ctx.offsetWidth > 0 && ctx.offsetHeight > 0);
+		
+		try {
+			const chartConfig = {
+			type: 'line',
+			data: {
+				labels: Array(20).fill(''),
+				datasets: selectedInterfaces.map((iface, idx) => {
+					const color = iface.color;
+					const bgColor = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
+					console.log(`Step 12.5.${idx}: Creating dataset for ${iface.name} with color ${color}`);
+					return {
+						label: iface.name,
+						data: Array(20).fill(0),
+						borderColor: color,
+						backgroundColor: bgColor,
+						borderWidth: 2,
+						tension: 0.4,
+						fill: true,
+						pointRadius: 0
+					};
+				})
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: { display: false },
+					tooltip: { 
+						enabled: true,
+						mode: 'index',
+						intersect: false,
+						callbacks: {
+							label: function(context) {
+								let label = context.dataset.label || '';
+								if (label) label += ': ';
+								const value = context.parsed.y;
+								if (value >= 1000000) label += (value / 1000000).toFixed(2) + ' Mb/s';
+								else if (value >= 1000) label += (value / 1000).toFixed(2) + ' Kb/s';
+								else label += value.toFixed(0) + ' b/s';
+								return label;
+							}
+						}
+					}
+				},
+				scales: {
+					y: {
+						beginAtZero: true,
+						ticks: {
+							callback: function(value) {
+								if (value >= 1000000) return (value / 1000000).toFixed(1) + ' Mb/s';
+								if (value >= 1000) return (value / 1000).toFixed(1) + ' Kb/s';
+								return value + ' b/s';
+							}
+						}
+					},
+					x: { display: false }
+				},
+				animation: { duration: 300 }
+			}
+		};
+		
+			console.log('Step 12.6: Chart config ready:', chartConfig);
+			console.log('Step 12.7: Calling new Chart()...');
+			
+			chart = new Chart(ctx, chartConfig);
+			
+			console.log('✅ Step 13: Chart created successfully!');
+			console.log('Step 14: Chart instance:', chart);
+			console.log('Step 14.1: Chart datasets count:', chart.data.datasets.length);
+			console.log('Step 14.2: Chart canvas:', chart.canvas);
+			hideLoading();
+		} catch (error) {
+			console.error('❌ ERROR creating chart:', error);
+			console.error('Error details:', error.message);
+			console.error('Stack trace:', error.stack);
+			showError();
+			return;
+		}
+
+		// Setup interface selector FIRST (this forces checkboxes to be checked)
+		setupInterfaceSelector();
+		
+		// Now get selected interfaces again after forcing
+		const finalSelectedInterfaces = getSelectedInterfaces();
+		console.log('Step 14.5: Final selected interfaces after forcing:', finalSelectedInterfaces);
+		console.log('Step 14.6: Final selected count:', finalSelectedInterfaces.length);
+		
+		// If still no interfaces after forcing, show error
+		if (finalSelectedInterfaces.length === 0) {
+			console.error('❌ CRITICAL: No interfaces selected even after forcing!');
+			showError();
+			return;
+		}
+		
+		// Update chart datasets with forced selections - 2 lines per interface (RX and TX)
+		const newDatasets = [];
+		finalSelectedInterfaces.forEach((iface) => {
+			const color = iface.color;
+			const bgColorRx = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
+			const bgColorTx = color.replace('rgb', 'rgba').replace(')', ', 0.05)');
+			
+			// RX Line (solid)
+			newDatasets.push({
+				label: iface.name + ' RX',
+				data: Array(20).fill(0),
+				borderColor: color,
+				backgroundColor: bgColorRx,
+				borderWidth: 2,
+				tension: 0.4,
+				fill: true,
+				pointRadius: 0,
+				interfaceName: iface.name,
+				dataType: 'rx'  // Changed from 'type' to 'dataType' to avoid conflict with Chart.js
+			});
+			
+			// TX Line (dashed)
+			newDatasets.push({
+				label: iface.name + ' TX',
+				data: Array(20).fill(0),
+				borderColor: color,
+				backgroundColor: bgColorTx,
+				borderWidth: 2,
+				borderDash: [5, 5],
+				tension: 0.4,
+				fill: false,
+				pointRadius: 0,
+				interfaceName: iface.name,
+				dataType: 'tx'  // Changed from 'type' to 'dataType' to avoid conflict with Chart.js
+			});
+		});
+		
+		// Replace datasets atomically
+		chart.data.datasets = newDatasets;
+		chart.update('none');  // Update without animation to avoid race conditions
+		console.log('✅ Chart datasets updated with', finalSelectedInterfaces.length, 'interfaces');
+		
+		// Update legend
+		updateLegend(finalSelectedInterfaces);
+		
+		// Initialize previous data
+		console.log('Step 14.7: Initializing previous data...');
+		finalSelectedInterfaces.forEach(iface => {
+			const rxValue = parseInt(iface['rx-byte'] || iface.rxByte || iface['rxByte'] || 0);
+			const txValue = parseInt(iface['tx-byte'] || iface.txByte || iface['txByte'] || 0);
+			console.log(`  Init ${iface.name}: RX=${rxValue}, TX=${txValue}`);
+			previousData[iface.name] = {
+				rx: rxValue,
+				tx: txValue
+			};
+		});
+
+		// Start update interval
+		startUpdateInterval();
+	}
+
+	function getSelectedInterfaces() {
+		console.log('getSelectedInterfaces() called');
+		const checkboxes = document.querySelectorAll('.interface-checkbox:checked');
+		console.log('Checked checkboxes:', checkboxes);
+		console.log('Checked count:', checkboxes.length);
+		
+		const result = Array.from(checkboxes).map(cb => {
+			const name = cb.dataset.interface;
+			const color = cb.dataset.color;
+			console.log('Processing checkbox:', { name, color });
+			const iface = allInterfaces.find(i => i.name === name);
+			console.log('Found interface:', iface);
+			return { ...iface, color };
+		});
+		
+		console.log('getSelectedInterfaces() result:', result);
+		return result;
+	}
+
+	function updateChart() {
+		console.log('updateChart() called');
+		const selectedInterfaces = getSelectedInterfaces();
+		console.log('Selected interfaces for update:', selectedInterfaces);
+		
+		// Handle empty selection - show message
+		if (selectedInterfaces.length === 0) {
+			console.warn('⚠️ No interfaces selected after update');
+			showLoading();
+			const loading = document.getElementById('chartLoadingIndicator');
+			if (loading) {
+				loading.innerHTML = '<div style="font-size: 0.875rem; color: #6b7280;">Pilih minimal 1 interface untuk menampilkan grafik</div>';
+				loading.style.display = 'block';
+			}
+			// Clear chart
+			if (chart) {
+				chart.data.datasets = [];
+				chart.update();
+			}
+			return;
+		}
+		
+		hideLoading();
+		
+		// Update datasets - 2 lines per interface (RX and TX)
+		// First, save existing datasets
+		const existingDatasets = chart.data.datasets;
+		
+		// Build new datasets array
+		const newDatasets = [];
+		selectedInterfaces.forEach((iface) => {
+			// Find existing datasets
+			const existingRxDataset = existingDatasets.find(d => d.interfaceName === iface.name && d.dataType === 'rx');
+			const existingTxDataset = existingDatasets.find(d => d.interfaceName === iface.name && d.dataType === 'tx');
+			
+			const color = iface.color;
+			const bgColorRx = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
+			const bgColorTx = color.replace('rgb', 'rgba').replace(')', ', 0.05)');
+			
+			// RX Line (solid)
+			newDatasets.push({
+				label: iface.name + ' RX',
+				data: existingRxDataset ? existingRxDataset.data : Array(20).fill(0),
+				borderColor: color,
+				backgroundColor: bgColorRx,
+				borderWidth: 2,
+				tension: 0.4,
+				fill: true,
+				pointRadius: 0,
+				interfaceName: iface.name,
+				dataType: 'rx'
+			});
+			
+			// TX Line (dashed)
+			newDatasets.push({
+				label: iface.name + ' TX',
+				data: existingTxDataset ? existingTxDataset.data : Array(20).fill(0),
+				borderColor: color,
+				backgroundColor: bgColorTx,
+				borderWidth: 2,
+				borderDash: [5, 5],
+				tension: 0.4,
+				fill: false,
+				pointRadius: 0,
+				interfaceName: iface.name,
+				dataType: 'tx'
+			});
+		});
+		
+		// Replace datasets atomically
+		chart.data.datasets = newDatasets;
+		
+		// Update legend
+		updateLegend(selectedInterfaces);
+		
+		// Reset previous data for new interfaces
+		const newPreviousData = {};
+		selectedInterfaces.forEach(iface => {
+			newPreviousData[iface.name] = previousData[iface.name] || {
+				rx: parseInt(iface['rx-byte'] || iface.rxByte || 0),
+				tx: parseInt(iface['tx-byte'] || iface.txByte || 0)
+			};
+		});
+		previousData = newPreviousData;
+		
+		chart.update('none');  // Update without animation to avoid race conditions
+	}
+
+	function updateLegend(selectedInterfaces) {
+		const legendDiv = document.getElementById('interfaceLegend');
+		legendDiv.innerHTML = selectedInterfaces.map(iface => {
+			const running = iface.running;
+			const statusColor = running ? 'rgb(34, 197, 94)' : 'rgb(156, 163, 175)';
+			return `
+				<div data-interface-legend="${iface.name}" style="display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.75rem; padding: 0.625rem; background: #f9fafb; border-radius: 0.375rem; border-left: 3px solid ${iface.color};">
+					<div style="display: flex; align-items: center; gap: 0.5rem;">
+						<span style="height: 0.75rem; width: 0.75rem; border-radius: 9999px; background-color: ${iface.color}; flex-shrink: 0;"></span>
+						<span style="font-weight: 700; color: #374151; flex-shrink: 0; font-size: 0.8rem;">${iface.name}</span>
+						<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: ${statusColor}; margin-left: auto; flex-shrink: 0;"></span>
+					</div>
+					<div style="display: flex; gap: 1rem; padding-left: 1.25rem; font-size: 0.7rem; font-family: monospace;">
+						<div style="display: flex; flex-direction: column; gap: 0.125rem;">
+							<div style="display: flex; align-items: center; gap: 0.375rem;">
+								<div style="width: 1.5rem; height: 2px; background-color: ${iface.color}; border-radius: 1px;"></div>
+								<span style="color: #6b7280; font-weight: 500; font-size: 0.65rem;">RX (Download)</span>
+							</div>
+							<span data-speed-rx="${iface.name}" style="color: #2563eb; font-weight: 700; font-size: 0.75rem; padding-left: 2rem;">0 b/s</span>
+						</div>
+						<div style="display: flex; flex-direction: column; gap: 0.125rem;">
+							<div style="display: flex; align-items: center; gap: 0.375rem;">
+								<div style="width: 1.5rem; height: 2px; background: repeating-linear-gradient(to right, ${iface.color} 0, ${iface.color} 4px, transparent 4px, transparent 8px); border-radius: 1px;"></div>
+								<span style="color: #6b7280; font-weight: 500; font-size: 0.65rem;">TX (Upload)</span>
+							</div>
+							<span data-speed-tx="${iface.name}" style="color: #059669; font-weight: 700; font-size: 0.75rem; padding-left: 2rem;">0 b/s</span>
+						</div>
+					</div>
+				</div>
+			`;
+		}).join('');
+	}
+	
+	function formatSpeed(bytesPerSec) {
+		if (bytesPerSec >= 1000000000) {
+			return (bytesPerSec / 1000000000).toFixed(2) + ' Gb/s';
+		} else if (bytesPerSec >= 1000000) {
+			return (bytesPerSec / 1000000).toFixed(2) + ' Mb/s';
+		} else if (bytesPerSec >= 1000) {
+			return (bytesPerSec / 1000).toFixed(2) + ' Kb/s';
+		}
+		return bytesPerSec.toFixed(0) + ' b/s';
+	}
+
+	function startUpdateInterval() {
+		if (updateInterval) clearInterval(updateInterval);
+		
+		let firstRun = true;
+		
+		updateInterval = setInterval(async () => {
+			try {
+				const response = await fetch('/api/interface-stats');
+				if (!response.ok) {
+					console.error('Failed to fetch interface stats:', response.status);
+					return;
+				}
+				
+				const newData = await response.json();
+				
+				// Debug: Log first API response
+				if (firstRun) {
+					console.log('=== 🔍 FIRST API RESPONSE DEBUG ===');
+					console.log('Total interfaces from API:', newData.length);
+					console.log('First interface full data:', newData[0]);
+					console.log('DBN interface:', newData.find(i => i.name === 'DBN'));
+					firstRun = false;
+				}
+				
+				// Group datasets by interface
+				const interfaceNames = [...new Set(chart.data.datasets.map(d => d.interfaceName))];
+				
+				interfaceNames.forEach((ifaceName, idx) => {
+					const newIface = newData.find(i => i.name === ifaceName);
+					
+					if (newIface && previousData[ifaceName]) {
+						// Try different field name formats
+						const rxBytes = parseInt(newIface['rx-byte'] || newIface.rxByte || newIface['rxByte'] || 0);
+						const txBytes = parseInt(newIface['tx-byte'] || newIface.txByte || newIface['txByte'] || 0);
+						
+						// Calculate rates (bytes per second over 2 second interval)
+						const rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
+						const txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
+						
+						// Debug log for first interface only
+						if (idx === 0) {
+							console.log(`[${ifaceName}] RX: ${formatSpeed(rxRate * 8)} | TX: ${formatSpeed(txRate * 8)}`);
+						}
+						
+					// Update RX dataset
+					const rxDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'rx');
+					if (rxDataset) {
+						rxDataset.data.shift();
+						rxDataset.data.push(rxRate * 8); // Convert to bits per second
+					}
+					
+					// Update TX dataset
+					const txDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'tx');
+					if (txDataset) {
+						txDataset.data.shift();
+						txDataset.data.push(txRate * 8); // Convert to bits per second
+					}
+						
+						// Update speed in legend - RX and TX only
+						const speedRxElement = document.querySelector(`[data-speed-rx="${ifaceName}"]`);
+						const speedTxElement = document.querySelector(`[data-speed-tx="${ifaceName}"]`);
+						
+						if (speedRxElement) {
+							speedRxElement.textContent = formatSpeed(rxRate * 8);
+							// Color coding for RX
+							if (rxRate * 8 > 1000000) {
+								speedRxElement.style.color = '#1d4ed8'; // dark blue
+								speedRxElement.style.fontWeight = '700';
+							} else if (rxRate * 8 > 1000) {
+								speedRxElement.style.color = '#2563eb'; // blue
+								speedRxElement.style.fontWeight = '600';
+							} else {
+								speedRxElement.style.color = '#6b7280'; // gray
+								speedRxElement.style.fontWeight = '500';
+							}
+						}
+						
+						if (speedTxElement) {
+							speedTxElement.textContent = formatSpeed(txRate * 8);
+							// Color coding for TX
+							if (txRate * 8 > 1000000) {
+								speedTxElement.style.color = '#047857'; // dark green
+								speedTxElement.style.fontWeight = '700';
+							} else if (txRate * 8 > 1000) {
+								speedTxElement.style.color = '#059669'; // green
+								speedTxElement.style.fontWeight = '600';
+							} else {
+								speedTxElement.style.color = '#6b7280'; // gray
+								speedTxElement.style.fontWeight = '500';
+							}
+						}
+						
+						previousData[ifaceName] = { rx: rxBytes, tx: txBytes };
+					}
+				});
+				
+				chart.update('none');
+			} catch (error) {
+				console.error('Error updating chart:', error);
+			}
+		}, 2000);
+	}
+
+	function setupInterfaceSelector() {
+		console.log('========================================');
+		console.log('🔧 Step 15: setupInterfaceSelector() called');
+		
+		const selectorBtn = document.getElementById('interfaceSelector');
+		const dropdown = document.getElementById('interfaceDropdown');
+		const checkboxes = document.querySelectorAll('.interface-checkbox');
+		
+		console.log('🔍 SELECTOR ELEMENTS:');
+		console.log('  - Selector button:', selectorBtn);
+		console.log('  - Dropdown:', dropdown);
+		console.log('  - Checkboxes count:', checkboxes.length);
+		
+		// Verify checked state
+		const checkedCount = document.querySelectorAll('.interface-checkbox:checked').length;
+		console.log('📊 Currently checked interfaces:', checkedCount);
+		
+		// Fallback: if no checkboxes are checked, force check the first one
+		if (checkedCount === 0 && checkboxes.length > 0) {
+			console.log('⚠️ WARNING: No checkboxes checked, forcing first checkbox...');
+			checkboxes[0].checked = true;
+			console.log('✅ First interface checked:', checkboxes[0].dataset.interface);
+		}
+		
+		// Log first 5 checkbox states
+		console.log('📋 FIRST 5 CHECKBOXES STATE:');
+		checkboxes.forEach((cb, i) => {
+			if (i < 5) {
+				console.log(`  ${i+1}. [${cb.checked ? '✅' : '❌'}] ${cb.dataset.interface}`);
+			}
+		});
+		
+		if (!selectorBtn || !dropdown) {
+			console.error('❌ ERROR: Selector elements not found!');
+			return;
+		}
+		
+		// Toggle dropdown
+		selectorBtn.addEventListener('click', (e) => {
+			console.log('Selector button clicked');
+			e.stopPropagation();
+			dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+			console.log('Dropdown display:', dropdown.style.display);
+		});
+		
+		// Close dropdown when clicking outside
+		document.addEventListener('click', (e) => {
+			if (!dropdown.contains(e.target) && e.target !== selectorBtn) {
+				dropdown.style.display = 'none';
+			}
+		});
+		
+		// Handle checkbox changes
+		checkboxes.forEach((cb, idx) => {
+			console.log(`Checkbox ${idx}:`, cb.dataset.interface, 'checked:', cb.checked);
+			cb.addEventListener('change', () => {
+				console.log('Checkbox changed:', cb.dataset.interface, 'new state:', cb.checked);
+				updateChart();
+			});
+		});
+		
+		console.log('✅ Step 16: Interface selector setup complete');
+	}
+
+	console.log('Step 17: Checking document ready state:', document.readyState);
+	
+	// Wait for Chart.js to load
+	function waitForChart(callback, maxAttempts = 50) {
+		let attempts = 0;
+		const checkInterval = setInterval(() => {
+			attempts++;
+			console.log(`Attempt ${attempts}: Checking for Chart.js...`);
+			
+			if (typeof Chart !== 'undefined') {
+				console.log('✅ Chart.js is ready!');
+				clearInterval(checkInterval);
+				callback();
+			} else if (attempts >= maxAttempts) {
+				console.error('❌ Chart.js failed to load after', maxAttempts, 'attempts');
+				clearInterval(checkInterval);
+				showError();
+			}
+		}, 100);
+	}
+	
+	if (document.readyState === 'loading') {
+		console.log('Step 18: Document loading, adding DOMContentLoaded listener');
+		document.addEventListener('DOMContentLoaded', () => {
+			console.log('Step 19: DOMContentLoaded event fired');
+			waitForChart(initChart);
+		});
+	} else {
+		console.log('Step 18: Document already loaded, waiting for Chart.js');
+		waitForChart(initChart);
+	}
+})();
+</script>
+<% } %>
+
+	<!-- Monitor Pelanggan Trouble -->
 	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
 		<div class="flex items-center justify-between mb-4">
-			<h2 class="text-lg font-semibold text-gray-900">Pendaftaran Terbaru</h2>
-			<a href="/customers/new-pppoe" class="text-sm text-blue-600 hover:text-blue-800">Tambah</a>
+			<h2 class="text-lg font-semibold text-gray-900">Monitor Pelanggan Trouble</h2>
+			<a href="/monitoring/maintenance" class="text-sm text-blue-600 hover:text-blue-800">Lihat Semua</a>
 		</div>
 		<div class="overflow-x-auto">
 			<table class="min-w-full text-sm">
 				<thead>
 					<tr class="text-left text-gray-600 border-b border-gray-200">
-						<th class="py-3 pr-4 font-medium">Nama</th>
-						<th class="py-3 pr-4 font-medium">Telepon</th>
-						<th class="py-3 pr-4 font-medium">Paket</th>
+						<th class="py-3 pr-4 font-medium">Kode</th>
+						<th class="py-3 pr-4 font-medium">Nama Pelanggan</th>
+						<th class="py-3 pr-4 font-medium">Username</th>
+						<th class="py-3 pr-4 font-medium">Tipe</th>
+						<th class="py-3 pr-4 font-medium">Issue</th>
 						<th class="py-3 pr-4 font-medium">Status</th>
+						<th class="py-3 pr-4 font-medium">Sejak</th>
 					</tr>
 				</thead>
 				<tbody>
-					<% if (typeof recentRequests !== 'undefined' && recentRequests && recentRequests.length) { %>
-						<% recentRequests.forEach(function(r){ %>
-						<tr class="border-b border-gray-100">
-							<td class="py-3 pr-4 text-gray-800 font-medium"><%= r.full_name %></td>
-							<td class="py-3 pr-4 text-gray-600"><%= r.phone || '-' %></td>
-							<td class="py-3 pr-4 text-gray-600"><%= r.desired_package_id || '-' %></td>
+					<% if (typeof troubleCustomers !== 'undefined' && troubleCustomers && troubleCustomers.length > 0) { %>
+						<% troubleCustomers.forEach(function(customer) { %>
+						<tr class="border-b border-gray-100 hover:bg-gray-50">
+							<td class="py-3 pr-4 text-gray-800 font-medium"><%= customer.customer_code || '-' %></td>
+							<td class="py-3 pr-4 text-gray-900"><%= customer.name %></td>
+							<td class="py-3 pr-4 text-gray-600"><%= customer.pppoe_username || '-' %></td>
 							<td class="py-3 pr-4">
-								<span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Baru</span>
+								<% if (customer.connection_type === 'pppoe') { %>
+									<span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800">PPPoE</span>
+								<% } else if (customer.connection_type === 'static_ip') { %>
+									<span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-1 text-xs text-indigo-800">Static IP</span>
+								<% } else { %>
+									<span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800"><%= customer.connection_type || '-' %></span>
+								<% } %>
+							</td>
+							<td class="py-3 pr-4 text-gray-600"><%= customer.issue_type || '-' %></td>
+							<td class="py-3 pr-4">
+								<% if (customer.maintenance_status === 'in_progress') { %>
+									<span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Sedang Ditangani</span>
+								<% } else if (customer.maintenance_status === 'scheduled') { %>
+									<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Terjadwal</span>
+								<% } else if (customer.status === 'active') { %>
+									<span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Normal</span>
+								<% } else if (customer.status === 'suspended') { %>
+									<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Isolir</span>
+								<% } else { %>
+									<span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800"><%= customer.status %></span>
+								<% } %>
+							</td>
+							<td class="py-3 pr-4 text-gray-600">
+								<% if (customer.trouble_since) { %>
+									<%= new Date(customer.trouble_since).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+								<% } else { %>
+									-
+								<% } %>
 							</td>
 						</tr>
 						<% }) %>
 					<% } else { %>
 						<tr>
-							<td class="py-3 pr-4 text-gray-500" colspan="4">Belum ada pendaftaran.</td>
+							<td class="py-8 text-center text-gray-500" colspan="7">
+								<div class="flex flex-col items-center">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									<p>Tidak ada pelanggan yang mengalami trouble</p>
+								</div>
+							</td>
 						</tr>
 					<% } %>
 				</tbody>
 			</table>
 		</div>
 	</div>
-
-	<!-- MikroTik Status -->
-	<% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo) { %>
-	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-		<div class="flex items-center justify-between mb-4">
-			<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
-			<% if (connectionStatus.connected) { %>
-				<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
-					<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>
-					Terhubung
-				</span>
-			<% } else { %>
-				<span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
-					<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
-					Terputus
-				</span>
-			<% } %>
-		</div>
-		<div class="grid grid-cols-2 gap-4">
-			<div class="bg-gray-50 rounded-lg p-3">
-				<div class="text-sm text-gray-600 font-medium">Identity</div>
-				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.identity || '-' %></div>
-			</div>
-			<div class="bg-gray-50 rounded-lg p-3">
-				<div class="text-sm text-gray-600 font-medium">Version</div>
-				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.version || '-' %></div>
-			</div>
-			<div class="bg-gray-50 rounded-lg p-3">
-				<div class="text-sm text-gray-600 font-medium">Uptime</div>
-				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.uptime || '-' %></div>
-			</div>
-			<div class="bg-gray-50 rounded-lg p-3">
-				<div class="text-sm text-gray-600 font-medium">CPU Load</div>
-				<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.cpuLoad || '-' %>%</div>
-			</div>
-		</div>
-	</div>
-	<% } %>
 </div>

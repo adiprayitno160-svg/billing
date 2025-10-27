@@ -46,10 +46,74 @@ function initDropdowns() {
     }
 }
 
+// Sidebar Toggle Function
+function initSidebarToggle() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const mainContent = document.getElementById('main-content');
+    const footer = document.getElementById('footer');
+    
+    if (!sidebar || !toggleBtn) {
+        console.log('Sidebar toggle elements not found');
+        return;
+    }
+    
+    // Load saved state from localStorage
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    const isCollapsed = savedState === 'true';
+    
+    // Apply saved state on load
+    if (isCollapsed) {
+        collapseSidebar();
+    }
+    
+    // Toggle button click handler
+    toggleBtn.addEventListener('click', function() {
+        const currentlyCollapsed = sidebar.classList.contains('sidebar-collapsed');
+        if (currentlyCollapsed) {
+            expandSidebar();
+        } else {
+            collapseSidebar();
+        }
+    });
+    
+    function collapseSidebar() {
+        sidebar.classList.add('sidebar-collapsed');
+        sidebar.style.width = '0px';
+        sidebar.style.minWidth = '0px';
+        sidebar.style.overflow = 'hidden';
+        if (mainContent) {
+            mainContent.style.marginLeft = '0px';
+        }
+        if (footer) {
+            footer.style.left = '0px';
+        }
+        localStorage.setItem('sidebarCollapsed', 'true');
+    }
+    
+    function expandSidebar() {
+        sidebar.classList.remove('sidebar-collapsed');
+        sidebar.style.width = '16rem'; // 64 = 16rem
+        sidebar.style.minWidth = '16rem';
+        sidebar.style.overflow = 'visible';
+        if (mainContent) {
+            mainContent.style.marginLeft = '0px';
+        }
+        if (footer) {
+            footer.style.left = '256px'; // 16rem = 256px
+        }
+        localStorage.setItem('sidebarCollapsed', 'false');
+    }
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDropdowns);
+    document.addEventListener('DOMContentLoaded', function() {
+        initDropdowns();
+        initSidebarToggle();
+    });
 } else {
     initDropdowns();
+    initSidebarToggle();
 }
 
 

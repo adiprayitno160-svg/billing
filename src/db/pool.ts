@@ -146,9 +146,9 @@ export async function ensureInitialSchema(): Promise<void> {
 
 		// Remove old parent_queue_name column if it exists
 		try {
-			await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN IF EXISTS parent_queue_name`);
+			await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN parent_queue_name`);
 		} catch (err: any) {
-			// Column might not exist, ignore error (MariaDB < 10.0.2 doesn't support IF EXISTS)
+			// Column might not exist, ignore error (older MySQL/MariaDB doesn't support DROP COLUMN IF EXISTS)
 			if (!err.message.includes("doesn't exist") && !err.message.includes("check that") && !err.message.includes("Can't DROP")) {
 				throw err;
 			}
@@ -242,6 +242,31 @@ export async function ensureInitialSchema(): Promise<void> {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Pengaturan Telegram Bot'`);
+
+		// Ensure prepaid_package_subscriptions has last_notified_at column
+		await addCol(`ALTER TABLE prepaid_package_subscriptions ADD COLUMN last_notified_at TIMESTAMP NULL AFTER expiry_date`);
+
+		// Ensure mikrotik_address_list_items has required columns
+		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN customer_id INT NULL AFTER id`);
+		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN list_name VARCHAR(191) NULL AFTER customer_id`);
+
+		// Create maintenance_schedules table for trouble monitoring
+		await conn.query(`CREATE TABLE IF NOT EXISTS maintenance_schedules (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			issue_type VARCHAR(191) NULL,
+			description TEXT NULL,
+			status ENUM('scheduled','in_progress','completed','cancelled') DEFAULT 'scheduled',
+			scheduled_date DATETIME NULL,
+			completed_date DATETIME NULL,
+			technician_name VARCHAR(191) NULL,
+			notes TEXT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			CONSTRAINT fk_maintenance_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+			INDEX idx_status (status),
+			INDEX idx_scheduled_date (scheduled_date)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 	} finally {
 		conn.release();

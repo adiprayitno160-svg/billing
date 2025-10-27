@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { databasePool } from '../db/pool';
-import { getDashboard } from '../controllers/dashboardController';
+import { getDashboard, getInterfaceStats } from '../controllers/dashboardController';
 import { getMikrotikSettingsForm, postMikrotikSettings, postMikrotikTest } from '../controllers/settingsController';
 import { UserController } from '../controllers/userController';
 import { KasirController } from '../controllers/kasirController';
@@ -182,6 +182,7 @@ router.use(async (req, res, next) => {
 });
 
 router.get('/', getDashboard);
+router.get('/api/interface-stats', getInterfaceStats);
 
 // Billing routes
 router.use('/billing', billingRoutes);
