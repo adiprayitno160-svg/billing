@@ -144,7 +144,7 @@ export class GitHubService {
       };
     }
 
-    const latestVersion = latestRelease.tag_name;
+    const latestVersion = latestRelease.tag_name.replace(/^v/, ''); // Remove 'v' prefix for consistency
     const available = this.compareVersions(latestVersion, currentVersion) > 0;
 
     return {
