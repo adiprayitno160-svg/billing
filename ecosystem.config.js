@@ -1,12 +1,10 @@
 module.exports = {
   apps: [{
     name: 'billing-app',
-    script: 'src/server.ts',
-    interpreter: 'node',
-    interpreter_args: '--loader ts-node/esm --no-warnings',
+    script: 'dist/server.js',
     instances: 1,
     autorestart: true,
-    watch: ['src', 'views'],
+    watch: false,
     max_memory_restart: '1G',
     env: {
       NODE_ENV: 'development',

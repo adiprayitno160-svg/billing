@@ -54,9 +54,11 @@ app.use(helmet({
                 "'self'",
                 "https://cdn.jsdelivr.net",
                 "https://cdn.tailwindcss.com"
-            ]
+            ],
+            upgradeInsecureRequests: null
         }
-    }
+    },
+    hsts: false
 }));
 app.use(compression());
 app.use(morgan('dev'));
