@@ -337,6 +337,13 @@ import_database() {
     
     mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < $SQL_FILE
     
+    # Run migrations if they exist
+    if [ -f "migrations/fix_missing_columns.sql" ]; then
+        print_step "Running database migrations..."
+        mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} < migrations/fix_missing_columns.sql
+        print_success "Migrations applied"
+    fi
+    
     # Verify
     TABLE_COUNT=$(mysql -u ${DB_USER} -p${DB_PASS} ${DB_NAME} -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" 2>/dev/null | tail -1)
     
@@ -461,4 +468,5 @@ main() {
 main
 
 exit 0
+
 

@@ -146,10 +146,10 @@ export async function ensureInitialSchema(): Promise<void> {
 
 		// Remove old parent_queue_name column if it exists
 		try {
-			await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN parent_queue_name`);
+			await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN IF EXISTS parent_queue_name`);
 		} catch (err: any) {
-			// Column might not exist, ignore error
-			if (!err.message.includes("doesn't exist") && !err.message.includes("check that column/key exists")) {
+			// Column might not exist, ignore error (MariaDB < 10.0.2 doesn't support IF EXISTS)
+			if (!err.message.includes("doesn't exist") && !err.message.includes("check that") && !err.message.includes("Can't DROP")) {
 				throw err;
 			}
 		}
