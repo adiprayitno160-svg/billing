@@ -1,0 +1,103 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║                    UPDATE v2.0.7 - SIMPLE STEPS                       ║
+║                  Fix 404 Error pada Interface Stats                   ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+MASALAH:
+✗ Interface Traffic Realtime tidak berjalan di live server
+✗ Error 404: GET /api/interface-stats
+✗ Console log: "Failed to fetch interface stats: 404"
+
+PENYEBAB:
+→ Code v2.0.7 belum ada di server live
+→ Perlu pull dari GitHub dan restart PM2
+
+SOLUSI CEPAT (3 Langkah):
+═══════════════════════════════════════════════════════════════════════
+
+1️⃣  SSH ke Server Live
+   ─────────────────────────────────────────────────────────────────────
+   ssh user@192.168.239.126
+   cd /var/www/billing  # atau path project Anda
+
+
+2️⃣  Pull Update dari GitHub
+   ─────────────────────────────────────────────────────────────────────
+   git pull origin main
+
+
+3️⃣  Restart PM2 (Build Otomatis)
+   ─────────────────────────────────────────────────────────────────────
+   pm2 restart billing-system
+
+   
+✅ DONE! Test di browser: http://192.168.239.126:3000/prepaid/dashboard
+
+═══════════════════════════════════════════════════════════════════════
+
+JIKA BUILD TIDAK OTOMATIS, jalankan manual:
+   npm run build
+   pm2 restart billing-system
+
+═══════════════════════════════════════════════════════════════════════
+
+VERIFIKASI:
+
+✓ Check Version:
+  curl http://localhost:3000/api/interface-stats
+  → Harus return JSON (bukan 404)
+
+✓ Check PM2 Status:
+  pm2 status
+  → billing-system harus status "online"
+
+✓ Check Logs:
+  pm2 logs billing-system --lines 20
+  → Tidak ada error merah
+
+═══════════════════════════════════════════════════════════════════════
+
+ONE-LINER (Copy-Paste):
+
+cd /var/www/billing && git pull origin main && pm2 restart billing-system && pm2 logs billing-system --lines 10
+
+═══════════════════════════════════════════════════════════════════════
+
+EXPECTED RESULT:
+
+Browser Console (F12):
+  ✅ Interface data fetched successfully
+  ✅ Chart updated with 30 data points
+  ✅ RX: xxx Mbps | TX: xxx Mbps
+
+Prepaid Dashboard:
+  ✅ Interface Traffic Realtime section visible
+  ✅ Interface dropdown populated
+  ✅ Chart updating every 2 seconds
+  ✅ No 404 errors
+
+═══════════════════════════════════════════════════════════════════════
+
+TROUBLESHOOTING:
+
+❌ Jika masih 404 setelah restart:
+   1. Check file ada: ls dist/controllers/dashboardController.js
+   2. Re-build: npm run build
+   3. Hard restart: pm2 delete billing-system && pm2 start ecosystem.config.js
+
+❌ Jika build error:
+   → Ignore TS errors (expected), yang penting dist/server.js terbentuk
+
+❌ Jika PM2 tidak restart:
+   pm2 stop billing-system
+   pm2 start billing-system
+   
+═══════════════════════════════════════════════════════════════════════
+
+Version: 2.0.7
+Date: October 29, 2025
+Changes: Interface Traffic Auto-Recovery + Smart Caching
+Status: READY FOR PRODUCTION ✅
+
+═══════════════════════════════════════════════════════════════════════
+
