@@ -20,6 +20,7 @@ import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
 import { companyInfoMiddleware } from './middlewares/companyInfoMiddleware';
+import { injectAppVersion } from './middlewares/versionMiddleware';
 import { autoFixPrepaidPackagesTable } from './utils/autoFixDatabase';
 
 // Load .env but don't override existing environment variables (e.g., from PM2)
@@ -122,6 +123,9 @@ app.use((req, res, next) => {
 
 // Company info middleware - provides company settings to all views
 app.use(companyInfoMiddleware);
+
+// Version middleware - provides app version to all views
+app.use(injectAppVersion);
 
 // Root router
 app.use('/', router);
