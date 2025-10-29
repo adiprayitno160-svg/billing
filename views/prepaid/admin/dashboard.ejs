@@ -343,8 +343,9 @@
     let previousData = {};
     let isMonitoring = false;
     let isFirstSample = true; // Skip first sample for accurate rate calculation
-    let smoothingBuffer = {}; // Buffer untuk smoothing (store 7 samples for better stability)
+    let smoothingBuffer = {}; // Buffer untuk smoothing (store 15 samples = 30 seconds)
     let lastValidRate = {}; // Store last valid rate untuk outlier detection
+    let rateHistory = {}; // Store complete rate history untuk pattern detection
 
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
@@ -500,57 +501,112 @@
         return bytesPerSec.toFixed(0) + ' b/s';
     }
 
-    // Advanced Smoothing function dengan outlier filtering
+    // ULTRA-AGGRESSIVE Smoothing dengan multiple filters
     function getSmoothedValue(ifaceName, dataType, newValue) {
         const key = `${ifaceName}_${dataType}`;
         
+        // Initialize buffers
         if (!smoothingBuffer[key]) {
             smoothingBuffer[key] = [];
             lastValidRate[key] = 0;
+            rateHistory[key] = [];
         }
         
-        // STEP 1: Outlier Detection - filter nilai yang terlalu ekstrem
+        // ═══════════════════════════════════════════════════════════
+        // STEP 1: EXTREME SPIKE DETECTION (buang spike > 50 Mbps)
+        // ═══════════════════════════════════════════════════════════
         const lastRate = lastValidRate[key];
-        const maxChange = Math.max(lastRate * 3, 50000000); // Max 3x perubahan atau 50 Mbps
+        const spikeMbps = Math.abs(newValue - lastRate) / 1000000; // Convert to Mbps
         
-        // Jika perubahan terlalu besar, anggap sebagai outlier dan gunakan nilai sebelumnya
-        if (lastRate > 0 && Math.abs(newValue - lastRate) > maxChange) {
-            console.log(`[${ifaceName}] Outlier detected: ${(newValue/8000000).toFixed(2)} Mbps (expected ~${(lastRate/8000000).toFixed(2)} Mbps)`);
-            newValue = lastRate; // Use last valid value instead
+        if (spikeMbps > 50) { // Lebih dari 50 Mbps perubahan = SPIKE!
+            console.log(`[${ifaceName}] EXTREME SPIKE REJECTED: ${spikeMbps.toFixed(1)} Mbps change`);
+            newValue = lastRate; // Reject spike, use last value
         }
         
-        // STEP 2: Minimum threshold - jika terlalu kecil, set ke 0
-        if (newValue < 100000) { // < 0.1 Mbps
+        // ═══════════════════════════════════════════════════════════
+        // STEP 2: PATTERN DETECTION (detect 200→0→200→0 pattern)
+        // ═══════════════════════════════════════════════════════════
+        rateHistory[key].push(newValue);
+        if (rateHistory[key].length > 10) {
+            rateHistory[key].shift(); // Keep last 10 values
+        }
+        
+        // Check for oscillation pattern (high-low-high-low)
+        if (rateHistory[key].length >= 4) {
+            const last4 = rateHistory[key].slice(-4);
+            const isOscillating = 
+                last4[0] > 100000000 && last4[1] < 10000000 && 
+                last4[2] > 100000000 && last4[3] < 10000000;
+            
+            if (isOscillating) {
+                console.log(`[${ifaceName}] OSCILLATION PATTERN DETECTED - Applying heavy smoothing`);
+                // Take median of last 10 values instead
+                const sorted = [...rateHistory[key]].sort((a, b) => a - b);
+                newValue = sorted[Math.floor(sorted.length / 2)];
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // STEP 3: STATISTICAL OUTLIER FILTERING
+        // ═══════════════════════════════════════════════════════════
+        if (smoothingBuffer[key].length >= 5) {
+            const buffer = smoothingBuffer[key];
+            const mean = buffer.reduce((a, b) => a + b, 0) / buffer.length;
+            const variance = buffer.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / buffer.length;
+            const stdDev = Math.sqrt(variance);
+            
+            // If new value is > 2 standard deviations away, it's an outlier
+            if (Math.abs(newValue - mean) > 2 * stdDev && stdDev > 1000000) {
+                console.log(`[${ifaceName}] Statistical outlier: ${(newValue/1000000).toFixed(1)} Mbps (mean: ${(mean/1000000).toFixed(1)}, σ: ${(stdDev/1000000).toFixed(1)})`);
+                newValue = mean; // Use mean instead of outlier
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // STEP 4: AGGRESSIVE MINIMUM THRESHOLD
+        // ═══════════════════════════════════════════════════════════
+        if (newValue < 500000) { // < 0.5 Mbps = noise
             newValue = 0;
         }
         
-        // STEP 3: Add to buffer
+        // ═══════════════════════════════════════════════════════════
+        // STEP 5: ADD TO BUFFER (15 samples = 30 seconds)
+        // ═══════════════════════════════════════════════════════════
         smoothingBuffer[key].push(newValue);
-        
-        // STEP 4: Keep last 7 samples (larger window for more stability)
-        if (smoothingBuffer[key].length > 7) {
+        if (smoothingBuffer[key].length > 15) {
             smoothingBuffer[key].shift();
         }
         
-        // STEP 5: Calculate weighted moving average (lebih berat ke nilai terbaru)
-        let sum = 0;
-        let weightSum = 0;
-        const buffer = smoothingBuffer[key];
+        // ═══════════════════════════════════════════════════════════
+        // STEP 6: EXPONENTIAL MOVING AVERAGE (EMA)
+        // ═══════════════════════════════════════════════════════════
+        const alpha = 2 / (smoothingBuffer[key].length + 1); // EMA smoothing factor
+        let ema = smoothingBuffer[key][0];
         
-        for (let i = 0; i < buffer.length; i++) {
-            const weight = i + 1; // Weight meningkat untuk nilai lebih baru
-            sum += buffer[i] * weight;
-            weightSum += weight;
+        for (let i = 1; i < smoothingBuffer[key].length; i++) {
+            ema = alpha * smoothingBuffer[key][i] + (1 - alpha) * ema;
         }
         
-        const smoothed = sum / weightSum;
-        
-        // STEP 6: Update last valid rate
-        if (smoothed > 0) {
-            lastValidRate[key] = smoothed;
+        // ═══════════════════════════════════════════════════════════
+        // STEP 7: FINAL RATE LIMITING (prevent sudden jumps)
+        // ═══════════════════════════════════════════════════════════
+        if (lastValidRate[key] > 0) {
+            const maxJump = lastValidRate[key] * 0.5; // Max 50% change per sample
+            if (ema > lastValidRate[key] + maxJump) {
+                ema = lastValidRate[key] + maxJump; // Limit upward jump
+            } else if (ema < lastValidRate[key] - maxJump) {
+                ema = lastValidRate[key] - maxJump; // Limit downward jump
+            }
         }
         
-        return smoothed;
+        // ═══════════════════════════════════════════════════════════
+        // STEP 8: UPDATE LAST VALID RATE
+        // ═══════════════════════════════════════════════════════════
+        if (ema > 0) {
+            lastValidRate[key] = ema;
+        }
+        
+        return ema;
     }
 
     let failedAttempts = 0;
@@ -718,6 +774,7 @@
             previousData = {};
             smoothingBuffer = {};
             lastValidRate = {};
+            rateHistory = {};
             failedAttempts = 0;
 
             btn.innerHTML = '<i class="fas fa-play mr-2"></i>Start Monitor';
