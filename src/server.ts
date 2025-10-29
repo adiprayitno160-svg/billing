@@ -14,11 +14,13 @@ import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
 import { WhatsAppWebService } from './services/whatsapp/WhatsAppWebService';
 import PrepaidSchedulerService from './services/prepaid/PrepaidSchedulerServiceComplete';
+import PrepaidMonitoringScheduler from './schedulers/PrepaidMonitoringScheduler';
 import TelegramAdminService from './services/telegram/TelegramAdminService';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
 import { companyInfoMiddleware } from './middlewares/companyInfoMiddleware';
+import { autoFixPrepaidPackagesTable } from './utils/autoFixDatabase';
 
 // Load .env but don't override existing environment variables (e.g., from PM2)
 dotenv.config({ override: false });
@@ -156,6 +158,9 @@ async function start() {
 		await ensureInitialSchema();
 		await checkDatabaseConnection();
 		
+		// Auto-fix missing columns in prepaid_packages table
+		await autoFixPrepaidPackagesTable();
+		
 		// Initialize billing scheduler
 		SchedulerService.initialize();
 		console.log('Billing scheduler initialized');
@@ -167,6 +172,10 @@ async function start() {
 		// Initialize Prepaid Scheduler
 		await PrepaidSchedulerService.initialize();
 		console.log('Prepaid scheduler initialized');
+		
+		// Initialize Prepaid Monitoring Scheduler (auto-expire check)
+		PrepaidMonitoringScheduler.start();
+		console.log('Prepaid monitoring scheduler started');
 		
 		// Initialize WhatsApp Web Service (non-blocking)
 		WhatsAppWebService.initialize().catch(err => {

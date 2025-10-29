@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Portal Prepaid</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  <!-- Header -->
+  <div class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-indigo-600">
+        <i class="fas fa-wifi mr-2"></i>Portal Prepaid
+      </h1>
+      <div class="flex items-center space-x-4">
+        <a href="/prepaid/portal/dashboard" class="text-gray-600 hover:text-indigo-600">
+          <i class="fas fa-home mr-1"></i>Dashboard
+        </a>
+        <a href="/prepaid/portal/logout" class="text-gray-600 hover:text-red-600">
+          <i class="fas fa-sign-out-alt mr-1"></i>Logout
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
+      <!-- Title -->
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">
+          🚀 Pilih Paket Internet
+        </h2>
+        <p class="text-gray-600">
+          Connection Type: 
+          <span class="font-semibold text-indigo-600">
+            <%= connectionType === 'pppoe' ? 'PPPoE' : 'Static IP' %>
+          </span>
+        </p>
+      </div>
+
+      <!-- Error Alert -->
+      <% if (error) { %>
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+          <p class="font-bold">Error!</p>
+          <p><%= error %></p>
+        </div>
+      <% } %>
+
+      <!-- Packages Grid -->
+      <% if (packages.length === 0) { %>
+        <div class="bg-white rounded-lg shadow p-12 text-center">
+          <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+          <p class="text-gray-600 text-lg">Tidak ada paket tersedia saat ini</p>
+          <p class="text-gray-500 mt-2">Hubungi admin untuk informasi lebih lanjut</p>
+        </div>
+      <% } else { %>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <% packages.forEach(pkg => { %>
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden transform transition hover:scale-105 hover:shadow-2xl">
+              <!-- Package Header -->
+              <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
+                <h3 class="text-xl font-bold mb-2"><%= pkg.name %></h3>
+                <div class="text-3xl font-extrabold">
+                  Rp <%= Number(pkg.price).toLocaleString('id-ID') %>
+                </div>
+                <div class="text-sm opacity-90 mt-1">/<%= pkg.duration_days %> hari</div>
+              </div>
+
+              <!-- Package Body -->
+              <div class="p-6">
+                <!-- Speed -->
+                <div class="space-y-3 mb-6">
+                  <div class="flex items-center justify-between">
+                    <span class="text-gray-600">
+                      <i class="fas fa-download text-green-600 mr-2"></i>Download
+                    </span>
+                    <span class="font-bold text-gray-900"><%= pkg.download_mbps %> Mbps</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-gray-600">
+                      <i class="fas fa-upload text-blue-600 mr-2"></i>Upload
+                    </span>
+                    <span class="font-bold text-gray-900"><%= pkg.upload_mbps %> Mbps</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-gray-600">
+                      <i class="fas fa-calendar text-purple-600 mr-2"></i>Durasi
+                    </span>
+                    <span class="font-bold text-gray-900"><%= pkg.duration_days %> Hari</span>
+                  </div>
+                </div>
+
+                <!-- Description -->
+                <% if (pkg.description) { %>
+                  <p class="text-sm text-gray-600 mb-6 border-t pt-4">
+                    <%= pkg.description %>
+                  </p>
+                <% } %>
+
+                <!-- Select Button -->
+                <a href="/prepaid/portal/packages/review/<%= pkg.id %>" 
+                   class="block w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-center font-bold py-3 px-4 rounded-lg transition">
+                  <i class="fas fa-shopping-cart mr-2"></i>Pilih Paket
+                </a>
+              </div>
+
+              <!-- Package Footer -->
+              <div class="bg-gray-50 px-6 py-3 border-t">
+                <div class="flex items-center justify-center text-xs text-gray-500">
+                  <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                  Unlimited Kuota
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <!-- Info Box -->
+      <div class="mt-8 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <i class="fas fa-info-circle text-blue-500 text-xl"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-blue-700">
+              <strong>Informasi:</strong> Pilih paket yang sesuai dengan kebutuhan Anda. 
+              Pembayaran dapat dilakukan via transfer bank atau payment gateway.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="container mx-auto px-4 py-8 text-center text-gray-600 text-sm">
+    <p>&copy; 2025 Billing System. All rights reserved.</p>
+  </div>
+</body>
+</html>
+

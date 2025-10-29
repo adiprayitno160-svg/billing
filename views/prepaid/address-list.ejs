@@ -1,0 +1,234 @@
+<!-- Address List Management Page -->
+<div class="container-fluid">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Address List Management</h1>
+        <p class="text-gray-600">Kelola address list Mikrotik untuk sistem prepaid portal redirect</p>
+    </div>
+
+    <!-- Flash Messages -->
+    <% if (typeof success !== 'undefined' && success) { %>
+    <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-green-500 text-xl mr-3"></i>
+            <p class="text-green-800"><%= success %></p>
+        </div>
+    </div>
+    <% } %>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-circle text-red-500 text-xl mr-3"></i>
+            <p class="text-red-800"><%= error %></p>
+        </div>
+    </div>
+    <% } %>
+
+    <% if (!mikrotikConfigured) { %>
+    <!-- Mikrotik Not Configured -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+        <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Mikrotik Belum Dikonfigurasi</h3>
+        <p class="text-gray-600 mb-4">Silakan konfigurasi Mikrotik terlebih dahulu</p>
+        <a href="/settings/mikrotik" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <i class="fas fa-cog mr-2"></i>
+            Konfigurasi Mikrotik
+        </a>
+    </div>
+    <% } else { %>
+
+    <!-- Mikrotik Connection Info -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-network-wired text-blue-600 text-2xl"></i>
+                <div>
+                    <h4 class="font-bold text-blue-900">Mikrotik Connection</h4>
+                    <p class="text-sm text-blue-700">
+                        <strong>Host:</strong> <%= typeof mikrotikHost !== 'undefined' ? mikrotikHost : 'Unknown' %> | 
+                        <strong>Port:</strong> <%= typeof mikrotikPort !== 'undefined' ? mikrotikPort : 8728 %>
+                    </p>
+                </div>
+            </div>
+            <a href="/settings/mikrotik" class="text-blue-600 hover:text-blue-800 text-sm">
+                <i class="fas fa-edit mr-1"></i>
+                Edit Settings
+            </a>
+        </div>
+    </div>
+
+    <!-- Manual Add Form -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <i class="fas fa-plus-circle text-blue-600 mr-2"></i>
+            Manual Add IP to Address List
+        </h3>
+        <form action="/prepaid/address-list/add" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Address List</label>
+                <select name="list_name" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                    <option value="prepaid-no-package">prepaid-no-package</option>
+                    <option value="prepaid-active">prepaid-active</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">IP Address</label>
+                <input type="text" name="ip_address" required placeholder="192.168.1.100" 
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Comment (Optional)</label>
+                <input type="text" name="comment" placeholder="Manual add for testing" 
+                       class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>
+                    Add IP
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Address Lists -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Prepaid No Package List -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div class="bg-gradient-to-r from-red-500 to-orange-500 text-white px-6 py-4 rounded-t-lg">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold flex items-center">
+                        <i class="fas fa-ban mr-2"></i>
+                        prepaid-no-package
+                    </h3>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold">
+                        <%= noPackageList.length %> IPs
+                    </span>
+                </div>
+                <p class="text-sm text-white/80 mt-1">Customer yang belum punya paket (akan di-redirect)</p>
+            </div>
+            <div class="p-6">
+                <% if (noPackageList.length === 0) { %>
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-inbox text-4xl mb-3"></i>
+                    <p>Tidak ada IP dalam list ini</p>
+                </div>
+                <% } else { %>
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <% noPackageList.forEach(function(entry) { %>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+                        <div class="flex-1">
+                            <div class="font-mono text-sm font-semibold text-gray-900"><%= entry.address %></div>
+                            <% if (entry.comment) { %>
+                            <div class="text-xs text-gray-600 mt-1"><%= entry.comment %></div>
+                            <% } %>
+                        </div>
+                        <form action="/prepaid/address-list/remove" method="POST" class="inline" onsubmit="return confirm('Hapus IP <%= entry.address %> dari list?')">
+                            <input type="hidden" name="list_name" value="prepaid-no-package">
+                            <input type="hidden" name="ip_address" value="<%= entry.address %>">
+                            <button type="submit" class="ml-3 text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <% }); %>
+                </div>
+                <% } %>
+                
+                <!-- Clear List Button -->
+                <% if (noPackageList.length > 0) { %>
+                <form action="/prepaid/address-list/clear" method="POST" class="mt-4" onsubmit="return confirm('Yakin ingin menghapus SEMUA IP dari list ini?')">
+                    <input type="hidden" name="list_name" value="prepaid-no-package">
+                    <button type="submit" class="w-full bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>
+                        Clear All (Hapus Semua)
+                    </button>
+                </form>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Prepaid Active List -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div class="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-t-lg">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        prepaid-active
+                    </h3>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold">
+                        <%= activeList.length %> IPs
+                    </span>
+                </div>
+                <p class="text-sm text-white/80 mt-1">Customer dengan paket aktif (internet full access)</p>
+            </div>
+            <div class="p-6">
+                <% if (activeList.length === 0) { %>
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-inbox text-4xl mb-3"></i>
+                    <p>Tidak ada IP dalam list ini</p>
+                </div>
+                <% } else { %>
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <% activeList.forEach(function(entry) { %>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+                        <div class="flex-1">
+                            <div class="font-mono text-sm font-semibold text-gray-900"><%= entry.address %></div>
+                            <% if (entry.comment) { %>
+                            <div class="text-xs text-gray-600 mt-1"><%= entry.comment %></div>
+                            <% } %>
+                        </div>
+                        <form action="/prepaid/address-list/remove" method="POST" class="inline" onsubmit="return confirm('Hapus IP <%= entry.address %> dari list?')">
+                            <input type="hidden" name="list_name" value="prepaid-active">
+                            <input type="hidden" name="ip_address" value="<%= entry.address %>">
+                            <button type="submit" class="ml-3 text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <% }); %>
+                </div>
+                <% } %>
+                
+                <!-- Clear List Button -->
+                <% if (activeList.length > 0) { %>
+                <form action="/prepaid/address-list/clear" method="POST" class="mt-4" onsubmit="return confirm('Yakin ingin menghapus SEMUA IP dari list ini?')">
+                    <input type="hidden" name="list_name" value="prepaid-active">
+                    <button type="submit" class="w-full bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>
+                        Clear All (Hapus Semua)
+                    </button>
+                </form>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h4 class="font-bold text-blue-900 mb-3 flex items-center">
+            <i class="fas fa-info-circle mr-2"></i>
+            Informasi Address List
+        </h4>
+        <ul class="space-y-2 text-sm text-blue-800">
+            <li class="flex items-start">
+                <i class="fas fa-check text-blue-600 mr-2 mt-1"></i>
+                <span><strong>prepaid-no-package</strong>: IP customer yang belum punya paket. Browser akan di-redirect paksa ke portal prepaid.</span>
+            </li>
+            <li class="flex items-start">
+                <i class="fas fa-check text-blue-600 mr-2 mt-1"></i>
+                <span><strong>prepaid-active</strong>: IP customer dengan paket aktif. Internet full access tanpa redirect.</span>
+            </li>
+            <li class="flex items-start">
+                <i class="fas fa-check text-blue-600 mr-2 mt-1"></i>
+                <span>Sistem akan <strong>otomatis</strong> mengelola address-list saat migrasi, aktivasi, dan expired.</span>
+            </li>
+            <li class="flex items-start">
+                <i class="fas fa-check text-blue-600 mr-2 mt-1"></i>
+                <span>Manual add/remove hanya untuk <strong>troubleshooting</strong> atau testing.</span>
+            </li>
+        </ul>
+    </div>
+
+    <% } %>
+</div>
+

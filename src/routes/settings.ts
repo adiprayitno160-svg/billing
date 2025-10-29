@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { CompanyController } from '../controllers/settings/companyController';
 import { TelegramSettingsController } from '../controllers/settings/TelegramSettingsController';
+import SystemSettingsController from '../controllers/settings/SystemSettingsController';
 import multer from 'multer';
 
 const router = Router();
@@ -27,5 +28,9 @@ router.get('/telegram', TelegramSettingsController.showSettings);
 router.post('/telegram', TelegramSettingsController.saveSettings);
 router.post('/telegram/test', TelegramSettingsController.testConnection);
 router.post('/telegram/restart', TelegramSettingsController.restartBot);
+
+// Routes untuk System Settings (Prepaid Portal URL, etc)
+router.get('/system', SystemSettingsController.index);
+router.post('/system', SystemSettingsController.updateSettings);
 
 export default router;

@@ -1,0 +1,146 @@
+<!-- System Settings Page -->
+<div class="container-fluid">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">System Settings</h1>
+        <p class="text-gray-600">Konfigurasi sistem termasuk Prepaid Portal URL</p>
+    </div>
+
+    <!-- Flash Messages -->
+    <% if (typeof success !== 'undefined' && success) { %>
+    <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-green-500 text-xl mr-3"></i>
+            <p class="text-green-800"><%= success %></p>
+        </div>
+    </div>
+    <% } %>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-circle text-red-500 text-xl mr-3"></i>
+            <p class="text-red-800"><%= error %></p>
+        </div>
+    </div>
+    <% } %>
+
+    <form action="/settings/system" method="POST">
+        <% if (groupedSettings && groupedSettings.prepaid) { %>
+        <!-- Prepaid Settings -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+            <div class="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-4 rounded-t-lg">
+                <h3 class="text-lg font-bold flex items-center">
+                    <i class="fas fa-dollar-sign mr-2"></i>
+                    Prepaid Portal Configuration
+                </h3>
+                <p class="text-sm text-white/80 mt-1">Konfigurasi URL dan settings untuk prepaid portal</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <% groupedSettings.prepaid.forEach(function(setting) { %>
+                <div class="border-b border-gray-200 pb-4 last:border-0">
+                    <label class="block text-sm font-semibold text-gray-900 mb-2">
+                        <%= setting.setting_key.replace(/_/g, ' ').toUpperCase() %>
+                    </label>
+                    <% if (setting.setting_description) { %>
+                    <p class="text-sm text-gray-600 mb-3"><%= setting.setting_description %></p>
+                    <% } %>
+                    
+                    <% if (setting.setting_value === 'true' || setting.setting_value === 'false') { %>
+                    <!-- Boolean toggle -->
+                    <div class="flex items-center">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="<%= setting.setting_key %>" value="true" class="sr-only peer" 
+                                   <%= setting.setting_value === 'true' ? 'checked' : '' %>>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-700">
+                                <%= setting.setting_value === 'true' ? 'Enabled' : 'Disabled' %>
+                            </span>
+                        </label>
+                    </div>
+                    <input type="hidden" name="<%= setting.setting_key %>" value="false">
+                    <% } else if (setting.setting_key === 'prepaid_portal_url') { %>
+                    <!-- Portal URL dengan contoh -->
+                    <input type="text" name="<%= setting.setting_key %>" value="<%= setting.setting_value %>" 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 font-mono text-sm">
+                    <div class="mt-2 bg-blue-50 border border-blue-200 rounded p-3">
+                        <p class="text-sm text-blue-900 font-semibold mb-2">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Contoh URL:
+                        </p>
+                        <ul class="text-xs text-blue-800 space-y-1 ml-4">
+                            <li><strong>Local:</strong> <code class="bg-white px-2 py-1 rounded">http://localhost:3000</code></li>
+                            <li><strong>LAN:</strong> <code class="bg-white px-2 py-1 rounded">http://192.168.1.10:3000</code></li>
+                            <li><strong>Domain:</strong> <code class="bg-white px-2 py-1 rounded">http://billing.yourdomain.com</code></li>
+                            <li><strong>HTTPS:</strong> <code class="bg-white px-2 py-1 rounded">https://billing.yourdomain.com</code></li>
+                        </ul>
+                        <p class="text-xs text-blue-700 mt-2">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            <strong>Penting:</strong> URL ini digunakan untuk NAT redirect di Mikrotik!
+                        </p>
+                    </div>
+                    <% } else { %>
+                    <!-- Text input -->
+                    <input type="text" name="<%= setting.setting_key %>" value="<%= setting.setting_value %>" 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                    <% } %>
+                </div>
+                <% }); %>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Other Categories -->
+        <% Object.keys(groupedSettings).forEach(function(category) { %>
+            <% if (category !== 'prepaid') { %>
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="bg-gray-100 px-6 py-4 rounded-t-lg border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-900 capitalize">
+                        <%= category.replace(/_/g, ' ') %>
+                    </h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <% groupedSettings[category].forEach(function(setting) { %>
+                    <div class="border-b border-gray-200 pb-4 last:border-0">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2">
+                            <%= setting.setting_key.replace(/_/g, ' ').toUpperCase() %>
+                        </label>
+                        <% if (setting.setting_description) { %>
+                        <p class="text-sm text-gray-600 mb-3"><%= setting.setting_description %></p>
+                        <% } %>
+                        <input type="text" name="<%= setting.setting_key %>" value="<%= setting.setting_value %>" 
+                               class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <% }); %>
+                </div>
+            </div>
+            <% } %>
+        <% }); %>
+
+        <!-- Save Button -->
+        <div class="flex items-center justify-end gap-4">
+            <a href="/" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                <i class="fas fa-save mr-2"></i>
+                Save Settings
+            </button>
+        </div>
+    </form>
+
+    <!-- Help Card -->
+    <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h4 class="font-bold text-yellow-900 mb-3 flex items-center">
+            <i class="fas fa-lightbulb mr-2"></i>
+            Cara Setup Portal URL
+        </h4>
+        <ol class="space-y-2 text-sm text-yellow-800 list-decimal list-inside">
+            <li>Set <strong>prepaid_portal_url</strong> sesuai dengan IP/domain server billing Anda</li>
+            <li>Jika menggunakan **localhost**, ganti dengan IP LAN server (contoh: 192.168.1.10:3000)</li>
+            <li>Jika punya domain, gunakan domain (contoh: http://billing.domain.com)</li>
+            <li>Setelah save, update <strong>NAT redirect rules</strong> di Mikrotik dengan URL ini</li>
+            <li>Test dengan buka: <code class="bg-white px-2 py-1 rounded">[URL]/prepaid/portal/splash</code></li>
+        </ol>
+    </div>
+</div>
+

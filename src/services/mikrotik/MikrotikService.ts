@@ -97,7 +97,7 @@ export class MikrotikService {
   }
 
   /**
-   * Update PPPoE user
+   * Update PPPoE user by ID
    */
   async updatePPPoEUser(userId: string, userData: {
     password?: string;
@@ -128,6 +128,125 @@ export class MikrotikService {
     } catch (error) {
       console.error('Failed to update PPPoE user:', error);
       return false;
+    }
+  }
+
+  /**
+   * Update PPPoE user by username (untuk prepaid migration)
+   */
+  async updatePPPoEUserByUsername(username: string, userData: {
+    password?: string;
+    profile?: string;
+    comment?: string;
+    disabled?: boolean;
+  }): Promise<boolean> {
+    try {
+      const api = new RouterOSAPI({
+        host: this.config.host,
+        port: this.config.port || 8728,
+        user: this.config.username,
+        password: this.config.password,
+        timeout: 10000
+      });
+      
+      await api.connect();
+      
+      // Find user by username
+      const users = await api.write('/ppp/secret/print', [`?name=${username}`]);
+      
+      if (!Array.isArray(users) || users.length === 0) {
+        console.error(`PPPoE user ${username} not found`);
+        api.close();
+        return false;
+      }
+      
+      const userId = users[0]['.id'];
+      
+      // Build update params
+      const updateParams: string[] = [`=.id=${userId}`];
+      if (userData.password !== undefined) updateParams.push(`=password=${userData.password}`);
+      if (userData.profile !== undefined) updateParams.push(`=profile=${userData.profile}`);
+      if (userData.comment !== undefined) updateParams.push(`=comment=${userData.comment}`);
+      if (userData.disabled !== undefined) updateParams.push(`=disabled=${userData.disabled ? 'yes' : 'no'}`);
+      
+      await api.write('/ppp/secret/set', updateParams);
+      api.close();
+      
+      console.log(`✅ Updated PPPoE user: ${username} (profile: ${userData.profile || 'unchanged'})`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to update PPPoE user ${username}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Disconnect active PPPoE user (force reconnect)
+   */
+  async disconnectPPPoEUser(username: string): Promise<boolean> {
+    try {
+      const api = new RouterOSAPI({
+        host: this.config.host,
+        port: this.config.port || 8728,
+        user: this.config.username,
+        password: this.config.password,
+        timeout: 10000
+      });
+      
+      await api.connect();
+      
+      // Find active connection
+      const connections = await api.write('/ppp/active/print', [`?name=${username}`]);
+      
+      if (!Array.isArray(connections) || connections.length === 0) {
+        console.log(`⚠️  PPPoE user ${username} not currently connected`);
+        api.close();
+        return true; // Not an error, just not connected
+      }
+      
+      // Disconnect all active connections for this user
+      for (const conn of connections) {
+        const connId = conn['.id'];
+        if (connId) {
+          await api.write('/ppp/active/remove', [`=.id=${connId}`]);
+          console.log(`✅ Disconnected PPPoE user: ${username}`);
+        }
+      }
+      
+      api.close();
+      return true;
+    } catch (error) {
+      console.error(`Failed to disconnect PPPoE user ${username}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get PPPoE user by username
+   */
+  async getPPPoEUserByUsername(username: string): Promise<any | null> {
+    try {
+      const api = new RouterOSAPI({
+        host: this.config.host,
+        port: this.config.port || 8728,
+        user: this.config.username,
+        password: this.config.password,
+        timeout: 10000
+      });
+      
+      await api.connect();
+      
+      const users = await api.write('/ppp/secret/print', [`?name=${username}`]);
+      api.close();
+      
+      if (Array.isArray(users) && users.length > 0) {
+        return users[0];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Failed to get PPPoE user ${username}:`, error);
+      return null;
     }
   }
 

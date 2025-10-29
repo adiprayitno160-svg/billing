@@ -3,6 +3,8 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import bcrypt from 'bcrypt';
 import AddressListService from '../prepaid/AddressListService';
 import AutoMikrotikSetupService from './AutoMikrotikSetupService';
+import { MikrotikService } from '../mikrotik/MikrotikService';
+import MikrotikAddressListService from '../mikrotik/MikrotikAddressListService';
 
 interface MigrationResult {
   success: boolean;
@@ -126,23 +128,87 @@ class MigrationService {
       
       await connection.commit();
       
-      // 6. Setup MikroTik (dilakukan setelah commit untuk avoid rollback issues)
+      // 6. Setup MikroTik berdasarkan connection type
+      let mikrotikMessage = '';
       try {
-        // Ensure address list exists
-        await AutoMikrotikSetupService.ensurePortalRedirectList();
+        // Get Mikrotik settings
+        const [mikrotikSettings] = await connection.query<RowDataPacket[]>(
+          'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
+        );
         
-        // Add customer IP to portal-redirect list
-        await AddressListService.addToPortalRedirect(customerId, 'Migrasi ke prepaid - belum ada paket');
+        if (mikrotikSettings.length > 0) {
+          const settings = mikrotikSettings[0];
+          const mikrotikService = new MikrotikService({
+            host: settings.host,
+            username: settings.username,
+            password: settings.password,
+            port: settings.api_port || 8728
+          });
+          
+          const addressListService = new MikrotikAddressListService({
+            host: settings.host,
+            username: settings.username,
+            password: settings.password,
+            port: settings.api_port || 8728
+          });
+          
+          // Handle berdasarkan connection type
+          if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
+            // ===== PPPOE: Update profile ke prepaid-no-package =====
+            console.log(`🔄 PPPoE Migration: ${customer.pppoe_username}`);
+            
+            const updateSuccess = await mikrotikService.updatePPPoEUserByUsername(
+              customer.pppoe_username,
+              {
+                profile: 'prepaid-no-package',
+                comment: `Prepaid - Portal ID: ${portalId} - Waiting for package`
+              }
+            );
+            
+            if (updateSuccess) {
+              // Disconnect untuk force reconnect dengan profile baru
+              await mikrotikService.disconnectPPPoEUser(customer.pppoe_username);
+              mikrotikMessage = `✅ PPPoE profile updated to 'prepaid-no-package' & disconnected`;
+              console.log(`✅ PPPoE user ${customer.pppoe_username} migrated successfully`);
+            } else {
+              mikrotikMessage = `⚠️ Failed to update PPPoE profile (check manually)`;
+            }
+            
+          } else if (customer.connection_type === 'static' && customer.ip_address) {
+            // ===== STATIC IP: Add to address-list =====
+            console.log(`🔄 Static IP Migration: ${customer.ip_address}`);
+            
+            const addSuccess = await addressListService.addToAddressList(
+              'prepaid-no-package',
+              customer.ip_address,
+              `Prepaid - ${customer.name} - Portal ID: ${portalId}`
+            );
+            
+            if (addSuccess) {
+              mikrotikMessage = `✅ IP ${customer.ip_address} added to 'prepaid-no-package' list`;
+              console.log(`✅ Static IP ${customer.ip_address} migrated successfully`);
+            } else {
+              mikrotikMessage = `⚠️ Failed to add IP to address-list (check manually)`;
+            }
+            
+          } else {
+            mikrotikMessage = `⚠️ No PPPoE username or IP address found`;
+            console.warn(`⚠️ Customer ${customerId} has no pppoe_username or ip_address`);
+          }
+          
+        } else {
+          mikrotikMessage = '⚠️ Mikrotik not configured';
+          console.warn('⚠️ No active Mikrotik settings found');
+        }
         
-        console.log(`✅ Customer ${customerId} added to portal-redirect list`);
       } catch (mikrotikError) {
         console.error('⚠️ MikroTik setup error (non-critical):', mikrotikError);
-        // Non-critical, jangan throw error
+        mikrotikMessage = `⚠️ Mikrotik error: ${mikrotikError instanceof Error ? mikrotikError.message : 'Unknown'}`;
       }
       
       return {
         success: true,
-        message: 'Migrasi ke prepaid berhasil',
+        message: `Migrasi ke prepaid berhasil. ${mikrotikMessage}`,
         portal_id: portalId,
         portal_pin: portalRows.length > 0 ? undefined : portalPin // Hanya return PIN jika baru dibuat
       };

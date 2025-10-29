@@ -1,6 +1,6 @@
 <div class="space-y-4">
 	<!-- KPI Cards - Compact Modern Design -->
-    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem;">
+    <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.75rem;">
 		<!-- Total Pelanggan -->
 		<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
 			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
@@ -67,6 +67,105 @@
 			</div>
 			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.inactiveCustomers %></div>
 			<div style="font-size: 0.6875rem; opacity: 0.8; font-weight: 500;">Nonaktif</div>
+		</div>
+
+		<!-- Prepaid -->
+		<div style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center; cursor: pointer;" onclick="window.location='/prepaid/dashboard'">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+				</svg>
+			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Prepaid</div>
+		</div>
+
+		<!-- Prepaid Active -->
+		<div style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center; cursor: pointer;" onclick="window.location='/prepaid/subscriptions'">
+			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<polyline points="20 6 9 17 4 12"/>
+				</svg>
+			</div>
+			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
+			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Active</div>
+		</div>
+	</div>
+
+	<!-- Prepaid System Quick Info -->
+	<div class="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-6 shadow-sm">
+		<div class="flex items-start justify-between">
+			<div class="flex-1">
+				<div class="flex items-center gap-3 mb-3">
+					<div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+						<svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+							<path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
+							<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"/>
+						</svg>
+					</div>
+					<div>
+						<h3 class="text-lg font-bold text-gray-900">Prepaid System</h3>
+						<p class="text-sm text-gray-600">Self-Service Portal dengan Redirect Paksa</p>
+					</div>
+				</div>
+				<div class="grid grid-cols-4 gap-4 mb-4">
+					<div class="bg-white/70 rounded-lg p-3 text-center">
+						<div class="text-2xl font-bold text-orange-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
+						<div class="text-xs text-gray-600 font-medium">Total Prepaid</div>
+					</div>
+					<div class="bg-white/70 rounded-lg p-3 text-center">
+						<div class="text-2xl font-bold text-green-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
+						<div class="text-xs text-gray-600 font-medium">Active Subscription</div>
+					</div>
+					<div class="bg-white/70 rounded-lg p-3 text-center">
+						<div class="text-2xl font-bold text-blue-600"><%= typeof prepaidStats !== 'undefined' ? (prepaidStats.totalPrepaid - prepaidStats.activeSubscriptions) : 0 %></div>
+						<div class="text-xs text-gray-600 font-medium">Need Package</div>
+					</div>
+					<div class="bg-white/70 rounded-lg p-3 text-center">
+						<div class="text-2xl font-bold text-purple-600">
+							<%= typeof prepaidStats !== 'undefined' && prepaidStats.totalPrepaid > 0 ? Math.round((prepaidStats.activeSubscriptions / prepaidStats.totalPrepaid) * 100) : 0 %>%
+						</div>
+						<div class="text-xs text-gray-600 font-medium">Active Rate</div>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					<a href="/prepaid/dashboard" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-200">
+						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+							<path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+						</svg>
+						Dashboard Prepaid
+					</a>
+					<a href="/prepaid/packages" class="inline-flex items-center px-4 py-2 bg-white text-orange-600 text-sm font-semibold rounded-lg border-2 border-orange-200 hover:bg-orange-50 transition-all duration-200">
+						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+						</svg>
+						Kelola Paket
+					</a>
+					<a href="/customers/list?filter=prepaid" class="inline-flex items-center px-4 py-2 bg-white text-orange-600 text-sm font-semibold rounded-lg border-2 border-orange-200 hover:bg-orange-50 transition-all duration-200">
+						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+							<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+						</svg>
+						Lihat Customer
+					</a>
+					<a href="/prepaid/portal/splash" target="_blank" class="inline-flex items-center px-4 py-2 bg-white text-blue-600 text-sm font-semibold rounded-lg border-2 border-blue-200 hover:bg-blue-50 transition-all duration-200">
+						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+							<path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+							<path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+						</svg>
+						Test Portal
+					</a>
+				</div>
+			</div>
+			<div class="ml-4">
+				<div class="bg-white/70 rounded-lg p-4 text-center min-w-[120px]">
+					<div class="text-xs text-gray-600 font-medium mb-2">Status Scheduler</div>
+					<div class="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-semibold">
+						<span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+						Running
+					</div>
+					<div class="text-xs text-gray-500 mt-2">Auto-check every 5 min</div>
+				</div>
+			</div>
 		</div>
 	</div>
 

@@ -74,3 +74,4 @@ echo -e "${GREEN}New version: $NEW_VERSION${NC}"
 
 exit 0
 
+

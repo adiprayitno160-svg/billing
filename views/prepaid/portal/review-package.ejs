@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Portal Prepaid</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  <!-- Header -->
+  <div class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-indigo-600">
+        <i class="fas fa-wifi mr-2"></i>Portal Prepaid
+      </h1>
+      <a href="/prepaid/portal/packages" class="text-gray-600 hover:text-indigo-600">
+        <i class="fas fa-arrow-left mr-1"></i>Kembali
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+      <!-- Title -->
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">
+          📋 Review Paket
+        </h2>
+        <p class="text-gray-600">Pastikan detail paket sudah benar sebelum melanjutkan</p>
+      </div>
+
+      <!-- Package Card -->
+      <div class="bg-white rounded-xl shadow-xl overflow-hidden">
+        <!-- Package Header -->
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 text-white">
+          <h3 class="text-2xl font-bold mb-3"><%= package.name %></h3>
+          <div class="flex items-baseline">
+            <div class="text-5xl font-extrabold">
+              Rp <%= Number(package.price).toLocaleString('id-ID') %>
+            </div>
+            <div class="text-xl opacity-90 ml-2">/<%= package.duration_days %> hari</div>
+          </div>
+        </div>
+
+        <!-- Package Details -->
+        <div class="p-8">
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">Detail Paket:</h4>
+          
+          <div class="space-y-4">
+            <!-- Download Speed -->
+            <div class="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+              <div class="flex items-center">
+                <i class="fas fa-download text-2xl text-green-600 mr-4"></i>
+                <div>
+                  <div class="text-sm text-gray-600">Download Speed</div>
+                  <div class="text-xl font-bold text-gray-900"><%= package.download_mbps %> Mbps</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Speed -->
+            <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div class="flex items-center">
+                <i class="fas fa-upload text-2xl text-blue-600 mr-4"></i>
+                <div>
+                  <div class="text-sm text-gray-600">Upload Speed</div>
+                  <div class="text-xl font-bold text-gray-900"><%= package.upload_mbps %> Mbps</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Duration -->
+            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <div class="flex items-center">
+                <i class="fas fa-calendar text-2xl text-purple-600 mr-4"></i>
+                <div>
+                  <div class="text-sm text-gray-600">Masa Aktif</div>
+                  <div class="text-xl font-bold text-gray-900"><%= package.duration_days %> Hari</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quota -->
+            <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div class="flex items-center">
+                <i class="fas fa-infinity text-2xl text-yellow-600 mr-4"></i>
+                <div>
+                  <div class="text-sm text-gray-600">Kuota Internet</div>
+                  <div class="text-xl font-bold text-gray-900">Unlimited</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <% if (package.description) { %>
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+              <p class="text-gray-700"><%= package.description %></p>
+            </div>
+          <% } %>
+
+          <!-- Payment Form -->
+          <form action="/prepaid/portal/payment/select-method" method="POST" class="mt-8">
+            <input type="hidden" name="package_id" value="<%= package.id %>">
+            
+            <!-- Total -->
+            <div class="border-t border-b py-4 mb-6">
+              <div class="flex items-center justify-between">
+                <span class="text-lg font-semibold text-gray-700">Total Pembayaran:</span>
+                <span class="text-3xl font-bold text-indigo-600">
+                  Rp <%= Number(package.price).toLocaleString('id-ID') %>
+                </span>
+              </div>
+            </div>
+
+            <!-- Terms -->
+            <div class="mb-6">
+              <label class="flex items-start">
+                <input type="checkbox" required class="mt-1 mr-3 rounded text-indigo-600 focus:ring-2 focus:ring-indigo-500">
+                <span class="text-sm text-gray-600">
+                  Saya setuju dengan syarat dan ketentuan yang berlaku. Paket akan aktif setelah pembayaran diverifikasi oleh admin.
+                </span>
+              </label>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex space-x-4">
+              <a href="/prepaid/portal/packages" 
+                 class="flex-1 text-center px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50">
+                <i class="fas fa-arrow-left mr-2"></i>Kembali
+              </a>
+              <button type="submit" 
+                      class="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-lg">
+                <i class="fas fa-arrow-right mr-2"></i>Lanjut ke Pembayaran
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="container mx-auto px-4 py-8 text-center text-gray-600 text-sm">
+    <p>&copy; 2025 Billing System. All rights reserved.</p>
+  </div>
+</body>
+</html>
+

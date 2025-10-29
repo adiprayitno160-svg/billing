@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Access - Portal Prepaid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    <!-- Background Pattern -->
+    <div class="absolute inset-0 overflow-hidden opacity-10">
+        <div class="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="glass-card rounded-3xl shadow-2xl max-w-2xl w-full p-8 relative z-10">
+        <!-- Icon -->
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4 float-animation">
+                <i class="fas fa-wifi text-white text-4xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Selamat Datang!</h1>
+            <p class="text-gray-600 text-lg">Portal Internet Prepaid</p>
+        </div>
+
+        <!-- Status Alert -->
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 rounded">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mr-3 mt-1"></i>
+                <div>
+                    <h3 class="font-semibold text-yellow-800 text-lg">Akses Internet Terbatas</h3>
+                    <p class="text-yellow-700 mt-1">
+                        Anda belum memiliki paket internet aktif atau paket Anda telah habis masa berlakunya.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="bg-blue-50 rounded-xl p-6 mb-6">
+            <h3 class="font-semibold text-blue-900 text-lg mb-4 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
+                Cara Mengaktifkan Internet
+            </h3>
+            <div class="space-y-3">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                        1
+                    </div>
+                    <div>
+                        <p class="text-blue-900"><strong>Login</strong> menggunakan Portal ID dan PIN Anda</p>
+                        <p class="text-blue-700 text-sm mt-1">ID dan PIN sudah dikirim via WhatsApp saat registrasi</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                        2
+                    </div>
+                    <div>
+                        <p class="text-blue-900"><strong>Pilih Paket</strong> internet yang sesuai kebutuhan Anda</p>
+                        <p class="text-blue-700 text-sm mt-1">Tersedia berbagai pilihan kuota dan kecepatan</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                        3
+                    </div>
+                    <div>
+                        <p class="text-blue-900"><strong>Lakukan Pembayaran</strong> dan internet langsung aktif!</p>
+                        <p class="text-blue-700 text-sm mt-1">Support transfer bank, e-wallet, dan QRIS</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Button -->
+        <div class="text-center">
+            <a href="/prepaid/portal/login" 
+               class="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg px-10 py-4 rounded-xl hover:shadow-xl transform hover:scale-105 transition duration-300">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                Masuk ke Portal Prepaid
+            </a>
+            <p class="text-gray-600 text-sm mt-4">
+                Belum punya Portal ID? Hubungi admin untuk registrasi
+            </p>
+        </div>
+
+        <!-- Help Section -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                    <i class="fas fa-headset text-blue-600 text-2xl mb-2"></i>
+                    <p class="text-sm text-gray-700"><strong>Customer Service</strong></p>
+                    <p class="text-xs text-gray-500">Senin - Sabtu, 08:00 - 20:00</p>
+                </div>
+                <div>
+                    <i class="fab fa-whatsapp text-green-600 text-2xl mb-2"></i>
+                    <p class="text-sm text-gray-700"><strong>WhatsApp Support</strong></p>
+                    <p class="text-xs text-gray-500">Respons cepat 24/7</p>
+                </div>
+                <div>
+                    <i class="fas fa-clock text-purple-600 text-2xl mb-2"></i>
+                    <p class="text-sm text-gray-700"><strong>Aktivasi Instant</strong></p>
+                    <p class="text-xs text-gray-500">Langsung aktif setelah bayar</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Redirect Notice -->
+        <div class="mt-6 text-center">
+            <p class="text-xs text-gray-500">
+                <i class="fas fa-shield-alt mr-1"></i>
+                Koneksi Anda aman dan terenkripsi
+            </p>
+        </div>
+    </div>
+
+    <!-- Auto-redirect script (optional) -->
+    <script>
+        // Optional: Auto redirect after 10 seconds
+        // setTimeout(() => {
+        //     window.location.href = '/prepaid/portal/login';
+        // }, 10000);
+
+        // Show loading animation when clicking login button
+        document.querySelector('a[href="/prepaid/portal/login"]').addEventListener('click', function(e) {
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+        });
+    </script>
+</body>
+</html>
+

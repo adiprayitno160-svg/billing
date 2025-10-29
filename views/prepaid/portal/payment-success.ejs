@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Portal Prepaid</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: #f0f;
+      animation: confetti-fall 3s linear infinite;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-teal-100 min-h-screen overflow-hidden">
+  <!-- Confetti Animation -->
+  <div class="confetti" style="left: 10%; animation-delay: 0s; background: #f06;"></div>
+  <div class="confetti" style="left: 20%; animation-delay: 0.3s; background: #0f6;"></div>
+  <div class="confetti" style="left: 30%; animation-delay: 0.6s; background: #60f;"></div>
+  <div class="confetti" style="left: 40%; animation-delay: 0.9s; background: #ff6;"></div>
+  <div class="confetti" style="left: 50%; animation-delay: 1.2s; background: #6ff;"></div>
+  <div class="confetti" style="left: 60%; animation-delay: 1.5s; background: #f66;"></div>
+  <div class="confetti" style="left: 70%; animation-delay: 1.8s; background: #6f6;"></div>
+  <div class="confetti" style="left: 80%; animation-delay: 2.1s; background: #66f;"></div>
+  <div class="confetti" style="left: 90%; animation-delay: 2.4s; background: #ff0;"></div>
+
+  <!-- Header -->
+  <div class="bg-white shadow-sm relative z-10">
+    <div class="container mx-auto px-4 py-4">
+      <h1 class="text-2xl font-bold text-green-600">
+        <i class="fas fa-wifi mr-2"></i>Portal Prepaid
+      </h1>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-8 relative z-10">
+    <div class="max-w-2xl mx-auto">
+      
+      <!-- Success Card -->
+      <div class="bg-white rounded-xl shadow-2xl p-8 text-center transform scale-100 transition-all animate-pulse">
+        <!-- Success Icon with Animation -->
+        <div class="mb-6">
+          <div class="inline-block p-8 bg-green-100 rounded-full">
+            <i class="fas fa-check-circle text-8xl text-green-600"></i>
+          </div>
+        </div>
+
+        <h2 class="text-4xl font-bold text-gray-800 mb-4">
+          🎉 Selamat!
+        </h2>
+        
+        <h3 class="text-2xl font-semibold text-green-600 mb-6">
+          Paket Berhasil Diaktifkan!
+        </h3>
+
+        <p class="text-gray-600 text-lg mb-8">
+          Internet Anda sekarang sudah aktif dan siap digunakan. 
+          Selamat berselancar! 🚀
+        </p>
+
+        <!-- Package Summary -->
+        <div class="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg p-6 mb-8 text-left">
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-box-open mr-2"></i>Detail Aktivasi:
+          </h4>
+          
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Transaction ID:</span>
+              <span class="font-bold text-gray-900">#<%= transaction.id %></span>
+            </div>
+            
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Amount:</span>
+              <span class="font-bold text-green-600">
+                Rp <%= Number(transaction.amount).toLocaleString('id-ID') %>
+              </span>
+            </div>
+            
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Payment Method:</span>
+              <span class="font-semibold text-gray-900">
+                <%= transaction.payment_method === 'manual_transfer' ? 'Transfer Bank' : 'Payment Gateway' %>
+              </span>
+            </div>
+            
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Status:</span>
+              <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                <i class="fas fa-check mr-1"></i>Active
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success Info -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 text-left">
+          <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-600 text-xl mt-1 mr-3"></i>
+            <div class="text-sm text-blue-800">
+              <p class="font-semibold mb-1">Informasi Penting:</p>
+              <ul class="list-disc list-inside space-y-1">
+                <li>Paket Anda sudah aktif dan bisa digunakan sekarang</li>
+                <li>Kecepatan internet sudah diupdate di Mikrotik</li>
+                <li>Anda akan menerima notifikasi WhatsApp (jika diaktifkan)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-3">
+          <a href="/prepaid/portal/dashboard" 
+             class="block w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold py-4 px-6 rounded-lg text-lg shadow-lg">
+            <i class="fas fa-home mr-2"></i>Kembali ke Dashboard
+          </a>
+          
+          <a href="/prepaid/portal/packages" 
+             class="block w-full border-2 border-green-600 text-green-600 font-semibold py-3 px-6 rounded-lg hover:bg-green-50">
+            <i class="fas fa-shopping-cart mr-2"></i>Beli Paket Lagi
+          </a>
+        </div>
+
+        <!-- Thank You Message -->
+        <div class="mt-8 pt-6 border-t">
+          <p class="text-gray-500 text-sm">
+            <i class="fas fa-heart text-red-500 mr-1"></i>
+            Terima kasih telah mempercayai layanan kami!
+          </p>
+        </div>
+      </div>
+
+      <!-- Additional Tips -->
+      <div class="mt-6 bg-white rounded-lg shadow p-6">
+        <h4 class="font-semibold text-gray-800 mb-3">
+          <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Tips:
+        </h4>
+        <ul class="text-sm text-gray-600 space-y-2">
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Restart modem/router Anda jika koneksi belum stabil</li>
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Cek dashboard untuk melihat sisa masa aktif paket</li>
+          <li><i class="fas fa-check text-green-600 mr-2"></i>Perpanjang paket sebelum expired untuk menghindari putus</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Disable confetti after 5 seconds
+    setTimeout(function() {
+      const confetti = document.querySelectorAll('.confetti');
+      confetti.forEach(function(el) {
+        el.style.animation = 'none';
+        el.style.display = 'none';
+      });
+    }, 5000);
+
+    // Auto-redirect to dashboard after 30 seconds
+    let countdown = 30;
+    const countdownInterval = setInterval(function() {
+      countdown--;
+      if (countdown === 0) {
+        clearInterval(countdownInterval);
+        window.location.href = '/prepaid/portal/dashboard';
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
+

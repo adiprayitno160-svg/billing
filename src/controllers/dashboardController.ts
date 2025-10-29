@@ -61,7 +61,9 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		odcCountP,
 		odpCountP,
 		mtSettingsP,
-		troubleCustomersP
+		troubleCustomersP,
+		prepaidCustomersP,
+		activeSubscriptionsP
 	] = await Promise.all([
 		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -78,7 +80,9 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odc'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odp'),
 		databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
-		getTroubleCustomers()
+		getTroubleCustomers(),
+		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE billing_mode='prepaid'"),
+		databasePool.query("SELECT COUNT(*) AS cnt FROM prepaid_package_subscriptions WHERE status='active' AND expiry_date > NOW()")
 	]);
 
 	const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -95,6 +99,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 	const newRequests = (newRequests7dP[0] as any)[0]?.cnt ?? 0;
 	const recentRequests = (recentRequestsP[0] as any) ?? [];
 	const troubleCustomers = troubleCustomersP ?? [];
+	const prepaidCustomers = (prepaidCustomersP[0] as any)[0]?.cnt ?? 0;
+	const activeSubscriptions = (activeSubscriptionsP[0] as any)[0]?.cnt ?? 0;
 
 	const labels = getLastNDatesLabels(7);
 	const pointsMap: Record<string, number> = Object.create(null);
@@ -144,6 +150,10 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			oltCount, 
 			odcCount, 
 			odpCount 
+		},
+		prepaidStats: {
+			totalPrepaid: prepaidCustomers,
+			activeSubscriptions: activeSubscriptions
 		},
 		recentRequests,
 		troubleCustomers,

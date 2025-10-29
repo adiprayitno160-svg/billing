@@ -1,0 +1,50 @@
+====================================
+QUICK FIX - Error 500 (5 MENIT)
+====================================
+
+PENYEBAB ERROR:
+- File TypeScript belum di-compile ke JavaScript
+- Server masih baca file .ts yang tidak bisa dijalankan
+
+SOLUSI CEPAT:
+============
+
+1. COMPILE TYPESCRIPT
+   Buka terminal/CMD di folder billing:
+   
+   npx tsc
+   
+   (Tunggu sampai selesai, ~30 detik)
+
+2. RESTART SERVER
+   
+   Jika pakai PM2:
+   pm2 restart billing-system
+   
+   Jika pakai npm/node:
+   - Tekan Ctrl+C untuk stop
+   - Lalu: npm start
+
+3. RUN MIGRATION (Jika Belum)
+   
+   mysql -u root -p billing_db < migrations/complete_prepaid_system.sql
+
+4. TEST
+   
+   Buka: http://localhost:3000/prepaid/packages
+   
+   Harusnya:
+   - Load CEPAT (< 1 detik)
+   - Tidak ada error 500
+   - Tampil halaman "Manajemen Paket Prepaid"
+
+====================================
+
+JIKA MASIH ERROR:
+Baca file: HOTFIX_ERROR_500.md
+
+JIKA SUDAH JALAN:
+Selamat! Sistem siap digunakan 🎉
+
+====================================
+
