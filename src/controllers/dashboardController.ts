@@ -165,8 +165,19 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 	});
 }
 
+// Cache untuk interface stats (5 detik)
+let interfaceStatsCache: { data: any[], timestamp: number } | null = null;
+const CACHE_DURATION = 5000; // 5 detik
+
 export async function getInterfaceStats(req: Request, res: Response): Promise<void> {
 	try {
+		// Check cache first
+		const now = Date.now();
+		if (interfaceStatsCache && (now - interfaceStatsCache.timestamp) < CACHE_DURATION) {
+			res.json(interfaceStatsCache.data);
+			return;
+		}
+
 		const [mtSettingsRows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
 		const mtSettings = Array.isArray(mtSettingsRows) && mtSettingsRows.length ? (mtSettingsRows as any[])[0] : null;
 
@@ -183,11 +194,30 @@ export async function getInterfaceStats(req: Request, res: Response): Promise<vo
 			use_tls: mtSettings.use_tls
 		};
 
-		const interfaces = await getInterfaces(config);
+		// Add timeout protection - max 3 seconds
+		const timeoutPromise = new Promise<any[]>((_, reject) => {
+			setTimeout(() => reject(new Error('MikroTik request timeout')), 3000);
+		});
+
+		const interfacesPromise = getInterfaces(config);
+		const interfaces = await Promise.race([interfacesPromise, timeoutPromise]);
+		
+		// Update cache
+		interfaceStatsCache = {
+			data: interfaces,
+			timestamp: now
+		};
+
 		res.json(interfaces);
 	} catch (error: any) {
 		console.error('Error fetching interface stats:', error);
-		res.json([]);
+		
+		// Return cached data if available, even if expired
+		if (interfaceStatsCache) {
+			res.json(interfaceStatsCache.data);
+		} else {
+			res.json([]);
+		}
 	}
 }
 

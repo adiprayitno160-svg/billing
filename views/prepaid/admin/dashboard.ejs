@@ -497,18 +497,44 @@
         return bytesPerSec.toFixed(0) + ' b/s';
     }
 
+    let failedAttempts = 0;
+    const MAX_FAILED_ATTEMPTS = 5;
+
     function startUpdateInterval() {
         if (updateInterval) clearInterval(updateInterval);
 
         updateInterval = setInterval(async () => {
             try {
-                const response = await fetch('/api/interface-stats');
+                // Add timeout untuk fetch request
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 detik timeout
+
+                const response = await fetch('/api/interface-stats', {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 if (!response.ok) {
                     console.error('Failed to fetch interface stats:', response.status);
+                    failedAttempts++;
+                    
+                    // Auto-restart if too many failures
+                    if (failedAttempts >= MAX_FAILED_ATTEMPTS && isMonitoring) {
+                        console.log('Too many failed attempts, restarting monitor...');
+                        toggleMonitoring(); // Stop
+                        setTimeout(() => {
+                            toggleMonitoring(); // Start again
+                            failedAttempts = 0;
+                        }, 3000);
+                    }
                     return;
                 }
 
                 const newData = await response.json();
+                
+                // Reset failed attempts on success
+                failedAttempts = 0;
+
                 const interfaceNames = [...new Set(chart.data.datasets.map(d => d.interfaceName))];
 
                 interfaceNames.forEach((ifaceName) => {
@@ -545,6 +571,17 @@
                 chart.update('none');
             } catch (error) {
                 console.error('Error updating interface stats:', error);
+                failedAttempts++;
+                
+                // Auto-recovery after multiple failures
+                if (failedAttempts >= MAX_FAILED_ATTEMPTS && isMonitoring) {
+                    console.log('Connection error detected, attempting auto-recovery...');
+                    // Clear old data to show we're recovering
+                    chart.data.datasets.forEach(dataset => {
+                        dataset.data = Array(30).fill(0);
+                    });
+                    chart.update('none');
+                }
             }
         }, 2000);
     }

@@ -349,7 +349,7 @@ export async function getInterfaces(cfg: MikroTikConfig): Promise<InterfaceInfo[
 			port: cfg.port,
 			user: cfg.username,
 			password: cfg.password,
-			timeout: 5000
+			timeout: 3000  // Reduced timeout for faster response
 		});
 		
     try {
@@ -379,8 +379,15 @@ export async function getInterfaces(cfg: MikroTikConfig): Promise<InterfaceInfo[
             running: String(r['running'] ?? ''),
             comment: r['comment'] !== undefined ? String(r['comment']) : undefined
         } as InterfaceInfo));
-    } finally {
-		api.close();
+    } catch (error: any) {
+		console.error('Error getting interfaces from MikroTik:', error.message || error);
+		throw error;
+	} finally {
+		try {
+			api.close();
+		} catch (err) {
+			// Ignore close errors
+		}
 	}
 }
 
