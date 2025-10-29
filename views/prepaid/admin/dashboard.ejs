@@ -662,32 +662,67 @@
                             return; // Skip first sample untuk akurasi
                         }
 
-                        // Hitung rate (bytes per second) - interval 2 detik
+                        // ═══════════════════════════════════════════════════════════
+                        // RAW RATE CALCULATION
+                        // ═══════════════════════════════════════════════════════════
                         let rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
                         let txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
 
-                        // Deteksi counter reset (jika byte baru < byte lama)
-                        if (rxBytes < previousData[ifaceName].rx) {
-                            console.log(`[${ifaceName}] RX counter reset detected`);
-                            rxRate = 0;
-                            previousData[ifaceName].rx = rxBytes; // Reset base untuk next calculation
-                        }
-                        if (txBytes < previousData[ifaceName].tx) {
-                            console.log(`[${ifaceName}] TX counter reset detected`);
-                            txRate = 0;
-                            previousData[ifaceName].tx = txBytes; // Reset base untuk next calculation
+                        // LOG RAW DATA untuk debugging
+                        if (rxRate > 100000000 || txRate > 100000000) { // > 100 Mbps
+                            console.log(`[${ifaceName}] RAW DATA: RX ${(rxRate*8/1000000).toFixed(1)} Mbps, TX ${(txRate*8/1000000).toFixed(1)} Mbps`);
+                            console.log(`[${ifaceName}] Bytes: ${rxBytes} (prev: ${previousData[ifaceName].rx}), diff: ${rxBytes - previousData[ifaceName].rx}`);
                         }
 
-                        // Validasi maksimum rate - filter nilai yang tidak masuk akal
-                        // Asumsikan max 10 Gbps (10000 Mbps) untuk interface apapun
-                        const MAX_RATE_BYTES = 1250000000; // 10 Gbps in bytes/sec
-                        if (rxRate > MAX_RATE_BYTES) {
-                            console.log(`[${ifaceName}] Invalid RX rate: ${(rxRate*8/1000000).toFixed(2)} Mbps, using 0`);
+                        // ═══════════════════════════════════════════════════════════
+                        // SANITY CHECKS
+                        // ═══════════════════════════════════════════════════════════
+                        
+                        // 1. Counter Reset Detection
+                        if (rxBytes < previousData[ifaceName].rx) {
+                            console.log(`[${ifaceName}] ⚠️ RX counter reset detected`);
                             rxRate = 0;
+                            previousData[ifaceName].rx = rxBytes;
                         }
-                        if (txRate > MAX_RATE_BYTES) {
-                            console.log(`[${ifaceName}] Invalid TX rate: ${(txRate*8/1000000).toFixed(2)} Mbps, using 0`);
+                        if (txBytes < previousData[ifaceName].tx) {
+                            console.log(`[${ifaceName}] ⚠️ TX counter reset detected`);
                             txRate = 0;
+                            previousData[ifaceName].tx = txBytes;
+                        }
+
+                        // 2. REALISTIC MAXIMUM RATE CAP
+                        // Asumsikan interface Ethernet biasa max 1 Gbps
+                        // Jika lebih dari ini, pasti ada error data
+                        const REALISTIC_MAX_MBPS = 1000; // 1 Gbps
+                        const REALISTIC_MAX_BYTES = REALISTIC_MAX_MBPS * 125000; // Convert to bytes/sec
+                        
+                        const rxMbps = (rxRate * 8) / 1000000;
+                        const txMbps = (txRate * 8) / 1000000;
+                        
+                        if (rxMbps > REALISTIC_MAX_MBPS) {
+                            console.log(`[${ifaceName}] 🚫 UNREALISTIC RX: ${rxMbps.toFixed(0)} Mbps > ${REALISTIC_MAX_MBPS} Mbps LIMIT - CAPPED!`);
+                            rxRate = REALISTIC_MAX_BYTES;
+                        }
+                        if (txMbps > REALISTIC_MAX_MBPS) {
+                            console.log(`[${ifaceName}] 🚫 UNREALISTIC TX: ${txMbps.toFixed(0)} Mbps > ${REALISTIC_MAX_MBPS} Mbps LIMIT - CAPPED!`);
+                            txRate = REALISTIC_MAX_BYTES;
+                        }
+
+                        // 3. Byte Counter Overflow/Corruption Detection
+                        // Jika byte difference > 2GB dalam 2 detik = impossible!
+                        const MAX_BYTES_PER_INTERVAL = 2000000000; // 2GB in 2 seconds
+                        const rxDiff = rxBytes - previousData[ifaceName].rx;
+                        const txDiff = txBytes - previousData[ifaceName].tx;
+                        
+                        if (rxDiff > MAX_BYTES_PER_INTERVAL) {
+                            console.log(`[${ifaceName}] 🚫 BYTE COUNTER CORRUPTION: RX diff ${(rxDiff/1000000).toFixed(0)} MB - RESET!`);
+                            rxRate = 0;
+                            previousData[ifaceName].rx = rxBytes;
+                        }
+                        if (txDiff > MAX_BYTES_PER_INTERVAL) {
+                            console.log(`[${ifaceName}] 🚫 BYTE COUNTER CORRUPTION: TX diff ${(txDiff/1000000).toFixed(0)} MB - RESET!`);
+                            txRate = 0;
+                            previousData[ifaceName].tx = txBytes;
                         }
 
                         // Apply smoothing (moving average)
