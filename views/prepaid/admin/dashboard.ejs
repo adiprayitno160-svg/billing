@@ -578,9 +578,10 @@
         }
         
         // ═══════════════════════════════════════════════════════════
-        // STEP 6: EXPONENTIAL MOVING AVERAGE (EMA)
+        // STEP 6: EXPONENTIAL MOVING AVERAGE (EMA) - ULTRA SMOOTH
         // ═══════════════════════════════════════════════════════════
-        const alpha = 2 / (smoothingBuffer[key].length + 1); // EMA smoothing factor
+        // Gunakan alpha yang SANGAT KECIL untuk smoothing maksimal
+        const alpha = 0.15; // Fixed alpha untuk smoothing konsisten (was: 2/(n+1))
         let ema = smoothingBuffer[key][0];
         
         for (let i = 1; i < smoothingBuffer[key].length; i++) {
@@ -588,21 +589,30 @@
         }
         
         // ═══════════════════════════════════════════════════════════
-        // STEP 7: FINAL RATE LIMITING (prevent sudden jumps)
+        // STEP 7: GRADUAL TRANSITION CONTROL (perlahan naik/turun)
         // ═══════════════════════════════════════════════════════════
         if (lastValidRate[key] > 0) {
-            const maxJump = lastValidRate[key] * 0.5; // Max 50% change per sample
-            if (ema > lastValidRate[key] + maxJump) {
-                ema = lastValidRate[key] + maxJump; // Limit upward jump
-            } else if (ema < lastValidRate[key] - maxJump) {
-                ema = lastValidRate[key] - maxJump; // Limit downward jump
+            // SUPER KETAT: Max 10% change per 2-second interval
+            const maxChangePercent = 0.10; // 10% per sample
+            const maxJump = lastValidRate[key] * maxChangePercent;
+            
+            // Atau maksimal 10 Mbps change per interval (mana yang lebih kecil)
+            const maxMbpsChange = 10 * 125000; // 10 Mbps in bytes/sec
+            const actualMaxJump = Math.min(maxJump, maxMbpsChange);
+            
+            if (ema > lastValidRate[key] + actualMaxJump) {
+                ema = lastValidRate[key] + actualMaxJump; // Gradual naik
+                console.log(`[${key}] 📈 Gradual UP: ${((lastValidRate[key]*8)/1000000).toFixed(1)} → ${((ema*8)/1000000).toFixed(1)} Mbps`);
+            } else if (ema < lastValidRate[key] - actualMaxJump) {
+                ema = lastValidRate[key] - actualMaxJump; // Gradual turun
+                console.log(`[${key}] 📉 Gradual DOWN: ${((lastValidRate[key]*8)/1000000).toFixed(1)} → ${((ema*8)/1000000).toFixed(1)} Mbps`);
             }
         }
         
         // ═══════════════════════════════════════════════════════════
         // STEP 8: UPDATE LAST VALID RATE
         // ═══════════════════════════════════════════════════════════
-        if (ema > 0) {
+        if (ema > 0 || lastValidRate[key] === undefined) {
             lastValidRate[key] = ema;
         }
         
