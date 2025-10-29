@@ -154,32 +154,49 @@
     </div>
 
     <!-- Interface Traffic Realtime -->
-    <% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo && typeof interfaces !== 'undefined' && interfaces) { %>
     <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold text-gray-800">
                 <i class="fas fa-chart-area text-blue-600 mr-2"></i>
                 Interface Traffic Realtime
             </h3>
+            <% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
             <div class="flex items-center gap-3">
                 <select id="interfaceSelect" multiple class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <% if (interfaces && interfaces.length > 0) { %>
-                        <% interfaces.forEach(function(iface) { %>
-                        <option value="<%= iface.name %>" data-running="<%= iface.running %>"><%= iface.name %> (<%= iface.running ? 'Running' : 'Down' %>)</option>
-                        <% }); %>
-                    <% } %>
+                    <% interfaces.forEach(function(iface) { %>
+                    <option value="<%= iface.name %>" data-running="<%= iface.running %>"><%= iface.name %> (<%= iface.running ? 'Running' : 'Down' %>)</option>
+                    <% }); %>
                 </select>
                 <button onclick="toggleMonitoring()" id="monitoringBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
                     <i class="fas fa-play mr-2"></i>Start Monitor
                 </button>
             </div>
+            <% } else { %>
+            <span class="text-sm text-red-600">
+                <i class="fas fa-exclamation-circle mr-1"></i>
+                MikroTik tidak terhubung atau belum dikonfigurasi
+            </span>
+            <% } %>
         </div>
+        
+        <% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
         <div class="h-64 mb-4">
             <canvas id="trafficChart"></canvas>
         </div>
         <div id="interfaceLegend" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <% } else { %>
+        <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+            <div class="text-center">
+                <i class="fas fa-network-wired text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 text-lg font-semibold mb-2">MikroTik Belum Terhubung</p>
+                <p class="text-gray-400 text-sm">Silakan konfigurasi MikroTik di menu Settings > MikroTik</p>
+                <a href="/mikrotik/settings" class="inline-block mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-cog mr-2"></i>Konfigurasi MikroTik
+                </a>
+            </div>
+        </div>
+        <% } %>
     </div>
-    <% } %>
 
     <!-- Recent Transactions -->
     <div class="bg-white rounded-xl shadow-lg p-6">
@@ -330,7 +347,16 @@
 
     function initChart() {
         const ctx = document.getElementById('trafficChart');
-        if (!ctx) return;
+        if (!ctx) {
+            console.error('Canvas element not found');
+            return;
+        }
+
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js not loaded');
+            alert('Chart.js belum dimuat. Silakan refresh halaman.');
+            return;
+        }
 
         const labels = Array.from({length: 30}, (_, i) => (i * 2) + 's');
         
