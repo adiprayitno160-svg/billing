@@ -342,6 +342,8 @@
     let updateInterval = null;
     let previousData = {};
     let isMonitoring = false;
+    let isFirstSample = true; // Skip first sample for accurate rate calculation
+    let smoothingBuffer = {}; // Buffer untuk smoothing (store 3 samples)
 
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
@@ -497,6 +499,27 @@
         return bytesPerSec.toFixed(0) + ' b/s';
     }
 
+    // Smoothing function: Moving average dari 3 sampel terakhir
+    function getSmoothedValue(ifaceName, dataType, newValue) {
+        const key = `${ifaceName}_${dataType}`;
+        
+        if (!smoothingBuffer[key]) {
+            smoothingBuffer[key] = [];
+        }
+        
+        // Tambahkan nilai baru
+        smoothingBuffer[key].push(newValue);
+        
+        // Simpan maksimal 3 sampel
+        if (smoothingBuffer[key].length > 3) {
+            smoothingBuffer[key].shift();
+        }
+        
+        // Hitung rata-rata (moving average)
+        const sum = smoothingBuffer[key].reduce((a, b) => a + b, 0);
+        return sum / smoothingBuffer[key].length;
+    }
+
     let failedAttempts = 0;
     const MAX_FAILED_ATTEMPTS = 5;
 
@@ -540,31 +563,59 @@
                 interfaceNames.forEach((ifaceName) => {
                     const newIface = newData.find(i => i.name === ifaceName);
 
-                    if (newIface && previousData[ifaceName]) {
+                    if (newIface) {
                         const rxBytes = parseInt(newIface['rx-byte'] || newIface.rxByte || 0);
                         const txBytes = parseInt(newIface['tx-byte'] || newIface.txByte || 0);
 
-                        const rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
-                        const txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
+                        // Initialize previousData jika belum ada
+                        if (!previousData[ifaceName]) {
+                            previousData[ifaceName] = { rx: rxBytes, tx: txBytes };
+                            return; // Skip first sample untuk akurasi
+                        }
 
+                        // Hitung rate (bytes per second) - interval 2 detik
+                        let rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
+                        let txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
+
+                        // Deteksi counter reset (jika byte baru < byte lama)
+                        if (rxBytes < previousData[ifaceName].rx) {
+                            console.log(`[${ifaceName}] RX counter reset detected`);
+                            rxRate = 0;
+                        }
+                        if (txBytes < previousData[ifaceName].tx) {
+                            console.log(`[${ifaceName}] TX counter reset detected`);
+                            txRate = 0;
+                        }
+
+                        // Apply smoothing (moving average)
+                        const smoothedRxRate = getSmoothedValue(ifaceName, 'rx', rxRate);
+                        const smoothedTxRate = getSmoothedValue(ifaceName, 'tx', txRate);
+
+                        // Convert to bits per second
+                        const rxBitsPerSec = smoothedRxRate * 8;
+                        const txBitsPerSec = smoothedTxRate * 8;
+
+                        // Update chart datasets
                         const rxDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'rx');
                         if (rxDataset) {
                             rxDataset.data.shift();
-                            rxDataset.data.push(rxRate * 8);
+                            rxDataset.data.push(rxBitsPerSec);
                         }
 
                         const txDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'tx');
                         if (txDataset) {
                             txDataset.data.shift();
-                            txDataset.data.push(txRate * 8);
+                            txDataset.data.push(txBitsPerSec);
                         }
 
+                        // Update previousData untuk iterasi berikutnya
                         previousData[ifaceName] = { rx: rxBytes, tx: txBytes };
 
+                        // Update speed display
                         const rxSpeedEl = document.querySelector(`[data-speed-rx="${ifaceName}"]`);
                         const txSpeedEl = document.querySelector(`[data-speed-tx="${ifaceName}"]`);
-                        if (rxSpeedEl) rxSpeedEl.textContent = formatSpeed(rxRate * 8);
-                        if (txSpeedEl) txSpeedEl.textContent = formatSpeed(txRate * 8);
+                        if (rxSpeedEl) rxSpeedEl.textContent = formatSpeed(rxBitsPerSec);
+                        if (txSpeedEl) txSpeedEl.textContent = formatSpeed(txBitsPerSec);
                     }
                 });
 
@@ -615,6 +666,11 @@
         } else {
             if (updateInterval) clearInterval(updateInterval);
             updateInterval = null;
+
+            // Reset data untuk start yang bersih
+            previousData = {};
+            smoothingBuffer = {};
+            failedAttempts = 0;
 
             btn.innerHTML = '<i class="fas fa-play mr-2"></i>Start Monitor';
             btn.classList.remove('bg-red-600', 'hover:bg-red-700');

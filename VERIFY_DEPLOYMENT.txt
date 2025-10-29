@@ -1,0 +1,49 @@
+═══════════════════════════════════════════════════════════
+✅ VERIFY DEPLOYMENT - RUN THESE COMMANDS
+═══════════════════════════════════════════════════════════
+
+1️⃣ CHECK PM2 STATUS
+   pm2 status
+   
+   Expected: billing-app should be "online" ✅
+
+2️⃣ TEST THE API ENDPOINT
+   curl http://localhost:3000/api/interface-stats
+   
+   Expected: JSON array (not 404 HTML) ✅
+   
+   If you get JSON (even if empty []), the API is working!
+   If you still get HTML 404, the build didn't complete.
+
+3️⃣ CHECK PM2 LOGS
+   pm2 logs billing-app --lines 30
+   
+   Look for any errors during startup
+
+4️⃣ VERIFY VERSION
+   curl http://localhost:3000/ | grep "2.0.7"
+   
+   Expected: Should find version 2.0.7 in footer
+
+5️⃣ TEST IN BROWSER
+   Open: http://YOUR-SERVER-IP:3000/prepaid/dashboard
+   
+   Expected:
+   - Footer shows "v2.0.7"
+   - "Interface Traffic Realtime" section appears
+   - Can click "Start Monitor" button
+
+═══════════════════════════════════════════════════════════
+🎯 QUICK TEST COMMAND (ALL IN ONE)
+═══════════════════════════════════════════════════════════
+
+Run this to see everything at once:
+
+echo "=== PM2 Status ===" && pm2 status && \
+echo "" && echo "=== Testing API ===" && \
+curl -s http://localhost:3000/api/interface-stats && \
+echo "" && echo "=== Recent Logs ===" && \
+pm2 logs billing-app --lines 10 --nostream
+
+═══════════════════════════════════════════════════════════
+

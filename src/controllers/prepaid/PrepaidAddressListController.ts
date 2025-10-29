@@ -17,27 +17,29 @@ class PrepaidAddressListController {
     console.log('[AddressList] Page request started');
     
     try {
-      // Get Mikrotik settings - try with and without is_active
+      // Get Mikrotik settings - try multiple approaches
       let mikrotikSettings: any[] = [];
       
       try {
+        // First try: ORDER BY id DESC (get latest entry regardless of is_active)
         const [settings] = await pool.query<RowDataPacket[]>(
-          'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
+          'SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'
         );
         mikrotikSettings = settings as any[];
         
-        // Fallback: try without is_active filter
-        if (mikrotikSettings.length === 0) {
-          const [anySettings] = await pool.query<RowDataPacket[]>(
-            'SELECT * FROM mikrotik_settings LIMIT 1'
-          );
-          mikrotikSettings = anySettings as any[];
+        // Log what we found
+        if (mikrotikSettings.length > 0) {
+          console.log('[AddressList] MikroTik settings found:', {
+            host: mikrotikSettings[0].host,
+            port: mikrotikSettings[0].api_port || mikrotikSettings[0].port || 8728
+          });
         }
       } catch (dbError) {
         console.error('[AddressList] Database error:', dbError);
       }
 
       if (mikrotikSettings.length === 0) {
+        console.warn('[AddressList] No MikroTik settings found in database');
         return res.render('prepaid/address-list', {
           title: 'Address List Management',
           currentPath: '/prepaid/address-list',

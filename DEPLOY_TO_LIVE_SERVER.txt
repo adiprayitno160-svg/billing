@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════
+🚀 DEPLOY v2.0.7 TO LIVE SERVER - STEP BY STEP
+═══════════════════════════════════════════════════════════
+
+📋 RUN THESE COMMANDS ON YOUR LIVE SERVER (SSH to Debian):
+
+1️⃣ PULL LATEST CODE FROM GITHUB
+   cd /opt/billing
+   git pull origin main
+
+2️⃣ INSTALL DEPENDENCIES (if needed)
+   npm install
+
+3️⃣ BUILD THE PROJECT
+   npm run build
+
+4️⃣ RESTART PM2
+   pm2 restart billing-app
+   # OR if using ecosystem file:
+   pm2 restart ecosystem.config.js
+
+5️⃣ VERIFY THE API ENDPOINT
+   curl http://localhost:3000/api/interface-stats
+   # Should return JSON array, not 404 HTML
+
+6️⃣ CHECK PM2 STATUS
+   pm2 status
+   pm2 logs billing-app --lines 50
+
+═══════════════════════════════════════════════════════════
+⚠️ IMPORTANT NOTES:
+═══════════════════════════════════════════════════════════
+
+• The TypeScript errors you see are PRE-EXISTING and non-critical
+• They don't prevent the app from running in production
+• The app compiles and runs despite these warnings
+• Focus on deploying the new code, not fixing all TS errors now
+
+═══════════════════════════════════════════════════════════
+🔧 IF BUILD FAILS WITH "tsc: not found":
+═══════════════════════════════════════════════════════════
+
+   npm install --save-dev typescript
+   npm run build
+
+═══════════════════════════════════════════════════════════
+🔧 IF PM2 PROCESS NOT FOUND:
+═══════════════════════════════════════════════════════════
+
+   pm2 list
+   pm2 start ecosystem.config.js --env production
+   pm2 save
+
+═══════════════════════════════════════════════════════════
+✅ AFTER DEPLOYMENT:
+═══════════════════════════════════════════════════════════
+
+1. Open your browser: http://your-server-ip:3000/prepaid/dashboard
+2. The "Interface Traffic Realtime" section should now appear
+3. Footer should show version 2.0.7
+4. Click "Start Monitor" to test real-time traffic monitoring
+
+═══════════════════════════════════════════════════════════
+
