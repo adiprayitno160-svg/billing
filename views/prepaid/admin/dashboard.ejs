@@ -153,6 +153,34 @@
         </div>
     </div>
 
+    <!-- Interface Traffic Realtime -->
+    <% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo && typeof interfaces !== 'undefined' && interfaces) { %>
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">
+                <i class="fas fa-chart-area text-blue-600 mr-2"></i>
+                Interface Traffic Realtime
+            </h3>
+            <div class="flex items-center gap-3">
+                <select id="interfaceSelect" multiple class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <% if (interfaces && interfaces.length > 0) { %>
+                        <% interfaces.forEach(function(iface) { %>
+                        <option value="<%= iface.name %>" data-running="<%= iface.running %>"><%= iface.name %> (<%= iface.running ? 'Running' : 'Down' %>)</option>
+                        <% }); %>
+                    <% } %>
+                </select>
+                <button onclick="toggleMonitoring()" id="monitoringBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                    <i class="fas fa-play mr-2"></i>Start Monitor
+                </button>
+            </div>
+        </div>
+        <div class="h-64 mb-4">
+            <canvas id="trafficChart"></canvas>
+        </div>
+        <div id="interfaceLegend" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+    <% } %>
+
     <!-- Recent Transactions -->
     <div class="bg-white rounded-xl shadow-lg p-6">
         <div class="flex items-center justify-between mb-4">
@@ -253,6 +281,7 @@
         </button>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
     async function runScheduler() {
         if (!confirm('Jalankan scheduler sekarang?\n\nScheduler akan:\n- Deactivate expired subscriptions\n- Send expiry notifications\n- Restore renewed customers')) {
@@ -289,6 +318,256 @@
             btn.disabled = false;
         }
     }
+
+    // Interface Traffic Monitoring
+    <% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
+    let chart = null;
+    let updateInterval = null;
+    let previousData = {};
+    let isMonitoring = false;
+
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+    function initChart() {
+        const ctx = document.getElementById('trafficChart');
+        if (!ctx) return;
+
+        const labels = Array.from({length: 30}, (_, i) => (i * 2) + 's');
+        
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatSpeed(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatSpeed(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateChart(selectedInterfaces) {
+        if (!chart) return;
+
+        const newDatasets = [];
+        selectedInterfaces.forEach((iface, idx) => {
+            const color = colors[idx % colors.length];
+            const bgColorRx = color + '40';
+            const bgColorTx = color + '20';
+
+            newDatasets.push({
+                label: `${iface.name} RX (Download)`,
+                data: Array(30).fill(0),
+                borderColor: color,
+                backgroundColor: bgColorRx,
+                borderWidth: 2,
+                tension: 0.4,
+                fill: false,
+                pointRadius: 0,
+                interfaceName: iface.name,
+                dataType: 'rx'
+            });
+
+            newDatasets.push({
+                label: `${iface.name} TX (Upload)`,
+                data: Array(30).fill(0),
+                borderColor: color,
+                backgroundColor: bgColorTx,
+                borderWidth: 2,
+                borderDash: [5, 5],
+                tension: 0.4,
+                fill: false,
+                pointRadius: 0,
+                interfaceName: iface.name,
+                dataType: 'tx'
+            });
+        });
+
+        chart.data.datasets = newDatasets;
+        updateLegend(selectedInterfaces);
+
+        const newPreviousData = {};
+        selectedInterfaces.forEach(iface => {
+            newPreviousData[iface.name] = previousData[iface.name] || {
+                rx: parseInt(iface['rx-byte'] || iface.rxByte || 0),
+                tx: parseInt(iface['tx-byte'] || iface.txByte || 0)
+            };
+        });
+        previousData = newPreviousData;
+
+        chart.update('none');
+    }
+
+    function updateLegend(selectedInterfaces) {
+        const legendDiv = document.getElementById('interfaceLegend');
+        if (!legendDiv) return;
+
+        legendDiv.innerHTML = selectedInterfaces.map(iface => {
+            const running = iface.running;
+            const statusColor = running ? 'rgb(34, 197, 94)' : 'rgb(156, 163, 175)';
+            return `
+                <div data-interface-legend="${iface.name}" style="display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.75rem; padding: 0.625rem; background: #f9fafb; border-radius: 0.375rem; border-left: 3px solid ${iface.color};">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="height: 0.75rem; width: 0.75rem; border-radius: 9999px; background-color: ${iface.color}; flex-shrink: 0;"></span>
+                        <span style="font-weight: 700; color: #374151; flex-shrink: 0; font-size: 0.8rem;">${iface.name}</span>
+                        <span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: ${statusColor}; margin-left: auto; flex-shrink: 0;"></span>
+                    </div>
+                    <div style="display: flex; gap: 1rem; padding-left: 1.25rem; font-size: 0.7rem; font-family: monospace;">
+                        <div style="display: flex; flex-direction: column; gap: 0.125rem;">
+                            <div style="display: flex; align-items: center; gap: 0.375rem;">
+                                <div style="width: 1.5rem; height: 2px; background-color: ${iface.color}; border-radius: 1px;"></div>
+                                <span style="color: #6b7280; font-weight: 500; font-size: 0.65rem;">RX (Download)</span>
+                            </div>
+                            <span data-speed-rx="${iface.name}" style="color: #2563eb; font-weight: 700; font-size: 0.75rem; padding-left: 2rem;">0 b/s</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.125rem;">
+                            <div style="display: flex; align-items: center; gap: 0.375rem;">
+                                <div style="width: 1.5rem; height: 2px; background: repeating-linear-gradient(to right, ${iface.color} 0, ${iface.color} 4px, transparent 4px, transparent 8px); border-radius: 1px;"></div>
+                                <span style="color: #6b7280; font-weight: 500; font-size: 0.65rem;">TX (Upload)</span>
+                            </div>
+                            <span data-speed-tx="${iface.name}" style="color: #059669; font-weight: 700; font-size: 0.75rem; padding-left: 2rem;">0 b/s</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function formatSpeed(bytesPerSec) {
+        if (bytesPerSec >= 1000000000) {
+            return (bytesPerSec / 1000000000).toFixed(2) + ' Gb/s';
+        } else if (bytesPerSec >= 1000000) {
+            return (bytesPerSec / 1000000).toFixed(2) + ' Mb/s';
+        } else if (bytesPerSec >= 1000) {
+            return (bytesPerSec / 1000).toFixed(2) + ' Kb/s';
+        }
+        return bytesPerSec.toFixed(0) + ' b/s';
+    }
+
+    function startUpdateInterval() {
+        if (updateInterval) clearInterval(updateInterval);
+
+        updateInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/api/interface-stats');
+                if (!response.ok) {
+                    console.error('Failed to fetch interface stats:', response.status);
+                    return;
+                }
+
+                const newData = await response.json();
+                const interfaceNames = [...new Set(chart.data.datasets.map(d => d.interfaceName))];
+
+                interfaceNames.forEach((ifaceName) => {
+                    const newIface = newData.find(i => i.name === ifaceName);
+
+                    if (newIface && previousData[ifaceName]) {
+                        const rxBytes = parseInt(newIface['rx-byte'] || newIface.rxByte || 0);
+                        const txBytes = parseInt(newIface['tx-byte'] || newIface.txByte || 0);
+
+                        const rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
+                        const txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
+
+                        const rxDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'rx');
+                        if (rxDataset) {
+                            rxDataset.data.shift();
+                            rxDataset.data.push(rxRate * 8);
+                        }
+
+                        const txDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'tx');
+                        if (txDataset) {
+                            txDataset.data.shift();
+                            txDataset.data.push(txRate * 8);
+                        }
+
+                        previousData[ifaceName] = { rx: rxBytes, tx: txBytes };
+
+                        const rxSpeedEl = document.querySelector(`[data-speed-rx="${ifaceName}"]`);
+                        const txSpeedEl = document.querySelector(`[data-speed-tx="${ifaceName}"]`);
+                        if (rxSpeedEl) rxSpeedEl.textContent = formatSpeed(rxRate * 8);
+                        if (txSpeedEl) txSpeedEl.textContent = formatSpeed(txRate * 8);
+                    }
+                });
+
+                chart.update('none');
+            } catch (error) {
+                console.error('Error updating interface stats:', error);
+            }
+        }, 2000);
+    }
+
+    function toggleMonitoring() {
+        const select = document.getElementById('interfaceSelect');
+        const btn = document.getElementById('monitoringBtn');
+        const selectedOptions = Array.from(select.selectedOptions);
+
+        if (!isMonitoring) {
+            if (selectedOptions.length === 0) {
+                alert('Pilih minimal 1 interface untuk monitoring');
+                return;
+            }
+
+            const selectedInterfaces = selectedOptions.map((opt, idx) => ({
+                name: opt.value,
+                running: opt.dataset.running === 'true',
+                color: colors[idx % colors.length]
+            }));
+
+            if (!chart) initChart();
+            updateChart(selectedInterfaces);
+            startUpdateInterval();
+
+            btn.innerHTML = '<i class="fas fa-stop mr-2"></i>Stop Monitor';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-red-600', 'hover:bg-red-700');
+            select.disabled = true;
+            isMonitoring = true;
+        } else {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = null;
+
+            btn.innerHTML = '<i class="fas fa-play mr-2"></i>Start Monitor';
+            btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            select.disabled = false;
+            isMonitoring = false;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('interfaceSelect');
+        if (select && select.options.length > 0) {
+            select.options[0].selected = true;
+        }
+    });
+    <% } %>
     </script>
 </div>
 

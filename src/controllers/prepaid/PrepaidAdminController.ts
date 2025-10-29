@@ -5,6 +5,7 @@ import PrepaidActivationService from '../../services/prepaid/PrepaidActivationSe
 import SpeedProfileService from '../../services/prepaid/SpeedProfileService';
 import AddressListService from '../../services/prepaid/AddressListService';
 import PrepaidSchedulerService from '../../services/prepaid/PrepaidSchedulerService';
+import { getMikrotikInfo, getInterfaces, MikroTikConfig } from '../../services/mikrotikService';
 
 /**
  * Controller untuk Admin Prepaid Management
@@ -85,6 +86,35 @@ class PrepaidAdminController {
            AND DATE(created_at) = CURDATE()`
       ).catch(() => [[{ total_transactions: 0, revenue: 0 }]]);
 
+      // Get MikroTik information if settings exist
+      let mikrotikInfo: any = null;
+      let interfaces: any[] = [];
+      let connectionStatus = { connected: false, error: null };
+
+      try {
+        const [mtSettingsRows] = await pool.query<RowDataPacket[]>(
+          'SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'
+        );
+        
+        if (mtSettingsRows && mtSettingsRows.length > 0) {
+          const mtSettings = mtSettingsRows[0];
+          const config: MikroTikConfig = {
+            host: mtSettings.host,
+            port: mtSettings.port,
+            username: mtSettings.username,
+            password: mtSettings.password,
+            use_tls: mtSettings.use_tls
+          };
+          
+          mikrotikInfo = await getMikrotikInfo(config);
+          interfaces = await getInterfaces(config);
+          connectionStatus = { connected: true, error: null };
+        }
+      } catch (error: any) {
+        connectionStatus = { connected: false, error: error?.message || 'Gagal mengambil data MikroTik' };
+        console.warn('MikroTik connection warning (non-critical):', error.message);
+      }
+
       res.render('prepaid/admin/dashboard', {
         title: 'Dashboard Prepaid',
         layout: 'layouts/main',
@@ -92,7 +122,10 @@ class PrepaidAdminController {
         activeCustomers: activeCustomers || [],
         expiringSoon: expiringSoon || [],
         recentTransactions: recentTransactions || [],
-        revenueToday: revenueToday[0] || { total_transactions: 0, revenue: 0 }
+        revenueToday: revenueToday[0] || { total_transactions: 0, revenue: 0 },
+        mikrotikInfo: mikrotikInfo,
+        interfaces: interfaces,
+        connectionStatus: connectionStatus
       });
     } catch (error) {
       console.error('Prepaid dashboard error:', error);
