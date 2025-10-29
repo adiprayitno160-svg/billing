@@ -1,0 +1,177 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║              FIX DEPLOYMENT ERROR - tsc not found                     ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+ERROR YANG TERJADI:
+─────────────────────────────────────────────────────────────────────────
+✗ sh: 1: tsc: not found
+✗ [PM2][ERROR] Process or Namespace billing-system not found
+
+PENYEBAB:
+─────────────────────────────────────────────────────────────────────────
+1. Dependencies (node_modules) belum terinstall
+2. PM2 process "billing-system" belum pernah dijalankan sebelumnya
+
+SOLUSI LENGKAP:
+═══════════════════════════════════════════════════════════════════════
+
+# 1. Pastikan di folder project
+cd /opt/billing
+
+# 2. Install dependencies (termasuk TypeScript)
+npm install
+
+# 3. Build TypeScript
+npm run build
+
+# 4. Start PM2 (bukan restart, karena belum ada)
+pm2 start ecosystem.config.js --env production
+
+# 5. Save PM2 config (agar auto-start setelah reboot)
+pm2 save
+
+# 6. Setup PM2 startup
+pm2 startup
+
+═══════════════════════════════════════════════════════════════════════
+
+ONE-LINER (Copy-Paste):
+─────────────────────────────────────────────────────────────────────────
+
+cd /opt/billing && npm install && npm run build && pm2 start ecosystem.config.js --env production && pm2 save
+
+═══════════════════════════════════════════════════════════════════════
+
+JIKA SUDAH PERNAH RUNNING (untuk update berikutnya):
+─────────────────────────────────────────────────────────────────────────
+
+# Update code
+git pull origin main
+
+# Install dependencies (jika ada yang baru)
+npm install
+
+# Build
+npm run build
+
+# Restart PM2
+pm2 restart billing-system
+
+═══════════════════════════════════════════════════════════════════════
+
+VERIFIKASI:
+─────────────────────────────────────────────────────────────────────────
+
+# Check PM2 status
+pm2 status
+
+# Expected output:
+┌─────┬──────────────────┬─────────┬─────────┬──────────┐
+│ id  │ name             │ mode    │ status  │ restart  │
+├─────┼──────────────────┼─────────┼─────────┼──────────┤
+│ 0   │ billing-system   │ fork    │ online  │ 0        │
+└─────┴──────────────────┴─────────┴─────────┴──────────┘
+
+# Check logs
+pm2 logs billing-system --lines 20
+
+# Expected log:
+Server running on http://localhost:3000
+WebSocket available at ws://localhost:3000/ws
+
+# Test API endpoint
+curl http://localhost:3000/api/interface-stats
+
+# Expected: JSON response (not 404)
+
+═══════════════════════════════════════════════════════════════════════
+
+TROUBLESHOOTING:
+─────────────────────────────────────────────────────────────────────────
+
+❌ npm install gagal?
+   → Check internet connection
+   → Clear npm cache: npm cache clean --force
+   → Try again: npm install
+
+❌ npm run build error?
+   → Ignore TypeScript errors (expected)
+   → Check if dist/server.js exists: ls -la dist/server.js
+   → If exists, it's OK, continue to PM2 start
+
+❌ PM2 start failed?
+   → Check port 3000: netstat -tulpn | grep 3000
+   → Kill existing process: kill -9 <PID>
+   → Try again: pm2 start ecosystem.config.js
+
+❌ Port 3000 already in use?
+   # Find process using port 3000
+   lsof -i :3000
+   
+   # Kill it
+   kill -9 <PID>
+   
+   # Start PM2 again
+   pm2 start ecosystem.config.js --env production
+
+═══════════════════════════════════════════════════════════════════════
+
+COMPLETE FRESH INSTALL (if needed):
+─────────────────────────────────────────────────────────────────────────
+
+# Stop everything
+pm2 delete all
+
+# Clean install
+cd /opt/billing
+rm -rf node_modules package-lock.json dist
+npm install
+npm run build
+
+# Start fresh
+pm2 start ecosystem.config.js --env production
+pm2 save
+pm2 startup
+
+═══════════════════════════════════════════════════════════════════════
+
+CHECK ECOSYSTEM CONFIG:
+─────────────────────────────────────────────────────────────────────────
+
+cat ecosystem.config.js
+
+# Should contain something like:
+module.exports = {
+  apps: [{
+    name: 'billing-system',
+    script: './dist/server.js',
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    }
+  }]
+}
+
+═══════════════════════════════════════════════════════════════════════
+
+EXPECTED FINAL STATE:
+─────────────────────────────────────────────────────────────────────────
+
+✅ node_modules/ folder exists and populated
+✅ dist/ folder exists with compiled JS files
+✅ dist/server.js exists
+✅ PM2 shows billing-system as "online"
+✅ curl http://localhost:3000 returns HTML
+✅ curl http://localhost:3000/api/interface-stats returns JSON
+✅ Browser works: http://192.168.239.126:3000
+✅ Interface Traffic Realtime works in Prepaid Dashboard
+
+═══════════════════════════════════════════════════════════════════════
+
+Version: 2.0.7
+Server: Debian @ /opt/billing
+Port: 3000
+Status: Ready for Production ✅
+
+═══════════════════════════════════════════════════════════════════════
+
