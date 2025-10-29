@@ -343,7 +343,8 @@
     let previousData = {};
     let isMonitoring = false;
     let isFirstSample = true; // Skip first sample for accurate rate calculation
-    let smoothingBuffer = {}; // Buffer untuk smoothing (store 3 samples)
+    let smoothingBuffer = {}; // Buffer untuk smoothing (store 7 samples for better stability)
+    let lastValidRate = {}; // Store last valid rate untuk outlier detection
 
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
@@ -499,25 +500,57 @@
         return bytesPerSec.toFixed(0) + ' b/s';
     }
 
-    // Smoothing function: Moving average dari 3 sampel terakhir
+    // Advanced Smoothing function dengan outlier filtering
     function getSmoothedValue(ifaceName, dataType, newValue) {
         const key = `${ifaceName}_${dataType}`;
         
         if (!smoothingBuffer[key]) {
             smoothingBuffer[key] = [];
+            lastValidRate[key] = 0;
         }
         
-        // Tambahkan nilai baru
+        // STEP 1: Outlier Detection - filter nilai yang terlalu ekstrem
+        const lastRate = lastValidRate[key];
+        const maxChange = Math.max(lastRate * 3, 50000000); // Max 3x perubahan atau 50 Mbps
+        
+        // Jika perubahan terlalu besar, anggap sebagai outlier dan gunakan nilai sebelumnya
+        if (lastRate > 0 && Math.abs(newValue - lastRate) > maxChange) {
+            console.log(`[${ifaceName}] Outlier detected: ${(newValue/8000000).toFixed(2)} Mbps (expected ~${(lastRate/8000000).toFixed(2)} Mbps)`);
+            newValue = lastRate; // Use last valid value instead
+        }
+        
+        // STEP 2: Minimum threshold - jika terlalu kecil, set ke 0
+        if (newValue < 100000) { // < 0.1 Mbps
+            newValue = 0;
+        }
+        
+        // STEP 3: Add to buffer
         smoothingBuffer[key].push(newValue);
         
-        // Simpan maksimal 3 sampel
-        if (smoothingBuffer[key].length > 3) {
+        // STEP 4: Keep last 7 samples (larger window for more stability)
+        if (smoothingBuffer[key].length > 7) {
             smoothingBuffer[key].shift();
         }
         
-        // Hitung rata-rata (moving average)
-        const sum = smoothingBuffer[key].reduce((a, b) => a + b, 0);
-        return sum / smoothingBuffer[key].length;
+        // STEP 5: Calculate weighted moving average (lebih berat ke nilai terbaru)
+        let sum = 0;
+        let weightSum = 0;
+        const buffer = smoothingBuffer[key];
+        
+        for (let i = 0; i < buffer.length; i++) {
+            const weight = i + 1; // Weight meningkat untuk nilai lebih baru
+            sum += buffer[i] * weight;
+            weightSum += weight;
+        }
+        
+        const smoothed = sum / weightSum;
+        
+        // STEP 6: Update last valid rate
+        if (smoothed > 0) {
+            lastValidRate[key] = smoothed;
+        }
+        
+        return smoothed;
     }
 
     let failedAttempts = 0;
@@ -581,9 +614,23 @@
                         if (rxBytes < previousData[ifaceName].rx) {
                             console.log(`[${ifaceName}] RX counter reset detected`);
                             rxRate = 0;
+                            previousData[ifaceName].rx = rxBytes; // Reset base untuk next calculation
                         }
                         if (txBytes < previousData[ifaceName].tx) {
                             console.log(`[${ifaceName}] TX counter reset detected`);
+                            txRate = 0;
+                            previousData[ifaceName].tx = txBytes; // Reset base untuk next calculation
+                        }
+
+                        // Validasi maksimum rate - filter nilai yang tidak masuk akal
+                        // Asumsikan max 10 Gbps (10000 Mbps) untuk interface apapun
+                        const MAX_RATE_BYTES = 1250000000; // 10 Gbps in bytes/sec
+                        if (rxRate > MAX_RATE_BYTES) {
+                            console.log(`[${ifaceName}] Invalid RX rate: ${(rxRate*8/1000000).toFixed(2)} Mbps, using 0`);
+                            rxRate = 0;
+                        }
+                        if (txRate > MAX_RATE_BYTES) {
+                            console.log(`[${ifaceName}] Invalid TX rate: ${(txRate*8/1000000).toFixed(2)} Mbps, using 0`);
                             txRate = 0;
                         }
 
@@ -670,6 +717,7 @@
             // Reset data untuk start yang bersih
             previousData = {};
             smoothingBuffer = {};
+            lastValidRate = {};
             failedAttempts = 0;
 
             btn.innerHTML = '<i class="fas fa-play mr-2"></i>Start Monitor';
