@@ -1,0 +1,58 @@
+====================================================================
+🚀 DEPLOY CEPAT - COPY PASTE COMMAND INI
+====================================================================
+
+GANTI "YOUR_SERVER_IP" dengan IP server Anda, lalu copy-paste:
+
+ssh root@YOUR_SERVER_IP "cd /opt/billing && git pull origin main && npm run build && pm2 restart billing-app && pm2 list"
+
+
+CONTOH (jika IP server: 103.127.132.64):
+
+ssh root@103.127.132.64 "cd /opt/billing && git pull origin main && npm run build && pm2 restart billing-app && pm2 list"
+
+
+====================================================================
+ATAU STEP-BY-STEP:
+====================================================================
+
+1. ssh root@YOUR_SERVER_IP
+
+2. cd /opt/billing
+
+3. git pull origin main
+
+4. npm run build
+
+5. pm2 restart billing-app
+
+6. pm2 list
+
+
+====================================================================
+SETELAH DEPLOY:
+====================================================================
+
+Test import:
+1. Buat Excel: Nama | Telepon | Alamat
+2. Upload di: http://YOUR_SERVER_IP/customers/list
+3. Monitor log: pm2 logs billing-app --lines 0
+
+
+====================================================================
+JIKA ERROR "tsc not found":
+====================================================================
+
+ssh root@YOUR_SERVER_IP
+
+cd /opt/billing
+
+npm install
+
+npm run build
+
+pm2 restart billing-app
+
+
+====================================================================
+
