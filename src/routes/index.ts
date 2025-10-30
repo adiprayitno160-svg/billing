@@ -65,7 +65,9 @@ import {
     checkUpdates,
     updateAppVersion,
     updateSettings,
-    getUpdateHistoryPage
+    getUpdateHistoryPage,
+    checkHotfix,
+    applyHotfixUpdate
 } from '../controllers/aboutController';
 import { 
     getDatabaseManagement,
@@ -92,6 +94,7 @@ import {
     importCustomersFromExcel,
     getImportTemplate
 } from '../controllers/excelController';
+import { getTestImportPage, testImportExcel } from '../controllers/testImportController';
 // import { 
 //     getInvoiceList,
 //     getInvoiceDetail,
@@ -463,7 +466,182 @@ router.get('/customers/', getCustomerList);
 router.get('/customers/list', getCustomerList);
 router.get('/customers/export', exportCustomersToExcel);
 router.get('/customers/template', getImportTemplate);
-router.post('/customers/import', upload.single('excelFile'), importCustomersFromExcel);
+
+// Test import route - INLINE (tidak pakai controller terpisah)
+router.get('/test-import', (req, res) => {
+    res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Import Excel</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        .btn { background: #4CAF50; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #45a049; }
+        input[type="file"] { margin: 20px 0; padding: 10px; border: 2px solid #ddd; border-radius: 5px; width: 100%; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        pre { background: #f9f9f9; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Import Excel</h1>
+        <p>Halaman khusus untuk test import - tidak akan merusak sistem utama</p>
+        
+        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <strong>📋 Format Excel:</strong>
+            <ul>
+                <li>Kolom A1: <strong>Nama</strong></li>
+                <li>Kolom B1: <strong>Telepon</strong></li>
+                <li>Kolom C1: <strong>Alamat</strong></li>
+            </ul>
+            <a href="/customers/template" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">📥 Download Template</a>
+        </div>
+        
+        <form id="testForm" enctype="multipart/form-data">
+            <input type="file" name="excelFile" accept=".xlsx,.xls" required>
+            <button type="submit" class="btn">🚀 Test Import Sekarang</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        document.getElementById('testForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const res = await fetch('/test-import', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                resultDiv.style.display = 'block';
+                if (data.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = '<h3>✅ Import Berhasil!</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '<h3>❌ Import Gagal</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                }
+            } catch (err) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '<h3>❌ Error</h3><pre>' + err.message + '</pre>';
+            }
+        };
+    </script>
+</body>
+</html>
+    `);
+});
+
+router.post('/test-import', upload.single('excelFile'), async (req, res) => {
+    try {
+        console.log('TEST IMPORT START');
+        
+        if (!req.file) {
+            return res.json({ success: false, error: 'No file' });
+        }
+
+        const XLSX = require('xlsx');
+        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet);
+
+        console.log('Rows:', data.length);
+
+        const results = { success: 0, failed: 0, errors: [] };
+
+        for (let i = 0; i < data.length; i++) {
+            const row: any = data[i];
+            const rowNum = i + 2;
+
+            try {
+                const name = (row['Nama'] || '').toString().trim();
+                const phone = (row['Telepon'] || '').toString().trim();
+                const address = (row['Alamat'] || '').toString().trim();
+
+                if (!name) {
+                    results.failed++;
+                    results.errors.push('Row ' + rowNum + ': Nama kosong');
+                    continue;
+                }
+                if (!phone) {
+                    results.failed++;
+                    results.errors.push('Row ' + rowNum + ': Telepon kosong');
+                    continue;
+                }
+
+                const code = 'TEST-' + Date.now() + '-' + i;
+                const email = 'test' + Date.now() + i + '@local.id';
+
+                await databasePool.execute(
+                    'INSERT INTO customers (customer_code, name, phone, email, address, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+                    [code, name, phone, email, address, 'active']
+                );
+
+                results.success++;
+            } catch (err: any) {
+                results.failed++;
+                results.errors.push('Row ' + rowNum + ': ' + err.message);
+            }
+        }
+
+        console.log('TEST IMPORT DONE:', results);
+        res.json({ success: true, results });
+
+    } catch (error: any) {
+        console.error('TEST IMPORT ERROR:', error);
+        res.json({ success: false, error: error.message });
+    }
+});
+
+router.post('/customers/import', (req, res, next) => {
+    console.log('📥 Import request received');
+    console.log('Content-Type:', req.headers['content-type']);
+    
+    upload.single('excelFile')(req, res, (err) => {
+        if (err) {
+            console.error('❌ Multer error:', err);
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ 
+                        success: false,
+                        error: 'File terlalu besar. Maksimal 10MB' 
+                    });
+                }
+                return res.status(400).json({ 
+                    success: false,
+                    error: 'Error upload file: ' + err.message 
+                });
+            }
+            return res.status(400).json({ 
+                success: false,
+                error: err.message || 'Error upload file' 
+            });
+        }
+        
+        console.log('✅ File upload OK');
+        console.log('File info:', req.file ? {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size
+        } : 'No file');
+        
+        importCustomersFromExcel(req, res).catch(err => {
+            console.error('❌ Import controller error:', err);
+            res.status(500).json({ 
+                success: false,
+                error: 'Internal server error: ' + err.message 
+            });
+        });
+    });
+});
 router.get('/customers/new-pppoe', async (req, res) => {
     try {
         console.log('Starting new-pppoe route...');
@@ -3799,7 +3977,9 @@ router.post('/billing/dashboard/send-notifications', (req, res) => BillingDashbo
 // About routes
 router.get('/about', getAboutPage);
 router.get('/about/check-updates', checkUpdates);
+router.get('/about/check-hotfix', checkHotfix);
 router.post('/about/update', updateAppVersion);
+router.post('/about/apply-hotfix', applyHotfixUpdate);
 router.post('/about/update-settings', updateSettings);
 router.get('/about/update-history', getUpdateHistoryPage);
 

@@ -95,3 +95,131 @@ export async function getUpdateHistoryPage(req: Request, res: Response, next: Ne
         });
     }
 }
+
+export async function checkHotfix(req: Request, res: Response, next: NextFunction) {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const { execSync } = require('child_process');
+        
+        // Read current hotfix version
+        const versionHotfixPath = path.join(__dirname, '../../VERSION_HOTFIX');
+        let currentVersion = '2.1.0';
+        if (fs.existsSync(versionHotfixPath)) {
+            currentVersion = fs.readFileSync(versionHotfixPath, 'utf-8').trim();
+        }
+        
+        // Fetch latest from GitHub
+        try {
+            execSync('git fetch origin main', { stdio: 'ignore' });
+        } catch (err) {
+            console.error('Git fetch failed:', err);
+        }
+        
+        // Check remote VERSION_HOTFIX
+        let remoteVersion = currentVersion;
+        try {
+            remoteVersion = execSync('git show origin/main:VERSION_HOTFIX', { encoding: 'utf-8' }).trim();
+        } catch (err) {
+            console.error('Failed to read remote VERSION_HOTFIX:', err);
+        }
+        
+        // Check if hotfix available
+        if (remoteVersion !== currentVersion) {
+            // Read hotfix changelog if exists
+            let fixes: string[] = [];
+            let severity = 'medium';
+            
+            const hotfixMdPath = path.join(__dirname, `../../hotfix/${remoteVersion}.md`);
+            try {
+                const hotfixContent = execSync(`git show origin/main:hotfix/${remoteVersion}.md`, { encoding: 'utf-8' });
+                
+                // Parse severity from markdown
+                if (hotfixContent.includes('Critical')) severity = 'critical';
+                else if (hotfixContent.includes('High')) severity = 'high';
+                
+                // Extract fixes from markdown (simple parsing)
+                const lines = hotfixContent.split('\n');
+                fixes = lines
+                    .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*'))
+                    .map(line => line.trim().substring(1).trim())
+                    .slice(0, 5); // Max 5 items
+                
+                if (fixes.length === 0) {
+                    fixes = ['Bug fixes and improvements'];
+                }
+            } catch (err) {
+                fixes = ['Bug fixes and improvements'];
+            }
+            
+            res.json({
+                available: true,
+                version: remoteVersion,
+                currentVersion,
+                severity,
+                fixes
+            });
+        } else {
+            res.json({
+                available: false,
+                version: currentVersion,
+                currentVersion
+            });
+        }
+    } catch (err: any) {
+        console.error('Error checking hotfix:', err);
+        res.status(500).json({
+            available: false,
+            error: err.message
+        });
+    }
+}
+
+export async function applyHotfixUpdate(req: Request, res: Response, next: NextFunction) {
+    try {
+        const { version } = req.body;
+        const { execSync } = require('child_process');
+        const fs = require('fs');
+        const path = require('path');
+        
+        if (!version) {
+            req.flash('error', 'Versi hotfix tidak valid');
+            return res.redirect('/about');
+        }
+        
+        console.log('🔧 Applying hotfix:', version);
+        
+        // Pull latest changes
+        try {
+            execSync('git pull origin main', { stdio: 'inherit' });
+        } catch (err: any) {
+            throw new Error(`Git pull failed: ${err.message}`);
+        }
+        
+        // Check if hotfix script exists
+        const hotfixScript = path.join(__dirname, `../../hotfix/${version}-fix.js`);
+        if (fs.existsSync(hotfixScript)) {
+            console.log('🔧 Running hotfix script:', hotfixScript);
+            try {
+                execSync(`node "${hotfixScript}"`, { stdio: 'inherit' });
+            } catch (err: any) {
+                console.error('Hotfix script failed:', err);
+                // Continue anyway, script might not be critical
+            }
+        }
+        
+        // Restart PM2
+        try {
+            execSync('pm2 restart billing-app', { stdio: 'inherit' });
+        } catch (err: any) {
+            throw new Error(`PM2 restart failed: ${err.message}`);
+        }
+        
+        req.flash('success', `Hotfix ${version} berhasil diterapkan! Aplikasi telah direstart.`);
+        res.redirect('/about');
+    } catch (err: any) {
+        console.error('Error applying hotfix:', err);
+        req.flash('error', `Gagal menerapkan hotfix: ${err.message}`);
+        res.redirect('/about');
+    }
+}

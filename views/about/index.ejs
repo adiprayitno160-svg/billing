@@ -2,7 +2,14 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-slate-800">About Aplikasi</h2>
         <div class="flex gap-2">
-            <button onclick="checkForUpdates()" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2">
+            <button onclick="checkForHotfix()" class="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Cek Hotfix
+            </button>
+            <button onclick="checkForUpdates()" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -429,4 +436,170 @@ document.addEventListener('DOMContentLoaded', function() {
         applyUpdate();
     };
 });
+
+// Hotfix Check Function
+async function checkForHotfix() {
+    try {
+        const button = event.target.closest('button');
+        const originalContent = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mengecek...';
+
+        const response = await fetch('/about/check-hotfix');
+        const data = await response.json();
+        
+        console.log('🔧 Hotfix check response:', data);
+        
+        button.disabled = false;
+        button.innerHTML = originalContent;
+        
+        if (data.available) {
+            showHotfixModal(data, true);
+        } else {
+            showHotfixModal(data, false);
+        }
+    } catch (error) {
+        console.error('Error checking hotfix:', error);
+        alert('Gagal mengecek hotfix: ' + error.message);
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    }
+}
+
+function showHotfixModal(data, hasHotfix) {
+    const modal = document.getElementById('updateModal');
+    const content = document.getElementById('updateModalContent');
+    const updateBtn = document.getElementById('updateNowBtn');
+    const modalTitle = document.getElementById('updateModalTitle');
+    
+    if (hasHotfix) {
+        // Ada hotfix tersedia
+        console.log('🔧 Hotfix available:', data);
+        modalTitle.textContent = '🔧 Hotfix Tersedia';
+        updateBtn.style.display = 'block';
+        updateBtn.disabled = false;
+        updateBtn.textContent = 'Apply Hotfix';
+        updateBtn.onclick = function() { applyHotfix(data.version); };
+        
+        const fixesHtml = data.fixes && data.fixes.length > 0
+            ? data.fixes.map(line => `<li class="text-sm text-slate-600">• ${line}</li>`).join('')
+            : '<li class="text-sm text-slate-600">Bug fixes and improvements</li>';
+        
+        content.innerHTML = `
+            <div class="mb-4 bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <h4 class="font-bold text-orange-800">Hotfix ${data.version}</h4>
+                </div>
+                <p class="text-sm text-orange-700">
+                    Perbaikan bug kecil tersedia tanpa perlu update versi mayor.
+                </p>
+            </div>
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-slate-600">Versi Saat Ini:</span>
+                    <span class="font-bold text-slate-800">${data.currentVersion}</span>
+                </div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-slate-600">Hotfix Baru:</span>
+                    <span class="font-bold text-orange-600">${data.version}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-600">Severity:</span>
+                    <span class="px-2 py-1 text-xs rounded ${data.severity === 'critical' ? 'bg-red-100 text-red-700' : data.severity === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}">
+                        ${data.severity === 'critical' ? '🔴 Critical' : data.severity === 'high' ? '🟠 High' : '🟡 Medium'}
+                    </span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <h4 class="font-semibold text-sm text-slate-800 mb-2">Perbaikan:</h4>
+                <ul class="max-h-32 overflow-y-auto space-y-1 bg-slate-50 rounded p-3">
+                    ${fixesHtml}
+                </ul>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-800">
+                <strong>ℹ️ Info:</strong> Hotfix tidak mengubah versi major. Aplikasi akan restart sebentar (~30 detik).
+            </div>
+        `;
+    } else {
+        // Sudah versi terbaru
+        modalTitle.textContent = '✅ No Hotfix Needed';
+        updateBtn.style.display = 'none';
+        
+        content.innerHTML = `
+            <div class="text-center py-6">
+                <svg class="w-16 h-16 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Tidak Ada Hotfix</h4>
+                <p class="text-sm text-slate-600 mb-2">
+                    Anda menggunakan versi terbaru: <strong class="text-blue-600">${data.currentVersion || data.version}</strong>
+                </p>
+                <p class="text-xs text-slate-500">
+                    Sistem Anda sudah dalam kondisi optimal.
+                </p>
+            </div>
+        `;
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function applyHotfix(version) {
+    console.log('🔧 Applying hotfix:', version);
+    
+    if (!version) {
+        alert('Versi hotfix tidak ditemukan. Silakan cek hotfix terlebih dahulu.');
+        return;
+    }
+    
+    // Close modal
+    closeUpdateModal();
+    
+    // Create and submit form
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/about/apply-hotfix';
+    
+    const versionInput = document.createElement('input');
+    versionInput.type = 'hidden';
+    versionInput.name = 'version';
+    versionInput.value = version;
+    
+    form.appendChild(versionInput);
+    document.body.appendChild(form);
+    
+    // Show loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    loadingDiv.innerHTML = `
+        <div class="bg-white rounded-lg p-8 text-center max-w-md">
+            <svg class="animate-spin w-16 h-16 mx-auto mb-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h3 class="text-xl font-bold text-slate-800 mb-3">🔧 Applying Hotfix...</h3>
+            <p class="text-sm text-slate-600 mb-2">Mohon tunggu, hotfix <strong class="text-orange-600">${version}</strong> sedang diterapkan</p>
+            <div class="bg-orange-50 border border-orange-200 rounded p-3 mt-4 text-left">
+                <p class="text-xs text-orange-800 font-semibold mb-1">🔧 Proses Hotfix:</p>
+                <ul class="text-xs text-orange-700 space-y-1">
+                    <li>• Pulling hotfix dari GitHub</li>
+                    <li>• Applying database fixes (if any)</li>
+                    <li>• Restarting PM2</li>
+                </ul>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">⏱️ Estimasi waktu: 30-60 detik</p>
+            <p class="text-xs text-slate-400 mt-2">Halaman akan refresh otomatis setelah selesai</p>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    // Submit form
+    setTimeout(() => {
+        form.submit();
+    }, 300);
+}
 </script>
