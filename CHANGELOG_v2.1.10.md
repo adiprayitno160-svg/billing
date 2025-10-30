@@ -10,6 +10,14 @@
 - ✅ Tampil hanya jika lebih dari 1 halaman
 - ✅ Preserve filters saat navigasi pagination
 
+## 🐛 Bug Fixes
+
+### Excel Import - Duplikasi Data (Additional Fix)
+- ✅ Enhanced duplicate detection in `excelController.ts`
+- ✅ Check duplicate with both original and cleaned phone
+- ✅ Better error messages showing existing customer
+- ✅ Consistent implementation across both import functions
+
 ### UI Improvements
 - ✅ Better pagination design dengan gradient colors
 - ✅ Display informasi: "Menampilkan X sampai Y dari Z pelanggan"

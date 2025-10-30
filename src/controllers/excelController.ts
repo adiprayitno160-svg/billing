@@ -279,16 +279,16 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 const cleanPhone = phone.replace(/[\s\-.]/g, '');
                 console.log(`📞 Original phone: "${phone}", Clean phone: "${cleanPhone}"`);
 
-                // Check duplicate by phone
+                // Check duplicate by phone (both original and cleaned)
                 const [existing] = await databasePool.execute(
-                    'SELECT id, name FROM customers WHERE phone = ? LIMIT 1',
-                    [cleanPhone]
+                    'SELECT id, name, phone FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
+                    [phone, cleanPhone]
                 );
                 if ((existing as any).length > 0) {
+                    const existingRecord = (existing as any)[0];
                     results.failed++;
-                    const existingName = (existing as any)[0].name;
-                    results.errors.push(`Baris ${rowNumber}: Telepon "${cleanPhone}" sudah terdaftar atas nama "${existingName}"`);
-                    console.log(`❌ Row ${rowNumber} FAILED: Duplicate phone. Existing customer:`, existingName);
+                    results.errors.push(`Baris ${rowNumber}: Telepon "${phone}" sudah terdaftar atas nama "${existingRecord.name}"`);
+                    console.log(`❌ Row ${rowNumber} FAILED: Duplicate phone. Existing customer:`, existingRecord.name);
                     continue;
                 }
 
