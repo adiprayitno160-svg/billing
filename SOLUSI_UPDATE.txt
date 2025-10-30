@@ -1,0 +1,80 @@
+============================================================
+🔧 SOLUSI UPDATE KE v2.1.8
+============================================================
+
+❌ MASALAH:
+- Server masih menunjukkan versi 2.1.6
+- Error saat build: "tsc: not found"
+- Perubahan belum di-push ke GitHub
+
+✅ LANGKAH PENYELESAIAN:
+
+STEP 1: DI LOCAL (Komputer Anda)
+============================================================
+# Commit dan push perubahan ke GitHub
+git add .
+git commit -m "Update to v2.1.8: Enhanced Excel import with better header normalization"
+git push origin main
+
+Wait sampai push selesai...
+
+
+STEP 2: DI SERVER (SSH ke server live)
+============================================================
+# Masuk ke server
+ssh root@your-server
+
+# Masuk ke direktori billing
+cd /opt/billing
+
+# Pull latest dari GitHub
+git pull origin main
+
+# Cek versi (harus 2.1.8 sekarang)
+cat VERSION
+
+# Install dependencies (dengan devDependencies untuk build)
+npm install
+
+# Build aplikasi
+npm run build
+
+# Install production saja (optional, untuk hemat space)
+npm install --production
+
+# Restart PM2
+pm2 restart billing-app --update-env
+
+# Cek status
+pm2 status
+pm2 logs billing-app --lines 30
+
+# Cek versi di browser
+# Buka: http://your-server:3000/about
+# Harus menunjukkan: Versi Saat Ini: 2.1.8 ✅
+
+
+============================================================
+⚠️ PENTING:
+============================================================
+1. Pastikan push dari local ke GitHub SUDAH SELESAI
+2. Baru kemudian pull di server
+3. Jika masih error, coba "npm install" tanpa --production
+4. Clear cache browser (Ctrl + Shift + R) setelah update
+
+
+============================================================
+📋 PERINTAH LENGKAP (Copy-Paste di Server)
+============================================================
+
+cd /opt/billing && \
+git pull origin main && \
+npm install && \
+npm run build && \
+npm install --production && \
+pm2 restart billing-app --update-env && \
+pm2 logs billing-app --lines 30
+
+
+============================================================
+

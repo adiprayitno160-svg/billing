@@ -54,6 +54,8 @@ verify-and-redeploy.bat   <- Jika GO.bat gagal
 test-production.bat       <- Test saja (tanpa deploy)
 quick-release.bat         <- Push ke GitHub saja
 deploy-now.bat            <- Deploy saja (interactive)
+scripts/gh-release-and-deploy.sh   <- Release+Deploy via GitHub CLI (Linux/Mac)
+scripts/gh-release-and-deploy.ps1  <- Release+Deploy via GitHub CLI (Windows)
 
 ========================================
 

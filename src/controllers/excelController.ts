@@ -202,41 +202,41 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
             errors: [] as string[]
         };
 
+        // Helper: normalize header/keys
+        const toAscii = (s: string) => s.normalize('NFKD').replace(/[^\x00-\x7F]/g, '');
+        const normalizeKey = (k: string) => toAscii(String(k))
+            .replace(/\u00A0/g, ' ')
+            .replace(/\./g, ' ')
+            .replace(/_/g, ' ')
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const matchKey = (rowObj: any, candidates: string[]): any => {
+            const keys = Object.keys(rowObj);
+            const normMap: Record<string, string> = {};
+            for (const k of keys) normMap[normalizeKey(k)] = k;
+            for (const c of candidates) {
+                const nc = normalizeKey(c);
+                if (normMap[nc] !== undefined) return rowObj[normMap[nc]];
+            }
+            // fuzzy includes
+            const wanted = candidates.map(c => normalizeKey(c));
+            for (const [nk, orig] of Object.entries(normMap)) {
+                if (wanted.some(w => nk === w || nk.includes(w))) return rowObj[orig];
+            }
+            return '';
+        };
+
         for (let i = 0; i < data.length; i++) {
             const row = data[i] as any;
             const rowNumber = i + 2; // header row is 1
 
             try {
-                // Support multiple column name formats (case-insensitive)
-                const name = (
-                    row['Nama'] || 
-                    row['nama'] || 
-                    row['NAMA'] || 
-                    row['Name'] || 
-                    row['name'] || 
-                    ''
-                ).toString().trim();
-                
-                const phone = (
-                    row['Telepon'] || 
-                    row['telepon'] || 
-                    row['TELEPON'] || 
-                    row['Phone'] || 
-                    row['phone'] || 
-                    row['No HP'] || 
-                    row['No Telepon'] ||
-                    row['HP'] ||
-                    ''
-                ).toString().trim();
-                
-                const address = (
-                    row['Alamat'] || 
-                    row['alamat'] || 
-                    row['ALAMAT'] || 
-                    row['Address'] || 
-                    row['address'] || 
-                    ''
-                ).toString().trim();
+                // Read using normalized key matching
+                const name = (matchKey(row, ['Nama','Name']) ?? '').toString().trim();
+                const phone = (matchKey(row, ['Telepon','Phone','No HP','HP','No Telepon','Nomor Telepon','No. Telepon','No Telp','Telp','Tlp']) ?? '').toString().trim();
+                const address = (matchKey(row, ['Alamat','Address']) ?? '').toString().trim();
                 
                 console.log(`📋 Row ${rowNumber}: Nama="${name}", Telepon="${phone}", Alamat="${address}"`);
 
@@ -256,8 +256,8 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     continue;
                 }
 
-                // Clean phone number (remove spaces, dashes)
-                const cleanPhone = phone.replace(/[\s\-]/g, '');
+                // Clean phone number (remove spaces, dashes, dots)
+                const cleanPhone = phone.replace(/[\s\-.]/g, '');
                 console.log(`📞 Original phone: "${phone}", Clean phone: "${cleanPhone}"`);
 
                 // Check duplicate by phone
