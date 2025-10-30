@@ -7,6 +7,10 @@
 - Pembersihan nomor telepon juga menghapus titik selain spasi dan dash.
 - Added detailed debug logging untuk troubleshooting kolom telepon kosong.
 
+## Bug Fixes
+- Fixed bulk delete customers: Added missing id to confirm button in modal.
+- Fixed null reference error when bulk delete button not found.
+
 ## Deployment
 ```
 git pull
