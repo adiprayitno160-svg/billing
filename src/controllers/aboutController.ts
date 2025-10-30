@@ -18,7 +18,7 @@ export async function getAboutPage(req: Request, res: Response, next: NextFuncti
         const updateHistory = await getUpdateHistory(5);
         
         res.render('about/index', {
-            title: 'About Aplikasi',
+            title: 'Tentang Aplikasi',
             version,
             features,
             updateSettings,
@@ -104,24 +104,40 @@ export async function checkHotfix(req: Request, res: Response, next: NextFunctio
         
         // Read current hotfix version
         const versionHotfixPath = path.join(__dirname, '../../VERSION_HOTFIX');
-        let currentVersion = '2.1.0';
-        if (fs.existsSync(versionHotfixPath)) {
-            currentVersion = fs.readFileSync(versionHotfixPath, 'utf-8').trim();
+        let currentVersion = '2.1.1';
+        
+        try {
+            if (fs.existsSync(versionHotfixPath)) {
+                currentVersion = fs.readFileSync(versionHotfixPath, 'utf-8').trim();
+            }
+        } catch (err) {
+            console.error('Error reading VERSION_HOTFIX:', err);
         }
         
         // Fetch latest from GitHub
         try {
-            execSync('git fetch origin main', { stdio: 'ignore' });
+            execSync('git fetch origin main 2>&1', { stdio: 'ignore', timeout: 10000 });
         } catch (err) {
-            console.error('Git fetch failed:', err);
+            console.error('Git fetch failed, continuing with cached data:', err);
         }
         
         // Check remote VERSION_HOTFIX
         let remoteVersion = currentVersion;
         try {
-            remoteVersion = execSync('git show origin/main:VERSION_HOTFIX', { encoding: 'utf-8' }).trim();
+            const output = execSync('git show origin/main:VERSION_HOTFIX 2>&1', { 
+                encoding: 'utf-8',
+                timeout: 5000 
+            });
+            remoteVersion = output.trim();
         } catch (err) {
-            console.error('Failed to read remote VERSION_HOTFIX:', err);
+            console.error('Failed to read remote VERSION_HOTFIX, using current:', err);
+            // Return current version as latest if can't reach remote
+            return res.json({
+                available: false,
+                version: currentVersion,
+                currentVersion,
+                message: 'Tidak dapat terhubung ke GitHub. Menggunakan versi lokal.'
+            });
         }
         
         // Check if hotfix available
