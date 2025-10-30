@@ -112,11 +112,22 @@ export const getCustomerList = async (req: Request, res: Response) => {
         const total = parseInt((countResult as any)[0].total);
         
         // Get statistics
-        const [activeStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "active"');
-        const totalActive = parseInt((activeStats as any)[0].total);
+        let totalActive = 0;
+        let totalInactive = 0;
         
-        const [inactiveStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "inactive"');
-        const totalInactive = parseInt((inactiveStats as any)[0].total);
+        try {
+            const [activeStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "active"');
+            totalActive = parseInt((activeStats as any)[0].total);
+        } catch (statError) {
+            console.error('Error getting active stats:', statError);
+        }
+        
+        try {
+            const [inactiveStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "inactive"');
+            totalInactive = parseInt((inactiveStats as any)[0].total);
+        } catch (statError) {
+            console.error('Error getting inactive stats:', statError);
+        }
         
         console.log('About to render template with:');
         console.log('- customers:', result.length);
@@ -158,6 +169,7 @@ export const getCustomerList = async (req: Request, res: Response) => {
             title: 'Daftar Pelanggan',
             customers: [],
             pagination: { page: 1, limit: 20, total: 0, pages: 0 },
+            statistics: { totalActive: 0, totalInactive: 0 },
             filters: {},
             error: 'Gagal memuat data pelanggan: ' + (error?.message || 'Unknown error')
         });
