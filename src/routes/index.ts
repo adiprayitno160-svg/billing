@@ -141,19 +141,36 @@ import { getTestImportPage, testImportExcel } from '../controllers/testImportCon
 const router = Router();
 const authMiddleware = new AuthMiddleware();
 
-// Configure multer for file uploads
+// Configure multer for file uploads with production-ready settings
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 10 * 1024 * 1024, // 10MB limit
+        files: 1,
+        fieldSize: 10 * 1024 * 1024
     },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        console.log('🔍 Multer fileFilter - Checking file:', {
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            fieldname: file.fieldname
+        });
+        
+        // More lenient mime type check for production compatibility
+        const isExcelMimetype = 
+            file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
             file.mimetype === 'application/vnd.ms-excel' ||
-            file.originalname.endsWith('.xlsx') ||
-            file.originalname.endsWith('.xls')) {
+            file.mimetype === 'application/octet-stream'; // Fallback for some servers
+        
+        const isExcelExtension = 
+            file.originalname.toLowerCase().endsWith('.xlsx') ||
+            file.originalname.toLowerCase().endsWith('.xls');
+        
+        if (isExcelMimetype || isExcelExtension) {
+            console.log('✅ File accepted');
             cb(null, true);
         } else {
+            console.log('❌ File rejected - Invalid type');
             cb(new Error('Hanya file Excel (.xlsx, .xls) yang diperbolehkan'));
         }
     }

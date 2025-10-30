@@ -104,39 +104,51 @@ export async function checkHotfix(req: Request, res: Response, next: NextFunctio
         
         // Read current hotfix version
         const versionHotfixPath = path.join(__dirname, '../../VERSION_HOTFIX');
-        let currentVersion = '2.1.1';
+        let currentVersion = '2.1.5'; // Updated default version
         
         try {
             if (fs.existsSync(versionHotfixPath)) {
-                currentVersion = fs.readFileSync(versionHotfixPath, 'utf-8').trim();
+                const versionContent = fs.readFileSync(versionHotfixPath, 'utf-8').trim();
+                if (versionContent && versionContent.length > 0) {
+                    currentVersion = versionContent;
+                }
             }
         } catch (err) {
             console.error('Error reading VERSION_HOTFIX:', err);
         }
         
-        // Fetch latest from GitHub
+        // Fetch latest from GitHub with better error handling
         try {
-            execSync('git fetch origin main 2>&1', { stdio: 'ignore', timeout: 10000 });
+            execSync('git fetch origin main 2>&1', { 
+                stdio: 'pipe', 
+                timeout: 10000,
+                encoding: 'utf-8'
+            });
         } catch (err) {
             console.error('Git fetch failed, continuing with cached data:', err);
+            // Continue anyway, might have cached data
         }
         
-        // Check remote VERSION_HOTFIX
+        // Check remote VERSION_HOTFIX with better error handling
         let remoteVersion = currentVersion;
         try {
-            const output = execSync('git show origin/main:VERSION_HOTFIX 2>&1', { 
+            const output = execSync('git show origin/main:VERSION_HOTFIX', { 
                 encoding: 'utf-8',
-                timeout: 5000 
+                timeout: 5000,
+                stdio: 'pipe'
             });
-            remoteVersion = output.trim();
-        } catch (err) {
-            console.error('Failed to read remote VERSION_HOTFIX, using current:', err);
+            
+            if (output && typeof output === 'string') {
+                remoteVersion = output.trim();
+            }
+        } catch (err: any) {
+            console.error('Failed to read remote VERSION_HOTFIX:', err.message);
             // Return current version as latest if can't reach remote
-            return res.json({
+            return res.status(200).json({
                 available: false,
                 version: currentVersion,
                 currentVersion,
-                message: 'Tidak dapat terhubung ke GitHub. Menggunakan versi lokal.'
+                message: 'Tidak dapat terhubung ke GitHub. Anda menggunakan versi lokal.'
             });
         }
         
@@ -184,9 +196,13 @@ export async function checkHotfix(req: Request, res: Response, next: NextFunctio
         }
     } catch (err: any) {
         console.error('Error checking hotfix:', err);
-        res.status(500).json({
+        // Always return valid JSON with 200 status to prevent frontend parsing errors
+        return res.status(200).json({
             available: false,
-            error: err.message
+            version: '2.1.5',
+            currentVersion: '2.1.5',
+            error: 'Gagal memeriksa hotfix: ' + (err.message || 'Unknown error'),
+            message: 'Tidak dapat memeriksa hotfix. Silakan coba lagi nanti.'
         });
     }
 }

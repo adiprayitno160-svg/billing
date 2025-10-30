@@ -634,19 +634,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Hotfix Check Function
 async function checkForHotfix() {
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    
     try {
-        const button = event.target.closest('button');
-        const originalContent = button.innerHTML;
         button.disabled = true;
         button.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mengecek...';
 
         const response = await fetch('/about/check-hotfix');
-        const data = await response.json();
         
+        // Check if response is ok
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        // Check content type
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            throw new Error('Server mengembalikan respon yang tidak valid');
+        }
+        
+        const data = await response.json();
         console.log('🔧 Hotfix check response:', data);
         
         button.disabled = false;
         button.innerHTML = originalContent;
+        
+        // Handle error in data
+        if (data.error) {
+            alert(data.message || data.error);
+            return;
+        }
         
         if (data.available) {
             showHotfixModal(data, true);
@@ -655,9 +675,9 @@ async function checkForHotfix() {
         }
     } catch (error) {
         console.error('Error checking hotfix:', error);
-        alert('Gagal mengecek hotfix: ' + error.message);
         button.disabled = false;
         button.innerHTML = originalContent;
+        alert('Gagal mengecek hotfix: ' + error.message);
     }
 }
 

@@ -676,12 +676,36 @@ export const downloadExcelTemplate = async (req: Request, res: Response) => {
 
 export const importCustomersFromExcel = async (req: Request, res: Response) => {
     try {
+        console.log('📥 importCustomersFromExcel started');
+        console.log('Request file:', req.file ? 'File present' : 'No file');
+        
         if (!req.file) {
-            return res.status(400).json({ error: 'File Excel tidak ditemukan' });
+            console.error('❌ No file in request');
+            return res.status(400).json({ 
+                success: false,
+                error: 'File Excel tidak ditemukan' 
+            });
         }
         
-        // Read Excel file
-        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        console.log('📄 File details:', {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            bufferLength: req.file.buffer?.length
+        });
+        
+        // Read Excel file with error handling
+        let workbook;
+        try {
+            workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+            console.log('✅ Excel file read successfully');
+        } catch (xlsxError) {
+            console.error('❌ XLSX read error:', xlsxError);
+            return res.status(400).json({ 
+                success: false,
+                error: 'File Excel tidak valid atau corrupt' 
+            });
+        }
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) {
             throw new Error('Nama sheet tidak ditemukan pada file Excel');
@@ -691,9 +715,13 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
             throw new Error('Worksheet tidak ditemukan');
         }
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        console.log(`📊 Found ${jsonData.length} rows in Excel`);
         
         if (jsonData.length === 0) {
-            return res.status(400).json({ error: 'File Excel kosong atau tidak valid' });
+            return res.status(400).json({ 
+                success: false,
+                error: 'File Excel kosong atau tidak valid' 
+            });
         }
         
         const results = {
@@ -792,12 +820,17 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: `Import selesai. Berhasil: ${results.success}, Gagal: ${results.failed}`,
+            totalRows: jsonData.length,
             details: results
         });
         
     } catch (error) {
-        console.error('Error importing customers from Excel:', error);
-        res.status(500).json({ error: 'Gagal mengimport data pelanggan' });
+        console.error('❌ Error importing customers from Excel:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ 
+            success: false,
+            error: 'Gagal mengimport data pelanggan: ' + errorMessage 
+        });
     }
 };
 

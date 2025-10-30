@@ -1,16 +1,16 @@
-# 🔧 Changelog v2.1.4.1 - Hotfix: Bulk Delete Customers
+# 🔧 Changelog v2.1.5 - Major Fixes: Bulk Delete, Import Excel, Sidebar, Hotfix Checker
 
 ## 📅 Release Date
 **30 Oktober 2025**
 
-## 🎯 Hotfix Type
-**Hotfix Release** - Memastikan fitur bulk delete customers berfungsi dengan baik
+## 🎯 Release Type
+**Major Bugfix Release** - Perbaikan multiple issues dan improvement
 
 ---
 
-## ✨ Fitur yang Dipastikan Berfungsi
+## ✨ What's New & Fixed
 
-### 🗑️ Bulk Delete Customers (Hapus Pelanggan Terpilih)
+### 1. 🗑️ Bulk Delete Customers (Hapus Pelanggan Terpilih)
 Fitur untuk menghapus beberapa pelanggan sekaligus dari database dengan keamanan penuh.
 
 **Lokasi:** `/customers/list`
@@ -23,6 +23,41 @@ Fitur untuk menghapus beberapa pelanggan sekaligus dari database dengan keamanan
 - ✅ Modal konfirmasi sebelum menghapus
 - ✅ Validasi keamanan: pelanggan dengan tagihan aktif tidak akan dihapus
 - ✅ Laporan hasil: jumlah berhasil dihapus & dilewati
+
+### 2. 📥 Fix Import Excel di Live Server
+Memperbaiki masalah import Excel yang tidak berfungsi di live server namun berfungsi di local.
+
+**Masalah:**
+- Import Excel gagal di production server
+- File tidak ter-upload dengan baik
+
+**Solusi:**
+- ✅ Fix multer configuration untuk production
+- ✅ Fix file size limit
+- ✅ Fix temporary directory handling
+- ✅ Better error handling dan logging
+
+### 3. 🎨 Remove "Update Terbaru" dari Sidebar
+Menghilangkan menu "Update Terbaru" di sidebar untuk membersihkan UI.
+
+**Perubahan:**
+- ✅ Remove menu item dari sidebar
+- ✅ Cleanup unused routes
+- ✅ Better sidebar organization
+
+### 4. 🔍 Fix Hotfix Checker di Halaman "Tentang Aplikasi"
+Memperbaiki error JSON.parse saat mengecek hotfix version.
+
+**Error Sebelumnya:**
+```
+Gagal mengecek hotfix: JSON.parse: unexpected character at line 1 column 1 of the JSON data
+```
+
+**Solusi:**
+- ✅ Fix API response parsing
+- ✅ Better error handling
+- ✅ Fallback mechanism jika GitHub API gagal
+- ✅ User-friendly error messages
 
 ---
 
@@ -163,8 +198,8 @@ Jika ada masalah atau pertanyaan:
 
 ---
 
-**Version:** 2.1.4.1  
-**Type:** Hotfix  
-**Priority:** Medium  
+**Version:** 2.1.5  
+**Type:** Major Bugfix Release  
+**Priority:** High  
 **Status:** ✅ Ready for Production
 
