@@ -306,8 +306,8 @@ export async function createPackage(data: {
 			data.auto_activation || 0,
 			data.status,
 			data.description || null,
-			data.rate_limit_rx || null,
-			data.rate_limit_tx || null,
+			data.rate_limit_rx || '0',  // Default '0' (unlimited) jika tidak diisi
+			data.rate_limit_tx || '0',  // Default '0' (unlimited) jika tidak diisi
 			data.burst_limit_rx || null,
 			data.burst_limit_tx || null,
 			data.burst_threshold_rx || null,
