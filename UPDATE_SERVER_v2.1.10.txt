@@ -1,0 +1,110 @@
+============================================================
+🚀 UPDATE SERVER KE V2.1.10 - PAGINATION & IMPORT FIX
+============================================================
+
+Release sudah tersedia di GitHub!
+https://github.com/adiprayitno160-svg/billing/releases/tag/v2.1.10
+
+============================================================
+📋 LANGKAH UPDATE (COPY-PASTE):
+============================================================
+
+cd /opt/billing && \
+git pull origin main && \
+npm install && \
+npm run build && \
+npm install --production && \
+pm2 restart billing-app --update-env && \
+pm2 logs billing-app --lines 50
+
+
+============================================================
+✨ FITUR BARU:
+============================================================
+
+1. Pagination di Data Pelanggan:
+   ✅ Maksimal 20 pelanggan per halaman
+   ✅ Navigation Previous/Next
+   ✅ Page numbers dengan ellipsis
+   ✅ Preserve filters saat navigasi
+   ✅ Statistics akurat (Total, Aktif, Nonaktif)
+
+2. Excel Import Fix:
+   ✅ Duplikasi data diperbaiki
+   ✅ Check dengan original & cleaned phone
+   ✅ Better error messages
+   ✅ Consistent across both import functions
+
+
+============================================================
+🧪 TEST SETELAH UPDATE:
+============================================================
+
+1. Test Pagination:
+   - Jika ada > 20 pelanggan, pagination muncul
+   - Navigate Previous/Next
+   - Click page numbers
+   - Verify statistics masih akurat
+
+2. Test Excel Import:
+   - Import dengan phone: "0812-3456-7890"
+   - Import lagi dengan phone: "0812 3456 7890"
+   - Harus gagal dengan pesan duplicate
+   - Import dengan phone baru, harus berhasil
+
+3. Check Logs:
+   pm2 logs billing-app --lines 100
+
+   Cari log:
+   📋 Row X: Nama="...", Telepon="..."
+   🔍 Checking phone: "..." -> "..."
+   ✅ Phone OK - No duplicate found
+   💾 Inserting customer (SIMPLE): {...}
+
+
+============================================================
+📊 VERIFIKASI:
+============================================================
+
+# Check version
+cat VERSION          # Harus: 2.1.10
+cat VERSION_MAJOR    # Harus: 2.1.10
+cat VERSION_HOTFIX   # Harus: 2.1.10
+
+# Check PM2 status
+pm2 status
+
+# Check logs
+pm2 logs billing-app --lines 50
+
+
+============================================================
+📝 PERINTAH LENGKAP:
+============================================================
+
+cd /opt/billing
+git pull origin main
+cat VERSION
+npm install
+npm run build
+npm install --production
+pm2 restart billing-app --update-env
+pm2 status
+pm2 logs billing-app --lines 50
+
+
+============================================================
+🔗 LINK RELEASE:
+============================================================
+
+GitHub Release:
+https://github.com/adiprayitno160-svg/billing/releases/tag/v2.1.10
+
+Changelog:
+docs/CHANGELOG_v2.1.10.md
+
+
+============================================================
+SELESAI! ✅
+============================================================
+
