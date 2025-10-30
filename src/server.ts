@@ -15,7 +15,6 @@ import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerServ
 import { WhatsAppWebService } from './services/whatsapp/WhatsAppWebService';
 import PrepaidSchedulerService from './services/prepaid/PrepaidSchedulerServiceComplete';
 import PrepaidMonitoringScheduler from './schedulers/PrepaidMonitoringScheduler';
-import TelegramAdminService from './services/telegram/TelegramAdminService';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
@@ -185,10 +184,6 @@ async function start() {
 		WhatsAppWebService.initialize().catch(err => {
 			console.error('WhatsApp Web Service initialization error (non-critical):', err);
 		});
-		
-		// Initialize Telegram Bot Service (non-blocking)
-		console.log('Telegram Bot Admin Service initialized');
-		// Note: TelegramAdminService is auto-initialized on import via singleton pattern
 		
 		// Initialize default users
 		const authController = new AuthController();

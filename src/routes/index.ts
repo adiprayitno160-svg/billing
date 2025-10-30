@@ -56,7 +56,6 @@ import whatsappApiRoutes from './whatsapp-api';
 import prepaidRoutes from './prepaid';
 import monitoringRoutes from './monitoring';
 import slaRoutes from './sla';
-import telegramRoutes from './telegram';
 import maintenanceRoutes from './maintenance';
 import settingsRoutes from './settings';
 import { BulkOperationsController } from '../controllers/bulkOperationsController';
@@ -224,9 +223,6 @@ router.use('/monitoring/sla', slaRoutes);
 // Maintenance Schedule routes (submenu of monitoring)
 router.use('/monitoring/maintenance', maintenanceRoutes);
 
-// Telegram Bot & Notifications (Root level - more prominent)
-router.use('/telegram', telegramRoutes);
-router.use('/bot-notifikasi', telegramRoutes); // Alias for easier access
 
 // Settings routes
 router.use('/settings', settingsRoutes);

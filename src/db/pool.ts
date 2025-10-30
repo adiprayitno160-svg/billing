@@ -234,15 +234,6 @@ export async function ensureInitialSchema(): Promise<void> {
 			UNIQUE KEY unique_address_per_list (address_list_id, address)
 		)`);
 
-		// Create telegram_settings table
-		await conn.query(`CREATE TABLE IF NOT EXISTS telegram_settings (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			bot_token VARCHAR(500) NOT NULL COMMENT 'Token bot dari BotFather',
-			auto_start TINYINT(1) DEFAULT 1 COMMENT 'Auto start bot saat server dimulai',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Pengaturan Telegram Bot'`);
-
 		// Ensure prepaid_package_subscriptions has last_notified_at column
 		await addCol(`ALTER TABLE prepaid_package_subscriptions ADD COLUMN last_notified_at TIMESTAMP NULL AFTER expiry_date`);
 

@@ -306,33 +306,6 @@
                 </div>
             </div>
 
-            <!-- Telegram Bot (NEW!) -->
-            <div class="menu-group mt-2">
-                <button type="button" class="menu-toggle w-full flex items-center justify-between px-4 py-3 rounded-xl text-white/90 hover:bg-white/10 transition-all duration-200" data-menu="telegram">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121L7.773 13.37l-2.91-.908c-.632-.196-.644-.632.135-.936l11.37-4.38c.528-.195.99.12.82.936z"/>
-                            </svg>
-                        </div>
-                        <span class="text-sm font-medium">Telegram Bot</span>
-                        <span class="px-2 py-0.5 text-xs font-semibold bg-blue-500 text-white rounded-full">NEW</span>
-                    </div>
-                    <svg class="w-4 h-4 transition-transform duration-200" id="telegram-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                </button>
-                <div class="menu-content hidden ml-4 mt-2 space-y-1" id="telegram-menu" style="display: none;">
-                    <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/telegram/dashboard')) ? 'bg-white/15 text-white' : '' %>" href="/telegram/dashboard">
-                        <div class="w-2 h-2 rounded-full bg-white/60"></div>
-                        <span class="text-sm">Dashboard Bot</span>
-                    </a>
-                    <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/telegram/users')) ? 'bg-white/15 text-white' : '' %>" href="/telegram/users">
-                        <div class="w-2 h-2 rounded-full bg-white/60"></div>
-                        <span class="text-sm">Daftar User</span>
-                    </a>
-                </div>
-            </div>
         </div>
 
         <!-- Pengaturan Section -->
@@ -368,10 +341,6 @@
                     <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/settings/whatsapp')) ? 'bg-white/15 text-white' : '' %>" href="/settings/whatsapp">
                         <div class="w-2 h-2 rounded-full bg-white/60"></div>
                         <span class="text-sm">WhatsApp</span>
-                    </a>
-                    <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/settings/telegram')) ? 'bg-white/15 text-white' : '' %>" href="/settings/telegram">
-                        <div class="w-2 h-2 rounded-full bg-white/60"></div>
-                        <span class="text-sm">Telegram Bot</span>
                     </a>
                     <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/settings/users')) ? 'bg-white/15 text-white' : '' %>" href="/settings/users">
                         <div class="w-2 h-2 rounded-full bg-white/60"></div>

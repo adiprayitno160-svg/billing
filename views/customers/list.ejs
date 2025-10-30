@@ -43,7 +43,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-blue-600">Pelanggan Aktif</div>
-					<div class="text-3xl font-bold text-modern-blue-900"><%= statistics ? statistics.totalActive : 0 %></div>
+					<div class="text-3xl font-bold text-modern-blue-900"><%= typeof statistics !== 'undefined' && statistics ? statistics.totalActive : 0 %></div>
 				</div>
 				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-blue-500 to-modern-cyan-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
@@ -57,7 +57,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-orange-600">Pelanggan Nonaktif</div>
-					<div class="text-3xl font-bold text-modern-orange-900"><%= statistics ? statistics.totalInactive : 0 %></div>
+					<div class="text-3xl font-bold text-modern-orange-900"><%= typeof statistics !== 'undefined' && statistics ? statistics.totalInactive : 0 %></div>
 				</div>
 				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-orange-500 to-modern-amber-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">

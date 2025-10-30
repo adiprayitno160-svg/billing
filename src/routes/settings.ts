@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { CompanyController } from '../controllers/settings/companyController';
-import { TelegramSettingsController } from '../controllers/settings/TelegramSettingsController';
 import SystemSettingsController from '../controllers/settings/SystemSettingsController';
 import multer from 'multer';
 
@@ -22,12 +21,6 @@ router.get('/company/preview', CompanyController.previewTemplate);
 router.get('/company/export', CompanyController.exportSettings);
 router.post('/company/import', upload.single('settings_file'), CompanyController.importSettings);
 router.post('/company/reset', CompanyController.resetToDefault);
-
-// Routes untuk pengaturan Telegram Bot
-router.get('/telegram', TelegramSettingsController.showSettings);
-router.post('/telegram', TelegramSettingsController.saveSettings);
-router.post('/telegram/test', TelegramSettingsController.testConnection);
-router.post('/telegram/restart', TelegramSettingsController.restartBot);
 
 // Routes untuk System Settings (Prepaid Portal URL, etc)
 router.get('/system', SystemSettingsController.index);
