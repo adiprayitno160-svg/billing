@@ -2,6 +2,8 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "exclude": [
     "backup_hotspot/**/*",
+    "backups/**/*",
+    "uploads/**/*",
     "node_modules/**/*",
     "dist/**/*",
     "src/controllers/ftth/**/*",
