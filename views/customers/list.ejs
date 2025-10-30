@@ -688,15 +688,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (closeImportBtn) closeImportBtn.addEventListener('click', handleCloseImport);
     if (closeImportIconBtn) closeImportIconBtn.addEventListener('click', handleCloseImport);
 
-    // Import form submit - SIMPLE VERSION
+    // Import form submit
     const submitImportBtn = document.getElementById('submitImportBtn');
     if (submitImportBtn) {
         submitImportBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
-            alert('🚀 Tombol Import diklik!\n\nProses akan dimulai...');
-            
             handleImportClick();
         });
     }
@@ -706,7 +703,6 @@ document.addEventListener('DOMContentLoaded', function() {
         importForm.addEventListener('submit', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            alert('📝 Form submit triggered!');
             handleImportClick();
         });
     }
