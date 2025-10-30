@@ -65,12 +65,16 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('dev'));
 
-// Session
+// Session with 5 minute inactivity timeout
 app.use(session({
 	secret: process.env.SESSION_SECRET || 'billing-secret-key',
 	resave: false,
 	saveUninitialized: false,
-	cookie: { secure: false }
+	cookie: { 
+		secure: false,
+		maxAge: 5 * 60 * 1000 // 5 minutes in milliseconds
+	},
+	rolling: true // Reset expiry time on each request
 }));
 
 // Flash messages
