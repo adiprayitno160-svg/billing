@@ -1,28 +1,5 @@
-<div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-3xl font-bold text-gray-900">Billing Dashboard</h1>
-                        <p class="mt-2 text-sm text-gray-600">Kelola sistem billing dan tagihan pelanggan</p>
-                    </div>
-                    <div class="flex space-x-3">
-                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                            <i class="fas fa-plus mr-2"></i>Tambah Tagihan
-                        </button>
-                        <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                            <i class="fas fa-download mr-2"></i>Export Laporan
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<!-- Stats Cards -->
+<div class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <!-- Total Invoices -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -159,7 +136,6 @@
                 </a>
             </div>
         </div>
-    </div>
 </div>
 
 <script>
@@ -168,4 +144,3 @@
         // You can add AJAX call here to refresh stats
     }, 30000);
 </script>
-

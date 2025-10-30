@@ -9,7 +9,16 @@
         <h1 class="text-3xl font-bold bg-gradient-to-r from-modern-indigo-600 via-modern-purple-600 to-modern-pink-500 bg-clip-text text-transparent"><%= title || 'Billing' %></h1>
     </div>
     <div class="flex items-center gap-4 text-sm">
-        <!-- Tech stack removed -->
+        <!-- Real-time Clock -->
+        <div class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-lg shadow-sm">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="flex flex-col">
+                <span id="currentTime" class="font-bold text-slate-800 text-base">--:--:--</span>
+                <span id="currentDate" class="text-xs text-slate-600">Loading...</span>
+            </div>
+        </div>
     </div>
 </div>
 

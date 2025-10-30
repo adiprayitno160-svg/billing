@@ -38,6 +38,43 @@
 <script src="/assets/sidebar.js" defer></script>
 <script src="/assets/dashboard.js" defer></script>
 
+<!-- Real-time Clock Update -->
+<script>
+(function() {
+    function updateClock() {
+        const now = new Date();
+        
+        // Format time: HH:MM:SS
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const timeString = `${hours}:${minutes}:${seconds}`;
+        
+        // Format date: Hari, DD Bulan YYYY
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        const dayName = days[now.getDay()];
+        const day = now.getDate();
+        const month = months[now.getMonth()];
+        const year = now.getFullYear();
+        const dateString = `${dayName}, ${day} ${month} ${year}`;
+        
+        // Update DOM
+        const timeElement = document.getElementById('currentTime');
+        const dateElement = document.getElementById('currentDate');
+        
+        if (timeElement) timeElement.textContent = timeString;
+        if (dateElement) dateElement.textContent = dateString;
+    }
+    
+    // Update immediately on page load
+    updateClock();
+    
+    // Update every second
+    setInterval(updateClock, 1000);
+})();
+</script>
+
 <!-- Auto-redirect after 5 minutes of inactivity -->
 <script>
 (function() {

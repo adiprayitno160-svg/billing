@@ -109,6 +109,24 @@ export class WhatsAppWebService {
                     const body = message.body;
                     const messageId = message.id._serialized;
                     
+                    // FILTER: Ignore status/story updates
+                    if (from.includes('status@broadcast') || from === 'status@broadcast') {
+                        console.log(`⏭️ Ignoring WhatsApp status from ${from}`);
+                        return;
+                    }
+                    
+                    // FILTER: Ignore group messages
+                    if (from.includes('@g.us')) {
+                        console.log(`⏭️ Ignoring group message from ${from}`);
+                        return;
+                    }
+                    
+                    // FILTER: Ignore messages from self (bot)
+                    if (message.fromMe) {
+                        console.log(`⏭️ Ignoring message from self`);
+                        return;
+                    }
+                    
                     console.log(`📨 Message received from ${from}: ${body}`);
                     
                     // Handle with bot service

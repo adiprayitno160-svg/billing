@@ -1,4 +1,4 @@
-# 🔧 Changelog v2.1.5 - Hotfix: Bulk Delete Customers
+# 🔧 Changelog v2.1.4.1 - Hotfix: Bulk Delete Customers
 
 ## 📅 Release Date
 **30 Oktober 2025**
@@ -131,7 +131,7 @@ Fitur ini hanya memanfaatkan:
 
 ```bash
 # Pull latest changes
-git pull origin hotfix/bulk-delete-customers-v2.1.5
+git pull origin main
 
 # Install dependencies (jika ada update)
 npm install
@@ -163,7 +163,7 @@ Jika ada masalah atau pertanyaan:
 
 ---
 
-**Version:** 2.1.5  
+**Version:** 2.1.4.1  
 **Type:** Hotfix  
 **Priority:** Medium  
 **Status:** ✅ Ready for Production
