@@ -1,0 +1,111 @@
+============================================================
+🚀 UPDATE SERVER KE V2.1.9 - BUG FIXES
+============================================================
+
+Release sudah tersedia di GitHub!
+https://github.com/adiprayitno160-svg/billing/releases/tag/v2.1.9
+
+============================================================
+📋 LANGKAH UPDATE (COPY-PASTE):
+============================================================
+
+cd /opt/billing && \
+git pull origin main && \
+npm install && \
+npm run build && \
+npm install --production && \
+pm2 restart billing-app --update-env && \
+pm2 logs billing-app --lines 50
+
+
+============================================================
+🐛 BUG YANG DIPERBAIKI:
+============================================================
+
+1. Bulk Delete Customers:
+   ✅ Sekarang bisa menghapus sampai ke database
+   ✅ Check untuk related records (invoices, subscriptions, dll)
+   ✅ Better logging untuk debugging
+   ✅ Better error messages
+
+2. Excel Import:
+   ✅ Tidak lagi menghasilkan data duplikat
+   ✅ Normalisasi nomor telepon (hapus spasi, dash, dot)
+   ✅ Deteksi duplikasi lebih akurat
+   ✅ Show existing customer name jika duplicate
+
+
+============================================================
+🧪 TEST SETELAH UPDATE:
+============================================================
+
+1. Test Bulk Delete:
+   - Pilih beberapa pelanggan TANPA related records
+   - Klik "Hapus Terpilih"
+   - Verify di database: data harus terhapus
+
+   - Pilih pelanggan DENGAN tagihan aktif
+   - Klik "Hapus Terpilih"
+   - Harus skipped dengan pesan "Memiliki tagihan aktif"
+
+2. Test Excel Import:
+   - Import dengan nomor: "0812-3456-7890"
+   - Import lagi dengan nomor: "0812 3456 7890"
+   - Harus gagal dengan pesan duplicate
+
+3. Check Logs:
+   pm2 logs billing-app --lines 100
+
+   Cari log:
+   🗑️ Bulk delete request received
+   🔍 Processing customer ID: X
+   📝 Processing row X
+   🔍 Checking phone: "..."
+
+
+============================================================
+📊 VERIFIKASI:
+============================================================
+
+# Check version
+cat VERSION          # Harus: 2.1.9
+cat VERSION_MAJOR    # Harus: 2.1.9
+cat VERSION_HOTFIX   # Harus: 2.1.9
+
+# Check PM2 status
+pm2 status
+
+# Check logs
+pm2 logs billing-app --lines 50
+
+
+============================================================
+📝 PERINTAH LENGKAP:
+============================================================
+
+cd /opt/billing
+git pull origin main
+cat VERSION
+npm install
+npm run build
+npm install --production
+pm2 restart billing-app --update-env
+pm2 status
+pm2 logs billing-app --lines 50
+
+
+============================================================
+🔗 LINK RELEASE:
+============================================================
+
+GitHub Release:
+https://github.com/adiprayitno160-svg/billing/releases/tag/v2.1.9
+
+Changelog:
+docs/CHANGELOG_v2.1.9.md
+
+
+============================================================
+SELESAI! ✅
+============================================================
+

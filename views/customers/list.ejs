@@ -29,7 +29,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-green-600">Total Pelanggan</div>
-					<div class="text-3xl font-bold text-modern-green-900"><%= customers ? customers.length : 0 %></div>
+					<div class="text-3xl font-bold text-modern-green-900"><%= pagination ? pagination.total : (customers ? customers.length : 0) %></div>
 				</div>
 				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-green-500 to-modern-emerald-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
@@ -43,7 +43,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-blue-600">Pelanggan Aktif</div>
-					<div class="text-3xl font-bold text-modern-blue-900"><%= customers ? customers.filter(c => c.status === 'active').length : 0 %></div>
+					<div class="text-3xl font-bold text-modern-blue-900"><%= statistics ? statistics.totalActive : 0 %></div>
 				</div>
 				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-blue-500 to-modern-cyan-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
@@ -57,7 +57,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-orange-600">Pelanggan Nonaktif</div>
-					<div class="text-3xl font-bold text-modern-orange-900">0</div>
+					<div class="text-3xl font-bold text-modern-orange-900"><%= statistics ? statistics.totalInactive : 0 %></div>
 				</div>
 				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-orange-500 to-modern-amber-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
@@ -243,6 +243,96 @@
 				</tbody>
 			</table>
 		</div>
+		
+		<!-- Pagination -->
+		<% if (pagination && pagination.pages > 1) { %>
+		<div class="mt-6 flex items-center justify-between border-t border-modern-purple-200 pt-4">
+			<div class="flex items-center gap-2">
+				<span class="text-sm text-modern-purple-600">
+					Menampilkan 
+					<span class="font-semibold"><%= ((pagination.page - 1) * pagination.limit) + 1 %></span>
+					sampai 
+					<span class="font-semibold"><%= Math.min(pagination.page * pagination.limit, pagination.total) %></span>
+					dari 
+					<span class="font-semibold"><%= pagination.total %></span> pelanggan
+				</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<!-- Previous Button -->
+				<% if (pagination.page > 1) { %>
+					<a href="?page=<%= pagination.page - 1 %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
+					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+						</svg>
+					</a>
+				<% } else { %>
+					<span class="px-3 py-2 bg-gray-100 border border-gray-300 text-gray-400 rounded-lg cursor-not-allowed">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+						</svg>
+					</span>
+				<% } %>
+				
+				<!-- Page Numbers -->
+				<% 
+					const maxVisiblePages = 5;
+					let startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2));
+					let endPage = Math.min(pagination.pages, startPage + maxVisiblePages - 1);
+					if (endPage - startPage < maxVisiblePages - 1) {
+						startPage = Math.max(1, endPage - maxVisiblePages + 1);
+					}
+				%>
+				
+				<% if (startPage > 1) { %>
+					<a href="?page=1<% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
+					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">1</a>
+					<% if (startPage > 2) { %>
+						<span class="px-2 text-modern-purple-400">...</span>
+					<% } %>
+				<% } %>
+				
+				<% for (let i = startPage; i <= endPage; i++) { %>
+					<% if (i === pagination.page) { %>
+						<span class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg font-semibold shadow-lg">
+							<%= i %>
+						</span>
+					<% } else { %>
+						<a href="?page=<%= i %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
+						   class="px-4 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+							<%= i %>
+						</a>
+					<% } %>
+				<% } %>
+				
+				<% if (endPage < pagination.pages) { %>
+					<% if (endPage < pagination.pages - 1) { %>
+						<span class="px-2 text-modern-purple-400">...</span>
+					<% } %>
+					<a href="?page=<%= pagination.pages %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
+					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+						<%= pagination.pages %>
+					</a>
+				<% } %>
+				
+				<!-- Next Button -->
+				<% if (pagination.page < pagination.pages) { %>
+					<a href="?page=<%= pagination.page + 1 %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
+					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+						</svg>
+					</a>
+				<% } else { %>
+					<span class="px-3 py-2 bg-gray-100 border border-gray-300 text-gray-400 rounded-lg cursor-not-allowed">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+						</svg>
+					</span>
+				<% } %>
+			</div>
+		</div>
+		<% } %>
 	</div>
 </div>
 

@@ -111,10 +111,19 @@ export const getCustomerList = async (req: Request, res: Response) => {
         const [countResult] = await databasePool.query(countQuery, countParams);
         const total = parseInt((countResult as any)[0].total);
         
+        // Get statistics
+        const [activeStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "active"');
+        const totalActive = parseInt((activeStats as any)[0].total);
+        
+        const [inactiveStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "inactive"');
+        const totalInactive = parseInt((inactiveStats as any)[0].total);
+        
         console.log('About to render template with:');
         console.log('- customers:', result.length);
         console.log('- total:', total);
         console.log('- page:', page);
+        console.log('- totalActive:', totalActive);
+        console.log('- totalInactive:', totalInactive);
         
         // Validate data before rendering
         if (!Array.isArray(result)) {
@@ -132,6 +141,10 @@ export const getCustomerList = async (req: Request, res: Response) => {
                 limit: parseInt(limit as string),
                 total,
                 pages: Math.ceil(total / parseInt(limit as string))
+            },
+            statistics: {
+                totalActive,
+                totalInactive
             },
             filters: { status, odc_id, search, billing_mode }
         });
