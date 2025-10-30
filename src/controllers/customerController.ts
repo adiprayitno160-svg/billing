@@ -708,37 +708,54 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
             const rowNumber = i + 2; // +2 because Excel starts from row 1 and we skip header
             
             try {
+                console.log(`\n📝 Processing row ${rowNumber}:`, {
+                    'Nama': row['Nama'] || 'EMPTY',
+                    'Telepon': row['Telepon'] || 'EMPTY',
+                    'Email': row['Email'] || 'EMPTY',
+                    'All keys': Object.keys(row).join(', ')
+                });
+                
                 // Validate required fields - HANYA Nama dan Telepon yang WAJIB
                 if (!row['Nama'] || !row['Telepon']) {
+                    const error = `Nama dan Telepon harus diisi (Nama: "${row['Nama']}", Telepon: "${row['Telepon']}")`;
+                    console.log(`  ❌ Validation failed: ${error}`);
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Nama dan Telepon harus diisi`);
+                    results.errors.push(`Baris ${rowNumber}: ${error}`);
                     continue;
                 }
                 
                 // Check if customer already exists by phone
+                console.log(`  🔍 Checking phone: "${row['Telepon']}"`);
                 const [existingCustomer] = await databasePool.execute(
                     'SELECT id FROM customers WHERE phone = ?',
                     [row['Telepon']]
                 );
                 
                 if ((existingCustomer as any).length > 0) {
+                    const error = `Pelanggan dengan telepon "${row['Telepon']}" sudah ada`;
+                    console.log(`  ❌ Duplicate phone: ${error}`);
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Pelanggan dengan telepon yang sama sudah ada`);
+                    results.errors.push(`Baris ${rowNumber}: ${error}`);
                     continue;
                 }
+                console.log(`  ✅ Phone OK`);
                 
                 // If email provided, check if email already exists
                 if (row['Email']) {
+                    console.log(`  🔍 Checking email: "${row['Email']}"`);
                     const [existingEmail] = await databasePool.execute(
                         'SELECT id FROM customers WHERE email = ?',
                         [row['Email']]
                     );
                     
                     if ((existingEmail as any).length > 0) {
+                        const error = `Email "${row['Email']}" sudah digunakan oleh pelanggan lain`;
+                        console.log(`  ❌ Duplicate email: ${error}`);
                         results.failed++;
-                        results.errors.push(`Baris ${rowNumber}: Email sudah digunakan oleh pelanggan lain`);
+                        results.errors.push(`Baris ${rowNumber}: ${error}`);
                         continue;
                     }
+                    console.log(`  ✅ Email OK`);
                 }
                 
                 // Insert customer
@@ -752,6 +769,14 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 
                 const connectionType = row['Tipe Koneksi'] === 'IP Static' ? 'static_ip' : 'pppoe';
                 const status = row['Status'] === 'Aktif' ? 'active' : 'inactive';
+                
+                console.log(`  💾 Inserting customer:`, {
+                    name: row['Nama'],
+                    phone: row['Telepon'],
+                    email: row['Email'] || 'null',
+                    connectionType,
+                    status
+                });
                 
                 await databasePool.execute(insertQuery, [
                     row['Nama'],
@@ -767,11 +792,19 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 ]);
                 
                 results.success++;
+                console.log(`  ✅ SUCCESS: Row ${rowNumber} imported!`);
                 
             } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : 'Error tidak diketahui';
+                console.log(`  ❌ ERROR at row ${rowNumber}:`, errorMsg);
                 results.failed++;
-                results.errors.push(`Baris ${rowNumber}: ${error instanceof Error ? error.message : 'Error tidak diketahui'}`);
+                results.errors.push(`Baris ${rowNumber}: ${errorMsg}`);
             }
+        }
+        
+        console.log(`\n📊 Import completed: ${results.success} success, ${results.failed} failed`);
+        if (results.errors.length > 0) {
+            console.log(`📋 Errors:`, results.errors);
         }
         
         res.json({
