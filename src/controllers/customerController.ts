@@ -779,6 +779,8 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 console.log(`  ✅ Phone OK - No duplicate found`);
                 
                 // Insert customer - SIMPLE FORMAT (hanya 3 field utama)
+                // Generate safe default customer_code to satisfy NOT NULL constraints on some servers
+                const generatedCode = CustomerIdGenerator.generateCustomerId();
                 const insertQuery = `
                     INSERT INTO customers (
                         name, phone, address, email, customer_code, 
@@ -797,8 +799,8 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     row['Nama'],
                     row['Telepon'],
                     row['Alamat'] || '',
-                    null,  // Email null (bisa diisi manual nanti)
-                    null   // customer_code null (akan di-generate manual nanti)
+                    row['Email'] || '', // gunakan string kosong jika tidak ada email
+                    generatedCode       // isi customer_code agar tidak null pada server live
                 ]);
                 
                 results.success++;
