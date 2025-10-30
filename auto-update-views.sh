@@ -58,9 +58,36 @@ echo ""
 read -p "🔄 Restart PM2 process? (y/n): " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "4️⃣  Restarting PM2..."
-    pm2 restart billing-system
-    echo "✅ PM2 restarted"
+    echo "4️⃣  Checking PM2 status..."
+    
+    # Detect process name (try common names)
+    PROCESS_NAME=""
+    if pm2 list | grep -q "billing-system"; then
+        PROCESS_NAME="billing-system"
+    elif pm2 list | grep -q "billing-app"; then
+        PROCESS_NAME="billing-app"
+    elif pm2 list | grep -q " billing "; then
+        PROCESS_NAME="billing"
+    fi
+    
+    if [ -n "$PROCESS_NAME" ]; then
+        echo "✅ Process found: $PROCESS_NAME"
+        echo "🔄 Restarting..."
+        pm2 restart $PROCESS_NAME
+        echo "✅ PM2 restarted"
+    else
+        echo "⚠️  No billing process found. Starting new process..."
+        
+        # Try to start with ecosystem.config.js
+        if [ -f "ecosystem.config.js" ]; then
+            pm2 start ecosystem.config.js --env production
+            pm2 save
+            echo "✅ PM2 started and saved"
+        else
+            echo "❌ ecosystem.config.js not found!"
+            echo "💡 Please run: pm2 start dist/server.js --name billing"
+        fi
+    fi
 else
     echo "⏭️  Skipping PM2 restart"
 fi

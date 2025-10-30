@@ -96,12 +96,29 @@ echo ""
 
 # Step 7: Restart PM2
 echo "5️⃣  Restarting PM2..."
-pm2 restart billing-system
 
-if [ $? -eq 0 ]; then
-    echo "✅ PM2 restarted successfully"
+# Detect process name (try common names)
+PROCESS_NAME=""
+if pm2 list | grep -q "billing-system"; then
+    PROCESS_NAME="billing-system"
+elif pm2 list | grep -q "billing-app"; then
+    PROCESS_NAME="billing-app"
+elif pm2 list | grep -q " billing "; then
+    PROCESS_NAME="billing"
+fi
+
+if [ -n "$PROCESS_NAME" ]; then
+    echo "✅ Process found: $PROCESS_NAME"
+    pm2 restart $PROCESS_NAME
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ PM2 restarted successfully"
+    else
+        echo "⚠️  PM2 restart failed. Trying to start fresh..."
+        pm2 start ecosystem.config.js --env production
+    fi
 else
-    echo "⚠️  PM2 restart failed. Trying alternative..."
+    echo "⚠️  No billing process found. Starting new process..."
     pm2 start ecosystem.config.js --env production
 fi
 echo ""
