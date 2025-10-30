@@ -5,6 +5,7 @@
 - Menghapus NBSP, titik, underscore; lowercase; penggabungan spasi.
 - Dukungan varian: "Nomor Telepon", "No. Telepon", "No Telp", "Telp", "Tlp", "HP", dst.
 - Pembersihan nomor telepon juga menghapus titik selain spasi dan dash.
+- Added detailed debug logging untuk troubleshooting kolom telepon kosong.
 
 ## Deployment
 ```
