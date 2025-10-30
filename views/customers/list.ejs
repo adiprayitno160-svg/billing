@@ -74,12 +74,46 @@
 			<h2 class="text-lg font-bold text-modern-purple-900">Daftar Pelanggan</h2>
 			<div class="flex items-center gap-3">
 				<input type="text" placeholder="Cari pelanggan..." class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
-			<button class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+				<button class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+					<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+					</svg>
 					Filter
 				</button>
-			<button id="bulkDeleteBtn" class="px-4 py-2 bg-gradient-to-r from-modern-red-500 to-modern-pink-600 text-white rounded-lg hover:from-modern-red-600 hover:to-modern-pink-700 transition-all duration-300 font-medium shadow-lg disabled:opacity-40" disabled>
-				🗑️ Hapus Terpilih
-			</button>
+			</div>
+		</div>
+		
+		<!-- Bulk Actions Bar (Hidden by default, shown when items selected) -->
+		<div id="bulkActionsBar" class="mb-4 overflow-hidden transition-all duration-300 ease-in-out" style="max-height: 0; opacity: 0;">
+			<div class="bg-gradient-to-r from-red-500 via-red-600 to-pink-600 rounded-xl shadow-xl p-4 flex items-center justify-between">
+				<!-- Selected Info -->
+				<div class="flex items-center gap-3 text-white">
+					<div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+						<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+						</svg>
+					</div>
+					<div>
+						<div class="font-bold text-base"><span id="selectedCount">0</span> Pelanggan Dipilih</div>
+						<div class="text-xs text-white/80">Klik hapus untuk menghapus semua yang dipilih</div>
+					</div>
+				</div>
+				
+				<!-- Actions -->
+				<div class="flex items-center gap-3">
+					<button onclick="clearAllSelections()" class="px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-200 font-semibold backdrop-blur-sm">
+						<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+						</svg>
+						Batal
+					</button>
+					<button onclick="bulkDeleteSelected()" class="px-5 py-2.5 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-all duration-200 font-bold shadow-lg">
+						<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+						</svg>
+						Hapus Terpilih
+					</button>
+				</div>
 			</div>
 		</div>
 		
@@ -226,22 +260,39 @@
                     </button>
                 </div>
                 
-                <form id="importForm" enctype="multipart/form-data">
+                <form id="importForm" enctype="multipart/form-data" onsubmit="handleImportClick(); return false;">
+                    
+                    <!-- TOMBOL DOWNLOAD TEMPLATE - PALING ATAS -->
+                    <div class="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="text-sm font-bold text-green-800">📥 Belum Punya Template?</h4>
+                                <p class="text-xs text-green-700">Download template Excel di bawah ini</p>
+                            </div>
+                        </div>
+                        <a href="/customers/template" class="block w-full text-center px-5 py-3 bg-green-600 text-white text-base font-bold rounded-lg hover:bg-green-700 shadow-lg transition-all duration-200 transform hover:scale-105">
+                            📥 DOWNLOAD TEMPLATE EXCEL
+                        </a>
+                    </div>
+                    
+                    <!-- DIVIDER -->
+                    <div class="mb-4 text-center text-gray-400 text-sm">atau</div>
+                    
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-modern-gray-700 mb-2">Pilih File Excel</label>
-                        <input type="file" id="excelFile" name="excelFile" accept=".xlsx,.xls" class="w-full px-3 py-2 border border-modern-gray-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200" required>
+                        <input type="file" id="excelFileInput" name="excelFile" accept=".xlsx,.xls" class="w-full px-3 py-2 border border-modern-gray-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200" required>
                         <p class="text-xs text-modern-gray-500 mt-1">Format yang didukung: .xlsx, .xls (Maksimal 10MB)</p>
                     </div>
                     
                     <div class="mb-4 p-3 bg-modern-blue-50 rounded-lg">
                         <h4 class="text-sm font-medium text-modern-blue-900 mb-2">📋 Format Excel SIMPLE (Hanya 3 Kolom):</h4>
-                        <ul class="text-xs text-modern-blue-700 space-y-1 mb-3">
+                        <ul class="text-xs text-modern-blue-700 space-y-1 mb-2">
                             <li>✅ <strong>Nama</strong> (wajib)</li>
                             <li>✅ <strong>Telepon</strong> (wajib)</li>
-                            <li>✅ <strong>Alamat</strong> (wajib)</li>
+                            <li>✅ <strong>Alamat</strong> (opsional)</li>
                         </ul>
-                        <div class="text-xs bg-modern-yellow-50 border border-modern-yellow-200 rounded p-2 text-modern-yellow-800">
-                            💡 <strong>Tip:</strong> Data lain (email, paket, dll) bisa diisi manual setelah import
+                        <div class="text-xs bg-modern-red-50 border border-modern-red-200 rounded p-2 text-modern-red-800">
+                            ⚠️ <strong>PENTING:</strong> Header baris 1 harus PERSIS: <strong>Nama</strong>, <strong>Telepon</strong>, <strong>Alamat</strong>
                         </div>
                     </div>
                     
@@ -249,7 +300,7 @@
                         <button type="button" id="closeImportModalBtn" class="flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
                             Batal
                         </button>
-                        <button type="submit" class="flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium">
+                        <button type="button" id="submitImportBtn" onclick="handleImportClick(); return false;" class="flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium">
                             Import Data
                         </button>
                     </div>
@@ -314,14 +365,76 @@ function toggleSelectAll(source) {
 
 function updateBulkState() {
     const ids = getSelectedIds();
-    const btn = document.getElementById('bulkDeleteBtn');
-    btn.disabled = ids.length === 0;
+    const bulkBar = document.getElementById('bulkActionsBar');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    // Update counter
+    if (selectedCountSpan) {
+        selectedCountSpan.textContent = ids.length;
+    }
+    
+    // Show/hide bulk actions bar with smooth animation
+    if (bulkBar) {
+        if (ids.length > 0) {
+            // Show: expand height and fade in
+            bulkBar.style.maxHeight = '200px';
+            bulkBar.style.opacity = '1';
+        } else {
+            // Hide: collapse height and fade out
+            bulkBar.style.maxHeight = '0';
+            bulkBar.style.opacity = '0';
+        }
+    }
+}
+
+function clearAllSelections() {
+    // Uncheck all checkboxes
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.rowCheckbox');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    
+    checkboxes.forEach(cb => cb.checked = false);
+    
+    // Hide floating bar
+    updateBulkState();
 }
 
 function bulkDeleteSelected() {
     const ids = getSelectedIds();
     if (ids.length === 0) return;
-    if (!confirm(`Hapus ${ids.length} pelanggan terpilih? Pelanggan dengan tagihan aktif akan dilewati.`)) return;
+    
+    // Show modern confirmation modal
+    showDeleteConfirmModal(ids.length);
+}
+
+function showDeleteConfirmModal(count) {
+    const modal = document.getElementById('deleteConfirmModal');
+    const countSpan = document.getElementById('deleteCount');
+    countSpan.textContent = count;
+    modal.classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteConfirmModal');
+    modal.classList.add('hidden');
+}
+
+async function confirmBulkDelete() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    
+    // Close modal
+    closeDeleteModal();
+    
+    // Show loading
+    const btn = document.getElementById('bulkDeleteBtn');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '⏳ Menghapus...';
+    btn.disabled = true;
 
     fetch('/customers/bulk-delete', {
         method: 'POST',
@@ -385,30 +498,126 @@ function closeImportModal() {
     document.getElementById('importForm').reset();
 }
 
-function processImport(event) {
-    event.preventDefault();
+function handleImportClick() {
+    const fileInput = document.getElementById('excelFileInput');
+    const submitBtn = document.getElementById('submitImportBtn');
     
-    const formData = new FormData(event.target);
+    if (!fileInput) {
+        alert('❌ File input tidak ditemukan!');
+        return;
+    }
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('❌ Silakan pilih file Excel terlebih dahulu!');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // Validate file type
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+        alert('❌ File harus berformat .xlsx atau .xls');
+        return;
+    }
+    
+    // Validate file size
+    if (file.size > 10 * 1024 * 1024) {
+        alert('❌ File terlalu besar! Maksimal 10 MB');
+        return;
+    }
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('excelFile', file);
+    
+    // Disable button
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Mengimport...';
+    }
+    
+    // Send request
     
     fetch('/customers/import', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'same-origin'
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            if (data.details && data.details.errors.length > 0) {
-                console.log('Import errors:', data.details.errors);
+    .then(async response => {
+        let data;
+        try {
+            const text = await response.text();
+            console.log('Raw response:', text);
+            data = JSON.parse(text);
+        } catch (e) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Import Data';
             }
-            location.reload();
+            alert('❌ ERROR: Response tidak valid!\n\nStatus: ' + response.status + '\n\nCoba lagi!');
+            return null;
+        }
+        
+        // Reset button ALWAYS
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Import Data';
+        }
+        
+        if (!response.ok) {
+            alert('❌ SERVER ERROR!\n\n' + (data.error || 'HTTP ' + response.status));
+            return null;
+        }
+        
+        return data;
+    })
+    .then(data => {
+        if (!data) {
+            console.error('No data received');
+            return;
+        }
+        
+        console.log('Import result:', data);
+        
+        if (data.success) {
+            let message = '✅ HASIL IMPORT\n\n';
+            message += 'Total: ' + (data.totalRows || 0) + '\n';
+            message += 'Berhasil: ' + (data.details.success || 0) + '\n';
+            message += 'Gagal: ' + (data.details.failed || 0) + '\n';
+            
+            // Show errors if any
+            if (data.details && data.details.errors && data.details.errors.length > 0) {
+                message += '\n❌ ERROR:\n';
+                const maxErrors = Math.min(3, data.details.errors.length);
+                for (let i = 0; i < maxErrors; i++) {
+                    message += '\n' + (i + 1) + '. ' + data.details.errors[i];
+                }
+                if (data.details.errors.length > 3) {
+                    message += '\n... +' + (data.details.errors.length - 3) + ' error lagi';
+                }
+            }
+            
+            alert(message);
+            
+            // Reload if successful
+            if (data.details.success > 0) {
+                closeImportModal();
+                location.reload();
+            }
         } else {
-            alert('Gagal mengimport data: ' + data.error);
+            alert('❌ IMPORT GAGAL!\n\n' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat mengimport data');
+        console.error('Fetch error:', error);
+        
+        // Reset button
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Import Data';
+        }
+        
+        alert('❌ ERROR!\n\n' + error.message);
     });
 }
 
@@ -418,7 +627,6 @@ function processImport(event) {
 // Initialize checkbox behaviors and bulk button state on page load
 document.addEventListener('DOMContentLoaded', function() {
 	const selectAllCheckbox = document.getElementById('selectAll');
-	const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
     const exportBtn = document.getElementById('exportExcelBtn');
     const showImportBtn = document.getElementById('showImportModalBtn');
     const closeImportBtn = document.getElementById('closeImportModalBtn');
@@ -452,12 +660,8 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	});
 
-	// Ensure bulk delete button click is bound (in case inline onclick is restricted)
-	if (bulkDeleteBtn) {
-		bulkDeleteBtn.addEventListener('click', function() {
-			bulkDeleteSelected();
-		});
-	}
+	// Initialize bulk state (bar is hidden by default via CSS)
+	updateBulkState();
 
     // Export Excel
     if (exportBtn) {
@@ -484,10 +688,26 @@ document.addEventListener('DOMContentLoaded', function() {
     if (closeImportBtn) closeImportBtn.addEventListener('click', handleCloseImport);
     if (closeImportIconBtn) closeImportIconBtn.addEventListener('click', handleCloseImport);
 
-    // Import form submit
+    // Import form submit - SIMPLE VERSION
+    const submitImportBtn = document.getElementById('submitImportBtn');
+    if (submitImportBtn) {
+        submitImportBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            alert('🚀 Tombol Import diklik!\n\nProses akan dimulai...');
+            
+            handleImportClick();
+        });
+    }
+    
+    // Also handle form submit
     if (importForm) {
         importForm.addEventListener('submit', function(e) {
-            processImport(e);
+            e.preventDefault();
+            e.stopPropagation();
+            alert('📝 Form submit triggered!');
+            handleImportClick();
         });
     }
 
@@ -885,6 +1105,45 @@ Terima kasih! 🙏`;
 	window.open(whatsappUrl, '_blank');
 }
 </script>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4">
+	<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+		<div class="p-6">
+			<!-- Header -->
+			<div class="flex items-center justify-center mb-4">
+				<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+					<svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+					</svg>
+				</div>
+			</div>
+			
+			<!-- Title & Message -->
+			<h3 class="text-xl font-bold text-gray-900 text-center mb-2">Konfirmasi Hapus</h3>
+			<p class="text-gray-600 text-center mb-6">
+				Anda akan menghapus <span id="deleteCount" class="font-bold text-red-600">0</span> pelanggan terpilih.<br>
+				<span class="text-sm text-gray-500">Pelanggan dengan tagihan aktif akan dilewati.</span>
+			</p>
+			
+			<!-- Actions -->
+			<div class="flex gap-3">
+				<button onclick="closeDeleteModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
+					<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+					Batal
+				</button>
+				<button onclick="confirmBulkDelete()" class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold shadow-lg">
+					<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+					</svg>
+					Ya, Hapus
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
 
 <!-- Migration Modal -->
 <div id="migrationConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">

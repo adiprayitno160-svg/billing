@@ -93,77 +93,111 @@
 	</div>
 
 	<!-- Prepaid System Quick Info -->
-	<div class="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-6 shadow-sm">
-		<div class="flex items-start justify-between">
+	<div class="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 border-2 border-purple-300 rounded-xl p-6 shadow-2xl relative overflow-hidden">
+		<div class="flex items-start justify-between relative z-10">
 			<div class="flex-1">
-				<div class="flex items-center gap-3 mb-3">
-					<div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
-						<svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-							<path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
-							<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"/>
+				<div class="flex items-center gap-4 mb-4">
+					<div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-2xl border-2 border-white/30">
+						<svg class="w-10 h-10 text-white drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
 						</svg>
 					</div>
 					<div>
-						<h3 class="text-lg font-bold text-gray-900">Prepaid System</h3>
-						<p class="text-sm text-gray-600">Self-Service Portal dengan Redirect Paksa</p>
+						<h3 class="text-2xl font-extrabold text-white mb-1 drop-shadow-lg">💰 Prepaid System</h3>
+						<p class="text-sm text-white font-bold drop-shadow-md">Self-Service Portal dengan Redirect Paksa</p>
 					</div>
 				</div>
-				<div class="grid grid-cols-4 gap-4 mb-4">
-					<div class="bg-white/70 rounded-lg p-3 text-center">
-						<div class="text-2xl font-bold text-orange-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
-						<div class="text-xs text-gray-600 font-medium">Total Prepaid</div>
-					</div>
-					<div class="bg-white/70 rounded-lg p-3 text-center">
-						<div class="text-2xl font-bold text-green-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
-						<div class="text-xs text-gray-600 font-medium">Active Subscription</div>
-					</div>
-					<div class="bg-white/70 rounded-lg p-3 text-center">
-						<div class="text-2xl font-bold text-blue-600"><%= typeof prepaidStats !== 'undefined' ? (prepaidStats.totalPrepaid - prepaidStats.activeSubscriptions) : 0 %></div>
-						<div class="text-xs text-gray-600 font-medium">Need Package</div>
-					</div>
-					<div class="bg-white/70 rounded-lg p-3 text-center">
-						<div class="text-2xl font-bold text-purple-600">
-							<%= typeof prepaidStats !== 'undefined' && prepaidStats.totalPrepaid > 0 ? Math.round((prepaidStats.activeSubscriptions / prepaidStats.totalPrepaid) * 100) : 0 %>%
+				<div class="grid grid-cols-4 gap-3 mb-4">
+					<!-- Total Prepaid -->
+					<div class="bg-white rounded-lg p-3 shadow-md border border-orange-200 hover:shadow-lg transition-all duration-200">
+						<div class="flex items-center justify-between mb-2">
+							<div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-sm">
+								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+								</svg>
+							</div>
+							<div class="text-2xl font-bold text-orange-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
 						</div>
-						<div class="text-xs text-gray-600 font-medium">Active Rate</div>
+						<div class="text-xs text-gray-600 font-semibold">Total Prepaid</div>
+					</div>
+					
+					<!-- Active Subscription -->
+					<div class="bg-white rounded-lg p-3 shadow-md border border-green-200 hover:shadow-lg transition-all duration-200">
+						<div class="flex items-center justify-between mb-2">
+							<div class="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
+								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+								</svg>
+							</div>
+							<div class="text-2xl font-bold text-green-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
+						</div>
+						<div class="text-xs text-gray-600 font-semibold">Active Subscription</div>
+					</div>
+					
+					<!-- Need Package -->
+					<div class="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-all duration-200">
+						<div class="flex items-center justify-between mb-2">
+							<div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-sm">
+								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+								</svg>
+							</div>
+							<div class="text-2xl font-bold text-blue-600"><%= typeof prepaidStats !== 'undefined' ? (prepaidStats.totalPrepaid - prepaidStats.activeSubscriptions) : 0 %></div>
+						</div>
+						<div class="text-xs text-gray-600 font-semibold">Need Package</div>
+					</div>
+					
+					<!-- Active Rate -->
+					<div class="bg-white rounded-lg p-3 shadow-md border border-purple-200 hover:shadow-lg transition-all duration-200">
+						<div class="flex items-center justify-between mb-2">
+							<div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center shadow-sm">
+								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+								</svg>
+							</div>
+							<div class="text-2xl font-bold text-purple-600">
+								<%= typeof prepaidStats !== 'undefined' && prepaidStats.totalPrepaid > 0 ? Math.round((prepaidStats.activeSubscriptions / prepaidStats.totalPrepaid) * 100) : 0 %>%
+							</div>
+						</div>
+						<div class="text-xs text-gray-600 font-semibold">Active Rate</div>
 					</div>
 				</div>
-				<div class="flex gap-2">
-					<a href="/prepaid/dashboard" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-200">
-						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+				<div class="flex gap-3">
+					<a href="/prepaid/dashboard" class="inline-flex items-center px-5 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white text-sm font-bold rounded-lg hover:shadow-xl hover:from-orange-700 hover:to-yellow-700 transform hover:scale-105 transition-all duration-200">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
 							<path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
 						</svg>
-						Dashboard Prepaid
+						📊 Dashboard Prepaid
 					</a>
-					<a href="/prepaid/packages" class="inline-flex items-center px-4 py-2 bg-white text-orange-600 text-sm font-semibold rounded-lg border-2 border-orange-200 hover:bg-orange-50 transition-all duration-200">
-						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/packages" class="inline-flex items-center px-5 py-3 bg-white text-orange-700 text-sm font-bold rounded-lg border-3 border-orange-400 hover:bg-orange-100 hover:border-orange-600 transform hover:scale-105 transition-all duration-200 shadow-md">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
 							<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
 						</svg>
-						Kelola Paket
+						📦 Kelola Paket
 					</a>
-					<a href="/customers/list?filter=prepaid" class="inline-flex items-center px-4 py-2 bg-white text-orange-600 text-sm font-semibold rounded-lg border-2 border-orange-200 hover:bg-orange-50 transition-all duration-200">
-						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/customers" class="inline-flex items-center px-5 py-3 bg-white text-blue-700 text-sm font-bold rounded-lg border-3 border-blue-400 hover:bg-blue-100 hover:border-blue-600 transform hover:scale-105 transition-all duration-200 shadow-md">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
 							<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
 						</svg>
-						Lihat Customer
+						👥 Lihat Customer
 					</a>
-					<a href="/prepaid/portal/splash" target="_blank" class="inline-flex items-center px-4 py-2 bg-white text-blue-600 text-sm font-semibold rounded-lg border-2 border-blue-200 hover:bg-blue-50 transition-all duration-200">
-						<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/portal/splash" target="_blank" class="inline-flex items-center px-5 py-3 bg-white text-green-700 text-sm font-bold rounded-lg border-3 border-green-400 hover:bg-green-100 hover:border-green-600 transform hover:scale-105 transition-all duration-200 shadow-md">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
 							<path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
 							<path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
 						</svg>
-						Test Portal
+						🌐 Test Portal
 					</a>
 				</div>
 			</div>
 			<div class="ml-4">
-				<div class="bg-white/70 rounded-lg p-4 text-center min-w-[120px]">
-					<div class="text-xs text-gray-600 font-medium mb-2">Status Scheduler</div>
-					<div class="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-semibold">
-						<span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+				<div class="rounded-lg p-4 text-center min-w-[120px]">
+					<div class="text-xs text-white font-bold mb-2 drop-shadow-md">Status Scheduler</div>
+					<div class="inline-flex items-center px-3 py-1 rounded-full bg-green-400 text-white text-sm font-bold shadow-lg">
+						<span class="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>
 						Running
 					</div>
-					<div class="text-xs text-gray-500 mt-2">Auto-check every 5 min</div>
+					<div class="text-xs text-white font-semibold mt-2 drop-shadow-md">Auto-check every 5 min</div>
 				</div>
 			</div>
 		</div>
@@ -347,6 +381,7 @@
 	let chart = null;
 	let previousData = {};
 	let updateInterval = null;
+	let dataBuffer = {}; // Buffer for smoothing data
 	
 	function showLoading() {
 		const loading = document.getElementById('chartLoadingIndicator');
@@ -572,8 +607,8 @@
 		// Update legend
 		updateLegend(finalSelectedInterfaces);
 		
-		// Initialize previous data
-		console.log('Step 14.7: Initializing previous data...');
+		// Initialize previous data and buffer
+		console.log('Step 14.7: Initializing previous data and buffer...');
 		finalSelectedInterfaces.forEach(iface => {
 			const rxValue = parseInt(iface['rx-byte'] || iface.rxByte || iface['rxByte'] || 0);
 			const txValue = parseInt(iface['tx-byte'] || iface.txByte || iface['txByte'] || 0);
@@ -581,6 +616,11 @@
 			previousData[iface.name] = {
 				rx: rxValue,
 				tx: txValue
+			};
+			// Initialize buffer with zero to prevent initial spikes
+			dataBuffer[iface.name] = {
+				rx: 0,
+				tx: 0
 			};
 		});
 
@@ -682,17 +722,24 @@
 		// Update legend
 		updateLegend(selectedInterfaces);
 		
-		// Reset previous data for new interfaces
+		// Reset previous data and buffer for new interfaces
 		const newPreviousData = {};
+		const newDataBuffer = {};
 		selectedInterfaces.forEach(iface => {
 			newPreviousData[iface.name] = previousData[iface.name] || {
 				rx: parseInt(iface['rx-byte'] || iface.rxByte || 0),
 				tx: parseInt(iface['tx-byte'] || iface.txByte || 0)
 			};
+			// Initialize buffer for new interfaces
+			newDataBuffer[iface.name] = dataBuffer[iface.name] || {
+				rx: 0,
+				tx: 0
+			};
 		});
 		previousData = newPreviousData;
+		dataBuffer = newDataBuffer;
 		
-		chart.update('none');  // Update without animation to avoid race conditions
+		chart.update('active');  // Update with smooth animation
 	}
 
 	function updateLegend(selectedInterfaces) {
@@ -743,6 +790,8 @@
 		if (updateInterval) clearInterval(updateInterval);
 		
 		let firstRun = true;
+		const UPDATE_INTERVAL_MS = 3000; // Increased from 2000 to 3000ms for more stable readings
+		const SMOOTHING_FACTOR = 0.7; // Higher = smoother but slower response (0-1)
 		
 		updateInterval = setInterval(async () => {
 			try {
@@ -774,28 +823,42 @@
 						const rxBytes = parseInt(newIface['rx-byte'] || newIface.rxByte || newIface['rxByte'] || 0);
 						const txBytes = parseInt(newIface['tx-byte'] || newIface.txByte || newIface['txByte'] || 0);
 						
-						// Calculate rates (bytes per second over 2 second interval)
-						const rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
-						const txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
+						// Calculate raw rates (bytes per second)
+						const intervalSeconds = UPDATE_INTERVAL_MS / 1000;
+						let rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / intervalSeconds);
+						let txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / intervalSeconds);
+						
+						// Initialize buffer if not exists
+						if (!dataBuffer[ifaceName]) {
+							dataBuffer[ifaceName] = { rx: rxRate, tx: txRate };
+						}
+						
+						// Apply exponential moving average for smoothing
+						// This reduces spikes and makes the graph more stable
+						rxRate = (dataBuffer[ifaceName].rx * SMOOTHING_FACTOR) + (rxRate * (1 - SMOOTHING_FACTOR));
+						txRate = (dataBuffer[ifaceName].tx * SMOOTHING_FACTOR) + (txRate * (1 - SMOOTHING_FACTOR));
+						
+						// Update buffer
+						dataBuffer[ifaceName] = { rx: rxRate, tx: txRate };
 						
 						// Debug log for first interface only
 						if (idx === 0) {
 							console.log(`[${ifaceName}] RX: ${formatSpeed(rxRate * 8)} | TX: ${formatSpeed(txRate * 8)}`);
 						}
 						
-					// Update RX dataset
-					const rxDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'rx');
-					if (rxDataset) {
-						rxDataset.data.shift();
-						rxDataset.data.push(rxRate * 8); // Convert to bits per second
-					}
-					
-					// Update TX dataset
-					const txDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'tx');
-					if (txDataset) {
-						txDataset.data.shift();
-						txDataset.data.push(txRate * 8); // Convert to bits per second
-					}
+						// Update RX dataset
+						const rxDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'rx');
+						if (rxDataset) {
+							rxDataset.data.shift();
+							rxDataset.data.push(rxRate * 8); // Convert to bits per second
+						}
+						
+						// Update TX dataset
+						const txDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'tx');
+						if (txDataset) {
+							txDataset.data.shift();
+							txDataset.data.push(txRate * 8); // Convert to bits per second
+						}
 						
 						// Update speed in legend - RX and TX only
 						const speedRxElement = document.querySelector(`[data-speed-rx="${ifaceName}"]`);
@@ -835,11 +898,12 @@
 					}
 				});
 				
-				chart.update('none');
+				// Use 'active' mode for smoother animation
+				chart.update('active');
 			} catch (error) {
 				console.error('Error updating chart:', error);
 			}
-		}, 2000);
+		}, UPDATE_INTERVAL_MS);
 	}
 
 	function setupInterfaceSelector() {

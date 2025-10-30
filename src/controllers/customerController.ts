@@ -756,7 +756,7 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                         name, phone, address, email, customer_code, 
                         connection_type, status, 
                         created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, '', 'pppoe', 'inactive', NOW(), NOW())
+                    ) VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
                 `;
                 
                 console.log(`  💾 Inserting customer (SIMPLE):`, {
@@ -769,7 +769,8 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     row['Nama'],
                     row['Telepon'],
                     row['Alamat'] || '',
-                    null  // Email null (bisa diisi manual nanti)
+                    null,  // Email null (bisa diisi manual nanti)
+                    null   // customer_code null (akan di-generate manual nanti)
                 ]);
                 
                 results.success++;

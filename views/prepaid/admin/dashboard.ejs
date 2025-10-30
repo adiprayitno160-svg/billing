@@ -343,7 +343,7 @@
     let previousData = {};
     let isMonitoring = false;
     let isFirstSample = true; // Skip first sample for accurate rate calculation
-    let smoothingBuffer = {}; // Buffer untuk smoothing (store 15 samples = 30 seconds)
+    let smoothingBuffer = {}; // Buffer untuk smoothing (store 10 samples = 40 seconds at 4s interval)
     let lastValidRate = {}; // Store last valid rate untuk outlier detection
     let rateHistory = {}; // Store complete rate history untuk pattern detection
 
@@ -362,7 +362,7 @@
             return;
         }
 
-        const labels = Array.from({length: 30}, (_, i) => (i * 2) + 's');
+        const labels = Array.from({length: 30}, (_, i) => (i * 4) + 's'); // Updated to 4 seconds interval
         
         chart = new Chart(ctx, {
             type: 'line',
@@ -570,10 +570,10 @@
         }
         
         // ═══════════════════════════════════════════════════════════
-        // STEP 5: ADD TO BUFFER (15 samples = 30 seconds)
+        // STEP 5: ADD TO BUFFER (10 samples = 40 seconds at 4s interval)
         // ═══════════════════════════════════════════════════════════
         smoothingBuffer[key].push(newValue);
-        if (smoothingBuffer[key].length > 15) {
+        if (smoothingBuffer[key].length > 10) {
             smoothingBuffer[key].shift();
         }
         
@@ -592,7 +592,7 @@
         // STEP 7: GRADUAL TRANSITION CONTROL (perlahan naik/turun)
         // ═══════════════════════════════════════════════════════════
         if (lastValidRate[key] > 0) {
-            // SUPER KETAT: Max 10% change per 2-second interval
+            // SUPER KETAT: Max 10% change per 4-second interval
             const maxChangePercent = 0.10; // 10% per sample
             const maxJump = lastValidRate[key] * maxChangePercent;
             
@@ -673,10 +673,10 @@
                         }
 
                         // ═══════════════════════════════════════════════════════════
-                        // RAW RATE CALCULATION
+                        // RAW RATE CALCULATION (bytes per second)
                         // ═══════════════════════════════════════════════════════════
-                        let rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 2);
-                        let txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 2);
+                        let rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / 4); // Divided by 4 seconds
+                        let txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / 4); // Divided by 4 seconds
 
                         // LOG RAW DATA untuk debugging
                         if (rxRate > 100000000 || txRate > 100000000) { // > 100 Mbps
@@ -719,8 +719,8 @@
                         }
 
                         // 3. Byte Counter Overflow/Corruption Detection
-                        // Jika byte difference > 2GB dalam 2 detik = impossible!
-                        const MAX_BYTES_PER_INTERVAL = 2000000000; // 2GB in 2 seconds
+                        // Jika byte difference > 4GB dalam 4 detik = impossible!
+                        const MAX_BYTES_PER_INTERVAL = 4000000000; // 4GB in 4 seconds (1GB/s realistic max)
                         const rxDiff = rxBytes - previousData[ifaceName].rx;
                         const txDiff = txBytes - previousData[ifaceName].tx;
                         
@@ -782,7 +782,7 @@
                     chart.update('none');
                 }
             }
-        }, 2000);
+        }, 4000); // Changed from 2000ms to 4000ms (4 seconds) for better performance
     }
 
     function toggleMonitoring() {

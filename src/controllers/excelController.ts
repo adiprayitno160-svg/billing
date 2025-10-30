@@ -54,7 +54,7 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
         const excelData = (customers as any[]).map(customer => ({
             'ID Pelanggan': customer.id,
             'Nama': customer.name,
-            'Nomor Telepon': customer.phone,
+            'Telepon': customer.phone,
             'Email': customer.email || `${customer.name.toLowerCase().replace(/\s+/g, '')}@id.net`,
             'Alamat': customer.address,
             'Kode Pelanggan': customer.customer_code,
@@ -97,12 +97,24 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
 // Get import template
 export const getImportTemplate = async (req: Request, res: Response) => {
     try {
-        // Create template data
+        console.log('📄 Generating import template...');
+        
+        // Create template data - exactly 3 columns as required
         const templateData = [
             {
-                'Nama': 'Contoh Nama',
-                'Alamat': 'Jl. Contoh No. 123',
-                'Nomor Telepon': '08123456789'
+                'Nama': 'Budi Santoso',
+                'Telepon': '081234567890',
+                'Alamat': 'Jl. Merdeka No. 123, Jakarta'
+            },
+            {
+                'Nama': 'Siti Aminah',
+                'Telepon': '082345678901',
+                'Alamat': 'Jl. Kenanga No. 45, Bandung'
+            },
+            {
+                'Nama': 'Ahmad Fauzi',
+                'Telepon': '083456789012',
+                'Alamat': 'Jl. Melati No. 78, Surabaya'
             }
         ];
         
@@ -110,11 +122,20 @@ export const getImportTemplate = async (req: Request, res: Response) => {
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(templateData);
         
+        // Set column widths for better readability
+        ws['!cols'] = [
+            { wch: 25 },  // Nama
+            { wch: 18 },  // Telepon
+            { wch: 40 }   // Alamat
+        ];
+        
         // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(wb, ws, 'Template Import');
+        XLSX.utils.book_append_sheet(wb, ws, 'Data Pelanggan');
         
         // Generate buffer
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        
+        console.log('✅ Template generated, size:', buffer.length, 'bytes');
         
         // Set headers for download
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -124,8 +145,11 @@ export const getImportTemplate = async (req: Request, res: Response) => {
         res.send(buffer);
         
     } catch (error) {
-        console.error('Error creating template:', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        console.error('❌ Error creating template:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Gagal membuat template' 
+        });
     }
 };
 
@@ -133,20 +157,44 @@ export const getImportTemplate = async (req: Request, res: Response) => {
 export const importCustomersFromExcel = async (req: Request, res: Response) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'File Excel tidak ditemukan' });
+            return res.status(400).json({ 
+                success: false,
+                error: 'File Excel tidak ditemukan' 
+            });
         }
+        
+        console.log('📂 Processing Excel file:', req.file.originalname);
         
         // Read Excel file from memory buffer (multer.memoryStorage)
         const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) {
-            return res.status(400).json({ error: 'Sheet tidak ditemukan pada file Excel' });
+            return res.status(400).json({ 
+                success: false,
+                error: 'Sheet tidak ditemukan pada file Excel' 
+            });
         }
         const worksheet = workbook.Sheets[sheetName];
         if (!worksheet) {
-            return res.status(400).json({ error: 'Worksheet tidak ditemukan' });
+            return res.status(400).json({ 
+                success: false,
+                error: 'Worksheet tidak ditemukan' 
+            });
         }
         const data = XLSX.utils.sheet_to_json(worksheet);
+        
+        console.log(`📊 Found ${data.length} rows to import`);
+        
+        if (data.length === 0) {
+            return res.status(400).json({ 
+                success: false,
+                error: 'File Excel kosong atau tidak ada data untuk diimport' 
+            });
+        }
+        
+        // Debug: Log first row to see column names
+        console.log('🔍 First row columns:', Object.keys(data[0] || {}));
+        console.log('🔍 First row data:', data[0]);
         
         const results = {
             success: 0,
@@ -159,61 +207,143 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
             const rowNumber = i + 2; // header row is 1
 
             try {
-                const name = (row['Nama'] || '').toString().trim();
-                const phone = (row['Nomor Telepon'] || '').toString().trim();
-                const address = (row['Alamat'] || '').toString().trim();
+                // Support multiple column name formats (case-insensitive)
+                const name = (
+                    row['Nama'] || 
+                    row['nama'] || 
+                    row['NAMA'] || 
+                    row['Name'] || 
+                    row['name'] || 
+                    ''
+                ).toString().trim();
+                
+                const phone = (
+                    row['Telepon'] || 
+                    row['telepon'] || 
+                    row['TELEPON'] || 
+                    row['Phone'] || 
+                    row['phone'] || 
+                    row['No HP'] || 
+                    row['No Telepon'] ||
+                    row['HP'] ||
+                    ''
+                ).toString().trim();
+                
+                const address = (
+                    row['Alamat'] || 
+                    row['alamat'] || 
+                    row['ALAMAT'] || 
+                    row['Address'] || 
+                    row['address'] || 
+                    ''
+                ).toString().trim();
+                
+                console.log(`📋 Row ${rowNumber}: Nama="${name}", Telepon="${phone}", Alamat="${address}"`);
 
-                if (!name) {
+                // Validation with better error messages
+                if (!name || name === '' || name === 'undefined') {
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Nama harus diisi`);
+                    const availableFields = Object.keys(row).join(', ');
+                    results.errors.push(`Baris ${rowNumber}: Kolom "Nama" kosong. Kolom tersedia: ${availableFields}`);
+                    console.log(`❌ Row ${rowNumber} FAILED: Nama kosong. Row data:`, row);
                     continue;
                 }
-                if (!phone) {
+                if (!phone || phone === '' || phone === 'undefined') {
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Nomor Telepon harus diisi`);
+                    const availableFields = Object.keys(row).join(', ');
+                    results.errors.push(`Baris ${rowNumber}: Kolom "Telepon" kosong. Kolom tersedia: ${availableFields}`);
+                    console.log(`❌ Row ${rowNumber} FAILED: Telepon kosong. Row data:`, row);
                     continue;
                 }
+
+                // Clean phone number (remove spaces, dashes)
+                const cleanPhone = phone.replace(/[\s\-]/g, '');
+                console.log(`📞 Original phone: "${phone}", Clean phone: "${cleanPhone}"`);
 
                 // Check duplicate by phone
                 const [existing] = await databasePool.execute(
-                    'SELECT id FROM customers WHERE phone = ? LIMIT 1',
-                    [phone]
+                    'SELECT id, name FROM customers WHERE phone = ? LIMIT 1',
+                    [cleanPhone]
                 );
                 if ((existing as any).length > 0) {
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Nomor Telepon sudah terdaftar`);
+                    const existingName = (existing as any)[0].name;
+                    results.errors.push(`Baris ${rowNumber}: Telepon "${cleanPhone}" sudah terdaftar atas nama "${existingName}"`);
+                    console.log(`❌ Row ${rowNumber} FAILED: Duplicate phone. Existing customer:`, existingName);
                     continue;
                 }
 
-                // Generate fallback email from name
-                const emailLocal = name.toLowerCase().replace(/[^a-z0-9]+/g, '');
-                const email = `${emailLocal || 'user'}@id.net`;
+                try {
+                    // Generate unique customer code
+                    const timestamp = Date.now();
+                    const random = Math.floor(Math.random() * 1000);
+                    const customerCode = `CUST-${timestamp}-${random}`;
+                    
+                    // Generate email
+                    const emailLocal = name.toLowerCase().replace(/[^a-z0-9]+/g, '').substring(0, 20);
+                    const email = (emailLocal || 'customer') + timestamp + '@local.id';
 
-                // Insert minimal record
-                const insertQuery = `
-                    INSERT INTO customers (name, phone, email, address, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, 'active', NOW(), NOW())
-                `;
-                await databasePool.execute(insertQuery, [name, phone, email, address]);
+                    console.log('Inserting:', { name, phone: cleanPhone, email, code: customerCode });
 
-                results.success++;
+                    // Insert - customer_code bisa NULL jika generate gagal
+                    const insertQuery = `
+                        INSERT INTO customers (name, phone, email, address, customer_code, connection_type, status, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
+                    `;
+                    
+                    await databasePool.execute(insertQuery, [
+                        name, 
+                        cleanPhone, 
+                        email, 
+                        address || '',
+                        customerCode || null
+                    ]);
+                    
+                    results.success++;
+                    console.log('SUCCESS: Imported', name);
+                    
+                } catch (dbError: any) {
+                    results.failed++;
+                    const errorMsg = dbError?.message || String(dbError);
+                    results.errors.push(`Baris ${rowNumber}: ${errorMsg}`);
+                    console.error('DB ERROR Row', rowNumber, ':', errorMsg);
+                }
 
             } catch (e) {
                 results.failed++;
                 const message = e instanceof Error ? e.message : String(e);
+                console.error(`❌ Row ${rowNumber} error:`, message);
                 results.errors.push(`Baris ${rowNumber}: ${message}`);
             }
         }
 
+        console.log(`📈 Import complete: Success=${results.success}, Failed=${results.failed}`);
+        
+        // Add helpful message if all rows failed
+        let message = `Import selesai. Berhasil: ${results.success}, Gagal: ${results.failed}`;
+        if (results.success === 0 && results.failed > 0) {
+            message += '\n\n⚠️ Semua data gagal diimport. Cek format kolom Excel!';
+            message += '\nPastikan kolom header: Nama, Telepon, Alamat';
+        } else if (results.success === 0 && results.failed === 0) {
+            message += '\n\n⚠️ Tidak ada data yang diproses!';
+            message += '\nCek apakah file Excel berisi data di bawah header.';
+        }
+
         return res.json({
             success: true,
-            message: `Import selesai. Berhasil: ${results.success}, Gagal: ${results.failed}`,
-            details: results
+            message: message,
+            details: results,
+            totalRows: data.length,
+            firstRowColumns: Object.keys(data[0] || {})
         });
         
     } catch (error) {
-        console.error('Error importing customers:', error);
-        res.status(500).json({ error: 'Gagal mengimport data pelanggan' });
+        console.error('❌ Error importing customers:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan tidak terduga';
+        res.status(500).json({ 
+            success: false,
+            error: 'Gagal mengimport data pelanggan: ' + errorMessage 
+        });
     }
 };
 
