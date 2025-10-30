@@ -87,6 +87,14 @@ export async function syncProfilesFromMikrotik(): Promise<{ synced: number; erro
 			for (const profile of profiles) {
 				try {
 					console.log(`📝 Memproses profil: ${profile.name}`);
+					console.log(`  📊 Burst Data:`, {
+						'burst-limit-rx': profile['burst-limit-rx'] || 'EMPTY',
+						'burst-limit-tx': profile['burst-limit-tx'] || 'EMPTY',
+						'burst-threshold-rx': profile['burst-threshold-rx'] || 'EMPTY',
+						'burst-threshold-tx': profile['burst-threshold-tx'] || 'EMPTY',
+						'burst-time-rx': profile['burst-time-rx'] || 'EMPTY',
+						'burst-time-tx': profile['burst-time-tx'] || 'EMPTY'
+					});
 					
 					// Check if profile exists
 					const [existing] = await conn.execute(
