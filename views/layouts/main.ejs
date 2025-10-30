@@ -37,6 +37,66 @@
     <%- include('../partials/footer') %>
 <script src="/assets/sidebar.js" defer></script>
 <script src="/assets/dashboard.js" defer></script>
+
+<!-- Auto-redirect after 5 minutes of inactivity -->
+<script>
+(function() {
+    let idleTime = 0;
+    const IDLE_TIMEOUT = 5; // 5 minutes
+    const REDIRECT_URL = '/billing/dashboard';
+    
+    // Don't redirect if already on billing dashboard or login page
+    const currentPath = window.location.pathname;
+    if (currentPath === REDIRECT_URL || currentPath === '/login' || currentPath === '/auth/login') {
+        return;
+    }
+    
+    // Reset idle time on user activity
+    function resetIdleTime() {
+        idleTime = 0;
+    }
+    
+    // Listen for user activity
+    document.addEventListener('mousemove', resetIdleTime);
+    document.addEventListener('keypress', resetIdleTime);
+    document.addEventListener('click', resetIdleTime);
+    document.addEventListener('scroll', resetIdleTime);
+    document.addEventListener('touchstart', resetIdleTime);
+    
+    // Check idle time every minute
+    setInterval(function() {
+        idleTime++;
+        
+        // Show warning at 4 minutes
+        if (idleTime === IDLE_TIMEOUT - 1) {
+            const warningDiv = document.createElement('div');
+            warningDiv.id = 'idleWarning';
+            warningDiv.className = 'fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50 animate-bounce';
+            warningDiv.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <div class="font-bold">Tidak Ada Aktivitas</div>
+                        <div class="text-sm">Akan redirect ke dashboard dalam 1 menit...</div>
+                    </div>
+                    <button onclick="document.getElementById('idleWarning').remove(); idleTime = 0;" class="ml-4 px-3 py-1 bg-white text-orange-500 rounded font-semibold hover:bg-gray-100">
+                        Tetap Di Sini
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(warningDiv);
+        }
+        
+        // Redirect after 5 minutes
+        if (idleTime >= IDLE_TIMEOUT) {
+            console.log('Auto-redirecting due to inactivity...');
+            window.location.href = REDIRECT_URL;
+        }
+    }, 60000); // Check every 1 minute
+})();
+</script>
 </body>
 </html>
 
