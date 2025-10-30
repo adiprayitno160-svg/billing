@@ -708,23 +708,37 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
             const rowNumber = i + 2; // +2 because Excel starts from row 1 and we skip header
             
             try {
-                // Validate required fields
-                if (!row['Nama'] || !row['Email'] || !row['Telepon']) {
+                // Validate required fields - HANYA Nama dan Telepon yang WAJIB
+                if (!row['Nama'] || !row['Telepon']) {
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Nama, Email, dan Telepon harus diisi`);
+                    results.errors.push(`Baris ${rowNumber}: Nama dan Telepon harus diisi`);
                     continue;
                 }
                 
-                // Check if customer already exists
+                // Check if customer already exists by phone
                 const [existingCustomer] = await databasePool.execute(
-                    'SELECT id FROM customers WHERE email = ? OR phone = ?',
-                    [row['Email'], row['Telepon']]
+                    'SELECT id FROM customers WHERE phone = ?',
+                    [row['Telepon']]
                 );
                 
                 if ((existingCustomer as any).length > 0) {
                     results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: Pelanggan dengan email atau telepon yang sama sudah ada`);
+                    results.errors.push(`Baris ${rowNumber}: Pelanggan dengan telepon yang sama sudah ada`);
                     continue;
+                }
+                
+                // If email provided, check if email already exists
+                if (row['Email']) {
+                    const [existingEmail] = await databasePool.execute(
+                        'SELECT id FROM customers WHERE email = ?',
+                        [row['Email']]
+                    );
+                    
+                    if ((existingEmail as any).length > 0) {
+                        results.failed++;
+                        results.errors.push(`Baris ${rowNumber}: Email sudah digunakan oleh pelanggan lain`);
+                        continue;
+                    }
                 }
                 
                 // Insert customer
@@ -741,7 +755,7 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 
                 await databasePool.execute(insertQuery, [
                     row['Nama'],
-                    row['Email'],
+                    row['Email'] || null,  // Email opsional
                     row['Telepon'],
                     row['Alamat'] || '',
                     row['Kode Pelanggan'] || '',

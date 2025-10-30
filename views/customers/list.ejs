@@ -13,9 +13,6 @@
 				<button id="showImportModalBtn" class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
 					📥 Import Excel
 				</button>
-				<button id="downloadTemplateHeaderBtnTop" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
-					📄 Template
-				</button>
 				<a href="/customers/new-pppoe" class="px-4 py-2 bg-gradient-to-r from-modern-blue-500 to-modern-cyan-500 text-white rounded-lg hover:from-modern-blue-600 hover:to-modern-cyan-600 transition-all duration-300 font-medium shadow-lg">
 					+ Tambah Pelanggan PPPOE
 				</a>
@@ -82,9 +79,6 @@
 				</button>
 			<button id="bulkDeleteBtn" class="px-4 py-2 bg-gradient-to-r from-modern-red-500 to-modern-pink-600 text-white rounded-lg hover:from-modern-red-600 hover:to-modern-pink-700 transition-all duration-300 font-medium shadow-lg disabled:opacity-40" disabled>
 				🗑️ Hapus Terpilih
-			</button>
-			<button id="downloadTemplateHeaderBtn" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
-				📄 Template
 			</button>
 			</div>
 		</div>
@@ -240,16 +234,12 @@
                     </div>
                     
                     <div class="mb-4 p-3 bg-modern-blue-50 rounded-lg">
-                        <div class="flex items-center justify-between mb-2">
-                            <h4 class="text-sm font-medium text-modern-blue-900">Format Excel yang Diperlukan:</h4>
-                            <button type="button" id="downloadTemplateBtn" class="text-xs bg-modern-blue-500 text-white px-2 py-1 rounded hover:bg-modern-blue-600 transition-colors">
-                                📥 Download Template
-                            </button>
-                        </div>
+                        <h4 class="text-sm font-medium text-modern-blue-900 mb-2">Format Excel yang Diperlukan:</h4>
                         <ul class="text-xs text-modern-blue-700 space-y-1">
                             <li>• <strong>Nama</strong> (wajib)</li>
+                            <li>• <strong>Telepon</strong> (wajib)</li>
+                            <li>• <strong>Email</strong> (opsional)</li>
                             <li>• <strong>Alamat</strong> (opsional)</li>
-                            <li>• <strong>Nomor Telepon</strong> (wajib)</li>
                         </ul>
                     </div>
                     
@@ -420,15 +410,6 @@ function processImport(event) {
     });
 }
 
-function downloadTemplate() {
-    // Create a temporary link to download the template
-    const link = document.createElement('a');
-    link.href = '/customers/template';
-    link.download = 'template_import_pelanggan.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
 </script>
 
 <script>
@@ -441,7 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeImportBtn = document.getElementById('closeImportModalBtn');
     const closeImportIconBtn = document.getElementById('closeImportModalIconBtn');
     const importForm = document.getElementById('importForm');
-    const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
 
 	function refreshHeaderCheckboxState() {
 		const checkboxes = Array.from(document.querySelectorAll('.rowCheckbox'));
@@ -509,24 +489,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Download template
-    if (downloadTemplateBtn) {
-        downloadTemplateBtn.addEventListener('click', function() {
-            downloadTemplate();
-        });
-    }
-    const downloadTemplateHeaderBtn = document.getElementById('downloadTemplateHeaderBtn');
-    if (downloadTemplateHeaderBtn) {
-        downloadTemplateHeaderBtn.addEventListener('click', function() {
-            downloadTemplate();
-        });
-    }
-    const downloadTemplateHeaderBtnTop = document.getElementById('downloadTemplateHeaderBtnTop');
-    if (downloadTemplateHeaderBtnTop) {
-        downloadTemplateHeaderBtnTop.addEventListener('click', function() {
-            downloadTemplate();
-        });
-    }
 
     // Bind delete buttons per row
     document.querySelectorAll('.deleteCustomerBtn').forEach(function(btn) {
