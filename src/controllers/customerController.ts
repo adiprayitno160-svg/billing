@@ -711,18 +711,28 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 console.log(`\n📝 Processing row ${rowNumber}:`, {
                     'Nama': row['Nama'] || 'EMPTY',
                     'Telepon': row['Telepon'] || 'EMPTY',
-                    'Email': row['Email'] || 'EMPTY',
-                    'All keys': Object.keys(row).join(', ')
+                    'Alamat': row['Alamat'] || 'EMPTY',
+                    'All keys in Excel': Object.keys(row).join(', ')
                 });
                 
-                // Validate required fields - HANYA Nama dan Telepon yang WAJIB
-                if (!row['Nama'] || !row['Telepon']) {
-                    const error = `Nama dan Telepon harus diisi (Nama: "${row['Nama']}", Telepon: "${row['Telepon']}")`;
+                // Validate required fields - SIMPLE FORMAT: Nama, Telepon, Alamat
+                if (!row['Nama']) {
+                    const error = `Kolom "Nama" kosong atau tidak ditemukan`;
                     console.log(`  ❌ Validation failed: ${error}`);
                     results.failed++;
                     results.errors.push(`Baris ${rowNumber}: ${error}`);
                     continue;
                 }
+                
+                if (!row['Telepon']) {
+                    const error = `Kolom "Telepon" kosong atau tidak ditemukan`;
+                    console.log(`  ❌ Validation failed: ${error}`);
+                    results.failed++;
+                    results.errors.push(`Baris ${rowNumber}: ${error}`);
+                    continue;
+                }
+                
+                console.log(`  ✅ Validation passed: Nama dan Telepon OK`);
                 
                 // Check if customer already exists by phone
                 console.log(`  🔍 Checking phone: "${row['Telepon']}"`);
@@ -738,57 +748,28 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     results.errors.push(`Baris ${rowNumber}: ${error}`);
                     continue;
                 }
-                console.log(`  ✅ Phone OK`);
+                console.log(`  ✅ Phone OK - No duplicate found`);
                 
-                // If email provided, check if email already exists
-                if (row['Email']) {
-                    console.log(`  🔍 Checking email: "${row['Email']}"`);
-                    const [existingEmail] = await databasePool.execute(
-                        'SELECT id FROM customers WHERE email = ?',
-                        [row['Email']]
-                    );
-                    
-                    if ((existingEmail as any).length > 0) {
-                        const error = `Email "${row['Email']}" sudah digunakan oleh pelanggan lain`;
-                        console.log(`  ❌ Duplicate email: ${error}`);
-                        results.failed++;
-                        results.errors.push(`Baris ${rowNumber}: ${error}`);
-                        continue;
-                    }
-                    console.log(`  ✅ Email OK`);
-                }
-                
-                // Insert customer
+                // Insert customer - SIMPLE FORMAT (hanya 3 field utama)
                 const insertQuery = `
                     INSERT INTO customers (
-                        name, email, phone, address, customer_code, 
-                        connection_type, status, latitude, longitude, 
-                        pppoe_username, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                        name, phone, address, email, customer_code, 
+                        connection_type, status, 
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, '', 'pppoe', 'inactive', NOW(), NOW())
                 `;
                 
-                const connectionType = row['Tipe Koneksi'] === 'IP Static' ? 'static_ip' : 'pppoe';
-                const status = row['Status'] === 'Aktif' ? 'active' : 'inactive';
-                
-                console.log(`  💾 Inserting customer:`, {
+                console.log(`  💾 Inserting customer (SIMPLE):`, {
                     name: row['Nama'],
                     phone: row['Telepon'],
-                    email: row['Email'] || 'null',
-                    connectionType,
-                    status
+                    address: row['Alamat'] || '(kosong)'
                 });
                 
                 await databasePool.execute(insertQuery, [
                     row['Nama'],
-                    row['Email'] || null,  // Email opsional
                     row['Telepon'],
                     row['Alamat'] || '',
-                    row['Kode Pelanggan'] || '',
-                    connectionType,
-                    status,
-                    row['Latitude'] || null,
-                    row['Longitude'] || null,
-                    row['PPPoE Username'] || null
+                    null  // Email null (bisa diisi manual nanti)
                 ]);
                 
                 results.success++;
