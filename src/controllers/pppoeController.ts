@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { 
 	syncProfilesFromMikrotik, 
 	listProfiles, 
+	getProfileById,
+	createProfile,
+	updateProfile,
+	deleteProfile,
 	listPackages, 
 	getPackageById, 
 	createPackage, 
@@ -201,5 +205,142 @@ export async function postPackageDelete(req: Request, res: Response, next: NextF
 	} catch (err) { 
 		req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus paket');
 		res.redirect('/packages/pppoe/packages');
+	}
+}
+
+// =====================================================================
+// PROFILE CRUD OPERATIONS
+// =====================================================================
+
+export async function getProfileForm(req: Request, res: Response, next: NextFunction) {
+	try {
+		res.render('packages/pppoe_profile_form', { 
+			title: 'Tambah Profil PPPoE', 
+			success: req.flash('success'),
+			error: req.flash('error')
+		});
+	} catch (err) { 
+		next(err); 
+	}
+}
+
+export async function getProfileEdit(req: Request, res: Response, next: NextFunction) {
+	try {
+		const id = Number(req.params.id);
+		const profile = await getProfileById(id);
+		
+		if (!profile) {
+			req.flash('error', 'Profil tidak ditemukan');
+			return res.redirect('/packages/pppoe/profiles');
+		}
+		
+		res.render('packages/pppoe_profile_form', { 
+			title: 'Edit Profil PPPoE', 
+			profile,
+			success: req.flash('success'),
+			error: req.flash('error')
+		});
+	} catch (err) { 
+		next(err); 
+	}
+}
+
+export async function postProfileCreate(req: Request, res: Response, next: NextFunction) {
+	try {
+		const { 
+			name, 
+			local_address,
+			remote_address_pool,
+			dns_server,
+			rate_limit_rx,
+			rate_limit_tx,
+			burst_limit_rx,
+			burst_limit_tx,
+			burst_threshold_rx,
+			burst_threshold_tx,
+			burst_time_rx,
+			burst_time_tx,
+			comment
+		} = req.body;
+
+		if (!name) throw new Error('Nama profil wajib diisi');
+		if (!rate_limit_rx || !rate_limit_tx) throw new Error('Rate limit RX dan TX wajib diisi');
+
+		await createProfile({
+			name,
+			local_address: local_address || undefined,
+			remote_address_pool: remote_address_pool || undefined,
+			dns_server: dns_server || undefined,
+			rate_limit_rx: rate_limit_rx || '0',
+			rate_limit_tx: rate_limit_tx || '0',
+			burst_limit_rx: burst_limit_rx || undefined,
+			burst_limit_tx: burst_limit_tx || undefined,
+			burst_threshold_rx: burst_threshold_rx || undefined,
+			burst_threshold_tx: burst_threshold_tx || undefined,
+			burst_time_rx: burst_time_rx || undefined,
+			burst_time_tx: burst_time_tx || undefined,
+			comment: comment || undefined
+		});
+
+		req.flash('success', 'Profil berhasil dibuat');
+		res.redirect('/packages/pppoe/profiles');
+	} catch (err) { 
+		req.flash('error', err instanceof Error ? err.message : 'Gagal membuat profil');
+		res.redirect('/packages/pppoe/profiles/new');
+	}
+}
+
+export async function postProfileUpdate(req: Request, res: Response, next: NextFunction) {
+	try {
+		const id = Number(req.params.id);
+		const { 
+			name, 
+			local_address,
+			remote_address_pool,
+			dns_server,
+			rate_limit_rx,
+			rate_limit_tx,
+			burst_limit_rx,
+			burst_limit_tx,
+			burst_threshold_rx,
+			burst_threshold_tx,
+			burst_time_rx,
+			burst_time_tx,
+			comment
+		} = req.body;
+
+		if (!name) throw new Error('Nama profil wajib diisi');
+
+		await updateProfile(id, {
+			name,
+			local_address: local_address || undefined,
+			remote_address_pool: remote_address_pool || undefined,
+			dns_server: dns_server || undefined,
+			rate_limit_rx: rate_limit_rx || undefined,
+			rate_limit_tx: rate_limit_tx || undefined,
+			burst_limit_rx: burst_limit_rx || undefined,
+			burst_limit_tx: burst_limit_tx || undefined,
+			burst_threshold_rx: burst_threshold_rx || undefined,
+			burst_threshold_tx: burst_threshold_tx || undefined,
+			burst_time_rx: burst_time_rx || undefined,
+			burst_time_tx: burst_time_tx || undefined,
+			comment: comment || undefined
+		});
+
+		req.flash('success', 'Profil berhasil diupdate');
+		res.redirect('/packages/pppoe/profiles');
+	} catch (err) { 
+		req.flash('error', err instanceof Error ? err.message : 'Gagal mengupdate profil');
+		res.redirect(`/packages/pppoe/profiles/${req.params.id}/edit`);
+	}
+}
+
+export async function postProfileDelete(req: Request, res: Response, next: NextFunction) {
+	try {
+		const id = Number(req.params.id);
+		await deleteProfile(id);
+		res.json({ success: true, message: 'Profil berhasil dihapus' });
+	} catch (err) { 
+		res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Gagal menghapus profil' });
 	}
 }

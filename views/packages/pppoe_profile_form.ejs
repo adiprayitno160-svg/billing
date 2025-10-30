@@ -1,0 +1,232 @@
+<div class="space-y-6">
+    <div class="mb-6">
+        <div class="flex items-center gap-3 mb-2">
+            <a href="/packages/pppoe/profiles" class="text-blue-600 hover:text-blue-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-slate-800"><%= title %></h1>
+        </div>
+        <p class="text-slate-600">Konfigurasi profil PPPoE dengan rate limiting</p>
+    </div>
+
+    <% if (error && error.length > 0) { %>
+    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+        <%= error[0] %>
+    </div>
+    <% } %>
+
+    <div class="bg-white rounded-lg border border-slate-200 p-6">
+        <form method="post" action="<%= typeof profile !== 'undefined' ? `/packages/pppoe/profiles/${profile.id}/update` : '/packages/pppoe/profiles/create' %>" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Nama Profil -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        Nama Profil <span class="text-red-500">*</span>
+                    </label>
+                    <input 
+                        name="name" 
+                        type="text" 
+                        required 
+                        value="<%= typeof profile !== 'undefined' ? profile.name : '' %>"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Contoh: 10Mbps, Paket-Premium"
+                    />
+                </div>
+
+                <!-- Local Address -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        Local Address
+                    </label>
+                    <input 
+                        name="local_address" 
+                        type="text"
+                        value="<%= typeof profile !== 'undefined' && profile.local_address ? profile.local_address : '' %>"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Contoh: 10.10.10.1"
+                    />
+                </div>
+
+                <!-- Remote Address Pool -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        Remote Address Pool
+                    </label>
+                    <input 
+                        name="remote_address_pool" 
+                        type="text"
+                        value="<%= typeof profile !== 'undefined' && profile.remote_address_pool ? profile.remote_address_pool : '' %>"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Contoh: pool-pppoe"
+                    />
+                </div>
+
+                <!-- DNS Server -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        DNS Server
+                    </label>
+                    <input 
+                        name="dns_server" 
+                        type="text"
+                        value="<%= typeof profile !== 'undefined' && profile.dns_server ? profile.dns_server : '' %>"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Contoh: 8.8.8.8,8.8.4.4"
+                    />
+                </div>
+
+                <!-- Comment -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        Comment / Keterangan
+                    </label>
+                    <textarea 
+                        name="comment" 
+                        rows="2"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Keterangan opsional"
+                    ><%= typeof profile !== 'undefined' && profile.comment ? profile.comment : '' %></textarea>
+                </div>
+            </div>
+
+            <!-- Rate Limiting Section -->
+            <div class="border-t border-slate-200 pt-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4">⚡ Rate Limiting</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Download Limit (RX) <span class="text-red-500">*</span>
+                        </label>
+                        <input 
+                            name="rate_limit_rx" 
+                            type="text"
+                            required
+                            value="<%= typeof profile !== 'undefined' && profile.rate_limit_rx ? profile.rate_limit_rx : '0' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 10M, 5M (0 = unlimited)"
+                        />
+                        <p class="text-xs text-slate-500 mt-1">Format: 10M, 5M, 1G. Gunakan 0 untuk unlimited</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Upload Limit (TX) <span class="text-red-500">*</span>
+                        </label>
+                        <input 
+                            name="rate_limit_tx" 
+                            type="text"
+                            required
+                            value="<%= typeof profile !== 'undefined' && profile.rate_limit_tx ? profile.rate_limit_tx : '0' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 2M, 1M (0 = unlimited)"
+                        />
+                        <p class="text-xs text-slate-500 mt-1">Format: 2M, 1M, 500k. Gunakan 0 untuk unlimited</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Burst Limiting Section -->
+            <div class="border-t border-slate-200 pt-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4">🚀 Burst Limiting (Opsional)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Burst Download (RX)
+                        </label>
+                        <input 
+                            name="burst_limit_rx" 
+                            type="text"
+                            value="<%= typeof profile !== 'undefined' && profile.burst_limit_rx ? profile.burst_limit_rx : '' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 20M"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Burst Upload (TX)
+                        </label>
+                        <input 
+                            name="burst_limit_tx" 
+                            type="text"
+                            value="<%= typeof profile !== 'undefined' && profile.burst_limit_tx ? profile.burst_limit_tx : '' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 4M"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Burst Threshold Download
+                        </label>
+                        <input 
+                            name="burst_threshold_rx" 
+                            type="text"
+                            value="<%= typeof profile !== 'undefined' && profile.burst_threshold_rx ? profile.burst_threshold_rx : '' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 15M"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Burst Threshold Upload
+                        </label>
+                        <input 
+                            name="burst_threshold_tx" 
+                            type="text"
+                            value="<%= typeof profile !== 'undefined' && profile.burst_threshold_tx ? profile.burst_threshold_tx : '' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 3M"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Burst Time Download
+                        </label>
+                        <input 
+                            name="burst_time_rx" 
+                            type="text"
+                            value="<%= typeof profile !== 'undefined' && profile.burst_time_rx ? profile.burst_time_rx : '' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 10s"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            Burst Time Upload
+                        </label>
+                        <input 
+                            name="burst_time_tx" 
+                            type="text"
+                            value="<%= typeof profile !== 'undefined' && profile.burst_time_tx ? profile.burst_time_tx : '' %>"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Contoh: 10s"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                <a 
+                    href="/packages/pppoe/profiles" 
+                    class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                    Batal
+                </a>
+                <button 
+                    type="submit" 
+                    class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                >
+                    <%= typeof profile !== 'undefined' ? 'Update Profil' : 'Simpan Profil' %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+

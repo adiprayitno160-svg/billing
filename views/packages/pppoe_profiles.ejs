@@ -1,11 +1,16 @@
 <div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Daftar Profil PPPoE</h2>
-        <form method="post" action="/packages/pppoe/profiles/sync" class="inline">
-            <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
-                Sync dari MikroTik
-            </button>
-        </form>
+        <div class="flex gap-2">
+            <a href="/packages/pppoe/profiles/new" class="px-3 py-1.5 rounded bg-green-600 text-white text-sm hover:bg-green-700">
+                ➕ Tambah Manual
+            </a>
+            <form method="post" action="/packages/pppoe/profiles/sync" class="inline">
+                <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+                    🔄 Sync dari MikroTik
+                </button>
+            </form>
+        </div>
     </div>
     
     <% if (success && success.length > 0) { %>
@@ -22,35 +27,101 @@
     
     <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
-            <thead class="text-left text-slate-600">
+            <thead class="text-left text-slate-600 bg-slate-50">
                 <tr>
-                    <th class="py-2 pr-4">Nama</th>
-                    <th class="py-2 pr-4">Local Address</th>
-                    <th class="py-2 pr-4">Remote Pool</th>
-                    <th class="py-2 pr-4">DNS Server</th>
-                    <th class="py-2 pr-4">Session Timeout</th>
-                    <th class="py-2 pr-4">Idle Timeout</th>
-                    <th class="py-2 pr-4">Comment</th>
+                    <th class="py-2 px-3">Nama</th>
+                    <th class="py-2 px-3">Local Address</th>
+                    <th class="py-2 px-3">Remote Pool</th>
+                    <th class="py-2 px-3">DNS Server</th>
+                    <th class="py-2 px-3">Rate Limit RX</th>
+                    <th class="py-2 px-3">Rate Limit TX</th>
+                    <th class="py-2 px-3">Burst RX</th>
+                    <th class="py-2 px-3">Burst TX</th>
+                    <th class="py-2 px-3">Comment</th>
+                    <th class="py-2 px-3 text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 <% (profiles || []).forEach(function(profile){ %>
-                <tr class="border-t border-slate-100">
-                    <td class="py-2 pr-4 font-medium"><%= profile.name %></td>
-                    <td class="py-2 pr-4"><%= profile.local_address || '-' %></td>
-                    <td class="py-2 pr-4"><%= profile.remote_address_pool || '-' %></td>
-                    <td class="py-2 pr-4"><%= profile.dns_server || '-' %></td>
-                    <td class="py-2 pr-4"><%= profile.session_timeout || '-' %></td>
-                    <td class="py-2 pr-4"><%= profile.idle_timeout || '-' %></td>
-                    <td class="py-2 pr-4"><%= profile.comment || '-' %></td>
+                <tr class="border-t border-slate-100 hover:bg-slate-50">
+                    <td class="py-2 px-3 font-medium"><%= profile.name %></td>
+                    <td class="py-2 px-3"><%= profile.local_address || '-' %></td>
+                    <td class="py-2 px-3"><%= profile.remote_address_pool || '-' %></td>
+                    <td class="py-2 px-3"><%= profile.dns_server || '-' %></td>
+                    <td class="py-2 px-3">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
+                            <%= profile.rate_limit_rx || '0' %>
+                        </span>
+                    </td>
+                    <td class="py-2 px-3">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                            <%= profile.rate_limit_tx || '0' %>
+                        </span>
+                    </td>
+                    <td class="py-2 px-3"><%= profile.burst_limit_rx || '-' %></td>
+                    <td class="py-2 px-3"><%= profile.burst_limit_tx || '-' %></td>
+                    <td class="py-2 px-3 text-xs text-slate-600"><%= profile.comment || '-' %></td>
+                    <td class="py-2 px-3">
+                        <div class="flex items-center justify-center gap-2">
+                            <a href="/packages/pppoe/profiles/<%= profile.id %>/edit" 
+                               class="text-blue-600 hover:text-blue-800" 
+                               title="Edit">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+                                </svg>
+                            </a>
+                            <button onclick="deleteProfile(<%= profile.id %>, '<%= profile.name %>')" 
+                                    class="text-red-600 hover:text-red-800" 
+                                    title="Hapus">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
                 </tr>
                 <% }) %>
                 <% if (!profiles || profiles.length === 0) { %>
-                <tr><td colspan="7" class="py-6 text-center text-slate-500">Belum ada profil. Klik "Sync dari MikroTik" untuk mengambil data dari MikroTik.</td></tr>
+                <tr><td colspan="10" class="py-6 text-center text-slate-500">Belum ada profil. Klik "Sync dari MikroTik" untuk mengambil data dari MikroTik.</td></tr>
                 <% } %>
             </tbody>
         </table>
     </div>
+    
+    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+        <p class="font-semibold mb-1">💡 Info:</p>
+        <ul class="list-disc list-inside space-y-1 text-xs">
+            <li><strong>Sync dari MikroTik:</strong> Otomatis ambil & update profil dari router MikroTik</li>
+            <li><strong>Tambah Manual:</strong> Buat profil baru secara manual (tidak tersync ke MikroTik)</li>
+            <li><strong>Rate Limit:</strong> RX = Download, TX = Upload</li>
+            <li><strong>Burst:</strong> Speed maksimal sementara saat bandwidth tersedia</li>
+        </ul>
+    </div>
 </div>
 
-
+<script>
+function deleteProfile(id, name) {
+    if (confirm(`Apakah Anda yakin ingin menghapus profil "${name}"?\n\n⚠️ Profil yang sudah digunakan oleh paket tidak dapat dihapus.`)) {
+        fetch(`/packages/pppoe/profiles/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Profil berhasil dihapus!');
+                location.reload();
+            } else {
+                alert('❌ Gagal menghapus profil: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Terjadi kesalahan saat menghapus profil');
+        });
+    }
+}
+</script>

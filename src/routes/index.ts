@@ -12,7 +12,12 @@ import { getOdcList, getOdcAdd, getOdcEdit, postOdcCreate, postOdcDelete, postOd
 import { getOdpList, getOdpAdd, getOdpEdit, postOdpCreate, postOdpDelete, postOdpUpdate } from '../controllers/ftth/odpController';
 import { 
 	getProfileList, 
-	postSyncProfiles, 
+	postSyncProfiles,
+	getProfileForm,
+	getProfileEdit,
+	postProfileCreate,
+	postProfileUpdate,
+	postProfileDelete,
 	getPackageList, 
 	getPackageForm,
 	getPackageEdit,
@@ -276,8 +281,16 @@ router.post('/ftth/odp/:id/delete', postOdpDelete);
 
 
 // Paket Internet -> PPPOE
+// Profile routes
 router.get('/packages/pppoe/profiles', getProfileList);
 router.post('/packages/pppoe/profiles/sync', postSyncProfiles);
+router.get('/packages/pppoe/profiles/new', getProfileForm);
+router.get('/packages/pppoe/profiles/:id/edit', getProfileEdit);
+router.post('/packages/pppoe/profiles/create', postProfileCreate);
+router.post('/packages/pppoe/profiles/:id/update', postProfileUpdate);
+router.delete('/packages/pppoe/profiles/:id', postProfileDelete);
+
+// Package routes
 router.get('/packages/pppoe/packages', getPackageList);
 router.get('/packages/pppoe/packages/create', getPackageForm);
 router.get('/packages/pppoe/packages/:id/edit', getPackageEdit);

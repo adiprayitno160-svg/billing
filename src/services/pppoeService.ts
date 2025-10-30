@@ -382,3 +382,128 @@ export async function deletePackage(id: number): Promise<void> {
 		conn.release();
 	}
 }
+
+// =====================================================================
+// PROFILE CRUD OPERATIONS (Manual Management)
+// =====================================================================
+
+export async function createProfile(data: {
+	name: string;
+	local_address?: string;
+	remote_address_pool?: string;
+	dns_server?: string;
+	rate_limit_rx?: string;
+	rate_limit_tx?: string;
+	burst_limit_rx?: string;
+	burst_limit_tx?: string;
+	burst_threshold_rx?: string;
+	burst_threshold_tx?: string;
+	burst_time_rx?: string;
+	burst_time_tx?: string;
+	comment?: string;
+}): Promise<number> {
+	const conn = await databasePool.getConnection();
+	try {
+		const [result] = await conn.execute(`
+			INSERT INTO pppoe_profiles 
+			(name, local_address, remote_address_pool, dns_server,
+			 rate_limit_rx, rate_limit_tx, burst_limit_rx, burst_limit_tx,
+			 burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx, comment)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, [
+			data.name,
+			data.local_address || null,
+			data.remote_address_pool || null,
+			data.dns_server || null,
+			data.rate_limit_rx || '0',
+			data.rate_limit_tx || '0',
+			data.burst_limit_rx || null,
+			data.burst_limit_tx || null,
+			data.burst_threshold_rx || null,
+			data.burst_threshold_tx || null,
+			data.burst_time_rx || null,
+			data.burst_time_tx || null,
+			data.comment || null
+		]);
+		
+		const insertResult = result as any;
+		return insertResult.insertId;
+	} finally {
+		conn.release();
+	}
+}
+
+export async function updateProfile(id: number, data: {
+	name?: string;
+	local_address?: string;
+	remote_address_pool?: string;
+	dns_server?: string;
+	rate_limit_rx?: string;
+	rate_limit_tx?: string;
+	burst_limit_rx?: string;
+	burst_limit_tx?: string;
+	burst_threshold_rx?: string;
+	burst_threshold_tx?: string;
+	burst_time_rx?: string;
+	burst_time_tx?: string;
+	comment?: string;
+}): Promise<void> {
+	const conn = await databasePool.getConnection();
+	try {
+		await conn.execute(`
+			UPDATE pppoe_profiles SET 
+				name = COALESCE(?, name),
+				local_address = COALESCE(?, local_address),
+				remote_address_pool = COALESCE(?, remote_address_pool),
+				dns_server = COALESCE(?, dns_server),
+				rate_limit_rx = COALESCE(?, rate_limit_rx),
+				rate_limit_tx = COALESCE(?, rate_limit_tx),
+				burst_limit_rx = COALESCE(?, burst_limit_rx),
+				burst_limit_tx = COALESCE(?, burst_limit_tx),
+				burst_threshold_rx = COALESCE(?, burst_threshold_rx),
+				burst_threshold_tx = COALESCE(?, burst_threshold_tx),
+				burst_time_rx = COALESCE(?, burst_time_rx),
+				burst_time_tx = COALESCE(?, burst_time_tx),
+				comment = COALESCE(?, comment),
+				updated_at = NOW()
+			WHERE id = ?
+		`, [
+			data.name || null,
+			data.local_address || null,
+			data.remote_address_pool || null,
+			data.dns_server || null,
+			data.rate_limit_rx || null,
+			data.rate_limit_tx || null,
+			data.burst_limit_rx || null,
+			data.burst_limit_tx || null,
+			data.burst_threshold_rx || null,
+			data.burst_threshold_tx || null,
+			data.burst_time_rx || null,
+			data.burst_time_tx || null,
+			data.comment || null,
+			id
+		]);
+	} finally {
+		conn.release();
+	}
+}
+
+export async function deleteProfile(id: number): Promise<void> {
+	const conn = await databasePool.getConnection();
+	try {
+		// Check if profile is used by any package
+		const [packages] = await conn.execute(
+			'SELECT COUNT(*) as count FROM pppoe_packages WHERE profile_id = ?',
+			[id]
+		);
+		
+		const count = (packages as any)[0]?.count || 0;
+		if (count > 0) {
+			throw new Error(`Profil tidak dapat dihapus karena masih digunakan oleh ${count} paket`);
+		}
+		
+		await conn.execute('DELETE FROM pppoe_profiles WHERE id = ?', [id]);
+	} finally {
+		conn.release();
+	}
+}
