@@ -176,6 +176,7 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
         let burst_time_tx = '';
         
         if (rateLimit) {
+            console.log(`🔍 Parsing rate-limit for ${r['name']}: "${rateLimit}"`);
             const parts = rateLimit.split(' ');
             
             // Parse rx-rate/tx-rate (first part)
@@ -183,6 +184,7 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
                 const rates = parts[0].split('/');
                 rate_limit_rx = rates[0] || '';
                 rate_limit_tx = rates[1] || '';
+                console.log(`  ✅ Rate limits: RX=${rate_limit_rx}, TX=${rate_limit_tx}`);
             }
             
             // Parse burst-rate (second part)
@@ -190,6 +192,7 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
                 const bursts = parts[1].split('/');
                 burst_limit_rx = bursts[0] || '';
                 burst_limit_tx = bursts[1] || '';
+                console.log(`  ✅ Burst limits: RX=${burst_limit_rx}, TX=${burst_limit_tx}`);
             }
             
             // Parse burst-threshold (third part)
@@ -197,6 +200,7 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
                 const thresholds = parts[2].split('/');
                 burst_threshold_rx = thresholds[0] || '';
                 burst_threshold_tx = thresholds[1] || '';
+                console.log(`  ✅ Burst thresholds: RX=${burst_threshold_rx}, TX=${burst_threshold_tx}`);
             }
             
             // Parse burst-time (fourth part)
@@ -204,7 +208,10 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
                 const times = parts[3].split('/');
                 burst_time_rx = times[0] || '';
                 burst_time_tx = times[1] || '';
+                console.log(`  ✅ Burst times: RX=${burst_time_rx}, TX=${burst_time_tx}`);
             }
+        } else {
+            console.log(`⚠️  No rate-limit for ${r['name']}`);
         }
         
         return {
