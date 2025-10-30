@@ -156,7 +156,10 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
 	
 	try {
 		await api.connect();
-    const profiles = await api.write('/ppp/profile/print');
+    
+    // Try to get profiles with detail flag to get all burst parameters
+    console.log('📡 Fetching PPP profiles with detail flag...');
+    const profiles = await api.write('/ppp/profile/print', ['=detail=']);
     const rows = Array.isArray(profiles) ? profiles : [];
     
     console.log('📊 Raw MikroTik Profile Data (FULL):', JSON.stringify(rows[0], null, 2));
@@ -234,6 +237,38 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
         } else {
             console.log(`  ⚠️  No rate-limit field for ${r['name']}`);
         }
+        
+        // FALLBACK: Check if MikroTik sends separate burst fields (some RouterOS versions)
+        if (!burst_limit_rx && r['burst-limit']) {
+            const burstParts = String(r['burst-limit']).split('/');
+            burst_limit_rx = burstParts[0] || '';
+            burst_limit_tx = burstParts[1] || burstParts[0];
+            console.log(`  🔄 FALLBACK: Got burst-limit from separate field: RX="${burst_limit_rx}", TX="${burst_limit_tx}"`);
+        }
+        
+        if (!burst_threshold_rx && r['burst-threshold']) {
+            const thresholdParts = String(r['burst-threshold']).split('/');
+            burst_threshold_rx = thresholdParts[0] || '';
+            burst_threshold_tx = thresholdParts[1] || thresholdParts[0];
+            console.log(`  🔄 FALLBACK: Got burst-threshold from separate field: RX="${burst_threshold_rx}", TX="${burst_threshold_tx}"`);
+        }
+        
+        if (!burst_time_rx && r['burst-time']) {
+            const timeParts = String(r['burst-time']).split('/');
+            burst_time_rx = timeParts[0] || '';
+            burst_time_tx = timeParts[1] || timeParts[0];
+            console.log(`  🔄 FALLBACK: Got burst-time from separate field: RX="${burst_time_rx}", TX="${burst_time_tx}"`);
+        }
+        
+        // FINAL CHECK: Log what we got
+        console.log(`  📊 FINAL BURST DATA for ${r['name']}:`, {
+            'burst_limit_rx': burst_limit_rx || 'EMPTY',
+            'burst_limit_tx': burst_limit_tx || 'EMPTY',
+            'burst_threshold_rx': burst_threshold_rx || 'EMPTY',
+            'burst_threshold_tx': burst_threshold_tx || 'EMPTY',
+            'burst_time_rx': burst_time_rx || 'EMPTY',
+            'burst_time_tx': burst_time_tx || 'EMPTY'
+        });
         
         return {
             '.id': r['.id'],
