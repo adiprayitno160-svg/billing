@@ -1,0 +1,129 @@
+============================================================
+🚀 UPDATE SERVER KE V2.1.11 - FIX & CLEANUP
+============================================================
+
+Release sudah tersedia di GitHub!
+https://github.com/adiprayitno160-svg/billing/releases/tag/v2.1.11
+
+============================================================
+📋 LANGKAH UPDATE (COPY-PASTE):
+============================================================
+
+cd /opt/billing && \
+git pull origin main && \
+npm install && \
+npm run build && \
+npm install --production && \
+pm2 restart billing-app --update-env && \
+pm2 logs billing-app --lines 50
+
+
+============================================================
+🐛 BUG YANG DIPERBAIKI:
+============================================================
+
+1. Statistics Error Fix:
+   ✅ Fixed "statistics is not defined" error
+   ✅ Added typeof check untuk prevent undefined
+   ✅ Better null safety handling
+   ✅ No more 500 errors di customer list
+
+2. Pagination Safety:
+   ✅ Added error handling untuk statistics queries
+   ✅ Graceful fallback jika query gagal
+   ✅ Better error messages
+
+
+============================================================
+🗑️ FITUR YANG DIHAPUS:
+============================================================
+
+1. Telegram Bot - Complete Removal:
+   ✅ Menu Telegram dihapus dari sidebar
+   ✅ Routes Telegram dinonaktifkan
+   ✅ Settings Telegram dihapus
+   ✅ Migration tersedia untuk drop tables
+
+
+============================================================
+🧪 TEST SETELAH UPDATE:
+============================================================
+
+1. Test Customer List:
+   - Buka /customers/list
+   - Verify tidak ada error "statistics is not defined"
+   - Verify pagination berfungsi
+   - Verify statistics show correct numbers
+
+2. Verify Telegram Removal:
+   - Cek sidebar, tidak ada menu Telegram
+   - Cek settings, tidak ada pilihan Telegram
+   - Cek routes, /telegram/* tidak berfungsi
+
+3. Check Logs:
+   pm2 logs billing-app --lines 100
+
+   Should not see:
+   - "statistics is not defined"
+   - Telegram-related errors
+
+
+============================================================
+🗄️ DATABASE MIGRATION (OPTIONAL):
+============================================================
+
+Jika ingin drop Telegram tables dari database:
+
+mysql -u username -p database_name < migrations/remove_telegram_tables.sql
+
+Atau manual:
+DROP TABLE IF EXISTS telegram_settings;
+DROP TABLE IF EXISTS telegram_users;
+
+
+============================================================
+📊 VERIFIKASI:
+============================================================
+
+# Check version
+cat VERSION          # Harus: 2.1.11
+cat VERSION_MAJOR    # Harus: 2.1.11
+cat VERSION_HOTFIX   # Harus: 2.1.11
+
+# Check PM2 status
+pm2 status
+
+# Check logs
+pm2 logs billing-app --lines 50
+
+
+============================================================
+📝 PERINTAH LENGKAP:
+============================================================
+
+cd /opt/billing
+git pull origin main
+cat VERSION
+npm install
+npm run build
+npm install --production
+pm2 restart billing-app --update-env
+pm2 status
+pm2 logs billing-app --lines 50
+
+
+============================================================
+🔗 LINK RELEASE:
+============================================================
+
+GitHub Release:
+https://github.com/adiprayitno160-svg/billing/releases/tag/v2.1.11
+
+Changelog:
+docs/CHANGELOG_v2.1.11.md
+
+
+============================================================
+SELESAI! ✅
+============================================================
+
