@@ -159,12 +159,16 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
     const profiles = await api.write('/ppp/profile/print');
     const rows = Array.isArray(profiles) ? profiles : [];
     
-    console.log('📊 Raw MikroTik Profile Data:', JSON.stringify(rows[0], null, 2));
+    console.log('📊 Raw MikroTik Profile Data (FULL):', JSON.stringify(rows[0], null, 2));
+    console.log('📊 Total profiles from MikroTik:', rows.length);
     
     // Parse rate-limit field (format: "rx-rate[/tx-rate] [rx-burst-rate[/tx-burst-rate] [rx-burst-threshold[/tx-burst-threshold] [rx-burst-time[/tx-burst-time] [priority] [rx-rate-min[/tx-rate-min]]]]")
     // Example: "10M/2M 20M/4M 15M/3M 10s/10s 8"
     
     return rows.map((r: any) => {
+        console.log(`\n🔍 Processing profile: ${r['name']}`);
+        console.log(`  📋 All fields from MikroTik:`, Object.keys(r).join(', '));
+        
         const rateLimit = r['rate-limit'] || '';
         let rate_limit_rx = '';
         let rate_limit_tx = '';
@@ -175,43 +179,60 @@ export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]>
         let burst_time_rx = '';
         let burst_time_tx = '';
         
+        // Check if MikroTik sends separate fields
+        console.log(`  🔎 Checking separate fields:`, {
+            'rx-rate': r['rx-rate'] || 'NOT FOUND',
+            'tx-rate': r['tx-rate'] || 'NOT FOUND',
+            'burst-rate': r['burst-rate'] || 'NOT FOUND',
+            'burst-threshold': r['burst-threshold'] || 'NOT FOUND',
+            'burst-time': r['burst-time'] || 'NOT FOUND'
+        });
+        
         if (rateLimit) {
-            console.log(`🔍 Parsing rate-limit for ${r['name']}: "${rateLimit}"`);
+            console.log(`  🔍 Parsing rate-limit string: "${rateLimit}"`);
+            console.log(`  📏 String length: ${rateLimit.length}`);
             const parts = rateLimit.split(' ');
+            console.log(`  📦 Split parts (${parts.length}):`, parts);
             
             // Parse rx-rate/tx-rate (first part)
             if (parts[0]) {
                 const rates = parts[0].split('/');
                 rate_limit_rx = rates[0] || '';
-                rate_limit_tx = rates[1] || '';
-                console.log(`  ✅ Rate limits: RX=${rate_limit_rx}, TX=${rate_limit_tx}`);
+                rate_limit_tx = rates[1] || rates[0]; // If no TX, use RX value
+                console.log(`  ✅ Rate limits: RX="${rate_limit_rx}", TX="${rate_limit_tx}"`);
             }
             
             // Parse burst-rate (second part)
             if (parts[1]) {
                 const bursts = parts[1].split('/');
                 burst_limit_rx = bursts[0] || '';
-                burst_limit_tx = bursts[1] || '';
-                console.log(`  ✅ Burst limits: RX=${burst_limit_rx}, TX=${burst_limit_tx}`);
+                burst_limit_tx = bursts[1] || bursts[0]; // If no TX, use RX value
+                console.log(`  ✅ Burst limits: RX="${burst_limit_rx}", TX="${burst_limit_tx}"`);
+            } else {
+                console.log(`  ⚠️  No burst-rate part (parts[1] is undefined)`);
             }
             
             // Parse burst-threshold (third part)
             if (parts[2]) {
                 const thresholds = parts[2].split('/');
                 burst_threshold_rx = thresholds[0] || '';
-                burst_threshold_tx = thresholds[1] || '';
-                console.log(`  ✅ Burst thresholds: RX=${burst_threshold_rx}, TX=${burst_threshold_tx}`);
+                burst_threshold_tx = thresholds[1] || thresholds[0];
+                console.log(`  ✅ Burst thresholds: RX="${burst_threshold_rx}", TX="${burst_threshold_tx}"`);
+            } else {
+                console.log(`  ⚠️  No burst-threshold part (parts[2] is undefined)`);
             }
             
             // Parse burst-time (fourth part)
             if (parts[3]) {
                 const times = parts[3].split('/');
                 burst_time_rx = times[0] || '';
-                burst_time_tx = times[1] || '';
-                console.log(`  ✅ Burst times: RX=${burst_time_rx}, TX=${burst_time_tx}`);
+                burst_time_tx = times[1] || times[0];
+                console.log(`  ✅ Burst times: RX="${burst_time_rx}", TX="${burst_time_tx}"`);
+            } else {
+                console.log(`  ⚠️  No burst-time part (parts[3] is undefined)`);
             }
         } else {
-            console.log(`⚠️  No rate-limit for ${r['name']}`);
+            console.log(`  ⚠️  No rate-limit field for ${r['name']}`);
         }
         
         return {
