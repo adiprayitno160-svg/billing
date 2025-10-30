@@ -1,0 +1,95 @@
+============================================================
+🚀 UPDATE SERVER KE V2.1.8 - FINAL
+============================================================
+
+Semua bug fixes sudah di-push ke GitHub!
+Update server sekarang untuk mendapatkan fix.
+
+============================================================
+📋 LANGKAH UPDATE (COPY-PASTE):
+============================================================
+
+cd /opt/billing && \
+git pull origin main && \
+npm install && \
+npm run build && \
+npm install --production && \
+pm2 restart billing-app --update-env && \
+pm2 logs billing-app --lines 30
+
+
+============================================================
+✅ FIX YANG TERSEDIA:
+============================================================
+
+1. Excel Import:
+   ✅ Enhanced header normalization
+   ✅ Support variasi kolom telepon
+   ✅ Detailed debug logging
+
+2. Bulk Delete Customers:
+   ✅ Fixed missing button id
+   ✅ Fixed null reference error
+   ✅ Tombol "Hapus Terpilih" sekarang berfungsi
+
+3. Version Display:
+   ✅ Update to v2.1.8
+   ✅ Proper version tracking
+
+
+============================================================
+🧪 CARA TEST:
+============================================================
+
+1. Test Excel Import:
+   - Download template
+   - Isi dengan data
+   - Upload file
+   - Cek log untuk debug info
+
+2. Test Bulk Delete:
+   - Pilih beberapa pelanggan
+   - Klik "Hapus Terpilih"
+   - Konfirmasi hapus
+   - Cek apakah berhasil
+
+3. Check Version:
+   - Buka: http://your-server:3000/about
+   - Harus menunjukkan: Versi Saat Ini: 2.1.8
+
+
+============================================================
+📊 VERIFIKASI:
+============================================================
+
+# Check version files
+cat VERSION          # Harus: 2.1.8
+cat VERSION_MAJOR    # Harus: 2.1.8
+cat VERSION_HOTFIX   # Harus: 2.1.8
+
+# Check PM2 status
+pm2 status
+
+# Check logs
+pm2 logs billing-app --lines 50
+
+
+============================================================
+📝 PERINTAH LENGKAP:
+============================================================
+
+cd /opt/billing
+git pull origin main
+cat VERSION
+npm install
+npm run build
+npm install --production
+pm2 restart billing-app --update-env
+pm2 status
+pm2 logs billing-app --lines 30
+
+
+============================================================
+SELESAI! ✅
+============================================================
+

@@ -459,8 +459,13 @@ export const deleteCustomer = async (req: Request, res: Response) => {
 
 export const bulkDeleteCustomers = async (req: Request, res: Response) => {
     try {
+        console.log('🗑️ Bulk delete request received:', req.body);
+        
         const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map((v: any) => parseInt(v, 10)).filter((n: number) => !Number.isNaN(n)) : [];
+        console.log('📋 Parsed IDs:', ids);
+        
         if (!ids.length) {
+            console.error('❌ No valid IDs provided');
             return res.status(400).json({ success: false, error: 'Daftar ID tidak valid' });
         }
 
@@ -471,33 +476,84 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
 
         for (const id of ids) {
             try {
-                const [customerResult] = await databasePool.execute('SELECT id FROM customers WHERE id = ?', [id]);
+                console.log(`\n🔍 Processing customer ID: ${id}`);
+                
+                // Check if customer exists
+                const [customerResult] = await databasePool.execute('SELECT id, name FROM customers WHERE id = ?', [id]);
                 if ((customerResult as any).length === 0) {
+                    console.log(`   ❌ Customer ${id} not found`);
                     results.skipped.push({ id, reason: 'Tidak ditemukan' });
                     continue;
                 }
+                
+                console.log(`   ✅ Customer found: ${(customerResult as any)[0].name}`);
 
+                // Check for active invoices
                 const [invoiceResult] = await databasePool.execute(
                     'SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status IN ("sent", "partial", "overdue")',
                     [id]
                 );
                 const invoiceCount = (invoiceResult as any)[0].count;
                 if (invoiceCount > 0) {
+                    console.log(`   ⚠️  Customer ${id} has ${invoiceCount} active invoice(s)`);
                     results.skipped.push({ id, reason: 'Memiliki tagihan aktif' });
                     continue;
                 }
 
+                // Check for related records
+                const [subscriptionResult] = await databasePool.execute(
+                    'SELECT COUNT(*) as count FROM subscriptions WHERE customer_id = ?',
+                    [id]
+                );
+                const subscriptionCount = (subscriptionResult as any)[0].count;
+                if (subscriptionCount > 0) {
+                    console.log(`   ⚠️  Customer ${id} has ${subscriptionCount} active subscription(s)`);
+                    results.skipped.push({ id, reason: 'Memiliki subscription aktif' });
+                    continue;
+                }
+
+                // Check for static IP clients
+                const [staticIpResult] = await databasePool.execute(
+                    'SELECT COUNT(*) as count FROM static_ip_clients WHERE customer_id = ?',
+                    [id]
+                );
+                const staticIpCount = (staticIpResult as any)[0].count;
+                if (staticIpCount > 0) {
+                    console.log(`   ⚠️  Customer ${id} has static IP configuration`);
+                    results.skipped.push({ id, reason: 'Memiliki konfigurasi IP Static' });
+                    continue;
+                }
+
+                // Check for portal customers
+                const [portalResult] = await databasePool.execute(
+                    'SELECT COUNT(*) as count FROM portal_customers WHERE customer_id = ?',
+                    [id]
+                );
+                const portalCount = (portalResult as any)[0].count;
+                if (portalCount > 0) {
+                    console.log(`   ⚠️  Customer ${id} has portal account`);
+                    results.skipped.push({ id, reason: 'Memiliki akun portal' });
+                    continue;
+                }
+
+                // Delete customer
+                console.log(`   🗑️  Attempting to delete customer ${id}...`);
                 await databasePool.execute('DELETE FROM customers WHERE id = ?', [id]);
+                console.log(`   ✅ Customer ${id} deleted successfully`);
                 results.deleted.push(id);
-            } catch (innerErr) {
-                results.skipped.push({ id, reason: 'Gagal menghapus' });
+                
+            } catch (innerErr: any) {
+                console.error(`   ❌ Error deleting customer ${id}:`, innerErr.message);
+                results.skipped.push({ id, reason: `Gagal menghapus: ${innerErr.message || 'Unknown error'}` });
             }
         }
 
+        console.log(`\n📊 Bulk delete completed: ${results.deleted.length} deleted, ${results.skipped.length} skipped`);
         return res.json({ success: true, results });
-    } catch (error) {
-        console.error('Error bulk deleting customers:', error);
-        return res.status(500).json({ success: false, error: 'Gagal melakukan hapus massal' });
+        
+    } catch (error: any) {
+        console.error('❌ Error bulk deleting customers:', error);
+        return res.status(500).json({ success: false, error: `Gagal melakukan hapus massal: ${error.message || 'Unknown error'}` });
     }
 };
 
@@ -762,15 +818,19 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 
                 console.log(`  ✅ Validation passed: Nama dan Telepon OK`);
                 
-                // Check if customer already exists by phone
-                console.log(`  🔍 Checking phone: "${row['Telepon']}"`);
+                // Clean phone number (remove spaces, dashes, dots)
+                const cleanPhone = String(row['Telepon']).replace(/[\s\-.]/g, '');
+                console.log(`  🔍 Checking phone: "${row['Telepon']}" -> "${cleanPhone}"`);
+                
+                // Check if customer already exists by phone (cleaned)
                 const [existingCustomer] = await databasePool.execute(
-                    'SELECT id FROM customers WHERE phone = ?',
-                    [row['Telepon']]
+                    'SELECT id, name FROM customers WHERE phone = ? OR phone = ?',
+                    [row['Telepon'], cleanPhone]
                 );
                 
                 if ((existingCustomer as any).length > 0) {
-                    const error = `Pelanggan dengan telepon "${row['Telepon']}" sudah ada`;
+                    const existingName = (existingCustomer as any)[0].name;
+                    const error = `Pelanggan dengan telepon "${row['Telepon']}" sudah ada atas nama "${existingName}"`;
                     console.log(`  ❌ Duplicate phone: ${error}`);
                     results.failed++;
                     results.errors.push(`Baris ${rowNumber}: ${error}`);
@@ -791,13 +851,13 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 
                 console.log(`  💾 Inserting customer (SIMPLE):`, {
                     name: row['Nama'],
-                    phone: row['Telepon'],
+                    phone: cleanPhone,
                     address: row['Alamat'] || '(kosong)'
                 });
                 
                 await databasePool.execute(insertQuery, [
                     row['Nama'],
-                    row['Telepon'],
+                    cleanPhone, // Use cleaned phone
                     row['Alamat'] || '',
                     row['Email'] || '', // gunakan string kosong jika tidak ada email
                     generatedCode       // isi customer_code agar tidak null pada server live
