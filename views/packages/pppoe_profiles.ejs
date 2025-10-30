@@ -26,42 +26,82 @@
     <% } %>
     
     <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
+        <table class="min-w-full text-xs">
             <thead class="text-left text-slate-600 bg-slate-50">
                 <tr>
-                    <th class="py-2 px-3">Nama</th>
-                    <th class="py-2 px-3">Local Address</th>
-                    <th class="py-2 px-3">Remote Pool</th>
-                    <th class="py-2 px-3">DNS Server</th>
-                    <th class="py-2 px-3">Rate Limit RX</th>
-                    <th class="py-2 px-3">Rate Limit TX</th>
-                    <th class="py-2 px-3">Burst RX</th>
-                    <th class="py-2 px-3">Burst TX</th>
-                    <th class="py-2 px-3">Comment</th>
-                    <th class="py-2 px-3 text-center">Aksi</th>
+                    <th class="py-2 px-2 sticky left-0 bg-slate-50 z-10">Nama</th>
+                    <th class="py-2 px-2">Local Address</th>
+                    <th class="py-2 px-2">Remote Pool</th>
+                    <th class="py-2 px-2">DNS Server</th>
+                    <th class="py-2 px-2 bg-blue-50">📥 Rate RX</th>
+                    <th class="py-2 px-2 bg-green-50">📤 Rate TX</th>
+                    <th class="py-2 px-2 bg-purple-50" colspan="4">🚀 Burst Limiting RX (Download)</th>
+                    <th class="py-2 px-2 bg-orange-50" colspan="4">🚀 Burst Limiting TX (Upload)</th>
+                    <th class="py-2 px-2">Comment</th>
+                    <th class="py-2 px-2 text-center sticky right-0 bg-slate-50 z-10">Aksi</th>
+                </tr>
+                <tr class="bg-slate-100">
+                    <th class="py-1 px-2 sticky left-0 bg-slate-100 z-10"></th>
+                    <th class="py-1 px-2"></th>
+                    <th class="py-1 px-2"></th>
+                    <th class="py-1 px-2"></th>
+                    <th class="py-1 px-2 text-xs bg-blue-50">Limit</th>
+                    <th class="py-1 px-2 text-xs bg-green-50">Limit</th>
+                    <th class="py-1 px-2 text-xs bg-purple-50">Burst</th>
+                    <th class="py-1 px-2 text-xs bg-purple-50">Threshold</th>
+                    <th class="py-1 px-2 text-xs bg-purple-50">Time</th>
+                    <th class="py-1 px-2 text-xs bg-purple-50"></th>
+                    <th class="py-1 px-2 text-xs bg-orange-50">Burst</th>
+                    <th class="py-1 px-2 text-xs bg-orange-50">Threshold</th>
+                    <th class="py-1 px-2 text-xs bg-orange-50">Time</th>
+                    <th class="py-1 px-2 text-xs bg-orange-50"></th>
+                    <th class="py-1 px-2"></th>
+                    <th class="py-1 px-2 sticky right-0 bg-slate-100 z-10"></th>
                 </tr>
             </thead>
             <tbody>
                 <% (profiles || []).forEach(function(profile){ %>
                 <tr class="border-t border-slate-100 hover:bg-slate-50">
-                    <td class="py-2 px-3 font-medium"><%= profile.name %></td>
-                    <td class="py-2 px-3"><%= profile.local_address || '-' %></td>
-                    <td class="py-2 px-3"><%= profile.remote_address_pool || '-' %></td>
-                    <td class="py-2 px-3"><%= profile.dns_server || '-' %></td>
-                    <td class="py-2 px-3">
-                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
+                    <td class="py-2 px-2 font-medium sticky left-0 bg-white hover:bg-slate-50 z-10"><%= profile.name %></td>
+                    <td class="py-2 px-2 text-xs"><%= profile.local_address || '-' %></td>
+                    <td class="py-2 px-2 text-xs"><%= profile.remote_address_pool || '-' %></td>
+                    <td class="py-2 px-2 text-xs"><%= profile.dns_server || '-' %></td>
+                    <td class="py-2 px-2 bg-blue-50">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 font-medium">
                             <%= profile.rate_limit_rx || '0' %>
                         </span>
                     </td>
-                    <td class="py-2 px-3">
-                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                    <td class="py-2 px-2 bg-green-50">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700 font-medium">
                             <%= profile.rate_limit_tx || '0' %>
                         </span>
                     </td>
-                    <td class="py-2 px-3"><%= profile.burst_limit_rx || '-' %></td>
-                    <td class="py-2 px-3"><%= profile.burst_limit_tx || '-' %></td>
-                    <td class="py-2 px-3 text-xs text-slate-600"><%= profile.comment || '-' %></td>
-                    <td class="py-2 px-3">
+                    <!-- Burst RX (Download) -->
+                    <td class="py-2 px-2 text-xs bg-purple-50">
+                        <span class="text-purple-700 font-medium"><%= profile.burst_limit_rx || '-' %></span>
+                    </td>
+                    <td class="py-2 px-2 text-xs bg-purple-50">
+                        <span class="text-purple-600"><%= profile.burst_threshold_rx || '-' %></span>
+                    </td>
+                    <td class="py-2 px-2 text-xs bg-purple-50">
+                        <span class="text-purple-600"><%= profile.burst_time_rx || '-' %></span>
+                    </td>
+                    <td class="py-2 px-2 text-xs bg-purple-50"></td>
+                    <!-- Burst TX (Upload) -->
+                    <td class="py-2 px-2 text-xs bg-orange-50">
+                        <span class="text-orange-700 font-medium"><%= profile.burst_limit_tx || '-' %></span>
+                    </td>
+                    <td class="py-2 px-2 text-xs bg-orange-50">
+                        <span class="text-orange-600"><%= profile.burst_threshold_tx || '-' %></span>
+                    </td>
+                    <td class="py-2 px-2 text-xs bg-orange-50">
+                        <span class="text-orange-600"><%= profile.burst_time_tx || '-' %></span>
+                    </td>
+                    <td class="py-2 px-2 text-xs bg-orange-50"></td>
+                    <!-- Comment -->
+                    <td class="py-2 px-2 text-xs text-slate-600"><%= profile.comment || '-' %></td>
+                    <!-- Actions -->
+                    <td class="py-2 px-2 sticky right-0 bg-white hover:bg-slate-50 z-10">
                         <div class="flex items-center justify-center gap-2">
                             <a href="/packages/pppoe/profiles/<%= profile.id %>/edit" 
                                class="text-blue-600 hover:text-blue-800" 
@@ -82,20 +122,41 @@
                 </tr>
                 <% }) %>
                 <% if (!profiles || profiles.length === 0) { %>
-                <tr><td colspan="10" class="py-6 text-center text-slate-500">Belum ada profil. Klik "Sync dari MikroTik" untuk mengambil data dari MikroTik.</td></tr>
+                <tr><td colspan="16" class="py-6 text-center text-slate-500">Belum ada profil. Klik "Sync dari MikroTik" untuk mengambil data dari MikroTik.</td></tr>
                 <% } %>
             </tbody>
         </table>
     </div>
     
     <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-        <p class="font-semibold mb-1">💡 Info:</p>
-        <ul class="list-disc list-inside space-y-1 text-xs">
-            <li><strong>Sync dari MikroTik:</strong> Otomatis ambil & update profil dari router MikroTik</li>
-            <li><strong>Tambah Manual:</strong> Buat profil baru secara manual (tidak tersync ke MikroTik)</li>
-            <li><strong>Rate Limit:</strong> RX = Download, TX = Upload</li>
-            <li><strong>Burst:</strong> Speed maksimal sementara saat bandwidth tersedia</li>
-        </ul>
+        <p class="font-semibold mb-2">💡 Info & Penjelasan Kolom:</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div>
+                <p class="font-semibold mb-1">📥 Download (RX):</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>Rate Limit RX:</strong> Batas kecepatan download normal</li>
+                    <li><strong>Burst RX:</strong> Speed maksimal download saat burst</li>
+                    <li><strong>Threshold RX:</strong> Batas traffic sebelum burst aktif</li>
+                    <li><strong>Time RX:</strong> Durasi burst aktif (contoh: 10s, 30s)</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold mb-1">📤 Upload (TX):</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>Rate Limit TX:</strong> Batas kecepatan upload normal</li>
+                    <li><strong>Burst TX:</strong> Speed maksimal upload saat burst</li>
+                    <li><strong>Threshold TX:</strong> Batas traffic sebelum burst aktif</li>
+                    <li><strong>Time TX:</strong> Durasi burst aktif (contoh: 10s, 30s)</li>
+                </ul>
+            </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-blue-300">
+            <ul class="list-disc list-inside space-y-1 text-xs">
+                <li><strong>Sync dari MikroTik:</strong> Otomatis ambil & update profil dari router MikroTik</li>
+                <li><strong>Tambah Manual:</strong> Buat profil baru secara manual (tidak tersync ke MikroTik)</li>
+                <li><strong>Burst Limiting:</strong> Memberikan speed ekstra sementara saat bandwidth tersedia</li>
+            </ul>
+        </div>
     </div>
 </div>
 
