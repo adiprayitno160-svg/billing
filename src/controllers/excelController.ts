@@ -215,16 +215,35 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
         const matchKey = (rowObj: any, candidates: string[]): any => {
             const keys = Object.keys(rowObj);
             const normMap: Record<string, string> = {};
-            for (const k of keys) normMap[normalizeKey(k)] = k;
+            
+            // Build normalized map
+            for (const k of keys) {
+                normMap[normalizeKey(k)] = k;
+            }
+            
+            console.log('🔍 Available columns:', keys);
+            console.log('🔍 Normalized map:', normMap);
+            console.log('🔍 Looking for:', candidates);
+            
+            // Exact match first
             for (const c of candidates) {
                 const nc = normalizeKey(c);
-                if (normMap[nc] !== undefined) return rowObj[normMap[nc]];
+                if (normMap[nc] !== undefined) {
+                    console.log(`✅ Exact match found: "${c}" -> "${normMap[nc]}"`);
+                    return rowObj[normMap[nc]];
+                }
             }
-            // fuzzy includes
+            
+            // Fuzzy includes
             const wanted = candidates.map(c => normalizeKey(c));
             for (const [nk, orig] of Object.entries(normMap)) {
-                if (wanted.some(w => nk === w || nk.includes(w))) return rowObj[orig];
+                if (wanted.some(w => nk === w || nk.includes(w) || w.includes(nk))) {
+                    console.log(`✅ Fuzzy match found: "${nk}" -> "${orig}"`);
+                    return rowObj[orig];
+                }
             }
+            
+            console.log('❌ No match found for:', candidates);
             return '';
         };
 
