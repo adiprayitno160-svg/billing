@@ -1,163 +1,124 @@
-# 🚀 Release Notes v2.0.8.5
+# Release Notes v2.0.8.5
 
-**Release Date:** 2025-10-30  
-**Type:** Bug Fixes & Improvements
-
-## 🎯 Fixes Implemented
-
-### 1. ✅ **Customers Import - Template Removal & Email Optional**
-**Problem:** 
-- Tombol template download yang tidak berfungsi muncul di beberapa tempat
-- Import gagal dengan error "gagal 1" karena Email wajib diisi
-
-**Solution:**
-- ✅ Hapus semua tombol template download dari halaman customers list
-- ✅ Ubah validasi import: **Email sekarang OPTIONAL** (hanya Nama dan Telepon yang wajib)
-- ✅ Improve error messages untuk import failures
-- ✅ Check phone uniqueness terlebih dahulu, baru email (jika provided)
-
-**Files Changed:**
-- `views/customers/list.ejs` - Remove template buttons
-- `src/controllers/customerController.ts` - Fix import validation
+**Release Date:** October 30, 2025  
+**Type:** Feature Update & Bug Fixes
 
 ---
 
-### 2. ✅ **PPPoE Package Creation - Auto-fill & NULL Handling**
-**Problem:**
-- Error `column 'rate_limit_rx' cannot be null` saat save tanpa memilih profil PPPoE
-- Rate limiting dan burst limiting tidak auto-fill dari profil MikroTik
+## 🎯 What's New
 
-**Solution:**
-- ✅ **Auto-fill** rate limiting & burst limiting dari profil PPPoE MikroTik (sudah ada, tapi belum jelas)
-- ✅ Set **default value '0'** (unlimited) untuk rate_limit_rx/tx jika tidak diisi
-- ✅ Improve placeholder dan hint untuk rate limiting fields
-- ✅ Menampilkan informasi bahwa field kosong = unlimited
+### ✨ Profile PPPoE CRUD Management
+- **Create/Edit/Delete Profile Manually**: Tambah fitur untuk membuat, mengedit, dan menghapus profil PPPoE secara manual
+- **Rate Limiting Display**: Tampilkan kolom Rate Limit RX/TX dan Burst Limit di tabel profil
+- **Complete Form**: Form lengkap dengan semua parameter rate limiting dan burst limiting
+- **Delete Protection**: Profil yang digunakan oleh paket tidak dapat dihapus
 
-**Files Changed:**
-- `src/services/pppoeService.ts` - Default '0' untuk rate_limit
-- `views/packages/pppoe_package_form.ejs` - Better placeholders and hints
-
----
-
-## 📊 Technical Details
-
-### Customers Import Validation Changes
-**Before:**
-```typescript
-if (!row['Nama'] || !row['Email'] || !row['Telepon']) {
-    // Error: Semua field wajib
-}
-```
-
-**After:**
-```typescript
-// HANYA Nama dan Telepon yang WAJIB
-if (!row['Nama'] || !row['Telepon']) {
-    results.failed++;
-    results.errors.push(`Baris ${rowNumber}: Nama dan Telepon harus diisi`);
-    continue;
-}
-
-// Email validation hanya jika provided
-if (row['Email']) {
-    // Check email uniqueness
-}
-```
-
-### PPPoE Package Rate Limit Defaults
-**Before:**
-```typescript
-data.rate_limit_rx || null,  // ERROR: Database NOT NULL constraint
-data.rate_limit_tx || null,
-```
-
-**After:**
-```typescript
-data.rate_limit_rx || '0',  // Default '0' (unlimited) jika tidak diisi
-data.rate_limit_tx || '0',  // Default '0' (unlimited) jika tidak diisi
-```
+### 📊 About Page - Major Updates Only
+- **Smart Versioning**: About page hanya menampilkan dan cek major updates (2.0.8 → 2.0.9)
+- **Ignore Hotfixes**: Hotfixes (2.0.8.1, 2.0.8.2, dll) tidak muncul di About page
+- **Dual Versioning System**:
+  - `VERSION_MAJOR` → Untuk About page (stable releases only)
+  - `VERSION` → Untuk footer/internal tracking (includes hotfixes)
 
 ---
 
-## 🔧 Deployment Instructions
+## 🔧 Technical Improvements
 
-### Quick Deploy (Recommended)
-```bash
-cd /opt/billing && git pull && npm run build && pm2 restart billing-system
+### Backend
+- Added `getProfileById()`, `createProfile()`, `updateProfile()`, `deleteProfile()` in `pppoeService.ts`
+- Added `getMajorVersion()` and `checkForMajorUpdates()` in `GitHubService.ts`
+- Enhanced profile CRUD with complete rate/burst limiting fields
+
+### Frontend
+- New view: `pppoe_profiles.ejs` with rate limiting columns
+- New view: `pppoe_profile_form.ejs` with complete form
+- Updated routes for profile CRUD operations
+
+### Versioning Strategy
 ```
-
-### Manual Steps
-```bash
-cd /opt/billing
-git pull origin main
-npm install  # (optional, no new dependencies)
-npm run build
-pm2 restart billing-system
+VERSION_MAJOR (2.0.8) ─────> About Page (Stable)
+                            └─> GitHub Release Check
+                            
+VERSION (2.0.8.5) ────────> Footer Display
+                          └─> Internal Tracking
 ```
-
----
-
-## ✅ Verification Steps
-
-### 1. Customers Import
-- [ ] Buka `/customers/list`
-- [ ] Pastikan **tidak ada tombol "Template"**
-- [ ] Klik **Import Excel**
-- [ ] Upload Excel dengan hanya **Nama & Telepon** (tanpa Email)
-- [ ] **Expected:** Import berhasil!
-
-### 2. PPPoE Package Creation
-- [ ] Buka `/packages/pppoe/packages/new`
-- [ ] **Dengan Profil:**
-  - Pilih profil PPPoE dari dropdown
-  - **Expected:** Rate limiting auto-fill dari profil
-- [ ] **Tanpa Profil:**
-  - Biarkan profil kosong
-  - Kosongkan Rate Limit RX/TX
-  - Klik Save
-  - **Expected:** Berhasil save (default ke '0' = unlimited)
-
----
-
-## 📝 Changelog Summary
-
-### Changed
-- Customers import: Email is now optional (only Nama & Telepon required)
-- PPPoE package: Rate limits default to '0' (unlimited) if not provided
-
-### Removed
-- Template download buttons from customers list page
-
-### Improved
-- Import error messages more descriptive
-- Rate limiting field placeholders and hints
-- User experience for PPPoE package creation
 
 ---
 
 ## 🐛 Bug Fixes
-1. ✅ Fixed import error "column 'rate_limit_rx' cannot be null"
-2. ✅ Fixed customers import requiring Email unnecessarily
-3. ✅ Removed non-functional template buttons
+
+- **Session/Idle Timeout**: Removed unused session_timeout and idle_timeout fields from forms
+- **About Page Button**: "Cek Update" button now correctly checks only for major releases
+- **Rate Limiting**: Fixed rate limit display in profile table
 
 ---
 
-## 📚 Related Issues
-- Import customers: Template buttons tidak berfungsi
-- PPPoE Package: Error NULL constraint pada rate_limit_rx
-- Auto-fill dari MikroTik profile tidak jelas bagi user
+## 📦 Database Changes
+
+No database migrations required for this release.
 
 ---
 
-## 🎉 Credits
-**Developed by:** AI Assistant  
-**Tested by:** User Feedback  
-**Version:** 2.0.8.5
+## 🚀 Deployment
+
+### Method 1: Auto Update (Recommended)
+```bash
+# On server
+cd /opt/billing
+bash auto-update-views.sh  # For view-only changes
+# OR
+bash full-deploy.sh        # For full deployment
+```
+
+### Method 2: Manual
+```bash
+git pull origin main
+npm run build
+pm2 restart billing-app  # or billing-system/billing
+```
 
 ---
 
-**Previous Versions:**
-- [v2.0.8.4](DEPLOY_v2.0.8.4_SEKARANG.txt) - Gradual transition control for traffic graphs
-- [v2.0.8.3](EMERGENCY_HOTFIX_v2.0.8.3.txt) - Realistic rate cap and byte counter corruption
-- [v2.0.8](RELEASE_NOTES_v2.0.8.md) - Initial smoothing algorithms
+## 📝 Migration Guide
 
+No special migration steps required. Just pull and restart.
+
+---
+
+## 🎉 Complete Features
+
+### Profile PPPoE Management
+1. **List Profiles**: Lihat semua profil dengan rate limiting
+2. **Sync from MikroTik**: Sync otomatis dari router
+3. **Create Manual**: Buat profil baru tanpa MikroTik
+4. **Edit Profile**: Update rate limit dan burst setting
+5. **Delete Profile**: Hapus profil (dengan validasi usage)
+
+### About Page Improvements
+- Only show stable releases (2.0.8, 2.0.9, etc)
+- Ignore hotfixes for cleaner UI
+- Footer shows full version for internal reference
+
+---
+
+## 🔗 Related Issues
+
+- Profile PPPoE tidak bisa di-manage secara manual ✅
+- About page menampilkan terlalu banyak hotfix updates ✅
+- Rate limiting tidak terlihat di tabel profil ✅
+
+---
+
+## 👥 Contributors
+
+- adiprayitno160-svg
+
+---
+
+## 📌 Notes
+
+- This is a **feature update** with no breaking changes
+- Backward compatible with v2.0.8.4
+- Safe to deploy on production
+
+**Full Changelog**: https://github.com/adiprayitno160-svg/billing/compare/v2.0.8.4...v2.0.8.5
