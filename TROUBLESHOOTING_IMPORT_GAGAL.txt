@@ -1,0 +1,287 @@
+====================================================================
+❌ TROUBLESHOOTING: IMPORT EXCEL MASIH GAGAL
+====================================================================
+
+Mohon info lebih detail agar saya bisa bantu:
+
+1. DEPLOY SUDAH BERHASIL ATAU BELUM?
+   □ Sudah jalankan AUTO-DEPLOY-SIMPLE-IMPORT.bat
+   □ Muncul "✅ DEPLOYMENT SUCCESS!"
+   □ PM2 status "online"
+
+2. ERROR MESSAGE APA YANG MUNCUL?
+   □ Di browser: "Berhasil: 0, Gagal: 20" (atau angka lain)
+   □ Di browser: Error lain (sebutkan)
+   □ Di log PM2: Error spesifik (copy paste)
+
+3. FORMAT EXCEL SUDAH BENAR?
+   Header Baris 1 (HARUS PERSIS):
+   □ Nama | Telepon | Alamat
+   
+   BUKAN:
+   ❌ Name | Phone | Address (bahasa Inggris)
+   ❌ nama | telepon | alamat (huruf kecil semua)
+
+
+====================================================================
+🔍 QUICK DIAGNOSTIC - JALANKAN SCRIPT INI:
+====================================================================
+
+Klik kanan → Run with PowerShell:
+
+CHECK-IMPORT-ERROR.ps1
+
+Script ini akan auto-check:
+✅ Git version
+✅ PM2 status
+✅ PM2 logs (error apa)
+✅ Build status
+✅ Database connection
+
+
+====================================================================
+🔧 QUICK FIX (PILIH SESUAI ERROR):
+====================================================================
+
+FIX 1: Deploy Belum Dijalankan
+--------------------------------------------------------------------
+Double-click:
+AUTO-DEPLOY-SIMPLE-IMPORT.bat
+
+Isi:
+- Username: root
+- IP: (IP server Anda)
+- Path: /opt/billing (Enter aja)
+
+
+FIX 2: Deploy Berhasil, Tapi Import Gagal Semua (0/20)
+--------------------------------------------------------------------
+KEMUNGKINAN: Nama kolom Excel SALAH
+
+CEK:
+1. Buka Excel Anda
+2. Lihat BARIS 1 (header)
+3. HARUS PERSIS: Nama | Telepon | Alamat
+
+JANGAN:
+❌ Name | Phone | Address
+❌ NAMA | TELEPON | ALAMAT
+❌ nama | telepon | alamat
+
+BENAR:
+✅ Nama | Telepon | Alamat (huruf besar di awal, Indonesia)
+
+
+FIX 3: Import Sebagian Gagal (10/20 berhasil, 10/20 gagal)
+--------------------------------------------------------------------
+KEMUNGKINAN: Nomor telepon DUPLICATE atau baris kosong
+
+SOLUSI:
+1. Monitor log PM2:
+   
+   ssh root@YOUR_IP "pm2 logs billing-app --lines 50"
+
+2. Cari error spesifik untuk baris yang gagal:
+   
+   "Baris 5: Pelanggan dengan telepon '08123456789' sudah ada"
+   "Baris 8: Kolom Nama kosong"
+
+3. Fix Excel sesuai error
+4. Upload ulang
+
+
+FIX 4: PM2 Tidak Jalan / Status "stopped"
+--------------------------------------------------------------------
+ssh root@YOUR_IP
+
+cd /opt/billing
+
+pm2 restart billing-app
+
+# Jika masih error:
+pm2 delete billing-app
+pm2 start ecosystem.config.js --env production
+pm2 save
+
+
+FIX 5: Build Error (tsc not found)
+--------------------------------------------------------------------
+ssh root@YOUR_IP
+
+cd /opt/billing
+
+npm install
+
+npm run build
+
+pm2 restart billing-app
+
+
+====================================================================
+📋 TEMPLATE EXCEL YANG 100% BENAR:
+====================================================================
+
+Buka Excel baru, copy-paste ini (dengan TAB di antara kolom):
+
+Nama	Telepon	Alamat
+John Doe	08123456789	Jl. Merdeka No. 123
+Jane Smith	08234567890	Jl. Sudirman No. 456
+Ahmad Rizki	08345678901	Jl. Diponegoro No. 789
+
+Save as: test_simple.xlsx
+
+Upload di: http://YOUR_IP/customers/list
+
+
+====================================================================
+🔍 CEK LOG PM2 UNTUK DEBUG:
+====================================================================
+
+CARA 1: Dari Windows PowerShell
+--------------------------------------------------------------------
+ssh root@YOUR_IP "pm2 logs billing-app --lines 0"
+
+Biarkan terbuka, lalu upload Excel di browser.
+Log akan muncul real-time untuk setiap baris.
+
+
+CARA 2: Dari SSH langsung
+--------------------------------------------------------------------
+ssh root@YOUR_IP
+
+pm2 logs billing-app --lines 0
+
+Upload Excel, lihat log yang muncul.
+
+
+YANG HARUS MUNCUL (Jika BERHASIL):
+--------------------------------------------------------------------
+📝 Processing row 2: {
+  Nama: 'John Doe',
+  Telepon: '08123456789',
+  Alamat: 'Jl. Merdeka No. 123',
+  All keys in Excel: 'Nama, Telepon, Alamat'
+}
+  ✅ Validation passed: Nama dan Telepon OK
+  🔍 Checking phone: "08123456789"
+  ✅ Phone OK - No duplicate found
+  💾 Inserting customer (SIMPLE): {
+    name: 'John Doe',
+    phone: '08123456789',
+    address: 'Jl. Merdeka No. 123'
+  }
+  ✅ SUCCESS: Row 2 imported!
+
+
+YANG MUNCUL (Jika GAGAL - Kolom Salah):
+--------------------------------------------------------------------
+📝 Processing row 2: {
+  Nama: 'EMPTY',
+  Telepon: 'EMPTY',
+  Alamat: 'EMPTY',
+  All keys in Excel: 'Name, Phone, Address'  ← SALAH!
+}
+  ❌ Validation failed: Kolom "Nama" kosong atau tidak ditemukan
+
+
+YANG MUNCUL (Jika GAGAL - Telepon Duplicate):
+--------------------------------------------------------------------
+📝 Processing row 2: {
+  Nama: 'John Doe',
+  Telepon: '08123456789',
+  ...
+}
+  🔍 Checking phone: "08123456789"
+  ❌ Duplicate phone: Pelanggan dengan telepon "08123456789" sudah ada
+
+
+====================================================================
+❓ PERTANYAAN UNTUK DEBUG:
+====================================================================
+
+Mohon jawab pertanyaan ini agar saya bisa bantu lebih spesifik:
+
+1. Apakah sudah jalankan AUTO-DEPLOY-SIMPLE-IMPORT.bat?
+   □ Ya, muncul "✅ DEPLOYMENT SUCCESS!"
+   □ Ya, tapi ada error (sebutkan errornya)
+   □ Belum jalankan
+
+2. Apakah PM2 status "online"?
+   Cek dengan: ssh root@YOUR_IP "pm2 list"
+   □ Ya, status "online"
+   □ Tidak, status "stopped" atau "errored"
+
+3. Apa yang muncul di browser saat upload Excel?
+   □ "Berhasil: 0, Gagal: 20"
+   □ "Berhasil: 10, Gagal: 10"
+   □ Error 500
+   □ Lainnya (sebutkan)
+
+4. Apa yang muncul di log PM2?
+   Jalankan: ssh root@YOUR_IP "pm2 logs billing-app --lines 20"
+   Lalu copy-paste 10 baris terakhir di sini.
+
+5. Seperti apa header Excel Anda (baris 1)?
+   Contoh: "Nama | Telepon | Alamat"
+   Atau: "Name | Phone | Address"
+   
+   Tulis persis header Anda di sini:
+   □ _______________________
+
+
+====================================================================
+🚀 STEP-BY-STEP MULAI DARI AWAL:
+====================================================================
+
+Jika bingung, ikuti ini dari awal:
+
+STEP 1: Deploy Ulang
+--------------------------------------------------------------------
+1. Double-click: AUTO-DEPLOY-SIMPLE-IMPORT.bat
+2. Isi username & IP server
+3. Tunggu "✅ DEPLOYMENT SUCCESS!"
+
+
+STEP 2: Buat Excel Baru (Jangan Pakai Yang Lama)
+--------------------------------------------------------------------
+1. Buka Excel baru
+2. Ketik header di baris 1: Nama [TAB] Telepon [TAB] Alamat
+3. Baris 2: Test User [TAB] 08999999999 [TAB] Jl. Test No. 1
+4. Save as: test_new.xlsx
+
+
+STEP 3: Monitor Log PM2
+--------------------------------------------------------------------
+1. Buka PowerShell
+2. Jalankan: ssh root@YOUR_IP "pm2 logs billing-app --lines 0"
+3. Biarkan terbuka
+
+
+STEP 4: Upload Excel & Lihat Log
+--------------------------------------------------------------------
+1. Buka browser: http://YOUR_IP/customers/list
+2. Klik "📥 Import Excel"
+3. Pilih test_new.xlsx
+4. Klik "Import Data"
+5. LANGSUNG CEK PowerShell (step 3), lihat log yang muncul
+
+
+STEP 5: Analisa Log
+--------------------------------------------------------------------
+Jika muncul:
+✅ "SUCCESS: Row 2 imported!" → BERHASIL!
+❌ "Validation failed" → Header Excel salah
+❌ "Duplicate phone" → Nomor telepon sudah ada
+
+
+====================================================================
+📞 KIRIM INFO INI UNTUK BANTUAN LEBIH LANJUT:
+====================================================================
+
+1. Screenshot hasil deploy (success/failed)
+2. Screenshot notifikasi browser saat import
+3. Copy-paste 20 baris log PM2
+4. Screenshot 3 baris pertama Excel Anda (termasuk header)
+
+====================================================================
+
