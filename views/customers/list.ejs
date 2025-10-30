@@ -432,9 +432,11 @@ async function confirmBulkDelete() {
     
     // Show loading
     const btn = document.getElementById('bulkDeleteBtn');
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '⏳ Menghapus...';
-    btn.disabled = true;
+    if (btn) {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '⏳ Menghapus...';
+        btn.disabled = true;
+    }
 
     fetch('/customers/bulk-delete', {
         method: 'POST',
@@ -1130,7 +1132,7 @@ Terima kasih! 🙏`;
 					</svg>
 					Batal
 				</button>
-				<button onclick="confirmBulkDelete()" class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold shadow-lg">
+				<button id="bulkDeleteBtn" onclick="confirmBulkDelete()" class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold shadow-lg">
 					<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
 					</svg>
