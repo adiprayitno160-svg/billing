@@ -18,6 +18,12 @@
 - ✅ Better error messages showing existing customer
 - ✅ Consistent implementation across both import functions
 
+### Customer List - Status 500 Error Fix
+- ✅ Fixed missing `statistics` field in error handler
+- ✅ Added try-catch for statistics queries
+- ✅ Graceful fallback jika statistics query gagal
+- ✅ Better error handling untuk mencegah 500 error
+
 ### UI Improvements
 - ✅ Better pagination design dengan gradient colors
 - ✅ Display informasi: "Menampilkan X sampai Y dari Z pelanggan"
