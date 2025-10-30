@@ -112,6 +112,16 @@
                         </select>
                     </div>
                     
+                    <!-- Isolir Filter -->
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1.5">Pelanggan Isolir</label>
+                        <select name="hide_isolated" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                            <option value="">Tampilkan Semua</option>
+                            <option value="1" <%= filters.hide_isolated === '1' || filters.hide_isolated === true ? 'selected' : '' %>>🚫 Sembunyikan Isolir</option>
+                            <option value="only" <%= filters.hide_isolated === 'only' ? 'selected' : '' %>>⚠️ Hanya Isolir</option>
+                        </select>
+                    </div>
+                    
                     <!-- ODC Filter -->
                     <div class="flex-1 min-w-[180px]">
                         <label class="block text-xs font-medium text-gray-600 mb-1.5">Area ODC</label>

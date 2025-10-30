@@ -53,6 +53,7 @@ export async function getTagihanList(req: Request, res: Response): Promise<void>
         const limit = parseInt(req.query.limit as string) || 10;
         const status = req.query.status as string || '';
         const search = req.query.search as string || '';
+        const hideIsolated = req.query.hide_isolated as string || '';
         
         const offset = (page - 1) * limit;
 
@@ -68,6 +69,13 @@ export async function getTagihanList(req: Request, res: Response): Promise<void>
         if (search) {
             whereConditions.push('(c.full_name LIKE ? OR c.phone LIKE ? OR i.invoice_number LIKE ?)');
             queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        // Filter isolated customers
+        if (hideIsolated === '1') {
+            whereConditions.push('(c.is_isolated IS NULL OR c.is_isolated = 0)');
+        } else if (hideIsolated === 'only') {
+            whereConditions.push('c.is_isolated = 1');
         }
 
         const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
