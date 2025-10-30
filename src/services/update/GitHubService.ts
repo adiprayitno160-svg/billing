@@ -44,6 +44,33 @@ export class GitHubService {
   }
 
   /**
+   * Get MAJOR version from VERSION_MAJOR file (for About page)
+   * This excludes hotfixes (2.0.8.x) and only shows stable releases (2.0.8)
+   */
+  static getMajorVersion(): string {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const versionPath = path.join(__dirname, '../../../VERSION_MAJOR');
+      const version = fs.readFileSync(versionPath, 'utf-8').trim();
+      return version;
+    } catch (error) {
+      console.error('Error reading VERSION_MAJOR:', error);
+      // Fallback to VERSION file and extract major.minor.patch
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const versionPath = path.join(__dirname, '../../../VERSION');
+        const fullVersion = fs.readFileSync(versionPath, 'utf-8').trim();
+        const majorMatch = fullVersion.match(/^(\d+\.\d+\.\d+)/);
+        return majorMatch ? majorMatch[1] : '2.0.8';
+      } catch (err) {
+        return '2.0.8'; // Ultimate fallback
+      }
+    }
+  }
+
+  /**
    * Get GitHub repository info
    */
   static async getRepoInfo(): Promise<{ owner: string; repo: string }> {
@@ -151,6 +178,59 @@ export class GitHubService {
       available,
       currentVersion,
       latestVersion,
+      changelog: latestRelease.body || 'No changelog available',
+      publishedAt: latestRelease.published_at,
+      downloadUrl: latestRelease.zipball_url
+    };
+  }
+
+  /**
+   * Check for MAJOR updates ONLY (About page)
+   * Ignores hotfixes like 2.0.8.1, 2.0.8.2, etc
+   * Only checks for major releases like 2.0.8 -> 2.0.9
+   */
+  static async checkForMajorUpdates(): Promise<{
+    available: boolean;
+    currentVersion: string;
+    latestVersion: string;
+    changelog: string;
+    publishedAt: string;
+    downloadUrl: string;
+  }> {
+    const currentVersion = this.getMajorVersion(); // Read from VERSION_MAJOR file
+    const channel = await this.getSetting('update_channel') || 'stable';
+    const latestRelease = await this.getLatestRelease(channel);
+
+    // Update last check time
+    await this.setSetting('last_update_check', new Date().toISOString());
+
+    if (!latestRelease) {
+      return {
+        available: false,
+        currentVersion,
+        latestVersion: currentVersion,
+        changelog: '',
+        publishedAt: '',
+        downloadUrl: ''
+      };
+    }
+
+    // Extract MAJOR version from GitHub release (strip hotfix numbers)
+    let latestVersion = latestRelease.tag_name.replace(/^v/, '');
+    const majorMatch = latestVersion.match(/^(\d+\.\d+\.\d+)/);
+    if (majorMatch) {
+      latestVersion = majorMatch[1]; // Only take major.minor.patch
+    }
+
+    // Compare ONLY major versions (ignore hotfixes)
+    const currentMajor = currentVersion.split('.').slice(0, 3).join('.');
+    const latestMajor = latestVersion.split('.').slice(0, 3).join('.');
+    const available = this.compareVersions(latestMajor, currentMajor) > 0;
+
+    return {
+      available,
+      currentVersion: currentMajor,
+      latestVersion: latestMajor,
       changelog: latestRelease.body || 'No changelog available',
       publishedAt: latestRelease.published_at,
       downloadUrl: latestRelease.zipball_url

@@ -73,11 +73,15 @@ async function updateSetting(key: string, value: string): Promise<void> {
 
 /**
  * Get application version information
+ * ⚠️ HANYA menampilkan MAJOR versions (2.0.8), TIDAK termasuk hotfixes (2.0.8.5)
  */
 export async function getAppVersion(): Promise<AppVersion> {
     try {
-        const currentVersion = await GitHubService.getCurrentVersion();
-        const updateCheck = await GitHubService.checkForUpdates();
+        // Use MAJOR version only (from VERSION_MAJOR file)
+        const currentVersion = GitHubService.getMajorVersion();
+        
+        // Check for MAJOR updates only (ignores hotfixes)
+        const updateCheck = await GitHubService.checkForMajorUpdates();
 
         // Get changelog from latest releases
         const releases = await GitHubService.getAllReleases(5);
@@ -218,10 +222,12 @@ export async function getAppFeatures(): Promise<AppFeature[]> {
 
 /**
  * Check for updates
+ * ⚠️ HANYA check MAJOR updates, TIDAK termasuk hotfixes
  */
 export async function checkForUpdates(): Promise<UpdateInfo> {
     try {
-        const updateCheck = await GitHubService.checkForUpdates();
+        // Check for MAJOR updates only (ignores hotfixes like 2.0.8.1, 2.0.8.2, etc)
+        const updateCheck = await GitHubService.checkForMajorUpdates();
 
         if (!updateCheck.available) {
             return {
