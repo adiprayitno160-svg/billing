@@ -1,0 +1,97 @@
+====================================================================
+🔧 FIX BURST LIMITING DATA - SYNC ULANG DARI MIKROTIK
+====================================================================
+
+MASALAH:
+- Tabel Profile PPPoE sudah menampilkan kolom burst threshold & time
+- Tapi data dari MikroTik belum ter-load (masih kosong/dash)
+
+PENYEBAB:
+Data di database masih data LAMA yang di-sync sebelum kolom 
+burst threshold/time ditambahkan. Perlu RE-SYNC dari MikroTik.
+
+====================================================================
+SOLUSI (2 CARA):
+====================================================================
+
+CARA 1: AUTO-DEPLOY (RECOMMENDED) 🚀
+--------------------------------------------------------------------
+Di server live:
+
+cd /opt/billing
+git pull origin main
+npm run build
+pm2 restart billing-app  # atau billing-system/billing
+
+Lalu buka browser:
+1. Login ke /packages/pppoe/profiles
+2. Klik tombol "🔄 Sync dari MikroTik"
+3. Tunggu sampai selesai
+4. Refresh halaman
+5. Data burst threshold & time sekarang sudah muncul!
+
+
+CARA 2: MANUAL CHECK LOG (UNTUK DEBUGGING) 🔍
+--------------------------------------------------------------------
+Setelah klik "Sync dari MikroTik", lihat log PM2:
+
+pm2 logs billing-app --lines 100
+
+Cari log seperti ini:
+
+📝 Memproses profil: Paket-10M
+  📊 Burst Data: {
+    'burst-limit-rx': '20M',
+    'burst-limit-tx': '4M',
+    'burst-threshold-rx': '15M',    <-- Harus ada data
+    'burst-threshold-tx': '3M',      <-- Harus ada data
+    'burst-time-rx': '10s',          <-- Harus ada data
+    'burst-time-tx': '10s'           <-- Harus ada data
+  }
+
+Jika semua field menunjukkan 'EMPTY', berarti:
+- MikroTik memang tidak punya burst threshold/time di profil tersebut
+- Perlu diset manual di MikroTik atau via form Tambah/Edit Profil
+
+====================================================================
+PENJELASAN BURST LIMITING:
+====================================================================
+
+Burst Limiting = Memberikan speed EKSTRA sementara waktu.
+
+Contoh profil dengan burst:
+- Rate Limit: 10M/2M (Normal speed)
+- Burst Limit: 20M/4M (Max speed saat burst)
+- Burst Threshold: 15M/3M (Traffic harus di bawah ini untuk burst aktif)
+- Burst Time: 10s/10s (Durasi burst aktif)
+
+Cara kerja:
+1. User download dengan speed normal 10 Mbps
+2. Jika traffic < 15 Mbps, burst aktif
+3. Speed naik ke 20 Mbps selama 10 detik
+4. Setelah 10 detik, kembali ke 10 Mbps
+
+====================================================================
+JIKA MASIH KOSONG SETELAH SYNC:
+====================================================================
+
+Berarti MikroTik tidak punya burst threshold/time untuk profil itu.
+Bisa diset manual:
+
+1. Di MikroTik Winbox:
+   PPP > Profiles > [Pilih profile] > Tab Rate Limit
+   Set burst threshold & time
+
+2. Atau via Web UI:
+   /packages/pppoe/profiles/[id]/edit
+   Isi field burst threshold & time
+   Save
+
+====================================================================
+QUICK COMMAND (COPY-PASTE):
+====================================================================
+
+cd /opt/billing && git pull origin main && npm run build && pm2 restart billing-app && echo "✅ Done! Sekarang klik Sync dari MikroTik di browser"
+
+====================================================================
+
