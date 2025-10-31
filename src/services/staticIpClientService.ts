@@ -1,5 +1,6 @@
 import { databasePool } from '../db/pool';
 import { StaticIpClient } from './staticIpPackageService';
+import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 export type StaticIpClientWithPackage = StaticIpClient & {
     package_name: string;
@@ -65,13 +66,7 @@ export async function addClientToPackage(packageId: number, clientData: {
 		await conn.beginTransaction();
 		
         // Generate customer code dengan format YYYYMMDDHHMMSS
-        const now = new Date();
-        const customerCode = now.getFullYear().toString() + 
-                           (now.getMonth() + 1).toString().padStart(2, '0') + 
-                           now.getDate().toString().padStart(2, '0') + 
-                           now.getHours().toString().padStart(2, '0') + 
-                           now.getMinutes().toString().padStart(2, '0') + 
-                           now.getSeconds().toString().padStart(2, '0');
+        const customerCode = CustomerIdGenerator.generateCustomerId();
 
         // Insert ke tabel customers terlebih dahulu
         console.log('Inserting customer to customers table:', {
