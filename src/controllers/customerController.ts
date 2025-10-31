@@ -609,9 +609,15 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                 );
             }
             
-            // Create MikroTik resources if this is a new client or connection type changed to static_ip
-            console.log(`🔍 Debug: isNewClient=${isNewClient}, isConnectionTypeChanged=${isConnectionTypeChanged}, ip_address=${ip_address}, interface_name=${interface_name}`);
-            if ((isNewClient || isConnectionTypeChanged) && ip_address && interface_name) {
+            // Create MikroTik resources if:
+            // 1. This is a new client (no existing static_ip_clients record), OR
+            // 2. Connection type changed to static_ip, OR
+            // 3. IP address changed (need to update MikroTik)
+            const shouldCreateResources = (isNewClient || isConnectionTypeChanged || ipChanged) && ip_address && interface_name;
+            console.log(`🔍 Debug: isNewClient=${isNewClient}, isConnectionTypeChanged=${isConnectionTypeChanged}, ipChanged=${ipChanged}, ip_address=${ip_address}, interface_name=${interface_name}`);
+            console.log(`🔍 Should create resources: ${shouldCreateResources}`);
+            
+            if (shouldCreateResources) {
                 try {
                     const cfg = await getMikrotikConfig();
                     if (!cfg) {
@@ -732,7 +738,7 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                     throw new Error(`Gagal membuat resources di MikroTik: ${mkError.message || 'Unknown error'}. Pastikan konfigurasi MikroTik benar dan IP/interface valid.`);
                 }
             } else {
-                console.log(`⏭️ Skipping MikroTik resource creation - isNewClient: ${isNewClient}, isConnectionTypeChanged: ${isConnectionTypeChanged}`);
+                console.log(`⏭️ Skipping MikroTik resource creation - isNewClient: ${isNewClient}, isConnectionTypeChanged: ${isConnectionTypeChanged}, ipChanged: ${ipChanged}, hasIP: ${!!ip_address}, hasInterface: ${!!interface_name}`);
             }
         }
 
