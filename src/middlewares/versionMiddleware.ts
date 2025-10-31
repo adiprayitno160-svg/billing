@@ -36,18 +36,26 @@ export function injectAppVersion(req: Request, res: Response, next: NextFunction
         throw new Error('Invalid version format in VERSION file');
       }
     } catch (err) {
-      // Final fallback: package.json
+      // Final fallback: package.json - PRIMARY SOURCE
       try {
         const packagePath = join(__dirname, '../../package.json');
         const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
-        const pkgVersion = packageJson.version || '2.0.8';
+        const pkgVersion = packageJson.version || '1.0.0';
         
-        // Extract major.minor.patch
+        // Extract major.minor.patch from package.json version (e.g., 2.1.23 → 2.1.23)
         const majorMatch = pkgVersion.match(/^(\d+\.\d+\.\d+)/);
-        res.locals.appVersion = majorMatch ? majorMatch[1] : '2.0.8';
+        res.locals.appVersion = majorMatch ? majorMatch[1] : pkgVersion;
       } catch (finalErr) {
         console.error('Error reading version from all sources:', finalErr);
-        res.locals.appVersion = '2.0.8'; // Ultimate fallback
+        // Don't hardcode, try to get from package.json directly
+        try {
+          const packagePath = join(__dirname, '../../package.json');
+          const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
+          res.locals.appVersion = packageJson.version || '1.0.0';
+        } catch (lastErr) {
+          console.error('Ultimate fallback failed:', lastErr);
+          res.locals.appVersion = '1.0.0'; // Only use this if everything fails
+        }
       }
     }
   }
@@ -58,11 +66,11 @@ export function injectAppVersion(req: Request, res: Response, next: NextFunction
     const fullVersion = readFileSync(versionPath, 'utf-8').trim();
     res.locals.fullVersion = fullVersion;
   } catch (error) {
-    // Fallback to package.json
+    // Fallback to package.json - PRIMARY SOURCE
     try {
       const packagePath = join(__dirname, '../../package.json');
       const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
-      res.locals.fullVersion = packageJson.version || '2.0.8';
+      res.locals.fullVersion = packageJson.version || res.locals.appVersion;
     } catch (err) {
       res.locals.fullVersion = res.locals.appVersion; // Use major version as fallback
     }

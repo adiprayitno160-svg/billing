@@ -49,23 +49,41 @@ export class GitHubService {
    */
   static getMajorVersion(): string {
     try {
+      // PRIMARY SOURCE: package.json
       const fs = require('fs');
       const path = require('path');
-      const versionPath = path.join(__dirname, '../../../VERSION_MAJOR');
-      const version = fs.readFileSync(versionPath, 'utf-8').trim();
-      return version;
+      const packagePath = path.join(__dirname, '../../../package.json');
+      const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+      const pkgVersion = packageJson.version || '1.0.0';
+      
+      // Extract major.minor.patch from package.json version (e.g., 2.1.23 → 2.1.23)
+      const majorMatch = pkgVersion.match(/^(\d+\.\d+\.\d+)/);
+      if (majorMatch) {
+        return majorMatch[1];
+      }
+      return pkgVersion;
     } catch (error) {
-      console.error('Error reading VERSION_MAJOR:', error);
-      // Fallback to VERSION file and extract major.minor.patch
+      console.error('Error reading version from package.json:', error);
+      // Fallback to VERSION_MAJOR file
       try {
         const fs = require('fs');
         const path = require('path');
-        const versionPath = path.join(__dirname, '../../../VERSION');
-        const fullVersion = fs.readFileSync(versionPath, 'utf-8').trim();
-        const majorMatch = fullVersion.match(/^(\d+\.\d+\.\d+)/);
-        return majorMatch ? majorMatch[1] : '2.0.8';
-      } catch (err) {
-        return '2.0.8'; // Ultimate fallback
+        const versionPath = path.join(__dirname, '../../../VERSION_MAJOR');
+        const version = fs.readFileSync(versionPath, 'utf-8').trim();
+        return version;
+      } catch (err1) {
+        // Fallback to VERSION file and extract major.minor.patch
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const versionPath = path.join(__dirname, '../../../VERSION');
+          const fullVersion = fs.readFileSync(versionPath, 'utf-8').trim();
+          const majorMatch = fullVersion.match(/^(\d+\.\d+\.\d+)/);
+          return majorMatch ? majorMatch[1] : '1.0.0';
+        } catch (err2) {
+          console.error('All version sources failed, using fallback');
+          return '1.0.0'; // Ultimate fallback
+        }
       }
     }
   }
