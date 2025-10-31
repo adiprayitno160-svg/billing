@@ -18,6 +18,7 @@
     "pm2:monit": "pm2 monit",
     "deploy": "npm run build && pm2 reload billing-app",
     "deploy:ssh": "node deploy-ssh.js",
+    "webhook:server": "node webhook-update.js",
     "ssh:test": "node test-ssh.js",
     "setup-migrasi": "node setup-db-now.js"
   },
