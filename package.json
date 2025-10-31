@@ -19,6 +19,8 @@
     "deploy": "npm run build && pm2 reload billing-app",
     "deploy:ssh": "node deploy-ssh.js",
     "webhook:server": "node webhook-update.js",
+    "backup": "bash backup-all.sh",
+    "backup:windows": "backup-all.bat",
     "ssh:test": "node test-ssh.js",
     "setup-migrasi": "node setup-db-now.js"
   },
