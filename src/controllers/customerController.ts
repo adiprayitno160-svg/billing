@@ -473,7 +473,7 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             }
         }
         
-        // If static IP, we might need to update static_ip_clients table
+        // If static IP, update static_ip_clients table and assign package if provided
         if (connection_type === 'static_ip' && ip_address) {
             // Check if static IP client exists
             const [existingClient] = await databasePool.execute(
@@ -492,6 +492,36 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                 await databasePool.execute(
                     'INSERT INTO static_ip_clients (customer_id, ip_address, interface, gateway, created_at) VALUES (?, ?, ?, ?, NOW())',
                     [id, ip_address, interface_name, gateway || null]
+                );
+            }
+
+            // Assign static IP package if provided
+            if (static_ip_package) {
+                await databasePool.execute(
+                    'UPDATE static_ip_clients SET package_id = ? WHERE customer_id = ?',
+                    [static_ip_package, id]
+                );
+            }
+        }
+
+        // If PPPoE, assign package via subscriptions table (active)
+        if (connection_type === 'pppoe' && pppoe_package) {
+            // Upsert into subscriptions as active PPPoE package
+            // Try update existing active subscription
+            const [subRows] = await databasePool.execute(
+                'SELECT id FROM subscriptions WHERE customer_id = ? AND service_type = "pppoe" AND status = "active" LIMIT 1',
+                [id]
+            );
+            if ((subRows as any).length > 0) {
+                const subId = (subRows as any)[0].id;
+                await databasePool.execute(
+                    'UPDATE subscriptions SET package_id = ?, updated_at = NOW() WHERE id = ?',
+                    [pppoe_package, subId]
+                );
+            } else {
+                await databasePool.execute(
+                    'INSERT INTO subscriptions (customer_id, service_type, package_id, status, created_at, updated_at) VALUES (?, "pppoe", ?, "active", NOW(), NOW())',
+                    [id, pppoe_package]
                 );
             }
         }
