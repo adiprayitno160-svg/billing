@@ -364,42 +364,54 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
             conn.release();
         }
         
-        // Get interfaces from MikroTik for static IP customers
+        // Get interfaces from MikroTik - Always fetch if static_ip, otherwise empty array
         let interfaces = [];
         if (customer.connection_type === 'static_ip') {
             try {
                 const cfg = await getMikrotikConfig();
                 if (cfg) {
                     console.log('Fetching interfaces from MikroTik for edit customer...');
-                    interfaces = await getInterfaces(cfg);
-                    console.log(`Found ${interfaces.length} interfaces from MikroTik`);
-                    
-                    // Ensure current interface is in the list if it exists
-                    if (staticIpData && staticIpData.interface) {
-                        const currentInterface = staticIpData.interface;
-                        const existsInList = interfaces.some(ifc => ifc.name === currentInterface);
-                        if (!existsInList) {
-                            interfaces.unshift({ name: currentInterface });
-                            console.log(`Added current interface to list: ${currentInterface}`);
+                    try {
+                        interfaces = await getInterfaces(cfg);
+                        console.log(`✅ Found ${interfaces.length} interfaces from MikroTik`);
+                        
+                        // Ensure current interface is in the list if it exists
+                        if (staticIpData && staticIpData.interface) {
+                            const currentInterface = staticIpData.interface;
+                            const existsInList = interfaces.some(ifc => ifc.name === currentInterface);
+                            if (!existsInList) {
+                                interfaces.unshift({ name: currentInterface });
+                                console.log(`✅ Added current interface to list: ${currentInterface}`);
+                            }
+                        }
+                    } catch (fetchErr: any) {
+                        console.error('❌ Error fetching interfaces:', fetchErr.message || fetchErr);
+                        // Fallback: use existing interface if available
+                        if (staticIpData && staticIpData.interface) {
+                            interfaces = [{ name: staticIpData.interface }];
+                            console.log(`⚠️ Using existing interface as fallback: ${staticIpData.interface}`);
                         }
                     }
                 } else {
-                    console.warn('MikroTik config not found, using existing interface if available');
+                    console.warn('⚠️ MikroTik config not found, using existing interface if available');
                     // If interface already exists in customer data, keep it available
                     if (staticIpData && staticIpData.interface) {
                         interfaces = [{ name: staticIpData.interface }];
-                        console.log(`Using existing interface: ${staticIpData.interface}`);
+                        console.log(`✅ Using existing interface: ${staticIpData.interface}`);
                     }
                 }
-            } catch (err) {
-                console.error('Error fetching interfaces from MikroTik:', err);
+            } catch (err: any) {
+                console.error('❌ Error in interface fetch process:', err.message || err);
                 // If interface already exists in customer data, keep it available
                 if (staticIpData && staticIpData.interface) {
                     interfaces = [{ name: staticIpData.interface }];
-                    console.log(`Using existing interface as fallback: ${staticIpData.interface}`);
+                    console.log(`⚠️ Using existing interface as final fallback: ${staticIpData.interface}`);
                 }
             }
         }
+        
+        // Always pass interfaces array to view (even if empty)
+        console.log(`📦 Passing ${interfaces.length} interfaces to view for customer ${customer.id} (${customer.connection_type})`);
         
         // Merge static IP data with customer data
         const customerWithStaticIp = {
