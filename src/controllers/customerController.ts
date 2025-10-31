@@ -3,6 +3,8 @@ import { databasePool } from '../db/pool';
 import * as XLSX from 'xlsx';
 import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 import MigrationService from '../services/customer/MigrationService';
+import { MikrotikService } from '../services/mikrotik/MikrotikService';
+import { getMikrotikConfig } from '../services/staticIpPackageService';
 
 export const getCustomerList = async (req: Request, res: Response) => {
     try {
@@ -434,9 +436,9 @@ export const deleteCustomer = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         
-        // Check if customer exists
+        // Check if customer exists and get details
         const [customerResult] = await databasePool.execute(
-            'SELECT id, name FROM customers WHERE id = ?', 
+            'SELECT id, name, connection_type, pppoe_username, ip_address FROM customers WHERE id = ?', 
             [id]
         );
         
@@ -447,6 +449,8 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             req.flash('error', 'Pelanggan tidak ditemukan');
             return res.redirect('/customers/list');
         }
+        
+        const customer = (customerResult as any)[0];
         
         // Check if customer has active invoices
         const [invoiceResult] = await databasePool.execute(
@@ -463,7 +467,46 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             return res.redirect('/customers/list');
         }
         
-        // Delete customer
+        // Delete from MikroTik if connection exists
+        try {
+            const cfg = await getMikrotikConfig();
+            if (cfg) {
+                const mikrotik = new MikrotikService({
+                    host: cfg.host,
+                    username: cfg.username,
+                    password: cfg.password,
+                    port: cfg.port || 8728
+                });
+                
+                // Delete PPPoE user if exists
+                if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
+                    console.log(`🗑️ Deleting PPPoE user from MikroTik: ${customer.pppoe_username}`);
+                    try {
+                        // Find user by username first
+                        const user = await mikrotik.getPPPoEUserByUsername(customer.pppoe_username);
+                        if (user && user['.id']) {
+                            await mikrotik.deletePPPoEUser(user['.id']);
+                            console.log(`✅ PPPoE user deleted from MikroTik`);
+                        } else {
+                            console.log(`⚠️ PPPoE user not found in MikroTik: ${customer.pppoe_username}`);
+                        }
+                    } catch (mkError: any) {
+                        console.error('⚠️ Failed to delete PPPoE user from MikroTik:', mkError.message);
+                        // Continue with database deletion even if MikroTik deletion fails
+                    }
+                }
+                
+                // Note: Static IP deletion is handled in staticIpClientController
+                if (customer.connection_type === 'static_ip') {
+                    console.log('⚠️ Static IP customer - deletion handled by staticIpClientController');
+                }
+            }
+        } catch (mkError: any) {
+            console.error('⚠️ MikroTik deletion error:', mkError.message);
+            // Continue with database deletion even if MikroTik deletion fails
+        }
+        
+        // Delete customer from database
         await databasePool.execute('DELETE FROM customers WHERE id = ?', [id]);
         
         if (req.xhr || req.headers['content-type'] === 'application/json' || (req.headers.accept || '').includes('application/json')) {
@@ -504,14 +547,15 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                 console.log(`\n🔍 Processing customer ID: ${id}`);
                 
                 // Check if customer exists
-                const [customerResult] = await databasePool.execute('SELECT id, name FROM customers WHERE id = ?', [id]);
+                const [customerResult] = await databasePool.execute('SELECT id, name, connection_type, pppoe_username, ip_address FROM customers WHERE id = ?', [id]);
                 if ((customerResult as any).length === 0) {
                     console.log(`   ❌ Customer ${id} not found`);
                     results.skipped.push({ id, reason: 'Tidak ditemukan' });
                     continue;
                 }
                 
-                console.log(`   ✅ Customer found: ${(customerResult as any)[0].name}`);
+                const customer = (customerResult as any)[0];
+                console.log(`   ✅ Customer found: ${customer.name}`);
 
                 // Check for active invoices
                 const [invoiceResult] = await databasePool.execute(
@@ -561,7 +605,43 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     continue;
                 }
 
-                // Delete customer
+                // Delete from MikroTik if connection exists
+                try {
+                    const cfg = await getMikrotikConfig();
+                    if (cfg) {
+                        const mikrotik = new MikrotikService({
+                            host: cfg.host,
+                            username: cfg.username,
+                            password: cfg.password,
+                            port: cfg.port || 8728
+                        });
+                        
+                        // Delete PPPoE user if exists
+                        if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
+                            console.log(`   🗑️ Deleting PPPoE user from MikroTik: ${customer.pppoe_username}`);
+                            try {
+                                const user = await mikrotik.getPPPoEUserByUsername(customer.pppoe_username);
+                                if (user && user['.id']) {
+                                    await mikrotik.deletePPPoEUser(user['.id']);
+                                    console.log(`   ✅ PPPoE user deleted from MikroTik`);
+                                } else {
+                                    console.log(`   ⚠️ PPPoE user not found in MikroTik`);
+                                }
+                            } catch (mkError: any) {
+                                console.error(`   ⚠️ Failed to delete PPPoE user from MikroTik:`, mkError.message);
+                            }
+                        }
+                        
+                        // Static IP deletion handled separately
+                        if (customer.connection_type === 'static_ip') {
+                            console.log(`   ⚠️ Static IP customer - deletion handled by staticIpClientController`);
+                        }
+                    }
+                } catch (mkError: any) {
+                    console.error(`   ⚠️ MikroTik deletion error:`, mkError.message);
+                }
+                
+                // Delete customer from database
                 console.log(`   🗑️  Attempting to delete customer ${id}...`);
                 await databasePool.execute('DELETE FROM customers WHERE id = ?', [id]);
                 console.log(`   ✅ Customer ${id} deleted successfully`);
