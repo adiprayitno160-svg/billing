@@ -585,6 +585,8 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             const isNewClient = !existingClient;
             const ipChanged = existingClient && existingClient.old_ip !== ip_address;
             
+            console.log(`🔍 Static IP Client Check - isNewClient: ${isNewClient}, ipChanged: ${ipChanged}, isConnectionTypeChanged: ${isConnectionTypeChanged}`);
+            
             if (existingClient) {
                 // Update existing static IP client
                 await databasePool.execute(
@@ -608,24 +610,29 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             }
             
             // Create MikroTik resources if this is a new client or connection type changed to static_ip
+            console.log(`🔍 Debug: isNewClient=${isNewClient}, isConnectionTypeChanged=${isConnectionTypeChanged}, ip_address=${ip_address}, interface_name=${interface_name}`);
             if ((isNewClient || isConnectionTypeChanged) && ip_address && interface_name) {
                 try {
                     const cfg = await getMikrotikConfig();
-                    if (cfg) {
-                        console.log(`🔧 Creating MikroTik resources for static IP customer ${id}: ${ip_address} on ${interface_name}`);
-                        
-                        // 1. Add IP address to interface
-                        try {
-                            await addIpAddress(cfg, {
-                                interface: interface_name,
-                                address: ip_address,
-                                comment: name || `Customer ${id}`
-                            });
-                            console.log(`✅ IP address ${ip_address} added to MikroTik`);
-                        } catch (ipError: any) {
-                            console.error(`❌ Failed to add IP address:`, ipError.message);
-                            // Continue even if IP add fails (might already exist)
-                        }
+                    if (!cfg) {
+                        throw new Error('Konfigurasi MikroTik tidak ditemukan. Pastikan MikroTik sudah dikonfigurasi.');
+                    }
+                    
+                    console.log(`🔧 Creating MikroTik resources for static IP customer ${id}: ${ip_address} on ${interface_name}`);
+                    
+                    // 1. Add IP address to interface (CRITICAL - throw error if fails)
+                    try {
+                        await addIpAddress(cfg, {
+                            interface: interface_name,
+                            address: ip_address,
+                            comment: name || `Customer ${id}`
+                        });
+                        console.log(`✅ IP address ${ip_address} added to MikroTik`);
+                    } catch (ipError: any) {
+                        console.error(`❌ Failed to add IP address:`, ipError.message);
+                        // Re-throw error untuk menghentikan proses jika IP tidak bisa dibuat
+                        throw new Error(`Gagal menambahkan IP address ke MikroTik: ${ipError.message || 'Unknown error'}`);
+                    }
                         
                         // 2. Calculate peer IP and create mangle rules
                         const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
@@ -646,12 +653,14 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                         const downloadMark = peerIp;
                         const uploadMark = `UP-${peerIp}`;
                         
-                        // 3. Add mangle rules
+                        // 3. Add mangle rules (CRITICAL - throw error if fails)
                         try {
                             await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
                             console.log(`✅ Mangle rules created for ${peerIp}`);
                         } catch (mangleError: any) {
                             console.error(`❌ Failed to create mangle rules:`, mangleError.message);
+                            // Re-throw error untuk menghentikan proses jika mangle rules tidak bisa dibuat
+                            throw new Error(`Gagal membuat mangle rules: ${mangleError.message || 'Unknown error'}`);
                         }
                         
                         // 4. Create queue tree if package is provided (sama seperti tambah pelanggan baru)
@@ -711,10 +720,19 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                                 console.error(`❌ Failed to create queue tree:`, queueError.message);
                             }
                         }
+                        
+                        console.log(`✅ All MikroTik resources created successfully for customer ${id}`);
+                    } else {
+                        console.warn(`⚠️ MikroTik config not available, skipping resource creation`);
                     }
                 } catch (mkError: any) {
                     console.error('⚠️ Error creating MikroTik resources for static IP:', mkError.message);
+                    console.error('Full error:', mkError);
+                    // Re-throw error so user knows what went wrong
+                    throw new Error(`Gagal membuat resources di MikroTik: ${mkError.message || 'Unknown error'}. Pastikan konfigurasi MikroTik benar dan IP/interface valid.`);
                 }
+            } else {
+                console.log(`⏭️ Skipping MikroTik resource creation - isNewClient: ${isNewClient}, isConnectionTypeChanged: ${isConnectionTypeChanged}`);
             }
         }
 
