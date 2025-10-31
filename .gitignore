@@ -12,6 +12,7 @@ build/
 .env
 .env.local
 .env.production
+.deploy.env
 
 # Logs
 logs/

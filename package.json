@@ -17,6 +17,7 @@
     "pm2:status": "pm2 list",
     "pm2:monit": "pm2 monit",
     "deploy": "npm run build && pm2 reload billing-app",
+    "deploy:ssh": "node deploy-ssh.js",
     "ssh:test": "node test-ssh.js",
     "setup-migrasi": "node setup-db-now.js"
   },
