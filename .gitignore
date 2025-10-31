@@ -52,6 +52,7 @@ temp/
 
 # Windows specific (tidak perlu di server)
 *.bat
+!backup-all.bat
 
 # Cleanup & commit message files (tidak perlu di repo)
 COMMIT_MESSAGE*.txt
