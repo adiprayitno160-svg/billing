@@ -5,7 +5,7 @@ import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 import MigrationService from '../services/customer/MigrationService';
 import { MikrotikService } from '../services/mikrotik/MikrotikService';
 import { getMikrotikConfig } from '../services/staticIpPackageService';
-import { getInterfaces } from '../services/mikrotikService';
+import { getInterfaces, addIpAddress, addMangleRulesForClient, createQueueTree } from '../services/mikrotikService';
 
 export const getCustomerList = async (req: Request, res: Response) => {
     try {
@@ -449,6 +449,15 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             odp_id, odc_id, olt_id
         } = req.body;
         
+        // Get current customer data to check if connection_type changed
+        const [currentCustomerRows] = await databasePool.execute(
+            'SELECT connection_type, pppoe_username FROM customers WHERE id = ?',
+            [id]
+        );
+        const currentCustomer = (currentCustomerRows as any)[0];
+        const previousConnectionType = currentCustomer?.connection_type;
+        const isConnectionTypeChanged = previousConnectionType !== connection_type;
+        
         // Build dynamic query based on connection type
         let query = `
             UPDATE customers 
@@ -477,6 +486,30 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         params.push(id);
         
         await databasePool.execute(query, params);
+        
+        // Handle connection type change: Delete old PPPoE user if changing to static_ip
+        if (isConnectionTypeChanged && previousConnectionType === 'pppoe' && currentCustomer?.pppoe_username) {
+            try {
+                const cfg = await getMikrotikConfig();
+                if (cfg) {
+                    const mikrotik = new MikrotikService({
+                        host: cfg.host,
+                        username: cfg.username,
+                        password: cfg.password,
+                        port: cfg.port || 8728
+                    });
+                    
+                    console.log(`🔄 Connection type changed from PPPoE to ${connection_type}, deleting PPPoE user: ${currentCustomer.pppoe_username}`);
+                    const existingUser = await mikrotik.getPPPoEUserByUsername(currentCustomer.pppoe_username);
+                    if (existingUser && existingUser['.id']) {
+                        await mikrotik.deletePPPoEUser(existingUser['.id']);
+                        console.log(`✅ PPPoE user deleted from MikroTik`);
+                    }
+                }
+            } catch (mkError: any) {
+                console.error('⚠️ Error deleting PPPoE user:', mkError.message);
+            }
+        }
         
         // Update MikroTik if PPPoE credentials changed
         if (connection_type === 'pppoe' && pppoe_username && pppoe_password) {
@@ -524,15 +557,18 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             }
         }
         
-        // If static IP, update static_ip_clients table and assign package if provided
-        if (connection_type === 'static_ip' && ip_address) {
+        // If static IP, update static_ip_clients table and create MikroTik resources
+        if (connection_type === 'static_ip' && ip_address && interface_name) {
             // Check if static IP client exists
-            const [existingClient] = await databasePool.execute(
-                'SELECT id FROM static_ip_clients WHERE customer_id = ?', 
+            const [existingClientRows] = await databasePool.execute(
+                'SELECT id, ip_address as old_ip, interface as old_interface FROM static_ip_clients WHERE customer_id = ?', 
                 [id]
             );
+            const existingClient = (existingClientRows as any)[0];
+            const isNewClient = !existingClient;
+            const ipChanged = existingClient && existingClient.old_ip !== ip_address;
             
-            if ((existingClient as any).length > 0) {
+            if (existingClient) {
                 // Update existing static IP client
                 await databasePool.execute(
                     'UPDATE static_ip_clients SET ip_address = ?, interface = ?, gateway = ? WHERE customer_id = ?',
@@ -552,6 +588,116 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                     'UPDATE static_ip_clients SET package_id = ? WHERE customer_id = ?',
                     [static_ip_package, id]
                 );
+            }
+            
+            // Create MikroTik resources if this is a new client or connection type changed to static_ip
+            if ((isNewClient || isConnectionTypeChanged) && ip_address && interface_name) {
+                try {
+                    const cfg = await getMikrotikConfig();
+                    if (cfg) {
+                        console.log(`🔧 Creating MikroTik resources for static IP customer ${id}: ${ip_address} on ${interface_name}`);
+                        
+                        // 1. Add IP address to interface
+                        try {
+                            await addIpAddress(cfg, {
+                                interface: interface_name,
+                                address: ip_address,
+                                comment: name || `Customer ${id}`
+                            });
+                            console.log(`✅ IP address ${ip_address} added to MikroTik`);
+                        } catch (ipError: any) {
+                            console.error(`❌ Failed to add IP address:`, ipError.message);
+                            // Continue even if IP add fails (might already exist)
+                        }
+                        
+                        // 2. Calculate peer IP and create mangle rules
+                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                        const [ipOnly, prefixStr] = ip_address.split('/');
+                        const prefix = Number(prefixStr || '0');
+                        const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                        const networkInt = ipToInt(ipOnly) & mask;
+                        let peerIp = ipOnly;
+                        
+                        if (prefix === 30) {
+                            const firstHost = networkInt + 1;
+                            const secondHost = networkInt + 2;
+                            const ipInt = ipToInt(ipOnly);
+                            peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                        }
+                        
+                        const downloadMark = peerIp;
+                        const uploadMark = `UP-${peerIp}`;
+                        
+                        // 3. Add mangle rules
+                        try {
+                            await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
+                            console.log(`✅ Mangle rules created for ${peerIp}`);
+                        } catch (mangleError: any) {
+                            console.error(`❌ Failed to create mangle rules:`, mangleError.message);
+                        }
+                        
+                        // 4. Create queue tree if package is provided (sama seperti tambah pelanggan baru)
+                        if (static_ip_package) {
+                            try {
+                                const [pkgRows] = await databasePool.execute(
+                                    'SELECT * FROM static_ip_packages WHERE id = ?',
+                                    [static_ip_package]
+                                );
+                                const pkg = (pkgRows as any)[0];
+                                
+                                if (pkg) {
+                                    // Sama seperti logic di /customers/new-static-ip
+                                    const clientName = name || `Customer_${id}`;
+                                    const qDownload = pkg.child_queue_type_download || 'pcq-download-default';
+                                    const qUpload = pkg.child_queue_type_upload || 'pcq-upload-default';
+                                    const pDownload = String(pkg.child_priority_download || '8');
+                                    const pUpload = String(pkg.child_priority_upload || '8');
+                                    const laDownload = pkg.child_limit_at_download || '';
+                                    const laUpload = pkg.child_limit_at_upload || '';
+                                    const mlDownload = pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download;
+                                    const mlUpload = pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload;
+                                    
+                                    // Parent queue menggunakan nama paket (sama seperti new-static-ip)
+                                    const packageDownloadQueue = pkg.name;
+                                    const packageUploadQueue = `UP-${pkg.name}`;
+                                    
+                                    if (mlDownload && mlUpload) {
+                                        // Create download queue (sama format dengan new-static-ip)
+                                        await createQueueTree(cfg, {
+                                            name: clientName,
+                                            parent: packageDownloadQueue,
+                                            packetMarks: downloadMark,
+                                            limitAt: laDownload,
+                                            maxLimit: mlDownload,
+                                            queue: qDownload,
+                                            priority: pDownload,
+                                            comment: `Download queue for ${clientName}`
+                                        });
+                                        
+                                        // Create upload queue (sama format dengan new-static-ip)
+                                        await createQueueTree(cfg, {
+                                            name: `UP-${clientName}`,
+                                            parent: packageUploadQueue,
+                                            packetMarks: uploadMark,
+                                            limitAt: laUpload,
+                                            maxLimit: mlUpload,
+                                            queue: qUpload,
+                                            priority: pUpload,
+                                            comment: `Upload queue for ${clientName}`
+                                        });
+                                        
+                                        console.log(`✅ Queue tree created for customer ${id} (${clientName})`);
+                                    }
+                                }
+                            } catch (queueError: any) {
+                                console.error(`❌ Failed to create queue tree:`, queueError.message);
+                            }
+                        }
+                    }
+                } catch (mkError: any) {
+                    console.error('⚠️ Error creating MikroTik resources for static IP:', mkError.message);
+                }
             }
         }
 
