@@ -5,6 +5,7 @@ import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 import MigrationService from '../services/customer/MigrationService';
 import { MikrotikService } from '../services/mikrotik/MikrotikService';
 import { getMikrotikConfig } from '../services/staticIpPackageService';
+import { getInterfaces } from '../services/mikrotikService';
 
 export const getCustomerList = async (req: Request, res: Response) => {
     try {
@@ -363,6 +364,19 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
             conn.release();
         }
         
+        // Get interfaces from MikroTik for static IP customers
+        let interfaces = [];
+        if (customer.connection_type === 'static_ip') {
+            try {
+                const cfg = await getMikrotikConfig();
+                if (cfg) {
+                    interfaces = await getInterfaces(cfg);
+                }
+            } catch (err) {
+                console.error('Error fetching interfaces:', err);
+            }
+        }
+        
         // Merge static IP data with customer data
         const customerWithStaticIp = {
             ...customer,
@@ -378,7 +392,8 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
             title: 'Edit Pelanggan',
             customer: customerWithStaticIp,
             packages: packages,
-            odpData: odpData
+            odpData: odpData,
+            interfaces: interfaces
         });
         
     } catch (error) {
