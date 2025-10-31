@@ -735,9 +735,6 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                     }
                     
                     console.log(`✅ All MikroTik resources created successfully for customer ${id}`);
-                    } else {
-                        console.warn(`⚠️ MikroTik config not available, skipping resource creation`);
-                    }
                 } catch (mkError: any) {
                     console.error('⚠️ Error creating MikroTik resources for static IP:', mkError.message);
                     console.error('Full error:', mkError);
