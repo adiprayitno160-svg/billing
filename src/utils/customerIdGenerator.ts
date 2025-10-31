@@ -1,6 +1,6 @@
 /**
  * Utility untuk generate ID Pelanggan otomatis
- * Format: YYYYMMDDHHMMSS
+ * Format: YYYYMMDDHHMMSSMMM (17 digit dengan milliseconds untuk avoid duplicates)
  */
 
 export class CustomerIdGenerator {
@@ -17,8 +17,9 @@ export class CustomerIdGenerator {
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
+        const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
         
-        return `${year}${month}${day}${hours}${minutes}${seconds}`;
+        return `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`;
     }
 
     /**
@@ -37,9 +38,10 @@ export class CustomerIdGenerator {
      * @returns boolean - true jika format valid
      */
     static isValidCustomerIdFormat(customerId: string): boolean {
-        // Format: YYYYMMDDHHMMSS (14 digit)
-        const pattern = /^\d{14}$/;
-        return pattern.test(customerId);
+        // Format: YYYYMMDDHHMMSSMMM (17 digit) or legacy YYYYMMDDHHMMSS (14 digit)
+        const pattern17 = /^\d{17}$/;
+        const pattern14 = /^\d{14}$/;
+        return pattern17.test(customerId) || pattern14.test(customerId);
     }
 
     /**
@@ -58,7 +60,8 @@ export class CustomerIdGenerator {
         const hours = parseInt(customerId.substring(8, 10));
         const minutes = parseInt(customerId.substring(10, 12));
         const seconds = parseInt(customerId.substring(12, 14));
+        const milliseconds = customerId.length === 17 ? parseInt(customerId.substring(14, 17)) : 0;
 
-        return new Date(year, month, day, hours, minutes, seconds);
+        return new Date(year, month, day, hours, minutes, seconds, milliseconds);
     }
 }

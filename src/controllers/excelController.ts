@@ -53,12 +53,11 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
         
         // Prepare data for Excel
         const excelData = (customers as any[]).map(customer => ({
-            'ID Pelanggan': customer.id,
+            'Kode Pelanggan': customer.customer_code,
             'Nama': customer.name,
             'Telepon': customer.phone,
             'Email': customer.email || `${customer.name.toLowerCase().replace(/\s+/g, '')}@id.net`,
             'Alamat': customer.address,
-            'Kode Pelanggan': customer.customer_code,
             'Tipe Koneksi': customer.connection_type === 'pppoe' ? 'PPPOE' : 'IP Static',
             'Status': customer.status,
             'Latitude': customer.latitude,

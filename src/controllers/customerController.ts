@@ -624,7 +624,6 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
         
         // Prepare data for Excel
         const excelData = customers.map(customer => ({
-            'ID': customer.id,
             'Kode Pelanggan': customer.customer_code || '',
             'Nama': customer.name,
             'Email': customer.email || '',
@@ -649,7 +648,6 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
         
         // Set column widths
         const columnWidths = [
-            { wch: 8 },   // ID
             { wch: 15 },  // Kode Pelanggan
             { wch: 25 },  // Nama
             { wch: 30 },  // Email

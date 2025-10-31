@@ -58,7 +58,7 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Create customers table first (many other tables reference this)
 		await conn.query(`CREATE TABLE IF NOT EXISTS customers (
 			id INT AUTO_INCREMENT PRIMARY KEY,
-			customer_code VARCHAR(191) UNIQUE NULL,
+			customer_code VARCHAR(191) UNIQUE,
 			name VARCHAR(191) NOT NULL,
 			phone VARCHAR(50) NULL,
 			email VARCHAR(191) NULL,
