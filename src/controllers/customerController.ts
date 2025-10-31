@@ -447,6 +447,8 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             latitude, longitude, pppoe_username, pppoe_password, pppoe_profile_id,
             ip_address, interface: interface_name, gateway, pppoe_package, static_ip_package,
             odp_id, odc_id, olt_id
+            // Note: olt_id is not stored in customers table, only in static_ip_clients table
+            // olt_id will be handled separately when updating static_ip_clients
         } = req.body;
         
         // Validate customer ID
@@ -469,17 +471,18 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         const isConnectionTypeChanged = previousConnectionType !== connection_type;
         
         // Build dynamic query based on connection type
+        // Note: olt_id is not in customers table, only odp_id and odc_id
         let query = `
             UPDATE customers 
             SET name = ?, phone = ?, email = ?, address = ?, customer_code = ?, 
                 connection_type = ?, status = ?, latitude = ?, longitude = ?, 
-                odp_id = ?, odc_id = ?, olt_id = ?, updated_at = NOW()
+                odp_id = ?, odc_id = ?, updated_at = NOW()
         `;
         
         let params = [
             name, phone, email, address, customer_code, 
             connection_type, status, latitude || null, longitude || null,
-            odp_id || null, odc_id || null, olt_id || null
+            odp_id || null, odc_id || null
         ];
         
         // Add PPPOE specific fields if connection type is pppoe
@@ -589,15 +592,17 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             
             if (existingClient) {
                 // Update existing static IP client
+                // Include olt_id, odc_id, odp_id if provided
                 await databasePool.execute(
-                    'UPDATE static_ip_clients SET ip_address = ?, interface = ?, gateway = ? WHERE customer_id = ?',
-                    [ip_address, interface_name, gateway || null, id]
+                    'UPDATE static_ip_clients SET ip_address = ?, interface = ?, gateway = ?, olt_id = ?, odc_id = ?, odp_id = ? WHERE customer_id = ?',
+                    [ip_address, interface_name, gateway || null, olt_id || null, odc_id || null, odp_id || null, id]
                 );
             } else {
                 // Create new static IP client
+                // Include olt_id, odc_id, odp_id if provided
                 await databasePool.execute(
-                    'INSERT INTO static_ip_clients (customer_id, ip_address, interface, gateway, created_at) VALUES (?, ?, ?, ?, NOW())',
-                    [id, ip_address, interface_name, gateway || null]
+                    'INSERT INTO static_ip_clients (customer_id, ip_address, interface, gateway, olt_id, odc_id, odp_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+                    [id, ip_address, interface_name, gateway || null, olt_id || null, odc_id || null, odp_id || null]
                 );
             }
 
