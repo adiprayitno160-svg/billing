@@ -339,6 +339,30 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
             packages = pppoePackages as any[];
         }
         
+        // Get ODP, ODC, OLT data
+        const conn = await databasePool.getConnection();
+        let odpData = [];
+        try {
+            const [odpRows] = await conn.execute(`
+                SELECT 
+                    o.id, 
+                    o.name as odp_name,
+                    o.odc_id,
+                    odc.name as odc_name,
+                    odc.olt_id,
+                    olt.name as olt_name
+                FROM ftth_odp o
+                LEFT JOIN ftth_odc odc ON o.odc_id = odc.id
+                LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
+                ORDER BY o.name
+            `);
+            odpData = odpRows as any[];
+        } catch (err) {
+            console.error('Error fetching ODP data:', err);
+        } finally {
+            conn.release();
+        }
+        
         // Merge static IP data with customer data
         const customerWithStaticIp = {
             ...customer,
@@ -353,7 +377,8 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         res.render('customers/edit', {
             title: 'Edit Pelanggan',
             customer: customerWithStaticIp,
-            packages: packages
+            packages: packages,
+            odpData: odpData
         });
         
     } catch (error) {
@@ -369,19 +394,22 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         const { 
             name, phone, email, address, customer_code, connection_type, status, 
             latitude, longitude, pppoe_username, pppoe_password, pppoe_profile_id,
-            ip_address, interface: interface_name, gateway, pppoe_package, static_ip_package
+            ip_address, interface: interface_name, gateway, pppoe_package, static_ip_package,
+            odp_id, odc_id, olt_id
         } = req.body;
         
         // Build dynamic query based on connection type
         let query = `
             UPDATE customers 
             SET name = ?, phone = ?, email = ?, address = ?, customer_code = ?, 
-                connection_type = ?, status = ?, latitude = ?, longitude = ?, updated_at = NOW()
+                connection_type = ?, status = ?, latitude = ?, longitude = ?, 
+                odp_id = ?, odc_id = ?, olt_id = ?, updated_at = NOW()
         `;
         
         let params = [
             name, phone, email, address, customer_code, 
-            connection_type, status, latitude || null, longitude || null
+            connection_type, status, latitude || null, longitude || null,
+            odp_id || null, odc_id || null, olt_id || null
         ];
         
         // Add PPPOE specific fields if connection type is pppoe

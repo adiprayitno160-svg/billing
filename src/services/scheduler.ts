@@ -2,6 +2,7 @@ import * as cron from 'node-cron';
 import { InvoiceService } from './billing/invoiceService';
 import { WhatsappService } from './billing/whatsappService';
 import { databasePool } from '../db/pool';
+import { BackupService } from './backupService';
 
 export class SchedulerService {
     private static isInitialized = false;
@@ -73,6 +74,19 @@ export class SchedulerService {
             console.error('Failed to apply Overdue Notification schedule, fallback enabling at 10:00 daily:', err);
             this.scheduleOverdueNotifications(true);
         });
+
+        // Weekly database backup with 90-day retention - every Sunday at 02:00 Asia/Jakarta
+        cron.schedule('0 2 * * 0', async () => {
+            console.log('[Scheduler] Running weekly database backup...');
+            const backup = new BackupService();
+            try {
+                const file = await backup.backupDatabase();
+                const deleted = await backup.cleanOldBackups(90);
+                console.log(`[Scheduler] Backup created: ${file}. Old backups deleted: ${deleted}`);
+            } catch (error) {
+                console.error('[Scheduler] Weekly backup failed:', error);
+            }
+        }, { scheduled: true, timezone: 'Asia/Jakarta' });
 
 
         this.isInitialized = true;

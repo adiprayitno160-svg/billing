@@ -1,53 +1,16 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .card-hover {
-            transition: all 0.3s ease;
-        }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        .toggle-checkbox:checked {
-            background-color: #10b981;
-            border-color: #10b981;
-        }
-        .toggle-checkbox:checked ~ .toggle-label {
-            background-color: #10b981;
-        }
-        .radio-card:has(input:checked) {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .number-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            font-weight: 700;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body class="bg-gray-50">
+<style>
+    .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .card-hover { transition: all 0.3s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+    .toggle-checkbox:checked { background-color: #10b981; border-color: #10b981; }
+    .toggle-checkbox:checked ~ .toggle-label { background-color: #10b981; }
+    .radio-card:has(input:checked) { border-color: #3b82f6; background-color: #eff6ff; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px);} to { opacity: 1; transform: translateY(0);} }
+    .number-badge { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; font-weight:700; font-size:14px; }
+</style>
     <!-- Modern Header with Gradient -->
     <div class="gradient-bg text-white shadow-xl">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -705,5 +668,4 @@
             });
         }
     </script>
-</body>
-</html>
+

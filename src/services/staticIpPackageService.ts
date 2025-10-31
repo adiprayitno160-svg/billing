@@ -331,46 +331,70 @@ export async function updateStaticIpPackage(id: number, data: {
 			updateFields.push('max_clients = ?');
 			updateValues.push(data.max_clients);
 		}
-		if (data.child_upload_name !== undefined) {
+		if (data.child_upload_name !== undefined && data.child_upload_name !== null && data.child_upload_name !== '') {
 			updateFields.push('child_upload_name = ?');
 			updateValues.push(data.child_upload_name);
 		}
-		if (data.child_download_name !== undefined) {
+		if (data.child_download_name !== undefined && data.child_download_name !== null && data.child_download_name !== '') {
 			updateFields.push('child_download_name = ?');
 			updateValues.push(data.child_download_name);
 		}
-		if (data.child_upload_limit !== undefined) {
+		if (data.child_upload_limit !== undefined && data.child_upload_limit !== null && data.child_upload_limit !== '') {
 			updateFields.push('child_upload_limit = ?');
 			updateValues.push(data.child_upload_limit);
 		}
-		if (data.child_download_limit !== undefined) {
+		if (data.child_download_limit !== undefined && data.child_download_limit !== null && data.child_download_limit !== '') {
 			updateFields.push('child_download_limit = ?');
 			updateValues.push(data.child_download_limit);
 		}
-		if (data.child_limit_at_upload !== undefined) {
+		if (data.child_limit_at_upload !== undefined && data.child_limit_at_upload !== null && data.child_limit_at_upload !== '') {
 			updateFields.push('child_limit_at_upload = ?');
 			updateValues.push(data.child_limit_at_upload);
 		}
-		if (data.child_limit_at_download !== undefined) {
+		if (data.child_limit_at_download !== undefined && data.child_limit_at_download !== null && data.child_limit_at_download !== '') {
 			updateFields.push('child_limit_at_download = ?');
 			updateValues.push(data.child_limit_at_download);
 		}
-		if (data.child_burst_upload !== undefined) {
+		if (data.child_burst_upload !== undefined && data.child_burst_upload !== null && data.child_burst_upload !== '') {
 			updateFields.push('child_burst_upload = ?');
 			updateValues.push(data.child_burst_upload);
 		}
-		if (data.child_burst_download !== undefined) {
+		if (data.child_burst_download !== undefined && data.child_burst_download !== null && data.child_burst_download !== '') {
 			updateFields.push('child_burst_download = ?');
 			updateValues.push(data.child_burst_download);
 		}
-		if (data.child_queue_type_download !== undefined) { updateFields.push('child_queue_type_download = ?'); updateValues.push(data.child_queue_type_download); }
-		if (data.child_queue_type_upload !== undefined) { updateFields.push('child_queue_type_upload = ?'); updateValues.push(data.child_queue_type_upload); }
-		if (data.child_priority_download !== undefined) { updateFields.push('child_priority_download = ?'); updateValues.push(data.child_priority_download); }
-		if (data.child_priority_upload !== undefined) { updateFields.push('child_priority_upload = ?'); updateValues.push(data.child_priority_upload); }
-		if (data.child_burst_threshold_download !== undefined) { updateFields.push('child_burst_threshold_download = ?'); updateValues.push(data.child_burst_threshold_download); }
-		if (data.child_burst_threshold_upload !== undefined) { updateFields.push('child_burst_threshold_upload = ?'); updateValues.push(data.child_burst_threshold_upload); }
-		if (data.child_burst_time_download !== undefined) { updateFields.push('child_burst_time_download = ?'); updateValues.push(data.child_burst_time_download); }
-		if (data.child_burst_time_upload !== undefined) { updateFields.push('child_burst_time_upload = ?'); updateValues.push(data.child_burst_time_upload); }
+		if (data.child_queue_type_download !== undefined && data.child_queue_type_download !== null && data.child_queue_type_download !== '') { 
+			updateFields.push('child_queue_type_download = ?'); 
+			updateValues.push(data.child_queue_type_download); 
+		}
+		if (data.child_queue_type_upload !== undefined && data.child_queue_type_upload !== null && data.child_queue_type_upload !== '') { 
+			updateFields.push('child_queue_type_upload = ?'); 
+			updateValues.push(data.child_queue_type_upload); 
+		}
+		if (data.child_priority_download !== undefined && data.child_priority_download !== null && data.child_priority_download !== '') { 
+			updateFields.push('child_priority_download = ?'); 
+			updateValues.push(data.child_priority_download); 
+		}
+		if (data.child_priority_upload !== undefined && data.child_priority_upload !== null && data.child_priority_upload !== '') { 
+			updateFields.push('child_priority_upload = ?'); 
+			updateValues.push(data.child_priority_upload); 
+		}
+		if (data.child_burst_threshold_download !== undefined && data.child_burst_threshold_download !== null && data.child_burst_threshold_download !== '') { 
+			updateFields.push('child_burst_threshold_download = ?'); 
+			updateValues.push(data.child_burst_threshold_download); 
+		}
+		if (data.child_burst_threshold_upload !== undefined && data.child_burst_threshold_upload !== null && data.child_burst_threshold_upload !== '') { 
+			updateFields.push('child_burst_threshold_upload = ?'); 
+			updateValues.push(data.child_burst_threshold_upload); 
+		}
+		if (data.child_burst_time_download !== undefined && data.child_burst_time_download !== null && data.child_burst_time_download !== '') { 
+			updateFields.push('child_burst_time_download = ?'); 
+			updateValues.push(data.child_burst_time_download); 
+		}
+		if (data.child_burst_time_upload !== undefined && data.child_burst_time_upload !== null && data.child_burst_time_upload !== '') { 
+			updateFields.push('child_burst_time_upload = ?'); 
+			updateValues.push(data.child_burst_time_upload); 
+		}
 		if (data.price !== undefined) {
 			updateFields.push('price = ?');
 			updateValues.push(data.price);
@@ -383,9 +407,9 @@ export async function updateStaticIpPackage(id: number, data: {
 			updateFields.push('status = ?');
 			updateValues.push(data.status);
 		}
-		if (data.description !== undefined) {
+		if (data.description !== undefined && data.description !== null) {
 			updateFields.push('description = ?');
-			updateValues.push(data.description);
+			updateValues.push(data.description || null);
 		}
 		
 		if (updateFields.length > 0) {

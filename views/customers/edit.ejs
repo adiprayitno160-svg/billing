@@ -225,6 +225,37 @@
 				</div>
 			</div>
 
+			<!-- OLT, ODC, ODP Information -->
+			<div class="rounded-xl border border-modern-cyan-200 bg-gradient-to-br from-modern-cyan-50 to-modern-blue-50 p-6">
+				<h3 class="text-lg font-bold text-modern-cyan-900 mb-4">Informasi OLT, ODC, ODP</h3>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+					<div>
+						<label for="odp_id" class="block text-sm font-medium text-modern-cyan-700 mb-2">ODP *</label>
+						<select id="odp_id" name="odp_id" class="w-full px-4 py-3 border border-modern-cyan-300 rounded-lg focus:border-modern-cyan-500 focus:ring-2 focus:ring-modern-cyan-200 transition-all duration-300">
+							<option value="">Pilih ODP</option>
+							<% if (typeof odpData !== 'undefined' && odpData && odpData.length > 0) { %>
+								<% odpData.forEach(function(odp){ %>
+									<option value="<%= odp.id %>" <%= customer.odp_id == odp.id ? 'selected' : '' %>><%= odp.odp_name %> - <%= odp.odc_name %></option>
+								<% }); %>
+							<% } else { %>
+								<option value="" disabled>Data ODP tidak tersedia</option>
+							<% } %>
+						</select>
+						<p class="text-xs text-modern-cyan-600 mt-1">Pilih ODP untuk mengisi OLT dan ODC secara otomatis</p>
+					</div>
+					<div>
+						<label for="odc_display" class="block text-sm font-medium text-modern-cyan-700 mb-2">ODC (View Only)</label>
+						<input type="text" id="odc_display" name="odc_display" readonly class="w-full px-4 py-3 border border-modern-cyan-300 rounded-lg bg-modern-cyan-50" placeholder="Akan muncul setelah memilih ODP" />
+						<input type="hidden" id="odc_id" name="odc_id" value="<%= customer.odc_id || '' %>" />
+					</div>
+					<div>
+						<label for="olt_display" class="block text-sm font-medium text-modern-cyan-700 mb-2">OLT (View Only)</label>
+						<input type="text" id="olt_display" name="olt_display" readonly class="w-full px-4 py-3 border border-modern-cyan-300 rounded-lg bg-modern-cyan-50" placeholder="Akan muncul setelah memilih ODP" />
+						<input type="hidden" id="olt_id" name="olt_id" value="<%= customer.olt_id || '' %>" />
+					</div>
+				</div>
+			</div>
+
 			<!-- Location Information -->
 			<div class="rounded-xl border border-modern-orange-200 bg-gradient-to-br from-modern-orange-50 to-modern-amber-50 p-6">
 				<h3 class="text-lg font-bold text-modern-orange-900 mb-4">Informasi Lokasi</h3>
@@ -266,29 +297,96 @@
 
 <script>
 function toggleConnectionFields() {
-    const connectionType = document.querySelector('input[name="connection_type"]:checked').value;
+    const connectionType = document.querySelector('input[name="connection_type"]:checked')?.value;
+    if (!connectionType) return;
+    
     const pppoeConfig = document.getElementById('pppoe-config');
     const staticIpConfig = document.getElementById('static-ip-config');
     
+    // Get all radio buttons
+    const radios = document.querySelectorAll('input[name="connection_type"]');
+    const pppoeRadio = document.querySelector('input[name="connection_type"][value="pppoe"]');
+    const staticIpRadio = document.querySelector('input[name="connection_type"][value="static_ip"]');
+    
     if (connectionType === 'pppoe') {
-        pppoeConfig.classList.remove('hidden');
-        staticIpConfig.classList.add('hidden');
+        // Show PPPOE config, hide Static IP config
+        if (pppoeConfig) pppoeConfig.classList.remove('hidden');
+        if (staticIpConfig) staticIpConfig.classList.add('hidden');
+        
+        // Update visual radio button
+        radios.forEach(radio => {
+            const label = radio.closest('label');
+            const card = label?.querySelector('div');
+            const dot = label?.querySelector('div > div > div[class*="border-2"]');
+            if (radio.value === 'pppoe' && card && dot) {
+                card.classList.remove('border-slate-200');
+                card.classList.add('border-modern-blue-500', 'bg-modern-blue-50');
+                dot.classList.remove('border-slate-300');
+                dot.classList.add('border-modern-blue-500', 'bg-modern-blue-500');
+                if (!dot.querySelector('div[class*="rounded-full"]')) {
+                    const innerDot = document.createElement('div');
+                    innerDot.className = 'w-1.5 h-1.5 rounded-full bg-white';
+                    dot.appendChild(innerDot);
+                }
+            } else if (radio.value === 'static_ip' && card && dot) {
+                card.classList.remove('border-modern-green-500', 'bg-modern-green-50');
+                card.classList.add('border-slate-200');
+                dot.classList.remove('border-modern-green-500', 'bg-modern-green-500');
+                dot.classList.add('border-slate-300');
+                const innerDot = dot.querySelector('div[class*="rounded-full"]');
+                if (innerDot) innerDot.remove();
+            }
+        });
         
         // Set required fields for PPPOE
-        document.getElementById('pppoe_username').required = true;
-        document.getElementById('pppoe_password').required = true;
-        document.getElementById('ip_address').required = false;
-        document.getElementById('interface').required = false;
+        const pppoeUsername = document.getElementById('pppoe_username');
+        const pppoePassword = document.getElementById('pppoe_password');
+        const ipAddress = document.getElementById('ip_address');
+        const interfaceField = document.getElementById('interface');
+        if (pppoeUsername) pppoeUsername.required = true;
+        if (pppoePassword) pppoePassword.required = true;
+        if (ipAddress) ipAddress.required = false;
+        if (interfaceField) interfaceField.required = false;
         
     } else if (connectionType === 'static_ip') {
-        pppoeConfig.classList.add('hidden');
-        staticIpConfig.classList.remove('hidden');
+        // Show Static IP config, hide PPPOE config
+        if (pppoeConfig) pppoeConfig.classList.add('hidden');
+        if (staticIpConfig) staticIpConfig.classList.remove('hidden');
+        
+        // Update visual radio button
+        radios.forEach(radio => {
+            const label = radio.closest('label');
+            const card = label?.querySelector('div');
+            const dot = label?.querySelector('div > div > div[class*="border-2"]');
+            if (radio.value === 'static_ip' && card && dot) {
+                card.classList.remove('border-slate-200');
+                card.classList.add('border-modern-green-500', 'bg-modern-green-50');
+                dot.classList.remove('border-slate-300');
+                dot.classList.add('border-modern-green-500', 'bg-modern-green-500');
+                if (!dot.querySelector('div[class*="rounded-full"]')) {
+                    const innerDot = document.createElement('div');
+                    innerDot.className = 'w-1.5 h-1.5 rounded-full bg-white';
+                    dot.appendChild(innerDot);
+                }
+            } else if (radio.value === 'pppoe' && card && dot) {
+                card.classList.remove('border-modern-blue-500', 'bg-modern-blue-50');
+                card.classList.add('border-slate-200');
+                dot.classList.remove('border-modern-blue-500', 'bg-modern-blue-500');
+                dot.classList.add('border-slate-300');
+                const innerDot = dot.querySelector('div[class*="rounded-full"]');
+                if (innerDot) innerDot.remove();
+            }
+        });
         
         // Set required fields for Static IP
-        document.getElementById('pppoe_username').required = false;
-        document.getElementById('pppoe_password').required = false;
-        document.getElementById('ip_address').required = true;
-        document.getElementById('interface').required = true;
+        const pppoeUsername = document.getElementById('pppoe_username');
+        const pppoePassword = document.getElementById('pppoe_password');
+        const ipAddress = document.getElementById('ip_address');
+        const interfaceField = document.getElementById('interface');
+        if (pppoeUsername) pppoeUsername.required = false;
+        if (pppoePassword) pppoePassword.required = false;
+        if (ipAddress) ipAddress.required = true;
+        if (interfaceField) interfaceField.required = true;
     }
 }
 
@@ -558,5 +656,41 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load on page load
     loadSecrets();
+    
+    // ODP/ODC/OLT Update Handler
+    const odpData = <%- JSON.stringify(typeof odpData !== 'undefined' ? odpData : []) %>;
+    const odpSelect = document.getElementById('odp_id');
+    const odcDisplay = document.getElementById('odc_display');
+    const oltDisplay = document.getElementById('olt_display');
+    const odcIdInput = document.getElementById('odc_id');
+    const oltIdInput = document.getElementById('olt_id');
+    
+    function updateOLTODC() {
+        const selectedOdpId = odpSelect?.value;
+        if (!selectedOdpId) {
+            if (odcDisplay) odcDisplay.value = '';
+            if (oltDisplay) oltDisplay.value = '';
+            if (odcIdInput) odcIdInput.value = '';
+            if (oltIdInput) oltIdInput.value = '';
+            return;
+        }
+        
+        const selectedOdp = odpData.find(odp => odp.id == selectedOdpId);
+        if (selectedOdp) {
+            if (odcDisplay) odcDisplay.value = selectedOdp.odc_name || '';
+            if (oltDisplay) oltDisplay.value = selectedOdp.olt_name || '';
+            if (odcIdInput) odcIdInput.value = selectedOdp.odc_id || '';
+            if (oltIdInput) oltIdInput.value = selectedOdp.olt_id || '';
+        }
+    }
+    
+    // Initialize ODP/ODC/OLT on page load
+    if (odpSelect) {
+        odpSelect.addEventListener('change', updateOLTODC);
+        // Set initial values if customer already has ODP
+        if (odpSelect.value) {
+            updateOLTODC();
+        }
+    }
 });
 </script>

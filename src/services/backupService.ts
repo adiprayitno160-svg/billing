@@ -52,7 +52,8 @@ export class BackupService {
      */
     async backupDatabase(): Promise<string> {
         const timestamp = this.getTimestamp();
-        const filename = `database_backup_${timestamp}.sql`;
+        // Use gzip compression by default
+        const filename = `database_backup_${timestamp}.sql.gz`;
         const filepath = path.join(this.backupDir, filename);
         
         const config = await this.getDatabaseConfig();
@@ -64,7 +65,8 @@ export class BackupService {
             command += ` -p${config.password}`;
         }
         
-        command += ` ${config.database} > "${filepath}"`;
+        // Pipe to gzip for compression
+        command += ` ${config.database} | gzip > "${filepath}"`;
 
         try {
             await execPromise(command);
@@ -74,6 +76,32 @@ export class BackupService {
             console.error('Database backup error:', error);
             throw new Error(`Gagal membuat backup database: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+    }
+
+    /**
+     * Remove backups older than given retention days
+     */
+    async cleanOldBackups(retentionDays: number): Promise<number> {
+        const now = Date.now();
+        const maxAgeMs = retentionDays * 24 * 60 * 60 * 1000;
+        let deleted = 0;
+        const files = fs.readdirSync(this.backupDir);
+        for (const file of files) {
+            if (!file.startsWith('database_backup_') && !file.startsWith('source_backup_') && !file.startsWith('billing_backup_')) {
+                continue;
+            }
+            const full = path.join(this.backupDir, file);
+            try {
+                const stat = fs.statSync(full);
+                if (stat.isFile() && (now - stat.mtime.getTime()) > maxAgeMs) {
+                    fs.unlinkSync(full);
+                    deleted += 1;
+                }
+            } catch {
+                // ignore single file errors
+            }
+        }
+        return deleted;
     }
 
     /**
