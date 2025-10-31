@@ -75,6 +75,7 @@ import {
     getDatabaseLogs
 } from '../controllers/databaseController';
 import { BackupController } from '../controllers/backupController';
+import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 
 // import { BillingDashboardController } from '../controllers/billing/billingDashboardController';
@@ -688,7 +689,6 @@ router.get('/customers/new-pppoe', async (req, res) => {
             `);
             
             // Generate customer code dengan format YYYYMMDDHHMMSS
-            const { CustomerIdGenerator } = await import('../utils/customerIdGenerator');
             const initial_customer_code = CustomerIdGenerator.generateCustomerId();
             
             console.log('Generated customer code:', initial_customer_code);
@@ -717,7 +717,6 @@ router.get('/customers/new-static-ip', async (req, res) => {
     const cfg = await getMikrotikConfig();
     
         // Generate customer code dengan format YYYYMMDDHHMMSS
-        const { CustomerIdGenerator } = await import('../utils/customerIdGenerator');
         const initial_customer_code = CustomerIdGenerator.generateCustomerId();
         
         // Generate current timestamp for default values
@@ -1255,13 +1254,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
         const cfg = await getMikrotikConfig();
         const interfaces = cfg ? await getInterfaces(cfg) : [];
         // Generate initial customer code in YYYYMMDDHHMMSS format
-        const now = new Date();
-        const initial_customer_code = now.getFullYear().toString() +
-                                   (now.getMonth() + 1).toString().padStart(2, '0') +
-                                   now.getDate().toString().padStart(2, '0') +
-                                   now.getHours().toString().padStart(2, '0') +
-                                   now.getMinutes().toString().padStart(2, '0') +
-                                   now.getSeconds().toString().padStart(2, '0');
+        const initial_customer_code = CustomerIdGenerator.generateCustomerId();
         
         // Get ODP data for error page
         const conn = await databasePool.getConnection();
