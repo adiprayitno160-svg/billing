@@ -39,15 +39,18 @@ async function deploy() {
         console.log('🔧 Configuring Git safe directory...');
         await ssh.execCommand(`git config --global --add safe.directory ${APP_PATH}`, { cwd: APP_PATH });
         
-        // Fix .git directory permissions using su with root password
-        console.log('🔧 Fixing Git directory permissions...');
-        const fixPermCommand = `echo 'root' | su -c "chown -R ${SSH_CONFIG.username}:${SSH_CONFIG.username} ${APP_PATH}/.git"`;
-        await ssh.execCommand(fixPermCommand, { cwd: APP_PATH });
-        
-        // Also fix node_modules permission if needed
-        console.log('🔧 Fixing node_modules permissions...');
-        const fixNodeModulesCommand = `echo 'root' | su -c "chown -R ${SSH_CONFIG.username}:${SSH_CONFIG.username} ${APP_PATH}/node_modules 2>/dev/null || true"`;
-        await ssh.execCommand(fixNodeModulesCommand, { cwd: APP_PATH });
+        // Fix entire directory permissions using su with root password
+        // This fixes permission for all files including .git, node_modules, package-lock.json, etc.
+        console.log('🔧 Fixing directory permissions (this may take a moment)...');
+        const fixPermCommand = `echo 'root' | su -c "chown -R ${SSH_CONFIG.username}:${SSH_CONFIG.username} ${APP_PATH}"`;
+        const permResult = await ssh.execCommand(fixPermCommand, { cwd: APP_PATH });
+        if (permResult.code === 0) {
+            console.log('✅ Directory permissions fixed');
+        } else {
+            console.warn('⚠️  Permission fix had issues (continuing anyway):');
+            if (permResult.stderr) console.warn(permResult.stderr);
+        }
+        console.log('');
 
         // 4. Pull latest changes
         console.log('📥 Pulling latest changes from GitHub...');
@@ -67,10 +70,6 @@ async function deploy() {
         console.log('');
 
         // 5. Install dependencies (if package.json changed)
-        // Fix permission for node_modules first using su
-        console.log('🔧 Ensuring node_modules permissions...');
-        await ssh.execCommand(`echo 'root' | su -c "chown -R ${SSH_CONFIG.username}:${SSH_CONFIG.username} ${APP_PATH}/node_modules 2>/dev/null || mkdir -p ${APP_PATH}/node_modules && chown -R ${SSH_CONFIG.username}:${SSH_CONFIG.username} ${APP_PATH}/node_modules"`, { cwd: APP_PATH });
-        
         console.log('📦 Installing dependencies (if needed)...');
         const installResult = await ssh.execCommand('npm install', { cwd: APP_PATH });
         if (installResult.code === 0) {
