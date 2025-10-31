@@ -233,16 +233,9 @@ git add -A
 Write-Host "`nCommitting changes..." -ForegroundColor Cyan
 git commit -m "chore: cleanup unnecessary changelog, release, test, and documentation files"
 
-Write-Host "`nDo you want to push to GitHub now? (Y/N): " -ForegroundColor Yellow -NoNewline
-$pushChoice = Read-Host
-
-if ($pushChoice -eq 'Y' -or $pushChoice -eq 'y') {
-    Write-Host "`nPushing to GitHub..." -ForegroundColor Cyan
-    git push
-    Write-Host "`nSuccessfully pushed to GitHub!" -ForegroundColor Green
-} else {
-    Write-Host "`nSkipped pushing to GitHub. You can push manually later with: git push" -ForegroundColor Yellow
-}
+Write-Host "`nPushing to GitHub..." -ForegroundColor Cyan
+git push
+Write-Host "`nSuccessfully pushed to GitHub!" -ForegroundColor Green
 
 Write-Host "`nCleanup completed!" -ForegroundColor Green
 
