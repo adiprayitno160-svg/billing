@@ -430,18 +430,18 @@ export const processImportedCustomers = async (req: Request, res: Response) => {
                 const customerId = (result as any).insertId;
                 
                 // If static IP, insert to static_ip_clients table
+                // Note: gateway column does not exist in static_ip_clients table
                 if (customerData.connection_type === 'static_ip' && customerData.ip_address) {
                     const staticIpQuery = `
                         INSERT INTO static_ip_clients (
-                            customer_id, ip_address, interface, gateway, created_at
-                        ) VALUES (?, ?, ?, ?, NOW())
+                            customer_id, ip_address, interface, created_at
+                        ) VALUES (?, ?, ?, NOW())
                     `;
                     
                     await databasePool.execute(staticIpQuery, [
                         customerId,
                         customerData.ip_address,
-                        customerData.interface,
-                        customerData.gateway
+                        customerData.interface || null
                     ]);
                 }
                 

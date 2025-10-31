@@ -592,17 +592,19 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             
             if (existingClient) {
                 // Update existing static IP client
+                // Note: gateway column does not exist in static_ip_clients table
                 // Include olt_id, odc_id, odp_id if provided
                 await databasePool.execute(
-                    'UPDATE static_ip_clients SET ip_address = ?, interface = ?, gateway = ?, olt_id = ?, odc_id = ?, odp_id = ? WHERE customer_id = ?',
-                    [ip_address, interface_name, gateway || null, olt_id || null, odc_id || null, odp_id || null, id]
+                    'UPDATE static_ip_clients SET ip_address = ?, interface = ?, olt_id = ?, odc_id = ?, odp_id = ? WHERE customer_id = ?',
+                    [ip_address, interface_name, olt_id || null, odc_id || null, odp_id || null, id]
                 );
             } else {
                 // Create new static IP client
+                // Note: gateway column does not exist in static_ip_clients table
                 // Include olt_id, odc_id, odp_id if provided
                 await databasePool.execute(
-                    'INSERT INTO static_ip_clients (customer_id, ip_address, interface, gateway, olt_id, odc_id, odp_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
-                    [id, ip_address, interface_name, gateway || null, olt_id || null, odc_id || null, odp_id || null]
+                    'INSERT INTO static_ip_clients (customer_id, ip_address, interface, olt_id, odc_id, odp_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+                    [id, ip_address, interface_name, olt_id || null, odc_id || null, odp_id || null]
                 );
             }
 
