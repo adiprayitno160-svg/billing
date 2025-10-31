@@ -646,95 +646,95 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
                         // Re-throw error untuk menghentikan proses jika IP tidak bisa dibuat
                         throw new Error(`Gagal menambahkan IP address ke MikroTik: ${ipError.message || 'Unknown error'}`);
                     }
-                        
-                        // 2. Calculate peer IP and create mangle rules
-                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-                        const [ipOnly, prefixStr] = ip_address.split('/');
-                        const prefix = Number(prefixStr || '0');
-                        const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                        const networkInt = ipToInt(ipOnly) & mask;
-                        let peerIp = ipOnly;
-                        
-                        if (prefix === 30) {
-                            const firstHost = networkInt + 1;
-                            const secondHost = networkInt + 2;
-                            const ipInt = ipToInt(ipOnly);
-                            peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-                        }
-                        
-                        const downloadMark = peerIp;
-                        const uploadMark = `UP-${peerIp}`;
-                        
-                        // 3. Add mangle rules (CRITICAL - throw error if fails)
+                    
+                    // 2. Calculate peer IP and create mangle rules
+                    const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                    const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                    const [ipOnly, prefixStr] = ip_address.split('/');
+                    const prefix = Number(prefixStr || '0');
+                    const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                    const networkInt = ipToInt(ipOnly) & mask;
+                    let peerIp = ipOnly;
+                    
+                    if (prefix === 30) {
+                        const firstHost = networkInt + 1;
+                        const secondHost = networkInt + 2;
+                        const ipInt = ipToInt(ipOnly);
+                        peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                    }
+                    
+                    const downloadMark = peerIp;
+                    const uploadMark = `UP-${peerIp}`;
+                    
+                    // 3. Add mangle rules (CRITICAL - throw error if fails)
+                    try {
+                        await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
+                        console.log(`✅ Mangle rules created for ${peerIp}`);
+                    } catch (mangleError: any) {
+                        console.error(`❌ Failed to create mangle rules:`, mangleError.message);
+                        // Re-throw error untuk menghentikan proses jika mangle rules tidak bisa dibuat
+                        throw new Error(`Gagal membuat mangle rules: ${mangleError.message || 'Unknown error'}`);
+                    }
+                    
+                    // 4. Create queue tree if package is provided (sama seperti tambah pelanggan baru)
+                    if (static_ip_package) {
                         try {
-                            await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
-                            console.log(`✅ Mangle rules created for ${peerIp}`);
-                        } catch (mangleError: any) {
-                            console.error(`❌ Failed to create mangle rules:`, mangleError.message);
-                            // Re-throw error untuk menghentikan proses jika mangle rules tidak bisa dibuat
-                            throw new Error(`Gagal membuat mangle rules: ${mangleError.message || 'Unknown error'}`);
-                        }
-                        
-                        // 4. Create queue tree if package is provided (sama seperti tambah pelanggan baru)
-                        if (static_ip_package) {
-                            try {
-                                const [pkgRows] = await databasePool.execute(
-                                    'SELECT * FROM static_ip_packages WHERE id = ?',
-                                    [static_ip_package]
-                                );
-                                const pkg = (pkgRows as any)[0];
+                            const [pkgRows] = await databasePool.execute(
+                                'SELECT * FROM static_ip_packages WHERE id = ?',
+                                [static_ip_package]
+                            );
+                            const pkg = (pkgRows as any)[0];
+                            
+                            if (pkg) {
+                                // Sama seperti logic di /customers/new-static-ip
+                                const clientName = name || `Customer_${id}`;
+                                const qDownload = pkg.child_queue_type_download || 'pcq-download-default';
+                                const qUpload = pkg.child_queue_type_upload || 'pcq-upload-default';
+                                const pDownload = String(pkg.child_priority_download || '8');
+                                const pUpload = String(pkg.child_priority_upload || '8');
+                                const laDownload = pkg.child_limit_at_download || '';
+                                const laUpload = pkg.child_limit_at_upload || '';
+                                const mlDownload = pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download;
+                                const mlUpload = pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload;
                                 
-                                if (pkg) {
-                                    // Sama seperti logic di /customers/new-static-ip
-                                    const clientName = name || `Customer_${id}`;
-                                    const qDownload = pkg.child_queue_type_download || 'pcq-download-default';
-                                    const qUpload = pkg.child_queue_type_upload || 'pcq-upload-default';
-                                    const pDownload = String(pkg.child_priority_download || '8');
-                                    const pUpload = String(pkg.child_priority_upload || '8');
-                                    const laDownload = pkg.child_limit_at_download || '';
-                                    const laUpload = pkg.child_limit_at_upload || '';
-                                    const mlDownload = pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download;
-                                    const mlUpload = pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload;
+                                // Parent queue menggunakan nama paket (sama seperti new-static-ip)
+                                const packageDownloadQueue = pkg.name;
+                                const packageUploadQueue = `UP-${pkg.name}`;
+                                
+                                if (mlDownload && mlUpload) {
+                                    // Create download queue (sama format dengan new-static-ip)
+                                    await createQueueTree(cfg, {
+                                        name: clientName,
+                                        parent: packageDownloadQueue,
+                                        packetMarks: downloadMark,
+                                        limitAt: laDownload,
+                                        maxLimit: mlDownload,
+                                        queue: qDownload,
+                                        priority: pDownload,
+                                        comment: `Download queue for ${clientName}`
+                                    });
                                     
-                                    // Parent queue menggunakan nama paket (sama seperti new-static-ip)
-                                    const packageDownloadQueue = pkg.name;
-                                    const packageUploadQueue = `UP-${pkg.name}`;
+                                    // Create upload queue (sama format dengan new-static-ip)
+                                    await createQueueTree(cfg, {
+                                        name: `UP-${clientName}`,
+                                        parent: packageUploadQueue,
+                                        packetMarks: uploadMark,
+                                        limitAt: laUpload,
+                                        maxLimit: mlUpload,
+                                        queue: qUpload,
+                                        priority: pUpload,
+                                        comment: `Upload queue for ${clientName}`
+                                    });
                                     
-                                    if (mlDownload && mlUpload) {
-                                        // Create download queue (sama format dengan new-static-ip)
-                                        await createQueueTree(cfg, {
-                                            name: clientName,
-                                            parent: packageDownloadQueue,
-                                            packetMarks: downloadMark,
-                                            limitAt: laDownload,
-                                            maxLimit: mlDownload,
-                                            queue: qDownload,
-                                            priority: pDownload,
-                                            comment: `Download queue for ${clientName}`
-                                        });
-                                        
-                                        // Create upload queue (sama format dengan new-static-ip)
-                                        await createQueueTree(cfg, {
-                                            name: `UP-${clientName}`,
-                                            parent: packageUploadQueue,
-                                            packetMarks: uploadMark,
-                                            limitAt: laUpload,
-                                            maxLimit: mlUpload,
-                                            queue: qUpload,
-                                            priority: pUpload,
-                                            comment: `Upload queue for ${clientName}`
-                                        });
-                                        
-                                        console.log(`✅ Queue tree created for customer ${id} (${clientName})`);
-                                    }
+                                    console.log(`✅ Queue tree created for customer ${id} (${clientName})`);
                                 }
-                            } catch (queueError: any) {
-                                console.error(`❌ Failed to create queue tree:`, queueError.message);
                             }
+                        } catch (queueError: any) {
+                            console.error(`❌ Failed to create queue tree:`, queueError.message);
                         }
-                        
-                        console.log(`✅ All MikroTik resources created successfully for customer ${id}`);
+                    }
+                    
+                    console.log(`✅ All MikroTik resources created successfully for customer ${id}`);
                     } else {
                         console.warn(`⚠️ MikroTik config not available, skipping resource creation`);
                     }
