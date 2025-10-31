@@ -124,15 +124,43 @@ async function deploy() {
         console.log('');
 
         // 8. Reload PM2 application (zero downtime)
-        console.log('🔄 Reloading PM2 application...');
-        const reloadResult = await ssh.execCommand('pm2 reload billing-app', { cwd: APP_PATH });
-        if (reloadResult.code === 0) {
-            console.log('✅ PM2 reload successful');
-            console.log(reloadResult.stdout);
+        console.log('🔄 Checking PM2 application status...');
+        const pm2ListResult = await ssh.execCommand('pm2 list', { cwd: APP_PATH });
+        const hasApp = pm2ListResult.stdout && pm2ListResult.stdout.includes('billing-app');
+        
+        if (hasApp) {
+            console.log('🔄 Reloading PM2 application...');
+            const reloadResult = await ssh.execCommand('pm2 reload billing-app', { cwd: APP_PATH });
+            if (reloadResult.code === 0) {
+                console.log('✅ PM2 reload successful');
+                if (reloadResult.stdout) console.log(reloadResult.stdout);
+            } else {
+                console.error('❌ PM2 reload failed, trying restart...');
+                const restartResult = await ssh.execCommand('pm2 restart billing-app', { cwd: APP_PATH });
+                if (restartResult.code === 0) {
+                    console.log('✅ PM2 restart successful');
+                } else {
+                    throw new Error('PM2 reload and restart both failed');
+                }
+            }
         } else {
-            console.error('❌ PM2 reload failed:');
-            console.error(reloadResult.stderr);
-            throw new Error('PM2 reload failed');
+            console.log('⚠️  PM2 app not found, trying to start...');
+            // Try to start with ecosystem config
+            const startResult = await ssh.execCommand('pm2 start ecosystem.config.js --env production', { cwd: APP_PATH });
+            if (startResult.code === 0) {
+                console.log('✅ PM2 application started');
+                if (startResult.stdout) console.log(startResult.stdout);
+            } else {
+                // Try manual start
+                console.log('⚠️  Ecosystem config failed, trying manual start...');
+                const manualStartResult = await ssh.execCommand('pm2 start dist/server.js --name billing-app', { cwd: APP_PATH });
+                if (manualStartResult.code === 0) {
+                    console.log('✅ PM2 application started manually');
+                } else {
+                    console.warn('⚠️  Could not start PM2 application automatically');
+                    console.warn('⚠️  Please start manually with: pm2 start dist/server.js --name billing-app');
+                }
+            }
         }
         console.log('');
 
