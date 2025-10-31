@@ -45,10 +45,14 @@
                 <label class="block text-sm font-medium text-slate-700">Username PPPOE *</label>
                 <button type="button" id="reload_secrets_btn" class="text-xs px-2 py-1 border border-blue-300 rounded hover:bg-blue-50">Muat Ulang</button>
             </div>
-            <select name="username" id="pppoe_secret_select" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">— Memuat daftar dari MikroTik —</option>
-            </select>
-            <p class="text-xs text-slate-500 mt-1">Pilih username dari MikroTik atau ketik manual</p>
+            <div class="relative">
+                <input type="text" name="username" id="pppoe_search" placeholder="Ketik untuk mencari username..." required
+                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div id="pppoe_search_results" class="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                    <div class="p-2 text-sm text-slate-600">Memuat...</div>
+                </div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Cari dan pilih username dari MikroTik. Username yang sudah digunakan tidak akan ditampilkan.</p>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">Password PPPOE *</label>
@@ -262,45 +266,81 @@
             console.error('Submit button not found');
         }
         
-        // Load PPPoE secrets to dropdown and wire auto-fill
-        const secretSelect = document.getElementById('pppoe_secret_select');
+        // Load PPPoE secrets with search functionality
+        const pppoeSearch = document.getElementById('pppoe_search');
+        const pppoeResults = document.getElementById('pppoe_search_results');
+        let allSecrets = [];
+        
         function loadSecrets() {
-            if (!secretSelect) return;
-            secretSelect.disabled = true;
-            secretSelect.innerHTML = '<option value="">— Memuat daftar dari MikroTik —</option>';
+            if (!pppoeResults) return;
+            pppoeResults.innerHTML = '<div class="p-2 text-sm text-slate-600">Memuat...</div>';
+            pppoeResults.classList.remove('hidden');
             fetch('/api/pppoe/secrets')
                 .then(r => r.json())
                 .then(list => {
-                    secretSelect.innerHTML = '<option value="">— Pilih dari MikroTik —</option>';
-                    if (!Array.isArray(list)) return;
-                    if (list.length === 0) {
-                        const opt = document.createElement('option');
-                        opt.value = '';
-                        opt.textContent = 'Tidak ada secret ditemukan / gagal memuat';
-                        secretSelect.appendChild(opt);
-                        return;
-                    }
-                    list.forEach(item => {
-                        if (!item || !item.name) return;
-                        const opt = document.createElement('option');
-                        opt.value = item.name;
-                        opt.textContent = item.profile ? `${item.name} (${item.profile})` : item.name;
-                        secretSelect.appendChild(opt);
-                    });
+                    allSecrets = Array.isArray(list) ? list : [];
+                    searchPPPoE('');
                 })
                 .catch(err => {
                     console.error('Load PPPoE secrets error:', err);
-                    secretSelect.innerHTML = '<option value="">— Gagal memuat. Coba lagi —</option>';
-                })
-                .finally(() => {
-                    secretSelect.disabled = false;
+                    pppoeResults.innerHTML = '<div class="p-2 text-sm text-red-600">Gagal memuat dari MikroTik</div>';
                 });
         }
-        if (secretSelect) {
-            loadSecrets();
-            const reloadBtn = document.getElementById('reload_secrets_btn');
-            if (reloadBtn) reloadBtn.addEventListener('click', loadSecrets);
+        
+        function searchPPPoE(query) {
+            if (!pppoeResults) return;
+            const searchTerm = query.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                pppoeResults.classList.add('hidden');
+                return;
+            }
+            
+            const filtered = allSecrets.filter(item => 
+                item.name && item.name.toLowerCase().includes(searchTerm)
+            );
+            
+            if (filtered.length === 0) {
+                pppoeResults.innerHTML = '<div class="p-2 text-sm text-gray-600">Tidak ada hasil</div>';
+            } else {
+                pppoeResults.innerHTML = filtered.map(item => `
+                    <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                         onclick="selectPPPoE('${item.name.replace(/'/g, "\\'")}', '${item.profile || ''}')">
+                        <div class="font-medium text-slate-900">${item.name}</div>
+                        ${item.profile ? `<div class="text-xs text-slate-600">Profile: ${item.profile}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+            
+            pppoeResults.classList.remove('hidden');
         }
+        
+        function selectPPPoE(username, profile) {
+            if (pppoeSearch) pppoeSearch.value = username;
+            if (pppoeResults) pppoeResults.classList.add('hidden');
+        }
+        
+        // Make selectPPPoE globally accessible
+        window.selectPPPoE = selectPPPoE;
+        
+        if (pppoeSearch) {
+            pppoeSearch.addEventListener('input', function(e) {
+                searchPPPoE(e.target.value);
+            });
+            
+            // Hide results when clicking outside
+            document.addEventListener('click', function(e) {
+                if (pppoeResults && !pppoeSearch.contains(e.target) && !pppoeResults.contains(e.target)) {
+                    pppoeResults.classList.add('hidden');
+                }
+            });
+        }
+        
+        const reloadBtn = document.getElementById('reload_secrets_btn');
+        if (reloadBtn) reloadBtn.addEventListener('click', loadSecrets);
+        
+        // Load on page load
+        loadSecrets();
     });
     
     function updateOLTODC() {

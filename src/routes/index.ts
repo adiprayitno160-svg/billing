@@ -1078,13 +1078,24 @@ router.get('/api/pppoe/secrets', async (req, res) => {
             return res.json([]);
         }
         const secrets = await getPppoeSecrets(cfg);
+        
+        // Get all used usernames from database
+        const [usedRows] = await databasePool.execute(
+            'SELECT DISTINCT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL AND pppoe_username != ""'
+        );
+        const usedUsernames = new Set((usedRows as any[]).map(r => r.pppoe_username));
+        
         // Normalisasi struktur minimal yang dibutuhkan: name, password, profile (opsional)
-        const data = (secrets || []).map((s: any) => ({
-            id: s['.id'] || '',
-            name: s.name || '',
-            password: s.password || '',
-            profile: s.profile || ''
-        }));
+        // Only return usernames NOT in the database
+        const data = (secrets || [])
+            .map((s: any) => ({
+                id: s['.id'] || '',
+                name: s.name || '',
+                password: s.password || '',
+                profile: s.profile || ''
+            }))
+            .filter(item => !usedUsernames.has(item.name)); // Filter out already used usernames
+        
         res.json(data);
     } catch (e: any) {
         console.error('Error fetching PPPoE secrets:', e);
