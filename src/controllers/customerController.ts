@@ -449,12 +449,22 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
             odp_id, odc_id, olt_id
         } = req.body;
         
+        // Validate customer ID
+        if (!id || isNaN(Number(id))) {
+            throw new Error('ID pelanggan tidak valid');
+        }
+        
         // Get current customer data to check if connection_type changed
         const [currentCustomerRows] = await databasePool.execute(
             'SELECT connection_type, pppoe_username FROM customers WHERE id = ?',
             [id]
         );
         const currentCustomer = (currentCustomerRows as any)[0];
+        
+        if (!currentCustomer) {
+            throw new Error('Pelanggan tidak ditemukan');
+        }
+        
         const previousConnectionType = currentCustomer?.connection_type;
         const isConnectionTypeChanged = previousConnectionType !== connection_type;
         
@@ -558,7 +568,14 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         }
         
         // If static IP, update static_ip_clients table and create MikroTik resources
-        if (connection_type === 'static_ip' && ip_address && interface_name) {
+        if (connection_type === 'static_ip') {
+            // Validate required fields for static IP
+            if (!ip_address) {
+                throw new Error('IP Address wajib diisi untuk connection type Static IP');
+            }
+            if (!interface_name) {
+                throw new Error('Interface wajib dipilih untuk connection type Static IP');
+            }
             // Check if static IP client exists
             const [existingClientRows] = await databasePool.execute(
                 'SELECT id, ip_address as old_ip, interface as old_interface FROM static_ip_clients WHERE customer_id = ?', 
@@ -726,9 +743,20 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         req.flash('success', 'Pelanggan berhasil diperbarui');
         res.redirect('/customers/list');
         
-    } catch (error) {
-        console.error('Error updating customer:', error);
-        req.flash('error', 'Gagal memperbarui pelanggan');
+    } catch (error: any) {
+        console.error('❌ Error updating customer:', error);
+        console.error('Error message:', error?.message);
+        console.error('Error stack:', error?.stack);
+        console.error('Error details:', {
+            message: error?.message,
+            code: error?.code,
+            errno: error?.errno,
+            sqlState: error?.sqlState,
+            sqlMessage: error?.sqlMessage
+        });
+        
+        const errorMessage = error?.message || 'Gagal memperbarui pelanggan';
+        req.flash('error', `Gagal memperbarui pelanggan: ${errorMessage}`);
         res.redirect(`/customers/${req.params.id}/edit`);
     }
 };
