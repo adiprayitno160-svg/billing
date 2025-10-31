@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -293,18 +294,16 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 }
 
                 try {
-                    // Generate unique customer code
-                    const timestamp = Date.now();
-                    const random = Math.floor(Math.random() * 1000);
-                    const customerCode = `CUST-${timestamp}-${random}`;
+                    // Generate customer_code dengan format YYYYMMDDHHMMSS
+                    const customerCode = CustomerIdGenerator.generateCustomerId();
                     
                     // Generate email
                     const emailLocal = name.toLowerCase().replace(/[^a-z0-9]+/g, '').substring(0, 20);
-                    const email = (emailLocal || 'customer') + timestamp + '@local.id';
+                    const email = (emailLocal || 'customer') + Date.now() + '@local.id';
 
                     console.log('Inserting:', { name, phone: cleanPhone, email, code: customerCode });
 
-                    // Insert - customer_code bisa NULL jika generate gagal
+                    // Insert - customer_code dengan format YYYYMMDDHHMMSS
                     const insertQuery = `
                         INSERT INTO customers (name, phone, email, address, customer_code, connection_type, status, created_at, updated_at)
                         VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
@@ -315,7 +314,7 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                         cleanPhone, 
                         email, 
                         address || '',
-                        customerCode || null
+                        customerCode
                     ]);
                     
                     results.success++;
