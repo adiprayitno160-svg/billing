@@ -368,7 +368,7 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { 
             name, phone, email, address, customer_code, connection_type, status, 
-            latitude, longitude, pppoe_username, pppoe_profile_id,
+            latitude, longitude, pppoe_username, pppoe_password, pppoe_profile_id,
             ip_address, interface: interface_name, gateway, pppoe_package, static_ip_package
         } = req.body;
         
@@ -398,6 +398,52 @@ export const postCustomerUpdate = async (req: Request, res: Response) => {
         params.push(id);
         
         await databasePool.execute(query, params);
+        
+        // Update MikroTik if PPPoE credentials changed
+        if (connection_type === 'pppoe' && pppoe_username && pppoe_password) {
+            try {
+                const cfg = await getMikrotikConfig();
+                if (cfg) {
+                    const mikrotik = new MikrotikService({
+                        host: cfg.host,
+                        username: cfg.username,
+                        password: cfg.password,
+                        port: cfg.port || 8728
+                    });
+                    
+                    // Try to get existing user
+                    const existingUser = await mikrotik.getPPPoEUserByUsername(pppoe_username);
+                    
+                    if (existingUser && existingUser['.id']) {
+                        // Update existing user
+                        console.log(`🔄 Updating PPPoE user in MikroTik: ${pppoe_username}`);
+                        const updateSuccess = await mikrotik.updatePPPoEUserByUsername(pppoe_username, {
+                            password: pppoe_password
+                        });
+                        if (updateSuccess) {
+                            console.log(`✅ PPPoE user updated in MikroTik`);
+                        } else {
+                            console.error(`❌ Failed to update PPPoE user in MikroTik`);
+                        }
+                    } else {
+                        // User doesn't exist in MikroTik, create new one
+                        console.log(`➕ Creating new PPPoE user in MikroTik: ${pppoe_username}`);
+                        const createSuccess = await mikrotik.createPPPoEUser({
+                            name: pppoe_username,
+                            password: pppoe_password,
+                            profile: 'default'
+                        });
+                        if (createSuccess) {
+                            console.log(`✅ PPPoE user created in MikroTik`);
+                        } else {
+                            console.error(`❌ Failed to create PPPoE user in MikroTik`);
+                        }
+                    }
+                }
+            } catch (mkError: any) {
+                console.error('⚠️ MikroTik update error:', mkError.message);
+            }
+        }
         
         // If static IP, we might need to update static_ip_clients table
         if (connection_type === 'static_ip' && ip_address) {
