@@ -292,38 +292,62 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     continue;
                 }
 
-                try {
-                    // Generate customer_code dengan format YYYYMMDDHHMMSS
-                    const customerCode = CustomerIdGenerator.generateCustomerId();
-                    
-                    // Generate email
-                    const emailLocal = name.toLowerCase().replace(/[^a-z0-9]+/g, '').substring(0, 20);
-                    const email = (emailLocal || 'customer') + Date.now() + '@local.id';
+                // Retry loop untuk handle duplicate customer_code
+                let inserted = false;
+                let retries = 0;
+                const maxRetries = 5;
+                
+                while (!inserted && retries < maxRetries) {
+                    try {
+                        // Generate customer_code dengan format YYYYMMDDHHMMSSMMM
+                        const customerCode = CustomerIdGenerator.generateCustomerId();
+                        
+                        // Generate email dengan unique timestamp
+                        const emailLocal = name.toLowerCase().replace(/[^a-z0-9]+/g, '').substring(0, 20);
+                        const email = (emailLocal || 'customer') + Date.now() + '_' + i + '@local.id';
 
-                    console.log('Inserting:', { name, phone: cleanPhone, email, code: customerCode });
+                        console.log(`   🔄 Attempt ${retries + 1}:`, { name, phone: cleanPhone, email, code: customerCode });
 
-                    // Insert - customer_code dengan format YYYYMMDDHHMMSS
-                    const insertQuery = `
-                        INSERT INTO customers (name, phone, email, address, customer_code, connection_type, status, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
-                    `;
-                    
-                    await databasePool.execute(insertQuery, [
-                        name, 
-                        cleanPhone, 
-                        email, 
-                        address || '',
-                        customerCode
-                    ]);
-                    
-                    results.success++;
-                    console.log('SUCCESS: Imported', name);
-                    
-                } catch (dbError: any) {
-                    results.failed++;
-                    const errorMsg = dbError?.message || String(dbError);
-                    results.errors.push(`Baris ${rowNumber}: ${errorMsg}`);
-                    console.error('DB ERROR Row', rowNumber, ':', errorMsg);
+                        // Insert - customer_code dengan format YYYYMMDDHHMMSSMMM
+                        const insertQuery = `
+                            INSERT INTO customers (name, phone, email, address, customer_code, connection_type, status, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
+                        `;
+                        
+                        await databasePool.execute(insertQuery, [
+                            name, 
+                            cleanPhone, 
+                            email, 
+                            address || '',
+                            customerCode
+                        ]);
+                        
+                        results.success++;
+                        console.log(`   ✅ SUCCESS: Row ${rowNumber} imported!`);
+                        inserted = true;
+                        
+                    } catch (dbError: any) {
+                        const errorMsg = dbError?.message || String(dbError);
+                        
+                        // Jika error duplicate customer_code, retry dengan delay
+                        if (errorMsg.includes('Duplicate entry') && errorMsg.includes('customer_code')) {
+                            retries++;
+                            if (retries < maxRetries) {
+                                console.log(`   ⚠️  Duplicate customer_code detected, retrying... (${retries}/${maxRetries})`);
+                                await new Promise(resolve => setTimeout(resolve, 10)); // 10ms delay
+                                continue;
+                            } else {
+                                results.failed++;
+                                results.errors.push(`Baris ${rowNumber}: Gagal membuat customer_code unik setelah ${maxRetries} percobaan`);
+                                console.error(`   ❌ DB ERROR after ${maxRetries} retries:`, errorMsg);
+                            }
+                        } else {
+                            results.failed++;
+                            results.errors.push(`Baris ${rowNumber}: ${errorMsg}`);
+                            console.error('   ❌ DB ERROR Row', rowNumber, ':', errorMsg);
+                            inserted = true; // Stop retrying for other errors
+                        }
+                    }
                 }
 
             } catch (e) {
