@@ -25,7 +25,8 @@ import {
 	autoFixPrepaidSubscriptionsTable,
 	autoFixPrepaidTransactionsTable,
 	autoFixPortalCustomersTable,
-	autoFixPrepaidSubscriptionsTableFull
+	autoFixPrepaidSubscriptionsTableFull,
+	autoFixInvoicesAndPaymentsTables
 } from './utils/autoFixDatabase';
 import { loggingMiddleware, errorLoggingMiddleware } from './middlewares/loggingMiddleware';
 import { BillingLogService } from './services/billing/BillingLogService';
@@ -74,14 +75,14 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('dev'));
 
-// Session with 5 minute inactivity timeout
+// Session with 10 minute inactivity timeout
 app.use(session({
 	secret: process.env.SESSION_SECRET || 'billing-secret-key',
 	resave: false,
 	saveUninitialized: false,
 	cookie: { 
 		secure: false,
-		maxAge: 5 * 60 * 1000 // 5 minutes in milliseconds
+		maxAge: 10 * 60 * 1000 // 10 minutes in milliseconds
 	},
 	rolling: true // Reset expiry time on each request
 }));
@@ -259,6 +260,14 @@ async function start() {
 			console.log('✅ Purchase tables ensured');
 		} catch (error) {
 			console.error('⚠️ Error ensuring purchase tables (non-critical):', error);
+		}
+		
+		// Ensure invoices and payments tables exist (CRITICAL for bookkeeping)
+		try {
+			await autoFixInvoicesAndPaymentsTables();
+			console.log('✅ Invoices and payments tables ensured');
+		} catch (error) {
+			console.error('⚠️ Error ensuring invoices and payments tables (non-critical):', error);
 		}
 		
 		// Initialize billing scheduler

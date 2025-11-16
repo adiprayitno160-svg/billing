@@ -1,6 +1,7 @@
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import MikrotikService from '../mikrotik/MikrotikService';
+import { calculateCustomerIP } from '../../utils/ipHelper';
 
 interface AddressList {
   id: number;
@@ -198,9 +199,12 @@ class AddressListService {
     const customer = rows[0];
 
     // If static IP, get from static_ip_clients (sip.ip_address from JOIN)
+    // IMPORTANT: IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+    // IP yang digunakan untuk address-list harus IP client (192.168.1.2)
     if (customer.connection_type === 'static_ip' && customer.ip_address) {
       // ip_address comes from JOIN with static_ip_clients (aliased as sip)
-      return customer.ip_address;
+      // Hitung IP client dari CIDR
+      return calculateCustomerIP(customer.ip_address);
     }
 
     // If PPPoE, try to get from MikroTik active sessions

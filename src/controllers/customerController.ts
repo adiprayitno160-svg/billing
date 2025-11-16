@@ -5,6 +5,7 @@ import { getMikrotikConfig } from '../utils/mikrotikConfigHelper';
 import { listPackages as listPppoePackages } from '../services/pppoeService';
 import { listStaticIpPackages } from '../services/staticIpPackageService';
 import { getInterfaces } from '../services/mikrotikService';
+import { calculateCustomerIP } from '../utils/ipHelper';
 
 /**
  * Get customer list page
@@ -487,6 +488,13 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
                 status: 404,
                 message: 'Pelanggan tidak ditemukan'
             });
+        }
+
+        // IMPORTANT: Proses IP address untuk static IP
+        // IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+        // IP yang ditampilkan ke user harus IP client (192.168.1.2)
+        if (customer.connection_type === 'static_ip' && customer.static_ip_address) {
+            customer.static_ip_address = calculateCustomerIP(customer.static_ip_address);
         }
 
         // Format package data based on connection type

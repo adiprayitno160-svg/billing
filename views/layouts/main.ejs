@@ -275,7 +275,7 @@
         <main id="main-content" class="flex-1 h-full overflow-y-auto transition-all duration-300 bg-gradient-to-br from-white via-blue-50/50 to-indigo-50/30" style="padding-bottom: 70px; position: relative; z-index: 1;">
             <div class="w-full p-4 md:p-6 lg:p-8 max-w-[1920px] mx-auto">
                 <header class="mb-6 md:mb-8">
-                    <%- include('../partials/header') %>
+                    <%- include('../partials/header', { title: typeof title !== 'undefined' ? title : 'Billing' }) %>
                 </header>
                 <%- include('../partials/flash') %>
                 <section class="space-y-6 md:space-y-8">
@@ -377,11 +377,12 @@
 })();
 </script>
 
-<!-- Auto logout after 5 minutes of inactivity -->
+<!-- Auto logout after 10 minutes of inactivity -->
 <script>
 (function() {
     let idleTime = 0;
-    const IDLE_TIMEOUT = 5; // 5 minutes
+    const IDLE_TIMEOUT = 10; // 10 minutes
+    const WARNING_TIME = 9; // Show warning at 9 minutes
     const LOGOUT_URL = '/logout';
     
     // Don't log out if already on login page
@@ -390,9 +391,11 @@
         return;
     }
     
-    // Track if user is logged in
+    // Track if user is logged in (for admin pages)
     const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true' || 
-                      window.location.pathname !== '/login';
+                      (window.location.pathname !== '/login' && 
+                       !window.location.pathname.startsWith('/kasir') &&
+                       !window.location.pathname.startsWith('/portal'));
     
     if (!isLoggedIn) {
         return;
@@ -414,28 +417,31 @@
     document.addEventListener('click', resetIdleTime);
     document.addEventListener('scroll', resetIdleTime);
     document.addEventListener('touchstart', resetIdleTime);
+    document.addEventListener('mousedown', resetIdleTime);
+    document.addEventListener('keydown', resetIdleTime);
     
-    // Check idle time every minute
+    // Check idle time every 30 seconds
     setInterval(function() {
-        idleTime++;
+        idleTime += 0.5; // Increment by 0.5 minutes (30 seconds)
         
-        // Show warning at 4 minutes
-        if (idleTime === IDLE_TIMEOUT - 1) {
+        // Show warning at 9 minutes (1 minute before logout)
+        if (idleTime >= WARNING_TIME && idleTime < IDLE_TIMEOUT) {
             // Only show if warning doesn't already exist
             if (!document.getElementById('idleWarning')) {
+                const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
                 const warningDiv = document.createElement('div');
                 warningDiv.id = 'idleWarning';
                 warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-bounce border border-white/70';
                 warningDiv.innerHTML = `
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                         </div>
                         <div class="flex-1">
                             <div class="font-bold text-base">Tidak Ada Aktivitas</div>
-                            <div class="text-sm opacity-90 mt-0.5">Anda akan logout otomatis dalam 1 menit...</div>
+                            <div class="text-sm opacity-90 mt-0.5">Anda akan logout otomatis dalam ${remainingMinutes} menit...</div>
                         </div>
                         <button onclick="document.getElementById('idleWarning').remove(); idleTime = 0;" class="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
                             Tetap Login
@@ -443,16 +449,24 @@
                     </div>
                 `;
                 document.body.appendChild(warningDiv);
+            } else {
+                // Update remaining time in existing warning
+                const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
+                const warningText = document.querySelector('#idleWarning .text-sm');
+                if (warningText) {
+                    warningText.textContent = `Anda akan logout otomatis dalam ${remainingMinutes} menit...`;
+                }
             }
         }
         
-        // Logout after 5 minutes
+        // Logout after 10 minutes
         if (idleTime >= IDLE_TIMEOUT) {
-            console.log('Auto-logout due to inactivity...');
-            // Redirect to logout endpoint
-            window.location.href = LOGOUT_URL;
+            console.log('Auto-logout due to inactivity (10 minutes)...');
+            // Force logout - redirect to admin login page with timeout parameter
+            // Session will be destroyed on login page when timeout=1 is detected
+            window.location.href = '/login?timeout=1';
         }
-    }, 60000); // Check every 1 minute
+    }, 30000); // Check every 30 seconds
 })();
 </script>
 </body>

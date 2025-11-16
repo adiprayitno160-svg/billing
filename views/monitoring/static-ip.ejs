@@ -421,7 +421,8 @@
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-600">IP Address</div>
-                                        <code class="font-mono text-sm bg-white px-2 py-1 rounded">${customer.ip_address}</code>
+                                        <code class="font-mono text-sm bg-white px-2 py-1 rounded">${customer.ip_address_display || customer.ip_address}</code>
+                                        ${customer.ip_address && customer.ip_address.includes('/') ? `<div class="text-xs text-gray-500 mt-1">Gateway: ${customer.ip_address}</div>` : ''}
                                     </div>
                                     <div>
                                         <div class="text-sm text-gray-600">Status Ping</div>

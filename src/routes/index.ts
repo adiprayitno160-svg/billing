@@ -56,6 +56,7 @@ import kasirRoutes from './kasir';
 import addressListRoutes from './addressList';
 import billingRoutes from './billing';
 import prepaidRoutes from './prepaid';
+import accountingRoutes from './accounting';
 import prepaidAdvancedRoutes from './prepaid-advanced';
 import monitoringRoutes from './monitoring';
 import slaRoutes from './sla';
@@ -319,6 +320,11 @@ router.use('/billing', billingRoutes);
 
 // Prepaid portal routes
 router.use('/prepaid', prepaidRoutes);
+
+// Accounting routes
+console.log('[ROUTE REGISTRATION] Registering /accounting routes...');
+router.use('/accounting', accountingRoutes);
+console.log('[ROUTE REGISTRATION] Accounting routes registered successfully');
 
 // Advanced Prepaid routes (New system)
 router.use('/prepaid/advanced', prepaidAdvancedRoutes);

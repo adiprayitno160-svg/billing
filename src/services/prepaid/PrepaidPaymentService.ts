@@ -159,7 +159,20 @@ export class PrepaidPaymentService {
           t.payment_proof_url,
           t.payment_notes,
           t.created_at,
-          TIMESTAMPDIFF(HOUR, t.created_at, NOW()) as hours_pending
+          TIMESTAMPDIFF(HOUR, t.created_at, NOW()) as hours_pending,
+          (SELECT confidence_score FROM payment_verifications 
+           WHERE customer_id = t.customer_id 
+           AND amount = t.amount 
+           AND status = 'approved' 
+           ORDER BY created_at DESC LIMIT 1) as confidence_score,
+          CASE 
+            WHEN (SELECT confidence_score FROM payment_verifications 
+                  WHERE customer_id = t.customer_id 
+                  AND amount = t.amount 
+                  AND status = 'approved' 
+                  ORDER BY created_at DESC LIMIT 1) >= 80 
+            THEN 1 ELSE 0 
+          END as verified_by_ai
         FROM prepaid_transactions t
         INNER JOIN customers c ON t.customer_id = c.id
         INNER JOIN prepaid_packages p ON t.package_id = p.id

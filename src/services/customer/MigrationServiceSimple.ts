@@ -79,6 +79,7 @@ class MigrationServiceSimple {
   
   /**
    * Calculate customer IP from CIDR (handle /30 subnet)
+   * @deprecated Use calculateCustomerIP from utils/ipHelper instead
    */
   private calculateCustomerIP(cidrAddress: string): string {
     try {

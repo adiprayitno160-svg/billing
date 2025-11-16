@@ -6,6 +6,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AISettingsService } from './AISettingsService';
+import { FraudDetectionPrompts } from '../ai/FraudDetectionPrompts';
 
 export interface GeminiAnalysisResult {
     isValid: boolean;
@@ -90,12 +91,15 @@ export class GeminiService {
 
     /**
      * Analyze payment proof image using Gemini Vision
+     * Enhanced with comprehensive fraud detection
      */
     static async analyzePaymentProof(
         imageBuffer: Buffer,
         expectedAmount?: number,
         expectedBank?: string,
-        transactionType: 'invoice' | 'prepaid' = 'invoice'
+        transactionType: 'invoice' | 'prepaid' = 'invoice',
+        customerName?: string,
+        invoiceNumber?: string
     ): Promise<GeminiAnalysisResult> {
         try {
             await this.initialize();
@@ -110,8 +114,14 @@ export class GeminiService {
             const base64Image = imageBuffer.toString('base64');
             const mimeType = this.detectMimeType(imageBuffer);
 
-            // Prepare prompt
-            const prompt = this.buildAnalysisPrompt(expectedAmount, expectedBank, transactionType);
+            // Prepare prompt with comprehensive fraud detection
+            const prompt = this.buildAnalysisPrompt(
+                expectedAmount, 
+                expectedBank, 
+                transactionType,
+                customerName,
+                invoiceNumber
+            );
 
             // Call Gemini Vision API
             const result = await this.model.generateContent([
@@ -160,77 +170,23 @@ export class GeminiService {
 
     /**
      * Build analysis prompt for Gemini
+     * Uses comprehensive fraud detection prompts
      */
     private static buildAnalysisPrompt(
         expectedAmount?: number,
         expectedBank?: string,
-        transactionType: 'invoice' | 'prepaid' = 'invoice'
+        transactionType: 'invoice' | 'prepaid' = 'invoice',
+        customerName?: string,
+        invoiceNumber?: string
     ): string {
-        let prompt = `Anda adalah ahli analisis bukti pembayaran digital. Analisis gambar bukti transfer ini dengan teliti.
-
-Tugas Anda:
-1. Identifikasi apakah ini adalah bukti transfer yang valid (Brimo, Bank Transfer, E-Wallet, dll)
-2. Ekstrak informasi penting: nominal, tanggal, bank, nomor rekening, nama pengirim, nomor referensi
-3. Validasi apakah bukti transfer ini sesuai dengan transaksi yang diharapkan
-4. Tentukan tingkat risiko pembayaran ini
-
-Informasi yang perlu diekstrak:
-- Nominal pembayaran (dalam Rupiah)
-- Tanggal transfer
-- Bank atau metode transfer (Brimo, BCA, Mandiri, BRI, dll)
-- Nomor rekening tujuan (jika terlihat)
-- Nama pengirim (jika terlihat)
-- Nomor referensi/transaksi
-- Metode transfer (Brimo, Bank Transfer, E-Wallet, dll)
-
-Validasi yang perlu dilakukan:
-- Apakah ini benar-benar bukti transfer yang valid?
-- Apakah tanggal transfer masih relevan (tidak lebih dari 7 hari yang lalu)?
-- Apakah nominal sesuai dengan yang diharapkan?
-- Apakah bank/metode transfer sesuai?
-- Apakah ada tanda-tanda manipulasi atau edit pada gambar?
-
-Tingkat Risiko:
-- LOW: Bukti transfer jelas, semua informasi sesuai, tidak ada tanda manipulasi
-- MEDIUM: Bukti transfer kurang jelas atau ada sedikit ketidaksesuaian
-- HIGH: Bukti transfer mencurigakan, ada tanda manipulasi, atau informasi tidak sesuai
-
-`;
-
-        if (expectedAmount) {
-            prompt += `\nNominal yang diharapkan: Rp ${expectedAmount.toLocaleString('id-ID')}`;
-        }
-
-        if (expectedBank) {
-            prompt += `\nBank yang diharapkan: ${expectedBank}`;
-        }
-
-        prompt += `\n\nJawab dalam format JSON berikut:
-{
-  "isValid": true/false,
-  "confidence": 0-100,
-  "extractedData": {
-    "amount": number,
-    "date": "YYYY-MM-DD",
-    "bank": "string",
-    "accountNumber": "string",
-    "accountHolder": "string",
-    "referenceNumber": "string",
-    "transferMethod": "string"
-  },
-  "validation": {
-    "isPaymentProof": true/false,
-    "isRecent": true/false,
-    "amountMatches": true/false,
-    "bankMatches": true/false,
-    "riskLevel": "low|medium|high",
-    "riskReasons": ["string"]
-  }
-}
-
-Pastikan response hanya berisi JSON yang valid, tanpa teks tambahan.`;
-
-        return prompt;
+        // Use comprehensive fraud detection prompt
+        return FraudDetectionPrompts.getPaymentProofVerificationPrompt(
+            expectedAmount,
+            expectedBank,
+            customerName,
+            invoiceNumber,
+            transactionType
+        );
     }
 
     /**
@@ -253,6 +209,11 @@ Pastikan response hanya berisi JSON yang valid, tanpa teks tambahan.`;
             const parsed = JSON.parse(jsonText);
 
             // Validate and normalize data
+            // Support both old format (riskLevel in validation) and new format (riskLevel at root)
+            const riskLevel = parsed.riskLevel || parsed.validation?.riskLevel || 'high';
+            const riskScore = parsed.riskScore || 0;
+            const fraudIndicators = parsed.fraudIndicators || [];
+            
             const result: Omit<GeminiAnalysisResult, 'rawResponse'> = {
                 isValid: parsed.isValid === true,
                 confidence: Math.min(100, Math.max(0, parsed.confidence || 0)),
@@ -270,14 +231,30 @@ Pastikan response hanya berisi JSON yang valid, tanpa teks tambahan.`;
                     isRecent: parsed.validation?.isRecent === true,
                     amountMatches: parsed.validation?.amountMatches === true,
                     bankMatches: parsed.validation?.bankMatches === true,
-                    riskLevel: ['low', 'medium', 'high'].includes(parsed.validation?.riskLevel) 
-                        ? parsed.validation.riskLevel 
+                    riskLevel: ['low', 'medium', 'high', 'critical'].includes(riskLevel) 
+                        ? riskLevel as 'low' | 'medium' | 'high' | 'critical'
                         : 'high',
                     riskReasons: Array.isArray(parsed.validation?.riskReasons) 
                         ? parsed.validation.riskReasons 
-                        : []
+                        : (fraudIndicators.length > 0 
+                            ? fraudIndicators.map((ind: any) => ind.description || ind).filter(Boolean)
+                            : [])
                 }
             };
+            
+            // Store additional data if available (for future use)
+            if (riskScore > 0) {
+                (result as any).riskScore = riskScore;
+            }
+            if (fraudIndicators.length > 0) {
+                (result as any).fraudIndicators = fraudIndicators;
+            }
+            if (parsed.recommendation) {
+                (result as any).recommendation = parsed.recommendation;
+            }
+            if (parsed.reasoning) {
+                (result as any).reasoning = parsed.reasoning;
+            }
 
             // Additional validation
             if (expectedAmount && result.extractedData.amount) {

@@ -277,45 +277,15 @@ export class MonitoringController {
             const [countResult] = await databasePool.query(countQuery, queryParams) as [RowDataPacket[], any];
             const totalCount = countResult[0]?.total || 0;
 
-            // Helper function to calculate peer IP (router client IP) from CIDR
-            const calculatePeerIP = (cidrAddress: string): string => {
-                try {
-                    const [ipOnly, prefixStr] = cidrAddress.split('/');
-                    const prefix = Number(prefixStr || '0');
-                    
-                    const ipToInt = (ip: string) => {
-                        return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-                    };
-                    const intToIp = (int: number) => {
-                        return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-                    };
-                    
-                    if (prefix === 30) {
-                        const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                        const networkInt = ipToInt(ipOnly) & mask;
-                        const firstHost = networkInt + 1;
-                        const secondHost = networkInt + 2;
-                        const ipInt = ipToInt(ipOnly);
-                        
-                        if (ipInt === firstHost) {
-                            return intToIp(secondHost);
-                        } else if (ipInt === secondHost) {
-                            return intToIp(firstHost);
-                        } else {
-                            return intToIp(secondHost);
-                        }
-                    }
-                    
-                    return ipOnly;
-                } catch (error) {
-                    return cidrAddress.split('/')[0];
-                }
-            };
+            // Import utility function untuk menghitung IP client dari CIDR
+            const { calculateCustomerIP } = await import('../../utils/ipHelper');
 
             // Merge with ping status and calculate downtime
             const clientsWithStatus = await Promise.all(clients.map(async client => {
                 // Calculate peer IP (router client IP) for display
-                const peerIP = calculatePeerIP(client.ip_address || '');
+                // IMPORTANT: IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+                // IP yang ditampilkan ke user harus IP client (192.168.1.2)
+                const peerIP = client.ip_address ? calculateCustomerIP(client.ip_address) : '';
                 
                 // Get current downtime if offline
                 let currentDowntime = null;
@@ -609,6 +579,14 @@ export class MonitoringController {
             const actualCustomerId = customer?.id;
             if (!actualCustomerId) {
                 return res.status(404).json({ success: false, error: 'Customer not found' });
+            }
+
+            // IMPORTANT: Proses IP address untuk static IP
+            // IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+            // IP yang ditampilkan ke user harus IP client (192.168.1.2)
+            const { calculateCustomerIP } = await import('../../utils/ipHelper');
+            if (customer.ip_address) {
+                customer.ip_address_display = calculateCustomerIP(customer.ip_address);
             }
 
             // If we don't have a valid customer_id, we can't get downtime history

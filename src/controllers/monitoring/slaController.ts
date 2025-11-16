@@ -9,6 +9,7 @@ import { RowDataPacket } from 'mysql2';
 import slaMonitoringService from '../../services/slaMonitoringService';
 import bandwidthLogService from '../../services/bandwidthLogService';
 import pingService from '../../services/pingService';
+import { calculateCustomerIP } from '../../utils/ipHelper';
 
 export class SLAController {
     
@@ -124,6 +125,13 @@ export class SLAController {
             }
             
             const customer = customers[0];
+            
+            // IMPORTANT: Proses IP address untuk static IP
+            // IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+            // IP yang ditampilkan ke user harus IP client (192.168.1.2)
+            if (customer.connection_type === 'static_ip' && customer.ip_address) {
+                customer.ip_address_display = calculateCustomerIP(customer.ip_address);
+            }
             
             // Get SLA record for the month
             const slaRecord = await slaMonitoringService.getCustomerSLASummary(parsedCustomerId, monthDate);

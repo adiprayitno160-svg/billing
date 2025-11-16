@@ -476,17 +476,49 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
      */
     private static async showInvoices(phone: string): Promise<void> {
         try {
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, billing_mode FROM customers WHERE phone = ? LIMIT 1',
-                [phone]
+            // Normalize phone number for database query
+            // Remove @c.us if present, and try multiple formats
+            let normalizedPhone = phone.replace('@c.us', '').trim();
+            
+            // Try to find customer with different phone formats
+            let customer: any = null;
+            
+            // Try exact match first
+            const [customersExact] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, billing_mode, phone FROM customers WHERE phone = ? LIMIT 1',
+                [normalizedPhone]
             );
-
-            if (customers.length === 0) {
-                await this.sendMessage(phone, '❌ Pelanggan tidak ditemukan.');
-                return;
+            
+            if (customersExact.length > 0) {
+                customer = customersExact[0];
+            } else {
+                // Try with leading 0 removed (if starts with 62)
+                if (normalizedPhone.startsWith('62')) {
+                    const phoneWithZero = '0' + normalizedPhone.substring(2);
+                    const [customersZero] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT id, billing_mode, phone FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
+                        [phoneWithZero, normalizedPhone]
+                    );
+                    if (customersZero.length > 0) {
+                        customer = customersZero[0];
+                    }
+                } else if (normalizedPhone.startsWith('0')) {
+                    // Try with 62 prefix
+                    const phoneWith62 = '62' + normalizedPhone.substring(1);
+                    const [customers62] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT id, billing_mode, phone FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
+                        [phoneWith62, normalizedPhone]
+                    );
+                    if (customers62.length > 0) {
+                        customer = customers62[0];
+                    }
+                }
             }
 
-            const customer = customers[0];
+            if (!customer) {
+                await this.sendMessage(phone, '❌ Pelanggan tidak ditemukan.\n\nNomor WhatsApp Anda belum terdaftar sebagai pelanggan.\nSilakan hubungi customer service untuk registrasi.');
+                return;
+            }
 
             if (customer.billing_mode !== 'postpaid') {
                 await this.sendMessage(
@@ -499,11 +531,19 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
                 return;
             }
 
+            // Get unpaid invoices
+            // Use COALESCE to handle NULL values safely
             const [invoices] = await databasePool.query<RowDataPacket[]>(
-                `SELECT * FROM invoices
+                `SELECT 
+                    id, invoice_number, customer_id, period, due_date, 
+                    COALESCE(total_amount, 0) as total_amount,
+                    COALESCE(paid_amount, 0) as paid_amount,
+                    COALESCE(remaining_amount, 0) as remaining_amount,
+                    status, created_at
+                 FROM invoices
                  WHERE customer_id = ?
                  AND status IN ('sent', 'partial', 'overdue')
-                 AND remaining_amount > 0
+                 AND COALESCE(remaining_amount, 0) > 0
                  ORDER BY due_date ASC
                  LIMIT 10`,
                 [customer.id]
@@ -517,25 +557,74 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
             let message = '📋 *TAGIHAN YANG BELUM DIBAYAR*\n\n';
 
             invoices.forEach((invoice, index) => {
-                const remaining = parseFloat(invoice.remaining_amount.toString());
-                const dueDate = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : '-';
-                message += `${index + 1}. *${invoice.invoice_number}*\n`;
-                message += `   💰 Sisa: Rp ${remaining.toLocaleString('id-ID')}\n`;
-                message += `   📅 Jatuh Tempo: ${dueDate}\n`;
-                message += `   📊 Status: ${invoice.status}\n\n`;
+                try {
+                    // Safely parse amounts with fallback to 0
+                    const remaining = parseFloat(String(invoice.remaining_amount || 0));
+                    const total = parseFloat(String(invoice.total_amount || 0));
+                    const paid = parseFloat(String(invoice.paid_amount || 0));
+                    
+                    // Format due date safely
+                    let dueDate = '-';
+                    if (invoice.due_date) {
+                        try {
+                            const date = new Date(invoice.due_date);
+                            if (!isNaN(date.getTime())) {
+                                dueDate = date.toLocaleDateString('id-ID', {
+                                    day: '2-digit',
+                                    month: 'long',
+                                    year: 'numeric'
+                                });
+                            }
+                        } catch (dateError) {
+                            console.warn(`[WhatsAppBot] Error formatting date for invoice ${invoice.id}:`, dateError);
+                        }
+                    }
+                    
+                    let statusText = 'Belum Dibayar';
+                    if (invoice.status === 'partial') {
+                        statusText = 'Sebagian Dibayar';
+                    } else if (invoice.status === 'overdue') {
+                        statusText = 'Terlambat';
+                    }
+                    
+                    const invoiceNumber = invoice.invoice_number || `INV-${invoice.id || 'N/A'}`;
+                    
+                    message += `${index + 1}. *${invoiceNumber}*\n`;
+                    message += `   💰 Total: Rp ${total.toLocaleString('id-ID')}\n`;
+                    message += `   💵 Dibayar: Rp ${paid.toLocaleString('id-ID')}\n`;
+                    message += `   📊 Sisa: Rp ${remaining.toLocaleString('id-ID')}\n`;
+                    message += `   📅 Jatuh Tempo: ${dueDate}\n`;
+                    message += `   ⚠️ Status: ${statusText}\n\n`;
+                } catch (invoiceError: any) {
+                    console.error(`[WhatsAppBot] Error formatting invoice ${invoice.id || 'unknown'}:`, invoiceError);
+                    // Add basic invoice info even if formatting fails
+                    message += `${index + 1}. *${invoice.invoice_number || 'N/A'}*\n`;
+                    message += `   Status: ${invoice.status || 'Unknown'}\n\n`;
+                }
             });
 
-            message += '*Cara Membayar:*\n';
-            message += '1. Transfer sesuai jumlah tagihan\n';
+            message += '*💡 Cara Membayar:*\n';
+            message += '1. Transfer sesuai jumlah tagihan yang tersisa\n';
             message += '2. Kirim foto bukti transfer ke chat ini\n';
-            message += '3. Sistem akan verifikasi otomatis\n';
-            message += '4. Tagihan akan otomatis terupdate';
+            message += '3. Sistem akan verifikasi otomatis dengan AI\n';
+            message += '4. Tagihan akan otomatis terupdate\n\n';
+            message += '*Catatan:* Pastikan jumlah transfer sesuai dengan sisa tagihan.';
 
             await this.sendMessage(phone, message);
 
         } catch (error: any) {
             console.error('[WhatsAppBot] Error showing invoices:', error);
-            await this.sendMessage(phone, '❌ Gagal memuat tagihan. Silakan coba lagi.');
+            console.error('[WhatsAppBot] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                phone: phone
+            });
+            await this.sendMessage(
+                phone, 
+                '❌ Gagal memuat tagihan.\n\n' +
+                'Silakan coba lagi atau hubungi customer service.\n' +
+                'Error: ' + (error.message || 'Unknown error')
+            );
         }
     }
 

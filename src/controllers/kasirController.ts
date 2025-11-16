@@ -203,7 +203,11 @@ export class KasirController {
                          AND status IN ('sent', 'partial', 'overdue')) as pending_count,
                         (SELECT SUM(total_amount - paid_amount) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue')) as total_pending
+                         AND status IN ('sent', 'partial', 'overdue')) as total_pending,
+                        (SELECT COUNT(*) FROM payment_verifications pv
+                         WHERE pv.customer_id = c.id 
+                         AND pv.status = 'approved' 
+                         AND pv.confidence_score >= 80) > 0 as ai_verified
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     ORDER BY 

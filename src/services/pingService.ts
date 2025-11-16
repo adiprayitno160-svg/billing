@@ -6,6 +6,7 @@
 import ping from 'ping';
 import pool from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { calculateCustomerIP } from '../utils/ipHelper';
 
 interface PingResult {
     host: string;
@@ -65,75 +66,12 @@ export class PingService {
     /**
      * Calculate peer IP (router client IP) from CIDR
      * IMPORTANT: Ping router IP (192.168.1.2), NOT MikroTik gateway IP (192.168.1.1)
-     * For /30 subnet: if MikroTik has .1, client router has .2 (or vice versa)
+     * Uses utility function calculateCustomerIP for consistency
+     * @deprecated Use calculateCustomerIP from utils/ipHelper directly
      */
     private calculatePeerIP(cidrAddress: string): string {
-        try {
-            const [ipOnly, prefixStr] = cidrAddress.split('/');
-            const prefix = Number(prefixStr || '0');
-            
-            // Helper functions
-            const ipToInt = (ip: string) => {
-                return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-            };
-            const intToIp = (int: number) => {
-                return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-            };
-            
-            // For /30 subnet, calculate peer IP (router client IP)
-            // /30 subnet has 4 addresses: network, host1 (usually MikroTik), host2 (usually router), broadcast
-            // IMPORTANT: We always ping the router IP (client IP), NOT the MikroTik gateway IP
-            if (prefix === 30) {
-                const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                const networkInt = ipToInt(ipOnly) & mask;
-                const firstHost = networkInt + 1;  // Usually MikroTik gateway IP (e.g., 192.168.1.1)
-                const secondHost = networkInt + 2; // Usually router client IP (e.g., 192.168.1.2)
-                const ipInt = ipToInt(ipOnly);
-                
-                // Always return router IP (secondHost) for /30 subnet
-                // If stored IP is MikroTik (firstHost), ping router (secondHost)
-                // If stored IP is router (secondHost), ping router (secondHost) - same IP
-                if (ipInt === firstHost) {
-                    // Stored IP is MikroTik gateway, return router IP to ping
-                    return intToIp(secondHost);
-                } else if (ipInt === secondHost) {
-                    // Stored IP is already router IP, ping this router IP
-                    return intToIp(secondHost);
-                } else {
-                    // Default: assume stored IP is MikroTik, return router IP
-                    return intToIp(secondHost);
-                }
-            }
-            
-            // For /31 subnet (point-to-point)
-            if (prefix === 31) {
-                const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                const networkInt = ipToInt(ipOnly) & mask;
-                const firstHost = networkInt + 1;
-                const secondHost = networkInt + 2;
-                const ipInt = ipToInt(ipOnly);
-                
-                // Return the other host (router)
-                return ipInt === firstHost ? intToIp(secondHost) : intToIp(firstHost);
-            }
-            
-            // For other subnets, assume stored IP is MikroTik and calculate next IP as router
-            // Common case: if IP ends in .1, router might be .2
-            if (ipOnly.endsWith('.1')) {
-                const parts = ipOnly.split('.');
-                parts[3] = '2';
-                return parts.join('.');
-            }
-            
-            // Fallback: if we can't determine, log warning but return as-is
-            // This shouldn't happen in normal operation
-            console.warn(`[PingService] Warning: Could not determine router IP for ${cidrAddress}, using stored IP`);
-            return ipOnly;
-        } catch (error) {
-            console.error(`[PingService] Error calculating peer IP for ${cidrAddress}:`, error);
-            // Fallback: return IP without CIDR notation
-            return cidrAddress.split('/')[0];
-        }
+        // Use utility function for consistency across the system
+        return calculateCustomerIP(cidrAddress);
     }
     
     /**

@@ -13,6 +13,7 @@ import alertRoutingService from '../alertRoutingService';
 import SmartNotificationService from '../prepaid/advanced/SmartNotificationService';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 import { NotificationTemplateService } from '../notification/NotificationTemplateService';
+import { calculateCustomerIP } from '../../utils/ipHelper';
 
 export interface NewCustomerData {
   customerId: number;
@@ -128,6 +129,8 @@ export class CustomerNotificationService {
       }
       
       // Build IP info
+      // IMPORTANT: IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+      // IP yang ditampilkan ke pelanggan harus IP client (192.168.1.2)
       let ipInfo = '';
       if (customerData.connectionType === 'static_ip') {
         const [ipRows] = await databasePool.query<RowDataPacket[]>(
@@ -136,7 +139,9 @@ export class CustomerNotificationService {
         );
         
         if (ipRows.length > 0 && ipRows[0].ip_address) {
-          ipInfo = `\n\n🌐 *IP Address:*\n${ipRows[0].ip_address}`;
+          // Hitung IP client dari CIDR (192.168.1.1/30 -> 192.168.1.2)
+          const customerIP = calculateCustomerIP(ipRows[0].ip_address);
+          ipInfo = `\n\n🌐 *IP Address:*\n${customerIP}`;
         }
       }
       

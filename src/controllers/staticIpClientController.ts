@@ -13,6 +13,7 @@ import { getStaticIpPackageById } from '../services/staticIpPackageService';
 import { getMikrotikConfig, getStaticIpPackageById as getPackageById } from '../services/staticIpPackageService';
 import { getInterfaces, addMangleRulesForClient, createQueueTree, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName } from '../services/mikrotikService';
 import { RouterOSAPI } from 'routeros-api';
+import { calculateCustomerIP } from '../utils/ipHelper';
 
 export async function getStaticIpClientList(req: Request, res: Response, next: NextFunction) {
 	try {
@@ -27,10 +28,18 @@ export async function getStaticIpClientList(req: Request, res: Response, next: N
 		const clients = await getPackageClients(packageId);
 		const isFull = await isPackageFull(packageId);
 		
+		// IMPORTANT: Proses IP address untuk setiap client
+		// IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+		// IP yang ditampilkan ke user harus IP client (192.168.1.2)
+		const clientsWithProcessedIP = clients.map((client: any) => ({
+			...client,
+			ip_address_display: client.ip_address ? calculateCustomerIP(client.ip_address) : client.ip_address
+		}));
+		
 		res.render('packages/static_ip_clients', { 
 			title: `Client Paket ${packageData.name}`, 
 			package: packageData,
-			clients,
+			clients: clientsWithProcessedIP,
 			isFull,
 			success: req.flash('success'),
 			error: req.flash('error')

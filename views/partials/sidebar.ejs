@@ -173,6 +173,29 @@
             </div>
         </div>
 
+        <!-- Accounting Section -->
+        <div class="menu-group">
+            <button type="button" class="menu-toggle w-full flex items-center justify-between px-4 py-3 rounded-xl text-white hover:bg-white/15 transition-all duration-200 group" data-menu="accounting" style="pointer-events: auto !important; cursor: pointer !important;">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/30 group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-semibold text-white">Pembukuan</span>
+                </div>
+                <svg class="w-5 h-5 text-white transition-transform duration-200" id="accounting-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </button>
+            <div class="menu-content hidden ml-4 mt-2 space-y-1" id="accounting-menu" style="display: none; pointer-events: auto !important; z-index: 1004 !important;">
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/accounting/bookkeeping')) ? 'bg-white/15 text-white' : '' %>" href="/accounting/bookkeeping">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"></path></svg>
+                    <span class="text-sm">Sistem Pembukuan</span>
+                </a>
+            </div>
+        </div>
+
         <!-- Prepaid Section -->
         <div class="menu-group">
             <button type="button" class="menu-toggle w-full flex items-center justify-between px-4 py-3 rounded-xl text-white hover:bg-white/15 transition-all duration-200 group" data-menu="prepaid" style="pointer-events: auto !important; cursor: pointer !important;">

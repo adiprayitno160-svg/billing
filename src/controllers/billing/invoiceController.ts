@@ -111,20 +111,29 @@ export class InvoiceController {
             const odcList = odcResult as RowDataPacket[];
 
             // Get scheduler settings for due_date_offset
-            const [schedulerResult] = await databasePool.query(`
-                SELECT id, task_name, schedule_config, is_enabled, due_date_offset, created_at, updated_at FROM scheduler_settings WHERE task_name = 'invoice_generation'
-            `) as RowDataPacket[][];
-            
             let dueDateOffset = 7; // default
-            if (schedulerResult && schedulerResult.length > 0) {
-                const config = schedulerResult[0] ? (
-                    typeof schedulerResult[0].config === 'string'
-                        ? JSON.parse(schedulerResult[0].config)
-                        : schedulerResult[0].config
-                ) : {};
-                if (config && config.due_date_offset) {
-                    dueDateOffset = config.due_date_offset;
+            try {
+                const [schedulerResult] = await databasePool.query<RowDataPacket[]>(`
+                    SELECT id, task_name, is_enabled, cron_schedule, config, created_at, updated_at 
+                    FROM scheduler_settings 
+                    WHERE task_name = 'invoice_generation'
+                    LIMIT 1
+                `);
+                
+                if (schedulerResult && schedulerResult.length > 0) {
+                    const row = schedulerResult[0];
+                    if (row && row.config) {
+                        const config = typeof row.config === 'string'
+                            ? JSON.parse(row.config)
+                            : row.config;
+                        if (config && typeof config.due_date_offset === 'number') {
+                            dueDateOffset = config.due_date_offset;
+                        }
+                    }
                 }
+            } catch (schedulerError: any) {
+                // If scheduler_settings table doesn't exist or has issues, use default
+                console.warn('Error getting scheduler settings (using default):', schedulerError.message);
             }
 
             res.render('billing/tagihan', {

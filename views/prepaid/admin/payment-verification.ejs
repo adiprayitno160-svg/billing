@@ -102,8 +102,13 @@
                       <div class="text-sm font-medium text-gray-900"><%= payment.package_name %></div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-sm font-semibold text-gray-900">Rp <%= Number(payment.amount).toLocaleString('id-ID') %></div>
-                    </td>
+                        <div class="text-sm font-semibold text-gray-900">Rp <%= Number(payment.amount).toLocaleString('id-ID') %></div>
+                        <% if (payment.verified_by_ai || payment.confidence_score > 80) { %>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 mt-1">
+                                <i class="fas fa-robot mr-1"></i>AI Verified
+                            </span>
+                        <% } %>
+                      </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="text-sm text-gray-900">
                         <%= new Date(payment.created_at).toLocaleDateString('id-ID') %>
