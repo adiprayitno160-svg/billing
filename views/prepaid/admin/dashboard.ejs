@@ -1,4 +1,4 @@
-<div class="container-fluid px-4 py-6">
+﻿<div class="container-fluid px-4 py-6">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-2">
@@ -13,10 +13,10 @@
         <!-- Active Customers -->
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center" style="background-color: rgba(255, 255, 255, 0.3) !important;">
                     <i class="fas fa-users text-2xl"></i>
                 </div>
-                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Active</span>
+                <span class="text-sm bg-white px-3 py-1 rounded-full" style="background-color: rgba(255, 255, 255, 0.3) !important;">Active</span>
             </div>
             <div class="text-3xl font-bold mb-1"><%= stats ? stats.active_customers : 0 %></div>
             <div class="text-blue-100 text-sm">Customer Aktif</div>
@@ -25,10 +25,10 @@
         <!-- Expired Customers -->
         <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center" style="background-color: rgba(255, 255, 255, 0.3) !important;">
                     <i class="fas fa-exclamation-triangle text-2xl"></i>
                 </div>
-                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Expired</span>
+                <span class="text-sm bg-white px-3 py-1 rounded-full" style="background-color: rgba(255, 255, 255, 0.3) !important;">Expired</span>
             </div>
             <div class="text-3xl font-bold mb-1"><%= stats ? stats.expired_customers : 0 %></div>
             <div class="text-red-100 text-sm">Customer Expired</div>
@@ -37,10 +37,10 @@
         <!-- Expiring Soon -->
         <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center" style="background-color: rgba(255, 255, 255, 0.3) !important;">
                     <i class="fas fa-clock text-2xl"></i>
                 </div>
-                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">7 Days</span>
+                <span class="text-sm bg-white px-3 py-1 rounded-full" style="background-color: rgba(255, 255, 255, 0.3) !important;">7 Days</span>
             </div>
             <div class="text-3xl font-bold mb-1"><%= stats ? stats.expiring_soon : 0 %></div>
             <div class="text-yellow-100 text-sm">Akan Berakhir</div>
@@ -49,10 +49,10 @@
         <!-- Revenue Today -->
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center" style="background-color: rgba(255, 255, 255, 0.3) !important;">
                     <i class="fas fa-money-bill-wave text-2xl"></i>
                 </div>
-                <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Today</span>
+                <span class="text-sm bg-white px-3 py-1 rounded-full" style="background-color: rgba(255, 255, 255, 0.3) !important;">Today</span>
             </div>
             <div class="text-3xl font-bold mb-1">
                 Rp <%= revenueToday && revenueToday.revenue ? revenueToday.revenue.toLocaleString('id-ID') : '0' %>

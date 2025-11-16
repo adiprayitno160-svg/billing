@@ -9,7 +9,10 @@ const authMiddleware = new AuthMiddleware();
 // Middleware to force kasir layout for all kasir routes (except print pages)
 const forceKasirLayout = (req: Request, res: Response, next: NextFunction) => {
     // Skip layout for print pages
-    if (!req.path.startsWith('/print-checklist') && !req.path.startsWith('/receipt')) {
+    if (!req.path.startsWith('/print-checklist') && 
+        !req.path.startsWith('/receipt') && 
+        !req.path.startsWith('/print-invoice') &&
+        !req.path.startsWith('/payment-records/print')) {
         res.locals.layout = 'layouts/kasir';
     }
     next();
@@ -212,5 +215,17 @@ router.get('/print-all', async (req, res) => {
 
 // Print receipt after payment
 router.get('/receipt/:paymentId', kasirController.printReceipt.bind(kasirController));
+
+// Prepaid verification
+router.get('/prepaid-verification', kasirController.prepaidVerification.bind(kasirController));
+router.post('/prepaid-verification/verify/:transactionId', kasirController.verifyPrepaidPayment.bind(kasirController));
+router.post('/prepaid-verification/reject/:transactionId', kasirController.rejectPrepaidPayment.bind(kasirController));
+
+// Print invoice individual
+router.get('/print-invoice/:invoiceId', kasirController.printInvoice.bind(kasirController));
+
+// Export and print payment records
+router.get('/payment-records/export', kasirController.exportPaymentRecords.bind(kasirController));
+router.get('/payment-records/print/:paymentId', kasirController.printPaymentRecord.bind(kasirController));
 
 export default router;

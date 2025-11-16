@@ -22,6 +22,9 @@ export interface PrepaidPackage {
   duration_days: number;
   price: number;
   is_active: boolean;
+  allow_custom_speed?: boolean; // For Static IP: allow customer to choose speed
+  download_limit?: string; // For PPPoE: Rate limiting download (auto-filled from MikroTik profile)
+  upload_limit?: string; // For PPPoE: Rate limiting upload (manual input, cannot get from MikroTik)
 }
 
 export interface PackageListItem extends PrepaidPackage {
@@ -45,6 +48,8 @@ export class PrepaidPackageService {
             id, name, description, connection_type,
             mikrotik_profile_name, parent_download_queue, parent_upload_queue,
             download_mbps, upload_mbps, duration_days, price, is_active,
+            COALESCE(allow_custom_speed, 0) as allow_custom_speed,
+            download_limit, upload_limit,
             created_at, updated_at
           FROM prepaid_packages
           ORDER BY connection_type, price ASC`
@@ -72,6 +77,7 @@ export class PrepaidPackageService {
                   id, name, description, connection_type,
                   mikrotik_profile_name, parent_download_queue, parent_upload_queue,
                   download_mbps, upload_mbps, duration_days, price, is_active,
+                  download_limit, upload_limit,
                   created_at, updated_at
                 FROM prepaid_packages
                 ORDER BY connection_type, price ASC`
@@ -86,7 +92,7 @@ export class PrepaidPackageService {
           }
           
           // Fallback jika migration gagal
-          const [rows] = await pool.query<RowDataPacket[]>(
+            const [rows] = await pool.query<RowDataPacket[]>(
             `SELECT 
               id, 
               name, 
@@ -100,6 +106,8 @@ export class PrepaidPackageService {
               duration_days, 
               price, 
               is_active,
+              download_limit,
+              upload_limit,
               created_at, 
               updated_at
             FROM prepaid_packages
@@ -123,6 +131,31 @@ export class PrepaidPackageService {
   }
 
   /**
+   * Get all active packages (for WhatsApp bot)
+   */
+  static async getActivePackages(): Promise<PackageListItem[]> {
+    try {
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT 
+          id, name, description, connection_type,
+          mikrotik_profile_name, parent_download_queue, parent_upload_queue,
+          download_mbps, upload_mbps, duration_days, price, is_active,
+          COALESCE(allow_custom_speed, 0) as allow_custom_speed,
+          download_limit, upload_limit,
+          created_at, updated_at
+        FROM prepaid_packages
+        WHERE is_active = 1
+        ORDER BY price ASC`
+      );
+
+      return rows as PackageListItem[];
+    } catch (error) {
+      console.error('[PrepaidPackageService] Error fetching active packages:', error);
+      throw new Error('Failed to fetch packages');
+    }
+  }
+
+  /**
    * Get active packages by connection type (for customer portal)
    */
   static async getActivePackagesByType(connectionType: 'pppoe' | 'static'): Promise<PackageListItem[]> {
@@ -132,6 +165,8 @@ export class PrepaidPackageService {
           id, name, description, connection_type,
           mikrotik_profile_name, parent_download_queue, parent_upload_queue,
           download_mbps, upload_mbps, duration_days, price, is_active,
+          COALESCE(allow_custom_speed, 0) as allow_custom_speed,
+          download_limit, upload_limit,
           created_at, updated_at
         FROM prepaid_packages
         WHERE is_active = 1
@@ -157,6 +192,8 @@ export class PrepaidPackageService {
           id, name, description, connection_type,
           mikrotik_profile_name, parent_download_queue, parent_upload_queue,
           download_mbps, upload_mbps, duration_days, price, is_active,
+          COALESCE(allow_custom_speed, 0) as allow_custom_speed,
+          download_limit, upload_limit,
           created_at, updated_at
         FROM prepaid_packages
         WHERE id = ?`,
@@ -182,8 +219,9 @@ export class PrepaidPackageService {
         `INSERT INTO prepaid_packages (
           name, description, connection_type,
           mikrotik_profile_name, parent_download_queue, parent_upload_queue,
-          download_mbps, upload_mbps, duration_days, price, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          download_mbps, upload_mbps, duration_days, price, is_active, allow_custom_speed,
+          download_limit, upload_limit
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           packageData.name,
           packageData.description,
@@ -196,6 +234,9 @@ export class PrepaidPackageService {
           packageData.duration_days,
           packageData.price,
           packageData.is_active ? 1 : 0,
+          packageData.allow_custom_speed ? 1 : 0,
+          packageData.download_limit || null,
+          packageData.upload_limit || null,
         ]
       );
 
@@ -234,7 +275,10 @@ export class PrepaidPackageService {
           upload_mbps = ?,
           duration_days = ?,
           price = ?,
-          is_active = ?
+          is_active = ?,
+          allow_custom_speed = ?,
+          download_limit = ?,
+          upload_limit = ?
         WHERE id = ?`,
         [
           updatedData.name,
@@ -248,6 +292,9 @@ export class PrepaidPackageService {
           updatedData.duration_days,
           updatedData.price,
           updatedData.is_active ? 1 : 0,
+          updatedData.allow_custom_speed ? 1 : 0,
+          updatedData.download_limit || null,
+          updatedData.upload_limit || null,
           packageId,
         ]
       );
@@ -271,7 +318,7 @@ export class PrepaidPackageService {
         [packageId]
       );
 
-      if (subscriptions[0].count > 0) {
+      if (subscriptions.length > 0 && subscriptions[0] && subscriptions[0].count > 0) {
         throw new Error('Cannot delete package with active subscriptions');
       }
 
@@ -355,11 +402,11 @@ export class PrepaidPackageService {
   static async getCustomerConnectionType(customerId: number): Promise<'pppoe' | 'static' | null> {
     try {
       const [rows] = await pool.query<RowDataPacket[]>(
-        'SELECT connection_type, pppoe_username, ip_address FROM customers WHERE id = ?',
+        'SELECT connection_type, pppoe_username FROM customers WHERE id = ?',
         [customerId]
       );
 
-      if (rows.length === 0) {
+      if (rows.length === 0 || !rows[0]) {
         return null;
       }
 

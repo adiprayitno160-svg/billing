@@ -1,4 +1,5 @@
 import { RouterOSAPI } from 'routeros-api';
+import { PppoeSecret, PppoeActiveConnection, PppProfile } from '../mikrotikService';
 
 export interface MikrotikConfig {
   host: string;
@@ -115,7 +116,11 @@ export class MikrotikService {
       
       await api.connect();
       
-      const updateData: any = {};
+      const updateData: {
+        password?: string;
+        profile?: string;
+        comment?: string;
+      } = {};
       if (userData.password) updateData.password = userData.password;
       if (userData.profile) updateData.profile = userData.profile;
       if (userData.comment) updateData.comment = userData.comment;
@@ -224,7 +229,7 @@ export class MikrotikService {
   /**
    * Get PPPoE user by username
    */
-  async getPPPoEUserByUsername(username: string): Promise<any | null> {
+  async getPPPoEUserByUsername(username: string): Promise<PppoeSecret | null> {
     try {
       const api = new RouterOSAPI({
         host: this.config.host,
@@ -240,7 +245,7 @@ export class MikrotikService {
       api.close();
       
       if (Array.isArray(users) && users.length > 0) {
-        return users[0];
+        return users[0] as PppoeSecret;
       }
       
       return null;
@@ -318,12 +323,12 @@ export class MikrotikService {
       const result = await api.write('/ppp/secret/print');
       api.close();
       
-      return Array.isArray(result) ? result.map((user: any) => ({
+      return Array.isArray(result) ? result.map((user: PppoeSecret) => ({
         id: user['.id'],
-        name: user.name,
-        password: user.password,
-        profile: user.profile,
-        comment: user.comment
+        name: user.name || '',
+        password: user.password || '',
+        profile: user.profile || '',
+        comment: user.comment || ''
       })) : [];
     } catch (error) {
       console.error('Failed to get PPPoE users:', error);
@@ -384,12 +389,12 @@ export class MikrotikService {
       const result = await api.write('/ppp/profile/print');
       api.close();
       
-      return Array.isArray(result) ? result.map((profile: any) => ({
+      return Array.isArray(result) ? result.map((profile: PppProfile) => ({
         id: profile['.id'],
         name: profile.name,
-        localAddress: profile.localAddress,
-        remoteAddress: profile.remoteAddress,
-        rateLimit: profile.rateLimit,
+        localAddress: profile['local-address'],
+        remoteAddress: profile['remote-address'],
+        rateLimit: profile['rate-limit'],
         comment: profile.comment
       })) : [];
     } catch (error) {
@@ -495,7 +500,13 @@ export class MikrotikService {
       api.close();
       console.log('Connection closed');
       
-      const mappedResult = Array.isArray(result) ? result.map((addr: any) => ({
+      interface AddressListRaw {
+        '.id': string;
+        address: string;
+        list: string;
+        comment?: string;
+      }
+      const mappedResult = Array.isArray(result) ? result.map((addr: AddressListRaw) => ({
         id: addr['.id'],
         address: addr.address,
         list: addr.list,
@@ -635,7 +646,7 @@ export class MikrotikService {
   /**
    * Dapatkan active PPPoE sessions
    */
-  async getActivePPPoESessions(): Promise<any[]> {
+  async getActivePPPoESessions(): Promise<PppoeActiveConnection[]> {
     try {
       const api = new RouterOSAPI({
         host: this.config.host,
@@ -649,7 +660,7 @@ export class MikrotikService {
       const result = await api.write('/ppp/active/print');
       api.close();
       
-      return Array.isArray(result) ? result : [];
+      return Array.isArray(result) ? result as PppoeActiveConnection[] : [];
     } catch (error) {
       console.error('Failed to get active PPPoE sessions:', error);
       return [];

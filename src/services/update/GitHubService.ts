@@ -25,7 +25,7 @@ export class GitHubService {
       'SELECT setting_value FROM system_settings WHERE setting_key = ?',
       [key]
     );
-    return rows.length > 0 ? rows[0].setting_value : null;
+    return rows.length > 0 && rows[0] ? rows[0].setting_value : null;
   }
 
   private static async setSetting(key: string, value: string): Promise<void> {
@@ -131,7 +131,7 @@ export class GitHubService {
         // All releases
       }
 
-      return filteredReleases.length > 0 ? filteredReleases[0] : null;
+      return filteredReleases.length > 0 && filteredReleases[0] ? filteredReleases[0] : null;
     } catch (error: any) {
       console.error('Error fetching GitHub releases:', error.message);
       return null;
@@ -236,7 +236,7 @@ export class GitHubService {
     // Extract MAJOR version from GitHub release (strip hotfix numbers)
     let latestVersion = latestRelease.tag_name.replace(/^v/, '');
     const majorMatch = latestVersion.match(/^(\d+\.\d+\.\d+)/);
-    if (majorMatch) {
+    if (majorMatch && majorMatch[1]) {
       latestVersion = majorMatch[1]; // Only take major.minor.patch
     }
 

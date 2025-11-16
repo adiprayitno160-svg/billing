@@ -3,11 +3,19 @@ import { InvoiceController } from '../controllers/billing/invoiceController';
 import { PaymentController } from '../controllers/billing/paymentController';
 import { BillingPaymentController } from '../controllers/payment/BillingPaymentController';
 import { InvoiceSchedulerService } from '../services/billing/invoiceSchedulerService';
+import LatePaymentController from '../controllers/billing/LatePaymentController';
+import { SystemLogController } from '../controllers/billing/SystemLogController';
 
 const router = Router();
 const invoiceController = new InvoiceController();
 const paymentController = new PaymentController();
 const gatewayController = new BillingPaymentController();
+const latePaymentController = LatePaymentController;
+
+// ========================================
+// BILLING ROOT - Redirect to dashboard
+// ========================================
+router.get('/', (req, res) => res.redirect('/billing/dashboard'));
 
 // ========================================
 // BILLING DASHBOARD
@@ -135,6 +143,7 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
             const odc = odcResult[0];
             
             // Build query for invoices with status filter for pending only
+            // Include discount information for proper invoice display
             let invoicesQuery = `
                 SELECT 
                     i.id,
@@ -142,6 +151,8 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                     i.customer_id,
                     i.period,
                     i.due_date,
+                    i.subtotal,
+                    i.discount_amount,
                     i.total_amount,
                     i.paid_amount,
                     i.status,
@@ -167,10 +178,34 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
             
             const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
             
-            // Choose view based on format parameter
-            const viewName = format === 'thermal' 
-                ? 'billing/tagihan-print-odc' 
-                : 'billing/tagihan-print-odc-a4';
+            // Get invoice items and discount details for each invoice
+            for (const invoice of invoices) {
+                // Get invoice items
+                const [items] = await conn.query(
+                    'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
+                    [invoice.id]
+                ) as any;
+                invoice.items = items || [];
+                
+                // Get discount information if exists
+                if (invoice.discount_amount && invoice.discount_amount > 0) {
+                    // Try to get discount reason from discounts table
+                    const [discountInfo] = await conn.query(
+                        `SELECT reason, discount_type FROM discounts WHERE invoice_id = ? ORDER BY created_at DESC LIMIT 1`,
+                        [invoice.id]
+                    ) as any;
+                    if (discountInfo && discountInfo.length > 0) {
+                        invoice.discount_reason = discountInfo[0].reason || null;
+                        invoice.sla_type = discountInfo[0].discount_type === 'sla' ? 'SLA Compensation' : null;
+                    }
+                }
+            }
+            
+            // Default to thermal format (individual invoices) if not specified
+            // Only use A4 format (list) if explicitly requested
+            const viewName = format === 'a4' || format === 'list'
+                ? 'billing/tagihan-print-odc-a4' 
+                : 'billing/tagihan-print-odc';
             
             res.render(viewName, {
                 title: `Print Tagihan Area ${odc.name}`,
@@ -449,8 +484,8 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
     }
 });
 
-// Send invoice via WhatsApp
-router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.bind(invoiceController));
+// Send invoice via WhatsApp - REMOVED
+// router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.bind(invoiceController));
 
 // Invoice detail (harus di akhir karena :id catch-all)
 router.get('/tagihan/:id', invoiceController.getInvoiceDetail.bind(invoiceController));
@@ -788,7 +823,92 @@ router.get('/gateway/statistics',
 
 // Subscription list
 router.get('/subscriptions', async (req, res) => {
-    res.render('billing/subscriptions', { title: 'Daftar Langganan' });
+    try {
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+        try {
+            const { status, search } = req.query;
+            
+            // Build query
+            let query = `
+                SELECT 
+                    s.id,
+                    s.customer_id,
+                    s.package_id,
+                    s.package_name,
+                    s.price,
+                    s.start_date,
+                    s.end_date,
+                    s.status,
+                    s.created_at,
+                    s.updated_at,
+                    c.name as customer_name,
+                    c.customer_code,
+                    c.phone as customer_phone,
+                    c.email as customer_email,
+                    c.address as customer_address,
+                    c.connection_type,
+                    o.name as odc_name,
+                    o.location as odc_location
+                FROM subscriptions s
+                INNER JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN ftth_odc o ON c.odc_id = o.id
+                WHERE 1=1
+            `;
+            
+            const queryParams: any[] = [];
+            
+            // Filter by status
+            if (status && status !== '') {
+                query += ' AND s.status = ?';
+                queryParams.push(status);
+            } else {
+                // Default: show active only
+                query += ' AND s.status = ?';
+                queryParams.push('active');
+            }
+            
+            // Search filter
+            if (search) {
+                query += ' AND (c.name LIKE ? OR c.customer_code LIKE ? OR c.phone LIKE ? OR s.package_name LIKE ?)';
+                const searchPattern = `%${search}%`;
+                queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            }
+            
+            query += ' ORDER BY s.created_at DESC';
+            
+            const [subscriptions] = await conn.query(query, queryParams) as any;
+            
+            // Get statistics
+            const [statsResult] = await conn.query(`
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                    SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive_count,
+                    SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_count
+                FROM subscriptions
+            `) as any;
+            
+            const stats = statsResult[0] || { total: 0, active_count: 0, inactive_count: 0, suspended_count: 0 };
+            
+            res.render('billing/subscriptions', {
+                title: 'Daftar Langganan',
+                subscriptions,
+                stats,
+                filters: {
+                    status: status || 'active',
+                    search: search || ''
+                }
+            });
+        } finally {
+            conn.release();
+        }
+    } catch (error) {
+        console.error('Error loading subscriptions:', error);
+        res.status(500).render('error', {
+            title: 'Error',
+            message: 'Gagal memuat daftar langganan'
+        });
+    }
 });
 
 // ========================================
@@ -892,47 +1012,10 @@ router.post('/scheduler/settings', async (req, res) => {
     }
 });
 
-// Update WhatsApp reminder settings
-router.post('/scheduler/whatsapp-settings', async (req, res) => {
-    try {
-        const { whatsapp_reminder_enabled, reminder_days_before } = req.body;
-        
-        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
-        try {
-            // Get current config
-            const [result] = await conn.query(`
-                SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation'
-            `) as any;
-            
-            let currentConfig = {};
-            if (result && result.length > 0) {
-                currentConfig = typeof result[0].config === 'string' 
-                    ? JSON.parse(result[0].config) 
-                    : result[0].config || {};
-            }
-            
-            // Update WhatsApp settings
-            const newConfig = {
-                ...currentConfig,
-                whatsapp_reminder_enabled: whatsapp_reminder_enabled === 'true' || whatsapp_reminder_enabled === true,
-                reminder_days_before: parseInt(reminder_days_before)
-            };
-            
-            await conn.execute(`
-                UPDATE scheduler_settings 
-                SET config = ?, updated_at = NOW()
-                WHERE task_name = 'invoice_generation'
-            `, [JSON.stringify(newConfig)]);
-            
-            res.json({ success: true, message: 'Pengaturan WhatsApp berhasil disimpan' });
-        } finally {
-            conn.release();
-        }
-    } catch (error: any) {
-        console.error('Error updating WhatsApp settings:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
+// Update WhatsApp reminder settings - REMOVED
+// router.post('/scheduler/whatsapp-settings', async (req, res) => {
+//     ... WhatsApp settings route removed
+// });
 
 // Update auto isolir settings
 router.post('/scheduler/isolir-settings', async (req, res) => {
@@ -997,5 +1080,55 @@ router.post('/scheduler/run-now', async (req, res) => {
 router.get('/reports', async (req, res) => {
     res.render('billing/reports', { title: 'Laporan Billing' });
 });
+
+// ========================================
+// LATE PAYMENT MANAGEMENT
+// ========================================
+
+// Late payment dashboard
+router.get('/late-payment', latePaymentController.dashboard.bind(latePaymentController));
+
+// Late payment report
+router.get('/late-payment/report', latePaymentController.report.bind(latePaymentController));
+
+// Customer late payment detail
+router.get('/late-payment/customer/:customerId', latePaymentController.customerDetail.bind(latePaymentController));
+
+// API: Reset counter
+router.post('/late-payment/customer/:customerId/reset', latePaymentController.resetCounter.bind(latePaymentController));
+
+// API: Adjust counter
+router.post('/late-payment/customer/:customerId/adjust', latePaymentController.adjustCounter.bind(latePaymentController));
+
+// API: Batch reset
+router.post('/late-payment/batch-reset', latePaymentController.batchReset.bind(latePaymentController));
+
+// Export report
+router.get('/late-payment/export', latePaymentController.exportReport.bind(latePaymentController));
+
+// ========================================
+// SYSTEM LOGS
+// ========================================
+
+// System logs page
+router.get('/logs', SystemLogController.getLogsPage.bind(SystemLogController));
+
+// API: Get logs
+router.get('/logs/api', SystemLogController.getLogs.bind(SystemLogController));
+
+// API: Get log statistics
+router.get('/logs/api/statistics', SystemLogController.getLogStatistics.bind(SystemLogController));
+
+// API: Get log details
+router.get('/logs/api/:id', SystemLogController.getLogDetails.bind(SystemLogController));
+
+// API: Get anomalies
+router.get('/logs/api/anomalies', SystemLogController.getAnomalies.bind(SystemLogController));
+
+// API: Resolve anomaly
+router.post('/logs/api/anomalies/:id/resolve', SystemLogController.resolveAnomaly.bind(SystemLogController));
+
+// API: Export logs
+router.get('/logs/api/export', SystemLogController.exportLogs.bind(SystemLogController));
 
 export default router;

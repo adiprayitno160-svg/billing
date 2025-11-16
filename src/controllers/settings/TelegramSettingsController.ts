@@ -36,14 +36,14 @@ export class TelegramSettingsController {
                 title: 'Pengaturan Telegram Bot',
                 settings,
                 botInfo,
-                user: req.session.user
+                user: (req.session as any).user
             });
             
         } catch (error) {
             console.error('Error loading telegram settings:', error);
             res.status(500).render('error', {
                 error: 'Failed to load Telegram settings',
-                user: req.session.user
+                user: (req.session as any).user
             });
         }
     }
@@ -74,7 +74,7 @@ export class TelegramSettingsController {
                     UPDATE telegram_settings 
                     SET bot_token = ?, auto_start = ?, updated_at = NOW()
                     WHERE id = ?
-                `, [bot_token, auto_start ? 1 : 0, existing[0].id]);
+                `, [bot_token, auto_start ? 1 : 0, existing[0]?.id || 0]);
             } else {
                 // Insert new settings
                 await pool.query(`

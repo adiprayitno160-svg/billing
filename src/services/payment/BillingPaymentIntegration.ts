@@ -159,6 +159,31 @@ export class BillingPaymentIntegration {
 
       await connection.commit();
 
+      // Track late payment (async, don't wait)
+      try {
+        // Get payment_id if exists
+        const [paymentRows] = await connection.execute(
+          `SELECT id, COALESCE(payment_date, created_at) as payment_date FROM payments WHERE invoice_id = ? ORDER BY id DESC LIMIT 1`,
+          [transaction.invoice_id]
+        );
+        const payment = (paymentRows as any[])[0];
+        
+        const [invoiceRows] = await connection.execute(
+          `SELECT due_date FROM invoices WHERE id = ?`,
+          [transaction.invoice_id]
+        );
+        const invoice = (invoiceRows as any[])[0];
+        if (invoice && invoice.due_date && payment) {
+          const { LatePaymentTrackingService } = await import('../billing/LatePaymentTrackingService');
+          const paymentDate = new Date(payment.payment_date);
+          const dueDate = new Date(invoice.due_date);
+          LatePaymentTrackingService.trackPayment(transaction.invoice_id, payment.id, paymentDate, dueDate)
+            .catch(err => console.error('[BillingPaymentIntegration] Error tracking late payment:', err));
+        }
+      } catch (error) {
+        console.error('[BillingPaymentIntegration] Error in late payment tracking:', error);
+      }
+
     } catch (error) {
       await connection.rollback();
       throw error;

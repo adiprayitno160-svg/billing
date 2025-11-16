@@ -240,8 +240,11 @@ export class UpdateService {
       // Step 1: Apply update
       steps.push({ step: 'Applying update', status: 'in_progress', message: '' });
       const updateResult = await this.applyUpdate(targetVersion);
-      steps[steps.length - 1].status = updateResult.success ? 'success' : 'failed';
-      steps[steps.length - 1].message = updateResult.message;
+      const lastStep = steps[steps.length - 1];
+      if (lastStep) {
+        lastStep.status = updateResult.success ? 'success' : 'failed';
+        lastStep.message = updateResult.message;
+      }
 
       if (!updateResult.success) {
         return { success: false, message: updateResult.message, steps };
@@ -251,33 +254,51 @@ export class UpdateService {
       steps.push({ step: 'Updating dependencies', status: 'in_progress', message: '' });
       try {
         await this.updateDependencies();
-        steps[steps.length - 1].status = 'success';
-        steps[steps.length - 1].message = 'Dependencies updated';
+        const lastStep = steps[steps.length - 1];
+        if (lastStep) {
+          lastStep.status = 'success';
+          lastStep.message = 'Dependencies updated';
+        }
       } catch (error: any) {
-        steps[steps.length - 1].status = 'warning';
-        steps[steps.length - 1].message = `Dependencies update failed: ${error.message}`;
+        const lastStep = steps[steps.length - 1];
+        if (lastStep) {
+          lastStep.status = 'warning';
+          lastStep.message = `Dependencies update failed: ${error.message}`;
+        }
       }
 
       // Step 3: Rebuild project
       steps.push({ step: 'Rebuilding project', status: 'in_progress', message: '' });
       try {
         await this.rebuildProject();
-        steps[steps.length - 1].status = 'success';
-        steps[steps.length - 1].message = 'Project rebuilt successfully';
+        const lastStep = steps[steps.length - 1];
+        if (lastStep) {
+          lastStep.status = 'success';
+          lastStep.message = 'Project rebuilt successfully';
+        }
       } catch (error: any) {
-        steps[steps.length - 1].status = 'warning';
-        steps[steps.length - 1].message = `Rebuild failed: ${error.message}`;
+        const lastStep = steps[steps.length - 1];
+        if (lastStep) {
+          lastStep.status = 'warning';
+          lastStep.message = `Rebuild failed: ${error.message}`;
+        }
       }
 
       // Step 4: Restart application
       steps.push({ step: 'Restarting application', status: 'in_progress', message: '' });
       try {
         await this.restartApplication();
-        steps[steps.length - 1].status = 'success';
-        steps[steps.length - 1].message = 'Application restarted';
+        const lastStep = steps[steps.length - 1];
+        if (lastStep) {
+          lastStep.status = 'success';
+          lastStep.message = 'Application restarted';
+        }
       } catch (error: any) {
-        steps[steps.length - 1].status = 'warning';
-        steps[steps.length - 1].message = 'Please restart manually';
+        const lastStep = steps[steps.length - 1];
+        if (lastStep) {
+          lastStep.status = 'warning';
+          lastStep.message = 'Please restart manually';
+        }
       }
 
       return {

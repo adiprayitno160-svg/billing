@@ -145,6 +145,56 @@ export type PppProfile = {
 	'burst-time-tx'?: string;
 };
 
+export type PppoeActiveConnection = {
+	'.id': string;
+	name: string;
+	service?: string;
+	caller_id?: string;
+	address?: string;
+	uptime?: string;
+	encoding?: string;
+	session_id?: string;
+	limit_bytes_in?: string;
+	limit_bytes_out?: string;
+	limit_bytes_total?: string;
+	bytes_in?: string;
+	bytes_out?: string;
+	packets_in?: string;
+	packets_out?: string;
+	radius?: string;
+	comment?: string;
+};
+
+export type PppoeSecret = {
+	'.id': string;
+	name: string;
+	service?: string;
+	profile?: string;
+	'remote-address'?: string;
+	'local-address'?: string;
+	password?: string;
+	comment?: string;
+	disabled?: string;
+	'caller-id'?: string;
+	'last-logged-out'?: string;
+	'last-caller-id'?: string;
+};
+
+export type PppoeServerStats = {
+	'.id': string;
+	name: string;
+	interface?: string;
+	'default-profile'?: string;
+	'authentication'?: string;
+	'keepalive-timeout'?: string;
+	'max-mtu'?: string;
+	'max-mru'?: string;
+	'mrru'?: string;
+	'allow'?: string;
+	disabled?: string;
+	comment?: string;
+};
+
 export async function getPppProfiles(cfg: MikroTikConfig): Promise<PppProfile[]> {
 	const api = new RouterOSAPI({
 		host: cfg.host,
@@ -315,6 +365,15 @@ export async function createPppProfile(cfg: MikroTikConfig, data: {
 	'use-mpls'?: string;
 	'use-upnp'?: string;
 	comment?: string;
+	'rate-limit'?: string;
+	'rate-limit-rx'?: string;
+	'rate-limit-tx'?: string;
+	'burst-limit-rx'?: string;
+	'burst-limit-tx'?: string;
+	'burst-threshold-rx'?: string;
+	'burst-threshold-tx'?: string;
+	'burst-time-rx'?: string;
+	'burst-time-tx'?: string;
 }): Promise<void> {
 	const api = new RouterOSAPI({
 		host: cfg.host,
@@ -326,7 +385,50 @@ export async function createPppProfile(cfg: MikroTikConfig, data: {
 	
 	try {
 		await api.connect();
-		const dataArray = Object.entries(data).map(([key, value]) => `${key}=${value}`);
+		// Build rate-limit string if burst parameters are provided
+		let rateLimitStr = '';
+		if (data['rate-limit']) {
+			rateLimitStr = data['rate-limit'];
+		} else if (data['rate-limit-rx'] || data['rate-limit-tx']) {
+			const rx = data['rate-limit-rx'] || '0';
+			const tx = data['rate-limit-tx'] || rx;
+			rateLimitStr = `${rx}/${tx}`;
+			
+			// Add burst parameters if provided
+			if (data['burst-limit-rx'] || data['burst-limit-tx']) {
+				const burstRx = data['burst-limit-rx'] || '';
+				const burstTx = data['burst-limit-tx'] || burstRx;
+				rateLimitStr += ` ${burstRx}/${burstTx}`;
+				
+				if (data['burst-threshold-rx'] || data['burst-threshold-tx']) {
+					const threshRx = data['burst-threshold-rx'] || '';
+					const threshTx = data['burst-threshold-tx'] || threshRx;
+					rateLimitStr += ` ${threshRx}/${threshTx}`;
+				}
+				
+				if (data['burst-time-rx'] || data['burst-time-tx']) {
+					const timeRx = data['burst-time-rx'] || '';
+					const timeTx = data['burst-time-tx'] || timeRx;
+					rateLimitStr += ` ${timeRx}/${timeTx}`;
+				}
+			}
+		}
+		
+		const dataArray: string[] = [];
+		for (const [key, value] of Object.entries(data)) {
+			if (key.startsWith('rate-limit') || key.startsWith('burst-')) {
+				// Skip individual rate/burst fields, we use rate-limit string instead
+				continue;
+			}
+			if (value !== undefined && value !== null && value !== '') {
+				dataArray.push(`${key}=${value}`);
+			}
+		}
+		
+		if (rateLimitStr) {
+			dataArray.push(`rate-limit=${rateLimitStr}`);
+		}
+		
 		await api.write('/ppp/profile/add', dataArray);
 	} finally {
 		api.close();
@@ -347,19 +449,165 @@ export async function updatePppProfile(cfg: MikroTikConfig, id: string, data: {
 	'use-mpls'?: string;
 	'use-upnp'?: string;
 	comment?: string;
+	'rate-limit'?: string;
+	'rate-limit-rx'?: string;
+	'rate-limit-tx'?: string;
+	'burst-limit-rx'?: string;
+	'burst-limit-tx'?: string;
+	'burst-threshold-rx'?: string;
+	'burst-threshold-tx'?: string;
+	'burst-time-rx'?: string;
+	'burst-time-tx'?: string;
 }): Promise<void> {
-		const api = new RouterOSAPI({
-			host: cfg.host,
-			port: cfg.port,
-			user: cfg.username,
-			password: cfg.password,
-			timeout: 5000
-		});
+	console.log(`🔄 [updatePppProfile] Starting update for profile ID: ${id}`);
+	console.log(`📊 [updatePppProfile] Data received:`, JSON.stringify(data, null, 2));
+	
+	const api = new RouterOSAPI({
+		host: cfg.host,
+		port: cfg.port,
+		user: cfg.username,
+		password: cfg.password,
+		timeout: 10000 // Increase timeout to 10 seconds
+	});
+	
+	try {
+		console.log(`🔌 [updatePppProfile] Connecting to MikroTik at ${cfg.host}:${cfg.port}...`);
+		await api.connect();
+		console.log(`✅ [updatePppProfile] Connected successfully`);
 		
+		// Build rate-limit string if burst parameters are provided
+		let rateLimitStr = '';
+		if (data['rate-limit']) {
+			rateLimitStr = data['rate-limit'];
+			console.log(`📊 [updatePppProfile] Using provided rate-limit string: ${rateLimitStr}`);
+		} else if (data['rate-limit-rx'] || data['rate-limit-tx']) {
+			const rx = data['rate-limit-rx'] || '0';
+			const tx = data['rate-limit-tx'] || rx;
+			rateLimitStr = `${rx}/${tx}`;
+			console.log(`📊 [updatePppProfile] Built rate-limit from RX/TX: ${rateLimitStr} (RX: ${rx}, TX: ${tx})`);
+			
+			// Add burst parameters if provided
+			if (data['burst-limit-rx'] || data['burst-limit-tx']) {
+				const burstRx = data['burst-limit-rx'] || '';
+				const burstTx = data['burst-limit-tx'] || burstRx;
+				rateLimitStr += ` ${burstRx}/${burstTx}`;
+				
+				if (data['burst-threshold-rx'] || data['burst-threshold-tx']) {
+					const threshRx = data['burst-threshold-rx'] || '';
+					const threshTx = data['burst-threshold-tx'] || threshRx;
+					rateLimitStr += ` ${threshRx}/${threshTx}`;
+				}
+				
+				if (data['burst-time-rx'] || data['burst-time-tx']) {
+					const timeRx = data['burst-time-rx'] || '';
+					const timeTx = data['burst-time-tx'] || timeRx;
+					rateLimitStr += ` ${timeRx}/${timeTx}`;
+				}
+				console.log(`📊 [updatePppProfile] Added burst parameters: ${rateLimitStr}`);
+			}
+		} else {
+			console.warn(`⚠️ [updatePppProfile] No rate-limit data provided!`);
+		}
+		
+		// Build parameters array - format HARUS sama dengan yang berhasil di test endpoint
+		// Format yang berhasil: [`.id=${id}`, `=rate-limit=${rateLimitStr}`]
+		const params: string[] = [];
+		
+		// ID HARUS di posisi pertama dengan format =.id=
+		params.push(`=.id=${id}`);
+		
+		// Rate-limit HARUS di posisi kedua jika tersedia (ini yang paling penting!)
+		if (rateLimitStr) {
+			params.push(`=rate-limit=${rateLimitStr}`);
+		}
+		
+		// Add other fields hanya jika rate-limit sudah ada atau jika tidak ada rate-limit sama sekali
+		// Urutan: name, local-address, remote-address, dns-server, comment, dll
+		if (data.name !== undefined && data.name !== null && data.name !== '') {
+			params.push(`=name=${data.name}`);
+		}
+		if (data['local-address'] !== undefined && data['local-address'] !== null && data['local-address'] !== '') {
+			params.push(`=local-address=${data['local-address']}`);
+		}
+		if (data['remote-address'] !== undefined && data['remote-address'] !== null && data['remote-address'] !== '') {
+			params.push(`=remote-address=${data['remote-address']}`);
+		}
+		if (data['dns-server'] !== undefined && data['dns-server'] !== null && data['dns-server'] !== '') {
+			params.push(`=dns-server=${data['dns-server']}`);
+		}
+		if (data.comment !== undefined && data.comment !== null && data.comment !== '') {
+			params.push(`=comment=${data.comment}`);
+		}
+		
+		// Add optional fields
+		if (data['session-timeout'] !== undefined && data['session-timeout'] !== null && data['session-timeout'] !== '') {
+			params.push(`=session-timeout=${data['session-timeout']}`);
+		}
+		if (data['idle-timeout'] !== undefined && data['idle-timeout'] !== null && data['idle-timeout'] !== '') {
+			params.push(`=idle-timeout=${data['idle-timeout']}`);
+		}
+		if (data['only-one'] !== undefined && data['only-one'] !== null && data['only-one'] !== '') {
+			params.push(`=only-one=${data['only-one']}`);
+		}
+		
+		console.log(`📤 [updatePppProfile] Sending command: /ppp/profile/set`);
+		console.log(`📤 [updatePppProfile] Parameters:`, params);
+		console.log(`📤 [updatePppProfile] Rate limit string: ${rateLimitStr}`);
+		
+		// Gunakan format yang sama persis dengan yang berhasil di test endpoint
+		const result = await api.write('/ppp/profile/set', params);
+		console.log(`✅ [updatePppProfile] Update successful! Result:`, result);
+		
+		// Verify the update by reading the profile back
+		console.log(`🔍 [updatePppProfile] Verifying update...`);
+		const verifyResult = await api.write('/ppp/profile/print', [`?.id=${id}`]);
+		if (Array.isArray(verifyResult) && verifyResult.length > 0) {
+			const updatedProfile = verifyResult[0];
+			console.log(`✅ [updatePppProfile] Verification - Profile name: ${updatedProfile.name}`);
+			console.log(`✅ [updatePppProfile] Verification - Rate limit: ${updatedProfile['rate-limit'] || 'N/A'}`);
+			console.log(`✅ [updatePppProfile] Verification - Rate limit RX: ${updatedProfile['rate-limit-rx'] || 'N/A'}`);
+			console.log(`✅ [updatePppProfile] Verification - Rate limit TX: ${updatedProfile['rate-limit-tx'] || 'N/A'}`);
+		} else {
+			console.warn(`⚠️ [updatePppProfile] Could not verify update - profile not found after update`);
+		}
+		
+	} catch (error: any) {
+		console.error(`❌ [updatePppProfile] Error updating profile:`, error);
+		console.error(`❌ [updatePppProfile] Error message:`, error?.message);
+		console.error(`❌ [updatePppProfile] Error stack:`, error?.stack);
+		console.error(`❌ [updatePppProfile] Profile ID: ${id}`);
+		console.error(`❌ [updatePppProfile] Data sent:`, JSON.stringify(data, null, 2));
+		throw new Error(`Gagal update profile di MikroTik: ${error?.message || 'Unknown error'}`);
+	} finally {
+		try {
+			api.close();
+			console.log(`🔌 [updatePppProfile] Connection closed`);
+		} catch (closeError) {
+			console.warn(`⚠️ [updatePppProfile] Error closing connection:`, closeError);
+		}
+	}
+}
+
+/**
+ * Find PPP profile ID by name in MikroTik
+ */
+export async function findPppProfileIdByName(cfg: MikroTikConfig, name: string): Promise<string | null> {
+	const api = new RouterOSAPI({
+		host: cfg.host,
+		port: cfg.port,
+		user: cfg.username,
+		password: cfg.password,
+		timeout: 5000
+	});
+	
 	try {
 		await api.connect();
-		const dataArray = Object.entries(data).map(([key, value]) => `${key}=${value}`);
-		await api.write('/ppp/profile/set', ['.id=' + id, ...dataArray]);
+		const profiles = await api.write('/ppp/profile/print', [`?name=${name}`]);
+		const rows = Array.isArray(profiles) ? profiles : [];
+		if (rows.length > 0) {
+			return rows[0]['.id'] || null;
+		}
+		return null;
 	} finally {
 		api.close();
 	}
@@ -412,39 +660,93 @@ export async function getInterfaces(cfg: MikroTikConfig): Promise<InterfaceInfo[
 			port: cfg.port,
 			user: cfg.username,
 			password: cfg.password,
-			timeout: 3000  // Reduced timeout for faster response
+			timeout: 10000  // Increased timeout to 10 seconds for better reliability
 		});
 		
     try {
+		console.log(`🔌 Attempting to connect to MikroTik at ${cfg.host}:${cfg.port} with user ${cfg.username}...`);
 		await api.connect();
+		console.log('✅ Connected to MikroTik successfully, fetching interfaces...');
+        
         const result = await api.write('/interface/print');
+        console.log(`📦 Raw result type: ${typeof result}, isArray: ${Array.isArray(result)}`);
+        console.log(`📦 Raw result length: ${Array.isArray(result) ? result.length : 'N/A'}`);
+        
+        // Debug: Log raw result structure
+        if (result && typeof result === 'object') {
+			console.log(`📦 First item sample:`, Array.isArray(result) && result.length > 0 ? JSON.stringify(result[0]).substring(0, 200) : 'Empty array');
+		}
+        
         const rows = Array.isArray(result) ? result : [];
-        return rows.map((r: any) => ({
-            '.id': String(r['.id'] ?? ''),
-            name: String(r['name'] ?? ''),
-            type: String(r['type'] ?? ''),
-            mtu: String(r['mtu'] ?? ''),
-            actualMtu: String(r['actual-mtu'] ?? ''),
-            l2mtu: String(r['l2mtu'] ?? ''),
-            macAddress: String(r['mac-address'] ?? ''),
-            lastLinkUpTime: String(r['last-link-up-time'] ?? ''),
-            linkDowns: String(r['link-downs'] ?? ''),
-            rxByte: String(r['rx-byte'] ?? ''),
-            txByte: String(r['tx-byte'] ?? ''),
-            rxPacket: String(r['rx-packet'] ?? ''),
-            txPacket: String(r['tx-packet'] ?? ''),
-            rxDrop: String(r['rx-drop'] ?? ''),
-            txDrop: String(r['tx-drop'] ?? ''),
-            txQueueDrop: String(r['tx-queue-drop'] ?? ''),
-            rxError: String(r['rx-error'] ?? ''),
-            txError: String(r['tx-error'] ?? ''),
-            disabled: String(r['disabled'] ?? ''),
-            running: String(r['running'] ?? ''),
-            comment: r['comment'] !== undefined ? String(r['comment']) : undefined
-        } as InterfaceInfo));
+        
+        if (rows.length === 0) {
+			console.warn('⚠️ WARNING: No interfaces found in MikroTik response');
+			console.warn('⚠️ This might mean:');
+			console.warn('   1. MikroTik has no interfaces (unlikely)');
+			console.warn('   2. API command returned empty array');
+			console.warn('   3. Response format is unexpected');
+			return []; // Return empty array instead of throwing
+		} else {
+			console.log(`✅ Successfully found ${rows.length} interfaces from MikroTik`);
+			// Log interface names for debugging
+			const names = rows.map((r: any) => r['name'] || r.name || 'unnamed').filter((n: string) => n !== 'unnamed');
+			if (names.length > 0) {
+				console.log(`📋 Interface names: ${names.join(', ')}`);
+			}
+		}
+        
+        const interfaces = rows.map((r: any) => {
+			// Handle both property access methods (dot notation and bracket notation)
+			const getName = () => {
+				if (r['name']) return String(r['name']);
+				if (r.name) return String(r.name);
+				return '';
+			};
+			
+			const name = getName();
+			if (!name) {
+				console.warn('⚠️ Found interface without name:', JSON.stringify(r).substring(0, 100));
+			}
+			
+			return {
+				'.id': String(r['.id'] ?? r['id'] ?? ''),
+				name: name,
+				type: String(r['type'] ?? r.type ?? ''),
+				mtu: String(r['mtu'] ?? r.mtu ?? ''),
+				actualMtu: String(r['actual-mtu'] ?? r.actualMtu ?? ''),
+				l2mtu: String(r['l2mtu'] ?? r.l2mtu ?? ''),
+				macAddress: String(r['mac-address'] ?? r.macAddress ?? ''),
+				lastLinkUpTime: String(r['last-link-up-time'] ?? r.lastLinkUpTime ?? ''),
+				linkDowns: String(r['link-downs'] ?? r.linkDowns ?? ''),
+				rxByte: String(r['rx-byte'] ?? r.rxByte ?? ''),
+				txByte: String(r['tx-byte'] ?? r.txByte ?? ''),
+				rxPacket: String(r['rx-packet'] ?? r.rxPacket ?? ''),
+				txPacket: String(r['tx-packet'] ?? r.txPacket ?? ''),
+				rxDrop: String(r['rx-drop'] ?? r.rxDrop ?? ''),
+				txDrop: String(r['tx-drop'] ?? r.txDrop ?? ''),
+				txQueueDrop: String(r['tx-queue-drop'] ?? r.txQueueDrop ?? ''),
+				rxError: String(r['rx-error'] ?? r.rxError ?? ''),
+				txError: String(r['tx-error'] ?? r.txError ?? ''),
+				disabled: String(r['disabled'] ?? r.disabled ?? ''),
+				running: String(r['running'] ?? r.running ?? ''),
+				comment: r['comment'] !== undefined ? String(r['comment']) : (r.comment !== undefined ? String(r.comment) : undefined)
+			} as InterfaceInfo;
+		}).filter((ifc: InterfaceInfo) => ifc.name && ifc.name.trim() !== ''); // Filter out interfaces without name
+        
+        console.log(`✅ Processed ${interfaces.length} valid interfaces (after filtering)`);
+        return interfaces;
     } catch (error: any) {
-		console.error('Error getting interfaces from MikroTik:', error.message || error);
-		throw error;
+		const errorMsg = error.message || String(error);
+		console.error('❌ Error getting interfaces from MikroTik:', errorMsg);
+		
+		// Provide more detailed error message
+		if (errorMsg.includes('timeout') || errorMsg.includes('ECONNREFUSED')) {
+			throw new Error(`Tidak dapat terhubung ke MikroTik di ${cfg.host}:${cfg.port}. Pastikan MikroTik dapat diakses dan port ${cfg.port} terbuka.`);
+		} else if (errorMsg.includes('invalid user') || errorMsg.includes('password')) {
+			throw new Error('Username atau password MikroTik salah. Periksa konfigurasi di Settings.');
+		} else {
+			throw new Error(`Gagal mengambil interface dari MikroTik: ${errorMsg}`);
+		}
 	} finally {
 		try {
 			api.close();
@@ -923,7 +1225,7 @@ export async function deleteClientQueuesByClientName(cfg: MikroTikConfig, client
 /**
  * Get PPPoE active connections with bandwidth stats
  */
-export async function getPppoeActiveConnections(cfg: MikroTikConfig): Promise<any[]> {
+export async function getPppoeActiveConnections(cfg: MikroTikConfig): Promise<PppoeActiveConnection[]> {
     const api = new RouterOSAPI({
         host: cfg.host,
         port: cfg.port,
@@ -935,16 +1237,56 @@ export async function getPppoeActiveConnections(cfg: MikroTikConfig): Promise<an
     try {
         await api.connect();
         const connections = await api.write('/ppp/active/print');
-        return Array.isArray(connections) ? connections : [];
+        return Array.isArray(connections) ? connections as PppoeActiveConnection[] : [];
     } finally {
         api.close();
     }
 }
 
 /**
+ * Delete PPPoE secret from MikroTik by username/name
+ */
+export async function deletePppoeSecret(cfg: MikroTikConfig, username: string): Promise<void> {
+    const port = cfg.port || 8728;
+    const api = new RouterOSAPI({
+        host: cfg.host,
+        port: port,
+        user: cfg.username,
+        password: cfg.password,
+        timeout: 10000
+    });
+    
+    try {
+        console.log(`🔄 Deleting PPPoE secret: ${username}`);
+        await api.connect();
+        
+        // Find secret by username
+        const secretId = await findPppoeSecretIdByName(cfg, username);
+        if (!secretId) {
+            console.log(`⚠️ PPPoE secret "${username}" tidak ditemukan di MikroTik, skip deletion`);
+            return;
+        }
+        
+        console.log(`   Found secret ID: ${secretId}`);
+        await api.write('/ppp/secret/remove', [`=.id=${secretId}`]);
+        console.log(`✅ PPPoE secret "${username}" berhasil dihapus dari MikroTik`);
+    } catch (error: any) {
+        console.error(`❌ Failed to delete PPPoE secret "${username}":`);
+        console.error(`   Error message: ${error.message}`);
+        throw error;
+    } finally {
+        try {
+            api.close();
+        } catch (closeError) {
+            console.error('Error closing API connection:', closeError);
+        }
+    }
+}
+
+/**
  * Get PPPoE secrets (users) for monitoring
  */
-export async function getPppoeSecrets(cfg: MikroTikConfig): Promise<any[]> {
+export async function getPppoeSecrets(cfg: MikroTikConfig): Promise<PppoeSecret[]> {
     const api = new RouterOSAPI({
         host: cfg.host,
         port: cfg.port,
@@ -956,9 +1298,249 @@ export async function getPppoeSecrets(cfg: MikroTikConfig): Promise<any[]> {
     try {
         await api.connect();
         const secrets = await api.write('/ppp/secret/print');
-        return Array.isArray(secrets) ? secrets : [];
+        return Array.isArray(secrets) ? secrets as PppoeSecret[] : [];
     } finally {
         api.close();
+    }
+}
+
+/**
+ * Find PPPoE secret ID by username
+ */
+export async function findPppoeSecretIdByName(cfg: MikroTikConfig, username: string): Promise<string | null> {
+    const port = cfg.port || 8728; // Default port jika tidak ada
+    const api = new RouterOSAPI({
+        host: cfg.host,
+        port: port,
+        user: cfg.username,
+        password: cfg.password,
+        timeout: 10000 // Increased timeout for reliability
+    });
+    
+    try {
+        await api.connect();
+        const secrets = await api.write('/ppp/secret/print', [`?name=${username}`]);
+        const rows = Array.isArray(secrets) ? secrets : [];
+        if (rows.length > 0) {
+            return rows[0]['.id'] || null;
+        }
+        return null;
+    } catch (error: any) {
+        console.error(`❌ Failed to find PPPoE secret "${username}":`, error.message);
+        return null;
+    } finally {
+        try {
+            api.close();
+        } catch (closeError) {
+            console.error('Error closing API connection:', closeError);
+        }
+    }
+}
+
+/**
+ * Create PPPoE secret in MikroTik
+ */
+export async function createPppoeSecret(cfg: MikroTikConfig, data: {
+    name: string;
+    password: string;
+    profile?: string;
+    comment?: string;
+    disabled?: boolean;
+}): Promise<void> {
+    const port = cfg.port || 8728; // Default port jika tidak ada
+    const api = new RouterOSAPI({
+        host: cfg.host,
+        port: port,
+        user: cfg.username,
+        password: cfg.password,
+        timeout: 10000 // Increased timeout for reliability
+    });
+    
+    try {
+        console.log(`🔄 Creating PPPoE secret: ${data.name}`);
+        console.log(`   Host: ${cfg.host}:${port}`);
+        console.log(`   Username: ${cfg.username}`);
+        console.log(`   Profile: ${data.profile || 'default'}`);
+        console.log(`   Password: ${data.password ? '***' : 'NOT SET'}`);
+        
+        await api.connect();
+        console.log(`   ✅ Connected to MikroTik`);
+        
+        // Build params array - format yang benar untuk routeros-api
+        // Format: ['/command', '=param1=value1', '=param2=value2', ...]
+        const params: string[] = [];
+        params.push(`=name=${data.name}`);
+        params.push(`=password=${data.password}`);
+        
+        // Hanya tambahkan profile jika ada dan tidak kosong
+        if (data.profile && data.profile.trim() !== '') {
+            params.push(`=profile=${data.profile}`);
+            console.log(`   📌 Using profile: "${data.profile}"`);
+        } else {
+            console.log(`   ⚠️ No profile specified, secret will be created without profile`);
+        }
+        
+        if (data.comment) {
+            // Comment tidak perlu escape, langsung pakai
+            params.push(`=comment=${data.comment}`);
+        }
+        if (data.disabled !== undefined) {
+            params.push(`=disabled=${data.disabled ? 'yes' : 'no'}`);
+        }
+        
+        console.log(`   📤 Sending command: /ppp/secret/add`);
+        console.log(`   📤 Params array:`, params);
+        console.log(`   📤 Params count: ${params.length}`);
+        console.log(`   📤 Full command: ['/ppp/secret/add', ...${params.length} params]`);
+        
+        try {
+            console.log(`   🔄 Executing write command...`);
+            // Try format: api.write('/ppp/secret/add', params)
+            const result = await api.write('/ppp/secret/add', params);
+            console.log(`   📥 Response type:`, typeof result);
+            console.log(`   📥 Response:`, JSON.stringify(result, null, 2));
+            
+            // Check if result indicates success or error
+            if (result && typeof result === 'object') {
+                if ('ret' in result && result.ret === '') {
+                    console.log(`   ✅ Command executed successfully (ret is empty string)`);
+                } else if (Array.isArray(result) && result.length > 0) {
+                    console.log(`   ✅ Command executed successfully (array response)`);
+                } else {
+                    console.log(`   ⚠️ Unexpected response format:`, result);
+                }
+            }
+            
+            // Verify the secret was created
+            console.log(`   🔍 Verifying secret creation...`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            
+            // Create new connection for verification
+            const verifyApi = new RouterOSAPI({
+                host: cfg.host,
+                port: port,
+                user: cfg.username,
+                password: cfg.password,
+                timeout: 10000
+            });
+            
+            try {
+                await verifyApi.connect();
+                const verifySecrets = await verifyApi.write('/ppp/secret/print', [`?name=${data.name}`]);
+                const verifyRows = Array.isArray(verifySecrets) ? verifySecrets : [];
+                
+                if (verifyRows.length > 0) {
+                    const secretId = verifyRows[0]['.id'] || null;
+                    console.log(`✅ PPPoE secret "${data.name}" berhasil dibuat dan diverifikasi di MikroTik (ID: ${secretId})`);
+                    console.log(`   Secret details:`, {
+                        id: secretId,
+                        name: verifyRows[0].name,
+                        profile: verifyRows[0].profile || 'N/A',
+                        comment: verifyRows[0].comment || 'N/A'
+                    });
+                } else {
+                    console.warn(`⚠️ PPPoE secret "${data.name}" dibuat tapi tidak ditemukan saat verifikasi`);
+                    console.warn(`   Response was:`, result);
+                }
+                verifyApi.close();
+            } catch (verifyError: any) {
+                console.error(`   ⚠️ Error during verification:`, verifyError.message);
+                verifyApi.close();
+            }
+        } catch (writeError: any) {
+            console.error(`   ❌ Error saat write command:`);
+            console.error(`   ❌ Error type:`, typeof writeError);
+            console.error(`   ❌ Error message:`, writeError.message);
+            console.error(`   ❌ Error code:`, writeError.code);
+            console.error(`   ❌ Error name:`, writeError.name);
+            if (writeError.stack) {
+                console.error(`   ❌ Error stack:`, writeError.stack);
+            }
+            if (writeError.response) {
+                console.error(`   ❌ Error response:`, writeError.response);
+            }
+            if (writeError.request) {
+                console.error(`   ❌ Error request:`, writeError.request);
+            }
+            throw writeError;
+        }
+    } catch (error: any) {
+        console.error(`❌ Failed to create PPPoE secret "${data.name}":`);
+        console.error(`   Error message: ${error.message}`);
+        console.error(`   Error code: ${error.code || 'N/A'}`);
+        console.error(`   Error stack:`, error.stack);
+        console.error(`   Config used:`, {
+            host: cfg.host,
+            port: port,
+            username: cfg.username,
+            password: '***'
+        });
+        throw error;
+    } finally {
+        try {
+            api.close();
+        } catch (closeError) {
+            console.error('Error closing API connection:', closeError);
+        }
+    }
+}
+
+/**
+ * Update PPPoE secret in MikroTik
+ */
+export async function updatePppoeSecret(cfg: MikroTikConfig, username: string, data: {
+    name?: string;
+    password?: string;
+    profile?: string;
+    comment?: string;
+    disabled?: boolean;
+}): Promise<void> {
+    const port = cfg.port || 8728; // Default port jika tidak ada
+    const api = new RouterOSAPI({
+        host: cfg.host,
+        port: port,
+        user: cfg.username,
+        password: cfg.password,
+        timeout: 10000 // Increased timeout for reliability
+    });
+    
+    try {
+        console.log(`🔄 Updating PPPoE secret: ${username}`);
+        console.log(`   Host: ${cfg.host}:${port}`);
+        console.log(`   Update data:`, data);
+        await api.connect();
+        console.log(`   ✅ Connected to MikroTik`);
+        
+        // Find secret by username
+        const secretId = await findPppoeSecretIdByName(cfg, username);
+        if (!secretId) {
+            throw new Error(`PPPoE secret dengan username "${username}" tidak ditemukan di MikroTik`);
+        }
+        
+        console.log(`   Found secret ID: ${secretId}`);
+        const params: string[] = [`=.id=${secretId}`];
+        if (data.name !== undefined) params.push(`=name=${data.name}`);
+        if (data.password !== undefined) params.push(`=password=${data.password}`);
+        if (data.profile !== undefined) params.push(`=profile=${data.profile}`);
+        if (data.comment !== undefined) params.push(`=comment=${data.comment}`);
+        if (data.disabled !== undefined) params.push(`=disabled=${data.disabled ? 'yes' : 'no'}`);
+        
+        console.log(`   📤 Sending params:`, params);
+        const result = await api.write('/ppp/secret/set', params);
+        console.log(`   📥 Response:`, result);
+        console.log(`✅ PPPoE secret "${username}" berhasil di-update di MikroTik`);
+    } catch (error: any) {
+        console.error(`❌ Failed to update PPPoE secret "${username}":`);
+        console.error(`   Error message: ${error.message}`);
+        console.error(`   Error code: ${error.code || 'N/A'}`);
+        console.error(`   Error stack:`, error.stack);
+        throw error;
+    } finally {
+        try {
+            api.close();
+        } catch (closeError) {
+            console.error('Error closing API connection:', closeError);
+        }
     }
 }
 
@@ -1075,7 +1657,7 @@ export async function getInterfacesForMonitoring(cfg: MikroTikConfig): Promise<a
 /**
  * Get PPPoE server statistics
  */
-export async function getPppoeServerStats(cfg: MikroTikConfig): Promise<any> {
+export async function getPppoeServerStats(cfg: MikroTikConfig): Promise<PppoeServerStats[]> {
     const api = new RouterOSAPI({
         host: cfg.host,
         port: cfg.port,
@@ -1087,7 +1669,7 @@ export async function getPppoeServerStats(cfg: MikroTikConfig): Promise<any> {
     try {
         await api.connect();
         const servers = await api.write('/interface/pppoe-server/print');
-        return Array.isArray(servers) ? servers : [];
+        return Array.isArray(servers) ? servers as PppoeServerStats[] : [];
     } finally {
         api.close();
     }

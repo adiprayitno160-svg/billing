@@ -4,6 +4,8 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { MikrotikService } from '../../services/mikrotik/MikrotikService';
 import bcrypt from 'bcrypt';
 import PrepaidSchedulerService from '../../services/prepaid/PrepaidSchedulerServiceComplete';
+import { getMikrotikConfig } from '../../utils/mikrotikConfigHelper';
+import { getInterfaces } from '../../services/mikrotikService';
 
 /**
  * Full Controller untuk Admin Prepaid Management
@@ -20,10 +22,27 @@ class PrepaidAdminControllerFull {
       // Get stats from scheduler service
       const stats = await PrepaidSchedulerService.getStatistics();
 
+      // Get MikroTik interfaces
+      let interfaces: any[] = [];
+      try {
+        const mikrotikConfig = await getMikrotikConfig();
+        if (mikrotikConfig) {
+          const configWithTls: { host: string; port: number; username: string; password: string; use_tls: boolean } = {
+            ...mikrotikConfig,
+            use_tls: mikrotikConfig.use_tls ?? false
+          };
+          interfaces = await getInterfaces(configWithTls);
+        }
+      } catch (interfaceError) {
+        console.error('Error fetching MikroTik interfaces:', interfaceError);
+        interfaces = [];
+      }
+
       res.render('prepaid/admin/dashboard', {
         title: 'Dashboard Prepaid',
         layout: 'layouts/main',
         stats,
+        interfaces: interfaces || [],
         activeCustomers: [],
         expiringSoon: [],
         recentTransactions: [],
@@ -116,7 +135,7 @@ class PrepaidAdminControllerFull {
         [id]
       );
 
-      if (subs[0].count > 0) {
+      if (subs[0]?.count && subs[0].count > 0) {
         req.flash('error', 'Tidak bisa hapus paket yang masih memiliki langganan aktif');
         return res.redirect('/prepaid/packages');
       }
@@ -258,7 +277,7 @@ class PrepaidAdminControllerFull {
         `INSERT INTO prepaid_package_subscriptions 
          (customer_id, package_id, activation_date, expiry_date, purchase_price, status)
          VALUES (?, ?, NOW(), ?, ?, 'active')`,
-        [customer_id, package_id, expiryDate, pkg.price]
+        [customer_id, package_id, expiryDate, pkg?.price || 0]
       );
 
       // Activate in MikroTik
@@ -393,7 +412,7 @@ class PrepaidAdminControllerFull {
       });
 
       // Disable PPPoE user
-      await mikrotik.updatePPPoEUser({
+      await mikrotik.updatePPPoEUser(subscription.pppoe_username || '', {
         name: pppoeUsername,
         disabled: true
       });

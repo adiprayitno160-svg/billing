@@ -1,0 +1,156 @@
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <i class="fas fa-edit text-blue-500"></i>
+            Edit Template Notifikasi
+        </h1>
+        <p class="text-gray-600 mt-2">Ubah template: <code class="bg-gray-100 px-2 py-1 rounded"><%= template.template_code %></code></p>
+    </div>
+
+    <!-- Form -->
+    <form id="editTemplateForm" class="bg-white rounded-lg shadow-sm p-6">
+        <div class="space-y-6">
+            <!-- Basic Info -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Informasi Dasar</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Template Code</label>
+                        <input type="text" value="<%= template.template_code %>" disabled
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        <p class="text-xs text-gray-500 mt-1">Template code tidak dapat diubah</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama Template *</label>
+                        <input type="text" name="template_name" value="<%= template.template_name %>" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Notifikasi *</label>
+                        <select name="notification_type" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="invoice_created" <%= template.notification_type === 'invoice_created' ? 'selected' : '' %>>Invoice Dibuat</option>
+                            <option value="invoice_overdue" <%= template.notification_type === 'invoice_overdue' ? 'selected' : '' %>>Invoice Terlambat</option>
+                            <option value="payment_received" <%= template.notification_type === 'payment_received' ? 'selected' : '' %>>Pembayaran Diterima</option>
+                            <option value="payment_partial" <%= template.notification_type === 'payment_partial' ? 'selected' : '' %>>Pembayaran Sebagian</option>
+                            <option value="package_expiring" <%= template.notification_type === 'package_expiring' ? 'selected' : '' %>>Paket Akan Berakhir</option>
+                            <option value="package_expired" <%= template.notification_type === 'package_expired' ? 'selected' : '' %>>Paket Berakhir</option>
+                            <option value="package_activated" <%= template.notification_type === 'package_activated' ? 'selected' : '' %>>Paket Diaktifkan</option>
+                            <option value="quota_warning" <%= template.notification_type === 'quota_warning' ? 'selected' : '' %>>Peringatan Kuota</option>
+                            <option value="quota_depleted" <%= template.notification_type === 'quota_depleted' ? 'selected' : '' %>>Kuota Habis</option>
+                            <option value="auto_renew_success" <%= template.notification_type === 'auto_renew_success' ? 'selected' : '' %>>Perpanjangan Otomatis Berhasil</option>
+                            <option value="auto_renew_failed" <%= template.notification_type === 'auto_renew_failed' ? 'selected' : '' %>>Perpanjangan Otomatis Gagal</option>
+                            <option value="customer_created" <%= template.notification_type === 'customer_created' ? 'selected' : '' %>>Pelanggan Baru</option>
+                            <option value="service_blocked" <%= template.notification_type === 'service_blocked' ? 'selected' : '' %>>Layanan Diblokir</option>
+                            <option value="service_unblocked" <%= template.notification_type === 'service_unblocked' ? 'selected' : '' %>>Layanan Diaktifkan Kembali</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Channel *</label>
+                        <select name="channel" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="whatsapp" <%= template.channel === 'whatsapp' ? 'selected' : '' %>>WhatsApp</option>
+                            <option value="email" <%= template.channel === 'email' ? 'selected' : '' %>>Email</option>
+                            <option value="sms" <%= template.channel === 'sms' ? 'selected' : '' %>>SMS</option>
+                            <option value="push" <%= template.channel === 'push' ? 'selected' : '' %>>Push</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                        <select name="priority"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="low" <%= template.priority === 'low' ? 'selected' : '' %>>Low</option>
+                            <option value="normal" <%= template.priority === 'normal' ? 'selected' : '' %>>Normal</option>
+                            <option value="high" <%= template.priority === 'high' ? 'selected' : '' %>>High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select name="is_active"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="true" <%= template.is_active ? 'selected' : '' %>>Aktif</option>
+                            <option value="false" <%= !template.is_active ? 'selected' : '' %>>Tidak Aktif</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Templates -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Template Pesan</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title Template *</label>
+                        <input type="text" name="title_template" value="<%= template.title_template %>" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="Contoh: Invoice Baru - {invoice_number}">
+                        <p class="text-xs text-gray-500 mt-1">Gunakan {variable_name} untuk variabel dinamis</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Message Template *</label>
+                        <textarea name="message_template" rows="8" required
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Contoh: Halo {customer_name}, Invoice baru telah dibuat..."><%= template.message_template %></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Gunakan {variable_name} untuk variabel dinamis. Emoji dapat digunakan.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variables Info -->
+            <div class="bg-blue-50 rounded-lg p-4">
+                <h4 class="font-semibold text-blue-900 mb-2">Variabel yang Tersedia:</h4>
+                <div class="text-sm text-blue-800">
+                    <p class="mb-2">Variabel umum: <code class="bg-blue-100 px-2 py-1 rounded">{customer_name}</code>, <code class="bg-blue-100 px-2 py-1 rounded">{customer_phone}</code>, <code class="bg-blue-100 px-2 py-1 rounded">{customer_email}</code></p>
+                    <p>Variabel spesifik tergantung tipe notifikasi. Lihat dokumentasi untuk daftar lengkap.</p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-4">
+                <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-save"></i> Simpan Perubahan
+                </button>
+                <a href="/notification/templates" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                    <i class="fas fa-times"></i> Batal
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('editTemplateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        template_name: formData.get('template_name'),
+        notification_type: formData.get('notification_type'),
+        channel: formData.get('channel'),
+        title_template: formData.get('title_template'),
+        message_template: formData.get('message_template'),
+        priority: formData.get('priority'),
+        is_active: formData.get('is_active') === 'true'
+    };
+    
+    try {
+        const response = await fetch(`/api/notification/templates/<%= template.template_code %>`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Template berhasil diperbarui!');
+            window.location.href = '/notification/templates';
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+

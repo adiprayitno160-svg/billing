@@ -3,26 +3,27 @@ module.exports = {
     name: 'billing-app',
     script: 'dist/server.js',
     instances: 1,
-    autorestart: true,
+    exec_mode: 'fork',
     watch: false,
     max_memory_restart: '1G',
-    min_uptime: '10s',
-    max_restarts: 10,
-    restart_delay: 4000,
-    exp_backoff_restart_delay: 100,
     env: {
-      NODE_ENV: 'development',
-      PORT: 3000
+      NODE_ENV: 'production'
     },
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true,
+    error_file: './logs/pm2-error.log',
+    out_file: './logs/pm2-out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     merge_logs: true,
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+    autorestart: true,
+    max_restarts: 10,
+    min_uptime: '10s'
   }]
 };
+
+
+
+
+
+
+
+
+

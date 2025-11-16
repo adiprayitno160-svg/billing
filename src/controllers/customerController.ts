@@ -1,350 +1,643 @@
 import { Request, Response } from 'express';
 import { databasePool } from '../db/pool';
-import * as XLSX from 'xlsx';
-import { CustomerIdGenerator } from '../utils/customerIdGenerator';
-import MigrationService from '../services/customer/MigrationService';
-import { MikrotikService } from '../services/mikrotik/MikrotikService';
-import { getMikrotikConfig } from '../services/staticIpPackageService';
-import { getInterfaces, addIpAddress, addMangleRulesForClient, createQueueTree } from '../services/mikrotikService';
+import { RowDataPacket } from 'mysql2';
+import { getMikrotikConfig } from '../utils/mikrotikConfigHelper';
+import { listPackages as listPppoePackages } from '../services/pppoeService';
+import { listStaticIpPackages } from '../services/staticIpPackageService';
+import { getInterfaces } from '../services/mikrotikService';
 
+/**
+ * Get customer list page
+ */
 export const getCustomerList = async (req: Request, res: Response) => {
+    console.log('[getCustomerList] Route handler called for:', req.path);
     try {
-        console.log('=== GET CUSTOMER LIST ===');
-        console.log('Query params:', req.query);
-        
-        const { status, odc_id, search, billing_mode, page = 1, limit = 20 } = req.query;
-        
-        let query = `
-            SELECT c.*, ftth_odc.name as odc_name,
-                   pc.portal_id,
-                   CASE 
-                       WHEN c.connection_type = 'pppoe' THEN 'PPPOE'
-                       WHEN c.connection_type = 'static_ip' THEN 'IP Static'
-                       ELSE 'PPPOE'
-                   END as connection_type_display,
-                   CASE 
-                       WHEN sub.package_name IS NOT NULL AND sub.package_name != '' THEN sub.package_name
-                       WHEN c.connection_type = 'pppoe' AND pppoe_pkg.name IS NOT NULL THEN pppoe_pkg.name
-                       WHEN c.connection_type = 'static_ip' AND static_pkg.name IS NOT NULL THEN static_pkg.name
-                       ELSE NULL
-                   END as package_name
+        // Get search and filter parameters
+        const search = req.query.search as string || '';
+        const status = req.query.status as string || '';
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = 50; // Items per page
+        const offset = (page - 1) * limit;
+
+        // Build WHERE clause
+        let whereConditions: string[] = [];
+        let queryParams: any[] = [];
+
+        if (search) {
+            whereConditions.push(`(c.name LIKE ? OR c.phone LIKE ? OR c.customer_code LIKE ? OR c.pppoe_username LIKE ?)`);
+            const searchPattern = `%${search}%`;
+            queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        }
+
+        if (status) {
+            whereConditions.push('c.status = ?');
+            queryParams.push(status);
+        }
+
+        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        // Query all customers with their subscriptions and packages
+        const query = `
+            SELECT 
+                c.*,
+                s.package_name as postpaid_package_name,
+                s.price as subscription_price,
+                pc.portal_id,
+                pc.status as portal_status,
+                pps.id as prepaid_subscription_id,
+                pps.expiry_date as prepaid_expiry_date,
+                pps.status as prepaid_subscription_status,
+                pp.name as prepaid_package_name,
+                CASE 
+                    WHEN c.connection_type = 'pppoe' THEN 'PPPOE'
+                    WHEN c.connection_type = 'static_ip' THEN 'IP Statis'
+                    WHEN c.connection_type = 'prepaid' THEN 'Prepaid'
+                    ELSE 'Unknown'
+                END as connection_type_display
             FROM customers c
-            LEFT JOIN ftth_odc ON c.odc_id = ftth_odc.id
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
             LEFT JOIN portal_customers pc ON c.id = pc.customer_id
-            LEFT JOIN subscriptions sub ON c.id = sub.customer_id AND sub.status = 'active'
-            LEFT JOIN pppoe_packages pppoe_pkg ON sub.package_id = pppoe_pkg.id AND c.connection_type = 'pppoe'
-            LEFT JOIN static_ip_clients static_client ON c.id = static_client.customer_id AND c.connection_type = 'static_ip'
-            LEFT JOIN static_ip_packages static_pkg ON static_client.package_id = static_pkg.id AND c.connection_type = 'static_ip'
-            WHERE 1=1
+            LEFT JOIN prepaid_package_subscriptions pps ON c.id = pps.customer_id AND pps.status = 'active'
+            LEFT JOIN prepaid_packages pp ON pps.package_id = pp.id
+            ${whereClause}
+            ORDER BY c.created_at DESC
+            LIMIT ? OFFSET ?
         `;
-        
-        const params: any[] = [];
-        
-        if (status) {
-            query += ` AND c.status = ?`;
-            params.push(status);
-        }
-        
-        if (odc_id) {
-            query += ` AND c.odc_id = ?`;
-            params.push(odc_id);
-        }
-        
-        if (billing_mode) {
-            query += ` AND c.billing_mode = ?`;
-            params.push(billing_mode);
-        }
-        
-        if (search) {
-            query += ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)`;
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-        }
-        
-        query += ` ORDER BY c.created_at DESC`;
-        
-        const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
-        query += ` LIMIT ? OFFSET ?`;
-        params.push(parseInt(limit as string), offset);
-        
-        console.log('Final query:', query);
-        console.log('Query params:', params);
-        
-        const [result] = await databasePool.query(query, params);
-        
-        console.log('Query result:', result);
-        console.log('Number of customers found:', Array.isArray(result) ? result.length : 0);
-        
-        // Check if result is valid
-        if (!Array.isArray(result)) {
-            console.error('Query result is not an array:', typeof result);
-            return res.status(500).send('Database error');
-        }
-        
-        console.log('Rendering template with customers:', result.length);
-        
-        // Get total count
-        let countQuery = `
-            SELECT COUNT(*) as total
-            FROM customers c
-            WHERE 1=1
-        `;
-        
-        const countParams: any[] = [];
-        
-        if (status) {
-            countQuery += ` AND c.status = ?`;
-            countParams.push(status);
-        }
-        
-        if (odc_id) {
-            countQuery += ` AND c.odc_id = ?`;
-            countParams.push(odc_id);
-        }
-        
-        if (billing_mode) {
-            countQuery += ` AND c.billing_mode = ?`;
-            countParams.push(billing_mode);
-        }
-        
-        if (search) {
-            countQuery += ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)`;
-            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-        }
-        
-        const [countResult] = await databasePool.query(countQuery, countParams);
-        const total = parseInt((countResult as any)[0].total);
-        
-        // Get statistics
-        let totalActive = 0;
-        let totalInactive = 0;
-        
-        try {
-            const [activeStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "active"');
-            totalActive = parseInt((activeStats as any)[0].total);
-        } catch (statError) {
-            console.error('Error getting active stats:', statError);
-        }
-        
-        try {
-            const [inactiveStats] = await databasePool.query('SELECT COUNT(*) as total FROM customers WHERE status = "inactive"');
-            totalInactive = parseInt((inactiveStats as any)[0].total);
-        } catch (statError) {
-            console.error('Error getting inactive stats:', statError);
-        }
-        
-        console.log('About to render template with:');
-        console.log('- customers:', result.length);
-        console.log('- total:', total);
-        console.log('- page:', page);
-        console.log('- totalActive:', totalActive);
-        console.log('- totalInactive:', totalInactive);
-        
-        // Validate data before rendering
-        if (!Array.isArray(result)) {
-            console.error('Result is not an array:', typeof result);
-            throw new Error('Database result is not an array');
-        }
-        
-        console.log('Rendering customers/list template...');
-        
+
+        queryParams.push(limit, offset);
+        const [customers] = await databasePool.query<RowDataPacket[]>(query, queryParams);
+
+        // Get total count for pagination
+        const countQuery = `SELECT COUNT(*) as total FROM customers c ${whereClause}`;
+        const countParams = queryParams.slice(0, -2); // Remove limit and offset
+        const [countResult] = await databasePool.query<RowDataPacket[]>(countQuery, countParams);
+        const total = countResult[0]?.total || 0;
+
+        // Map results to include package_name (either postpaid or prepaid)
+        const customersWithPackages = customers.map((customer: any) => ({
+            ...customer,
+            package_name: customer.prepaid_package_name || customer.postpaid_package_name || null
+        }));
+
+        // Get statistics for the view
+        const [totalCount] = await databasePool.query<RowDataPacket[]>(
+            'SELECT COUNT(*) as total FROM customers'
+        );
+        const [activeCount] = await databasePool.query<RowDataPacket[]>(
+            "SELECT COUNT(*) as total FROM customers WHERE status = 'active'"
+        );
+        const [inactiveCount] = await databasePool.query<RowDataPacket[]>(
+            "SELECT COUNT(*) as total FROM customers WHERE status = 'inactive'"
+        );
+
         res.render('customers/list', {
-            title: 'Daftar Pelanggan',
-            customers: result,
+            title: 'Data Pelanggan',
+            customers: customersWithPackages,
+            stats: {
+                total: totalCount[0]?.total || 0,
+                active: activeCount[0]?.total || 0,
+                inactive: inactiveCount[0]?.total || 0
+            },
             pagination: {
-                page: parseInt(page as string),
-                limit: parseInt(limit as string),
-                total,
-                pages: Math.ceil(total / parseInt(limit as string))
+                page: page,
+                limit: limit,
+                total: total,
+                pages: Math.ceil(total / limit)
             },
-            statistics: {
-                totalActive,
-                totalInactive
+            filters: {
+                search: search,
+                status: status
             },
-            filters: { status, odc_id, search, billing_mode }
+            success: req.query.success || null,
+            error: req.query.error || null,
+            currentPath: '/customers/list'
         });
-        
-    } catch (error: any) {
-        console.error('Error getting customer list:', error);
-        console.error('Error details:', error?.message || 'Unknown error');
-        console.error('Error stack:', error?.stack || 'No stack trace');
-        
+
+    } catch (error: unknown) {
+        console.error('Error fetching customer list:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal memuat data pelanggan';
         res.status(500).render('customers/list', {
-            title: 'Daftar Pelanggan',
+            title: 'Data Pelanggan',
             customers: [],
-            pagination: { page: 1, limit: 20, total: 0, pages: 0 },
-            statistics: { totalActive: 0, totalInactive: 0 },
-            filters: {},
-            error: 'Gagal memuat data pelanggan: ' + (error?.message || 'Unknown error')
+            stats: { total: 0, active: 0, inactive: 0 },
+            error: errorMessage,
+            currentPath: '/customers/list'
         });
     }
 };
 
-export const getCustomerDetail = async (req: Request, res: Response) => {
+/**
+ * Test Mikrotik connection and list all address lists
+ */
+export const testMikrotikAddressLists = async (req: Request, res: Response) => {
+    try {
+        const config = await getMikrotikConfig();
+        
+        if (!config) {
+            return res.send(`
+                <html>
+                    <head><title>Mikrotik Not Configured</title></head>
+                    <body style="font-family: Arial; padding: 20px; color: red;">
+                        <h2>❌ Mikrotik Belum Dikonfigurasi</h2>
+                        <p><a href="/settings/mikrotik">Setup Mikrotik dulu</a></p>
+                    </body>
+                </html>
+            `);
+        }
+
+        const { RouterOSAPI } = require('routeros-api');
+        const api = new RouterOSAPI({
+            host: config.host,
+            port: config.api_port || config.port || 8728,
+            user: config.username,
+            password: config.password,
+            timeout: 10000
+        });
+
+        await api.connect();
+        console.log('✅ Connected to Mikrotik');
+
+        // Get all address lists
+        const allAddressLists = await api.write('/ip/firewall/address-list/print');
+        const allListsArray = Array.isArray(allAddressLists) ? allAddressLists : [];
+        
+        // Group by list name
+        const listsByName: { [key: string]: any[] } = {};
+        for (const entry of allListsArray) {
+            const listName = entry.list || 'UNKNOWN';
+            if (!listsByName[listName]) {
+                listsByName[listName] = [];
+            }
+            listsByName[listName].push(entry);
+        }
+
+        // Check for prepaid lists
+        const prepaidNoPackage = listsByName['prepaid-no-package'] || [];
+        const prepaidActive = listsByName['prepaid-active'] || [];
+
+        let html = `
+            <html>
+                <head>
+                    <title>Mikrotik Address Lists Test</title>
+                    <style>
+                        body { font-family: Arial; padding: 20px; }
+                        .success { color: green; }
+                        .error { color: red; }
+                        .warning { color: orange; }
+                        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #4CAF50; color: white; }
+                        .section { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>🔍 Mikrotik Address Lists Status</h1>
+                    <div class="section">
+                        <h2>Connection Info</h2>
+                        <p><strong>Host:</strong> ${config.host}:${config.api_port || config.port || 8728}</p>
+                        <p><strong>User:</strong> ${config.username}</p>
+                        <p class="success">✅ Connected successfully</p>
+                    </div>
+        `;
+
+        // Prepaid lists status
+        html += `
+            <div class="section">
+                <h2>📋 Prepaid Address Lists</h2>
+                <p><strong>prepaid-no-package:</strong> ${prepaidNoPackage.length > 0 ? `<span class="success">✅ Found (${prepaidNoPackage.length} entries)</span>` : '<span class="error">❌ NOT FOUND</span>'}</p>
+                <p><strong>prepaid-active:</strong> ${prepaidActive.length > 0 ? `<span class="success">✅ Found (${prepaidActive.length} entries)</span>` : '<span class="error">❌ NOT FOUND</span>'}</p>
+        `;
+
+        if (prepaidNoPackage.length === 0 && prepaidActive.length === 0) {
+            html += `
+                <p class="warning">⚠️ Address lists belum dibuat. Akan dibuat otomatis saat IP pertama ditambahkan.</p>
+                <p><a href="/quick-fix-ip?ip=192.168.5.2">Tambah IP 192.168.5.2 (akan membuat list otomatis)</a></p>
+            `;
+        }
+
+        html += `</div>`;
+
+        // Show prepaid-no-package entries
+        if (prepaidNoPackage.length > 0) {
+            html += `
+                <div class="section">
+                    <h2>📝 prepaid-no-package Entries (${prepaidNoPackage.length})</h2>
+                    <table>
+                        <tr>
+                            <th>ID</th>
+                            <th>Address</th>
+                            <th>Comment</th>
+                            <th>Disabled</th>
+                        </tr>
+            `;
+            for (const entry of prepaidNoPackage) {
+                html += `
+                    <tr>
+                        <td>${entry['.id'] || 'N/A'}</td>
+                        <td><strong>${entry.address || 'N/A'}</strong></td>
+                        <td>${entry.comment || '-'}</td>
+                        <td>${entry.disabled === 'true' ? 'Yes' : 'No'}</td>
+                    </tr>
+                `;
+            }
+            html += `</table></div>`;
+        }
+
+        // Show prepaid-active entries
+        if (prepaidActive.length > 0) {
+            html += `
+                <div class="section">
+                    <h2>✅ prepaid-active Entries (${prepaidActive.length})</h2>
+                    <table>
+                        <tr>
+                            <th>ID</th>
+                            <th>Address</th>
+                            <th>Comment</th>
+                            <th>Disabled</th>
+                        </tr>
+            `;
+            for (const entry of prepaidActive) {
+                html += `
+                    <tr>
+                        <td>${entry['.id'] || 'N/A'}</td>
+                        <td><strong>${entry.address || 'N/A'}</strong></td>
+                        <td>${entry.comment || '-'}</td>
+                        <td>${entry.disabled === 'true' ? 'Yes' : 'No'}</td>
+                    </tr>
+                `;
+            }
+            html += `</table></div>`;
+        }
+
+        // All address lists
+        html += `
+            <div class="section">
+                <h2>📊 All Address Lists in Mikrotik</h2>
+                <p><strong>Total lists found:</strong> ${Object.keys(listsByName).length}</p>
+                <ul>
+        `;
+        for (const listName of Object.keys(listsByName)) {
+            html += `<li><strong>${listName}</strong>: ${listsByName[listName].length} entries</li>`;
+        }
+        html += `</ul></div>`;
+
+        // Quick actions
+        html += `
+            <div class="section">
+                <h2>🚀 Quick Actions</h2>
+                <ul>
+                    <li><a href="/quick-fix-ip?ip=192.168.5.2">Tambah IP 192.168.5.2 ke prepaid-no-package</a></li>
+                    <li><a href="/test-mikrotik-address-lists">Refresh (cek lagi)</a></li>
+                    <li><a href="/prepaid/address-list">Address List Management</a></li>
+                    <li><a href="/prepaid/mikrotik-setup">Mikrotik Setup Wizard</a></li>
+                </ul>
+            </div>
+        `;
+
+        html += `</body></html>`;
+
+        api.close();
+        res.send(html);
+
+    } catch (error: any) {
+        console.error('Error testing Mikrotik address lists:', error);
+        return res.send(`
+            <html>
+                <head><title>Error</title></head>
+                <body style="font-family: Arial; padding: 20px; color: red;">
+                    <h2>❌ Error</h2>
+                    <p><strong>Message:</strong> ${error.message || 'Unknown error'}</p>
+                    <p><strong>Details:</strong></p>
+                    <pre>${error.stack || JSON.stringify(error, null, 2)}</pre>
+                    <hr>
+                    <p><a href="/settings/mikrotik">Check Mikrotik Settings</a></p>
+                </body>
+            </html>
+        `);
+    }
+};
+
+/**
+ * Migrate customer to prepaid
+ */
+export const migrateToPrepaid = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        
-        // Validasi ID parameter
-        if (!id || isNaN(Number(id))) {
-            req.flash('error', 'ID pelanggan tidak valid');
-            return res.redirect('/customers/list');
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'ID is required' });
         }
-        
-        console.log(`Mencoba memuat detail pelanggan dengan ID: ${id}`);
-        
-        // Query dasar untuk mendapatkan data customer
-        const customerQuery = `
-            SELECT c.*, 
-                   ftth_odc.name as odc_name
-            FROM customers c
-            LEFT JOIN ftth_odc ON c.odc_id = ftth_odc.id
-            WHERE c.id = ?
-        `;
-        
-        console.log('Executing customer query...');
-        const [customerResult] = await databasePool.execute(customerQuery, [id]);
-        const customer = (customerResult as any)[0];
-        
-        if (!customer) {
-            console.log(`Customer dengan ID ${id} tidak ditemukan`);
-            req.flash('error', 'Pelanggan tidak ditemukan');
-            return res.redirect('/customers/list');
+        const customerId = parseInt(id);
+        const userId = (req.session as any)?.userId;
+
+        if (!customerId || isNaN(customerId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Customer ID tidak valid'
+            });
         }
-        
-        console.log(`Customer ditemukan: ${customer.name}`);
-        
-        // Coba mendapatkan data tambahan jika ada
-        let additionalData: {
-            odp_name?: string;
-            olt_name?: string;
-            pppoe_package_name?: string;
-            static_ip_package_name?: string;
-        } = {};
-        
-        try {
-            // Cek apakah ada data ODP
-            if (customer.odp_id) {
-                const odpQuery = `SELECT name FROM ftth_odp WHERE id = ?`;
-                const [odpResult] = await databasePool.execute(odpQuery, [customer.odp_id]);
-                if (odpResult && (odpResult as any).length > 0) {
-                    additionalData.odp_name = (odpResult as any)[0].name;
-                }
-            }
-            
-            // Cek apakah ada data OLT
-            if (customer.odc_id) {
-                const oltQuery = `
-                    SELECT ftth_olt.name as olt_name 
-                    FROM ftth_olt 
-                    JOIN ftth_odc ON ftth_olt.id = ftth_odc.olt_id 
-                    WHERE ftth_odc.id = ?
-                `;
-                const [oltResult] = await databasePool.execute(oltQuery, [customer.odc_id]);
-                if (oltResult && (oltResult as any).length > 0) {
-                    additionalData.olt_name = (oltResult as any)[0].olt_name;
-                }
-            }
-            
-            // Cek package berdasarkan connection type
-            if (customer.connection_type === 'pppoe' && customer.package_id) {
-                const pppoeQuery = `SELECT name FROM pppoe_packages WHERE id = ?`;
-                const [pppoeResult] = await databasePool.execute(pppoeQuery, [customer.package_id]);
-                if (pppoeResult && (pppoeResult as any).length > 0) {
-                    additionalData.pppoe_package_name = (pppoeResult as any)[0].name;
-                }
-            }
-            
-            if (customer.connection_type === 'static_ip' && customer.package_id) {
-                const staticIpQuery = `SELECT name FROM static_ip_packages WHERE id = ?`;
-                const [staticIpResult] = await databasePool.execute(staticIpQuery, [customer.package_id]);
-                if (staticIpResult && (staticIpResult as any).length > 0) {
-                    additionalData.static_ip_package_name = (staticIpResult as any)[0].name;
-                }
-            }
-        } catch (additionalError) {
-            console.warn('Warning: Gagal memuat data tambahan:', additionalError);
-            // Lanjutkan tanpa data tambahan
+
+        // Use simple version for more reliable migration
+        const MigrationServiceSimple = (await import('../services/customer/MigrationServiceSimple')).default;
+        const result = await MigrationServiceSimple.migrateToPrepaid(customerId, userId);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                portal_id: result.portal_id,
+                portal_pin: result.portal_pin
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.error || result.message
+            });
         }
-        
-        // Gabungkan data customer dengan data tambahan
-        const customerWithAdditionalData = { ...customer, ...additionalData };
-        
-        // Get customer invoices
-        console.log('Mencoba memuat invoice...');
-        let invoices = [];
-        try {
-            const invoiceQuery = `
-                SELECT * FROM invoices 
-                WHERE customer_id = ? 
-                ORDER BY created_at DESC
-            `;
-            const [invoiceResult] = await databasePool.execute(invoiceQuery, [id]);
-            invoices = invoiceResult as any[];
-            console.log(`Ditemukan ${invoices.length} invoice`);
-        } catch (invoiceError) {
-            console.warn('Warning: Gagal memuat invoice:', invoiceError);
-            // Lanjutkan tanpa invoice
-        }
-        
-        console.log('Rendering customer detail page...');
-        res.render('customers/detail', {
-            title: 'Detail Pelanggan',
-            customer: customerWithAdditionalData,
-            invoices
+    } catch (error: unknown) {
+        console.error('Error migrating to prepaid:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat migrasi';
+        res.status(500).json({
+            success: false,
+            error: errorMessage
         });
-        
-    } catch (error: any) {
-        console.error('Error getting customer detail:', error);
-        console.error('Error details:', {
-            message: error.message,
-            stack: error.stack,
-            code: error.code,
-            errno: error.errno
-        });
-        req.flash('error', `Gagal memuat detail pelanggan: ${error.message}`);
-        res.redirect('/customers/list');
     }
 };
 
+/**
+ * Migrate customer to postpaid
+ */
+export const migrateToPostpaid = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'ID is required' });
+        }
+        const customerId = parseInt(id);
+        const userId = (req.session as any)?.userId;
+
+        if (!customerId || isNaN(customerId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Customer ID tidak valid'
+            });
+        }
+
+        // Use simple version for more reliable migration
+        const MigrationServiceSimple = (await import('../services/customer/MigrationServiceSimple')).default;
+        const result = await MigrationServiceSimple.migrateToPostpaid(customerId, userId);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.error || result.message
+            });
+        }
+    } catch (error: unknown) {
+        console.error('Error migrating to postpaid:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat migrasi';
+        res.status(500).json({
+            success: false,
+            error: errorMessage
+        });
+    }
+};
+
+/**
+ * Get customer detail page
+ */
+export const getCustomerDetail = async (req: Request, res: Response) => {
+    try {
+        console.log('[getCustomerDetail] Request received, params:', req.params);
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'ID is required' });
+        }
+        const customerId = parseInt(id);
+        console.log('[getCustomerDetail] Parsed customer ID:', customerId);
+
+        if (!customerId || isNaN(customerId)) {
+            console.log('[getCustomerDetail] Invalid customer ID');
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                status: 404,
+                message: 'Pelanggan tidak ditemukan'
+            });
+        }
+
+        // Get customer with all related data (without sic.gateway)
+        const query = `
+            SELECT 
+                c.*,
+                s.package_name as postpaid_package_name,
+                s.price as subscription_price,
+                pp.name as pppoe_package_name,
+                pp.rate_limit_rx,
+                pp.rate_limit_tx,
+                pp.price as pppoe_package_price,
+                pp.description as pppoe_package_description,
+                pps.id as prepaid_subscription_id,
+                pps.expiry_date as prepaid_expiry_date,
+                pps.status as prepaid_subscription_status,
+                prep.name as prepaid_package_name,
+                prep.price as prepaid_package_price,
+                sic.ip_address as static_ip_address,
+                sic.interface as static_ip_interface,
+                sic.package_id as static_ip_package_id,
+                sp.name as static_ip_package_name,
+                sp.price as static_ip_package_price,
+                sp.max_limit_download,
+                sp.max_limit_upload,
+                odc.name as odc_name,
+                odc.location as odc_location,
+                odp.name as odp_name,
+                olt.name as olt_name
+            FROM customers c
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
+            LEFT JOIN pppoe_packages pp ON s.package_id = pp.id AND c.connection_type = 'pppoe'
+            LEFT JOIN prepaid_package_subscriptions pps ON c.id = pps.customer_id AND pps.status = 'active'
+            LEFT JOIN prepaid_packages prep ON pps.package_id = prep.id
+            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
+            LEFT JOIN static_ip_packages sp ON sic.package_id = sp.id
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
+            LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+            LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
+            WHERE c.id = ?
+            LIMIT 1
+        `;
+
+        const [customers] = await databasePool.query<RowDataPacket[]>(query, [customerId]);
+
+        if (!customers || customers.length === 0) {
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                status: 404,
+                message: 'Pelanggan tidak ditemukan'
+            });
+        }
+
+        const customer = customers[0];
+        if (!customer) {
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                status: 404,
+                message: 'Pelanggan tidak ditemukan'
+            });
+        }
+
+        // Format package data based on connection type
+        let packageData: any = null;
+        if (customer.connection_type === 'pppoe' && customer.pppoe_package_name) {
+            packageData = {
+                name: customer.pppoe_package_name,
+                price: customer.pppoe_package_price,
+                rate_limit_rx: customer.rate_limit_rx,
+                rate_limit_tx: customer.rate_limit_tx,
+                description: customer.pppoe_package_description
+            };
+        } else if (customer.connection_type === 'static_ip' && customer.static_ip_package_name) {
+            packageData = {
+                name: customer.static_ip_package_name,
+                price: customer.static_ip_package_price,
+                max_limit_download: customer.max_limit_download,
+                max_limit_upload: customer.max_limit_upload
+            };
+        } else if (customer.connection_type === 'prepaid' && customer.prepaid_package_name) {
+            packageData = {
+                name: customer.prepaid_package_name,
+                price: customer.prepaid_package_price
+            };
+        }
+
+        // Get customer invoices
+        let invoices: RowDataPacket[] = [];
+        try {
+            const [invoicesResult] = await databasePool.query<RowDataPacket[]>(
+                `SELECT * FROM invoices 
+                 WHERE customer_id = ? 
+                 ORDER BY created_at DESC`,
+                [customerId]
+            );
+            invoices = Array.isArray(invoicesResult) ? invoicesResult : [];
+        } catch (invoiceError) {
+            console.error('Error fetching invoices:', invoiceError);
+            invoices = [];
+        }
+
+        res.render('customers/detail', {
+            title: `Detail Pelanggan - ${customer.name}`,
+            customer: {
+                ...customer,
+                pppoe_package: customer.connection_type === 'pppoe' ? packageData : null,
+                static_ip_package: customer.connection_type === 'static_ip' ? packageData : null,
+                prepaid_package: customer.connection_type === 'prepaid' ? packageData : null
+            },
+            invoices: invoices || [],
+            currentPath: `/customers/${customerId}`
+        });
+
+    } catch (error: unknown) {
+        console.error('Error fetching customer detail:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal memuat detail pelanggan';
+        res.status(500).render('error', {
+            title: 'Error',
+            message: errorMessage
+        });
+    }
+};
+
+/**
+ * Get customer edit page
+ */
 export const getCustomerEdit = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        
-        const query = `SELECT * FROM customers WHERE id = ?`;
-        const [result] = await databasePool.execute(query, [id]);
-        const customer = (result as any)[0];
-        
-        if (!customer) {
-            req.flash('error', 'Pelanggan tidak ditemukan');
-            return res.redirect('/customers/list');
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'ID is required' });
         }
-        
-        // Get static IP data if customer has static IP connection
-        let staticIpData = null;
-        if (customer.connection_type === 'static_ip') {
-            const staticIpQuery = `SELECT * FROM static_ip_clients WHERE customer_id = ?`;
-            const [staticIpResult] = await databasePool.execute(staticIpQuery, [id]);
-            staticIpData = (staticIpResult as any)[0];
+        const customerId = parseInt(id);
+
+        if (!customerId || isNaN(customerId)) {
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                status: 404,
+                message: 'Pelanggan tidak ditemukan'
+            });
         }
-        
-        // Get available packages based on connection type
-        let packages = [];
-        if (customer.connection_type === 'static_ip') {
-            const [staticPackages] = await databasePool.execute(
-                'SELECT id, name, price, max_limit_upload, max_limit_download FROM static_ip_packages WHERE status = "active" ORDER BY name'
-            );
-            packages = staticPackages as any[];
-        } else {
-            const [pppoePackages] = await databasePool.execute(
-                'SELECT id, name, price, rate_limit_rx, rate_limit_tx FROM pppoe_packages WHERE status = "active" ORDER BY name'
-            );
-            packages = pppoePackages as any[];
+
+        // Get customer with package info based on connection type
+        const query = `
+            SELECT 
+                c.*,
+                sic.ip_address,
+                sic.interface,
+                sic.package_id as static_ip_package_id,
+                s.package_id as pppoe_package_id,
+                CASE 
+                    WHEN c.connection_type = 'pppoe' THEN s.package_id
+                    WHEN c.connection_type = 'static_ip' THEN sic.package_id
+                    ELSE NULL
+                END as package_id
+            FROM customers c
+            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND c.connection_type = 'pppoe' AND s.status = 'active'
+            WHERE c.id = ?
+            LIMIT 1
+        `;
+
+        const [customers] = await databasePool.query<RowDataPacket[]>(query, [customerId]);
+
+        if (!customers || customers.length === 0) {
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                status: 404,
+                message: 'Pelanggan tidak ditemukan'
+            });
         }
-        
-        // Get ODP, ODC, OLT data
-        const conn = await databasePool.getConnection();
-        let odpData = [];
+
+        const customer = customers[0];
+
+        // Get packages based on connection type
+        let packages: any[] = [];
         try {
-            const [odpRows] = await conn.execute(`
+            if (customer.connection_type === 'pppoe') {
+                packages = await listPppoePackages();
+            } else if (customer.connection_type === 'static_ip') {
+                packages = await listStaticIpPackages();
+            }
+        } catch (packageError) {
+            console.error('Error fetching packages:', packageError);
+            packages = [];
+        }
+
+        // Get MikroTik interfaces
+        let interfaces: any[] = [];
+        let interfaceError: string | null = null;
+        try {
+            const mikrotikConfig = await getMikrotikConfig();
+            if (mikrotikConfig) {
+                const configWithTls: { host: string; port: number; username: string; password: string; use_tls: boolean } = {
+                    ...mikrotikConfig,
+                    use_tls: mikrotikConfig.use_tls ?? false
+                };
+                interfaces = await getInterfaces(configWithTls);
+            } else {
+                interfaceError = 'MikroTik tidak dikonfigurasi';
+            }
+        } catch (interfaceErr) {
+            console.error('Error fetching interfaces:', interfaceErr);
+            interfaceError = interfaceErr instanceof Error ? interfaceErr.message : 'Gagal memuat interface';
+            interfaces = [];
+        }
+
+        // Get ODP data
+        let odpData: any[] = [];
+        try {
+            const [odpRows] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
                     o.id, 
                     o.name as odp_name,
@@ -357,1088 +650,988 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
                 LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
                 ORDER BY o.name
             `);
-            odpData = odpRows as any[];
-        } catch (err) {
-            console.error('Error fetching ODP data:', err);
+            odpData = Array.isArray(odpRows) ? odpRows : [];
+        } catch (odpError) {
+            console.error('Error fetching ODP data:', odpError);
+            odpData = [];
+        }
+
+        // Get customer with password field for view (password is already in customer object from first query)
+        const customerForView = customer;
+
+        res.render('customers/edit', {
+            title: `Edit Pelanggan - ${customer.name}`,
+            customer: customerForView,
+            packages: packages || [],
+            interfaces: interfaces || [],
+            interfaceError: interfaceError,
+            odpData: odpData || [],
+            currentPath: `/customers/${customerId}/edit`
+        });
+
+    } catch (error: unknown) {
+        console.error('Error fetching customer for edit:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal memuat data pelanggan';
+        res.status(500).render('error', {
+            title: 'Error',
+            message: errorMessage
+        });
+    }
+};
+
+/**
+ * Update customer
+ */
+export const updateCustomer = async (req: Request, res: Response) => {
+    try {
+        console.log('[updateCustomer] Request received, method:', req.method, 'params:', req.params);
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'ID is required' });
+        }
+        const customerId = parseInt(id);
+        console.log('[updateCustomer] Parsed customer ID:', customerId);
+
+        if (!customerId || isNaN(customerId)) {
+            console.log('[updateCustomer] Invalid customer ID');
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid customer ID'
+            });
+        }
+
+        const {
+            name,
+            customer_code,
+            phone,
+            email,
+            address,
+            status,
+            connection_type,
+            pppoe_username,
+            pppoe_password,
+            pppoe_profile_id,
+            pppoe_package,
+            ip_address,
+            interface: interfaceName,
+            static_ip_package,
+            odp_id,
+            odc_id,
+            custom_payment_deadline,
+            custom_isolate_days_after_deadline
+        } = req.body;
+
+        const conn = await databasePool.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            // Check if customer exists and get old data
+            const [customers] = await conn.query<RowDataPacket[]>(
+                'SELECT id, name, pppoe_username, connection_type, pppoe_password FROM customers WHERE id = ?',
+                [customerId]
+            );
+
+            if (!customers || customers.length === 0) {
+                await conn.rollback();
+                return res.status(404).json({
+                    success: false,
+                    error: 'Pelanggan tidak ditemukan'
+                });
+            }
+            
+            const oldCustomer = customers[0];
+            if (!oldCustomer) {
+                return res.status(404).json({ success: false, error: 'Customer not found' });
+            }
+            const oldName = oldCustomer.name;
+            const oldPppoeUsername = oldCustomer.pppoe_username;
+            const oldPppoePassword = oldCustomer.pppoe_password;
+
+            // Update customer basic info
+            const updateFields: string[] = [];
+            const updateValues: any[] = [];
+
+            if (name !== undefined) {
+                updateFields.push('name = ?');
+                updateValues.push(name);
+            }
+            if (customer_code !== undefined) {
+                updateFields.push('customer_code = ?');
+                updateValues.push(customer_code || null);
+            }
+            if (phone !== undefined) {
+                updateFields.push('phone = ?');
+                updateValues.push(phone || null);
+            }
+            if (email !== undefined) {
+                updateFields.push('email = ?');
+                updateValues.push(email || null);
+            }
+            if (address !== undefined) {
+                updateFields.push('address = ?');
+                updateValues.push(address || null);
+            }
+            if (status !== undefined) {
+                updateFields.push('status = ?');
+                updateValues.push(status);
+            }
+            if (connection_type !== undefined) {
+                updateFields.push('connection_type = ?');
+                updateValues.push(connection_type);
+            }
+            if (odp_id !== undefined) {
+                updateFields.push('odp_id = ?');
+                updateValues.push(odp_id || null);
+            }
+            if (odc_id !== undefined) {
+                updateFields.push('odc_id = ?');
+                updateValues.push(odc_id || null);
+            }
+
+            // Handle custom deadline fields
+            if (custom_payment_deadline !== undefined && custom_payment_deadline !== '') {
+                const deadline = parseInt(custom_payment_deadline);
+                if (deadline >= 1 && deadline <= 31) {
+                    updateFields.push('custom_payment_deadline = ?');
+                    updateValues.push(deadline);
+                } else {
+                    updateFields.push('custom_payment_deadline = NULL');
+                }
+            } else if (custom_payment_deadline === '') {
+                // Empty string means reset to NULL
+                updateFields.push('custom_payment_deadline = NULL');
+            }
+
+            if (custom_isolate_days_after_deadline !== undefined && custom_isolate_days_after_deadline !== '') {
+                const days = parseInt(custom_isolate_days_after_deadline);
+                if (days >= 1 && days <= 7) {
+                    updateFields.push('custom_isolate_days_after_deadline = ?');
+                    updateValues.push(days);
+                }
+            }
+
+            if (updateFields.length > 0) {
+                updateValues.push(customerId);
+                await conn.query(
+                    `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
+                    updateValues
+                );
+            }
+
+            // Handle connection type specific updates (basic fields only, password will be handled after MikroTik sync)
+            if (connection_type === 'pppoe' && pppoe_username) {
+                updateFields.length = 0;
+                updateValues.length = 0;
+                updateFields.push('pppoe_username = ?');
+                updateValues.push(pppoe_username);
+                if (pppoe_profile_id) {
+                    const profileIdNum = parseInt(pppoe_profile_id);
+                    if (!isNaN(profileIdNum) && profileIdNum > 0) {
+                        updateFields.push('pppoe_profile_id = ?');
+                        updateValues.push(profileIdNum);
+                    }
+                }
+                // Note: Password update will be handled after MikroTik sync to ensure consistency
+                updateValues.push(customerId);
+                await conn.query(
+                    `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
+                    updateValues
+                );
+            }
+
+            await conn.commit();
+            
+            // Sync secret ke MikroTik untuk PPPoE customers
+            const currentConnectionType = connection_type || oldCustomer.connection_type;
+            const newName = name || oldName;
+            
+            console.log('\n');
+            console.log('========================================');
+            console.log('[Edit Customer] ========== PPPoE SYNC START ==========');
+            console.log('[Edit Customer] Customer ID:', customerId);
+            console.log('[Edit Customer] Connection Type:', currentConnectionType);
+            console.log('[Edit Customer] New Name:', newName);
+            console.log('========================================');
+            console.log('\n');
+            
+            if (currentConnectionType === 'pppoe') {
+                try {
+                    const { getMikrotikConfig } = await import('../services/pppoeService');
+                    const { findPppoeSecretIdByName, updatePppoeSecret, createPppoeSecret } = await import('../services/mikrotikService');
+                    
+                    const config = await getMikrotikConfig();
+                    if (config && newName) {
+                        const oldSecretUsername = oldPppoeUsername || '';
+                        
+                        // Get profile name from package if package is selected
+                        let profileName: string | undefined = undefined;
+                        
+                        // First, try to get profile from package (priority)
+                        // Check both pppoe_package from form and existing package_id from customer
+                        const packageIdToUse = pppoe_package || (oldCustomer as any).package_id || (oldCustomer as any).pppoe_package_id;
+                        // Validate packageIdToUse: must be a valid number (not empty string, not null, not undefined, not NaN)
+                        const packageIdNum = packageIdToUse ? Number(packageIdToUse) : null;
+                        if (packageIdToUse && packageIdNum && !isNaN(packageIdNum) && packageIdNum > 0) {
+                            try {
+                                const { getPackageById, getProfileById } = await import('../services/pppoeService');
+                                const packageData = await getPackageById(packageIdNum);
+                                console.log(`[Edit Customer PPPoE] Package data untuk ID ${packageIdNum}:`, packageData ? 'Ditemukan' : 'Tidak ditemukan');
+                                if (packageData && packageData.profile_id) {
+                                    const profileIdNum = Number(packageData.profile_id);
+                                    if (!isNaN(profileIdNum) && profileIdNum > 0) {
+                                        const profile = await getProfileById(profileIdNum);
+                                        if (profile) {
+                                            profileName = profile.name;
+                                            console.log(`[Edit Customer PPPoE] ✅ Profile dari paket (ID: ${packageIdNum}): ${profileName}`);
+                                        } else {
+                                            console.log(`[Edit Customer PPPoE] ⚠️ Profile dengan ID ${profileIdNum} tidak ditemukan`);
+                                        }
+                                    } else {
+                                        console.log(`[Edit Customer PPPoE] ⚠️ Paket (ID: ${packageIdNum}) memiliki profile_id yang tidak valid: ${packageData.profile_id}`);
+                                    }
+                                } else {
+                                    console.log(`[Edit Customer PPPoE] ⚠️ Paket (ID: ${packageIdNum}) tidak memiliki profile_id`);
+                                }
+                            } catch (packageError) {
+                                console.error('⚠️ Gagal mendapatkan profile dari paket:', packageError);
+                            }
+                        } else {
+                            console.log(`[Edit Customer PPPoE] ⚠️ Tidak ada paket yang dipilih (pppoe_package: ${pppoe_package}, existing package_id: ${(oldCustomer as any).package_id})`);
+                        }
+                        
+                        // Fallback: Get profile name if profile_id is provided directly
+                        if (!profileName && pppoe_profile_id) {
+                            try {
+                                const profileIdNum = Number(pppoe_profile_id);
+                                if (!isNaN(profileIdNum) && profileIdNum > 0) {
+                                    const { getProfileById } = await import('../services/pppoeService');
+                                    const profile = await getProfileById(profileIdNum);
+                                    if (profile) {
+                                        profileName = profile.name;
+                                        console.log(`[Edit Customer PPPoE] Profile dari profile_id (${profileIdNum}): ${profileName}`);
+                                    }
+                                } else {
+                                    console.log(`[Edit Customer PPPoE] ⚠️ profile_id yang tidak valid: ${pppoe_profile_id}`);
+                                }
+                            } catch (profileError) {
+                                console.error('⚠️ Gagal mendapatkan profile:', profileError);
+                            }
+                        }
+                        
+                        console.log(`[Edit Customer PPPoE] Profile yang akan digunakan: ${profileName || 'tidak ada (MikroTik akan menggunakan default)'}`);
+                        
+                        // Use username from form as the name for PPPoE secret (not customer ID)
+                        // IMPORTANT: Use the username from form, not customer ID
+                        console.log(`[Edit Customer PPPoE] ========== DEBUG START ==========`);
+                        console.log(`[Edit Customer PPPoE] Customer ID: ${customerId}`);
+                        console.log(`[Edit Customer PPPoE] pppoe_username from form (raw):`, pppoe_username);
+                        console.log(`[Edit Customer PPPoE] pppoe_username type:`, typeof pppoe_username);
+                        console.log(`[Edit Customer PPPoE] oldPppoeUsername from DB:`, oldPppoeUsername);
+                        
+                        // Get username - prioritize form value, then old username from DB
+                        let newUsername = '';
+                        if (pppoe_username && typeof pppoe_username === 'string' && pppoe_username.trim()) {
+                            newUsername = pppoe_username.trim();
+                            console.log(`[Edit Customer PPPoE] ✅ Menggunakan username dari form: "${newUsername}"`);
+                        } else if (oldPppoeUsername && oldPppoeUsername.trim()) {
+                            newUsername = oldPppoeUsername.trim();
+                            console.log(`[Edit Customer PPPoE] ⚠️ Username dari form kosong, menggunakan username lama dari DB: "${newUsername}"`);
+                        } else {
+                            console.error(`[Edit Customer PPPoE] ❌ ERROR: Tidak ada username! Form: "${pppoe_username}", DB: "${oldPppoeUsername}"`);
+                            console.error(`[Edit Customer PPPoE] ❌ Secret TIDAK AKAN dibuat karena tidak ada username`);
+                            // Don't create secret if no username
+                            throw new Error('Username PPPoE wajib diisi untuk membuat secret di MikroTik');
+                        }
+                        
+                        const secretName = newUsername; // ALWAYS use username, never customer ID
+                        
+                        console.log(`[Edit Customer PPPoE] ✅ Secret Name (FINAL): "${secretName}"`);
+                        console.log(`[Edit Customer PPPoE] ✅ Secret akan dibuat/di-update dengan username: "${secretName}"`);
+                        console.log(`[Edit Customer PPPoE] New Name: ${newName}`);
+                        console.log(`[Edit Customer PPPoE] Password provided: ${pppoe_password ? 'YES (length: ' + pppoe_password.length + ')' : 'NO'}`);
+                        console.log(`[Edit Customer PPPoE] ========== DEBUG END ==========`);
+                        
+                        // Cek apakah secret sudah ada (dengan username baru, username lama, atau customer ID)
+                        let existingSecretId = null;
+                        let existingSecretByNewUsername = null;
+                        let existingSecretByCustomerId = null;
+                        let secretFoundBy = null; // Track which identifier found the secret
+                        
+                        // Check by new username first (priority)
+                        if (newUsername) {
+                            try {
+                                existingSecretByNewUsername = await findPppoeSecretIdByName(config, newUsername);
+                                if (existingSecretByNewUsername) {
+                                    console.log(`[Edit Customer PPPoE] ✅ Secret ditemukan dengan username baru: ${newUsername}`);
+                                    secretFoundBy = 'new_username';
+                                }
+                            } catch (findNewError: any) {
+                                // Ignore error, secret doesn't exist with this username
+                                console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan username baru: ${newUsername}`);
+                            }
+                        }
+                        
+                        // Check by old username (for backward compatibility)
+                        if (!existingSecretByNewUsername && oldSecretUsername && oldSecretUsername !== newUsername) {
+                            try {
+                                existingSecretId = await findPppoeSecretIdByName(config, oldSecretUsername);
+                                if (existingSecretId) {
+                                    console.log(`[Edit Customer PPPoE] ✅ Secret ditemukan dengan username lama: ${oldSecretUsername}`);
+                                    secretFoundBy = 'old_username';
+                                }
+                            } catch (findError: any) {
+                                // Ignore error
+                                console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan username lama: ${oldSecretUsername}`);
+                            }
+                        }
+                        
+                        // Check by customer ID (for legacy secrets created with customer ID)
+                        if (!existingSecretByNewUsername && !existingSecretId && customerId && !isNaN(customerId)) {
+                            const customerIdStr = customerId.toString();
+                            try {
+                                existingSecretByCustomerId = await findPppoeSecretIdByName(config, customerIdStr);
+                                if (existingSecretByCustomerId) {
+                                    console.log(`[Edit Customer PPPoE] ⚠️ Secret ditemukan dengan Customer ID (legacy): ${customerIdStr}`);
+                                    console.log(`[Edit Customer PPPoE] ⚠️ Secret ini akan di-update ke username baru: ${newUsername || 'N/A'}`);
+                                    secretFoundBy = 'customer_id';
+                                }
+                            } catch (findCustomerIdError: any) {
+                                // Ignore error
+                                console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan Customer ID: ${customerIdStr}`);
+                            }
+                        }
+                        
+                        // Determine password to use: new password if provided (and not empty), otherwise use old password, or generate new one only if customer has no password at all
+                        let passwordToUse: string;
+                        if (pppoe_password && pppoe_password.trim() !== '') {
+                            // Password baru diisi, gunakan password baru
+                            passwordToUse = pppoe_password.trim();
+                            console.log(`[Edit Customer PPPoE] ✅ Menggunakan password baru dari form`);
+                        } else if (oldPppoePassword && oldPppoePassword.trim() !== '') {
+                            // Password tidak diisi, tapi ada password lama, gunakan password lama
+                            passwordToUse = oldPppoePassword;
+                            console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, menggunakan password lama`);
+                        } else {
+                            // Tidak ada password baru dan tidak ada password lama, generate password baru
+                            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                            const length = Math.floor(Math.random() * 5) + 8; // 8-12 characters
+                            passwordToUse = '';
+                            for (let i = 0; i < length; i++) {
+                                passwordToUse += chars.charAt(Math.floor(Math.random() * chars.length));
+                            }
+                            console.log(`[Edit Customer PPPoE] 🔑 Password auto-generated: ${passwordToUse.length} characters`);
+                        }
+                        
+                        if (existingSecretId || existingSecretByNewUsername || existingSecretByCustomerId) {
+                            // If secret found with customer ID (legacy), we need to delete and recreate with username
+                            if (secretFoundBy === 'customer_id' && customerId && !isNaN(customerId)) {
+                                console.log(`[Edit Customer PPPoE] ⚠️ Secret ditemukan dengan Customer ID (legacy), akan dihapus dan dibuat ulang dengan username`);
+                                const { deletePppoeSecret } = await import('../services/mikrotikService');
+                                
+                                // Delete old secret with customer ID
+                                await deletePppoeSecret(config, customerId.toString());
+                                console.log(`[Edit Customer PPPoE] ✅ Secret lama dengan Customer ID "${customerId}" berhasil dihapus`);
+                                
+                                // Create new secret with username
+                                await createPppoeSecret(config, {
+                                    name: secretName, // Use username, not customer ID
+                                    password: passwordToUse,
+                                    profile: profileName || undefined,
+                                    comment: newName
+                                });
+                                
+                                console.log(`[Edit Customer PPPoE] ✅ Secret baru dengan username "${secretName}" berhasil dibuat`);
+                                
+                                // Update username di database dengan username baru
+                                if (newUsername) {
+                                    await conn.query(
+                                        'UPDATE customers SET pppoe_username = ? WHERE id = ?',
+                                        [newUsername, customerId]
+                                    );
+                                    console.log(`[Edit Customer PPPoE] ✅ Username di database di-update ke: ${newUsername}`);
+                                }
+                            } else {
+                                // Update existing secret with username (normal update)
+                                const updateData: any = {
+                                    comment: newName // Use customer name as comment
+                                };
+                                
+                                // Update password jika ada (baik password baru maupun tetap pakai yang lama)
+                                if (passwordToUse) {
+                                    updateData.password = passwordToUse;
+                                }
+                                
+                                // Update profile jika ada (dari paket atau profile_id)
+                                if (profileName) {
+                                    updateData.profile = profileName;
+                                    console.log(`[Edit Customer PPPoE] Profile akan di-update ke: ${profileName}`);
+                                } else {
+                                    console.log(`[Edit Customer PPPoE] Profile tidak di-update (tidak ada profile dari paket)`);
+                                }
+                                
+                                // Determine which identifier to use for updating
+                                let secretToUpdate: string;
+                                if (existingSecretByNewUsername) {
+                                    secretToUpdate = newUsername;
+                                } else if (existingSecretId) {
+                                    secretToUpdate = oldSecretUsername;
+                                } else {
+                                    secretToUpdate = newUsername || oldSecretUsername;
+                                }
+                                
+                                console.log(`[Edit Customer PPPoE] Secret ditemukan dengan identifier: ${secretFoundBy}, akan di-update: ${secretToUpdate}`);
+                                
+                                // Update secret di MikroTik - use existing secret identifier
+                                await updatePppoeSecret(config, secretToUpdate, updateData);
+                            }
+                            
+                            // Update username di database dengan username baru
+                            if (newUsername && newUsername !== oldSecretUsername) {
+                                await conn.query(
+                                    'UPDATE customers SET pppoe_username = ? WHERE id = ?',
+                                    [newUsername, customerId]
+                                );
+                            }
+                            
+                            // Update password di database hanya jika password baru diisi (jika kosong, tetap gunakan password lama)
+                            if (pppoe_password && pppoe_password.trim() !== '') {
+                                // Password baru diisi, update ke database
+                                await conn.query(
+                                    'UPDATE customers SET pppoe_password = ? WHERE id = ?',
+                                    [passwordToUse, customerId]
+                                );
+                                console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database (${passwordToUse.length} characters)`);
+                            } else {
+                                // Password tidak diisi, tidak perlu update (tetap menggunakan password lama)
+                                console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, tetap menggunakan password yang ada`);
+                            }
+                            
+                            console.log(`✅ PPPoE secret dengan username "${secretName}" berhasil di-update di MikroTik`);
+                        } else {
+                            // Create secret baru jika belum ada (secret dihapus atau belum pernah dibuat)
+                            console.log(`[Edit Customer PPPoE] 🔄 Secret tidak ditemukan, akan membuat secret baru...`);
+                            
+                            console.log(`[Edit Customer PPPoE] Password baru: ${pppoe_password && pppoe_password.trim() !== '' ? 'ADA (length: ' + pppoe_password.length + ')' : 'TIDAK ADA'}`);
+                            console.log(`[Edit Customer PPPoE] Password lama: ${oldPppoePassword ? 'ADA (length: ' + oldPppoePassword.length + ')' : 'TIDAK ADA'}`);
+                            console.log(`[Edit Customer PPPoE] Password yang akan digunakan: ${passwordToUse ? 'ADA (length: ' + passwordToUse.length + ')' : 'TIDAK ADA'}`);
+                            
+                            if (passwordToUse && secretName) {
+                                console.log(`[Edit Customer PPPoE] ========== CREATING NEW SECRET ==========`);
+                                console.log(`[Edit Customer PPPoE] 📤 Membuat secret baru:`);
+                                console.log(`[Edit Customer PPPoE]    - Name (username): "${secretName}"`);
+                                console.log(`[Edit Customer PPPoE]    - Profile: ${profileName || 'tidak ada (MikroTik default)'}`);
+                                console.log(`[Edit Customer PPPoE]    - Comment: ${newName}`);
+                                console.log(`[Edit Customer PPPoE]    - Password: ${passwordToUse ? 'ADA' : 'TIDAK ADA'}`);
+                                console.log(`[Edit Customer PPPoE] ⚠️ IMPORTANT: Secret dibuat dengan username "${secretName}", BUKAN customer ID!`);
+                                
+                                await createPppoeSecret(config, {
+                                    name: secretName, // ALWAYS use username, NEVER customer ID
+                                    password: passwordToUse,
+                                    profile: profileName || undefined, // Don't set profile if not found, let MikroTik use default
+                                    comment: newName // Use customer name as comment
+                                });
+                                
+                                console.log(`[Edit Customer PPPoE] ✅ Secret berhasil dibuat dengan username: "${secretName}"`);
+                                
+                                // Update username di database dengan username baru
+                                if (newUsername) {
+                                    await conn.query(
+                                        'UPDATE customers SET pppoe_username = ? WHERE id = ?',
+                                        [newUsername, customerId]
+                                    );
+                                }
+                                
+                                // Update password di database hanya jika password baru diisi atau auto-generated (jika customer belum punya password)
+                                if (pppoe_password && pppoe_password.trim() !== '') {
+                                    // Password baru diisi, update ke database
+                                    await conn.query(
+                                        'UPDATE customers SET pppoe_password = ? WHERE id = ?',
+                                        [passwordToUse, customerId]
+                                    );
+                                    console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database (${passwordToUse.length} characters)`);
+                                } else if (!oldPppoePassword) {
+                                    // Tidak ada password lama dan tidak ada password baru, simpan password yang di-generate
+                                    await conn.query(
+                                        'UPDATE customers SET pppoe_password = ? WHERE id = ?',
+                                        [passwordToUse, customerId]
+                                    );
+                                    console.log(`[Edit Customer PPPoE] ✅ Password auto-generated disimpan di database (${passwordToUse.length} characters)`);
+                                } else {
+                                    // Password tidak diisi dan ada password lama, tidak perlu update (tetap menggunakan password lama)
+                                    console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, tetap menggunakan password yang ada`);
+                                }
+                                
+                                console.log(`✅ PPPoE secret dengan username "${secretName}" berhasil dibuat di MikroTik`);
+                            } else {
+                                console.error(`❌ Password atau username tidak tersedia, tidak bisa membuat secret baru`);
+                                console.error(`   💡 Saran: Isi username dan password saat edit pelanggan untuk membuat secret di MikroTik`);
+                                console.error(`   📋 Detail: Customer ID: ${customerId}, Name: ${newName}, Username: ${secretName || 'N/A'}`);
+                                // Don't throw error, just log it - customer update can still succeed
+                            }
+                        }
+                    }
+                } catch (mikrotikError: any) {
+                    console.error('\n');
+                    console.error('========================================');
+                    console.error('[Edit Customer] ========== MIKROTIK ERROR ==========');
+                    console.error('[Edit Customer] ⚠️ Gagal sync secret ke MikroTik:', mikrotikError.message);
+                    console.error('[Edit Customer] Error type:', typeof mikrotikError);
+                    console.error('[Edit Customer] Error details:', mikrotikError);
+                    console.error('[Edit Customer] Error stack:', mikrotikError.stack || 'No stack trace');
+                    console.error('========================================');
+                    console.error('\n');
+                    // Non-critical error - customer updated successfully
+                }
+            }
+
+            console.log('[updateCustomer] Update successful, redirecting to:', `/customers/${customerId}?success=updated`);
+            req.flash('success', 'Data pelanggan berhasil diperbarui');
+            res.redirect(`/customers/${customerId}?success=updated`);
+        } catch (error: unknown) {
+            await conn.rollback();
+            throw error;
         } finally {
             conn.release();
         }
-        
-        // Get interfaces from MikroTik - Always fetch if static_ip, otherwise empty array
-        let interfaces = [];
-        if (customer.connection_type === 'static_ip') {
-            try {
-                const cfg = await getMikrotikConfig();
-                if (cfg) {
-                    console.log('Fetching interfaces from MikroTik for edit customer...');
-                    try {
-                        interfaces = await getInterfaces(cfg);
-                        console.log(`✅ Found ${interfaces.length} interfaces from MikroTik`);
-                        
-                        // Ensure current interface is in the list if it exists
-                        if (staticIpData && staticIpData.interface) {
-                            const currentInterface = staticIpData.interface;
-                            const existsInList = interfaces.some(ifc => ifc.name === currentInterface);
-                            if (!existsInList) {
-                                interfaces.unshift({ name: currentInterface });
-                                console.log(`✅ Added current interface to list: ${currentInterface}`);
-                            }
-                        }
-                    } catch (fetchErr: any) {
-                        console.error('❌ Error fetching interfaces:', fetchErr.message || fetchErr);
-                        // Fallback: use existing interface if available
-                        if (staticIpData && staticIpData.interface) {
-                            interfaces = [{ name: staticIpData.interface }];
-                            console.log(`⚠️ Using existing interface as fallback: ${staticIpData.interface}`);
-                        }
-                    }
-                } else {
-                    console.warn('⚠️ MikroTik config not found, using existing interface if available');
-                    // If interface already exists in customer data, keep it available
-                    if (staticIpData && staticIpData.interface) {
-                        interfaces = [{ name: staticIpData.interface }];
-                        console.log(`✅ Using existing interface: ${staticIpData.interface}`);
-                    }
-                }
-            } catch (err: any) {
-                console.error('❌ Error in interface fetch process:', err.message || err);
-                // If interface already exists in customer data, keep it available
-                if (staticIpData && staticIpData.interface) {
-                    interfaces = [{ name: staticIpData.interface }];
-                    console.log(`⚠️ Using existing interface as final fallback: ${staticIpData.interface}`);
-                }
-            }
-        }
-        
-        // Always pass interfaces array to view (even if empty)
-        console.log(`📦 Passing ${interfaces.length} interfaces to view for customer ${customer.id} (${customer.connection_type})`);
-        
-        // Merge static IP data with customer data
-        const customerWithStaticIp = {
-            ...customer,
-            ...(staticIpData && {
-                ip_address: staticIpData.ip_address,
-                interface: staticIpData.interface,
-                gateway: staticIpData.gateway,
-                package_id: staticIpData.package_id
-            })
-        };
-        
-        res.render('customers/edit', {
-            title: 'Edit Pelanggan',
-            customer: customerWithStaticIp,
-            packages: packages,
-            odpData: odpData,
-            interfaces: interfaces
-        });
-        
-    } catch (error) {
-        console.error('Error getting customer edit form:', error);
-        req.flash('error', 'Gagal memuat form edit pelanggan');
-        res.redirect('/customers/list');
+    } catch (error: unknown) {
+        console.error('Error updating customer:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal memperbarui data pelanggan';
+        req.flash('error', errorMessage);
+        res.redirect(`/customers/${req.params.id}/edit?error=${encodeURIComponent(errorMessage)}`);
     }
 };
 
-export const postCustomerUpdate = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const { 
-            name, phone, email, address, customer_code, connection_type, status, 
-            latitude, longitude, pppoe_username, pppoe_password, pppoe_profile_id,
-            ip_address, interface: interface_name, gateway, pppoe_package, static_ip_package,
-            odp_id, odc_id, olt_id
-            // Note: olt_id is not stored in customers table, only in static_ip_clients table
-            // olt_id will be handled separately when updating static_ip_clients
-        } = req.body;
-        
-        // Validate customer ID
-        if (!id || isNaN(Number(id))) {
-            throw new Error('ID pelanggan tidak valid');
-        }
-        
-        // Get current customer data to check if connection_type changed
-        const [currentCustomerRows] = await databasePool.execute(
-            'SELECT connection_type, pppoe_username FROM customers WHERE id = ?',
-            [id]
-        );
-        const currentCustomer = (currentCustomerRows as any)[0];
-        
-        if (!currentCustomer) {
-            throw new Error('Pelanggan tidak ditemukan');
-        }
-        
-        const previousConnectionType = currentCustomer?.connection_type;
-        const isConnectionTypeChanged = previousConnectionType !== connection_type;
-        
-        // Build dynamic query based on connection type
-        // Note: olt_id is not in customers table, only odp_id and odc_id
-        let query = `
-            UPDATE customers 
-            SET name = ?, phone = ?, email = ?, address = ?, customer_code = ?, 
-                connection_type = ?, status = ?, latitude = ?, longitude = ?, 
-                odp_id = ?, odc_id = ?, updated_at = NOW()
-        `;
-        
-        let params = [
-            name, phone, email, address, customer_code, 
-            connection_type, status, latitude || null, longitude || null,
-            odp_id || null, odc_id || null
-        ];
-        
-        // Add PPPOE specific fields if connection type is pppoe
-        if (connection_type === 'pppoe') {
-            query += `, pppoe_username = ?, pppoe_profile_id = ?`;
-            params.push(pppoe_username || null, pppoe_profile_id || null);
-        } else if (connection_type === 'static_ip') {
-            // For static IP, we might need to update related tables
-            // For now, we'll just clear PPPOE fields
-            query += `, pppoe_username = NULL, pppoe_profile_id = NULL`;
-        }
-        
-        query += ` WHERE id = ?`;
-        params.push(id);
-        
-        await databasePool.execute(query, params);
-        
-        // Handle connection type change: Delete old PPPoE user if changing to static_ip
-        if (isConnectionTypeChanged && previousConnectionType === 'pppoe' && currentCustomer?.pppoe_username) {
-            try {
-                const cfg = await getMikrotikConfig();
-                if (cfg) {
-                    const mikrotik = new MikrotikService({
-                        host: cfg.host,
-                        username: cfg.username,
-                        password: cfg.password,
-                        port: cfg.port || 8728
-                    });
-                    
-                    console.log(`🔄 Connection type changed from PPPoE to ${connection_type}, deleting PPPoE user: ${currentCustomer.pppoe_username}`);
-                    const existingUser = await mikrotik.getPPPoEUserByUsername(currentCustomer.pppoe_username);
-                    if (existingUser && existingUser['.id']) {
-                        await mikrotik.deletePPPoEUser(existingUser['.id']);
-                        console.log(`✅ PPPoE user deleted from MikroTik`);
-                    }
-                }
-            } catch (mkError: any) {
-                console.error('⚠️ Error deleting PPPoE user:', mkError.message);
-            }
-        }
-        
-        // Update MikroTik if PPPoE credentials changed
-        if (connection_type === 'pppoe' && pppoe_username && pppoe_password) {
-            try {
-                const cfg = await getMikrotikConfig();
-                if (cfg) {
-                    const mikrotik = new MikrotikService({
-                        host: cfg.host,
-                        username: cfg.username,
-                        password: cfg.password,
-                        port: cfg.port || 8728
-                    });
-                    
-                    // Try to get existing user
-                    const existingUser = await mikrotik.getPPPoEUserByUsername(pppoe_username);
-                    
-                    if (existingUser && existingUser['.id']) {
-                        // Update existing user
-                        console.log(`🔄 Updating PPPoE user in MikroTik: ${pppoe_username}`);
-                        const updateSuccess = await mikrotik.updatePPPoEUserByUsername(pppoe_username, {
-                            password: pppoe_password
-                        });
-                        if (updateSuccess) {
-                            console.log(`✅ PPPoE user updated in MikroTik`);
-                        } else {
-                            console.error(`❌ Failed to update PPPoE user in MikroTik`);
-                        }
-                    } else {
-                        // User doesn't exist in MikroTik, create new one
-                        console.log(`➕ Creating new PPPoE user in MikroTik: ${pppoe_username}`);
-                        const createSuccess = await mikrotik.createPPPoEUser({
-                            name: pppoe_username,
-                            password: pppoe_password,
-                            profile: 'default'
-                        });
-                        if (createSuccess) {
-                            console.log(`✅ PPPoE user created in MikroTik`);
-                        } else {
-                            console.error(`❌ Failed to create PPPoE user in MikroTik`);
-                        }
-                    }
-                }
-            } catch (mkError: any) {
-                console.error('⚠️ MikroTik update error:', mkError.message);
-            }
-        }
-        
-        // If static IP, update static_ip_clients table and create MikroTik resources
-        if (connection_type === 'static_ip') {
-            // Validate required fields for static IP
-            if (!ip_address) {
-                throw new Error('IP Address wajib diisi untuk connection type Static IP');
-            }
-            if (!interface_name) {
-                throw new Error('Interface wajib dipilih untuk connection type Static IP');
-            }
-            // Check if static IP client exists
-            const [existingClientRows] = await databasePool.execute(
-                'SELECT id, ip_address as old_ip, interface as old_interface FROM static_ip_clients WHERE customer_id = ?', 
-                [id]
-            );
-            const existingClient = (existingClientRows as any)[0];
-            const isNewClient = !existingClient;
-            const ipChanged = existingClient && existingClient.old_ip !== ip_address;
-            
-            console.log(`🔍 Static IP Client Check - isNewClient: ${isNewClient}, ipChanged: ${ipChanged}, isConnectionTypeChanged: ${isConnectionTypeChanged}`);
-            
-            if (existingClient) {
-                // Update existing static IP client
-                // Note: gateway column does not exist in static_ip_clients table
-                // Include olt_id, odc_id, odp_id if provided
-                await databasePool.execute(
-                    'UPDATE static_ip_clients SET ip_address = ?, interface = ?, olt_id = ?, odc_id = ?, odp_id = ? WHERE customer_id = ?',
-                    [ip_address, interface_name, olt_id || null, odc_id || null, odp_id || null, id]
-                );
-            } else {
-                // Create new static IP client
-                // Note: gateway column does not exist in static_ip_clients table
-                // Include olt_id, odc_id, odp_id if provided
-                await databasePool.execute(
-                    'INSERT INTO static_ip_clients (customer_id, ip_address, interface, olt_id, odc_id, odp_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
-                    [id, ip_address, interface_name, olt_id || null, odc_id || null, odp_id || null]
-                );
-            }
-
-            // Assign static IP package if provided
-            if (static_ip_package) {
-                await databasePool.execute(
-                    'UPDATE static_ip_clients SET package_id = ? WHERE customer_id = ?',
-                    [static_ip_package, id]
-                );
-            }
-            
-            // Create MikroTik resources if:
-            // 1. This is a new client (no existing static_ip_clients record), OR
-            // 2. Connection type changed to static_ip, OR
-            // 3. IP address changed (need to update MikroTik)
-            const shouldCreateResources = (isNewClient || isConnectionTypeChanged || ipChanged) && ip_address && interface_name;
-            console.log(`🔍 Debug: isNewClient=${isNewClient}, isConnectionTypeChanged=${isConnectionTypeChanged}, ipChanged=${ipChanged}, ip_address=${ip_address}, interface_name=${interface_name}`);
-            console.log(`🔍 Should create resources: ${shouldCreateResources}`);
-            
-            if (shouldCreateResources) {
-                try {
-                    const cfg = await getMikrotikConfig();
-                    if (!cfg) {
-                        throw new Error('Konfigurasi MikroTik tidak ditemukan. Pastikan MikroTik sudah dikonfigurasi.');
-                    }
-                    
-                    console.log(`🔧 Creating MikroTik resources for static IP customer ${id}: ${ip_address} on ${interface_name}`);
-                    
-                    // 1. Add IP address to interface (CRITICAL - throw error if fails)
-                    try {
-                        await addIpAddress(cfg, {
-                            interface: interface_name,
-                            address: ip_address,
-                            comment: name || `Customer ${id}`
-                        });
-                        console.log(`✅ IP address ${ip_address} added to MikroTik`);
-                    } catch (ipError: any) {
-                        console.error(`❌ Failed to add IP address:`, ipError.message);
-                        // Re-throw error untuk menghentikan proses jika IP tidak bisa dibuat
-                        throw new Error(`Gagal menambahkan IP address ke MikroTik: ${ipError.message || 'Unknown error'}`);
-                    }
-                    
-                    // 2. Calculate peer IP and create mangle rules
-                    const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-                    const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-                    const [ipOnly, prefixStr] = ip_address.split('/');
-                    const prefix = Number(prefixStr || '0');
-                    const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                    const networkInt = ipToInt(ipOnly) & mask;
-                    let peerIp = ipOnly;
-                    
-                    if (prefix === 30) {
-                        const firstHost = networkInt + 1;
-                        const secondHost = networkInt + 2;
-                        const ipInt = ipToInt(ipOnly);
-                        peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-                    }
-                    
-                    const downloadMark = peerIp;
-                    const uploadMark = `UP-${peerIp}`;
-                    
-                    // 3. Add mangle rules (CRITICAL - throw error if fails)
-                    try {
-                        await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
-                        console.log(`✅ Mangle rules created for ${peerIp}`);
-                    } catch (mangleError: any) {
-                        console.error(`❌ Failed to create mangle rules:`, mangleError.message);
-                        // Re-throw error untuk menghentikan proses jika mangle rules tidak bisa dibuat
-                        throw new Error(`Gagal membuat mangle rules: ${mangleError.message || 'Unknown error'}`);
-                    }
-                    
-                    // 4. Create queue tree if package is provided (sama seperti tambah pelanggan baru)
-                    if (static_ip_package) {
-                        try {
-                            const [pkgRows] = await databasePool.execute(
-                                'SELECT * FROM static_ip_packages WHERE id = ?',
-                                [static_ip_package]
-                            );
-                            const pkg = (pkgRows as any)[0];
-                            
-                            if (pkg) {
-                                // Sama seperti logic di /customers/new-static-ip
-                                const clientName = name || `Customer_${id}`;
-                                const qDownload = pkg.child_queue_type_download || 'pcq-download-default';
-                                const qUpload = pkg.child_queue_type_upload || 'pcq-upload-default';
-                                const pDownload = String(pkg.child_priority_download || '8');
-                                const pUpload = String(pkg.child_priority_upload || '8');
-                                const laDownload = pkg.child_limit_at_download || '';
-                                const laUpload = pkg.child_limit_at_upload || '';
-                                const mlDownload = pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download;
-                                const mlUpload = pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload;
-                                
-                                // Parent queue menggunakan nama paket (sama seperti new-static-ip)
-                                const packageDownloadQueue = pkg.name;
-                                const packageUploadQueue = `UP-${pkg.name}`;
-                                
-                                if (mlDownload && mlUpload) {
-                                    // Create download queue (sama format dengan new-static-ip)
-                                    await createQueueTree(cfg, {
-                                        name: clientName,
-                                        parent: packageDownloadQueue,
-                                        packetMarks: downloadMark,
-                                        limitAt: laDownload,
-                                        maxLimit: mlDownload,
-                                        queue: qDownload,
-                                        priority: pDownload,
-                                        comment: `Download queue for ${clientName}`
-                                    });
-                                    
-                                    // Create upload queue (sama format dengan new-static-ip)
-                                    await createQueueTree(cfg, {
-                                        name: `UP-${clientName}`,
-                                        parent: packageUploadQueue,
-                                        packetMarks: uploadMark,
-                                        limitAt: laUpload,
-                                        maxLimit: mlUpload,
-                                        queue: qUpload,
-                                        priority: pUpload,
-                                        comment: `Upload queue for ${clientName}`
-                                    });
-                                    
-                                    console.log(`✅ Queue tree created for customer ${id} (${clientName})`);
-                                }
-                            }
-                        } catch (queueError: any) {
-                            console.error(`❌ Failed to create queue tree:`, queueError.message);
-                        }
-                    }
-                    
-                    console.log(`✅ All MikroTik resources created successfully for customer ${id}`);
-                } catch (mkError: any) {
-                    console.error('⚠️ Error creating MikroTik resources for static IP:', mkError.message);
-                    console.error('Full error:', mkError);
-                    // Re-throw error so user knows what went wrong
-                    throw new Error(`Gagal membuat resources di MikroTik: ${mkError.message || 'Unknown error'}. Pastikan konfigurasi MikroTik benar dan IP/interface valid.`);
-                }
-            } else {
-                console.log(`⏭️ Skipping MikroTik resource creation - isNewClient: ${isNewClient}, isConnectionTypeChanged: ${isConnectionTypeChanged}, ipChanged: ${ipChanged}, hasIP: ${!!ip_address}, hasInterface: ${!!interface_name}`);
-            }
-        }
-
-        // If PPPoE, assign package via subscriptions table (active)
-        if (connection_type === 'pppoe' && pppoe_package) {
-            // Upsert into subscriptions as active PPPoE package
-            // Try update existing active subscription
-            const [subRows] = await databasePool.execute(
-                'SELECT id FROM subscriptions WHERE customer_id = ? AND service_type = "pppoe" AND status = "active" LIMIT 1',
-                [id]
-            );
-            if ((subRows as any).length > 0) {
-                const subId = (subRows as any)[0].id;
-                await databasePool.execute(
-                    'UPDATE subscriptions SET package_id = ?, updated_at = NOW() WHERE id = ?',
-                    [pppoe_package, subId]
-                );
-            } else {
-                await databasePool.execute(
-                    'INSERT INTO subscriptions (customer_id, service_type, package_id, status, created_at, updated_at) VALUES (?, "pppoe", ?, "active", NOW(), NOW())',
-                    [id, pppoe_package]
-                );
-            }
-        }
-        
-        req.flash('success', 'Pelanggan berhasil diperbarui');
-        res.redirect('/customers/list');
-        
-    } catch (error: any) {
-        console.error('❌ Error updating customer:', error);
-        console.error('Error message:', error?.message);
-        console.error('Error stack:', error?.stack);
-        console.error('Error details:', {
-            message: error?.message,
-            code: error?.code,
-            errno: error?.errno,
-            sqlState: error?.sqlState,
-            sqlMessage: error?.sqlMessage
-        });
-        
-        const errorMessage = error?.message || 'Gagal memperbarui pelanggan';
-        req.flash('error', `Gagal memperbarui pelanggan: ${errorMessage}`);
-        res.redirect(`/customers/${req.params.id}/edit`);
-    }
-};
-
+/**
+ * Delete customer
+ */
 export const deleteCustomer = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        
-        // Check if customer exists and get details
-        const [customerResult] = await databasePool.execute(
-            'SELECT id, name, connection_type, pppoe_username, ip_address FROM customers WHERE id = ?', 
-            [id]
-        );
-        
-        if ((customerResult as any).length === 0) {
-            if (req.xhr || req.headers['content-type'] === 'application/json' || (req.headers.accept || '').includes('application/json')) {
-                return res.status(404).json({ success: false, error: 'Pelanggan tidak ditemukan' });
-            }
-            req.flash('error', 'Pelanggan tidak ditemukan');
-            return res.redirect('/customers/list');
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'ID is required' });
         }
-        
-        const customer = (customerResult as any)[0];
-        
-        // Check if customer has active invoices
-        const [invoiceResult] = await databasePool.execute(
-            'SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status IN ("sent", "partial", "overdue")',
-            [id]
-        );
-        
-        const invoiceCount = (invoiceResult as any)[0].count;
-        if (invoiceCount > 0) {
-            if (req.xhr || req.headers['content-type'] === 'application/json' || (req.headers.accept || '').includes('application/json')) {
-                return res.status(400).json({ success: false, error: 'Tidak dapat menghapus pelanggan yang memiliki tagihan aktif' });
-            }
-            req.flash('error', 'Tidak dapat menghapus pelanggan yang memiliki tagihan aktif');
-            return res.redirect('/customers/list');
+        const customerId = parseInt(id);
+
+        if (!customerId || isNaN(customerId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid customer ID'
+            });
         }
-        
-        // Delete from MikroTik if connection exists
+
+        const conn = await databasePool.getConnection();
         try {
-            const cfg = await getMikrotikConfig();
-            if (cfg) {
-                const mikrotik = new MikrotikService({
-                    host: cfg.host,
-                    username: cfg.username,
-                    password: cfg.password,
-                    port: cfg.port || 8728
+            // Check if customer exists and get full data for MikroTik cleanup and notification
+            const [customers] = await conn.query<RowDataPacket[]>(
+                'SELECT id, name, customer_code, phone, connection_type, pppoe_username FROM customers WHERE id = ?',
+                [customerId]
+            );
+
+            if (!customers || customers.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Pelanggan tidak ditemukan'
                 });
-                
-                // Delete PPPoE user if exists
-                if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
-                    console.log(`🗑️ Deleting PPPoE user from MikroTik: ${customer.pppoe_username}`);
-                    try {
-                        // Find user by username first
-                        const user = await mikrotik.getPPPoEUserByUsername(customer.pppoe_username);
-                        if (user && user['.id']) {
-                            await mikrotik.deletePPPoEUser(user['.id']);
-                            console.log(`✅ PPPoE user deleted from MikroTik`);
-                        } else {
-                            console.log(`⚠️ PPPoE user not found in MikroTik: ${customer.pppoe_username}`);
-                        }
-                    } catch (mkError: any) {
-                        console.error('⚠️ Failed to delete PPPoE user from MikroTik:', mkError.message);
-                        // Continue with database deletion even if MikroTik deletion fails
-                    }
-                }
-                
-                // Note: Static IP deletion is handled in staticIpClientController
-                if (customer.connection_type === 'static_ip') {
-                    console.log('⚠️ Static IP customer - deletion handled by staticIpClientController');
-                }
             }
-        } catch (mkError: any) {
-            console.error('⚠️ MikroTik deletion error:', mkError.message);
-            // Continue with database deletion even if MikroTik deletion fails
-        }
-        
-        // Delete customer from database
-        await databasePool.execute('DELETE FROM customers WHERE id = ?', [id]);
-        
-        if (req.xhr || req.headers['content-type'] === 'application/json' || (req.headers.accept || '').includes('application/json')) {
-            return res.json({ success: true });
-        }
-        req.flash('success', 'Pelanggan berhasil dihapus');
-        res.redirect('/customers/list');
-        
-    } catch (error) {
-        console.error('Error deleting customer:', error);
-        if (req.xhr || req.headers['content-type'] === 'application/json' || (req.headers.accept || '').includes('application/json')) {
-            return res.status(500).json({ success: false, error: 'Gagal menghapus pelanggan' });
-        }
-        req.flash('error', 'Gagal menghapus pelanggan');
-        res.redirect('/customers/list');
-    }
-};
 
-export const bulkDeleteCustomers = async (req: Request, res: Response) => {
-    try {
-        console.log('🗑️ Bulk delete request received:', req.body);
-        
-        const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map((v: any) => parseInt(v, 10)).filter((n: number) => !Number.isNaN(n)) : [];
-        console.log('📋 Parsed IDs:', ids);
-        
-        if (!ids.length) {
-            console.error('❌ No valid IDs provided');
-            return res.status(400).json({ success: false, error: 'Daftar ID tidak valid' });
-        }
+            const customer = customers[0];
+            if (!customer) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Pelanggan tidak ditemukan'
+                });
+            }
 
-        const results = {
-            deleted: [] as number[],
-            skipped: [] as { id: number; reason: string }[]
-        };
-
-        for (const id of ids) {
+            // Send notification before deletion (must be done before customer is deleted)
+            // Wrap in try-catch to ensure deletion continues even if notification fails
             try {
-                console.log(`\n🔍 Processing customer ID: ${id}`);
+                console.log(`[DeleteCustomer] Attempting to send notification for customer ${customerId}...`);
+                console.log(`[DeleteCustomer] Customer data: name=${customer.name}, phone=${customer.phone}, code=${customer.customer_code}`);
                 
-                // Check if customer exists
-                const [customerResult] = await databasePool.execute('SELECT id, name, connection_type, pppoe_username, ip_address FROM customers WHERE id = ?', [id]);
-                if ((customerResult as any).length === 0) {
-                    console.log(`   ❌ Customer ${id} not found`);
-                    results.skipped.push({ id, reason: 'Tidak ditemukan' });
-                    continue;
-                }
-                
-                const customer = (customerResult as any)[0];
-                console.log(`   ✅ Customer found: ${customer.name}`);
-
-                // Check for active invoices
-                const [invoiceResult] = await databasePool.execute(
-                    'SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status IN ("sent", "partial", "overdue")',
-                    [id]
-                );
-                const invoiceCount = (invoiceResult as any)[0].count;
-                if (invoiceCount > 0) {
-                    console.log(`   ⚠️  Customer ${id} has ${invoiceCount} active invoice(s)`);
-                    results.skipped.push({ id, reason: 'Memiliki tagihan aktif' });
-                    continue;
-                }
-
-                // Check for related records
-                const [subscriptionResult] = await databasePool.execute(
-                    'SELECT COUNT(*) as count FROM subscriptions WHERE customer_id = ?',
-                    [id]
-                );
-                const subscriptionCount = (subscriptionResult as any)[0].count;
-                if (subscriptionCount > 0) {
-                    console.log(`   ⚠️  Customer ${id} has ${subscriptionCount} active subscription(s)`);
-                    results.skipped.push({ id, reason: 'Memiliki subscription aktif' });
-                    continue;
-                }
-
-                // Check for static IP clients
-                const [staticIpResult] = await databasePool.execute(
-                    'SELECT COUNT(*) as count FROM static_ip_clients WHERE customer_id = ?',
-                    [id]
-                );
-                const staticIpCount = (staticIpResult as any)[0].count;
-                if (staticIpCount > 0) {
-                    console.log(`   ⚠️  Customer ${id} has static IP configuration`);
-                    results.skipped.push({ id, reason: 'Memiliki konfigurasi IP Static' });
-                    continue;
-                }
-
-                // Check for portal customers
-                const [portalResult] = await databasePool.execute(
-                    'SELECT COUNT(*) as count FROM portal_customers WHERE customer_id = ?',
-                    [id]
-                );
-                const portalCount = (portalResult as any)[0].count;
-                if (portalCount > 0) {
-                    console.log(`   ⚠️  Customer ${id} has portal account`);
-                    results.skipped.push({ id, reason: 'Memiliki akun portal' });
-                    continue;
-                }
-
-                // Delete from MikroTik if connection exists
-                try {
-                    const cfg = await getMikrotikConfig();
-                    if (cfg) {
-                        const mikrotik = new MikrotikService({
-                            host: cfg.host,
-                            username: cfg.username,
-                            password: cfg.password,
-                            port: cfg.port || 8728
+                if (customer.phone) {
+                    try {
+                        const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+                        console.log(`[DeleteCustomer] Queueing notification via UnifiedNotificationService...`);
+                        
+                        const notificationIds = await UnifiedNotificationService.queueNotification({
+                            customer_id: customerId,
+                            notification_type: 'customer_deleted',
+                            channels: ['whatsapp'],
+                            variables: {
+                                customer_name: customer.name || 'Pelanggan',
+                                customer_code: customer.customer_code || `#${customerId}`
+                            },
+                            priority: 'high'
                         });
                         
-                        // Delete PPPoE user if exists
-                        if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
-                            console.log(`   🗑️ Deleting PPPoE user from MikroTik: ${customer.pppoe_username}`);
+                        console.log(`✅ Notification queued for customer deletion: ${customer.name} (${customer.phone}) - Notification IDs: ${notificationIds.join(', ')}`);
+                        
+                        // Process queue immediately (same as customer_created)
+                        try {
+                            const result = await UnifiedNotificationService.sendPendingNotifications(10);
+                            console.log(`[DeleteCustomer] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
+                        } catch (queueError: any) {
+                            console.warn(`[DeleteCustomer] ⚠️ Queue processing error (non-critical):`, queueError.message);
+                            // Non-critical, notification is already queued
+                        }
+                    } catch (queueNotifError: any) {
+                        console.error(`[DeleteCustomer] ⚠️ Failed to queue notification (non-critical, continuing deletion):`, queueNotifError.message);
+                        // Continue with deletion even if notification queue fails
+                    }
+                } else {
+                    console.log(`⚠️ No phone number for customer ${customerId} (${customer.name}), skipping notification`);
+                }
+            } catch (notifError: any) {
+                console.error(`❌ Failed to send deletion notification for customer ${customerId} (non-critical, continuing deletion):`, notifError.message);
+                // Continue with deletion even if notification fails - this is non-critical
+            }
+
+            // Delete from MikroTik based on connection type
+            try {
+                const { getMikrotikConfig } = await import('../services/pppoeService');
+                const { 
+                    deletePppoeSecret,
+                    removeIpAddress,
+                    removeMangleRulesForClient,
+                    deleteClientQueuesByClientName
+                } = await import('../services/mikrotikService');
+                
+                const config = await getMikrotikConfig();
+                
+                if (config) {
+                    if (customer.connection_type === 'pppoe') {
+                        // Delete PPPoE secret from MikroTik
+                        if (customer.pppoe_username) {
                             try {
-                                const user = await mikrotik.getPPPoEUserByUsername(customer.pppoe_username);
-                                if (user && user['.id']) {
-                                    await mikrotik.deletePPPoEUser(user['.id']);
-                                    console.log(`   ✅ PPPoE user deleted from MikroTik`);
-                                } else {
-                                    console.log(`   ⚠️ PPPoE user not found in MikroTik`);
-                                }
-                            } catch (mkError: any) {
-                                console.error(`   ⚠️ Failed to delete PPPoE user from MikroTik:`, mkError.message);
+                                await deletePppoeSecret(config, customer.pppoe_username);
+                                console.log(`✅ PPPoE secret "${customer.pppoe_username}" berhasil dihapus dari MikroTik`);
+                            } catch (mikrotikError: any) {
+                                console.error(`⚠️ Gagal menghapus PPPoE secret dari MikroTik:`, mikrotikError.message);
+                                // Continue deletion even if MikroTik deletion fails
                             }
                         }
+                    } else if (customer.connection_type === 'static_ip') {
+                        // Get static IP client data
+                        const [staticIpClients] = await conn.query<RowDataPacket[]>(
+                            'SELECT id, client_name, ip_address, interface FROM static_ip_clients WHERE customer_id = ?',
+                            [customerId]
+                        );
                         
-                        // Static IP deletion handled separately
-                        if (customer.connection_type === 'static_ip') {
-                            console.log(`   ⚠️ Static IP customer - deletion handled by staticIpClientController`);
+                        if (staticIpClients && staticIpClients.length > 0) {
+                            const staticIpClient = staticIpClients[0];
+                            
+                            try {
+                                // Delete IP address from MikroTik
+                                if (staticIpClient.ip_address) {
+                                    await removeIpAddress(config, staticIpClient.ip_address);
+                                    console.log(`✅ IP address "${staticIpClient.ip_address}" berhasil dihapus dari MikroTik`);
+                                }
+                                
+                                // Calculate peer IP and marks for mangle deletion
+                                const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                                const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                                
+                                if (staticIpClient.ip_address) {
+                                    const [ipOnlyRaw, prefixStrRaw] = String(staticIpClient.ip_address || '').split('/');
+                                    const ipOnly: string = ipOnlyRaw || '';
+                                    const prefix: number = Number(prefixStrRaw || '0');
+                                    const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                                    const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
+                                    let peerIp = ipOnly;
+                                    
+                                    if (prefix === 30) {
+                                        const firstHost = networkInt + 1;
+                                        const secondHost = networkInt + 2;
+                                        const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
+                                        peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                                    }
+                                    
+                                    const downloadMark: string = peerIp;
+                                    const uploadMark: string = `UP-${peerIp}`;
+                                    
+                                    // Delete firewall mangle rules
+                                    await removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
+                                    console.log(`✅ Firewall mangle rules untuk "${peerIp}" berhasil dihapus dari MikroTik`);
+                                    
+                                    // Delete queue trees
+                                    if (staticIpClient.client_name) {
+                                        await deleteClientQueuesByClientName(config, staticIpClient.client_name);
+                                        console.log(`✅ Queue trees untuk "${staticIpClient.client_name}" berhasil dihapus dari MikroTik`);
+                                    }
+                                }
+                            } catch (mikrotikError: any) {
+                                console.error(`⚠️ Gagal menghapus static IP resources dari MikroTik:`, mikrotikError.message);
+                                // Continue deletion even if MikroTik deletion fails
+                            }
                         }
                     }
-                } catch (mkError: any) {
-                    console.error(`   ⚠️ MikroTik deletion error:`, mkError.message);
                 }
-                
-                // Delete customer from database
-                console.log(`   🗑️  Attempting to delete customer ${id}...`);
-                await databasePool.execute('DELETE FROM customers WHERE id = ?', [id]);
-                console.log(`   ✅ Customer ${id} deleted successfully`);
-                results.deleted.push(id);
-                
-            } catch (innerErr: any) {
-                console.error(`   ❌ Error deleting customer ${id}:`, innerErr.message);
-                results.skipped.push({ id, reason: `Gagal menghapus: ${innerErr.message || 'Unknown error'}` });
+            } catch (mikrotikError: any) {
+                console.error(`⚠️ Error saat menghapus dari MikroTik:`, mikrotikError.message);
+                // Continue deletion even if MikroTik deletion fails
             }
-        }
 
-        console.log(`\n📊 Bulk delete completed: ${results.deleted.length} deleted, ${results.skipped.length} skipped`);
-        return res.json({ success: true, results });
-        
-    } catch (error: any) {
-        console.error('❌ Error bulk deleting customers:', error);
-        return res.status(500).json({ success: false, error: `Gagal melakukan hapus massal: ${error.message || 'Unknown error'}` });
-    }
-};
+            // Delete related data first
+            await conn.query('DELETE FROM prepaid_package_subscriptions WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM portal_customers WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
 
-export const exportCustomersToExcel = async (req: Request, res: Response) => {
-    try {
-        const { status, odc_id, search } = req.query;
-        
-        let query = `
-            SELECT c.id, c.name, c.phone, c.email, c.address, c.customer_code,
-                   c.connection_type, c.status, c.latitude, c.longitude,
-                   c.pppoe_username, c.created_at, c.updated_at,
-                   ftth_odc.name as odc_name,
-                   (SELECT COUNT(*) FROM invoices i 
-                    WHERE i.customer_id = c.id AND i.status IN ('sent', 'partial', 'overdue')) as overdue_invoices,
-                   (SELECT SUM(i.remaining_amount) FROM invoices i 
-                    WHERE i.customer_id = c.id AND i.status IN ('sent', 'partial', 'overdue')) as total_debt
-            FROM customers c
-            LEFT JOIN ftth_odc ON c.odc_id = ftth_odc.id
-            WHERE 1=1
-        `;
-        
-        const params: any[] = [];
-        
-        if (status) {
-            query += ` AND c.status = ?`;
-            params.push(status);
-        }
-        
-        if (odc_id) {
-            query += ` AND c.odc_id = ?`;
-            params.push(odc_id);
-        }
-        
-        if (search) {
-            query += ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)`;
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-        }
-        
-        query += ` ORDER BY c.created_at DESC`;
-        
-        const [result] = await databasePool.query(query, params);
-        const customers = result as any[];
-        
-        // Prepare data for Excel
-        const excelData = customers.map(customer => ({
-            'Kode Pelanggan': customer.customer_code || '',
-            'Nama': customer.name,
-            'Email': customer.email || '',
-            'Telepon': customer.phone || '',
-            'Alamat': customer.address || '',
-            'Tipe Koneksi': customer.connection_type === 'pppoe' ? 'PPPOE' : 
-                           customer.connection_type === 'static_ip' ? 'IP Static' : 'PPPOE',
-            'Status': customer.status === 'active' ? 'Aktif' : 'Tidak Aktif',
-            'ODC': customer.odc_name || '',
-            'PPPoE Username': customer.pppoe_username || '',
-            'Latitude': customer.latitude || '',
-            'Longitude': customer.longitude || '',
-            'Tagihan Tertunda': customer.overdue_invoices || 0,
-            'Total Hutang': customer.total_debt || 0,
-            'Tanggal Dibuat': customer.created_at ? new Date(customer.created_at).toLocaleDateString('id-ID') : '',
-            'Tanggal Diupdate': customer.updated_at ? new Date(customer.updated_at).toLocaleDateString('id-ID') : ''
-        }));
-        
-        // Create workbook
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-        
-        // Set column widths
-        const columnWidths = [
-            { wch: 15 },  // Kode Pelanggan
-            { wch: 25 },  // Nama
-            { wch: 30 },  // Email
-            { wch: 15 },  // Telepon
-            { wch: 40 },  // Alamat
-            { wch: 12 },  // Tipe Koneksi
-            { wch: 12 },  // Status
-            { wch: 20 },  // ODC
-            { wch: 20 },  // PPPoE Username
-            { wch: 12 },  // Latitude
-            { wch: 12 },  // Longitude
-            { wch: 15 },  // Tagihan Tertunda
-            { wch: 15 },  // Total Hutang
-            { wch: 15 },  // Tanggal Dibuat
-            { wch: 15 }   // Tanggal Diupdate
-        ];
-        worksheet['!cols'] = columnWidths;
-        
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Pelanggan');
-        
-        // Generate buffer
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-        
-        // Set headers for download
-        const filename = `data_pelanggan_${new Date().toISOString().split('T')[0]}.xlsx`;
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-Length', buffer.length);
-        
-        res.send(buffer);
-        
-    } catch (error) {
-        console.error('Error exporting customers to Excel:', error);
-        res.status(500).json({ error: 'Gagal mengexport data pelanggan' });
-    }
-};
+            // Delete customer
+            await conn.query('DELETE FROM customers WHERE id = ?', [customerId]);
 
-export const downloadExcelTemplate = async (req: Request, res: Response) => {
-    try {
-        // Create template data
-        const templateData = [
-            {
-                'ID': 'AUTO',
-                'Kode Pelanggan': '20250121120000',
-                'Nama': 'John Doe',
-                'Email': 'john@example.com',
-                'Telepon': '081234567890',
-                'Alamat': 'Jl. Contoh No. 123',
-                'Tipe Koneksi': 'PPPOE',
-                'Status': 'Aktif',
-                'ODC': 'ODC-001',
-                'PPPoE Username': 'john.doe',
-                'Latitude': '-6.200000',
-                'Longitude': '106.816666',
-                'Tagihan Tertunda': '0',
-                'Total Hutang': '0',
-                'Tanggal Dibuat': '',
-                'Tanggal Diupdate': ''
-            }
-        ];
+            res.json({
+                success: true,
+                message: 'Pelanggan berhasil dihapus'
+            });
+        } finally {
+            conn.release();
+        }
+    } catch (error: unknown) {
+        console.error('Error deleting customer:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal menghapus pelanggan';
         
-        // Create workbook
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(templateData);
-        
-        // Set column widths
-        const columnWidths = [
-            { wch: 8 },   // ID
-            { wch: 15 },  // Kode Pelanggan
-            { wch: 25 },  // Nama
-            { wch: 30 },  // Email
-            { wch: 15 },  // Telepon
-            { wch: 40 },  // Alamat
-            { wch: 12 },  // Tipe Koneksi
-            { wch: 12 },  // Status
-            { wch: 20 },  // ODC
-            { wch: 20 },  // PPPoE Username
-            { wch: 12 },  // Latitude
-            { wch: 12 },  // Longitude
-            { wch: 15 },  // Tagihan Tertunda
-            { wch: 15 },  // Total Hutang
-            { wch: 15 },  // Tanggal Dibuat
-            { wch: 15 }   // Tanggal Diupdate
-        ];
-        worksheet['!cols'] = columnWidths;
-        
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Import');
-        
-        // Generate buffer
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-        
-        // Set headers for download
-        const filename = `template_import_pelanggan.xlsx`;
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-Length', buffer.length);
-        
-        res.send(buffer);
-        
-    } catch (error) {
-        console.error('Error downloading Excel template:', error);
-        res.status(500).json({ error: 'Gagal mengunduh template Excel' });
-    }
-};
-
-export const importCustomersFromExcel = async (req: Request, res: Response) => {
-    try {
-        console.log('📥 importCustomersFromExcel started');
-        console.log('Request file:', req.file ? 'File present' : 'No file');
-        
-        if (!req.file) {
-            console.error('❌ No file in request');
-            return res.status(400).json({ 
+        // Ensure JSON response - check if response already sent
+        if (!res.headersSent) {
+            res.status(500).json({
                 success: false,
-                error: 'File Excel tidak ditemukan' 
+                error: errorMessage
+            });
+        } else {
+            console.error('Response already sent, cannot send error response');
+        }
+    }
+};
+
+/**
+ * Bulk delete customers
+ */
+export const bulkDeleteCustomers = async (req: Request, res: Response) => {
+    try {
+        const { ids } = req.body;
+        
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'IDs array is required'
             });
         }
+
+        const customerIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
         
-        console.log('📄 File details:', {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size,
-            bufferLength: req.file.buffer?.length
-        });
+        if (customerIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No valid customer IDs provided'
+            });
+        }
+
+        const deleted: number[] = [];
+        const skipped: number[] = [];
+        const errors: { id: number; error: string }[] = [];
+
+        const conn = await databasePool.getConnection();
         
-        // Read Excel file with error handling
-        let workbook;
         try {
-            workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-            console.log('✅ Excel file read successfully');
-        } catch (xlsxError) {
-            console.error('❌ XLSX read error:', xlsxError);
-            return res.status(400).json({ 
-                success: false,
-                error: 'File Excel tidak valid atau corrupt' 
-            });
-        }
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) {
-            throw new Error('Nama sheet tidak ditemukan pada file Excel');
-        }
-        const worksheet = workbook.Sheets[String(sheetName)];
-        if (!worksheet) {
-            throw new Error('Worksheet tidak ditemukan');
-        }
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        console.log(`📊 Found ${jsonData.length} rows in Excel`);
-        
-        if (jsonData.length === 0) {
-            return res.status(400).json({ 
-                success: false,
-                error: 'File Excel kosong atau tidak valid' 
-            });
-        }
-        
-        const results = {
-            success: 0,
-            failed: 0,
-            errors: [] as string[]
-        };
-        
-        // Process each row
-        for (let i = 0; i < jsonData.length; i++) {
-            const row = jsonData[i] as any;
-            const rowNumber = i + 2; // +2 because Excel starts from row 1 and we skip header
-            
-            try {
-                console.log(`\n📝 Processing row ${rowNumber}:`, {
-                    'Nama': row['Nama'] || 'EMPTY',
-                    'Telepon': row['Telepon'] || 'EMPTY',
-                    'Alamat': row['Alamat'] || 'EMPTY',
-                    'All keys in Excel': Object.keys(row).join(', ')
-                });
-                
-                // Validate required fields - SIMPLE FORMAT: Nama, Telepon, Alamat
-                if (!row['Nama']) {
-                    const error = `Kolom "Nama" kosong atau tidak ditemukan`;
-                    console.log(`  ❌ Validation failed: ${error}`);
-                    results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: ${error}`);
-                    continue;
+            await conn.beginTransaction();
+
+            for (const customerId of customerIds) {
+                try {
+                    // Check if customer exists and get full data for MikroTik cleanup and notification
+                    const [customers] = await conn.query<RowDataPacket[]>(
+                        'SELECT id, name, customer_code, phone, connection_type, pppoe_username FROM customers WHERE id = ?',
+                        [customerId]
+                    );
+
+                    if (!customers || customers.length === 0) {
+                        skipped.push(customerId);
+                        continue;
+                    }
+
+                    const customer = customers[0];
+                    if (!customer) {
+                        skipped.push(customerId);
+                        continue;
+                    }
+
+                    // Send notification before deletion (must be done before customer is deleted)
+                    // Wrap in try-catch to ensure deletion continues even if notification fails
+                    try {
+                        console.log(`[BulkDelete] Attempting to send notification for customer ${customerId}...`);
+                        console.log(`[BulkDelete] Customer data: name=${customer.name}, phone=${customer.phone}, code=${customer.customer_code}`);
+                        
+                        if (customer.phone) {
+                            try {
+                                const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+                                console.log(`[BulkDelete] Queueing notification via UnifiedNotificationService...`);
+                                
+                                const notificationIds = await UnifiedNotificationService.queueNotification({
+                                    customer_id: customerId,
+                                    notification_type: 'customer_deleted',
+                                    channels: ['whatsapp'],
+                                    variables: {
+                                        customer_name: customer.name || 'Pelanggan',
+                                        customer_code: customer.customer_code || `#${customerId}`
+                                    },
+                                    priority: 'high'
+                                });
+                                
+                                console.log(`✅ Notification queued for customer deletion: ${customer.name} (${customer.phone}) - Notification IDs: ${notificationIds.join(', ')}`);
+                                
+                                // Process queue immediately (same as customer_created)
+                                try {
+                                    const result = await UnifiedNotificationService.sendPendingNotifications(10);
+                                    console.log(`[BulkDelete] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
+                                } catch (queueError: any) {
+                                    console.warn(`[BulkDelete] ⚠️ Queue processing error (non-critical):`, queueError.message);
+                                    // Non-critical, notification is already queued
+                                }
+                            } catch (queueNotifError: any) {
+                                console.error(`[BulkDelete] ⚠️ Failed to queue notification (non-critical, continuing deletion):`, queueNotifError.message);
+                                // Continue with deletion even if notification queue fails
+                            }
+                        } else {
+                            console.log(`⚠️ No phone number for customer ${customerId} (${customer.name}), skipping notification`);
+                        }
+                    } catch (notifError: any) {
+                        console.error(`❌ Failed to send deletion notification for customer ${customerId} (non-critical, continuing deletion):`, notifError.message);
+                        // Continue with deletion even if notification fails - this is non-critical
+                    }
+
+                    // Delete from MikroTik based on connection type
+                    try {
+                        const { getMikrotikConfig } = await import('../services/pppoeService');
+                        const { 
+                            deletePppoeSecret,
+                            removeIpAddress,
+                            removeMangleRulesForClient,
+                            deleteClientQueuesByClientName
+                        } = await import('../services/mikrotikService');
+                        
+                        const config = await getMikrotikConfig();
+                        
+                        if (config) {
+                            if (customer.connection_type === 'pppoe') {
+                                // Delete PPPoE secret from MikroTik
+                                if (customer.pppoe_username) {
+                                    try {
+                                        await deletePppoeSecret(config, customer.pppoe_username);
+                                        console.log(`✅ PPPoE secret "${customer.pppoe_username}" berhasil dihapus dari MikroTik`);
+                                    } catch (mikrotikError: any) {
+                                        console.error(`⚠️ Gagal menghapus PPPoE secret dari MikroTik:`, mikrotikError.message);
+                                        // Continue deletion even if MikroTik deletion fails
+                                    }
+                                }
+                            } else if (customer.connection_type === 'static_ip') {
+                                // Get static IP client data
+                                const [staticIpClients] = await conn.query<RowDataPacket[]>(
+                                    'SELECT id, client_name, ip_address, interface FROM static_ip_clients WHERE customer_id = ?',
+                                    [customerId]
+                                );
+                                
+                                if (staticIpClients && staticIpClients.length > 0) {
+                                    const staticIpClient = staticIpClients[0];
+                                    
+                                    try {
+                                        // Delete IP address from MikroTik
+                                        if (staticIpClient.ip_address) {
+                                            await removeIpAddress(config, staticIpClient.ip_address);
+                                            console.log(`✅ IP address "${staticIpClient.ip_address}" berhasil dihapus dari MikroTik`);
+                                        }
+                                        
+                                        // Calculate peer IP and marks for mangle deletion
+                                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                                        
+                                        if (staticIpClient.ip_address) {
+                                            const [ipOnlyRaw, prefixStrRaw] = String(staticIpClient.ip_address || '').split('/');
+                                            const ipOnly: string = ipOnlyRaw || '';
+                                            const prefix: number = Number(prefixStrRaw || '0');
+                                            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                                            const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
+                                            let peerIp = ipOnly;
+                                            
+                                            if (prefix === 30) {
+                                                const firstHost = networkInt + 1;
+                                                const secondHost = networkInt + 2;
+                                                const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
+                                                peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                                            }
+                                            
+                                            const downloadMark: string = peerIp;
+                                            const uploadMark: string = `UP-${peerIp}`;
+                                            
+                                            // Delete firewall mangle rules
+                                            await removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
+                                            console.log(`✅ Firewall mangle rules untuk "${peerIp}" berhasil dihapus dari MikroTik`);
+                                            
+                                            // Delete queue trees
+                                            if (staticIpClient.client_name) {
+                                                await deleteClientQueuesByClientName(config, staticIpClient.client_name);
+                                                console.log(`✅ Queue trees untuk "${staticIpClient.client_name}" berhasil dihapus dari MikroTik`);
+                                            }
+                                        }
+                                    } catch (mikrotikError: any) {
+                                        console.error(`⚠️ Gagal menghapus static IP resources dari MikroTik:`, mikrotikError.message);
+                                        // Continue deletion even if MikroTik deletion fails
+                                    }
+                                }
+                            }
+                        }
+                    } catch (mikrotikError: any) {
+                        console.error(`⚠️ Error saat menghapus dari MikroTik untuk customer ${customerId}:`, mikrotikError.message);
+                        // Continue deletion even if MikroTik deletion fails
+                    }
+
+                    // Delete related data first
+                    await conn.query('DELETE FROM prepaid_package_subscriptions WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM portal_customers WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
+
+                    // Delete customer
+                    await conn.query('DELETE FROM customers WHERE id = ?', [customerId]);
+
+                    deleted.push(customerId);
+                    console.log(`✅ Customer ${customerId} berhasil dihapus`);
+                } catch (error: any) {
+                    console.error(`❌ Error deleting customer ${customerId}:`, error);
+                    errors.push({
+                        id: customerId,
+                        error: error.message || 'Unknown error'
+                    });
+                    skipped.push(customerId);
                 }
-                
-                if (!row['Telepon']) {
-                    const error = `Kolom "Telepon" kosong atau tidak ditemukan`;
-                    console.log(`  ❌ Validation failed: ${error}`);
-                    results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: ${error}`);
-                    continue;
-                }
-                
-                console.log(`  ✅ Validation passed: Nama dan Telepon OK`);
-                
-                // Clean phone number (remove spaces, dashes, dots)
-                const cleanPhone = String(row['Telepon']).replace(/[\s\-.]/g, '');
-                console.log(`  🔍 Checking phone: "${row['Telepon']}" -> "${cleanPhone}"`);
-                
-                // Check if customer already exists by phone (cleaned)
-                const [existingCustomer] = await databasePool.execute(
-                    'SELECT id, name FROM customers WHERE phone = ? OR phone = ?',
-                    [row['Telepon'], cleanPhone]
-                );
-                
-                if ((existingCustomer as any).length > 0) {
-                    const existingName = (existingCustomer as any)[0].name;
-                    const error = `Pelanggan dengan telepon "${row['Telepon']}" sudah ada atas nama "${existingName}"`;
-                    console.log(`  ❌ Duplicate phone: ${error}`);
-                    results.failed++;
-                    results.errors.push(`Baris ${rowNumber}: ${error}`);
-                    continue;
-                }
-                console.log(`  ✅ Phone OK - No duplicate found`);
-                
-                // Insert customer - SIMPLE FORMAT (hanya 3 field utama)
-                // Generate safe default customer_code to satisfy NOT NULL constraints on some servers
-                const generatedCode = CustomerIdGenerator.generateCustomerId();
-                const insertQuery = `
-                    INSERT INTO customers (
-                        name, phone, address, email, customer_code, 
-                        connection_type, status, 
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
-                `;
-                
-                console.log(`  💾 Inserting customer (SIMPLE):`, {
-                    name: row['Nama'],
-                    phone: cleanPhone,
-                    address: row['Alamat'] || '(kosong)'
-                });
-                
-                await databasePool.execute(insertQuery, [
-                    row['Nama'],
-                    cleanPhone, // Use cleaned phone
-                    row['Alamat'] || '',
-                    row['Email'] || '', // gunakan string kosong jika tidak ada email
-                    generatedCode       // isi customer_code agar tidak null pada server live
-                ]);
-                
-                results.success++;
-                console.log(`  ✅ SUCCESS: Row ${rowNumber} imported!`);
-                
-            } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : 'Error tidak diketahui';
-                console.log(`  ❌ ERROR at row ${rowNumber}:`, errorMsg);
-                results.failed++;
-                results.errors.push(`Baris ${rowNumber}: ${errorMsg}`);
             }
-        }
-        
-        console.log(`\n📊 Import completed: ${results.success} success, ${results.failed} failed`);
-        if (results.errors.length > 0) {
-            console.log(`📋 Errors:`, results.errors);
-        }
-        
-        res.json({
-            success: true,
-            message: `Import selesai. Berhasil: ${results.success}, Gagal: ${results.failed}`,
-            totalRows: jsonData.length,
-            details: results
-        });
-        
-    } catch (error) {
-        console.error('❌ Error importing customers from Excel:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        res.status(500).json({ 
-            success: false,
-            error: 'Gagal mengimport data pelanggan: ' + errorMessage 
-        });
-    }
-};
 
-// =======================
-// MIGRATION ENDPOINTS
-// =======================
+            await conn.commit();
 
-/**
- * Migrasi customer dari Postpaid ke Prepaid
- */
-export const migrateToPrepaid = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const adminId = (req.session as any)?.userId;
-        
-        const result = await MigrationService.migrateToPrepaid(parseInt(id), adminId);
-        
-        if (result.success) {
-            return res.json({
+            res.json({
                 success: true,
-                message: result.message,
-                portal_id: result.portal_id,
-                portal_pin: result.portal_pin
+                message: `Hapus massal selesai. Dihapus: ${deleted.length}, Dilewati: ${skipped.length}`,
+                results: {
+                    deleted,
+                    skipped,
+                    errors: errors.length > 0 ? errors : undefined
+                }
             });
-        } else {
-            return res.status(400).json({
+        } catch (error: any) {
+            await conn.rollback();
+            throw error;
+        } finally {
+            conn.release();
+        }
+    } catch (error: unknown) {
+        console.error('Error in bulk delete customers:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal melakukan hapus massal';
+        
+        if (!res.headersSent) {
+            res.status(500).json({
                 success: false,
-                error: result.error || result.message
+                error: errorMessage
             });
         }
-    } catch (error) {
-        console.error('Error in migrate to prepaid endpoint:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Terjadi kesalahan saat migrasi'
-        });
-    }
-};
-
-/**
- * Migrasi customer dari Prepaid ke Postpaid
- */
-export const migrateToPostpaid = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const adminId = (req.session as any)?.userId;
-        
-        const result = await MigrationService.migrateToPostpaid(parseInt(id), adminId);
-        
-        if (result.success) {
-            return res.json({
-                success: true,
-                message: result.message
-            });
-        } else {
-            return res.status(400).json({
-                success: false,
-                error: result.error || result.message
-            });
-        }
-    } catch (error) {
-        console.error('Error in migrate to postpaid endpoint:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Terjadi kesalahan saat migrasi'
-        });
-    }
-};
-
-/**
- * Get migration history
- */
-export const getMigrationHistory = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const history = await MigrationService.getMigrationHistory(parseInt(id));
-        
-        return res.json({
-            success: true,
-            history
-        });
-    } catch (error) {
-        console.error('Error getting migration history:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Gagal memuat riwayat migrasi'
-        });
     }
 };

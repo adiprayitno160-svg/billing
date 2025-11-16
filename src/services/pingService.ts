@@ -63,22 +63,97 @@ export class PingService {
     }
     
     /**
+     * Calculate peer IP (router client IP) from CIDR
+     * IMPORTANT: Ping router IP (192.168.1.2), NOT MikroTik gateway IP (192.168.1.1)
+     * For /30 subnet: if MikroTik has .1, client router has .2 (or vice versa)
+     */
+    private calculatePeerIP(cidrAddress: string): string {
+        try {
+            const [ipOnly, prefixStr] = cidrAddress.split('/');
+            const prefix = Number(prefixStr || '0');
+            
+            // Helper functions
+            const ipToInt = (ip: string) => {
+                return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+            };
+            const intToIp = (int: number) => {
+                return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+            };
+            
+            // For /30 subnet, calculate peer IP (router client IP)
+            // /30 subnet has 4 addresses: network, host1 (usually MikroTik), host2 (usually router), broadcast
+            // IMPORTANT: We always ping the router IP (client IP), NOT the MikroTik gateway IP
+            if (prefix === 30) {
+                const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                const networkInt = ipToInt(ipOnly) & mask;
+                const firstHost = networkInt + 1;  // Usually MikroTik gateway IP (e.g., 192.168.1.1)
+                const secondHost = networkInt + 2; // Usually router client IP (e.g., 192.168.1.2)
+                const ipInt = ipToInt(ipOnly);
+                
+                // Always return router IP (secondHost) for /30 subnet
+                // If stored IP is MikroTik (firstHost), ping router (secondHost)
+                // If stored IP is router (secondHost), ping router (secondHost) - same IP
+                if (ipInt === firstHost) {
+                    // Stored IP is MikroTik gateway, return router IP to ping
+                    return intToIp(secondHost);
+                } else if (ipInt === secondHost) {
+                    // Stored IP is already router IP, ping this router IP
+                    return intToIp(secondHost);
+                } else {
+                    // Default: assume stored IP is MikroTik, return router IP
+                    return intToIp(secondHost);
+                }
+            }
+            
+            // For /31 subnet (point-to-point)
+            if (prefix === 31) {
+                const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                const networkInt = ipToInt(ipOnly) & mask;
+                const firstHost = networkInt + 1;
+                const secondHost = networkInt + 2;
+                const ipInt = ipToInt(ipOnly);
+                
+                // Return the other host (router)
+                return ipInt === firstHost ? intToIp(secondHost) : intToIp(firstHost);
+            }
+            
+            // For other subnets, assume stored IP is MikroTik and calculate next IP as router
+            // Common case: if IP ends in .1, router might be .2
+            if (ipOnly.endsWith('.1')) {
+                const parts = ipOnly.split('.');
+                parts[3] = '2';
+                return parts.join('.');
+            }
+            
+            // Fallback: if we can't determine, log warning but return as-is
+            // This shouldn't happen in normal operation
+            console.warn(`[PingService] Warning: Could not determine router IP for ${cidrAddress}, using stored IP`);
+            return ipOnly;
+        } catch (error) {
+            console.error(`[PingService] Error calculating peer IP for ${cidrAddress}:`, error);
+            // Fallback: return IP without CIDR notation
+            return cidrAddress.split('/')[0];
+        }
+    }
+    
+    /**
      * Get all Static IP customers for monitoring
+     * FIXED: Get from static_ip_clients table, not subscriptions
      */
     async getStaticIPCustomers(): Promise<StaticIPCustomer[]> {
         const query = `
             SELECT 
                 c.id AS customer_id,
                 c.name AS customer_name,
-                s.ip_address,
+                sic.ip_address,
                 sip.status AS current_status
             FROM customers c
-            JOIN subscriptions s ON c.id = s.customer_id
+            JOIN static_ip_clients sic ON c.id = sic.customer_id
             LEFT JOIN static_ip_ping_status sip ON c.id = sip.customer_id
-            WHERE s.status = 'active'
-                AND s.service_type = 'static_ip'
-                AND s.ip_address IS NOT NULL
-                AND s.ip_address != ''
+            WHERE c.connection_type = 'static_ip'
+                AND sic.status = 'active'
+                AND sic.ip_address IS NOT NULL
+                AND sic.ip_address != ''
         `;
         
         const [rows] = await pool.query<RowDataPacket[]>(query);
@@ -211,11 +286,18 @@ export class PingService {
     
     /**
      * Monitor single customer
+     * IMPORTANT: Ping router IP (192.168.1.2), NOT MikroTik gateway IP (192.168.1.1)
+     * The router IP is calculated from the CIDR address stored in database
      */
     async monitorSingleCustomer(customer: StaticIPCustomer): Promise<void> {
         try {
-            // Ping the IP
-            const pingResult = await this.pingHost(customer.ip_address);
+            // Calculate router IP (peer/client IP) from CIDR
+            // If stored IP is MikroTik gateway (192.168.1.1), this returns router IP (192.168.1.2)
+            const peerIP = this.calculatePeerIP(customer.ip_address);
+            console.log(`[PingService] Monitoring customer ${customer.customer_id} (${customer.customer_name}): Stored IP=${customer.ip_address}, Router IP to Ping=${peerIP}`);
+            
+            // Ping the router IP (client router), NOT the MikroTik gateway IP
+            const pingResult = await this.pingHost(peerIP);
             
             // Parse packet loss
             const packetLoss = parseFloat(pingResult.packetLoss.replace('%', '')) || 0;
@@ -245,20 +327,20 @@ export class PingService {
                 status = 'offline';
             }
             
-            // Update ping status
+            // Update ping status - store peer IP in ip_address field for reference
             await this.updatePingStatus({
                 customer_id: customer.customer_id,
-                ip_address: customer.ip_address,
+                ip_address: peerIP, // Store peer IP (router client IP) for reference
                 status,
                 response_time_ms: pingResult.alive ? responseTime : null,
                 packet_loss_percent: packetLoss,
                 consecutive_failures: consecutiveFailures
             });
             
-            // Log to connection_logs
+            // Log to connection_logs - log both MikroTik IP and peer IP for clarity
             await this.logConnectionStatus(
                 customer.customer_id,
-                customer.ip_address,
+                peerIP, // Log peer IP (the one we're actually pinging)
                 pingResult.alive,
                 pingResult.alive ? responseTime : null,
                 packetLoss

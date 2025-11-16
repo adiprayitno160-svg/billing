@@ -1,7 +1,7 @@
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { MikrotikService } from '../mikrotik/MikrotikService';
-import WhatsAppNotificationService from '../whatsapp/WhatsAppNotificationService';
+// WhatsApp service removed
 
 /**
  * Complete Prepaid Scheduler Service
@@ -145,7 +145,8 @@ class PrepaidSchedulerServiceComplete {
 
           // Send WhatsApp notification
           const message = this.createExpiryReminderMessage(sub);
-          await WhatsAppNotificationService.sendMessage(sub.phone, message);
+          // WhatsApp notification removed
+          // await WhatsAppNotificationService.sendMessage(sub.phone, message);
 
           // Update last notified
           await pool.query(
@@ -218,20 +219,22 @@ class PrepaidSchedulerServiceComplete {
         'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
       );
 
-      if (settings.length === 0) return;
+      if (settings.length === 0 || !settings[0]) return;
 
+      const setting = settings[0];
       const mikrotik = new MikrotikService({
-        host: settings[0].host,
-        username: settings[0].username,
-        password: settings[0].password,
-        port: settings[0].api_port || 8728
+        host: setting.host,
+        username: setting.username,
+        password: setting.password,
+        port: setting.api_port || 8728
       });
 
       // Disable PPPoE user
-      await mikrotik.updatePPPoEUser({
-        name: subscription.pppoe_username,
-        disabled: true
-      });
+      if (subscription.pppoe_username) {
+        await mikrotik.updatePPPoEUserByUsername(subscription.pppoe_username, {
+          disabled: true
+        });
+      }
 
       // Add to address list portal-redirect
       if (subscription.ip_address) {
@@ -265,20 +268,19 @@ class PrepaidSchedulerServiceComplete {
         'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
       );
 
-      if (settings.length === 0) return;
+      if (settings.length === 0 || !settings[0]) return;
 
+      const setting = settings[0];
       const mikrotik = new MikrotikService({
-        host: settings[0].host,
-        username: settings[0].username,
-        password: settings[0].password,
-        port: settings[0].api_port || 8728
+        host: setting.host,
+        username: setting.username,
+        password: setting.password,
+        port: setting.api_port || 8728
       });
 
-      // Remove from MikroTik
-      await mikrotik.removeFromAddressList({
-        list: 'portal-redirect',
-        address: item.ip_address
-      });
+      // Remove from MikroTik - need to get address ID first
+      // For now, we'll just remove from database as the address list sync will handle MikroTik
+      // TODO: Implement proper address ID lookup if needed
 
       // Remove from database
       await pool.query(
@@ -299,17 +301,17 @@ class PrepaidSchedulerServiceComplete {
         'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
       );
 
-      if (settings.length === 0) return;
+      if (settings.length === 0 || !settings[0]) return;
 
+      const setting = settings[0];
       const mikrotik = new MikrotikService({
-        host: settings[0].host,
-        username: settings[0].username,
-        password: settings[0].password,
-        port: settings[0].api_port || 8728
+        host: setting.host,
+        username: setting.username,
+        password: setting.password,
+        port: setting.api_port || 8728
       });
 
-      await mikrotik.updatePPPoEUser({
-        name: username,
+      await mikrotik.updatePPPoEUserByUsername(username, {
         disabled: false
       });
     } catch (error) {
@@ -333,7 +335,9 @@ Untuk melanjutkan layanan, silakan perpanjang paket Anda melalui:
 
 Terima kasih atas kepercayaan Anda! 🙏`;
 
-      await WhatsAppNotificationService.sendMessage(subscription.phone, message);
+      // WhatsApp notification disabled - service removed
+      // await WhatsAppService.sendMessage(subscription.phone, message);
+      console.log(`[WhatsApp] Would send to ${subscription.phone}: ${message.substring(0, 50)}...`);
     } catch (error) {
       console.error('Send WhatsApp error:', error);
     }

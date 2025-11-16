@@ -397,42 +397,56 @@ export class PaymentGatewayService {
           ]
         );
 
-        // Update invoice jika payment berhasil
-        if (webhookData.status === 'completed' || webhookData.status === 'paid') {
-          const [transaction] = await connection.execute(
-            'SELECT invoice_id FROM payment_transactions WHERE external_id = ?',
-            [webhookData.transactionId]
-          );
+            // Update invoice jika payment berhasil
+            if (webhookData.status === 'completed' || webhookData.status === 'paid') {
+              const [transaction] = await connection.execute(
+                `SELECT pt.invoice_id, pt.amount, p.id as payment_id, i.due_date
+                 FROM payment_transactions pt
+                 LEFT JOIN payments p ON pt.invoice_id = p.invoice_id AND p.gateway_transaction_id = pt.external_id
+                 LEFT JOIN invoices i ON pt.invoice_id = i.id
+                 WHERE pt.external_id = ?`,
+                [webhookData.transactionId]
+              );
 
-          if (transaction && (transaction as any[]).length > 0) {
-            const invoiceId = (transaction as any[])[0].invoice_id;
-            
-            // Update invoice status
-            await connection.execute(
-              'UPDATE invoices SET status = "paid", paid_at = NOW() WHERE id = ?',
-              [invoiceId]
-            );
-
-            // Auto-restore customer if isolated
-            const [custRows] = await connection.execute(
-              `SELECT c.id, c.is_isolated FROM customers c
-               JOIN invoices i ON i.customer_id = c.id
-               WHERE i.id = ?`,
-              [invoiceId]
-            );
-            if (custRows && (custRows as any[]).length > 0) {
-              const customer = (custRows as any[])[0];
-              if (customer.is_isolated) {
-                await connection.execute('UPDATE customers SET is_isolated = FALSE WHERE id = ?', [customer.id]);
+              if (transaction && (transaction as any[]).length > 0) {
+                const transData = (transaction as any[])[0];
+                const invoiceId = transData.invoice_id;
+                
+                // Update invoice status
                 await connection.execute(
-                  `INSERT INTO isolation_logs (customer_id, action, reason, created_at)
-                   VALUES (?, 'restore', 'Auto restore after payment (webhook)', NOW())`,
-                  [customer.id]
+                  'UPDATE invoices SET status = "paid", paid_at = NOW() WHERE id = ?',
+                  [invoiceId]
                 );
+
+                // Auto-restore customer if isolated
+                const [custRows] = await connection.execute(
+                  `SELECT c.id, c.is_isolated FROM customers c
+                   JOIN invoices i ON i.customer_id = c.id
+                   WHERE i.id = ?`,
+                  [invoiceId]
+                );
+                if (custRows && (custRows as any[]).length > 0) {
+                  const customer = (custRows as any[])[0];
+                  if (customer.is_isolated) {
+                    await connection.execute('UPDATE customers SET is_isolated = FALSE WHERE id = ?', [customer.id]);
+                    await connection.execute(
+                      `INSERT INTO isolation_logs (customer_id, action, reason, created_at)
+                       VALUES (?, 'restore', 'Auto restore after payment (webhook)', NOW())`,
+                      [customer.id]
+                    );
+                  }
+                }
+
+                // Track late payment (async, don't wait)
+                if (transData.payment_id && transData.due_date && webhookData.paidAt) {
+                  const { LatePaymentTrackingService } = await import('../billing/LatePaymentTrackingService');
+                  const paymentDate = new Date(webhookData.paidAt);
+                  const dueDate = new Date(transData.due_date);
+                  LatePaymentTrackingService.trackPayment(invoiceId, transData.payment_id, paymentDate, dueDate)
+                    .catch(err => console.error('[PaymentGatewayService] Error tracking late payment:', err));
+                }
               }
             }
-          }
-        }
       }
 
       // Mark webhook as processed

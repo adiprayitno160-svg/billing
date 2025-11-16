@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import { PrepaidPackageService, PrepaidPackage } from '../../services/prepaid/PrepaidPackageService';
 import { PrepaidQueueService } from '../../services/prepaid/PrepaidQueueService';
+import { getPppProfiles, updatePppProfile } from '../../services/mikrotikService';
 
 class PrepaidPackageManagementController {
   constructor() {
@@ -16,6 +17,7 @@ class PrepaidPackageManagementController {
     this.updatePackage = this.updatePackage.bind(this);
     this.deletePackage = this.deletePackage.bind(this);
     this.getParentQueues = this.getParentQueues.bind(this);
+    this.getProfileRateLimit = this.getProfileRateLimit.bind(this);
   }
 
   /**
@@ -108,9 +110,51 @@ class PrepaidPackageManagementController {
         duration_days: parseInt(req.body.duration_days),
         price: parseFloat(req.body.price),
         is_active: req.body.is_active === 'true' || req.body.is_active === '1',
+        download_limit: req.body.download_limit || undefined,
+        upload_limit: req.body.upload_limit || undefined,
       };
 
       const packageId = await PrepaidPackageService.createPackage(packageData);
+
+      // If PPPoE package, update MikroTik profile rate limit
+      if (packageData.connection_type === 'pppoe' && packageData.mikrotik_profile_name) {
+        try {
+          const mikrotikConfig = await PrepaidQueueService.getMikrotikConfig();
+          if (mikrotikConfig) {
+            // Get profile from MikroTik to find its ID
+            const configWithTls: { host: string; port: number; username: string; password: string; use_tls: boolean } = {
+                ...mikrotikConfig,
+                use_tls: mikrotikConfig.use_tls ?? false
+            };
+            const profiles = await getPppProfiles(configWithTls);
+            const profile = profiles.find(p => p.name === packageData.mikrotik_profile_name);
+            
+            if (profile && profile['.id']) {
+              // Build rate-limit string from download_limit and upload_limit
+              // Format: upload_limit/download_limit (e.g., "10M/20M")
+              // If empty, use "0" for unlimited
+              const downloadLimit = packageData.download_limit || '0';
+              const uploadLimit = packageData.upload_limit || '0';
+              const rateLimit = `${uploadLimit}/${downloadLimit}`;
+              
+              // Update profile in MikroTik
+              await updatePppProfile(configWithTls, profile['.id'], {
+                'rate-limit': rateLimit
+              });
+              
+              console.log(`[PrepaidPackageManagementController] Updated MikroTik profile "${packageData.mikrotik_profile_name}" with rate-limit: ${rateLimit}`);
+            } else {
+              console.warn(`[PrepaidPackageManagementController] Profile "${packageData.mikrotik_profile_name}" not found in MikroTik`);
+            }
+          } else {
+            console.warn('[PrepaidPackageManagementController] MikroTik not configured, skipping profile update');
+          }
+        } catch (mikrotikError) {
+          console.error('[PrepaidPackageManagementController] Error updating MikroTik profile:', mikrotikError);
+          // Don't fail the entire create if MikroTik update fails
+          // The database create was successful, so we still redirect with success
+        }
+      }
 
       res.redirect('/prepaid/packages?success=' + encodeURIComponent('Paket berhasil dibuat'));
     } catch (error) {
@@ -172,9 +216,52 @@ class PrepaidPackageManagementController {
         duration_days: parseInt(req.body.duration_days),
         price: parseFloat(req.body.price),
         is_active: req.body.is_active === 'true' || req.body.is_active === '1',
+        download_limit: req.body.download_limit || undefined,
+        upload_limit: req.body.upload_limit || undefined,
       };
 
+      // Update database
       await PrepaidPackageService.updatePackage(packageId, packageData);
+
+      // If PPPoE package, update MikroTik profile rate limit
+      if (packageData.connection_type === 'pppoe' && packageData.mikrotik_profile_name) {
+        try {
+          const mikrotikConfig = await PrepaidQueueService.getMikrotikConfig();
+          if (mikrotikConfig) {
+            // Get profile from MikroTik to find its ID
+            const configWithTls: { host: string; port: number; username: string; password: string; use_tls: boolean } = {
+                ...mikrotikConfig,
+                use_tls: mikrotikConfig.use_tls ?? false
+            };
+            const profiles = await getPppProfiles(configWithTls);
+            const profile = profiles.find(p => p.name === packageData.mikrotik_profile_name);
+            
+            if (profile && profile['.id']) {
+              // Build rate-limit string from download_limit and upload_limit
+              // Format: upload_limit/download_limit (e.g., "10M/20M")
+              // If empty, use "0" for unlimited
+              const downloadLimit = packageData.download_limit || '0';
+              const uploadLimit = packageData.upload_limit || '0';
+              const rateLimit = `${uploadLimit}/${downloadLimit}`;
+              
+              // Update profile in MikroTik
+              await updatePppProfile(configWithTls, profile['.id'], {
+                'rate-limit': rateLimit
+              });
+              
+              console.log(`[PrepaidPackageManagementController] Updated MikroTik profile "${packageData.mikrotik_profile_name}" with rate-limit: ${rateLimit}`);
+            } else {
+              console.warn(`[PrepaidPackageManagementController] Profile "${packageData.mikrotik_profile_name}" not found in MikroTik`);
+            }
+          } else {
+            console.warn('[PrepaidPackageManagementController] MikroTik not configured, skipping profile update');
+          }
+        } catch (mikrotikError) {
+          console.error('[PrepaidPackageManagementController] Error updating MikroTik profile:', mikrotikError);
+          // Don't fail the entire update if MikroTik update fails
+          // The database update was successful, so we still redirect with success
+        }
+      }
 
       res.redirect('/prepaid/packages?success=' + encodeURIComponent('Paket berhasil diupdate'));
     } catch (error) {
@@ -212,6 +299,58 @@ class PrepaidPackageManagementController {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get parent queues',
+      });
+    }
+  }
+
+  /**
+   * API: Get rate limit from MikroTik profile (for auto-fill download limit)
+   */
+  async getProfileRateLimit(req: Request, res: Response): Promise<void> {
+    try {
+      const profileName = req.query.profile_name as string;
+      
+      if (!profileName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Profile name is required',
+        });
+      }
+
+      const mikrotikConfig = await PrepaidQueueService.getMikrotikConfig();
+      if (!mikrotikConfig) {
+        res.status(500).json({
+          success: false,
+          error: 'Mikrotik not configured',
+        });
+      }
+
+      const profiles = await getPppProfiles(mikrotikConfig);
+      const profile = profiles.find(p => p.name === profileName);
+
+      if (!profile) {
+        res.status(404).json({
+          success: false,
+          error: 'Profile not found in MikroTik',
+        });
+      }
+
+      // Get download limit (rate_limit_rx), default to '0' if empty (unlimited)
+      const downloadLimit = profile['rate-limit-rx'] || '0';
+
+      res.json({
+        success: true,
+        data: {
+          download_limit: downloadLimit,
+          // Upload limit tidak bisa diambil dari MikroTik (harus manual)
+          upload_limit: null,
+        },
+      });
+    } catch (error) {
+      console.error('[PrepaidPackageManagementController] Error getting profile rate limit:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get profile rate limit',
       });
     }
   }

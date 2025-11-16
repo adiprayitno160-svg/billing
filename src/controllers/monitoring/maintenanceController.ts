@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import pool from '../../db/pool';
+import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import alertRoutingService from '../../services/alertRoutingService';
 
@@ -26,7 +26,7 @@ export class MaintenanceController {
                 params.push(status);
             }
             
-            const [schedules] = await pool.query<RowDataPacket[]>(`
+            const [schedules] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
                     ms.*,
                     u.username as created_by_name,
@@ -53,10 +53,9 @@ export class MaintenanceController {
             
         } catch (error) {
             console.error('Error in list maintenance:', error);
-            res.status(500).json({ 
-                success: false, 
-                message: 'Gagal memuat maintenance schedules',
-                error: error instanceof Error ? error.message : 'Unknown error'
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat maintenance schedules: ' + (error instanceof Error ? error.message : 'Unknown error')
             });
         }
     }
@@ -68,7 +67,7 @@ export class MaintenanceController {
     async showCreate(req: Request, res: Response): Promise<void> {
         try {
             // Get areas
-            const [areas] = await pool.query<RowDataPacket[]>(`
+            const [areas] = await databasePool.query<RowDataPacket[]>(`
                 SELECT DISTINCT area, COUNT(*) as customer_count
                 FROM customers 
                 WHERE area IS NOT NULL AND area != ''
@@ -77,7 +76,7 @@ export class MaintenanceController {
             `);
             
             // Get all customers
-            const [customers] = await pool.query<RowDataPacket[]>(`
+            const [customers] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
                     id, 
                     name, 
@@ -97,10 +96,9 @@ export class MaintenanceController {
             
         } catch (error) {
             console.error('Error in showCreate:', error);
-            res.status(500).json({ 
-                success: false, 
-                message: 'Gagal memuat form',
-                error: error instanceof Error ? error.message : 'Unknown error'
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat form: ' + (error instanceof Error ? error.message : 'Unknown error')
             });
         }
     }
@@ -148,7 +146,7 @@ export class MaintenanceController {
             const duration = Math.floor((endDate.getTime() - startDate.getTime()) / 60000); // minutes
             
             // Insert schedule
-            const [result] = await pool.query<ResultSetHeader>(`
+            const [result] = await databasePool.query<ResultSetHeader>(`
                 INSERT INTO maintenance_schedules (
                     title,
                     description,
@@ -189,7 +187,7 @@ export class MaintenanceController {
                 });
                 
                 // Mark as sent
-                await pool.query(`
+                await databasePool.query(`
                     UPDATE maintenance_schedules
                     SET notification_sent = 1, notification_sent_at = NOW()
                     WHERE id = ?
@@ -218,9 +216,13 @@ export class MaintenanceController {
      */
     async detail(req: Request, res: Response): Promise<void> {
         try {
-            const id = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
-            const [schedules] = await pool.query<RowDataPacket[]>(`
+            const [schedules] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
                     ms.*,
                     u.username as created_by_name
@@ -235,13 +237,18 @@ export class MaintenanceController {
             }
             
             const schedule = schedules[0];
+            if (!schedule) {
+                res.status(404).json({ success: false, message: 'Maintenance not found' });
+                return;
+            }
+            
             schedule.affected_customers_array = JSON.parse(schedule.affected_customers || '[]');
             
             // Get affected customer details
             if (schedule.affected_customers_array.length > 0) {
                 const placeholders = schedule.affected_customers_array.map(() => '?').join(',');
                 
-                const [customers] = await pool.query<RowDataPacket[]>(`
+                const [customers] = await databasePool.query<RowDataPacket[]>(`
                     SELECT id, name, area, phone
                     FROM customers
                     WHERE id IN (${placeholders})
@@ -253,7 +260,7 @@ export class MaintenanceController {
             }
             
             // Get incidents during this maintenance
-            const [incidents] = await pool.query<RowDataPacket[]>(`
+            const [incidents] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
                     si.*,
                     c.name as customer_name
@@ -288,9 +295,13 @@ export class MaintenanceController {
      */
     async start(req: Request, res: Response): Promise<void> {
         try {
-            const id = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
-            await pool.query(`
+            await databasePool.query(`
                 UPDATE maintenance_schedules
                 SET status = 'in_progress'
                 WHERE id = ?
@@ -317,9 +328,13 @@ export class MaintenanceController {
      */
     async complete(req: Request, res: Response): Promise<void> {
         try {
-            const id = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
-            await pool.query(`
+            await databasePool.query(`
                 UPDATE maintenance_schedules
                 SET status = 'completed'
                 WHERE id = ?
@@ -346,9 +361,13 @@ export class MaintenanceController {
      */
     async cancel(req: Request, res: Response): Promise<void> {
         try {
-            const id = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
-            await pool.query(`
+            await databasePool.query(`
                 UPDATE maintenance_schedules
                 SET status = 'cancelled'
                 WHERE id = ?
@@ -375,9 +394,13 @@ export class MaintenanceController {
      */
     async sendNotification(req: Request, res: Response): Promise<void> {
         try {
-            const id = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
-            const [schedules] = await pool.query<RowDataPacket[]>(`
+            const [schedules] = await databasePool.query<RowDataPacket[]>(`
                 SELECT * FROM maintenance_schedules WHERE id = ?
             `, [id]);
             
@@ -387,6 +410,10 @@ export class MaintenanceController {
             }
             
             const schedule = schedules[0];
+            if (!schedule) {
+                res.status(404).json({ success: false, message: 'Maintenance not found' });
+                return;
+            }
             const customerIds = JSON.parse(schedule.affected_customers || '[]');
             
             await alertRoutingService.sendMaintenanceNotification({
@@ -397,7 +424,7 @@ export class MaintenanceController {
                 affected_customers: customerIds
             });
             
-            await pool.query(`
+            await databasePool.query(`
                 UPDATE maintenance_schedules
                 SET notification_sent = 1, notification_sent_at = NOW()
                 WHERE id = ?

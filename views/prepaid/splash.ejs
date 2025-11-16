@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -30,6 +30,18 @@
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-20px); }
+        }
+        /* Ensure icons and text are visible */
+        .fas, .fab, .far {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        i[class*="fa-"] {
+            color: inherit !important;
+        }
+        label, p, span, h1, h2, h3, h4, h5, h6 {
+            color: inherit !important;
         }
     </style>
 </head>

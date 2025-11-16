@@ -1,0 +1,286 @@
+<div class="container-fluid px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-user text-blue-600 mr-3"></i>
+                Late Payment Detail - <%= customer.name %>
+            </h1>
+            <p class="text-gray-600">Detail tracking late payment untuk customer <%= customer.customer_code %></p>
+        </div>
+        <a href="/billing/late-payment/report" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+            <i class="fas fa-arrow-left mr-2"></i>Kembali
+        </a>
+    </div>
+
+    <!-- Flash Messages -->
+    <% if (typeof success !== 'undefined' && success) { %>
+    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <i class="fas fa-check-circle mr-2"></i><%= success %>
+    </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <i class="fas fa-exclamation-circle mr-2"></i><%= error %>
+    </div>
+    <% } %>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="text-sm mb-2">Late Payment Count</div>
+            <div class="text-4xl font-bold"><%= stats.late_payment_count || 0 %></div>
+            <div class="text-red-100 text-xs mt-2">Total dalam periode</div>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="text-sm mb-2">Consecutive On-Time</div>
+            <div class="text-4xl font-bold"><%= stats.consecutive_on_time_payments || 0 %></div>
+            <div class="text-blue-100 text-xs mt-2">Pembayaran tepat waktu berturut-turut</div>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="text-sm mb-2">Total in Period</div>
+            <div class="text-4xl font-bold"><%= stats.total_late_payments_in_period || 0 %></div>
+            <div class="text-purple-100 text-xs mt-2">Dalam 12 bulan terakhir</div>
+        </div>
+
+        <div class="bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="text-sm mb-2">Last Late Payment</div>
+            <div class="text-xl font-bold">
+                <%= stats.last_late_payment_date ? new Date(stats.last_late_payment_date).toLocaleDateString('id-ID') : '-' %>
+            </div>
+            <div class="text-gray-100 text-xs mt-2">Tanggal terakhir telat bayar</div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Actions</h2>
+        <div class="flex gap-4">
+            <button onclick="showResetModal()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                <i class="fas fa-redo mr-2"></i>Reset Counter
+            </button>
+            <button onclick="showAdjustModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                <i class="fas fa-adjust mr-2"></i>Adjust Counter
+            </button>
+        </div>
+    </div>
+
+    <!-- Late Payment History -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Late Payment History</h2>
+        <% if (history && history.length > 0) { %>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Days Late</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <% history.forEach(item => { %>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= item.invoice_number %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= item.period %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <%= new Date(item.due_date).toLocaleDateString('id-ID') %>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <%= new Date(item.payment_date).toLocaleDateString('id-ID') %>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800">
+                                <%= item.days_late %> hari
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            Rp <%= parseFloat(item.amount || 0).toLocaleString('id-ID') %>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+        <% } else { %>
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-check-circle text-4xl mb-2"></i>
+            <p>Tidak ada history late payment</p>
+        </div>
+        <% } %>
+    </div>
+
+    <!-- Audit Log -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Audit Log</h2>
+        <% if (auditLog && auditLog.length > 0) { %>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Old Count</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">New Count</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performed By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <% auditLog.forEach(log => { %>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold <%= log.action === 'reset' ? 'bg-green-100 text-green-800' : log.action === 'manual_adjust' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800' %>">
+                                <%= log.action %>
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold"><%= log.old_count %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold"><%= log.new_count %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= log.performed_by_name || 'System' %></td>
+                        <td class="px-6 py-4 text-sm text-gray-500"><%= log.reason %></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <%= new Date(log.created_at).toLocaleString('id-ID') %>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+        <% } else { %>
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-history text-4xl mb-2"></i>
+            <p>Tidak ada audit log</p>
+        </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Reset Modal -->
+<div id="resetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <h3 class="text-xl font-bold mb-4">Reset Late Payment Counter</h3>
+        <form id="resetForm" onsubmit="handleReset(event, <%= customer.id %>)">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                <textarea name="reason" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3" required>Manual reset by admin</textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-semibold">
+                    Reset
+                </button>
+                <button type="button" onclick="closeResetModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Adjust Modal -->
+<div id="adjustModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <h3 class="text-xl font-bold mb-4">Adjust Late Payment Counter</h3>
+        <form id="adjustForm" onsubmit="handleAdjust(event, <%= customer.id %>)">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Adjustment (-/+)</label>
+                <input type="number" name="adjustment" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required placeholder="e.g., -1 or +1">
+                <p class="text-xs text-gray-500 mt-1">Gunakan negatif untuk mengurangi, positif untuk menambah</p>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                <textarea name="reason" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3" required></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold">
+                    Adjust
+                </button>
+                <button type="button" onclick="closeAdjustModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showResetModal() {
+    document.getElementById('resetModal').classList.remove('hidden');
+    document.getElementById('resetModal').classList.add('flex');
+}
+
+function closeResetModal() {
+    document.getElementById('resetModal').classList.add('hidden');
+    document.getElementById('resetModal').classList.remove('flex');
+}
+
+function showAdjustModal() {
+    document.getElementById('adjustModal').classList.remove('hidden');
+    document.getElementById('adjustModal').classList.add('flex');
+}
+
+function closeAdjustModal() {
+    document.getElementById('adjustModal').classList.add('hidden');
+    document.getElementById('adjustModal').classList.remove('flex');
+}
+
+function handleReset(event, customerId) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const reason = formData.get('reason');
+
+    fetch(`/billing/late-payment/customer/${customerId}/reset`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Counter berhasil direset');
+            location.reload();
+        } else {
+            alert('Gagal reset: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Terjadi kesalahan');
+    });
+}
+
+function handleAdjust(event, customerId) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const adjustment = parseInt(formData.get('adjustment'));
+    const reason = formData.get('reason');
+
+    fetch(`/billing/late-payment/customer/${customerId}/adjust`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ adjustment, reason })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Counter berhasil disesuaikan');
+            location.reload();
+        } else {
+            alert('Gagal adjust: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Terjadi kesalahan');
+    });
+}
+</script>
+

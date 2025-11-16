@@ -27,6 +27,11 @@ router.use(attachPortalSession);
 
 // Public routes (no auth required)
 router.get('/portal/splash', (req, res) => {
+  // Set no-cache headers to prevent browser/proxy caching
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
   res.render('prepaid/splash', {
     title: 'Internet Access - Portal Prepaid',
     layout: false
@@ -99,6 +104,7 @@ router.get('/packages/edit/:package_id', requireAdminAuth, PrepaidPackageManagem
 router.post('/packages/update/:package_id', requireAdminAuth, PrepaidPackageManagementController.updatePackage);
 router.post('/packages/delete/:package_id', requireAdminAuth, PrepaidPackageManagementController.deletePackage);
 router.get('/packages/api/parent-queues', requireAdminAuth, PrepaidPackageManagementController.getParentQueues);
+router.get('/packages/api/profile-rate-limit', requireAdminAuth, PrepaidPackageManagementController.getProfileRateLimit);
 
 // Customer Portal Access
 router.post('/customers/create-portal-access', requireAdminAuth, PrepaidAdminController.createPortalAccess);

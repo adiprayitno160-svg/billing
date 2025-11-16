@@ -132,7 +132,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
         const network = intToIp(networkInt);
 
-        await addClientToPackage(packageId, {
+        const { customerId: newCustomerId } = await addClientToPackage(packageId, {
             client_name,
             ip_address,
             network,
@@ -313,8 +313,7 @@ export async function getStaticIpClientEdit(req: Request, res: Response, next: N
                 interfaces,
                 odpData: odpRows,
                 success: req.flash('success'),
-                error: req.flash('error'),
-                layout: false
+                error: req.flash('error')
             });
         } finally {
             conn.release();

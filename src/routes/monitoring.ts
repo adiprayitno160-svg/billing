@@ -32,4 +32,13 @@ router.post('/disconnect-session', (req, res) => controller.disconnectPPPoESessi
 // Traffic stats (AJAX)
 router.get('/traffic/:username', (req, res) => controller.getTrafficStats(req, res));
 
+// Analytics endpoints
+router.get('/analytics/bandwidth', (req, res) => controller.getBandwidthAnalytics(req, res));
+router.get('/analytics/health', (req, res) => controller.getNetworkHealth(req, res));
+router.get('/analytics/anomalies', (req, res) => controller.getAnomalies(req, res));
+router.get('/analytics/incident/:id', (req, res) => controller.getIncidentAnalysis(req, res));
+
+// Monitoring AI page
+router.get('/ai', (req, res) => controller.getAIAnalyticsPage(req, res));
+
 export default router;

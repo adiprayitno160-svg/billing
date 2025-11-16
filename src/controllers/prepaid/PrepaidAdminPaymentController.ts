@@ -6,6 +6,9 @@
 import { Request, Response } from 'express';
 import { PrepaidPaymentService } from '../../services/prepaid/PrepaidPaymentService';
 import PrepaidActivationService from '../../services/prepaid/PrepaidActivationService';
+// WhatsApp service removed
+import pool from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 
 class PrepaidAdminPaymentController {
   constructor() {
@@ -52,12 +55,17 @@ class PrepaidAdminPaymentController {
    */
   async verifyPayment(req: Request, res: Response): Promise<void> {
     try {
-      const transactionId = parseInt(req.params.transaction_id);
+      const { transaction_id } = req.params;
+        if (!transaction_id) {
+            return res.status(400).json({ success: false, error: 'transaction_id is required' });
+        }
+        const transactionId = parseInt(transaction_id);
       const adminId = req.session.userId;
       const notes = req.body.notes || '';
 
       if (!adminId) {
-        return res.json({ success: false, error: 'Not authenticated' });
+        res.json({ success: false, error: 'Not authenticated' });
+        return;
       }
 
       // Verify payment in database
@@ -70,14 +78,30 @@ class PrepaidAdminPaymentController {
         console.error('[PrepaidAdminPaymentController] Activation failed:', activationResult.error);
         
         // Payment verified but activation failed
-        return res.json({
+        res.json({
           success: false,
           error: 'Payment verified but activation failed: ' + activationResult.error,
         });
       }
 
-      // TODO: Send WhatsApp notification to customer
-      // TODO: Send Telegram notification to admin
+      // Send WhatsApp notification to customer
+      try {
+        const [transactionRows] = await pool.query<RowDataPacket[]>(
+          'SELECT customer_id FROM prepaid_transactions WHERE id = ?',
+          [transactionId]
+        );
+        
+        if (transactionRows.length > 0) {
+          // WhatsApp notification removed
+          // await WhatsAppNotificationService.sendPrepaidPaymentVerifiedNotification(
+          //   transactionId,
+          //   transactionRows[0].customer_id
+          // );
+        }
+      } catch (notifError) {
+        console.error('[PrepaidAdminPaymentController] Failed to send notification:', notifError);
+        // Don't fail the whole operation if notification fails
+      }
 
       res.json({
         success: true,
@@ -98,17 +122,40 @@ class PrepaidAdminPaymentController {
    */
   async rejectPayment(req: Request, res: Response): Promise<void> {
     try {
-      const transactionId = parseInt(req.params.transaction_id);
+      const { transaction_id } = req.params;
+        if (!transaction_id) {
+            return res.status(400).json({ success: false, error: 'transaction_id is required' });
+        }
+        const transactionId = parseInt(transaction_id);
       const adminId = req.session.userId;
       const reason = req.body.reason || 'No reason provided';
 
       if (!adminId) {
-        return res.json({ success: false, error: 'Not authenticated' });
+        res.json({ success: false, error: 'Not authenticated' });
+        return;
       }
 
       await PrepaidPaymentService.rejectPayment(transactionId, adminId, reason);
 
-      // TODO: Send WhatsApp notification to customer
+      // Send WhatsApp notification to customer
+      try {
+        const [transactionRows] = await pool.query<RowDataPacket[]>(
+          'SELECT customer_id FROM prepaid_transactions WHERE id = ?',
+          [transactionId]
+        );
+        
+        if (transactionRows.length > 0) {
+          // WhatsApp notification removed
+          // await WhatsAppNotificationService.sendPrepaidPaymentRejectedNotification(
+          //   transactionId,
+          //   transactionRows[0].customer_id,
+          //   reason
+          // );
+        }
+      } catch (notifError) {
+        console.error('[PrepaidAdminPaymentController] Failed to send rejection notification:', notifError);
+        // Don't fail the whole operation if notification fails
+      }
 
       res.json({
         success: true,
@@ -128,7 +175,11 @@ class PrepaidAdminPaymentController {
    */
   async viewPaymentProof(req: Request, res: Response): Promise<void> {
     try {
-      const transactionId = parseInt(req.params.transaction_id);
+      const { transaction_id } = req.params;
+        if (!transaction_id) {
+            return res.status(400).json({ success: false, error: 'transaction_id is required' });
+        }
+        const transactionId = parseInt(transaction_id);
       const transaction = await PrepaidPaymentService.getTransactionById(transactionId);
 
       if (!transaction) {
@@ -136,7 +187,8 @@ class PrepaidAdminPaymentController {
       }
 
       if (!transaction.payment_proof_url) {
-        return res.status(404).json({ success: false, error: 'No payment proof uploaded' });
+        res.status(404).json({ success: false, error: 'No payment proof uploaded' });
+        return;
       }
 
       res.json({

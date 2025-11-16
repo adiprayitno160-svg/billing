@@ -1,0 +1,300 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <i class="fas fa-envelope text-blue-500"></i>
+                Template Notifikasi
+            </h1>
+            <p class="text-gray-600 mt-2">Kelola template notifikasi untuk WhatsApp, Email, SMS, dan Push</p>
+        </div>
+        <a href="/notification/templates/create" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2">
+            <i class="fas fa-plus"></i> Buat Template Baru
+        </a>
+    </div>
+
+    <!-- Info Alert -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+            <div class="text-sm text-blue-800">
+                <p class="font-semibold mb-1">Cara Menggunakan Template:</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>Gunakan variabel seperti <code class="bg-blue-100 px-1 rounded">{customer_name}</code>, <code class="bg-blue-100 px-1 rounded">{invoice_number}</code>, dll.</li>
+                    <li>Template akan otomatis digunakan saat notifikasi dikirim berdasarkan tipe dan channel.</li>
+                    <li>Edit template untuk menyesuaikan pesan sesuai kebutuhan.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <div class="text-sm text-gray-600">Total Template</div>
+            <div class="text-2xl font-bold text-gray-900"><%= templates.length %></div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <div class="text-sm text-gray-600">Notifikasi Terkirim</div>
+            <div class="text-2xl font-bold text-green-600"><%= stats.sent || 0 %></div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <div class="text-sm text-gray-600">Notifikasi Gagal</div>
+            <div class="text-2xl font-bold text-red-600"><%= stats.failed || 0 %></div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+            <div class="text-sm text-gray-600">Success Rate</div>
+            <div class="text-2xl font-bold text-blue-600">
+                <%= stats.total > 0 ? ((stats.sent / stats.total) * 100).toFixed(1) : '0' %>%
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div class="flex gap-4 items-center">
+            <select id="filterType" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">Semua Tipe</option>
+                <option value="invoice_created">Invoice Dibuat</option>
+                <option value="invoice_overdue">Invoice Terlambat</option>
+                <option value="payment_received">Pembayaran Diterima</option>
+                <option value="package_expiring">Paket Akan Berakhir</option>
+                <option value="package_expired">Paket Berakhir</option>
+                <option value="package_activated">Paket Diaktifkan</option>
+            </select>
+            <select id="filterChannel" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">Semua Channel</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+                <option value="push">Push</option>
+            </select>
+            <select id="filterActive" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">Semua Status</option>
+                <option value="true">Aktif</option>
+                <option value="false">Tidak Aktif</option>
+            </select>
+            <button onclick="applyFilters()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                <i class="fas fa-filter"></i> Filter
+            </button>
+            <button onclick="resetFilters()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                <i class="fas fa-redo"></i> Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Templates List -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kode</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipe</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Channel</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="templatesTableBody">
+                    <% templates.forEach(template => { %>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <code class="bg-gray-100 px-2 py-1 rounded"><%= template.template_code %></code>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900"><%= template.template_name %></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                    <%= template.notification_type %>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 py-1 rounded text-xs font-medium
+                                    <%= template.channel === 'whatsapp' ? 'bg-green-100 text-green-800' : 
+                                        template.channel === 'email' ? 'bg-blue-100 text-blue-800' : 
+                                        template.channel === 'sms' ? 'bg-yellow-100 text-yellow-800' : 
+                                        'bg-purple-100 text-purple-800' %>">
+                                    <%= template.channel.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <% if (template.is_active) { %>
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                                        <i class="fas fa-check-circle"></i> Aktif
+                                    </span>
+                                <% } else { %>
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-medium">
+                                        <i class="fas fa-times-circle"></i> Tidak Aktif
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 py-1 rounded text-xs font-medium
+                                    <%= template.priority === 'high' ? 'bg-red-100 text-red-800' : 
+                                        template.priority === 'normal' ? 'bg-blue-100 text-blue-800' : 
+                                        'bg-gray-100 text-gray-800' %>">
+                                    <%= template.priority %>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex gap-2">
+                                    <a href="/notification/templates/edit/<%= template.template_code %>" 
+                                       class="text-blue-600 hover:text-blue-900">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <button onclick="viewTemplate('<%= template.template_code %>')" 
+                                            class="text-green-600 hover:text-green-900">
+                                        <i class="fas fa-eye"></i> Lihat
+                                    </button>
+                                    <button onclick="toggleActive('<%= template.template_code %>', <%= !template.is_active %>)" 
+                                            class="text-<%= template.is_active ? 'yellow' : 'green' %>-600 hover:text-<%= template.is_active ? 'yellow' : 'green' %>-900">
+                                        <i class="fas fa-<%= template.is_active ? 'pause' : 'play' %>"></i> 
+                                        <%= template.is_active ? 'Nonaktifkan' : 'Aktifkan' %>
+                                    </button>
+                                    <button onclick="deleteTemplate('<%= template.template_code %>')" 
+                                            class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Template Details Modal -->
+    <div id="templateModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Detail Template</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function applyFilters() {
+    const type = document.getElementById('filterType').value;
+    const channel = document.getElementById('filterChannel').value;
+    const active = document.getElementById('filterActive').value;
+    
+    const params = new URLSearchParams();
+    if (type) params.append('notification_type', type);
+    if (channel) params.append('channel', channel);
+    if (active) params.append('is_active', active);
+    
+    window.location.href = '/notification/templates?' + params.toString();
+}
+
+function resetFilters() {
+            window.location.href = '/notification/templates';
+}
+
+async function toggleActive(code, newStatus) {
+    if (!confirm(`Yakin ingin ${newStatus ? 'mengaktifkan' : 'menonaktifkan'} template ini?`)) return;
+    
+    try {
+        const response = await fetch(`/api/notification/templates/${code}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: newStatus })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('Template berhasil diperbarui');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteTemplate(code) {
+    if (!confirm('Yakin ingin menghapus template ini? Tindakan ini tidak dapat dibatalkan.')) return;
+    
+    try {
+        const response = await fetch(`/api/notification/templates/${code}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('Template berhasil dihapus');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function viewTemplate(code) {
+    try {
+        const response = await fetch(`/api/notification/api/templates/${code}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const template = data.data;
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Kode Template</label>
+                        <code class="block mt-1 bg-gray-100 px-3 py-2 rounded">${template.template_code}</code>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nama</label>
+                        <p class="mt-1">${template.template_name}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Title Template</label>
+                        <p class="mt-1 bg-gray-50 p-3 rounded">${template.title_template}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Message Template</label>
+                        <pre class="mt-1 bg-gray-50 p-3 rounded whitespace-pre-wrap">${template.message_template}</pre>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Channel</label>
+                            <p class="mt-1">${template.channel.toUpperCase()}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Priority</label>
+                            <p class="mt-1">${template.priority}</p>
+                        </div>
+                    </div>
+                    ${template.variables && template.variables.length > 0 ? `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Variabel</label>
+                            <div class="mt-1 flex flex-wrap gap-2">
+                                ${template.variables.map(v => `<code class="bg-blue-100 px-2 py-1 rounded text-xs">{${v}}</code>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            document.getElementById('templateModal').classList.remove('hidden');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function closeModal() {
+    document.getElementById('templateModal').classList.add('hidden');
+}
+</script>
+

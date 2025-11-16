@@ -1,11 +1,11 @@
 /**
  * Utility untuk generate ID Pelanggan otomatis
- * Format: YYYYMMDDHHMMSSMMM (17 digit dengan milliseconds untuk avoid duplicates)
+ * Format: YYYYMMDDHHMMSS (14 digit - tahun bulan tanggal jam menit detik)
  */
 
 export class CustomerIdGenerator {
     /**
-     * Generate ID Pelanggan otomatis dengan format YYYYMMDDHHMMSS
+     * Generate ID Pelanggan otomatis dengan format YYYYMMDDHHMMSS (14 digit)
      * @returns string - ID Pelanggan dalam format YYYYMMDDHHMMSS
      */
     static generateCustomerId(): string {
@@ -17,9 +17,24 @@ export class CustomerIdGenerator {
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
-        const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
         
-        return `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`;
+        return `${year}${month}${day}${hours}${minutes}${seconds}`;
+    }
+    
+    /**
+     * Generate ID Pelanggan dari tanggal (untuk format timestamp dari created_at)
+     * @param date - Date object untuk di-convert ke format timestamp
+     * @returns string - ID Pelanggan dalam format YYYYMMDDHHMMSS
+     */
+    static generateCustomerIdFromDate(date: Date): string {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${year}${month}${day}${hours}${minutes}${seconds}`;
     }
 
     /**
@@ -38,10 +53,10 @@ export class CustomerIdGenerator {
      * @returns boolean - true jika format valid
      */
     static isValidCustomerIdFormat(customerId: string): boolean {
-        // Format: YYYYMMDDHHMMSSMMM (17 digit) or legacy YYYYMMDDHHMMSS (14 digit)
-        const pattern17 = /^\d{17}$/;
+        // Format: YYYYMMDDHHMMSS (14 digit) atau legacy 17 digit
         const pattern14 = /^\d{14}$/;
-        return pattern17.test(customerId) || pattern14.test(customerId);
+        const pattern17 = /^\d{17}$/;
+        return pattern14.test(customerId) || pattern17.test(customerId);
     }
 
     /**

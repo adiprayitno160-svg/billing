@@ -17,8 +17,13 @@ export const databasePool = mysql.createPool({
 	password: databasePassword,
 	database: databaseName,
 	waitForConnections: true,
-	connectionLimit: 10,
-	queueLimit: 0
+	connectionLimit: 20, // Increased from 10 for better concurrency
+	queueLimit: 0,
+	enableKeepAlive: true,
+	keepAliveInitialDelay: 0,
+	// Connection pool optimization
+	idleTimeout: 300000, // 5 minutes
+	maxIdle: 10
 });
 
 export async function checkDatabaseConnection(): Promise<void> {
@@ -237,6 +242,10 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Ensure prepaid_package_subscriptions has last_notified_at column
 		await addCol(`ALTER TABLE prepaid_package_subscriptions ADD COLUMN last_notified_at TIMESTAMP NULL AFTER expiry_date`);
 
+		// Ensure prepaid_packages has download_limit and upload_limit columns for PPPoE rate limiting
+		await addCol(`ALTER TABLE prepaid_packages ADD COLUMN download_limit VARCHAR(50) NULL AFTER allow_custom_speed`);
+		await addCol(`ALTER TABLE prepaid_packages ADD COLUMN upload_limit VARCHAR(50) NULL AFTER download_limit`);
+
 		// Ensure mikrotik_address_list_items has required columns
 		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN customer_id INT NULL AFTER id`);
 		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN list_name VARCHAR(191) NULL AFTER customer_id`);
@@ -259,8 +268,258 @@ export async function ensureInitialSchema(): Promise<void> {
 			INDEX idx_scheduled_date (scheduled_date)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
+		// Add new columns for maintenance scheduling system (if not exist)
+		// Check what columns exist in the table - handle gracefully if table doesn't exist yet
+		let columnNames: string[] = [];
+		try {
+			const [allColumns] = await conn.query(`SHOW COLUMNS FROM maintenance_schedules`);
+			columnNames = Array.isArray(allColumns) ? allColumns.map((col: any) => col.Field) : [];
+		} catch (err: any) {
+			// Table might not exist yet, that's OK - will be created above
+			console.log('[DB] maintenance_schedules table columns check failed, will use defaults');
+		}
+		
+		// Helper function to safely add column with AFTER clause
+		const addColAfter = async (columnName: string, columnDef: string, afterColumn?: string) => {
+			if (afterColumn && columnNames.includes(afterColumn)) {
+				await addCol(`ALTER TABLE maintenance_schedules ADD COLUMN ${columnName} ${columnDef} AFTER ${afterColumn}`);
+				// Update columnNames after adding
+				if (!columnNames.includes(columnName)) columnNames.push(columnName);
+			} else {
+				await addCol(`ALTER TABLE maintenance_schedules ADD COLUMN ${columnName} ${columnDef}`);
+				if (!columnNames.includes(columnName)) columnNames.push(columnName);
+			}
+		};
+		
+		await addColAfter('title', 'VARCHAR(255) NULL', 'id');
+		
+		// Add start_time - find a suitable position
+		if (columnNames.includes('scheduled_date')) {
+			await addColAfter('start_time', 'DATETIME NULL', 'scheduled_date');
+		} else if (columnNames.includes('completed_date')) {
+			await addColAfter('start_time', 'DATETIME NULL', 'completed_date');
+		} else if (columnNames.includes('status')) {
+			await addColAfter('start_time', 'DATETIME NULL', 'status');
+		} else {
+			await addColAfter('start_time', 'DATETIME NULL');
+		}
+		
+		// Add end_time after start_time (will be added after start_time is created)
+		if (columnNames.includes('start_time')) {
+			await addColAfter('end_time', 'DATETIME NULL', 'start_time');
+		} else {
+			await addColAfter('end_time', 'DATETIME NULL');
+		}
+		
+		// Add other columns
+		await addColAfter('affected_customers', 'JSON NULL', columnNames.includes('customer_id') ? 'customer_id' : undefined);
+		await addColAfter('created_by', 'INT NULL', columnNames.includes('notes') ? 'notes' : undefined);
+		await addColAfter('maintenance_type', 'VARCHAR(50) NULL', (columnNames.includes('title') ? 'title' : undefined));
+		await addColAfter('affected_area', 'VARCHAR(191) NULL', (columnNames.includes('maintenance_type') ? 'maintenance_type' : undefined));
+		await addColAfter('estimated_duration_minutes', 'INT NULL', (columnNames.includes('end_time') ? 'end_time' : undefined));
+		await addColAfter('notification_sent', 'TINYINT(1) DEFAULT 0', (columnNames.includes('created_by') ? 'created_by' : undefined));
+		await addColAfter('notification_sent_at', 'TIMESTAMP NULL', (columnNames.includes('notification_sent') ? 'notification_sent' : undefined));
+		
+		// Make customer_id nullable since we're using affected_customers JSON now
+		if (columnNames.includes('customer_id')) {
+			await addCol(`ALTER TABLE maintenance_schedules MODIFY COLUMN customer_id INT NULL`);
+		}
+		
+		// Add index for start_time if not exists
+		try {
+			await conn.query(`CREATE INDEX idx_start_time ON maintenance_schedules(start_time)`);
+		} catch (err: any) {
+			if (!err.message.includes('Duplicate key name')) {
+				throw err;
+			}
+		}
+
+		// Add custom payment deadline columns to customers table
+		await addCol(`ALTER TABLE customers ADD COLUMN custom_payment_deadline TINYINT NULL COMMENT 'Tanggal deadline custom (1-31), NULL untuk pakai default' AFTER odc_location`);
+		await addCol(`ALTER TABLE customers ADD COLUMN custom_isolate_days_after_deadline TINYINT DEFAULT 1 COMMENT 'Jumlah hari setelah deadline custom untuk isolasi (default 1)' AFTER custom_payment_deadline`);
+
+		// Add pppoe_password column to customers table (for storing PPPoE password)
+		await addCol(`ALTER TABLE customers ADD COLUMN pppoe_password VARCHAR(255) NULL COMMENT 'Password untuk koneksi PPPoE' AFTER pppoe_username`);
+
+		// Create notification_logs table for notification channels
+		await conn.query(`CREATE TABLE IF NOT EXISTS notification_logs (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NULL,
+			channel VARCHAR(50) NOT NULL DEFAULT 'telegram',
+			recipient VARCHAR(50) NOT NULL,
+			template VARCHAR(191) NULL,
+			message TEXT NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			error_message TEXT NULL,
+			sent_at TIMESTAMP NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_channel (channel),
+			INDEX idx_status (status),
+			INDEX idx_created_at (created_at),
+			INDEX idx_recipient (recipient),
+			CONSTRAINT fk_notification_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create customer_notifications_log table for customer-specific notifications
+		await conn.query(`CREATE TABLE IF NOT EXISTS customer_notifications_log (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			channel VARCHAR(50) NOT NULL,
+			notification_type VARCHAR(50) NOT NULL,
+			message TEXT NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			recipient VARCHAR(255) NULL,
+			error_message TEXT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_channel (channel),
+			INDEX idx_type (notification_type),
+			INDEX idx_status (status),
+			INDEX idx_created_at (created_at),
+			CONSTRAINT fk_customer_notif_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create notification_templates table for customizable notification templates
+		await conn.query(`CREATE TABLE IF NOT EXISTS notification_templates (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			template_code VARCHAR(100) NOT NULL UNIQUE,
+			template_name VARCHAR(255) NOT NULL,
+			notification_type VARCHAR(100) NOT NULL,
+			channel VARCHAR(50) NOT NULL DEFAULT 'whatsapp',
+			title_template TEXT NOT NULL,
+			message_template TEXT NOT NULL,
+			variables TEXT NULL COMMENT 'JSON array of available variables',
+			is_active BOOLEAN DEFAULT TRUE,
+			priority VARCHAR(20) DEFAULT 'normal',
+			schedule_days_before INT NULL COMMENT 'Days before event to send (for scheduled notifications)',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_template_code (template_code),
+			INDEX idx_notification_type (notification_type),
+			INDEX idx_channel (channel),
+			INDEX idx_is_active (is_active)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create unified_notifications_queue table for all notification types
+		await conn.query(`CREATE TABLE IF NOT EXISTS unified_notifications_queue (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NULL,
+			subscription_id INT NULL,
+			invoice_id INT NULL,
+			payment_id INT NULL,
+			notification_type VARCHAR(100) NOT NULL,
+			template_code VARCHAR(100) NULL,
+			channel VARCHAR(50) NOT NULL DEFAULT 'whatsapp',
+			title TEXT NOT NULL,
+			message TEXT NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			priority VARCHAR(20) DEFAULT 'normal',
+			retry_count INT DEFAULT 0,
+			max_retries INT DEFAULT 3,
+			error_message TEXT NULL,
+			scheduled_for TIMESTAMP NULL,
+			sent_at TIMESTAMP NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_status (status),
+			INDEX idx_channel (channel),
+			INDEX idx_notification_type (notification_type),
+			INDEX idx_scheduled_for (scheduled_for),
+			INDEX idx_created_at (created_at),
+			CONSTRAINT fk_unified_notif_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+			CONSTRAINT fk_unified_notif_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Insert default notification templates
+		await conn.query(`INSERT IGNORE INTO notification_templates 
+			(template_code, template_name, notification_type, channel, title_template, message_template, variables, priority) VALUES
+			('invoice_created', 'Invoice Dibuat', 'invoice_created', 'whatsapp', 
+			 'Invoice Baru - {invoice_number}', 
+			 'Halo {customer_name},\n\nInvoice baru telah dibuat untuk Anda:\n\n📄 Invoice: {invoice_number}\n💰 Jumlah: Rp {amount}\n📅 Jatuh Tempo: {due_date}\n\nSilakan lakukan pembayaran sebelum jatuh tempo.\n\nTerima kasih.', 
+			 '["customer_name", "invoice_number", "amount", "due_date", "period"]', 'normal'),
+			('invoice_overdue', 'Invoice Terlambat', 'invoice_overdue', 'whatsapp',
+			 'Peringatan: Invoice Terlambat - {invoice_number}',
+			 'Halo {customer_name},\n\n⚠️ Invoice Anda telah melewati jatuh tempo:\n\n📄 Invoice: {invoice_number}\n💰 Jumlah: Rp {amount}\n📅 Jatuh Tempo: {due_date}\n⏰ Terlambat: {days_overdue} hari\n\nSilakan segera lakukan pembayaran untuk menghindari gangguan layanan.\n\nTerima kasih.',
+			 '["customer_name", "invoice_number", "amount", "due_date", "days_overdue"]', 'high'),
+			('payment_received', 'Pembayaran Diterima', 'payment_received', 'whatsapp',
+			 'Pembayaran Diterima - {invoice_number}',
+			 'Halo {customer_name},\n\n✅ Pembayaran Anda telah diterima:\n\n📄 Invoice: {invoice_number}\n💰 Jumlah: Rp {amount}\n💳 Metode: {payment_method}\n📅 Tanggal: {payment_date}\n\nTerima kasih atas pembayaran Anda.',
+			 '["customer_name", "invoice_number", "amount", "payment_method", "payment_date"]', 'normal'),
+			('payment_partial', 'Pembayaran Sebagian', 'payment_partial', 'whatsapp',
+			 'Pembayaran Sebagian Diterima - {invoice_number}',
+			 'Halo {customer_name},\n\n✅ Pembayaran sebagian telah diterima:\n\n📄 Invoice: {invoice_number}\n💰 Dibayar: Rp {paid_amount}\n💵 Sisa: Rp {remaining_amount}\n\nSilakan lakukan pelunasan untuk invoice ini.',
+			 '["customer_name", "invoice_number", "paid_amount", "remaining_amount"]', 'normal'),
+			('package_expiring', 'Paket Akan Berakhir', 'package_expiring', 'whatsapp',
+			 'Paket Internet Akan Berakhir',
+			 'Halo {customer_name},\n\n⏰ Paket internet Anda akan berakhir dalam {days} hari:\n\n📦 Paket: {package_name}\n📅 Berakhir: {expiry_date}\n\nSegera perpanjang untuk menghindari gangguan layanan.',
+			 '["customer_name", "package_name", "days", "expiry_date"]', 'normal'),
+			('package_expired', 'Paket Berakhir', 'package_expired', 'whatsapp',
+			 'Paket Internet Telah Berakhir',
+			 'Halo {customer_name},\n\n⚠️ Paket internet Anda telah berakhir:\n\n📦 Paket: {package_name}\n📅 Berakhir: {expiry_date}\n\nSilakan beli paket baru untuk melanjutkan layanan.',
+			 '["customer_name", "package_name", "expiry_date"]', 'high'),
+			('quota_warning', 'Peringatan Kuota', 'quota_warning', 'whatsapp',
+			 'Peringatan: Kuota Hampir Habis',
+			 'Halo {customer_name},\n\n⚠️ Kuota internet Anda hampir habis:\n\n📊 Tersisa: {remaining_gb} GB ({percentage}%)\n📦 Paket: {package_name}\n\nSegera top up untuk menghindari gangguan layanan.',
+			 '["customer_name", "remaining_gb", "percentage", "package_name"]', 'normal'),
+			('quota_depleted', 'Kuota Habis', 'quota_depleted', 'whatsapp',
+			 'Kuota Internet Habis',
+			 'Halo {customer_name},\n\n❌ Kuota internet Anda telah habis:\n\n📦 Paket: {package_name}\n\nLayanan telah ditangguhkan. Silakan beli paket baru.',
+			 '["customer_name", "package_name"]', 'high'),
+			('package_activated', 'Paket Diaktifkan', 'package_activated', 'whatsapp',
+			 'Paket Internet Aktif',
+			 'Halo {customer_name},\n\n✅ Paket internet Anda telah diaktifkan:\n\n📦 Paket: {package_name}\n⚡ Kecepatan: {speed} Mbps\n⏱️ Durasi: {duration} hari\n📅 Berakhir: {expiry_date}\n\nNikmati layanan internet Anda!',
+			 '["customer_name", "package_name", "speed", "duration", "expiry_date"]', 'normal'),
+			('auto_renew_success', 'Perpanjangan Otomatis Berhasil', 'auto_renew_success', 'whatsapp',
+			 'Paket Otomatis Diperpanjang',
+			 'Halo {customer_name},\n\n✅ Paket internet Anda telah diperpanjang secara otomatis menggunakan saldo deposit.\n\n📦 Paket: {package_name}\n💰 Saldo tersisa: Rp {remaining_balance}',
+			 '["customer_name", "package_name", "remaining_balance"]', 'normal'),
+			('auto_renew_failed', 'Perpanjangan Otomatis Gagal', 'auto_renew_failed', 'whatsapp',
+			 'Gagal Perpanjangan Otomatis',
+			 'Halo {customer_name},\n\n❌ Gagal memperpanjang paket secara otomatis:\n\n📦 Paket: {package_name}\n💰 Saldo deposit tidak mencukupi\n\nSilakan top up deposit atau beli paket manual.',
+			 '["customer_name", "package_name"]', 'high'),
+			('customer_created', 'Pelanggan Baru', 'customer_created', 'whatsapp',
+			 'Selamat Datang - {customer_code}',
+			 '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support',
+			 '["customer_name", "customer_code", "connection_type", "package_info", "pppoe_info", "ip_info"]', 'normal'),
+			('service_blocked', 'Layanan Diblokir', 'service_blocked', 'whatsapp',
+			 'Layanan Internet Diblokir',
+			 '⚠️ *Layanan Internet Diblokir*\n\nHalo {customer_name},\n\nLayanan internet Anda telah diblokir karena:\n\n📋 *Alasan:*\n{reason}\n\n📄 *Detail:*\n{details}\n\n💡 *Cara Mengaktifkan Kembali:*\n• Lakukan pembayaran tagihan yang tertunggak\n• Hubungi customer service untuk informasi lebih lanjut\n• Setelah pembayaran, layanan akan otomatis diaktifkan kembali\n\nTerima kasih,\nTim Support',
+			 '["customer_name", "reason", "details"]', 'high'),
+			('service_unblocked', 'Layanan Diaktifkan Kembali', 'service_unblocked', 'whatsapp',
+			 'Layanan Internet Diaktifkan Kembali',
+			 '✅ *Layanan Internet Diaktifkan Kembali*\n\nHalo {customer_name},\n\nLayanan internet Anda telah diaktifkan kembali!\n\n📋 *Informasi:*\n{details}\n\n💡 *Terima Kasih:*\nTerima kasih telah melakukan pembayaran. Nikmati layanan internet Anda kembali!\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
+			 '["customer_name", "details"]', 'normal')
+		`);
+		
+		// Ensure customer_created template exists (additional check)
+		await conn.query(`INSERT IGNORE INTO notification_templates 
+			(template_code, template_name, notification_type, channel, title_template, message_template, variables, priority, is_active) VALUES
+			('customer_created', 'Pelanggan Baru', 'customer_created', 'whatsapp', 
+			 'Selamat Datang - {customer_code}', 
+			 '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support', 
+			 '["customer_name", "customer_code", "connection_type", "package_info", "pppoe_info", "ip_info"]', 'normal', TRUE),
+			('service_blocked', 'Layanan Diblokir', 'service_blocked', 'whatsapp',
+			 'Layanan Internet Diblokir',
+			 '⚠️ *Layanan Internet Diblokir*\n\nHalo {customer_name},\n\nLayanan internet Anda telah diblokir karena:\n\n📋 *Alasan:*\n{reason}\n\n📄 *Detail:*\n{details}\n\n💡 *Cara Mengaktifkan Kembali:*\n• Lakukan pembayaran tagihan yang tertunggak\n• Hubungi customer service untuk informasi lebih lanjut\n• Setelah pembayaran, layanan akan otomatis diaktifkan kembali\n\nTerima kasih,\nTim Support',
+			 '["customer_name", "reason", "details"]', 'high', TRUE),
+			('service_unblocked', 'Layanan Diaktifkan Kembali', 'service_unblocked', 'whatsapp',
+			 'Layanan Internet Diaktifkan Kembali',
+			 '✅ *Layanan Internet Diaktifkan Kembali*\n\nHalo {customer_name},\n\nLayanan internet Anda telah diaktifkan kembali!\n\n📋 *Informasi:*\n{details}\n\n💡 *Terima Kasih:*\nTerima kasih telah melakukan pembayaran. Nikmati layanan internet Anda kembali!\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
+			 '["customer_name", "details"]', 'normal', TRUE)`);
+
 	} finally {
 		conn.release();
+	}
+	
+	// Ensure new templates exist (run after schema creation)
+	try {
+		const { ensureNotificationTemplates } = await import('../utils/ensureNotificationTemplates');
+		await ensureNotificationTemplates();
+		console.log('✅ Additional notification templates ensured');
+	} catch (error) {
+		console.error('⚠️ Error ensuring additional templates (non-critical):', error);
+		// Non-critical, continue
 	}
 }
 

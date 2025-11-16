@@ -1,5 +1,4 @@
 import { databasePool } from '../../db/pool';
-import { WhatsappService } from './whatsappService';
 
 export interface InvoiceDetailData {
     id: number;
@@ -290,8 +289,6 @@ export class InvoiceDetailService {
                 });
             }
             
-            // Send WhatsApp notification
-            await this.sendPaymentConfirmationWhatsApp(updatedInvoice!, paymentData.amount);
             
             await connection.commit();
             
@@ -392,64 +389,6 @@ export class InvoiceDetailService {
         }
     }
 
-    /**
-     * Send payment confirmation via WhatsApp
-     */
-    private static async sendPaymentConfirmationWhatsApp(invoice: InvoiceDetailData, paymentAmount: number): Promise<void> {
-        try {
-            if (!invoice.customer_phone) {
-                console.log('Customer phone not available for WhatsApp notification');
-                return;
-            }
-            
-            const whatsappService = new WhatsappService();
-            
-            const message = `Halo *${invoice.customer_name}*,
-
-✅ *PEMBAYARAN DITERIMA*
-
-📋 *Detail Pembayaran:*
-• No. Invoice: ${invoice.invoice_number}
-• Periode: ${invoice.period}
-• Jumlah Bayar: Rp ${paymentAmount.toLocaleString('id-ID')}
-• Sisa Tagihan: Rp ${invoice.remaining_amount.toLocaleString('id-ID')}
-• Status: ${invoice.status === 'paid' ? 'LUNAS' : 'SEBAGIAN'}
-
-${invoice.status === 'paid' ? '🎉 Tagihan sudah lunas! Terima kasih atas pembayarannya.' : '⚠️ Masih ada sisa tagihan yang perlu dilunasi.'}
-
-Terima kasih.`;
-            
-            await whatsappService.sendCustomMessage(invoice.customer_phone, message, 'payment_confirmation');
-            
-            // Log notification
-            await this.logWhatsAppNotification(invoice.id, invoice.customer_id, 'payment_confirmation', message);
-            
-        } catch (error) {
-            console.error('Error sending WhatsApp payment confirmation:', error);
-        }
-    }
-
-    /**
-     * Log WhatsApp notification
-     */
-    private static async logWhatsAppNotification(
-        invoiceId: number, 
-        customerId: number, 
-        notificationType: string, 
-        message: string
-    ): Promise<void> {
-        try {
-            const query = `
-                INSERT INTO whatsapp_payment_notifications 
-                (invoice_id, customer_id, notification_type, message_content, created_at)
-                VALUES (?, ?, ?, ?, NOW())
-            `;
-            
-            await databasePool.execute(query, [invoiceId, customerId, notificationType, message]);
-        } catch (error) {
-            console.error('Error logging WhatsApp notification:', error);
-        }
-    }
 
     /**
      * Get payment session by token

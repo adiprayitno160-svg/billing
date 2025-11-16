@@ -6,6 +6,7 @@
     "uploads/**/*",
     "node_modules/**/*",
     "dist/**/*",
+    "scripts/**/*",
     "src/controllers/ftth/**/*",
     "src/services/mikrotik/**/*",
     "src/controllers/excelController.ts"
@@ -48,6 +49,7 @@
     "noUncheckedSideEffectImports": false,
     "moduleDetection": "auto",
     "skipLibCheck": true,
+    "noEmitOnError": false,
 
     "esModuleInterop": true,
     "resolveJsonModule": true,

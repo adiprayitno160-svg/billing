@@ -83,6 +83,17 @@ export class AuthMiddleware {
             const userId = (req.session as any)?.userId;
             
             if (!userId) {
+                // Check if this is an API request (JSON expected)
+                const acceptsJson = req.headers.accept?.includes('application/json') || 
+                                   req.headers['content-type']?.includes('application/json');
+                
+                if (acceptsJson || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH') {
+                    res.status(401).json({
+                        success: false,
+                        error: 'Unauthorized: Anda harus login terlebih dahulu'
+                    });
+                }
+                
                 req.flash('error', 'Anda harus login terlebih dahulu');
                 return res.redirect('/login');
             }

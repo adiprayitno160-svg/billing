@@ -44,6 +44,12 @@ export class PaymentService {
             await this.updateInvoicePaymentStatus(paymentData.invoice_id);
             
             await connection.commit();
+            
+            // Track late payment (async, don't wait)
+            this.trackLatePayment(paymentData.invoice_id, paymentId).catch(error => {
+                console.error('[PaymentService] Error tracking late payment:', error);
+            });
+            
             return paymentId;
             
         } catch (error) {
@@ -363,5 +369,41 @@ export class PaymentService {
             pending_count: parseInt(stats.pending_count) || 0,
             failed_count: parseInt(stats.failed_count) || 0
         };
+    }
+
+    /**
+     * Track late payment (internal helper)
+     */
+    private static async trackLatePayment(invoiceId: number, paymentId: number): Promise<void> {
+        try {
+            // Get invoice and payment info
+            const [invoiceRows] = await databasePool.execute(
+                `SELECT i.due_date, i.id, COALESCE(p.payment_date, p.created_at) as payment_date, p.id as payment_id
+                 FROM invoices i
+                 JOIN payments p ON i.id = p.invoice_id
+                 WHERE i.id = ? AND p.id = ?`,
+                [invoiceId, paymentId]
+            );
+
+            const invoice = (invoiceRows as any[])[0];
+            if (!invoice || !invoice.payment_date || !invoice.due_date) {
+                return;
+            }
+
+            const paymentDate = new Date(invoice.payment_date);
+            const dueDate = new Date(invoice.due_date);
+
+            // Import and track
+            const { LatePaymentTrackingService } = await import('./LatePaymentTrackingService');
+            await LatePaymentTrackingService.trackPayment(
+                invoiceId,
+                paymentId,
+                paymentDate,
+                dueDate
+            );
+        } catch (error) {
+            console.error('[PaymentService] Error in trackLatePayment:', error);
+            // Don't throw - this is non-critical
+        }
     }
 }

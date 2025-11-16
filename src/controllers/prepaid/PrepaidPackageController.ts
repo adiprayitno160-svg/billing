@@ -70,7 +70,11 @@ class PrepaidPackageController {
    */
   async showPackageDetail(req: Request, res: Response) {
     try {
-      const packageId = parseInt(req.params.id);
+      const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const packageId = parseInt(id);
       const customerId = (req.session as any).portalCustomerId;
 
       // Get package details
@@ -101,7 +105,7 @@ class PrepaidPackageController {
       );
 
       res.render('prepaid/portal-package-detail', {
-        title: `Paket ${packageData.name}`,
+        title: `Paket ${packageData?.name || 'Unknown'}`,
         layout: false,
         package: packageData,
         customer: customerRows[0],
@@ -138,7 +142,7 @@ class PrepaidPackageController {
       // Store selected package in session
       if (req.session) {
         (req.session as any).selectedPackageId = packageId;
-        (req.session as any).selectedPackagePrice = packageRows[0].price;
+        (req.session as any).selectedPackagePrice = packageRows[0]?.price || 0;
       }
 
       // Redirect to payment page
@@ -184,7 +188,11 @@ class PrepaidPackageController {
    */
   async getPackageByIdAPI(req: Request, res: Response) {
     try {
-      const packageId = parseInt(req.params.id);
+      const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const packageId = parseInt(id);
 
       const [packageRows] = await pool.query<RowDataPacket[]>(
         `SELECT 

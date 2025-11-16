@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { MikrotikService } from '../../services/mikrotik/MikrotikService';
 import { databasePool } from '../../db/pool';
+import { getMikrotikConfig } from '../../utils/mikrotikConfigHelper';
 
 export class PortalController {
   private mikrotikService: MikrotikService | null = null;
@@ -11,19 +12,18 @@ export class PortalController {
 
   private async getMikrotikService(): Promise<MikrotikService> {
     if (!this.mikrotikService) {
-      // Get Mikrotik config from database
-      const [rows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
-      const settings = Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : null;
+      // Get Mikrotik config using safe helper (never throws, returns null on error)
+      const config = await getMikrotikConfig();
       
-      if (!settings) {
-        throw new Error('Konfigurasi Mikrotik belum diatur');
+      if (!config) {
+        throw new Error('Konfigurasi Mikrotik belum diatur. Silakan setup di Settings > MikroTik');
       }
 
       this.mikrotikService = new MikrotikService({
-        host: settings.host,
-        username: settings.username,
-        password: settings.password,
-        port: parseInt(settings.port || '8728')
+        host: config.host,
+        username: config.username,
+        password: config.password,
+        port: config.port || config.api_port || 8728
       });
     }
     
@@ -87,8 +87,24 @@ export class PortalController {
 
       const customer = rows[0] as any;
 
-      // Verifikasi password (gunakan bcrypt jika ada)
-      if (customer.password !== password) {
+      // Verifikasi password (support bcrypt jika password di-hash, atau plain text untuk backward compatibility)
+      let passwordMatch = false;
+      
+      try {
+        // Try bcrypt comparison first (if password is hashed)
+        if (customer.password && customer.password.startsWith('$2')) {
+          const bcrypt = require('bcrypt');
+          passwordMatch = await bcrypt.compare(password, customer.password);
+        } else {
+          // Fallback to plain text comparison (for backward compatibility)
+          passwordMatch = customer.password === password;
+        }
+      } catch (bcryptError) {
+        // If bcrypt fails, fallback to plain text
+        passwordMatch = customer.password === password;
+      }
+      
+      if (!passwordMatch) {
         return res.redirect('/portal/login?error=Password salah');
       }
 
@@ -234,10 +250,16 @@ export class PortalController {
         // Tambahkan IP ke address list portal untuk akses internet
         const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
         if (clientIP) {
-          await (await this.getMikrotikService()).addToPortalAddressList(
-            clientIP,
-            `Customer: ${customer.username} - Package: ${packageData.name}`
-          );
+          try {
+            await (await this.getMikrotikService()).addToPortalAddressList(
+              clientIP,
+              `Customer: ${customer.username} - Package: ${packageData.name}`
+            );
+          } catch (mikrotikError: any) {
+            // Log error but don't fail the transaction
+            console.error('Error adding IP to Mikrotik address list:', mikrotikError);
+            // Continue with transaction commit - customer payment is successful
+          }
         }
 
         await connection.commit();
@@ -265,7 +287,12 @@ export class PortalController {
       // Hapus IP dari address list jika ada
       const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
       if (clientIP) {
-        await (await this.getMikrotikService()).removeFromPortalAddressList(clientIP);
+        try {
+          await (await this.getMikrotikService()).removeFromPortalAddressList(clientIP);
+        } catch (mikrotikError: any) {
+          // Log error but don't fail logout
+          console.error('Error removing IP from Mikrotik address list:', mikrotikError);
+        }
       }
 
       // Hapus session

@@ -1,119 +1,235 @@
-// Dropdown function - simple and reliable
-function toggleMenu(menuId) {
-    const menu = document.getElementById(menuId + '-menu');
-    const arrow = document.getElementById(menuId + '-arrow');
-    if (menu && arrow) {
-        const shouldOpen = menu.style.display === 'none' || menu.classList.contains('hidden');
-        if (shouldOpen) {
-            menu.style.display = 'block';
-            menu.classList.remove('hidden');
-            arrow.style.transform = 'rotate(180deg)';
-        } else {
-            menu.style.display = 'none';
-            menu.classList.add('hidden');
-            arrow.style.transform = 'rotate(0deg)';
-        }
+// Sidebar menu toggle functionality - SIMPLIFIED VERSION
+function toggleMenu(menuName, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
     }
+    
+    console.log('toggleMenu called for:', menuName);
+    
+    const menuContent = document.getElementById(`${menuName}-menu`);
+    const arrow = document.getElementById(`${menuName}-arrow`);
+    
+    if (!menuContent) {
+        console.warn(`Menu content not found: ${menuName}`);
+        return false;
+    }
+    
+    if (!arrow) {
+        console.warn(`Menu arrow not found: ${menuName}`);
+        return false;
+    }
+    
+    // Check if menu is currently hidden
+    const isHidden = menuContent.style.display === 'none' || 
+                     menuContent.classList.contains('hidden') ||
+                     getComputedStyle(menuContent).display === 'none';
+    
+    console.log(`Menu ${menuName} is hidden:`, isHidden);
+    
+    if (isHidden) {
+        // Show menu
+        menuContent.style.display = 'block';
+        menuContent.classList.remove('hidden');
+        menuContent.style.pointerEvents = 'auto';
+        menuContent.style.visibility = 'visible';
+        arrow.style.transform = 'rotate(180deg)';
+        console.log(`Menu ${menuName} opened`);
+    } else {
+        // Hide menu
+        menuContent.style.display = 'none';
+        menuContent.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+        console.log(`Menu ${menuName} closed`);
+    }
+    
+    return false;
 }
 
+// Make toggleMenu available globally immediately
 window.toggleMenu = toggleMenu;
 
-function initDropdowns() {
-    // Global event delegation for all menu toggles
-    document.addEventListener('click', function(ev) {
-        const toggleButton = ev.target && ev.target.closest && ev.target.closest('.menu-toggle');
-        if (!toggleButton) return;
-        const menuId = toggleButton.getAttribute('data-menu');
-        if (!menuId) return;
-        ev.preventDefault();
-        toggleMenu(menuId);
-    });
-
-    // Auto-open based on path
-    const path = window.location.pathname;
-    if (path.startsWith('/customers/') || path.startsWith('/billing/customers')) {
-        toggleMenu('customers');
-    } else if (path.startsWith('/packages/pppoe/') || path.startsWith('/packages/static-ip')) {
-        toggleMenu('packages');
-    } else if (path.startsWith('/monitoring/')) {
-        toggleMenu('monitoring');
-    } else if (path.startsWith('/ftth/')) {
-        toggleMenu('ftth');
-    } else if (path.startsWith('/prepaid/')) {
-        toggleMenu('prepaid');
-    } else if (path.startsWith('/settings/')) {
-        toggleMenu('settings');
-    }
+// Also ensure it's available on window object
+if (typeof window !== 'undefined') {
+    window.toggleMenu = toggleMenu;
 }
 
-// Sidebar Toggle Function
-function initSidebarToggle() {
+// Log to confirm it's loaded
+console.log('✅ sidebar.js loaded, toggleMenu available:', typeof window.toggleMenu !== 'undefined');
+
+// Use event delegation on sidebar for better reliability
+function setupMenuClickHandlers() {
     const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    const mainContent = document.getElementById('main-content');
-    const footer = document.getElementById('footer');
-    
-    if (!sidebar || !toggleBtn) {
-        console.log('Sidebar toggle elements not found');
+    if (!sidebar) {
+        console.warn('Sidebar not found');
         return;
     }
     
-    // Load saved state from localStorage
-    const savedState = localStorage.getItem('sidebarCollapsed');
-    const isCollapsed = savedState === 'true';
-    
-    // Apply saved state on load
-    if (isCollapsed) {
-        collapseSidebar();
+    // Remove any existing click handlers to avoid duplicates
+    const existingHandler = sidebar._menuClickHandler;
+    if (existingHandler) {
+        sidebar.removeEventListener('click', existingHandler, true);
     }
     
-    // Toggle button click handler
-    toggleBtn.addEventListener('click', function() {
-        const currentlyCollapsed = sidebar.classList.contains('sidebar-collapsed');
-        if (currentlyCollapsed) {
-            expandSidebar();
-        } else {
-            collapseSidebar();
+    // Create new click handler using event delegation
+    const menuClickHandler = function(e) {
+        console.log('Menu click handler triggered', e.target);
+        
+        // Find the closest menu-toggle button
+        const button = e.target.closest('.menu-toggle[data-menu]');
+        if (!button) {
+            console.log('No menu button found for target:', e.target);
+            return;
+        }
+        
+        console.log('Menu button found:', button.getAttribute('data-menu'));
+        
+        // Prevent default and stop propagation
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // Get menu name
+        const menuName = button.getAttribute('data-menu');
+        if (!menuName) {
+            console.warn('No menu name found on button');
+            return;
+        }
+        
+        // Toggle menu
+        toggleMenu(menuName, e);
+        
+        return false;
+    };
+    
+    // Store handler reference
+    sidebar._menuClickHandler = menuClickHandler;
+    
+    // Add event listener with capture phase (runs first)
+    sidebar.addEventListener('click', menuClickHandler, true);
+    
+    // Also add direct listeners to each button as backup
+    const menuButtons = document.querySelectorAll('.menu-toggle[data-menu]');
+    menuButtons.forEach(button => {
+        // Remove onclick attribute to avoid conflicts
+        button.removeAttribute('onclick');
+        
+        // Ensure button is clickable
+        button.style.pointerEvents = 'auto';
+        button.style.cursor = 'pointer';
+        button.style.position = 'relative';
+        button.style.zIndex = '10003';
+        
+        // Add direct listener as backup
+        const menuName = button.getAttribute('data-menu');
+        if (menuName) {
+            const directHandler = function(e) {
+                console.log('Direct click handler triggered for:', menuName);
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                toggleMenu(menuName, e);
+                return false;
+            };
+            button.addEventListener('click', directHandler, true);
+            console.log(`✅ Direct listener added to ${menuName}`);
         }
     });
     
-    function collapseSidebar() {
-        sidebar.classList.add('sidebar-collapsed');
-        sidebar.style.width = '0px';
-        sidebar.style.minWidth = '0px';
-        sidebar.style.overflow = 'hidden';
-        if (mainContent) {
-            mainContent.style.marginLeft = '0px';
-        }
-        if (footer) {
-            footer.style.left = '0px';
-        }
-        localStorage.setItem('sidebarCollapsed', 'true');
-    }
-    
-    function expandSidebar() {
-        sidebar.classList.remove('sidebar-collapsed');
-        sidebar.style.width = '16rem'; // 64 = 16rem
-        sidebar.style.minWidth = '16rem';
-        sidebar.style.overflow = 'visible';
-        if (mainContent) {
-            mainContent.style.marginLeft = '0px';
-        }
-        if (footer) {
-            footer.style.left = '256px'; // 16rem = 256px
-        }
-        localStorage.setItem('sidebarCollapsed', 'false');
-    }
+    console.log(`✅ Menu click handlers setup complete for ${menuButtons.length} buttons`);
 }
 
+// Initialize menu states on page load
+function initializeMenus() {
+    console.log('Initializing menus...');
+    
+    // Check if any menu should be open based on current path
+    const currentPath = window.location.pathname;
+    
+    // Menu mapping - which menu should be open for which paths
+    const menuPaths = {
+        'customers': ['/customers'],
+        'packages': ['/packages'],
+        'ftth': ['/ftth'],
+        'billing': ['/billing'],
+        'prepaid': ['/prepaid'],
+        'monitoring': ['/monitoring'],
+        'settings': ['/settings', '/kasir', '/database', '/backup', '/whatsapp', '/notification']
+    };
+    
+    // Open the appropriate menu based on current path
+    for (const [menuName, paths] of Object.entries(menuPaths)) {
+        const shouldOpen = paths.some(path => currentPath.startsWith(path));
+        if (shouldOpen) {
+            const menuContent = document.getElementById(`${menuName}-menu`);
+            const arrow = document.getElementById(`${menuName}-arrow`);
+            
+            if (menuContent && arrow) {
+                menuContent.style.display = 'block';
+                menuContent.classList.remove('hidden');
+                menuContent.style.pointerEvents = 'auto';
+                arrow.style.transform = 'rotate(180deg)';
+            }
+        }
+    }
+    
+    console.log('Menu initialization complete');
+}
+
+// Make initializeMenus available globally
+window.initializeMenus = initializeMenus;
+
+// Function to ensure menus are initialized
+function ensureMenusInitialized() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) {
+        setTimeout(ensureMenusInitialized, 100);
+        return;
+    }
+    
+    const menuButtons = document.querySelectorAll('.menu-toggle[data-menu]');
+    if (menuButtons.length === 0) {
+        setTimeout(ensureMenusInitialized, 100);
+        return;
+    }
+    
+    initializeMenus();
+    
+    // Setup menu click handlers using event delegation
+    setupMenuClickHandlers();
+    
+    console.log('✅ Menus initialized successfully');
+}
+
+// Run on DOM ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        initDropdowns();
-        initSidebarToggle();
-    });
+    document.addEventListener('DOMContentLoaded', ensureMenusInitialized);
 } else {
-    initDropdowns();
-    initSidebarToggle();
+    ensureMenusInitialized();
 }
 
+// Also run after delays to ensure everything is loaded (for redirects, etc)
+setTimeout(ensureMenusInitialized, 100);
+setTimeout(ensureMenusInitialized, 500);
+setTimeout(ensureMenusInitialized, 1000);
+setTimeout(ensureMenusInitialized, 2000);
 
+// Also setup click handlers immediately if sidebar exists
+(function() {
+    function quickSetup() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            setupMenuClickHandlers();
+        }
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', quickSetup);
+    } else {
+        quickSetup();
+    }
+    
+    setTimeout(quickSetup, 100);
+    setTimeout(quickSetup, 500);
+})();

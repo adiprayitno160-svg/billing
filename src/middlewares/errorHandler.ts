@@ -6,15 +6,28 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
 	
 	console.error('Error handler called:', { status, message, error: err });
 	
-	if (req.accepts('html')) {
-		res.status(status).render('error', { 
-			title: 'Error', 
-			status, 
-			message 
+	// Always return JSON for API endpoints (whatsapp, api, etc.)
+	const isAPIRequest = req.path.startsWith('/whatsapp') || 
+	                     req.path.startsWith('/api') ||
+	                     req.method === 'POST' ||
+	                     req.headers.accept?.includes('application/json') ||
+	                     req.headers['content-type']?.includes('application/json');
+	
+	if (isAPIRequest || !req.accepts('html')) {
+		res.status(status).json({ 
+			success: false,
+			error: message, 
+			status 
 		});
 		return;
 	}
-	res.status(status).json({ error: message, status });
+	
+	// For non-API requests, render HTML error page
+	res.status(status).render('error', { 
+		title: 'Error', 
+		status, 
+		message 
+	});
 }
 
 

@@ -133,7 +133,11 @@ export class TelegramUserController {
      */
     async deactivateUser(req: Request, res: Response): Promise<void> {
         try {
-            const userId = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
             await pool.query(`
                 UPDATE telegram_users
@@ -162,7 +166,11 @@ export class TelegramUserController {
      */
     async activateUser(req: Request, res: Response): Promise<void> {
         try {
-            const userId = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
             await pool.query(`
                 UPDATE telegram_users
@@ -191,7 +199,11 @@ export class TelegramUserController {
      */
     async deleteUser(req: Request, res: Response): Promise<void> {
         try {
-            const userId = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             
             await pool.query(`
                 DELETE FROM telegram_users

@@ -110,6 +110,23 @@ export class InvoiceController {
             const [odcResult] = await databasePool.query(odcQuery);
             const odcList = odcResult as RowDataPacket[];
 
+            // Get scheduler settings for due_date_offset
+            const [schedulerResult] = await databasePool.query(`
+                SELECT id, task_name, schedule_config, is_enabled, due_date_offset, created_at, updated_at FROM scheduler_settings WHERE task_name = 'invoice_generation'
+            `) as RowDataPacket[][];
+            
+            let dueDateOffset = 7; // default
+            if (schedulerResult && schedulerResult.length > 0) {
+                const config = schedulerResult[0] ? (
+                    typeof schedulerResult[0].config === 'string'
+                        ? JSON.parse(schedulerResult[0].config)
+                        : schedulerResult[0].config
+                ) : {};
+                if (config && config.due_date_offset) {
+                    dueDateOffset = config.due_date_offset;
+                }
+            }
+
             res.render('billing/tagihan', {
                 title: 'Daftar Tagihan',
                 invoices,
@@ -126,6 +143,9 @@ export class InvoiceController {
                     search,
                     period,
                     odc_id
+                },
+                schedulerSettings: {
+                    due_date_offset: dueDateOffset
                 }
             });
         } catch (error) {
@@ -170,7 +190,7 @@ export class InvoiceController {
 
             // Get invoice items
             const itemsQuery = `
-                SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id
+                SELECT id, invoice_id, description, quantity, unit_price, total_price, created_at FROM invoice_items WHERE invoice_id = ? ORDER BY id
             `;
             const [itemsResult] = await databasePool.query(itemsQuery, [id]);
             const items = itemsResult as RowDataPacket[];
@@ -313,67 +333,145 @@ export class InvoiceController {
         try {
             await conn.beginTransaction();
 
-            const { period, due_date_offset, send_whatsapp } = req.body;
+            const { period, due_date_offset } = req.body;
             const currentPeriod = period || new Date().toISOString().slice(0, 7); // YYYY-MM
             const dueDateOffset = parseInt(due_date_offset || '7'); // Default 7 days from period start
-            const sendWhatsApp = send_whatsapp === true || send_whatsapp === 'true';
 
             console.log(`Generating bulk invoices for period: ${currentPeriod}`);
-            console.log(`Send WhatsApp: ${sendWhatsApp}`);
 
-            // Get all active subscriptions
+            // Get all active customers with their subscriptions (if any)
+            // This ensures we capture all active customers, not just those with active subscriptions
+            // First, check if billing_mode column exists
+            let billingModeFilter = '';
+            try {
+                const [columnCheck] = await conn.query<RowDataPacket[]>(`
+                    SELECT COUNT(*) as count 
+                    FROM information_schema.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'customers' 
+                    AND COLUMN_NAME = 'billing_mode'
+                `);
+                const hasBillingMode = (columnCheck[0]?.count || 0) > 0;
+                if (hasBillingMode) {
+                    billingModeFilter = `AND (c.billing_mode IS NULL OR c.billing_mode = 'postpaid' OR c.billing_mode = '')`;
+                }
+            } catch (e) {
+                console.warn('Could not check for billing_mode column, proceeding without filter:', e);
+            }
+            
             const subscriptionsQuery = `
                 SELECT 
-                    s.*,
+                    COALESCE(s.id, 0) as id,
+                    c.id as customer_id,
                     c.name as customer_name,
                     c.customer_code,
-                    c.phone as customer_phone
-                FROM subscriptions s
-                JOIN customers c ON s.customer_id = c.id
-                WHERE s.status = 'active'
+                    c.phone as customer_phone,
+                    c.status as customer_status,
+                    c.connection_type,
+                    s.package_name,
+                    COALESCE(s.price, 0) as price,
+                    s.status as subscription_status,
+                    s.start_date,
+                    s.end_date
+                FROM customers c
+                LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
+                WHERE c.status = 'active'
+                ${billingModeFilter}
+                AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
             `;
 
             const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery);
 
-            console.log(`Found ${subscriptions.length} active subscriptions`);
+            console.log(`Found ${subscriptions.length} active customers for billing`);
+            
+            // Log breakdown
+            const withSubscription = subscriptions.filter((s: any) => s.id && s.id > 0).length;
+            const withoutSubscription = subscriptions.length - withSubscription;
+            console.log(`  - With active subscription: ${withSubscription}`);
+            console.log(`  - Without subscription (will use default price): ${withoutSubscription}`);
 
-            // Check for existing invoices
+            // Check for existing invoices - improved to handle NULL subscription_id properly
             const checkQuery = `
-                SELECT DISTINCT customer_id, subscription_id
+                SELECT customer_id, subscription_id, COALESCE(subscription_id, 0) as normalized_subscription_id
                 FROM invoices
                 WHERE period = ?
             `;
             const [existingInvoices] = await conn.query<RowDataPacket[]>(checkQuery, [currentPeriod]);
-            const existingSet = new Set(
-                existingInvoices.map((inv: any) => `${inv.customer_id}_${inv.subscription_id}`)
-            );
+            
+            console.log(`Found ${existingInvoices.length} existing invoices for period ${currentPeriod}`);
+            if (existingInvoices.length > 0) {
+                console.log('Existing invoices:', existingInvoices.map((inv: any) => 
+                    `customer_id: ${inv.customer_id}, subscription_id: ${inv.subscription_id}`
+                ));
+            }
+            
+            // Create a map for exact match: customer_id + subscription_id (handling NULL as 0)
+            const exactMatchSet = new Set<string>();
+            // Also track customers with invoices that have NULL/0 subscription_id (legacy invoices)
+            const customersWithLegacyInvoices = new Set<number>();
+            
+            for (const inv of existingInvoices as any[]) {
+                const normalizedSubId = inv.normalized_subscription_id || 0;
+                exactMatchSet.add(`${inv.customer_id}_${normalizedSubId}`);
+                
+                // Track if this is a legacy invoice (NULL or 0 subscription_id)
+                if (!inv.subscription_id || inv.subscription_id === 0) {
+                    customersWithLegacyInvoices.add(inv.customer_id);
+                }
+            }
+            
+            if (customersWithLegacyInvoices.size > 0) {
+                console.log(`Found ${customersWithLegacyInvoices.size} customers with legacy invoices (NULL subscription_id):`, 
+                    Array.from(customersWithLegacyInvoices));
+            }
 
             let createdCount = 0;
             let skippedCount = 0;
-            let whatsappSent = 0;
             const errors: string[] = [];
 
             for (const subscription of subscriptions) {
                 try {
-                    const key = `${subscription.customer_id}_${subscription.id}`;
+                    // Check for exact match: customer_id + subscription_id
+                    // Normalize subscription_id: if 0 or null, treat as 0
+                    const normalizedSubId = (subscription.id && subscription.id > 0) ? subscription.id : 0;
+                    const exactKey = `${subscription.customer_id}_${normalizedSubId}`;
                     
-                    // Skip if invoice already exists for this period
-                    if (existingSet.has(key)) {
+                    // Check if invoice already exists for this period
+                    // Priority: 1) Exact match (same customer + subscription), 2) Legacy invoice for same customer
+                    const hasExactMatch = exactMatchSet.has(exactKey);
+                    const hasLegacyInvoice = customersWithLegacyInvoices.has(subscription.customer_id);
+                    
+                    if (hasExactMatch || hasLegacyInvoice) {
                         skippedCount++;
-                        console.log(`⚠ Invoice already exists for customer ${subscription.customer_name}`);
+                        const subscriptionInfo = subscription.id && subscription.id > 0 ? `subscription_id: ${subscription.id}` : 'no subscription';
+                        const reason = hasExactMatch 
+                            ? `exact match found (customer_id: ${subscription.customer_id}, subscription_id: ${subscription.id || 'NULL'})`
+                            : `customer has legacy invoice with NULL/0 subscription_id for this period (customer_id: ${subscription.customer_id})`;
+                        console.log(`⚠ Invoice already exists for customer ${subscription.customer_name} (${subscriptionInfo}) - ${reason}`);
                         continue;
                     }
+                    
+                    const hasActiveSubscription = subscription.id && subscription.id > 0;
+                    console.log(`✓ Processing customer ${subscription.customer_name} (customer_id: ${subscription.customer_id}${hasActiveSubscription ? `, subscription_id: ${subscription.id}` : ', no active subscription - using default price'})`);
 
                     // Calculate due date
                     const periodDate = new Date(currentPeriod + '-01');
                     const dueDate = new Date(periodDate);
-                    dueDate.setDate(dueDateOffset);
+                    dueDate.setDate(dueDate.getDate() + dueDateOffset);
                     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
                     // Generate invoice number
                     const invoiceNumber = await this.generateInvoiceNumber(currentPeriod, conn);
 
-                    const price = parseFloat(subscription.price);
+                    // Determine price: use subscription price if available, otherwise use default
+                    const defaultPrice = 100000; // Default price for customers without subscription
+                    const subscriptionId = subscription.id && subscription.id > 0 ? subscription.id : null;
+                    const price = parseFloat(subscription.price) || defaultPrice;
+                    const packageName = subscription.package_name || 'Paket Internet Bulanan';
+                    const subscriptionPrice = parseFloat(subscription.price) || 0;
+
+                    // Only use subscription_id if it exists (not 0 or null)
+                    const finalSubscriptionId = subscriptionId || null;
 
                     // Insert invoice
                     const invoiceInsertQuery = `
@@ -387,7 +485,7 @@ export class InvoiceController {
                     const [invoiceResult] = await conn.execute<ResultSetHeader>(invoiceInsertQuery, [
                         invoiceNumber,
                         subscription.customer_id,
-                        subscription.id,
+                        finalSubscriptionId,
                         currentPeriod,
                         dueDateStr,
                         price,
@@ -404,7 +502,9 @@ export class InvoiceController {
                         ) VALUES (?, ?, 1, ?, ?, NOW())
                     `;
 
-                    const description = `Paket ${subscription.package_name} - ${currentPeriod}`;
+                    const description = subscriptionPrice > 0 
+                        ? `Paket ${packageName} - ${currentPeriod}`
+                        : `Paket Internet Bulanan - ${currentPeriod}`;
 
                     await conn.execute(itemInsertQuery, [
                         invoiceId,
@@ -416,17 +516,6 @@ export class InvoiceController {
                     createdCount++;
                     console.log(`✓ Invoice created for customer ${subscription.customer_name} (${invoiceNumber})`);
 
-                    // Send WhatsApp notification if enabled
-                    if (sendWhatsApp && subscription.customer_phone) {
-                        try {
-                            // TODO: Integrate with WhatsApp service
-                            // For now, just count as sent
-                            whatsappSent++;
-                            console.log(`📱 WhatsApp notification queued for ${subscription.customer_name}`);
-                        } catch (waError: any) {
-                            console.error(`Failed to send WhatsApp to ${subscription.customer_name}:`, waError);
-                        }
-                    }
 
                 } catch (itemError: any) {
                     console.error(`Error creating invoice for subscription ${subscription.id}:`, itemError);
@@ -442,7 +531,7 @@ export class InvoiceController {
                 created_count: createdCount,
                 skipped_count: skippedCount,
                 total_subscriptions: subscriptions.length,
-                whatsapp_sent: sendWhatsApp ? whatsappSent : 0,
+                total_customers: subscriptions.length, // Alias for clarity in UI
                 errors: errors.length > 0 ? errors : undefined
             });
 
@@ -544,59 +633,6 @@ export class InvoiceController {
         }
     }
 
-    /**
-     * Send invoice via WhatsApp
-     */
-    async sendInvoiceWhatsApp(req: Request, res: Response): Promise<void> {
-        try {
-            const { id } = req.params;
-
-            // Get invoice with customer info
-            const [invoiceResult] = await databasePool.query<RowDataPacket[]>(`
-                SELECT 
-                    i.*,
-                    c.name as customer_name,
-                    c.phone as customer_phone
-                FROM invoices i
-                JOIN customers c ON i.customer_id = c.id
-                WHERE i.id = ?
-            `, [id]);
-
-            const invoice = invoiceResult[0];
-
-            if (!invoice) {
-                res.status(404).json({
-                    success: false,
-                    message: 'Invoice tidak ditemukan'
-                });
-                return;
-            }
-
-            if (!invoice.customer_phone) {
-                res.status(400).json({
-                    success: false,
-                    message: 'Nomor telepon pelanggan tidak tersedia'
-                });
-                return;
-            }
-
-            // TODO: Integrate with WhatsApp service
-            // const whatsappService = new WhatsappService();
-            // await whatsappService.sendInvoiceNotification(invoice);
-
-            res.json({
-                success: true,
-                message: 'Invoice berhasil dikirim via WhatsApp'
-            });
-
-        } catch (error) {
-            console.error('Error sending invoice via WhatsApp:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Gagal mengirim invoice via WhatsApp'
-            });
-        }
-    }
 
     /**
      * Generate unique invoice number

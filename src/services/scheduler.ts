@@ -1,6 +1,7 @@
 import * as cron from 'node-cron';
 import { InvoiceService } from './billing/invoiceService';
-import { WhatsappService } from './billing/whatsappService';
+// WhatsApp service removed
+import { IsolationService } from './billing/isolationService';
 import { databasePool } from '../db/pool';
 import { BackupService } from './backupService';
 
@@ -34,20 +35,19 @@ export class SchedulerService {
             this.schedulePaymentReminders(true);
         });
 
-        // Auto isolate overdue customers - jadwal dinamis (default tanggal 1 jam 01:00)
+        // Auto isolate overdue customers - jadwal dinamis (default tanggal 1 jam 00:00)
+        // HARUS dijalankan SEBELUM generate tagihan baru
         this.applyAutoIsolationScheduleFromDb().catch((err) => {
-            console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1):', err);
-            this.scheduleAutoIsolation([1]);
+            console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
+            this.scheduleAutoIsolation([1], 0, 0); // Jam 00:00
         });
 
         // Auto restore paid customers - setiap hari jam 06:00
         cron.schedule('0 6 * * *', async () => {
             console.log('Running auto restore for paid customers...');
             try {
-                // IsolationService removed - functionality disabled
-                // const result = await IsolationService.autoRestorePaidCustomers();
-                // console.log(`Auto restored ${result.restored} customers, failed ${result.failed}`);
-                console.log('Auto restore disabled - IsolationService removed');
+                const result = await IsolationService.autoRestorePaidCustomers();
+                console.log(`Auto restored ${result.restored} customers, failed ${result.failed}`);
             } catch (error) {
                 console.error('Error auto restoring customers:', error);
             }
@@ -75,6 +75,51 @@ export class SchedulerService {
             this.scheduleOverdueNotifications(true);
         });
 
+        // Send isolation warnings 3 days before isolation - daily at 09:00
+        cron.schedule('0 9 * * *', async () => {
+            console.log('Running isolation warnings (3 days before)...');
+            try {
+                const { IsolationService } = await import('./billing/isolationService');
+                const result = await IsolationService.sendIsolationWarnings(3);
+                console.log(`Isolation warnings sent: ${result.warned} warned, ${result.failed} failed`);
+            } catch (error) {
+                console.error('Error sending isolation warnings:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
+        // Send payment shortage warnings - daily at 10:00 (for payments overdue >= 14 days)
+        cron.schedule('0 10 * * *', async () => {
+            console.log('Running payment shortage warnings (14+ days overdue)...');
+            try {
+                const { PaymentShortageService } = await import('./billing/PaymentShortageService');
+                const result = await PaymentShortageService.checkAndNotifyShortages(14);
+                console.log(`Payment shortage warnings: ${result.checked} checked, ${result.notified} notified, ${result.failed} failed`);
+            } catch (error) {
+                console.error('Error sending payment shortage warnings:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
+        // Daily late payment recalculation - every day at 00:30
+        cron.schedule('30 0 * * *', async () => {
+            console.log('Running daily late payment recalculation...');
+            try {
+                const { LatePaymentTrackingService } = await import('./billing/LatePaymentTrackingService');
+                const result = await LatePaymentTrackingService.dailyRecalculation();
+                console.log(`Late payment recalculation: ${result.processed} processed, ${result.errors} errors`);
+            } catch (error) {
+                console.error('Error in daily late payment recalculation:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
         // Weekly database backup with 90-day retention - every Sunday at 02:00 Asia/Jakarta
         cron.schedule('0 2 * * 0', async () => {
             console.log('[Scheduler] Running weekly database backup...');
@@ -98,14 +143,15 @@ export class SchedulerService {
      */
     private static async sendInvoiceNotifications(invoiceIds: number[]): Promise<void> {
         try {
-            const whatsappService = new WhatsappService();
-            
-            for (const invoiceId of invoiceIds) {
-                const invoice = await InvoiceService.getInvoiceById(invoiceId);
-                if (invoice && invoice.phone) {
-                    await whatsappService.sendInvoiceNotification(invoice);
-                }
-            }
+            // WhatsApp service removed
+            // const whatsappService = new WhatsappService();
+            // 
+            // for (const invoiceId of invoiceIds) {
+            //     const invoice = await InvoiceService.getInvoiceById(invoiceId);
+            //     if (invoice && invoice.phone) {
+            //         await whatsappService.sendInvoiceNotification(invoice);
+            //     }
+            // }
         } catch (error) {
             console.error('Error sending invoice notifications:', error);
         }
@@ -116,7 +162,8 @@ export class SchedulerService {
      */
     private static async sendPaymentReminders(): Promise<void> {
         try {
-            const whatsappService = new WhatsappService();
+            // WhatsApp service removed
+            // const whatsappService = new WhatsappService();
             
             // Get invoices due in 3 days
             const dueIn3Days = new Date();
@@ -135,7 +182,8 @@ export class SchedulerService {
             const result = await databasePool.query(query, [dueIn3Days.toISOString().split('T')[0]]);
             
             for (const invoice of result) {
-                await whatsappService.sendPaymentReminder(invoice);
+                // WhatsApp notification removed
+                // await whatsappService.sendPaymentReminder(invoice);
             }
         } catch (error) {
             console.error('Error sending payment reminders:', error);
@@ -147,13 +195,15 @@ export class SchedulerService {
      */
     private static async sendOverdueNotifications(): Promise<void> {
         try {
-            const whatsappService = new WhatsappService();
+            // WhatsApp service removed
+            // const whatsappService = new WhatsappService();
             const overdueInvoices = await InvoiceService.getOverdueInvoices();
             
             for (const invoice of overdueInvoices) {
-                if (invoice.phone) {
-                    await whatsappService.sendOverdueNotification(invoice);
-                }
+                // WhatsApp notification removed
+                // if (invoice.phone) {
+                //     await whatsappService.sendOverdueNotification(invoice);
+                // }
             }
         } catch (error) {
             console.error('Error sending overdue notifications:', error);
@@ -389,9 +439,10 @@ export class SchedulerService {
     }
 
     /**
-     * Schedule Auto Isolation jobs for given days of month at 01:00 Asia/Jakarta
+     * Schedule Auto Isolation jobs for given days of month (default 00:00 Asia/Jakarta)
+     * HARUS dijalankan SEBELUM generate tagihan baru
      */
-    private static scheduleAutoIsolation(daysOfMonth: number[], hour: number = 1, minute: number = 0): void {
+    private static scheduleAutoIsolation(daysOfMonth: number[], hour: number = 0, minute: number = 0): void {
         // Clear previous jobs
         for (const job of this.autoIsolationJobs) {
             try { job.stop(); } catch {}
@@ -410,8 +461,9 @@ export class SchedulerService {
             const task = cron.schedule(expression, async () => {
                 console.log(`[Auto Isolation] Running for day ${day} at ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
                 try {
-                    // IsolationService removed - functionality disabled
-                    console.log('Auto isolation disabled - IsolationService removed');
+                    // Isolir pelanggan dengan tagihan bulan sebelumnya yang belum lunas
+                    const result = await IsolationService.autoIsolatePreviousMonthUnpaid();
+                    console.log(`[Auto Isolation] Completed: ${result.isolated} isolated, ${result.failed} failed`);
                 } catch (error) {
                     console.error('Error auto isolating customers:', error);
                 }

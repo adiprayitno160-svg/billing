@@ -69,7 +69,9 @@ export class InvoiceSchedulerService {
                     c.name as customer_name,
                     c.customer_code,
                     c.phone as customer_phone,
-                    c.email as customer_email
+                    c.email as customer_email,
+                    c.custom_payment_deadline,
+                    c.custom_isolate_days_after_deadline
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active'
@@ -96,7 +98,19 @@ export class InvoiceSchedulerService {
                     if (settings.enable_due_date !== false) {
                         const periodDate = new Date(currentPeriod + '-01');
                         const dueDate = new Date(periodDate);
-                        dueDate.setDate(dueDate.getDate() + dueDateOffset);
+                        
+                        // Use custom payment deadline if set, otherwise use default offset
+                        if (subscription.custom_payment_deadline && subscription.custom_payment_deadline >= 1 && subscription.custom_payment_deadline <= 31) {
+                            // Use custom deadline date (e.g., 25th of the month)
+                            dueDate.setDate(subscription.custom_payment_deadline);
+                            // If custom deadline is before period start, use next month
+                            if (dueDate < periodDate) {
+                                dueDate.setMonth(dueDate.getMonth() + 1);
+                            }
+                        } else {
+                            // Use default offset from period start
+                            dueDate.setDate(dueDate.getDate() + dueDateOffset);
+                        }
                         dueDateStr = dueDate.toISOString().slice(0, 10);
                     }
 
@@ -218,7 +232,9 @@ export class InvoiceSchedulerService {
                 SELECT 
                     s.*,
                     c.name as customer_name,
-                    c.customer_code
+                    c.customer_code,
+                    c.custom_payment_deadline,
+                    c.custom_isolate_days_after_deadline
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active'
@@ -239,7 +255,19 @@ export class InvoiceSchedulerService {
                 try {
                     const periodDate = new Date(targetPeriod + '-01');
                     const dueDate = new Date(periodDate);
-                    dueDate.setDate(dueDate.getDate() + dueDateOffset);
+                    
+                    // Use custom payment deadline if set, otherwise use default offset
+                    if (subscription.custom_payment_deadline && subscription.custom_payment_deadline >= 1 && subscription.custom_payment_deadline <= 31) {
+                        // Use custom deadline date (e.g., 25th of the month)
+                        dueDate.setDate(subscription.custom_payment_deadline);
+                        // If custom deadline is before period start, use next month
+                        if (dueDate < periodDate) {
+                            dueDate.setMonth(dueDate.getMonth() + 1);
+                        }
+                    } else {
+                        // Use default offset from period start
+                        dueDate.setDate(dueDate.getDate() + dueDateOffset);
+                    }
                     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
                     const invoiceNumber = await this.generateInvoiceNumber(targetPeriod, conn);
@@ -260,6 +288,15 @@ export class InvoiceSchedulerService {
                             invoice_id, description, quantity, unit_price, total_price, created_at
                         ) VALUES (?, ?, 1, ?, ?, NOW())
                     `, [invoiceId, `Paket ${subscription.package_name} - ${targetPeriod}`, price, price]);
+
+                    // Send notification for created invoice
+                    try {
+                        const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+                        await UnifiedNotificationService.notifyInvoiceCreated(invoiceId);
+                    } catch (notifError) {
+                        console.error(`Error sending notification for invoice ${invoiceId}:`, notifError);
+                        // Don't fail invoice creation if notification fails
+                    }
 
                     createdCount++;
 

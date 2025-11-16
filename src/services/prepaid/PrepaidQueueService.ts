@@ -50,15 +50,16 @@ export class PrepaidQueueService {
         'SELECT host, port, username, password FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
       );
 
-      if (rows.length === 0) {
+      if (rows.length === 0 || !rows[0]) {
         return null;
       }
 
+      const row = rows[0];
       return {
-        host: rows[0].host,
-        port: rows[0].port || 8728,
-        username: rows[0].username,
-        password: rows[0].password,
+        host: row.host,
+        port: row.port || 8728,
+        username: row.username,
+        password: row.password,
       };
     } catch (error) {
       console.error('[PrepaidQueueService] Error fetching Mikrotik config:', error);
@@ -206,7 +207,7 @@ export class PrepaidQueueService {
         `?name=${queueName}`,
       ])) as QueueEntry[];
 
-      return queues.length > 0 ? queues[0] : null;
+      return queues.length > 0 && queues[0] ? queues[0] : null;
     } catch (error) {
       console.error(`[PrepaidQueueService] Error finding queue ${queueName}:`, error);
       return null;

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -11,6 +11,18 @@
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* Ensure icons and text are visible */
+        .fas, .fab, .far {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        i[class*="fa-"] {
+            color: inherit !important;
+        }
+        label, p, span, h1, h2, h3, h4, h5, h6 {
+            color: inherit !important;
         }
         .portal-container {
             background: rgba(255, 255, 255, 0.95);

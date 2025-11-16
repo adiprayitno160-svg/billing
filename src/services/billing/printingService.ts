@@ -180,16 +180,31 @@ export class PrintingService {
         let printed = 0;
         let failed = 0;
 
+        // Batch fetch all invoice items at once to avoid N+1 query problem
+        const invoiceIds = (result as any[]).map(inv => inv.id);
+        let itemsMap: Map<number, any[]> = new Map();
+        
+        if (invoiceIds.length > 0) {
+            const itemsQuery = `
+                SELECT invoice_id, description, quantity, unit_price, total_price
+                FROM invoice_items 
+                WHERE invoice_id IN (?)
+            `;
+            const [itemsResult] = await databasePool.execute(itemsQuery, [invoiceIds]);
+            
+            // Group items by invoice_id
+            for (const item of itemsResult as any[]) {
+                if (!itemsMap.has(item.invoice_id)) {
+                    itemsMap.set(item.invoice_id, []);
+                }
+                itemsMap.get(item.invoice_id)!.push(item);
+            }
+        }
+
         for (const invoice of result as any[]) {
             try {
-                // Get invoice items
-                const itemsQuery = `
-                    SELECT description, quantity, unit_price, total_price
-                    FROM invoice_items 
-                    WHERE invoice_id = ?
-                `;
-                
-                const [itemsResult] = await databasePool.execute(itemsQuery, [(invoice as any).id]);
+                // Get invoice items from pre-fetched map
+                const itemsResult = itemsMap.get((invoice as any).id) || [];
                 
                 const printData: PrintData = {
                     invoice_id: (invoice as any).id,

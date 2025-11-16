@@ -18,6 +18,7 @@ export async function getProfileList(req: Request, res: Response, next: NextFunc
 		const profiles = await listProfiles();
 		res.render('packages/pppoe_profiles', { 
 			title: 'Profil PPPoE', 
+			currentPath: '/packages/pppoe/profiles',
 			profiles,
 			success: req.flash('success'),
 			error: req.flash('error')
@@ -50,6 +51,7 @@ export async function getPackageList(req: Request, res: Response, next: NextFunc
 		const profiles = await listProfiles();
 		res.render('packages/pppoe_packages', { 
 			title: 'Paket PPPoE', 
+			currentPath: '/packages/pppoe/packages',
 			packages,
 			profiles,
 			success: req.flash('success'),
@@ -134,6 +136,7 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 		if (price && Number(price) < 0) throw new Error('Harga harus lebih dari 0');
 		if (duration_days && Number(duration_days) < 1) throw new Error('Durasi harus minimal 1 hari');
 
+		// Update package termasuk rate limit dari form (yang sudah auto-filled dari profile)
 		await updatePackage(id, {
 			name,
 			profile_id: profile_id ? Number(profile_id) : undefined,
@@ -141,6 +144,7 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 			duration_days: duration_days ? Number(duration_days) : undefined,
 			status: status as 'active' | 'inactive',
 			description: description || undefined,
+			// Rate limit dari form (yang sudah auto-filled dari profile terbaru)
 			rate_limit_rx: rate_limit_rx || undefined,
 			rate_limit_tx: rate_limit_tx || undefined,
 			burst_limit_rx: burst_limit_rx || undefined,
@@ -164,6 +168,7 @@ export async function getPackageForm(req: Request, res: Response, next: NextFunc
 		const profiles = await listProfiles();
 		res.render('packages/pppoe_package_form', { 
 			title: 'Tambah Paket PPPoE', 
+			currentPath: '/packages/pppoe/packages',
 			profiles,
 			success: req.flash('success'),
 			error: req.flash('error')
@@ -186,6 +191,7 @@ export async function getPackageEdit(req: Request, res: Response, next: NextFunc
 		
 		res.render('packages/pppoe_package_edit', { 
 			title: 'Edit Paket PPPoE', 
+			currentPath: '/packages/pppoe/packages',
 			package: packageData,
 			profiles,
 			success: req.flash('success'),
@@ -216,6 +222,7 @@ export async function getProfileForm(req: Request, res: Response, next: NextFunc
 	try {
 		res.render('packages/pppoe_profile_form', { 
 			title: 'Tambah Profil PPPoE', 
+			currentPath: '/packages/pppoe/profiles',
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
@@ -236,6 +243,7 @@ export async function getProfileEdit(req: Request, res: Response, next: NextFunc
 		
 		res.render('packages/pppoe_profile_form', { 
 			title: 'Edit Profil PPPoE', 
+			currentPath: '/packages/pppoe/profiles',
 			profile,
 			success: req.flash('success'),
 			error: req.flash('error')
@@ -311,20 +319,28 @@ export async function postProfileUpdate(req: Request, res: Response, next: NextF
 
 		if (!name) throw new Error('Nama profil wajib diisi');
 
+		// Handle empty strings - convert to undefined for optional fields, but keep for rate_limit
+		// Rate limit fields: if empty string, convert to '0', if undefined/null, keep as undefined
+		const handleRateLimit = (value: any) => {
+			if (value === undefined || value === null) return undefined;
+			if (typeof value === 'string' && value.trim() === '') return '0';
+			return value.trim();
+		};
+
 		await updateProfile(id, {
 			name,
-			local_address: local_address || undefined,
-			remote_address_pool: remote_address_pool || undefined,
-			dns_server: dns_server || undefined,
-			rate_limit_rx: rate_limit_rx || undefined,
-			rate_limit_tx: rate_limit_tx || undefined,
-			burst_limit_rx: burst_limit_rx || undefined,
-			burst_limit_tx: burst_limit_tx || undefined,
-			burst_threshold_rx: burst_threshold_rx || undefined,
-			burst_threshold_tx: burst_threshold_tx || undefined,
-			burst_time_rx: burst_time_rx || undefined,
-			burst_time_tx: burst_time_tx || undefined,
-			comment: comment || undefined
+			local_address: (local_address && local_address.trim()) || undefined,
+			remote_address_pool: (remote_address_pool && remote_address_pool.trim()) || undefined,
+			dns_server: (dns_server && dns_server.trim()) || undefined,
+			rate_limit_rx: handleRateLimit(rate_limit_rx),
+			rate_limit_tx: handleRateLimit(rate_limit_tx),
+			burst_limit_rx: (burst_limit_rx && burst_limit_rx.trim()) || undefined,
+			burst_limit_tx: (burst_limit_tx && burst_limit_tx.trim()) || undefined,
+			burst_threshold_rx: (burst_threshold_rx && burst_threshold_rx.trim()) || undefined,
+			burst_threshold_tx: (burst_threshold_tx && burst_threshold_tx.trim()) || undefined,
+			burst_time_rx: (burst_time_rx && burst_time_rx.trim()) || undefined,
+			burst_time_tx: (burst_time_tx && burst_time_tx.trim()) || undefined,
+			comment: (comment && comment.trim()) || undefined
 		});
 
 		req.flash('success', 'Profil berhasil diupdate');

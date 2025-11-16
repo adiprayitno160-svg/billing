@@ -188,7 +188,7 @@ class AddressListService {
         c.pppoe_username,
         sip.ip_address
        FROM customers c
-       LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id
+       LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id AND sip.status = 'active'
        WHERE c.id = ?`,
       [customerId]
     );
@@ -197,8 +197,9 @@ class AddressListService {
 
     const customer = rows[0];
 
-    // If static IP
+    // If static IP, get from static_ip_clients (sip.ip_address from JOIN)
     if (customer.connection_type === 'static_ip' && customer.ip_address) {
+      // ip_address comes from JOIN with static_ip_clients (aliased as sip)
       return customer.ip_address;
     }
 

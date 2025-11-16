@@ -27,6 +27,8 @@ class PrepaidActivationService {
     invoice_id?: number;
     purchase_price: number;
     auto_renew?: boolean;
+    custom_download_mbps?: number; // For static IP with custom speed
+    custom_upload_mbps?: number; // For static IP with custom speed
   }): Promise<ActivationResult> {
     const connection = await pool.getConnection();
     
@@ -81,23 +83,30 @@ class PrepaidActivationService {
       const activationDate = new Date();
       const expiryDate = new Date();
       
-      // Add duration based on package type
-      if (packageData.package_type === 'daily') {
+      // Add duration based on package type or duration_days
+      if (packageData.package_type === 'daily' && packageData.duration_hours) {
         expiryDate.setDate(expiryDate.getDate() + (packageData.duration_hours / 24));
       } else if (packageData.package_type === 'weekly') {
         expiryDate.setDate(expiryDate.getDate() + 7);
       } else if (packageData.package_type === 'monthly') {
         expiryDate.setDate(expiryDate.getDate() + 30);
+      } else if (packageData.duration_days) {
+        // Use duration_days from package
+        expiryDate.setDate(expiryDate.getDate() + packageData.duration_days);
       } else {
         // Default 30 days
         expiryDate.setDate(expiryDate.getDate() + 30);
       }
 
+      // 5. Determine actual speed to use (custom or from package)
+      const actualDownloadMbps = data.custom_download_mbps || packageData.download_mbps;
+      const actualUploadMbps = data.custom_upload_mbps || packageData.upload_mbps;
+
       // 5. Create subscription record
       const [subscriptionResult] = await connection.query<ResultSetHeader>(
         `INSERT INTO prepaid_package_subscriptions 
-         (customer_id, package_id, activation_date, expiry_date, status, auto_renew, purchase_price, invoice_id, pppoe_username)
-         VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
+         (customer_id, package_id, activation_date, expiry_date, status, auto_renew, purchase_price, invoice_id, pppoe_username, custom_download_mbps, custom_upload_mbps)
+         VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
         [
           data.customer_id,
           data.package_id,
@@ -106,7 +115,9 @@ class PrepaidActivationService {
           data.auto_renew || 0,
           data.purchase_price,
           data.invoice_id || null,
-          customer.pppoe_username
+          customer.pppoe_username,
+          data.custom_download_mbps || null,
+          data.custom_upload_mbps || null
         ]
       );
 
@@ -139,7 +150,13 @@ class PrepaidActivationService {
 
       // 8. Activate in MikroTik (after commit)
       try {
-        await this.activateInMikrotik(data.customer_id, packageData);
+        // Pass custom speed to activation
+        const activationPackageData = {
+          ...packageData,
+          download_mbps: actualDownloadMbps,
+          upload_mbps: actualUploadMbps
+        };
+        await this.activateInMikrotik(data.customer_id, activationPackageData);
       } catch (error) {
         console.error('MikroTik activation failed:', error);
         // Don't rollback, just log error
@@ -150,6 +167,17 @@ class PrepaidActivationService {
         await AddressListService.removeFromPortalRedirect(data.customer_id);
       } catch (error) {
         console.error('Failed to remove from portal-redirect:', error);
+      }
+
+      // 10. Send activation notification
+      try {
+        const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+        await UnifiedNotificationService.notifyPackageActivated(subscriptionId);
+        // Schedule expiry notifications
+        await UnifiedNotificationService.schedulePackageExpiryNotifications(subscriptionId);
+      } catch (notifError) {
+        console.error('Error sending activation notification:', notifError);
+        // Don't fail activation if notification fails
       }
 
       return {
@@ -181,18 +209,33 @@ class PrepaidActivationService {
       [customerId]
     );
 
-    if (customerRows.length === 0) {
+    if (customerRows.length === 0 || !customerRows[0]) {
       throw new Error('Customer not found');
     }
 
     const customer = customerRows[0];
+
+    // Get IP address from static_ip_clients if static IP customer
+    let customerIP: string | null = null;
+    if (customer.connection_type === 'static_ip' || customer.connection_type === 'static') {
+      const [ipRows] = await pool.query<RowDataPacket[]>(
+        `SELECT ip_address FROM static_ip_clients WHERE customer_id = ? AND status = 'active' LIMIT 1`,
+        [customerId]
+      );
+      if (ipRows.length > 0 && ipRows[0]?.ip_address) {
+        customerIP = ipRows[0].ip_address;
+      }
+    }
+    
+    // Add IP to customer object for later use
+    (customer as any).ip_address = customerIP;
 
     // Get Mikrotik settings
     const [mikrotikSettings] = await pool.query<RowDataPacket[]>(
       'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
     );
 
-    if (mikrotikSettings.length === 0) {
+    if (mikrotikSettings.length === 0 || !mikrotikSettings[0]) {
       console.warn('⚠️ No active Mikrotik settings found');
       return;
     }
@@ -202,14 +245,14 @@ class PrepaidActivationService {
       host: settings.host,
       username: settings.username,
       password: settings.password,
-      port: settings.api_port || 8728
+      port: settings.port || 8728
     });
 
     const addressListService = new MikrotikAddressListService({
       host: settings.host,
       username: settings.username,
       password: settings.password,
-      port: settings.api_port || 8728
+      port: settings.port || 8728
     });
 
     try {
@@ -240,7 +283,7 @@ class PrepaidActivationService {
       }
 
       // ===== STATIC IP: Create/update Queue Tree =====
-      else if (customer.connection_type === 'static' && customer.ip_address) {
+      else if ((customer.connection_type === 'static' || customer.connection_type === 'static_ip') && customer.ip_address) {
         console.log(`🔄 Activating Static IP: ${customer.ip_address}`);
 
         // Initialize queue service
@@ -248,7 +291,7 @@ class PrepaidActivationService {
           host: settings.host,
           username: settings.username,
           password: settings.password,
-          port: settings.api_port || 8728
+          port: settings.port || 8728
         });
 
         // Check if mangle rules exist (should exist from postpaid setup)
@@ -269,19 +312,27 @@ class PrepaidActivationService {
         });
 
         // Remove from prepaid-no-package
-        await addressListService.removeFromAddressList('prepaid-no-package', customer.ip_address);
+        try {
+          await addressListService.removeFromAddressList('prepaid-no-package', customer.ip_address);
+        } catch (removeError) {
+          console.warn(`⚠️ Failed to remove from prepaid-no-package (non-critical):`, removeError);
+        }
 
         // Add to prepaid-active
-        const addSuccess = await addressListService.addToAddressList(
-          'prepaid-active',
-          customer.ip_address,
-          `Prepaid Active - ${customer.name} - Package: ${packageData.name}`
-        );
+        try {
+          const addSuccess = await addressListService.addToAddressList(
+            'prepaid-active',
+            customer.ip_address,
+            `Prepaid Active - ${customer.name} - Package: ${packageData.name}`
+          );
 
-        if (addSuccess) {
-          console.log(`✅ Static IP ${customer.ip_address} activated with queue tree`);
-        } else {
-          console.error(`❌ Failed to activate Static IP ${customer.ip_address}`);
+          if (addSuccess) {
+            console.log(`✅ Static IP ${customer.ip_address} activated with queue tree`);
+          }
+        } catch (addError: any) {
+          const errorMsg = addError?.userFriendlyMessage || addError?.message || 'Unknown error';
+          console.error(`❌ Failed to activate Static IP ${customer.ip_address}: ${errorMsg}`);
+          throw addError; // Re-throw so outer catch can handle it
         }
       }
 
@@ -310,18 +361,33 @@ class PrepaidActivationService {
 
       // 1. Get subscription details
       const [subsRows] = await connection.query<RowDataPacket[]>(
-        `SELECT pps.*, c.pppoe_username, c.connection_type, c.ip_address, c.name 
+        `SELECT pps.*, c.pppoe_username, c.connection_type, c.name 
          FROM prepaid_package_subscriptions pps
          INNER JOIN customers c ON pps.customer_id = c.id
          WHERE pps.id = ?`,
         [subscriptionId]
       );
 
-      if (subsRows.length === 0) {
+      if (subsRows.length === 0 || !subsRows[0]) {
         throw new Error('Subscription not found');
       }
 
       const subscription = subsRows[0];
+
+      // Get IP address from static_ip_clients if static IP customer
+      let customerIP: string | null = null;
+      if (subscription.connection_type === 'static_ip' || subscription.connection_type === 'static') {
+        const [ipRows] = await connection.query<RowDataPacket[]>(
+          `SELECT ip_address FROM static_ip_clients WHERE customer_id = ? AND status = 'active' LIMIT 1`,
+          [subscription.customer_id]
+        );
+        if (ipRows.length > 0 && ipRows[0]?.ip_address) {
+          customerIP = ipRows[0].ip_address;
+        }
+      }
+      
+      // Add IP to subscription object for later use
+      (subscription as any).ip_address = customerIP;
 
       // 2. Update subscription status
       await connection.query(
@@ -348,20 +414,20 @@ class PrepaidActivationService {
           'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
         );
 
-        if (mikrotikSettings.length > 0) {
+        if (mikrotikSettings.length > 0 && mikrotikSettings[0]) {
           const settings = mikrotikSettings[0];
           const mikrotikService = new MikrotikService({
             host: settings.host,
             username: settings.username,
             password: settings.password,
-            port: settings.api_port || 8728
+            port: settings.port || 8728
           });
 
           const addressListService = new MikrotikAddressListService({
             host: settings.host,
             username: settings.username,
             password: settings.password,
-            port: settings.api_port || 8728
+            port: settings.port || 8728
           });
 
           // ===== PPPOE: Revert to prepaid-no-package profile =====
@@ -385,7 +451,7 @@ class PrepaidActivationService {
           }
 
           // ===== STATIC IP: Remove queue tree & move to no-package list =====
-          else if (subscription.connection_type === 'static' && subscription.ip_address) {
+          else if ((subscription.connection_type === 'static' || subscription.connection_type === 'static_ip') && subscription.ip_address) {
             console.log(`🔄 Deactivating Static IP: ${subscription.ip_address}`);
 
             // Initialize queue service
@@ -393,7 +459,7 @@ class PrepaidActivationService {
               host: settings.host,
               username: settings.username,
               password: settings.password,
-              port: settings.api_port || 8728
+              port: settings.port || 8728
             });
 
             // Remove queue tree
@@ -519,6 +585,7 @@ class PrepaidActivationService {
           t.package_id,
           t.amount,
           t.id as invoice_id,
+          t.payment_notes,
           p.duration_days
         FROM prepaid_transactions t
         INNER JOIN prepaid_packages p ON t.package_id = p.id
@@ -526,11 +593,23 @@ class PrepaidActivationService {
         [transactionId]
       );
 
-      if (transactionRows.length === 0) {
+      if (transactionRows.length === 0 || !transactionRows[0]) {
         throw new Error('Transaction not found or not verified');
       }
 
       const transaction = transactionRows[0];
+
+      // Parse custom speed from payment_notes if exists
+      let customDownloadMbps: number | undefined;
+      let customUploadMbps: number | undefined;
+      
+      if (transaction.payment_notes) {
+        const speedMatch = transaction.payment_notes.match(/Custom Speed:\s*(\d+(?:\.\d+)?)Mbps\/(\d+(?:\.\d+)?)Mbps/);
+        if (speedMatch) {
+          customDownloadMbps = parseFloat(speedMatch[1]);
+          customUploadMbps = parseFloat(speedMatch[2]);
+        }
+      }
 
       // Activate the package
       return await this.activatePackage({
@@ -538,7 +617,9 @@ class PrepaidActivationService {
         package_id: transaction.package_id,
         invoice_id: transaction.invoice_id,
         purchase_price: transaction.amount,
-        auto_renew: false
+        auto_renew: false,
+        custom_download_mbps: customDownloadMbps,
+        custom_upload_mbps: customUploadMbps
       });
     } catch (error: any) {
       console.error('[PrepaidActivationService] Error activating from transaction:', error);

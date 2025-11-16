@@ -1,115 +1,115 @@
-<div class="space-y-4">
-	<!-- KPI Cards - Compact Modern Design -->
-    <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.75rem;">
+﻿<div class="space-y-6">
+	<!-- KPI Cards - Modern Grid Design -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3 md:gap-4">
 		<!-- Total Pelanggan -->
-		<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div class="bg-gradient-to-br from-indigo-500 via-purple-600 to-purple-700 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #6366f1 0%, #9333ea 50%, #7c3aed 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
 					<path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.totalCustomers %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Total</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.totalCustomers %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Total</div>
 		</div>
 
 		<!-- Pelanggan Aktif -->
-		<div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div class="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #14b8a6 0%, #10b981 50%, #16a34a 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.activeCustomers %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Aktif</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.activeCustomers %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Aktif</div>
 		</div>
 
 		<!-- PPPoE -->
-		<div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div class="bg-gradient-to-br from-blue-400 via-cyan-400 to-cyan-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #60a5fa 0%, #22d3ee 50%, #06b6d4 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.pppoeCustomers %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">PPPoE</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.pppoeCustomers %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">PPPoE</div>
 		</div>
 
 		<!-- IP Static -->
-		<div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div class="bg-gradient-to-br from-pink-400 via-rose-500 to-amber-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #f472b6 0%, #f43f5e 50%, #f59e0b 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
 					<line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.staticIpCustomers %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Static IP</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.staticIpCustomers %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Static IP</div>
 		</div>
 
 		<!-- Isolir -->
-		<div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center;">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div class="bg-gradient-to-br from-fuchsia-400 via-pink-500 to-red-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #e879f9 0%, #ec4899 50%, #ef4444 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.suspendedCustomers %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Isolir</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.suspendedCustomers %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Isolir</div>
 		</div>
 
 		<!-- Nonaktif -->
-		<div style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: #1f2937; text-align: center;">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.7;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div class="bg-gradient-to-br from-gray-400 via-slate-500 to-gray-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-gray-500" style="background: linear-gradient(135deg, #9ca3af 0%, #64748b 50%, #4b5563 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= stats.inactiveCustomers %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.8; font-weight: 500;">Nonaktif</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight text-white"><%= stats.inactiveCustomers %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide text-white">Nonaktif</div>
 		</div>
 
 		<!-- Prepaid -->
-		<div style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center; cursor: pointer;" onclick="window.location='/prepaid/dashboard'">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div onclick="window.location='/prepaid/dashboard'" class="bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-white text-center border border-white/70 group" style="background: linear-gradient(135deg, #fbbf24 0%, #f97316 50%, #ea580c 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3 group-hover:scale-110 transition-transform duration-300">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Prepaid</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Prepaid</div>
 		</div>
 
 		<!-- Prepaid Active -->
-		<div style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 0.5rem; padding: 0.875rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: white; text-align: center; cursor: pointer;" onclick="window.location='/prepaid/subscriptions'">
-			<div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-				<svg xmlns="http://www.w3.org/2000/svg" style="height: 1.25rem; width: 1.25rem; opacity: 0.85;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<div onclick="window.location='/prepaid/subscriptions'" class="bg-gradient-to-br from-emerald-400 via-green-400 to-cyan-400 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-white text-center border border-white/70 group" style="background: linear-gradient(135deg, #34d399 0%, #4ade80 50%, #22d3ee 100%) !important;">
+			<div class="flex items-center justify-center gap-2 mb-3 group-hover:scale-110 transition-transform duration-300">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 					<polyline points="20 6 9 17 4 12"/>
 				</svg>
 			</div>
-			<div style="font-size: 1.875rem; font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin-bottom: 0.375rem;"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
-			<div style="font-size: 0.6875rem; opacity: 0.9; font-weight: 500;">Active</div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
+			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Active</div>
 		</div>
 	</div>
 
 	<!-- Prepaid System Quick Info -->
-	<div class="bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 border-2 border-purple-300 rounded-xl p-6 shadow-2xl relative overflow-hidden">
+	<div class="bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 border-2 border-purple-300 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden" style="background: linear-gradient(135deg, #9333ea 0%, #ec4899 50%, #f97316 100%) !important; border: 3px solid rgba(196, 181, 253, 0.8) !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;">
 		<div class="flex items-start justify-between relative z-10">
 			<div class="flex-1">
 				<div class="flex items-center gap-4 mb-4">
-					<div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-2xl border-2 border-white/30">
-						<svg class="w-10 h-10 text-white drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+					<div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl border-2 border-white/70" style="background-color: rgba(255, 255, 255, 0.9) !important;">
+						<svg class="w-10 h-10 drop-shadow-lg" fill="#9333ea" viewBox="0 0 24 24" style="color: #9333ea !important; fill: #9333ea !important;">
+							<path d="M13 3L4 14h7v7l9-11h-7V3z"/>
 						</svg>
 					</div>
 					<div>
-						<h3 class="text-2xl font-extrabold text-white mb-1 drop-shadow-lg">💰 Prepaid System</h3>
-						<p class="text-sm text-white font-bold drop-shadow-md">Self-Service Portal dengan Redirect Paksa</p>
+						<h3 class="text-2xl font-extrabold text-white mb-1 drop-shadow-lg" style="color: #ffffff !important; text-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important;">💰 Prepaid System</h3>
+						<p class="text-sm text-white font-bold drop-shadow-md" style="color: #ffffff !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.2) !important;">Self-Service Portal dengan Redirect Paksa</p>
 					</div>
 				</div>
 				<div class="grid grid-cols-4 gap-3 mb-4">
 					<!-- Total Prepaid -->
-					<div class="bg-white rounded-lg p-3 shadow-md border border-orange-200 hover:shadow-lg transition-all duration-200">
+					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-orange-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
 						<div class="flex items-center justify-between mb-2">
 							<div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-sm">
 								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -122,7 +122,7 @@
 					</div>
 					
 					<!-- Active Subscription -->
-					<div class="bg-white rounded-lg p-3 shadow-md border border-green-200 hover:shadow-lg transition-all duration-200">
+					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-green-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
 						<div class="flex items-center justify-between mb-2">
 							<div class="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
 								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -134,8 +134,21 @@
 						<div class="text-xs text-gray-600 font-semibold">Active Subscription</div>
 					</div>
 					
+					<!-- Late Payment High Risk -->
+					<div onclick="window.location='/billing/late-payment'" class="bg-white rounded-lg p-3 shadow-xl border-2 border-red-400 hover:shadow-2xl transition-all duration-200 cursor-pointer" style="background-color: #ffffff !important;">
+						<div class="flex items-center justify-between mb-2">
+							<div class="w-8 h-8 bg-gradient-to-br from-red-400 to-rose-500 rounded-lg flex items-center justify-center shadow-sm">
+								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+								</svg>
+							</div>
+							<div class="text-2xl font-bold text-red-600"><%= typeof latePaymentStats !== 'undefined' ? latePaymentStats.highRisk : 0 %></div>
+						</div>
+						<div class="text-xs text-gray-600 font-semibold">Late Payment (≥3x)</div>
+					</div>
+					
 					<!-- Need Package -->
-					<div class="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-all duration-200">
+					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-blue-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
 						<div class="flex items-center justify-between mb-2">
 							<div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-sm">
 								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -148,7 +161,7 @@
 					</div>
 					
 					<!-- Active Rate -->
-					<div class="bg-white rounded-lg p-3 shadow-md border border-purple-200 hover:shadow-lg transition-all duration-200">
+					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-purple-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
 						<div class="flex items-center justify-between mb-2">
 							<div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center shadow-sm">
 								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -163,30 +176,30 @@
 					</div>
 				</div>
 				<div class="flex gap-3">
-					<a href="/prepaid/dashboard" class="inline-flex items-center px-5 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white text-sm font-bold rounded-lg hover:shadow-xl hover:from-orange-700 hover:to-yellow-700 transform hover:scale-105 transition-all duration-200">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/dashboard" class="inline-flex items-center px-5 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white text-sm font-bold rounded-lg hover:shadow-xl hover:from-orange-700 hover:to-yellow-700 transform hover:scale-105 transition-all duration-200" style="color: #ffffff !important;">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #ffffff !important;">
 							<path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
 						</svg>
-						📊 Dashboard Prepaid
+						<span style="color: #ffffff !important;">📊 Dashboard Prepaid</span>
 					</a>
-					<a href="/prepaid/packages" class="inline-flex items-center px-5 py-3 bg-white text-orange-700 text-sm font-bold rounded-lg border-3 border-orange-400 hover:bg-orange-100 hover:border-orange-600 transform hover:scale-105 transition-all duration-200 shadow-md">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/packages" class="inline-flex items-center px-5 py-3 bg-white text-orange-700 text-sm font-bold rounded-lg border-2 border-orange-500 hover:bg-orange-100 hover:border-orange-600 transform hover:scale-105 transition-all duration-200 shadow-lg" style="background-color: #ffffff !important; color: #ea580c !important;">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #ea580c !important;">
 							<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
 						</svg>
-						📦 Kelola Paket
+						<span style="color: #ea580c !important;">📦 Kelola Paket</span>
 					</a>
-					<a href="/prepaid/customers" class="inline-flex items-center px-5 py-3 bg-white text-blue-700 text-sm font-bold rounded-lg border-3 border-blue-400 hover:bg-blue-100 hover:border-blue-600 transform hover:scale-105 transition-all duration-200 shadow-md">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/customers" class="inline-flex items-center px-5 py-3 bg-white text-blue-700 text-sm font-bold rounded-lg border-2 border-blue-500 hover:bg-blue-100 hover:border-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg" style="background-color: #ffffff !important; color: #1d4ed8 !important;">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #1d4ed8 !important;">
 							<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
 						</svg>
-						👥 Lihat Customer
+						<span style="color: #1d4ed8 !important;">👥 Lihat Customer</span>
 					</a>
-					<a href="/prepaid/portal/splash" target="_blank" class="inline-flex items-center px-5 py-3 bg-white text-green-700 text-sm font-bold rounded-lg border-3 border-green-400 hover:bg-green-100 hover:border-green-600 transform hover:scale-105 transition-all duration-200 shadow-md">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+					<a href="/prepaid/portal/splash" target="_blank" class="inline-flex items-center px-5 py-3 bg-white text-green-700 text-sm font-bold rounded-lg border-2 border-green-500 hover:bg-green-100 hover:border-green-600 transform hover:scale-105 transition-all duration-200 shadow-lg" style="background-color: #ffffff !important; color: #15803d !important;">
+						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #15803d !important;">
 							<path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
 							<path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
 						</svg>
-						🌐 Test Portal
+						<span style="color: #15803d !important;">🌐 Test Portal</span>
 					</a>
 				</div>
 			</div>
@@ -204,10 +217,10 @@
 	</div>
 
 	<!-- MikroTik Status & Interface Speed -->
-	<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+	<div class="grid gap-6 grid-cols-1 lg:grid-cols-2">
 		<!-- Status MikroTik (Kiri) -->
 		<% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo) { %>
-		<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 			<div class="flex items-center justify-between mb-4">
 				<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
 				<% if (connectionStatus.connected) { %>
@@ -250,17 +263,17 @@
 			</div>
 		</div>
 		<% } else { %>
-		<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 			<h2 class="text-lg font-semibold text-gray-900 mb-4">Status MikroTik</h2>
 			<div class="text-center py-8">
-				<p class="text-gray-500">MikroTik belum dikonfigurasi</p>
-				<a href="/settings/mikrotik" class="text-blue-600 hover:text-blue-800 text-sm">Konfigurasi Sekarang</a>
+				<p class="text-gray-500 mb-3">MikroTik belum dikonfigurasi</p>
+				<a href="/settings/mikrotik" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-md hover:shadow-lg">Konfigurasi Sekarang</a>
 			</div>
 		</div>
 		<% } %>
 
 		<!-- Interface Speed Realtime (Kanan) -->
-		<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 			<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
 				<h2 class="text-lg font-semibold text-gray-900">Interface Traffic Realtime</h2>
 				<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
@@ -794,8 +807,22 @@
 		const SMOOTHING_FACTOR = 0.7; // Higher = smoother but slower response (0-1)
 		
 		updateInterval = setInterval(async () => {
+			// Skip if chart is not initialized
+			if (!chart || !chart.data || !chart.data.datasets) {
+				return;
+			}
+			
 			try {
-				const response = await fetch('/api/interface-stats');
+				// Add timeout to fetch request
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+				
+				const response = await fetch('/api/interface-stats', {
+					signal: controller.signal
+				});
+				
+				clearTimeout(timeoutId);
+				
 				if (!response.ok) {
 					console.error('Failed to fetch interface stats:', response.status);
 					return;
@@ -901,7 +928,11 @@
 				// Use 'active' mode for smoother animation
 				chart.update('active');
 			} catch (error) {
-				console.error('Error updating chart:', error);
+				// Only log if it's not an abort error (expected timeout)
+				if (error.name !== 'AbortError') {
+					console.error('Error updating chart:', error);
+				}
+				// Silently continue - will retry on next interval
 			}
 		}, UPDATE_INTERVAL_MS);
 	}
@@ -1006,7 +1037,7 @@
 <% } %>
 
 	<!-- Monitor Pelanggan Trouble -->
-	<div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+	<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="text-lg font-semibold text-gray-900">Monitor Pelanggan Trouble</h2>
 			<a href="/monitoring/maintenance" class="text-sm text-blue-600 hover:text-blue-800">Lihat Semua</a>
@@ -1046,6 +1077,10 @@
 									<span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Sedang Ditangani</span>
 								<% } else if (customer.maintenance_status === 'scheduled') { %>
 									<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Terjadwal</span>
+								<% } else if (customer.issue_type === 'Offline') { %>
+									<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">🔴 Offline</span>
+								<% } else if (customer.issue_type && customer.issue_type.startsWith('SLA:')) { %>
+									<span class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">⚠️ <%= customer.issue_type %></span>
 								<% } else if (customer.status === 'active') { %>
 									<span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Normal</span>
 								<% } else if (customer.status === 'suspended') { %>
@@ -1080,3 +1115,6 @@
 		</div>
 	</div>
 </div>
+
+<script>
+// Dashboard scripts

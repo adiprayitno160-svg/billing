@@ -8,6 +8,7 @@
 
 import pool from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import IncidentAIService from './monitoring/incidentAIService';
 
 interface SLAIncident {
     id: number;
@@ -90,7 +91,7 @@ export class SLAMonitoringService {
             console.log(`[SLAMonitoring] Found ${rows.length} new downtime incidents`);
             
             for (const row of rows) {
-                await this.createIncident({
+                const incidentId = await this.createIncident({
                     customer_id: row.customer_id,
                     service_type: row.service_type,
                     incident_type: 'downtime',
@@ -99,6 +100,11 @@ export class SLAMonitoringService {
                 });
                 
                 console.log(`[SLAMonitoring] Created incident for customer ${row.customer_id}`);
+                
+                // AI Analysis - async, don't wait
+                IncidentAIService.analyzeIncident(incidentId).catch(error => {
+                    console.error('[SLAMonitoring] AI analysis error:', error);
+                });
             }
             
         } catch (error) {

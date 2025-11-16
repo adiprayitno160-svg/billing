@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -26,7 +26,7 @@
             <!-- Header -->
             <div class="p-6 border-b border-blue-600">
                 <div class="flex items-center">
-                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
+                    <div class="w-10 h-10 bg-white  rounded-lg flex items-center justify-center mr-3">
                         <i class="fas fa-cash-register text-white"></i>
                     </div>
                     <div>
@@ -64,6 +64,15 @@
                     Riwayat Transaksi
                 </a>
                 
+                <!-- Prepaid -->
+                <div class="px-6 py-2 text-xs text-blue-200 uppercase font-semibold mt-4">
+                    Prepaid
+                </div>
+                <a href="/kasir/prepaid-verification" class="sidebar-item flex items-center px-6 py-3 text-white hover:bg-blue-600 transition duration-200 <%= currentPath === '/kasir/prepaid-verification' ? 'active' : '' %>">
+                    <i class="fas fa-check-circle mr-3"></i>
+                    Verifikasi Prepaid
+                </a>
+                
                 <!-- Print Menu -->
                 <div class="px-6 py-2 text-xs text-blue-200 uppercase font-semibold mt-4">
                     Print Tagihan
@@ -80,6 +89,10 @@
                 <a href="/kasir/reports" class="sidebar-item flex items-center px-6 py-3 text-white hover:bg-blue-600 transition duration-200 <%= currentPath === '/kasir/reports' ? 'active' : '' %>">
                     <i class="fas fa-chart-bar mr-3"></i>
                     Laporan Kasir
+                </a>
+                <a href="/kasir/payment-records/export" class="sidebar-item flex items-center px-6 py-3 text-white hover:bg-blue-600 transition duration-200">
+                    <i class="fas fa-file-excel mr-3"></i>
+                    Export Pembayaran
                 </a>
             </nav>
 

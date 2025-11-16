@@ -6,6 +6,9 @@
 import { Request, Response } from 'express';
 import { PrepaidPackageService } from '../../services/prepaid/PrepaidPackageService';
 import { PrepaidPaymentService } from '../../services/prepaid/PrepaidPaymentService';
+import { PaymentGatewayService } from '../../services/payment/PaymentGatewayService';
+import pool from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 import multer from 'multer';
 import path from 'path';
 
@@ -46,7 +49,7 @@ class PrepaidPortalPaymentController {
    */
   async selectPackage(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
+      const customerId = (req.session as any).portalCustomerId;
 
       if (!customerId) {
         return res.redirect('/prepaid/portal/login');
@@ -86,7 +89,7 @@ class PrepaidPortalPaymentController {
    */
   async reviewPackage(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
+      const customerId = (req.session as any).portalCustomerId;
       const packageId = parseInt(req.params.package_id);
 
       if (!customerId) {
@@ -114,8 +117,12 @@ class PrepaidPortalPaymentController {
    */
   async selectPaymentMethod(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
+      const customerId = (req.session as any).portalCustomerId;
       const packageId = parseInt(req.body.package_id);
+      
+      // Get custom speed from form (for static IP packages)
+      const customDownloadMbps = req.body.custom_download_mbps ? parseFloat(req.body.custom_download_mbps) : undefined;
+      const customUploadMbps = req.body.custom_upload_mbps ? parseFloat(req.body.custom_upload_mbps) : undefined;
 
       if (!customerId) {
         return res.redirect('/prepaid/portal/login');
@@ -126,6 +133,14 @@ class PrepaidPortalPaymentController {
         return res.redirect('/prepaid/packages?error=' + encodeURIComponent('Paket tidak ditemukan'));
       }
 
+      // Store custom speed in session for later use
+      if (req.session) {
+        (req.session as any).selectedPackageCustomSpeed = {
+          download_mbps: customDownloadMbps,
+          upload_mbps: customUploadMbps
+        };
+      }
+
       // Get payment settings
       const paymentSettings = await PrepaidPaymentService.getPaymentSettings();
 
@@ -133,6 +148,7 @@ class PrepaidPortalPaymentController {
         title: 'Pilih Metode Pembayaran',
         package: packageData,
         paymentSettings,
+        customSpeed: { download_mbps: customDownloadMbps, upload_mbps: customUploadMbps },
       });
     } catch (error) {
       console.error('[PrepaidPortalPaymentController] Error in selectPaymentMethod:', error);
@@ -151,7 +167,7 @@ class PrepaidPortalPaymentController {
           return res.redirect('/prepaid/packages?error=' + encodeURIComponent(err.message));
         }
 
-        const customerId = req.session.portalCustomerId;
+        const customerId = (req.session as any).portalCustomerId;
         const packageId = parseInt(req.body.package_id);
 
         if (!customerId) {
@@ -163,6 +179,18 @@ class PrepaidPortalPaymentController {
           return res.redirect('/prepaid/packages?error=' + encodeURIComponent('Paket tidak ditemukan'));
         }
 
+        // Get custom speed from session or form
+        const sessionCustomSpeed = (req.session as any)?.selectedPackageCustomSpeed;
+        const customDownloadMbps = req.body.custom_download_mbps ? parseFloat(req.body.custom_download_mbps) : (sessionCustomSpeed?.download_mbps);
+        const customUploadMbps = req.body.custom_upload_mbps ? parseFloat(req.body.custom_upload_mbps) : (sessionCustomSpeed?.upload_mbps);
+
+        // Store custom speed in payment notes (will be used during activation)
+        let paymentNotes = req.body.notes || '';
+        if ((customDownloadMbps || customUploadMbps) && packageData.connection_type === 'static') {
+          const speedInfo = `Custom Speed: ${customDownloadMbps || packageData.download_mbps}Mbps/${customUploadMbps || packageData.upload_mbps}Mbps`;
+          paymentNotes = paymentNotes ? `${paymentNotes} | ${speedInfo}` : speedInfo;
+        }
+
         // Create transaction
         const transactionId = await PrepaidPaymentService.createTransaction({
           customer_id: customerId,
@@ -170,7 +198,7 @@ class PrepaidPortalPaymentController {
           amount: packageData.price,
           payment_method: 'manual_transfer',
           payment_status: 'pending',
-          payment_notes: req.body.notes || null,
+          payment_notes: paymentNotes || null,
         });
 
         // Save payment proof if uploaded
@@ -189,13 +217,14 @@ class PrepaidPortalPaymentController {
 
   /**
    * Step 4B: Process payment gateway
-   * TODO: Implement Midtrans/Xendit integration
+   * Integrated with PaymentGatewayService (Xendit, Mitra, Tripay)
    */
   async processPaymentGateway(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
+      const customerId = (req.session as any).portalCustomerId;
       const packageId = parseInt(req.body.package_id);
-      const gateway = req.body.gateway; // 'midtrans' or 'xendit'
+      const gatewayCode = req.body.gateway; // 'xendit', 'mitra', or 'tripay'
+      const paymentMethod = req.body.payment_method || 'invoice'; // Default to invoice
 
       if (!customerId) {
         return res.redirect('/prepaid/portal/login');
@@ -206,28 +235,120 @@ class PrepaidPortalPaymentController {
         return res.redirect('/prepaid/packages?error=' + encodeURIComponent('Paket tidak ditemukan'));
       }
 
-      // Create transaction
+      // Get customer info
+      const [customerRows] = await pool.query<RowDataPacket[]>(
+        'SELECT * FROM customers WHERE id = ?',
+        [customerId]
+      );
+
+      if (customerRows.length === 0) {
+        return res.redirect('/prepaid/portal/login');
+      }
+
+      const customer = customerRows[0];
+
+      // Get gateway configuration from database
+      const [gatewayRows] = await pool.query<RowDataPacket[]>(
+        `SELECT * FROM payment_gateways WHERE code = ? AND is_active = 1`,
+        [gatewayCode]
+      );
+
+      if (gatewayRows.length === 0) {
+        console.error(`[PrepaidPortalPaymentController] Gateway ${gatewayCode} not found or inactive`);
+        return res.redirect('/prepaid/portal/packages?error=' + encodeURIComponent('Payment gateway tidak tersedia'));
+      }
+
+      const gatewayConfig = gatewayRows[0];
+
+      // Create prepaid transaction first
       const transactionId = await PrepaidPaymentService.createTransaction({
         customer_id: customerId,
         package_id: packageId,
         amount: packageData.price,
         payment_method: 'payment_gateway',
         payment_status: 'pending',
-        payment_gateway_type: gateway,
+        payment_gateway_type: gatewayCode,
       });
 
-      // TODO: Integrate dengan payment gateway
-      // For now, redirect to waiting page with info
-      res.render('prepaid/portal/payment-gateway', {
-        title: 'Payment Gateway',
-        package: packageData,
-        transactionId,
-        gateway,
-        message: 'Payment gateway integration will be implemented next. For now, use manual transfer.',
+      // Initialize PaymentGatewayService with config from database
+      const paymentService = new PaymentGatewayService({
+        xendit: {
+          apiKey: gatewayConfig?.api_key || '',
+          secretKey: gatewayConfig?.secret_key || '',
+          webhookSecret: gatewayConfig?.webhook_secret || '',
+          baseUrl: gatewayConfig?.base_url || undefined
+        },
+        mitra: {
+          apiKey: gatewayConfig?.api_key || '',
+          secretKey: gatewayConfig?.secret_key || '',
+          webhookSecret: gatewayConfig?.webhook_secret || '',
+          baseUrl: gatewayConfig?.base_url || undefined
+        },
+        tripay: {
+          apiKey: gatewayConfig.api_key || '',
+          secretKey: gatewayConfig.secret_key || '',
+          merchantCode: gatewayConfig.merchant_code || '',
+          webhookSecret: gatewayConfig.webhook_secret || '',
+          baseUrl: gatewayConfig.base_url || undefined
+        }
       });
-    } catch (error) {
+
+      // Create payment request
+      const paymentRequest = {
+        invoiceId: transactionId, // Use transaction ID as invoice ID reference
+        customerId: customerId,
+        amount: packageData.price,
+        currency: 'IDR',
+        description: `Pembayaran Paket Prepaid: ${packageData.name}`,
+        paymentMethod: paymentMethod,
+        gatewayCode: gatewayCode,
+        customerName: customer.name || 'Customer',
+        customerEmail: customer.email || undefined,
+        customerPhone: customer.phone || undefined,
+        callbackUrl: `${req.protocol}://${req.get('host')}/prepaid/portal/payment/success/${transactionId}`,
+        redirectUrl: `${req.protocol}://${req.get('host')}/prepaid/portal/payment/waiting/${transactionId}`,
+        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours expiry
+      };
+
+      // Create payment via gateway
+      const paymentResponse = await paymentService.createPayment(paymentRequest);
+
+      // Update transaction with gateway reference
+      await pool.query(
+        `UPDATE prepaid_transactions 
+         SET payment_gateway_reference = ?, 
+             payment_status = 'pending',
+             updated_at = NOW()
+         WHERE id = ?`,
+        [paymentResponse.transactionId, transactionId]
+      );
+
+      // Redirect based on payment response
+      if (paymentResponse.paymentUrl) {
+        // Redirect to payment URL (for invoice-based payments)
+        return res.redirect(paymentResponse.paymentUrl);
+      } else if (paymentResponse.accountNumber) {
+        // Show virtual account details
+        return res.render('prepaid/portal/payment-gateway', {
+          title: 'Virtual Account',
+          layout: false,
+          package: packageData,
+          transactionId,
+          gateway: gatewayCode,
+          accountNumber: paymentResponse.accountNumber,
+          accountName: paymentResponse.accountName,
+          bankCode: paymentResponse.bankCode,
+          expiryDate: paymentResponse.expiryDate,
+          amount: packageData.price
+        });
+      } else {
+        // Fallback to waiting page
+        return res.redirect(`/prepaid/portal/payment/waiting/${transactionId}`);
+      }
+
+    } catch (error: any) {
       console.error('[PrepaidPortalPaymentController] Error processing payment gateway:', error);
-      res.redirect('/prepaid/packages?error=' + encodeURIComponent('Failed to process payment'));
+      res.redirect('/prepaid/portal/packages?error=' + encodeURIComponent(`Gagal memproses pembayaran: ${error.message || 'Unknown error'}`));
     }
   }
 
@@ -236,8 +357,12 @@ class PrepaidPortalPaymentController {
    */
   async showWaitingPage(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
-      const transactionId = parseInt(req.params.transaction_id);
+      const customerId = (req.session as any).portalCustomerId;
+      const { transaction_id } = req.params;
+        if (!transaction_id) {
+            return res.status(400).json({ success: false, error: 'transaction_id is required' });
+        }
+        const transactionId = parseInt(transaction_id);
 
       if (!customerId) {
         return res.redirect('/prepaid/portal/login');
@@ -281,8 +406,12 @@ class PrepaidPortalPaymentController {
    */
   async showSuccessPage(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
-      const transactionId = parseInt(req.params.transaction_id);
+      const customerId = (req.session as any).portalCustomerId;
+      const { transaction_id } = req.params;
+        if (!transaction_id) {
+            return res.status(400).json({ success: false, error: 'transaction_id is required' });
+        }
+        const transactionId = parseInt(transaction_id);
 
       if (!customerId) {
         return res.redirect('/prepaid/portal/login');
@@ -313,8 +442,12 @@ class PrepaidPortalPaymentController {
    */
   async checkPaymentStatus(req: Request, res: Response): Promise<void> {
     try {
-      const customerId = req.session.portalCustomerId;
-      const transactionId = parseInt(req.params.transaction_id);
+      const customerId = (req.session as any).portalCustomerId;
+      const { transaction_id } = req.params;
+        if (!transaction_id) {
+            return res.status(400).json({ success: false, error: 'transaction_id is required' });
+        }
+        const transactionId = parseInt(transaction_id);
 
       if (!customerId) {
         return res.json({ success: false, error: 'Not authenticated' });
@@ -323,7 +456,8 @@ class PrepaidPortalPaymentController {
       const transaction = await PrepaidPaymentService.getTransactionById(transactionId);
 
       if (!transaction || transaction.customer_id !== customerId) {
-        return res.json({ success: false, error: 'Transaction not found' });
+        res.json({ success: false, error: 'Transaction not found' });
+        return;
       }
 
       res.json({

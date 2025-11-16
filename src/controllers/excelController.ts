@@ -37,7 +37,6 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
                 c.pppoe_profile_id,
                 sic.ip_address,
                 sic.interface,
-                sic.gateway,
                 sic.package_id as static_ip_package_id,
                 c.created_at,
                 c.updated_at
@@ -66,7 +65,6 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
             'Profile ID PPPOE': customer.pppoe_profile_id,
             'IP Address': customer.ip_address,
             'Interface': customer.interface,
-            'Gateway': customer.gateway,
             'ID Paket Static IP': customer.static_ip_package_id,
             'Tanggal Dibuat': customer.created_at,
             'Tanggal Diupdate': customer.updated_at
@@ -431,18 +429,34 @@ export const processImportedCustomers = async (req: Request, res: Response) => {
                 
                 // If static IP, insert to static_ip_clients table
                 // Note: gateway column does not exist in static_ip_clients table
+                // package_id and client_name are required (NOT NULL)
                 if (customerData.connection_type === 'static_ip' && customerData.ip_address) {
-                    const staticIpQuery = `
-                        INSERT INTO static_ip_clients (
-                            customer_id, ip_address, interface, created_at
-                        ) VALUES (?, ?, ?, NOW())
-                    `;
+                    // Get package_id from customerData (bisa dari static_ip_package_id atau package_id)
+                    const packageId = customerData.static_ip_package_id || customerData.package_id;
+                    // Get client_name from customerData (gunakan name sebagai fallback)
+                    const clientName = customerData.client_name || customerData.name || `Customer_${customerId}`;
                     
-                    await databasePool.execute(staticIpQuery, [
-                        customerId,
-                        customerData.ip_address,
-                        customerData.interface || null
-                    ]);
+                    if (!packageId) {
+                        // Jika tidak ada package_id, skip insert dan log warning
+                        console.warn(`⚠️ Warning: Static IP customer "${customerData.name || customerId}" (ID: ${customerId}) has no package_id, skipping static_ip_clients insert`);
+                        results.errors.push(`${customerData.name}: Static IP customer membutuhkan package_id`);
+                        // Tetap count as success untuk customer, tapi skip static_ip_clients
+                    } else {
+                        const staticIpQuery = `
+                            INSERT INTO static_ip_clients (
+                                customer_id, ip_address, interface, package_id, client_name, created_at
+                            ) VALUES (?, ?, ?, ?, ?, NOW())
+                        `;
+                        
+                        await databasePool.execute(staticIpQuery, [
+                            customerId,
+                            customerData.ip_address,
+                            customerData.interface || null,
+                            packageId,
+                            clientName
+                        ]);
+                        console.log(`✅ Static IP client created for customer ${customerId} with package ${packageId}`);
+                    }
                 }
                 
                 results.success++;
@@ -508,7 +522,6 @@ export const getCustomerForEdit = async (req: Request, res: Response) => {
                 c.*,
                 sic.ip_address,
                 sic.interface,
-                sic.gateway,
                 sic.package_id as static_ip_package_id
             FROM customers c
             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id

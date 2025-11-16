@@ -96,8 +96,15 @@ class PrepaidMonitoringScheduler {
           if (success) {
             console.log(`✅ Deactivated subscription #${sub.id} for ${sub.customer_name}`);
             
-            // Optional: Send notification
-            await this.sendExpiryNotification(sub);
+            // Send expiry notification via unified service
+            try {
+              const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+              await UnifiedNotificationService.notifyPackageExpired(sub.id);
+            } catch (notifError) {
+              console.error('Error sending expiry notification:', notifError);
+              // Fallback to old method
+              await this.sendExpiryNotification(sub);
+            }
           } else {
             console.error(`❌ Failed to deactivate subscription #${sub.id}`);
           }

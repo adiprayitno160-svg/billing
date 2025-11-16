@@ -1,4 +1,4 @@
-<div class="rounded border border-slate-200 bg-white p-4">
+﻿<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Tambah ODP</h2>
         <a href="/ftth/odp<%= odcId ? ('?odc_id=' + odcId) : '' %>" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
@@ -155,6 +155,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Tambahkan marker default
             marker = L.marker([-6.2, 106.8]).addTo(map);
             
+            // Get form input elements
+            const latInput = document.querySelector('input[name="latitude"]');
+            const lngInput = document.querySelector('input[name="longitude"]');
+            
             // Event click pada map untuk mengubah lokasi
             map.on('click', function(e) {
                 const lat = e.latlng.lat;
@@ -164,8 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 marker.setLatLng([lat, lng]);
                 
                 // Update form fields
-                const latInput = document.querySelector('input[name="latitude"]');
-                const lngInput = document.querySelector('input[name="longitude"]');
                 if (latInput) latInput.value = lat.toFixed(7);
                 if (lngInput) lngInput.value = lng.toFixed(7);
             });
@@ -176,6 +178,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     map.invalidateSize();
                 }
             }, 100);
+            
+            // Otomatis ambil lokasi saat ini jika koordinat masih kosong
+            if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        // Update map view
+                        if (map) {
+                            map.setView([lat, lng], 15);
+                            marker.setLatLng([lat, lng]);
+                        }
+                        
+                        // Update form fields
+                        if (latInput) latInput.value = lat.toFixed(7);
+                        if (lngInput) lngInput.value = lng.toFixed(7);
+                    }, function(error) {
+                        console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
+                        // Tidak menampilkan error, hanya log saja karena ini opsional
+                    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+                }
+            }
             
             console.log('Map initialized successfully');
         } catch (error) {

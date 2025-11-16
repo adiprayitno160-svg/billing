@@ -1,4 +1,4 @@
-<div class="space-y-6">
+﻿<div class="space-y-6 pb-24">
     <div class="mb-6">
         <div class="flex items-center gap-3 mb-2">
             <a href="/packages/pppoe/packages" class="text-blue-600 hover:text-blue-800">
@@ -320,15 +320,17 @@ function loadProfileRateLimits(profileId) {
     const burstTimeRx = selectedOption.getAttribute('data-burst-time-rx');
     const burstTimeTx = selectedOption.getAttribute('data-burst-time-tx');
     
-    // Fill the form
-    if (rateRx) document.getElementById('rate_limit_rx').value = rateRx;
-    if (rateTx) document.getElementById('rate_limit_tx').value = rateTx;
-    if (burstRx) document.getElementById('burst_limit_rx').value = burstRx;
-    if (burstTx) document.getElementById('burst_limit_tx').value = burstTx;
-    if (burstThresholdRx) document.getElementById('burst_threshold_rx').value = burstThresholdRx;
-    if (burstThresholdTx) document.getElementById('burst_threshold_tx').value = burstThresholdTx;
-    if (burstTimeRx) document.getElementById('burst_time_rx').value = burstTimeRx;
-    if (burstTimeTx) document.getElementById('burst_time_tx').value = burstTimeTx;
+    // Fill the form - if empty/null, set to "0" for unlimited (per user requirement)
+    document.getElementById('rate_limit_rx').value = (rateRx && rateRx.trim() !== '') ? rateRx : '0';
+    document.getElementById('rate_limit_tx').value = (rateTx && rateTx.trim() !== '') ? rateTx : '0';
+    
+    // Burst fields are optional, so only fill if they have values
+    document.getElementById('burst_limit_rx').value = (burstRx && burstRx.trim() !== '') ? burstRx : '';
+    document.getElementById('burst_limit_tx').value = (burstTx && burstTx.trim() !== '') ? burstTx : '';
+    document.getElementById('burst_threshold_rx').value = (burstThresholdRx && burstThresholdRx.trim() !== '') ? burstThresholdRx : '';
+    document.getElementById('burst_threshold_tx').value = (burstThresholdTx && burstThresholdTx.trim() !== '') ? burstThresholdTx : '';
+    document.getElementById('burst_time_rx').value = (burstTimeRx && burstTimeRx.trim() !== '') ? burstTimeRx : '';
+    document.getElementById('burst_time_tx').value = (burstTimeTx && burstTimeTx.trim() !== '') ? burstTimeTx : '';
 }
 
 // Calculate expiry date based on duration

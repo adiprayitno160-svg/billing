@@ -12,15 +12,24 @@ import router from './routes/index';
 import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
-import { WhatsAppWebService } from './services/whatsapp/WhatsAppWebService';
 import PrepaidSchedulerService from './services/prepaid/PrepaidSchedulerServiceComplete';
 import PrepaidMonitoringScheduler from './schedulers/PrepaidMonitoringScheduler';
+import { WhatsAppService } from './services/whatsapp/WhatsAppService';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
 import { companyInfoMiddleware } from './middlewares/companyInfoMiddleware';
 import { injectAppVersion } from './middlewares/versionMiddleware';
-import { autoFixPrepaidPackagesTable } from './utils/autoFixDatabase';
+import { 
+	autoFixPrepaidPackagesTable, 
+	autoFixPrepaidSubscriptionsTable,
+	autoFixPrepaidTransactionsTable,
+	autoFixPortalCustomersTable,
+	autoFixPrepaidSubscriptionsTableFull
+} from './utils/autoFixDatabase';
+import { loggingMiddleware, errorLoggingMiddleware } from './middlewares/loggingMiddleware';
+import { BillingLogService } from './services/billing/BillingLogService';
+import { AIAnomalyDetectionService } from './services/billing/AIAnomalyDetectionService';
 
 // Load .env but don't override existing environment variables (e.g., from PM2)
 dotenv.config({ override: false });
@@ -87,6 +96,7 @@ app.use(express.json());
 // Static files
 app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'assets')));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Expose variables to all views
 app.use((req, res, next) => {
@@ -130,8 +140,14 @@ app.use(companyInfoMiddleware);
 // Version middleware - provides app version to all views
 app.use(injectAppVersion);
 
+// Logging middleware - must be before routes
+app.use(loggingMiddleware);
+
 // Root router
 app.use('/', router);
+
+// Error logging middleware - must be after routes but before error handler
+app.use(errorLoggingMiddleware);
 
 // Payment routes
 import paymentRoutes from './routes/payment';
@@ -139,6 +155,20 @@ app.use('/payment', paymentRoutes);
 
 // 404 handler
 app.use((req, res, next) => {
+	// Check if this is an API request (JSON expected)
+	const acceptsJson = req.headers.accept?.includes('application/json') || 
+	                   req.headers['content-type']?.includes('application/json');
+	
+	if (acceptsJson || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH' || req.path.startsWith('/api/')) {
+		return res.status(404).json({
+			success: false,
+			error: 'Endpoint tidak ditemukan',
+			status: 404,
+			path: req.path,
+			method: req.method
+		});
+	}
+	
 	res.status(404).render('error', {
 		title: 'Halaman Tidak Ditemukan',
 		status: 404,
@@ -162,11 +192,74 @@ process.on('uncaughtException', (error) => {
 
 async function start() {
 	try {
+		console.log('Starting server initialization...');
+		console.log(`Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
+		
+		console.log('Ensuring initial schema...');
 		await ensureInitialSchema();
+		console.log('Schema ensured');
+		
+		// Ensure AI settings table exists
+		try {
+			console.log('Ensuring AI settings table...');
+			const { AISettingsService } = await import('./services/payment/AISettingsService');
+			await AISettingsService.ensureAISettingsTable();
+			console.log('✅ AI settings table ensured');
+		} catch (error) {
+			console.error('⚠️ Error ensuring AI settings table (non-critical):', error);
+			// Non-critical, continue startup
+		}
+		
+		// Ensure notification templates exist
+		try {
+			console.log('Ensuring notification templates...');
+			const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
+			await ensureNotificationTemplates();
+			console.log('✅ Notification templates ensured');
+		} catch (error) {
+			console.error('⚠️ Error ensuring notification templates (non-critical):', error);
+			// Non-critical, continue startup
+		}
+		
+		console.log('Checking database connection...');
 		await checkDatabaseConnection();
+		console.log('Database connection OK');
+		
+		// Initialize logging system
+		console.log('Initializing logging system...');
+		await BillingLogService.initialize();
+		const anomalyDetector = new AIAnomalyDetectionService();
+		await anomalyDetector.initialize();
+		console.log('✅ Logging system initialized');
 		
 		// Auto-fix missing columns in prepaid_packages table
 		await autoFixPrepaidPackagesTable();
+		console.log('Prepaid packages table checked');
+		
+		// Auto-fix/create prepaid_package_subscriptions table (full)
+		await autoFixPrepaidSubscriptionsTableFull();
+		console.log('Prepaid subscriptions table checked');
+		
+		// Auto-fix missing columns in prepaid_package_subscriptions table
+		await autoFixPrepaidSubscriptionsTable();
+		console.log('Prepaid subscriptions columns checked');
+		
+		// Auto-fix/create prepaid_transactions table
+		await autoFixPrepaidTransactionsTable();
+		console.log('Prepaid transactions table checked');
+		
+		// Auto-fix/create portal_customers table
+		await autoFixPortalCustomersTable();
+		console.log('Portal customers table checked');
+		
+		// Ensure purchase tables exist
+		try {
+			const { ensurePurchaseTables } = await import('./utils/autoFixDatabase');
+			await ensurePurchaseTables();
+			console.log('✅ Purchase tables ensured');
+		} catch (error) {
+			console.error('⚠️ Error ensuring purchase tables (non-critical):', error);
+		}
 		
 		// Initialize billing scheduler
 		SchedulerService.initialize();
@@ -184,27 +277,42 @@ async function start() {
 		PrepaidMonitoringScheduler.start();
 		console.log('Prepaid monitoring scheduler started');
 		
-		// Initialize WhatsApp Web Service (non-blocking)
-		WhatsAppWebService.initialize().catch(err => {
-			console.error('WhatsApp Web Service initialization error (non-critical):', err);
-		});
+		// Initialize Notification Scheduler
+		const { NotificationScheduler } = await import('./services/notification/NotificationScheduler');
+		NotificationScheduler.initialize();
+		console.log('Notification scheduler initialized');
+		
+		// Initialize WhatsApp Business service
+		try {
+			await WhatsAppService.initialize();
+			console.log('WhatsApp Business service initialized');
+		} catch (error) {
+			console.error('Failed to initialize WhatsApp service:', error);
+			console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
+		}
 		
 		// Initialize default users
 		const authController = new AuthController();
 		await authController.initializeDefaultUsers();
 		console.log('Default users initialized');
 		
+		
 		// Create HTTP server
 		const server = createServer(app);
 		
 		
-		server.listen(port, () => {
+		server.listen(port, '0.0.0.0', () => {
 			console.log(`Server running on http://localhost:${port}`);
+			console.log(`Server also accessible on http://0.0.0.0:${port}`);
 			console.log(`WebSocket available at ws://localhost:${port}/ws`);
 			
 		});
 	} catch (err) {
 		console.error('Failed to start server:', err);
+		if (err instanceof Error) {
+			console.error('Error message:', err.message);
+			console.error('Error stack:', err.stack);
+		}
 		process.exit(1);
 	}
 }

@@ -1,4 +1,4 @@
-<div class="rounded border border-slate-200 bg-white p-4">
+﻿<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Pelanggan PPPOE Baru</h2>
         <a href="/customers/list" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
@@ -116,6 +116,7 @@
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">Peta Lokasi</label>
                         <div id="map" style="height: 220px; width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;" class="rounded-lg shadow-sm"></div>
+                        <button type="button" id="btnGetLocation" class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">📍 Ambil Lokasi Saat Ini</button>
                         <p class="text-xs text-slate-500 mt-2 flex items-center">
                             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
@@ -191,6 +192,28 @@
                         </p>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Billing Options -->
+        <div class="sm:col-span-2">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
+                    📅 Pengaturan Tagihan
+                </h3>
+                
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" name="enable_billing" id="enable_billing" value="1" checked
+                           class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="enable_billing" class="text-sm font-medium text-slate-700 cursor-pointer">
+                        Aktifkan Sistem Billing Postpaid
+                    </label>
+                </div>
+                <p class="text-xs text-slate-600 mt-2 ml-7">
+                    ✅ Default aktif: Tagihan akan mengikuti tanggal daftar setiap bulan<br>
+                    📌 Contoh: Daftar tanggal 12 Oktober → Tagihan bulanan setiap tanggal 12 → Jatuh tempo tanggal 13 → Auto-isolir jika tidak dibayar<br>
+                    ❌ Uncheck untuk menggunakan sistem billing lama
+                </p>
             </div>
         </div>
 
@@ -273,50 +296,86 @@
         
         function loadSecrets() {
             if (!pppoeResults) return;
+            console.log('[PPPoE Search] loadSecrets called');
             pppoeResults.innerHTML = '<div class="p-2 text-sm text-slate-600">Memuat...</div>';
             pppoeResults.classList.remove('hidden');
             fetch('/api/pppoe/secrets')
                 .then(r => r.json())
                 .then(list => {
                     allSecrets = Array.isArray(list) ? list : [];
-                    searchPPPoE('');
+                    console.log('[PPPoE Search] Loaded', allSecrets.length, 'secrets');
+                    
+                    // Show success message with count
+                    if (allSecrets.length > 0) {
+                        pppoeResults.innerHTML = `<div class="p-2 text-sm text-green-600">✓ Berhasil memuat ${allSecrets.length} username. Ketik untuk mencari...</div>`;
+                        // Hide after 2 seconds
+                        setTimeout(() => {
+                            if (pppoeResults && !pppoeSearch?.value?.trim()) {
+                                pppoeResults.classList.add('hidden');
+                            }
+                        }, 2000);
+                    } else {
+                        pppoeResults.innerHTML = '<div class="p-2 text-sm text-yellow-600">Tidak ada username tersedia</div>';
+                        setTimeout(() => {
+                            if (pppoeResults && !pppoeSearch?.value?.trim()) {
+                                pppoeResults.classList.add('hidden');
+                            }
+                        }, 2000);
+                    }
                 })
                 .catch(err => {
-                    console.error('Load PPPoE secrets error:', err);
-                    pppoeResults.innerHTML = '<div class="p-2 text-sm text-red-600">Gagal memuat dari MikroTik</div>';
+                    console.error('[PPPoE Search] Load PPPoE secrets error:', err);
+                    pppoeResults.innerHTML = '<div class="p-2 text-sm text-red-600">Gagal memuat dari MikroTik. Pastikan koneksi ke MikroTik tersedia.</div>';
                 });
         }
         
         function searchPPPoE(query) {
             if (!pppoeResults) return;
             const searchTerm = query.toLowerCase().trim();
+            console.log('[PPPoE Search] searchPPPoE called with query:', query);
             
+            // Hide if query is empty
             if (!searchTerm) {
                 pppoeResults.classList.add('hidden');
                 return;
             }
             
+            // Filter secrets based on search term
             const filtered = allSecrets.filter(item => 
                 item.name && item.name.toLowerCase().includes(searchTerm)
             );
             
+            console.log('[PPPoE Search] Filtered results:', filtered.length);
+            
+            // Show results
             if (filtered.length === 0) {
                 pppoeResults.innerHTML = '<div class="p-2 text-sm text-gray-600">Tidak ada hasil</div>';
             } else {
-                pppoeResults.innerHTML = filtered.map(item => `
-                    <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
-                         onclick="selectPPPoE('${item.name.replace(/'/g, "\\'")}', '${item.profile || ''}')">
-                        <div class="font-medium text-slate-900">${item.name}</div>
-                        ${item.profile ? `<div class="text-xs text-slate-600">Profile: ${item.profile}</div>` : ''}
-                    </div>
-                `).join('');
+                pppoeResults.innerHTML = filtered.slice(0, 50).map(item => {
+                    // Escape special characters to prevent XSS
+                    const name = item.name.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const profile = (item.profile || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `
+                        <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 pppoe-result-item" 
+                             data-username="${name}" 
+                             data-profile="${profile}">
+                            <div class="font-medium text-slate-900">${item.name}</div>
+                            ${item.profile ? `<div class="text-xs text-slate-600">Profile: ${item.profile}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
             }
             
             pppoeResults.classList.remove('hidden');
+            console.log('[PPPoE Search] Dropdown shown with', filtered.length, 'results');
         }
         
         function selectPPPoE(username, profile) {
-            if (pppoeSearch) pppoeSearch.value = username;
+            console.log('[PPPoE Search] selectPPPoE called:', username);
+            if (pppoeSearch) {
+                pppoeSearch.value = username;
+                console.log('[PPPoE Search] Search field updated');
+            }
             if (pppoeResults) pppoeResults.classList.add('hidden');
         }
         
@@ -324,16 +383,98 @@
         window.selectPPPoE = selectPPPoE;
         
         if (pppoeSearch) {
-            pppoeSearch.addEventListener('input', function(e) {
-                searchPPPoE(e.target.value);
-            });
+            console.log('[PPPoE Search] Setting up event listeners');
             
-            // Hide results when clicking outside
-            document.addEventListener('click', function(e) {
-                if (pppoeResults && !pppoeSearch.contains(e.target) && !pppoeResults.contains(e.target)) {
+            // Search on input
+            pppoeSearch.addEventListener('input', function(e) {
+                const value = e.target.value.trim();
+                console.log('[PPPoE Search] Input event, value:', value);
+                if (value.length > 0) {
+                    searchPPPoE(value);
+                } else {
                     pppoeResults.classList.add('hidden');
                 }
             });
+            
+            // Show all results when focused (if data is loaded)
+            pppoeSearch.addEventListener('focus', function() {
+                console.log('[PPPoE Search] Focus event, allSecrets.length:', allSecrets.length);
+                if (allSecrets.length > 0 && this.value.trim().length > 0) {
+                    searchPPPoE(this.value);
+                }
+            });
+            
+            // Flag to track if click is inside dropdown
+            let isClickInsideDropdown = false;
+            
+            // Use event delegation for click events on dropdown items
+            // Register on pppoeResults first (bubbling phase)
+            if (pppoeResults) {
+                pppoeResults.addEventListener('click', function(e) {
+                    console.log('[PPPoE Search] Click event on dropdown, target:', e.target);
+                    isClickInsideDropdown = true; // Mark that click is inside
+                    
+                    // Find the clicked result item
+                    const item = e.target.closest('.pppoe-result-item');
+                    if (item) {
+                        const username = item.getAttribute('data-username');
+                        const profile = item.getAttribute('data-profile') || '';
+                        console.log('[PPPoE Search] Item clicked:', username);
+                        if (username) {
+                            selectPPPoE(username, profile);
+                        }
+                    }
+                    
+                    // Stop propagation to prevent document listener from firing
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    
+                    // Reset flag after a short delay
+                    setTimeout(() => {
+                        isClickInsideDropdown = false;
+                    }, 10);
+                }, false); // Bubbling phase (default)
+            }
+            
+            // Also check on search input
+            if (pppoeSearch) {
+                pppoeSearch.addEventListener('click', function(e) {
+                    console.log('[PPPoE Search] Click on search input');
+                    isClickInsideDropdown = true;
+                    e.stopPropagation();
+                    setTimeout(() => {
+                        isClickInsideDropdown = false;
+                    }, 10);
+                }, false);
+            }
+            
+            // Hide results when clicking outside
+            // Use setTimeout to ensure dropdown listener runs first
+            document.addEventListener('click', function(e) {
+                // Use setTimeout to let other listeners run first
+                setTimeout(() => {
+                    const target = e.target;
+                    const isClickInsideSearch = pppoeSearch && (pppoeSearch.contains(target) || pppoeSearch === target);
+                    const isClickInsideResults = pppoeResults && (pppoeResults.contains(target) || pppoeResults === target);
+                    
+                    console.log('[PPPoE Search] Document click event:', {
+                        target: target,
+                        isClickInsideDropdown: isClickInsideDropdown,
+                        isClickInsideSearch: isClickInsideSearch,
+                        isClickInsideResults: isClickInsideResults
+                    });
+                    
+                    // Don't hide if click was inside dropdown or if flag is set
+                    if (!isClickInsideDropdown && !isClickInsideSearch && !isClickInsideResults) {
+                        console.log('[PPPoE Search] Click outside, hiding dropdown');
+                        if (pppoeResults) {
+                            pppoeResults.classList.add('hidden');
+                        }
+                    } else {
+                        console.log('[PPPoE Search] Click inside, keeping dropdown open');
+                    }
+                }, 0);
+            }, false); // Bubbling phase
         }
         
         const reloadBtn = document.getElementById('reload_secrets_btn');
@@ -391,6 +532,46 @@
     let map;
     let marker;
     
+    function getCurrentLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Browser tidak mendukung geolocation'));
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    resolve({ lat, lng });
+                },
+                function(error) {
+                    reject(error);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+            );
+        });
+    }
+    
+    function setLocationToMap(lat, lng) {
+        const latInput = document.querySelector('input[name="latitude"]');
+        const lngInput = document.querySelector('input[name="longitude"]');
+        
+        if (latInput && lngInput) {
+            latInput.value = lat.toFixed(7);
+            lngInput.value = lng.toFixed(7);
+        }
+        
+        if (map) {
+            map.setView([lat, lng], 15);
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            marker = L.marker([lat, lng]).addTo(map);
+            marker.bindPopup(`<b>Lokasi Saat Ini</b><br>Lat: ${lat.toFixed(7)}<br>Lng: ${lng.toFixed(7)}`).openPopup();
+        }
+    }
+    
     function initMaps() {
         // Skip map initialization if Leaflet is not loaded to avoid breaking other scripts
         if (typeof L === 'undefined') {
@@ -428,6 +609,19 @@
             // Show notification
             showNotification(`Koordinat dipilih: ${lat}, ${lng}`, 'success');
         });
+        
+        // Otomatis ambil lokasi saat ini jika koordinat masih kosong
+        if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
+            getCurrentLocation()
+                .then(({ lat, lng }) => {
+                    setLocationToMap(lat, lng);
+                    showNotification('Lokasi saat ini berhasil diambil', 'success');
+                })
+                .catch((error) => {
+                    console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
+                    // Tidak menampilkan error, hanya log saja karena ini opsional
+                });
+        }
     }
 
     function updateMapPreview() {
@@ -471,6 +665,28 @@
     document.addEventListener('DOMContentLoaded', function() {
         initMaps();
         updateOLTODC();
+        
+        // Tombol manual untuk mengambil lokasi saat ini
+        const getLocationBtn = document.getElementById('btnGetLocation');
+        if (getLocationBtn) {
+            getLocationBtn.addEventListener('click', function() {
+                getLocationBtn.disabled = true;
+                getLocationBtn.textContent = '⏳ Mendeteksi...';
+                
+                getCurrentLocation()
+                    .then(({ lat, lng }) => {
+                        setLocationToMap(lat, lng);
+                        showNotification('Lokasi saat ini berhasil diambil', 'success');
+                        getLocationBtn.disabled = false;
+                        getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
+                    })
+                    .catch((error) => {
+                        showNotification('Tidak dapat mengambil lokasi: ' + error.message, 'error');
+                        getLocationBtn.disabled = false;
+                        getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
+                    });
+            });
+        }
         
         // Generate customer code if not provided
         const customerCodeInput = document.querySelector('input[name="customer_code"]');

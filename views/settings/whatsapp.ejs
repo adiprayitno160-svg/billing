@@ -1,33 +1,660 @@
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  <div class="lg:col-span-2">
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-semibold text-slate-900 mb-4">Pengaturan WhatsApp Business</h2>
-      <form method="post" action="/settings/whatsapp" class="space-y-4">
-        <div>
-          <label class="block text-sm mb-1 text-slate-700">Access Token</label>
-          <input type="password" name="access_token" class="w-full border border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" placeholder="EAAxxxxxxxxxxxxxxxxxxxx" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1 text-slate-700">Phone Number ID</label>
-          <input type="text" name="phone_number_id" class="w-full border border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" placeholder="123456789012345" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1 text-slate-700">Webhook Verify Token</label>
-          <input type="text" name="webhook_token" class="w-full border border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" placeholder="your_webhook_verify_token" />
-        </div>
-        <div>
-          <label class="block text-sm mb-1 text-slate-700">Template Message</label>
-          <textarea name="template_message" rows="3" class="w-full border border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/60 rounded px-3 py-2 outline-none transition bg-white" placeholder="Halo {{name}}, tagihan Anda sebesar {{amount}} sudah jatuh tempo. Silakan lakukan pembayaran."></textarea>
-        </div>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" name="enable_reminder" class="accent-indigo-600" />
-          <label class="text-sm text-slate-700">Aktifkan Pengingat Otomatis</label>
-        </div>
-        <div class="flex items-center gap-3">
-          <button type="submit" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded shadow-sm transition">Simpan Pengaturan</button>
-          <button type="button" class="px-4 py-2 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded transition">Test WhatsApp</button>
-        </div>
-      </form>
+<!-- Settings WhatsApp Page -->
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <i class="fab fa-whatsapp text-green-500"></i> Pengaturan WhatsApp
+        </h2>
+        <p class="text-gray-600 mt-1">Konfigurasi WhatsApp Business untuk notifikasi otomatis</p>
     </div>
-  </div>
+
+    <!-- Status WhatsApp -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-<%= status.ready ? 'green' : 'red' %>-100 flex items-center justify-center">
+                    <i class="fab fa-whatsapp text-<%= status.ready ? 'green' : 'red' %>-600 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Status WhatsApp</h3>
+                    <% if (status.ready) { %>
+                        <p class="text-sm text-green-600 flex items-center gap-1">
+                            <i class="fas fa-check-circle"></i> WhatsApp Terhubung dan Siap
+                        </p>
+                    <% } else if (status.initialized && status.hasQRCode) { %>
+                        <p class="text-sm text-yellow-600 flex items-center gap-1">
+                            <i class="fas fa-qrcode"></i> Menunggu Scan QR Code
+                        </p>
+                    <% } else if (status.initialized) { %>
+                        <p class="text-sm text-yellow-600 flex items-center gap-1">
+                            <i class="fas fa-clock"></i> Menunggu QR Code
+                        </p>
+                    <% } else { %>
+                        <p class="text-sm text-red-600 flex items-center gap-1">
+                            <i class="fas fa-times-circle"></i> WhatsApp Belum Terhubung
+                        </p>
+                    <% } %>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <% if (status.ready) { %>
+                    <span class="px-4 py-2 bg-green-500 text-white rounded-full text-sm font-medium">
+                        Online
+                    </span>
+                <% } else { %>
+                    <span class="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium">
+                        Offline
+                    </span>
+                <% } %>
+                <div class="flex items-center gap-2">
+                    <a href="/whatsapp/troubleshooting" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md">
+                        <i class="fas fa-tools"></i> Troubleshooting
+                    </a>
+                    <a href="/notification/templates" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md">
+                        <i class="fas fa-envelope"></i> Template
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- QR Code Binding Section -->
+    <% if (!status.ready) { %>
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i class="fas fa-qrcode text-green-600"></i> Binding via QR Code
+        </h3>
+        
+        <div id="qrCodeContainer" class="text-center">
+            <div id="qrCodeLoading" class="<%= (!qrCode || !qrCodeUrl) && !status.ready ? '' : 'hidden' %>">
+                <div class="inline-block p-6 bg-gray-100 rounded-lg mb-4">
+                    <i class="fas fa-spinner fa-spin text-gray-400 text-4xl"></i>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Memuat QR Code...</p>
+            </div>
+            <div id="qrCodeDisplay" class="<%= (qrCode && qrCodeUrl) ? '' : 'hidden' %>">
+                <div class="inline-block p-4 bg-white border-2 border-green-500 rounded-lg mb-4">
+                    <img 
+                        id="qrCodeImage"
+                        src="<%= qrCodeUrl ? qrCodeUrl + '?t=' + Date.now() : '' %>" 
+                        alt="WhatsApp QR Code" 
+                        class="w-64 h-64 mx-auto"
+                        onerror="handleQRCodeError(this)"
+                        onload="handleQRCodeLoad(this)"
+                    />
+                </div>
+                <p class="text-sm text-gray-600 mb-4">
+                    Scan QR code ini dengan WhatsApp di smartphone Anda untuk menghubungkan akun
+                </p>
+                <div class="flex items-center justify-center gap-3">
+                    <button 
+                        onclick="regenerateQRCode()"
+                        class="px-6 py-2.5 border border-green-600 text-green-600 hover:bg-green-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                        <i class="fas fa-sync"></i> Regenerate QR Code
+                    </button>
+                    <button 
+                        onclick="refreshStatus()"
+                        class="px-6 py-2.5 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                        <i class="fas fa-refresh"></i> Refresh Status
+                    </button>
+                </div>
+            </div>
+            <% if (!qrCode || !qrCodeUrl) { %>
+                <div id="qrCodeEmpty" class="text-center py-8 <%= (qrCode && qrCodeUrl) ? 'hidden' : '' %>">
+                    <div class="inline-block p-6 bg-gray-100 rounded-lg mb-4">
+                        <i class="fas fa-qrcode text-gray-400 text-6xl"></i>
+                    </div>
+                    <p class="text-gray-600 mb-4">
+                        QR Code belum tersedia. Klik tombol di bawah untuk generate QR Code baru.
+                    </p>
+                    <button 
+                        onclick="regenerateQRCode()"
+                        class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 mx-auto"
+                    >
+                        <i class="fas fa-qrcode"></i> Generate QR Code
+                    </button>
+                </div>
+            <% } %>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Connection Info (if ready) -->
+    <% if (status.ready) { %>
+    <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-check-circle text-green-600 text-xl mt-1"></i>
+            <div>
+                <h3 class="font-semibold text-green-900 mb-2">WhatsApp Terhubung</h3>
+                <p class="text-sm text-green-700">
+                    WhatsApp Business Anda sudah terhubung dan siap mengirim notifikasi otomatis ke pelanggan.
+                </p>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Statistics -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Statistik Notifikasi (30 Hari Terakhir)</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <p class="text-sm text-blue-600 font-medium">Total</p>
+                <p class="text-2xl font-bold text-blue-900"><%= stats.total || 0 %></p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                <p class="text-sm text-green-600 font-medium">Berhasil</p>
+                <p class="text-2xl font-bold text-green-900"><%= stats.sent || 0 %></p>
+            </div>
+            <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+                <p class="text-sm text-red-600 font-medium">Gagal</p>
+                <p class="text-2xl font-bold text-red-900"><%= stats.failed || 0 %></p>
+            </div>
+            <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <p class="text-sm text-yellow-600 font-medium">Success Rate</p>
+                <p class="text-2xl font-bold text-yellow-900"><%= stats.successRate ? stats.successRate.toFixed(1) : '0' %>%</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panduan Setup -->
+    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg shadow-sm p-6 mb-6 border border-green-200">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-yellow-500"></i> Cara Binding WhatsApp
+        </h3>
+        <div class="space-y-3 text-sm text-gray-700">
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                <p>Pastikan WhatsApp Business sudah terinstall di smartphone Anda</p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                <p>Buka WhatsApp di smartphone, lalu masuk ke <strong>Settings > Linked Devices</strong></p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                <p>Pilih <strong>Link a Device</strong> dan scan QR Code yang muncul di halaman ini</p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                <p>Tunggu beberapa detik hingga status berubah menjadi "Online"</p>
+            </div>
+            <div class="flex gap-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                <p>Setelah terhubung, WhatsApp siap mengirim notifikasi otomatis ke pelanggan</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Send Message -->
+    <% if (status.ready) { %>
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i class="fas fa-paper-plane text-green-600"></i> Test Kirim Pesan
+        </h3>
+        <p class="text-sm text-gray-600 mb-4">Uji coba mengirim pesan WhatsApp ke nomor pelanggan</p>
+        
+        <form id="testSendForm" class="space-y-4">
+            <div>
+                <label for="testPhone" class="block text-sm font-medium text-gray-700 mb-2">
+                    Nomor Telepon <span class="text-red-500">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="testPhone" 
+                    name="phone" 
+                    placeholder="081234567890 atau 6281234567890"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    required
+                />
+                <p class="text-xs text-gray-500 mt-1">Format: 081234567890 atau 6281234567890</p>
+            </div>
+            
+            <div>
+                <label for="testMessage" class="block text-sm font-medium text-gray-700 mb-2">
+                    Pesan Test <span class="text-red-500">*</span>
+                </label>
+                <textarea 
+                    id="testMessage" 
+                    name="message" 
+                    rows="4"
+                    placeholder="Masukkan pesan test yang ingin dikirim..."
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    required
+                ></textarea>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button 
+                    type="submit"
+                    class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <i class="fas fa-paper-plane"></i> Kirim Pesan Test
+                </button>
+                <button 
+                    type="button"
+                    onclick="fillTestMessage()"
+                    class="px-6 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <i class="fas fa-magic"></i> Isi Pesan Contoh
+                </button>
+            </div>
+        </form>
+        
+        <div id="testSendResult" class="mt-4 hidden"></div>
+    </div>
+    <% } %>
+
+    <!-- Actions -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Aksi</h3>
+        <div class="flex items-center gap-3">
+            <button 
+                onclick="refreshStatus()"
+                class="px-6 py-2.5 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+                <i class="fas fa-refresh"></i> Refresh Status
+            </button>
+            <% if (status.ready) { %>
+            <button 
+                onclick="viewHistory()"
+                class="px-6 py-2.5 border border-gray-600 text-gray-600 hover:bg-gray-50 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+                <i class="fas fa-history"></i> Lihat History
+            </button>
+            <% } %>
+        </div>
+    </div>
 </div>
+
+<script>
+// Auto-refresh QR code status every 3 seconds if not ready
+let statusCheckInterval;
+let qrCodeRefreshInterval;
+
+function startStatusCheck() {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+    }
+    if (qrCodeRefreshInterval) {
+        clearInterval(qrCodeRefreshInterval);
+    }
+    
+    // Always start auto-refresh to check for status changes
+    // This ensures status updates even after binding
+    statusCheckInterval = setInterval(() => {
+        refreshStatus();
+    }, 3000);
+    
+    // Also refresh QR code image every 5 seconds to prevent expiration (only if not ready)
+    if (!<%= status.ready ? 'true' : 'false' %>) {
+        qrCodeRefreshInterval = setInterval(() => {
+            refreshQRCodeImage();
+        }, 5000);
+    }
+}
+
+// Start status check on page load
+startStatusCheck();
+
+// Refresh QR code image
+function refreshQRCodeImage() {
+    const img = document.getElementById('qrCodeImage');
+    if (img && img.src) {
+        // Force reload with new timestamp
+        const baseUrl = img.src.split('?')[0];
+        img.src = baseUrl + '?t=' + Date.now();
+    }
+}
+
+// Handle QR code image error
+function handleQRCodeError(img) {
+    console.log('QR code image error, retrying...');
+    setTimeout(() => {
+        if (img && img.src) {
+            const baseUrl = img.src.split('?')[0];
+            img.src = baseUrl + '?t=' + Date.now();
+        }
+    }, 1000);
+}
+
+// Handle QR code image load
+function handleQRCodeLoad(img) {
+    const loadingDiv = document.getElementById('qrCodeLoading');
+    const displayDiv = document.getElementById('qrCodeDisplay');
+    if (loadingDiv) loadingDiv.classList.add('hidden');
+    if (displayDiv) displayDiv.classList.remove('hidden');
+}
+
+// Refresh status
+async function refreshStatus() {
+    try {
+        const response = await fetch('/settings/whatsapp/status');
+        const result = await response.json();
+        
+        if (result.success) {
+            const data = result.data;
+            const status = data.status || data;
+            
+            // Update status display at the top of the page
+            updateStatusDisplay(status);
+            
+            // Update QR code if available (with cache busting)
+            const loadingDiv = document.getElementById('qrCodeLoading');
+            const displayDiv = document.getElementById('qrCodeDisplay');
+            const emptyDiv = document.getElementById('qrCodeEmpty');
+            const img = document.getElementById('qrCodeImage');
+            
+            if (data.qrCodeUrl && data.qrCode) {
+                // QR code is available, show it
+                if (loadingDiv) loadingDiv.classList.add('hidden');
+                if (emptyDiv) emptyDiv.classList.add('hidden');
+                if (displayDiv) displayDiv.classList.remove('hidden');
+                if (img) {
+                    img.src = data.qrCodeUrl + '?t=' + Date.now();
+                }
+            } else if (!status.ready) {
+                // QR code is being generated or not available yet
+                if (loadingDiv) loadingDiv.classList.remove('hidden');
+                if (displayDiv) displayDiv.classList.add('hidden');
+                if (emptyDiv && !data.qrCodeUrl) {
+                    emptyDiv.classList.remove('hidden');
+                } else if (emptyDiv) {
+                    emptyDiv.classList.add('hidden');
+                }
+            }
+            
+            // If ready, reload page
+            if (status.ready) {
+                clearInterval(statusCheckInterval);
+                clearInterval(qrCodeRefreshInterval);
+                alert('✅ WhatsApp berhasil terhubung!');
+                window.location.reload();
+            }
+        }
+    } catch (error) {
+        console.error('Error refreshing status:', error);
+    }
+}
+
+// Update status display dynamically
+function updateStatusDisplay(status) {
+    // Find status container (first white card)
+    const statusContainers = document.querySelectorAll('.bg-white.rounded-lg.shadow-sm.p-6.mb-6');
+    const statusContainer = statusContainers[0];
+    if (!statusContainer) return;
+    
+    // Update status icon and color
+    const iconContainer = statusContainer.querySelector('.w-12.h-12');
+    const statusText = statusContainer.querySelector('h3 + p');
+    const statusBadge = statusContainer.querySelector('.px-4.py-2');
+    
+    if (iconContainer) {
+        // Remove existing color classes
+        iconContainer.className = iconContainer.className.replace(/bg-(green|red)-100/g, '');
+        // Add new color class
+        if (status.ready) {
+            iconContainer.classList.add('bg-green-100');
+        } else {
+            iconContainer.classList.add('bg-red-100');
+        }
+        
+        const icon = iconContainer.querySelector('i');
+        if (icon) {
+            // Remove existing color classes
+            icon.className = icon.className.replace(/text-(green|red)-600/g, '');
+            // Add new color class
+            if (status.ready) {
+                icon.classList.add('text-green-600');
+            } else {
+                icon.classList.add('text-red-600');
+            }
+        }
+    }
+    
+    if (statusText) {
+        if (status.ready) {
+            statusText.className = 'text-sm text-green-600 flex items-center gap-1';
+            statusText.innerHTML = '<i class="fas fa-check-circle"></i> WhatsApp Terhubung dan Siap';
+        } else if (status.initialized && status.hasQRCode) {
+            statusText.className = 'text-sm text-yellow-600 flex items-center gap-1';
+            statusText.innerHTML = '<i class="fas fa-qrcode"></i> Menunggu Scan QR Code';
+        } else if (status.initialized) {
+            statusText.className = 'text-sm text-yellow-600 flex items-center gap-1';
+            statusText.innerHTML = '<i class="fas fa-clock"></i> Menunggu QR Code';
+        } else {
+            statusText.className = 'text-sm text-red-600 flex items-center gap-1';
+            statusText.innerHTML = '<i class="fas fa-times-circle"></i> WhatsApp Belum Terhubung';
+        }
+    }
+    
+    if (statusBadge) {
+        // Remove existing color classes
+        statusBadge.className = statusBadge.className.replace(/bg-(green|red)-500/g, '');
+        if (status.ready) {
+            statusBadge.classList.add('bg-green-500');
+            statusBadge.textContent = 'Online';
+        } else {
+            statusBadge.classList.add('bg-red-500');
+            statusBadge.textContent = 'Offline';
+        }
+    }
+    
+    // Hide/show QR code section
+    const qrSection = document.querySelector('#qrCodeContainer')?.closest('.bg-white.rounded-lg.shadow-sm.p-6.mb-6');
+    if (qrSection) {
+        if (status.ready) {
+            qrSection.style.display = 'none';
+        } else {
+            qrSection.style.display = 'block';
+        }
+    }
+}
+
+// Regenerate QR code
+async function regenerateQRCode() {
+    if (!confirm('Generate QR Code baru? QR Code lama akan tidak berlaku dan session akan dihapus.')) {
+        return;
+    }
+    
+    // Show loading state immediately
+    const loadingDiv = document.getElementById('qrCodeLoading');
+    const displayDiv = document.getElementById('qrCodeDisplay');
+    const emptyDiv = document.getElementById('qrCodeEmpty');
+    
+    if (loadingDiv) {
+        loadingDiv.classList.remove('hidden');
+        const loadingText = loadingDiv.querySelector('p');
+        if (loadingText) loadingText.textContent = 'Menghapus session dan generate QR Code baru...';
+    }
+    if (displayDiv) displayDiv.classList.add('hidden');
+    if (emptyDiv) emptyDiv.classList.add('hidden');
+    
+    try {
+        const btn = event?.target?.closest('button');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        }
+        
+        const response = await fetch('/settings/whatsapp/regenerate-qr', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update loading message
+            if (loadingDiv) {
+                const loadingText = loadingDiv.querySelector('p');
+                if (loadingText) loadingText.textContent = 'Memuat QR Code...';
+            }
+            
+            // Keep checking for QR code (max 30 seconds)
+            let attempts = 0;
+            const maxAttempts = 30;
+            const checkQRCode = setInterval(async () => {
+                attempts++;
+                
+                // Refresh status to get latest QR code
+                await refreshStatus();
+                
+                // Check if QR code is now available
+                const img = document.getElementById('qrCodeImage');
+                if (img && img.src && !img.src.includes('undefined') && img.complete) {
+                    clearInterval(checkQRCode);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkQRCode);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                    if (loadingDiv) {
+                        const loadingText = loadingDiv.querySelector('p');
+                        if (loadingText) loadingText.textContent = 'QR Code belum tersedia. Silakan refresh halaman atau coba lagi.';
+                    }
+                    alert('⚠️ QR Code belum tersedia setelah 30 detik. Silakan refresh halaman atau coba regenerate lagi.');
+                }
+            }, 1000);
+        } else {
+            alert('❌ Gagal generate QR Code:\n' + (result.error || 'Unknown error'));
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            if (loadingDiv) {
+                const loadingText = loadingDiv.querySelector('p');
+                if (loadingText) loadingText.textContent = 'Gagal generate QR Code. Silakan coba lagi.';
+            }
+        }
+    } catch (error) {
+        console.error('Error regenerating QR code:', error);
+        alert('❌ Terjadi error saat generate QR Code. Silakan coba lagi.');
+        const btn = event?.target?.closest('button');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync"></i> Regenerate QR Code';
+        }
+        if (loadingDiv) {
+            const loadingText = loadingDiv.querySelector('p');
+            if (loadingText) loadingText.textContent = 'Error: ' + (error.message || 'Unknown error');
+        }
+    }
+}
+
+// View history
+function viewHistory() {
+    // TODO: Implement history view or redirect to history page
+    alert('Fitur history akan segera tersedia');
+}
+
+// Fill test message with example
+function fillTestMessage() {
+    const messageField = document.getElementById('testMessage');
+    if (messageField) {
+        messageField.value = `*TEST PESAN WHATSAPP* 📱
+
+Ini adalah pesan test dari sistem billing.
+
+Jika Anda menerima pesan ini, berarti WhatsApp Business sudah terhubung dengan baik dan siap mengirim notifikasi otomatis.
+
+Terima kasih! 🙏`;
+    }
+}
+
+// Handle test send form
+document.addEventListener('DOMContentLoaded', () => {
+    startStatusCheck();
+    
+    const testSendForm = document.getElementById('testSendForm');
+    if (testSendForm) {
+        testSendForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const phone = document.getElementById('testPhone').value.trim();
+            const message = document.getElementById('testMessage').value.trim();
+            const resultDiv = document.getElementById('testSendResult');
+            const submitBtn = testSendForm.querySelector('button[type="submit"]');
+            
+            if (!phone || !message) {
+                resultDiv.innerHTML = `
+                    <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-sm text-red-700">⚠️ Nomor telepon dan pesan wajib diisi</p>
+                    </div>
+                `;
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+            
+            // Disable button and show loading
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+            resultDiv.classList.add('hidden');
+            
+            try {
+                const response = await fetch('/settings/whatsapp/test-send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phone, message })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <p class="text-sm text-green-700 font-medium">✅ ${result.message || 'Pesan berhasil dikirim!'}</p>
+                            ${result.data && result.data.messageId ? `<p class="text-xs text-green-600 mt-1">Message ID: ${result.data.messageId}</p>` : ''}
+                        </div>
+                    `;
+                    
+                    // Clear form
+                    document.getElementById('testPhone').value = '';
+                    document.getElementById('testMessage').value = '';
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <p class="text-sm text-red-700 font-medium">❌ ${result.error || 'Gagal mengirim pesan'}</p>
+                        </div>
+                    `;
+                }
+                
+                resultDiv.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error sending test message:', error);
+                resultDiv.innerHTML = `
+                    <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-sm text-red-700 font-medium">❌ Terjadi kesalahan saat mengirim pesan</p>
+                    </div>
+                `;
+                resultDiv.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    }
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+    }
+    if (qrCodeRefreshInterval) {
+        clearInterval(qrCodeRefreshInterval);
+    }
+});
+</script>
+

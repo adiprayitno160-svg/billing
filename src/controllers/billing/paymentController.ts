@@ -3,7 +3,6 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
 import { PaymentGatewayService } from '../../services/payment/PaymentGatewayService';
-import { WhatsAppWebService } from '../../services/whatsapp/WhatsAppWebService';
 
 export class PaymentController {
     private billingPaymentService: BillingPaymentIntegration;
@@ -220,7 +219,7 @@ export class PaymentController {
 
             // Get invoice info
             const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT * FROM invoices WHERE id = ?
+                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices WHERE id = ?
             `, [invoice_id]);
 
             const invoice = invoiceResult[0];
@@ -290,11 +289,23 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
-            // Send WhatsApp notification (non-blocking, don't fail payment if notification fails)
+            // Send payment notification
+            try {
+                const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+                // Get payment ID
+                const [paymentRows] = await databasePool.query(
+                    'SELECT id FROM payments WHERE invoice_id = ? ORDER BY id DESC LIMIT 1',
+                    [invoice_id]
+                );
+                if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
+                    await UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id);
+                }
+            } catch (notifError) {
+                console.error('Error sending payment notification:', notifError);
+                // Don't throw - notification failure shouldn't break payment processing
+            }
+
             const discountAmount = req.body.discount_amount || 0;
-            this.sendPaymentWhatsAppNotification(invoice, 'full', remainingAmount, discountAmount).catch(err => {
-                console.error('WhatsApp notification failed (non-critical):', err);
-            });
 
             res.json({
                 success: true,
@@ -345,7 +356,7 @@ export class PaymentController {
 
             // Get invoice info
             const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT * FROM invoices WHERE id = ?
+                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices WHERE id = ?
             `, [invoice_id]);
 
             const invoice = invoiceResult[0];
@@ -455,11 +466,7 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
-            // Send WhatsApp notification (non-blocking, don't fail payment if notification fails)
             const discountAmount = req.body.discount_amount || 0;
-            this.sendPaymentWhatsAppNotification(invoice, 'partial', paymentAmountFloat, discountAmount).catch(err => {
-                console.error('WhatsApp notification failed (non-critical):', err);
-            });
 
             res.json({
                 success: true,
@@ -509,7 +516,7 @@ export class PaymentController {
 
             // Get invoice info
             const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT * FROM invoices WHERE id = ?
+                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices WHERE id = ?
             `, [invoice_id]);
 
             const invoice = invoiceResult[0];
@@ -563,11 +570,55 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
-            // Send WhatsApp notification (non-blocking, don't fail payment if notification fails)
+            // Send notification to customer (async, non-blocking)
+            try {
+                const [customerRows] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT name, phone, customer_code FROM customers WHERE id = ?',
+                    [invoice.customer_id]
+                );
+
+                if (customerRows.length > 0 && customerRows[0].phone) {
+                    const customer = customerRows[0];
+                    const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+                    
+                    console.log(`[PaymentController] 📱 Sending debt notification to customer ${customer.name}...`);
+                    
+                    const notificationIds = await UnifiedNotificationService.queueNotification({
+                        customer_id: invoice.customer_id,
+                        invoice_id: invoice_id,
+                        notification_type: 'payment_debt',
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: customer.name || 'Pelanggan',
+                            invoice_number: invoice.invoice_number || '',
+                            total_amount: parseFloat(invoice.total_amount || 0).toLocaleString('id-ID'),
+                            debt_amount: remainingAmount.toLocaleString('id-ID'),
+                            debt_reason: debt_reason || 'Pencatatan hutang pelanggan',
+                            debt_date: new Date().toLocaleDateString('id-ID'),
+                            due_date: due_date ? new Date(due_date).toLocaleDateString('id-ID') : '-',
+                            notes: notes || 'Silakan hubungi customer service untuk informasi lebih lanjut'
+                        },
+                        priority: 'high'
+                    });
+                    
+                    console.log(`[PaymentController] ✅ Debt notification queued (IDs: ${notificationIds.join(', ')})`);
+                    
+                    // Process queue immediately
+                    try {
+                        const result = await UnifiedNotificationService.sendPendingNotifications(10);
+                        console.log(`[PaymentController] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed`);
+                    } catch (queueError: any) {
+                        console.warn(`[PaymentController] ⚠️ Queue processing error (non-critical):`, queueError.message);
+                    }
+                } else {
+                    console.log(`[PaymentController] ⚠️ No phone number for customer ${invoice.customer_id}, skipping notification`);
+                }
+            } catch (notifError: any) {
+                console.error(`[PaymentController] ⚠️ Failed to send debt notification (non-critical):`, notifError.message);
+                // Non-critical, debt recording already succeeded
+            }
+
             const discountAmount = req.body.discount_amount || 0;
-            this.sendPaymentWhatsAppNotification(invoice, 'debt', 0, discountAmount).catch(err => {
-                console.error('WhatsApp notification failed (non-critical):', err);
-            });
 
             res.json({
                 success: true,
@@ -934,7 +985,7 @@ export class PaymentController {
 
             // Get available payment gateways
             const [gateways] = await databasePool.query<RowDataPacket[]>(`
-                SELECT * FROM payment_gateways WHERE is_active = 1
+                SELECT id, name, code, is_active, config, created_at, updated_at FROM payment_gateways WHERE is_active = 1
             `);
 
             // Get payment methods for customer
@@ -958,100 +1009,4 @@ export class PaymentController {
         }
     }
 
-    /**
-     * Send WhatsApp payment notification
-     */
-    private async sendPaymentWhatsAppNotification(
-        invoice: any,
-        paymentType: 'full' | 'partial' | 'debt',
-        paymentAmount: number,
-        discountAmount?: number
-    ): Promise<void> {
-        try {
-            // Get customer phone
-            const [customerResult] = await databasePool.query<RowDataPacket[]>(`
-                SELECT phone, name FROM customers WHERE id = ?
-            `, [invoice.customer_id]);
-
-            const customer = customerResult[0];
-            if (!customer || !customer.phone) {
-                console.log('Customer phone not found for WhatsApp notification');
-                return;
-            }
-
-            // Format phone number to international format (62xxx)
-            let phoneNumber = customer.phone.toString().trim();
-            // Remove all non-numeric characters except +
-            phoneNumber = phoneNumber.replace(/[^0-9+]/g, '');
-            // Convert 08xx to 628xx
-            if (phoneNumber.startsWith('08')) {
-                phoneNumber = '62' + phoneNumber.substring(1);
-            } else if (phoneNumber.startsWith('8')) {
-                phoneNumber = '62' + phoneNumber;
-            } else if (phoneNumber.startsWith('0')) {
-                phoneNumber = '62' + phoneNumber.substring(1);
-            } else if (!phoneNumber.startsWith('62') && !phoneNumber.startsWith('+62')) {
-                phoneNumber = '62' + phoneNumber;
-            }
-            // Remove + if exists
-            phoneNumber = phoneNumber.replace('+', '');
-
-            console.log(`📱 Sending WhatsApp to ${phoneNumber} (original: ${customer.phone})`);
-
-            let message = `Halo *${customer.name}*,\n\n`;
-
-            if (paymentType === 'full') {
-                message += `✅ *PEMBAYARAN LUNAS*\n\n`;
-                message += `📋 *Detail Pembayaran:*\n`;
-                message += `• No. Invoice: ${invoice.invoice_number}\n`;
-                message += `• Periode: ${invoice.period}\n`;
-                message += `• Total Tagihan: Rp ${parseFloat(invoice.total_amount).toLocaleString('id-ID')}\n`;
-                if (discountAmount && discountAmount > 0) {
-                    message += `• Diskon: Rp ${discountAmount.toLocaleString('id-ID')}\n`;
-                    message += `• Dibayar: Rp ${paymentAmount.toLocaleString('id-ID')}\n`;
-                } else {
-                    message += `• Dibayar: Rp ${paymentAmount.toLocaleString('id-ID')}\n`;
-                }
-                message += `• Status: *LUNAS* ✅\n\n`;
-                message += `🎉 Terima kasih atas pembayaran Anda! Tagihan sudah lunas.\n`;
-            } else if (paymentType === 'partial') {
-                const remaining = parseFloat(invoice.remaining_amount) - paymentAmount;
-                message += `💵 *PEMBAYARAN CICILAN DITERIMA*\n\n`;
-                message += `📋 *Detail Pembayaran:*\n`;
-                message += `• No. Invoice: ${invoice.invoice_number}\n`;
-                message += `• Periode: ${invoice.period}\n`;
-                message += `• Total Tagihan: Rp ${parseFloat(invoice.total_amount).toLocaleString('id-ID')}\n`;
-                if (discountAmount && discountAmount > 0) {
-                    message += `• Diskon: Rp ${discountAmount.toLocaleString('id-ID')}\n`;
-                }
-                message += `• Dibayar Sekarang: Rp ${paymentAmount.toLocaleString('id-ID')}\n`;
-                message += `• Sisa Tagihan: Rp ${remaining.toLocaleString('id-ID')}\n\n`;
-                message += `⚠️ Mohon segera lunasi sisa pembayaran.\n`;
-            } else if (paymentType === 'debt') {
-                message += `📝 *HUTANG TERCATAT*\n\n`;
-                message += `📋 *Detail:*\n`;
-                message += `• No. Invoice: ${invoice.invoice_number}\n`;
-                message += `• Periode: ${invoice.period}\n`;
-                if (discountAmount && discountAmount > 0) {
-                    message += `• Total Tagihan: Rp ${parseFloat(invoice.total_amount).toLocaleString('id-ID')}\n`;
-                    message += `• Diskon: Rp ${discountAmount.toLocaleString('id-ID')}\n`;
-                    message += `• Hutang Bersih: Rp ${(parseFloat(invoice.total_amount) - discountAmount).toLocaleString('id-ID')}\n\n`;
-                } else {
-                    message += `• Total Hutang: Rp ${parseFloat(invoice.total_amount).toLocaleString('id-ID')}\n\n`;
-                }
-                message += `⚠️ Pembayaran ditunda. Harap segera melunasi hutang.\n`;
-            }
-
-            message += `\nTerima kasih.`;
-
-            // Send via WhatsApp Web Service
-            await WhatsAppWebService.sendMessage(phoneNumber, message);
-
-            console.log(`✅ WhatsApp payment notification sent to ${phoneNumber}`);
-
-        } catch (error) {
-            console.error('Error sending WhatsApp payment notification:', error);
-            // Don't throw error - payment should succeed even if notification fails
-        }
-    }
 }

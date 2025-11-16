@@ -1,4 +1,4 @@
-<div class="rounded border border-slate-200 bg-white p-6">
+﻿<div class="rounded border border-slate-200 bg-white p-6">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-slate-800">Tentang Aplikasi</h2>
         <div class="flex gap-2">
@@ -173,7 +173,7 @@
             </div>
         </div>
 
-        <!-- Update Terbaru (1 kolom) -->
+        <!-- Update Terbaru (1 kolom) - Auto from Database -->
         <div class="lg:col-span-1">
             <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,39 +181,50 @@
                 </svg>
                 Update Terbaru
             </h3>
-            <div class="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+            <% if (updateHistory && updateHistory.length > 0) { 
+                const latest = updateHistory[0];
+                const updateDate = new Date(latest.created_at || latest.updated_at);
+                const daysAgo = Math.floor((Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24));
+                let dateText = '';
+                if (daysAgo === 0) dateText = 'Hari ini';
+                else if (daysAgo === 1) dateText = 'Kemarin';
+                else if (daysAgo < 7) dateText = daysAgo + ' hari lalu';
+                else dateText = updateDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            %>
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
                 <div class="space-y-3">
                     <div class="text-sm">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="font-bold text-purple-700">v2.1.4</span>
-                            <span class="text-xs text-slate-600">Hari ini</span>
+                            <span class="font-bold text-purple-700">v<%= latest.version_to || latest.version || 'N/A' %></span>
+                            <span class="text-xs text-slate-600"><%= dateText %></span>
                         </div>
+                        <% if (latest.changelog) { 
+                            const changelogLines = latest.changelog.split('\n').filter(line => line.trim());
+                        %>
                         <ul class="text-xs space-y-1.5 text-slate-700">
+                            <% changelogLines.slice(0, 5).forEach(function(line) { %>
                             <li class="flex items-start gap-1.5">
                                 <span class="text-green-500 mt-0.5">✓</span>
-                                <span>Fix billing pages header double</span>
+                                <span><%= line.replace(/^[-*]\s*/, '').trim() %></span>
                             </li>
-                            <li class="flex items-start gap-1.5">
-                                <span class="text-green-500 mt-0.5">✓</span>
-                                <span>Update redirect after update</span>
-                            </li>
-                            <li class="flex items-start gap-1.5">
-                                <span class="text-green-500 mt-0.5">✓</span>
-                                <span>WhatsApp bot filter status & grup</span>
-                            </li>
-                            <li class="flex items-start gap-1.5">
-                                <span class="text-green-500 mt-0.5">✓</span>
-                                <span>Real-time clock in header</span>
-                            </li>
+                            <% }); %>
                         </ul>
+                        <% } else { %>
+                        <p class="text-xs text-slate-600 italic">Update berhasil diterapkan</p>
+                        <% } %>
                     </div>
                     <div class="pt-3 border-t border-purple-200">
                         <p class="text-xs text-slate-600 italic">
-                            💡 Update terbaru selalu tersedia di halaman ini
+                            💡 Update terbaru otomatis dari database
                         </p>
                     </div>
                 </div>
             </div>
+            <% } else { %>
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                <p class="text-xs text-slate-600 italic text-center py-4">Belum ada update terbaru</p>
+            </div>
+            <% } %>
         </div>
     </div>
 
@@ -281,7 +292,7 @@
 </div>
 
 <!-- Update Modal -->
-<div id="updateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="updateModal" class="fixed inset-0 bg-black  hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <h3 class="text-lg font-bold text-slate-800 mb-4" id="updateModalTitle">Update Tersedia</h3>
         <div id="updateModalContent">
@@ -480,7 +491,7 @@ function applyUpdate() {
     // Show loading indicator
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'updateLoadingIndicator';
-    loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    loadingDiv.className = 'fixed inset-0 bg-black  flex items-center justify-center z-50';
     loadingDiv.innerHTML = `
         <div class="bg-white rounded-lg p-8 text-center max-w-md">
             <svg class="animate-spin w-16 h-16 mx-auto mb-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -855,7 +866,7 @@ function applyHotfix(version) {
     
     // Show loading indicator
     const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    loadingDiv.className = 'fixed inset-0 bg-black  flex items-center justify-center z-50';
     loadingDiv.innerHTML = `
         <div class="bg-white rounded-lg p-8 text-center max-w-md">
             <svg class="animate-spin w-16 h-16 mx-auto mb-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

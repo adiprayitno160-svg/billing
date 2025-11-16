@@ -1,4 +1,4 @@
-<div class="space-y-6">
+﻿<div class="space-y-6 pb-24">
     <div class="mb-6">
         <div class="flex items-center gap-3 mb-2">
             <a href="/packages/pppoe/packages" class="text-blue-600 hover:text-blue-800">
@@ -41,14 +41,28 @@
                         Profil PPPoE
                     </label>
                     <select 
+                        id="profile_id"
                         name="profile_id" 
                         class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onchange="loadProfileRateLimits(this.value)"
                     >
                         <option value="">Pilih Profil (Opsional)</option>
                         <% (profiles || []).forEach(function(profile){ %>
-                        <option value="<%= profile.id %>" <%= package.profile_id == profile.id ? 'selected' : '' %>><%= profile.name %></option>
+                        <option value="<%= profile.id %>" 
+                            <%= package.profile_id == profile.id ? 'selected' : '' %>
+                            data-rate-rx="<%= profile.rate_limit_rx || '' %>"
+                            data-rate-tx="<%= profile.rate_limit_tx || '' %>"
+                            data-burst-rx="<%= profile.burst_limit_rx || '' %>"
+                            data-burst-tx="<%= profile.burst_limit_tx || '' %>"
+                            data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
+                            data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
+                            data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
+                            data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
+                            <%= profile.name %>
+                        </option>
                         <% }) %>
                     </select>
+                    <p class="text-xs text-slate-500 mt-1">💡 Pilih profil untuk auto-update rate limiting dari profil terbaru</p>
                 </div>
 
                 <!-- Harga -->
@@ -114,32 +128,49 @@
             <!-- Rate Limiting Section -->
             <div class="border-t border-slate-200 pt-6">
                 <h3 class="text-lg font-semibold text-slate-800 mb-4">Rate Limiting</h3>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Rate limit akan otomatis ter-update dari profil yang dipilih. Untuk mengubah rate limit, edit di <strong>Profil PPPoE</strong> terlebih dahulu, lalu pilih ulang profil di atas.
+                    </p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Download Limit
+                            Download Limit (RX)
                         </label>
                         <input 
-                            name="rate_limit_rx" 
+                            id="rate_limit_rx"
+                            name="rate_limit_rx"
                             type="text"
                             value="<%= package.rate_limit_rx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 10M, 5M"
+                            placeholder="Otomatis dari profil"
                         />
+                        <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil yang dipilih</p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Upload Limit
+                            Upload Limit (TX)
                         </label>
                         <input 
-                            name="rate_limit_tx" 
+                            id="rate_limit_tx"
+                            name="rate_limit_tx"
                             type="text"
                             value="<%= package.rate_limit_tx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 2M, 1M"
+                            placeholder="Otomatis dari profil"
                         />
+                        <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil yang dipilih</p>
                     </div>
+                </div>
+                <div class="mt-4">
+                    <a href="/packages/pppoe/profiles<%= package.profile_id ? '/' + package.profile_id + '/edit' : '' %>" 
+                       class="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center">
+                        <i class="fas fa-external-link-alt mr-1"></i>
+                        Edit Profil PPPoE
+                    </a>
                 </div>
             </div>
 
@@ -152,11 +183,12 @@
                             Burst Download Limit
                         </label>
                         <input 
-                            name="burst_limit_rx" 
+                            id="burst_limit_rx"
+                            name="burst_limit_rx"
                             type="text"
                             value="<%= package.burst_limit_rx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 20M"
+                            placeholder="Otomatis dari profil"
                         />
                     </div>
 
@@ -165,11 +197,12 @@
                             Burst Upload Limit
                         </label>
                         <input 
-                            name="burst_limit_tx" 
+                            id="burst_limit_tx"
+                            name="burst_limit_tx"
                             type="text"
                             value="<%= package.burst_limit_tx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 4M"
+                            placeholder="Otomatis dari profil"
                         />
                     </div>
 
@@ -178,11 +211,12 @@
                             Burst Download Threshold
                         </label>
                         <input 
-                            name="burst_threshold_rx" 
+                            id="burst_threshold_rx"
+                            name="burst_threshold_rx"
                             type="text"
                             value="<%= package.burst_threshold_rx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 15M"
+                            placeholder="Otomatis dari profil"
                         />
                     </div>
 
@@ -191,11 +225,12 @@
                             Burst Upload Threshold
                         </label>
                         <input 
-                            name="burst_threshold_tx" 
+                            id="burst_threshold_tx"
+                            name="burst_threshold_tx"
                             type="text"
                             value="<%= package.burst_threshold_tx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 3M"
+                            placeholder="Otomatis dari profil"
                         />
                     </div>
 
@@ -204,11 +239,12 @@
                             Burst Download Time
                         </label>
                         <input 
-                            name="burst_time_rx" 
+                            id="burst_time_rx"
+                            name="burst_time_rx"
                             type="text"
                             value="<%= package.burst_time_rx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 10s"
+                            placeholder="Otomatis dari profil"
                         />
                     </div>
 
@@ -217,11 +253,12 @@
                             Burst Upload Time
                         </label>
                         <input 
-                            name="burst_time_tx" 
+                            id="burst_time_tx"
+                            name="burst_time_tx"
                             type="text"
                             value="<%= package.burst_time_tx || '' %>"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 10s"
+                            placeholder="Otomatis dari profil"
                         />
                     </div>
                 </div>
@@ -245,4 +282,62 @@
         </form>
     </div>
 </div>
+
+<script>
+// Auto-fill rate limits from MikroTik profile (sama seperti di form add)
+function loadProfileRateLimits(profileId) {
+    if (!profileId) {
+        // Clear all fields jika tidak ada profile dipilih
+        document.getElementById('rate_limit_rx').value = '';
+        document.getElementById('rate_limit_tx').value = '';
+        document.getElementById('burst_limit_rx').value = '';
+        document.getElementById('burst_limit_tx').value = '';
+        document.getElementById('burst_threshold_rx').value = '';
+        document.getElementById('burst_threshold_tx').value = '';
+        document.getElementById('burst_time_rx').value = '';
+        document.getElementById('burst_time_tx').value = '';
+        return;
+    }
+    
+    const selectElement = document.getElementById('profile_id');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    
+    // Get data attributes dari option yang dipilih
+    const rateRx = selectedOption.getAttribute('data-rate-rx');
+    const rateTx = selectedOption.getAttribute('data-rate-tx');
+    const burstRx = selectedOption.getAttribute('data-burst-rx');
+    const burstTx = selectedOption.getAttribute('data-burst-tx');
+    const burstThresholdRx = selectedOption.getAttribute('data-burst-threshold-rx');
+    const burstThresholdTx = selectedOption.getAttribute('data-burst-threshold-tx');
+    const burstTimeRx = selectedOption.getAttribute('data-burst-time-rx');
+    const burstTimeTx = selectedOption.getAttribute('data-burst-time-tx');
+    
+    // Fill the form dengan data terbaru dari profil
+    // Rate limit: jika kosong/null, set ke '0' untuk unlimited
+    document.getElementById('rate_limit_rx').value = (rateRx && rateRx.trim() !== '') ? rateRx.trim() : '0';
+    document.getElementById('rate_limit_tx').value = (rateTx && rateTx.trim() !== '') ? rateTx.trim() : '0';
+    
+    // Burst fields: hanya isi jika ada nilai, jika tidak biarkan kosong
+    document.getElementById('burst_limit_rx').value = (burstRx && burstRx.trim() !== '') ? burstRx.trim() : '';
+    document.getElementById('burst_limit_tx').value = (burstTx && burstTx.trim() !== '') ? burstTx.trim() : '';
+    document.getElementById('burst_threshold_rx').value = (burstThresholdRx && burstThresholdRx.trim() !== '') ? burstThresholdRx.trim() : '';
+    document.getElementById('burst_threshold_tx').value = (burstThresholdTx && burstThresholdTx.trim() !== '') ? burstThresholdTx.trim() : '';
+    document.getElementById('burst_time_rx').value = (burstTimeRx && burstTimeRx.trim() !== '') ? burstTimeRx.trim() : '';
+    document.getElementById('burst_time_tx').value = (burstTimeTx && burstTimeTx.trim() !== '') ? burstTimeTx.trim() : '';
+    
+    console.log('✅ Rate limits updated from profile:', {
+        rx: rateRx || '0',
+        tx: rateTx || '0'
+    });
+}
+
+// Auto-load rate limits saat halaman dimuat (jika sudah ada profile yang dipilih)
+document.addEventListener('DOMContentLoaded', function() {
+    const profileSelect = document.getElementById('profile_id');
+    if (profileSelect && profileSelect.value) {
+        // Trigger load untuk profile yang sudah dipilih
+        loadProfileRateLimits(profileSelect.value);
+    }
+});
+</script>
 

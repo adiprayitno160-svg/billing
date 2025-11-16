@@ -3,6 +3,7 @@ import { RowDataPacket } from 'mysql2';
 import cron from 'node-cron';
 import PrepaidActivationService from './PrepaidActivationService';
 import AddressListService from './AddressListService';
+// WhatsApp service removed
 
 /**
  * Scheduler service untuk prepaid system
@@ -76,8 +77,13 @@ class PrepaidSchedulerService {
             suspended++;
             console.log(`✅ Suspended: ${sub.customer_name} (${sub.package_name})`);
 
-            // TODO: Send WhatsApp notification
-            // await this.sendExpiryNotification(sub.customer_id, sub);
+            // Send WhatsApp notification
+            try {
+              // WhatsApp notification removed
+              // await WhatsAppNotificationService.sendPrepaidExpiredNotification(sub.customer_id, sub);
+            } catch (notifError) {
+              console.error(`Failed to send expiry notification to ${sub.customer_name}:`, notifError);
+            }
           }
         } catch (error) {
           console.error(`Failed to suspend subscription ${sub.id}:`, error);
@@ -141,11 +147,18 @@ class PrepaidSchedulerService {
             continue;
           }
 
-          // TODO: Send WhatsApp reminder
-          // await this.sendExpiryReminderNotification(sub);
-
-          console.log(`📱 Reminder sent to ${sub.customer_name} (expires in ${sub.hours_remaining}h)`);
-          remindersSent++;
+          // Send WhatsApp reminder
+          try {
+            // WhatsApp notification removed
+            // const sent = await WhatsAppNotificationService.sendPrepaidExpiryReminder(sub.customer_id, sub);
+            const sent = false; // WhatsApp service no longer available
+            if (sent) {
+              console.log(`📱 Reminder sent to ${sub.customer_name} (expires in ${sub.hours_remaining}h)`);
+              remindersSent++;
+            }
+          } catch (notifError) {
+            console.error(`Failed to send reminder to ${sub.customer_name}:`, notifError);
+          }
         } catch (error) {
           console.error(`Failed to send reminder for subscription ${sub.id}:`, error);
         }

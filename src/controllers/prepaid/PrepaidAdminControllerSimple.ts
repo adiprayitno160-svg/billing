@@ -45,7 +45,7 @@ class PrepaidAdminControllerSimple {
    */
   async customers(req: Request, res: Response) {
     try {
-      let customers = [];
+      let customers: any[] = [];
       
       try {
         const [result] = await pool.query<RowDataPacket[]>(
@@ -76,7 +76,7 @@ class PrepaidAdminControllerSimple {
    */
   async packages(req: Request, res: Response) {
     try {
-      let packages = [];
+      let packages: any[] = [];
       
       try {
         const [result] = await pool.query<RowDataPacket[]>(
@@ -107,7 +107,7 @@ class PrepaidAdminControllerSimple {
    */
   async speedProfiles(req: Request, res: Response) {
     try {
-      let profiles = [];
+      let profiles: any[] = [];
       
       try {
         const [result] = await pool.query<RowDataPacket[]>(
@@ -158,7 +158,7 @@ class PrepaidAdminControllerSimple {
    */
   async subscriptions(req: Request, res: Response) {
     try {
-      let subscriptions = [];
+      let subscriptions: any[] = [];
       
       try {
         const [result] = await pool.query<RowDataPacket[]>(

@@ -55,82 +55,157 @@ export class MachineLearningService {
     }
 
     /**
-     * Fraud Detection
+     * Fraud Detection - Enhanced for payment proof verification
      */
     static async detectFraud(paymentData: any): Promise<{isFraud: boolean, confidence: number, reasons: string[]}> {
         try {
-            // Get fraud detection model
-            const model = await this.getActiveModel('fraud_detection');
-            
-            if (!model) {
-                throw new Error('Fraud detection model not available');
+            // Get fraud detection model (if available)
+            let model;
+            try {
+                model = await this.getActiveModel('fraud_detection');
+            } catch (e) {
+                // Model table might not exist, continue with rule-based detection
             }
             
-            // Mock fraud detection logic
-            // In production, this would use actual ML model
-            const fraudIndicators = [];
+            // Enhanced fraud detection logic for payment proofs
+            const fraudIndicators: string[] = [];
             let fraudScore = 0;
+            const now = new Date();
             
-            // Check for suspicious patterns
-            if (paymentData.amount > 1000000) { // Large amount
-                fraudScore += 0.2;
-                fraudIndicators.push('Large payment amount');
+            // 1. Amount validation (0-15 points)
+            if (paymentData.amount) {
+                const amount = parseFloat(paymentData.amount);
+                if (amount <= 0) {
+                    fraudScore += 15;
+                    fraudIndicators.push('Nominal tidak valid (0 atau negatif)');
+                } else if (amount > 50000000) { // Very large amount (>50M)
+                    fraudScore += 10;
+                    fraudIndicators.push('Nominal sangat besar (dicurigai)');
+                }
+            } else {
+                fraudScore += 5;
+                fraudIndicators.push('Nominal tidak terdeteksi dari bukti');
             }
             
-            if (paymentData.time_of_day < 6 || paymentData.time_of_day > 22) { // Unusual time
-                fraudScore += 0.1;
-                fraudIndicators.push('Unusual payment time');
+            // 2. OCR Confidence check (0-20 points)
+            if (paymentData.ocr_confidence !== undefined) {
+                const ocrConf = parseFloat(paymentData.ocr_confidence);
+                if (ocrConf < 30) {
+                    fraudScore += 20;
+                    fraudIndicators.push('Kualitas OCR sangat rendah - bukti mungkin tidak jelas');
+                } else if (ocrConf < 50) {
+                    fraudScore += 10;
+                    fraudIndicators.push('Kualitas OCR rendah');
+                }
             }
             
-            if (paymentData.customer_age_days < 30) { // New customer
-                fraudScore += 0.15;
-                fraudIndicators.push('New customer making large payment');
+            // 3. Matching confidence check (0-15 points)
+            if (paymentData.matching_confidence !== undefined) {
+                const matchConf = parseFloat(paymentData.matching_confidence);
+                if (matchConf < 30) {
+                    fraudScore += 15;
+                    fraudIndicators.push('Tidak ada invoice yang cocok');
+                } else if (matchConf < 50) {
+                    fraudScore += 8;
+                    fraudIndicators.push('Invoice match kurang akurat');
+                }
             }
             
-            if (paymentData.payment_frequency > 10) { // High frequency
-                fraudScore += 0.1;
-                fraudIndicators.push('High payment frequency');
+            // 4. Date validation (0-10 points)
+            if (paymentData.date) {
+                const paymentDate = new Date(paymentData.date);
+                const daysFromNow = Math.abs((now.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (daysFromNow > 30) {
+                    fraudScore += 10;
+                    fraudIndicators.push('Tanggal pembayaran terlalu lama (lebih dari 30 hari)');
+                } else if (paymentDate > now) {
+                    fraudScore += 15;
+                    fraudIndicators.push('Tanggal pembayaran di masa depan (sangat mencurigakan)');
+                }
             }
             
-            // Check for duplicate payments
-            const duplicateQuery = `
-                SELECT COUNT(*) as count 
-                FROM payments 
-                WHERE amount = ? 
-                AND payment_date >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            `;
-            
-            const [duplicateResult] = await databasePool.query(duplicateQuery, [paymentData.amount]);
-            const duplicateCount = (duplicateResult as any[])[0].count;
-            
-            if (duplicateCount > 3) {
-                fraudScore += 0.3;
-                fraudIndicators.push('Multiple duplicate payments detected');
+            // 5. Customer history check (0-15 points)
+            if (paymentData.customer_id) {
+                const customerQuery = `
+                    SELECT 
+                        COUNT(*) as payment_count,
+                        DATEDIFF(NOW(), created_at) as customer_age_days
+                    FROM customers
+                    WHERE id = ?
+                `;
+                const [customerResult] = await databasePool.query(customerQuery, [paymentData.customer_id]);
+                const customer = (customerResult as any[])[0];
+                
+                if (customer && customer.customer_age_days < 7) {
+                    fraudScore += 15;
+                    fraudIndicators.push('Pelanggan sangat baru (<7 hari)');
+                } else if (customer && customer.payment_count === 0) {
+                    fraudScore += 10;
+                    fraudIndicators.push('Pelanggan belum pernah melakukan pembayaran sebelumnya');
+                }
             }
             
-            const isFraud = fraudScore > 0.5;
-            const confidence = Math.min(fraudScore, 1.0);
+            // 6. Duplicate payment check (0-20 points)
+            if (paymentData.amount && paymentData.customer_id) {
+                const duplicateQuery = `
+                    SELECT COUNT(*) as count 
+                    FROM payments p
+                    JOIN invoices i ON p.invoice_id = i.id
+                    WHERE i.customer_id = ?
+                    AND p.amount = ?
+                    AND p.payment_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                `;
+                
+                const [duplicateResult] = await databasePool.query(duplicateQuery, [
+                    paymentData.customer_id,
+                    paymentData.amount
+                ]);
+                const duplicateCount = (duplicateResult as any[])[0].count;
+                
+                if (duplicateCount > 0) {
+                    fraudScore += 20;
+                    fraudIndicators.push(`Pembayaran duplikat terdeteksi (${duplicateCount}x dalam 24 jam)`);
+                }
+            }
             
-            // Save analysis result
-            await this.saveAnalysisResult('fraud_detection', paymentData, {
-                isFraud,
-                confidence,
-                fraudScore,
-                indicators: fraudIndicators
-            });
+            // 7. Time-based check (0-5 points)
+            const hour = now.getHours();
+            if (hour >= 2 && hour < 6) {
+                fraudScore += 5;
+                fraudIndicators.push('Pembayaran di jam tidak biasa (2-6 pagi)');
+            }
+            
+            // Convert fraudScore to percentage (0-100)
+            // Higher fraudScore = higher fraud percentage
+            const fraudPercentage = Math.min(fraudScore, 100);
+            const isFraud = fraudPercentage > 50;
+            
+            // Save analysis result (if table exists)
+            try {
+                await this.saveAnalysisResult('fraud_detection', paymentData, {
+                    isFraud,
+                    confidence: fraudPercentage,
+                    fraudScore: fraudPercentage,
+                    indicators: fraudIndicators
+                });
+            } catch (e) {
+                // Table might not exist, continue
+            }
             
             return {
                 isFraud,
-                confidence,
+                confidence: fraudPercentage,
                 reasons: fraudIndicators
             };
             
         } catch (error) {
             console.error('Error in fraud detection:', error);
+            // Return safe default (medium fraud to trigger manual review)
             return {
                 isFraud: false,
-                confidence: 0,
-                reasons: ['Error in fraud detection']
+                confidence: 45, // Medium fraud to trigger manual review
+                reasons: ['Error in fraud detection - requiring manual review']
             };
         }
     }

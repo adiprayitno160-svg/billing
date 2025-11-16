@@ -281,7 +281,7 @@ export class KasirController {
             const conn = await databasePool.getConnection();
             try {
                 const [invoices] = await conn.query<RowDataPacket[]>(`
-                    SELECT * FROM invoices
+                    SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices
                     WHERE customer_id = ?
                     AND status IN ('sent', 'partial', 'overdue')
                     ORDER BY period ASC
@@ -416,12 +416,13 @@ export class KasirController {
             try {
                 // Get ODC info
                 const [odcResult] = await conn.query<RowDataPacket[]>(
-                    'SELECT * FROM ftth_odc WHERE id = ?',
+                    'SELECT id, olt_id, name, location, latitude, longitude, total_ports, used_ports, notes, created_at, updated_at FROM ftth_odc WHERE id = ?',
                     [odc_id]
                 );
                 
                 if (odcResult.length === 0) {
-                    return res.status(404).send('ODC tidak ditemukan');
+                    res.status(404).send('ODC tidak ditemukan');
+                    return;
                 }
                 
                 const odc = odcResult[0];
@@ -801,11 +802,13 @@ export class KasirController {
                     i.invoice_number,
                     i.period,
                     i.total_amount as invoice_total,
-                    u.full_name as kasir_name
+                    u.full_name as kasir_name,
+                    pp.proof_file_path as payment_proof_url
                 FROM payments p
                 LEFT JOIN invoices i ON p.invoice_id = i.id
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN users u ON p.created_by = u.id
+                LEFT JOIN payment_proofs pp ON p.id = pp.payment_id
                 ${whereClause}
                 ORDER BY p.payment_date DESC, p.created_at DESC
                 LIMIT ? OFFSET ?
@@ -922,7 +925,7 @@ export class KasirController {
             
             // Get customer info
             const [customerRows] = await conn.query<RowDataPacket[]>(
-                'SELECT * FROM customers WHERE id = ?',
+                'SELECT id, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, billing_mode, balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
                 [customerId]
             );
             
@@ -935,7 +938,7 @@ export class KasirController {
             
             // Get pending invoices for this customer
             const [invoices] = await conn.query<RowDataPacket[]>(`
-                SELECT * FROM invoices 
+                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices 
                 WHERE customer_id = ? 
                 AND status IN ('sent', 'partial', 'overdue')
                 ORDER BY period ASC
@@ -948,6 +951,10 @@ export class KasirController {
             }
             
             const invoice = invoices[0];
+            if (!invoice) {
+                await conn.rollback();
+                return { success: false, message: 'Invoice tidak ditemukan' };
+            }
             const remainingAmount = invoice.remaining_amount || invoice.total_amount;
             
             // Determine payment amount based on type
@@ -1019,6 +1026,12 @@ export class KasirController {
             
             await conn.commit();
             
+            // Track late payment (async, don't wait)
+            const paymentDateStr = new Date().toISOString().slice(0, 10);
+            this.trackLatePayment(invoice.id, paymentId, paymentDateStr).catch(err => {
+                console.error('Error tracking late payment:', err);
+            });
+            
             // Send WhatsApp notification (async, don't wait)
             this.sendPaymentNotification(customer, invoice, paymentAmount, paymentMethod, paymentId, paymentType).catch(err => {
                 console.error('Error sending WhatsApp notification:', err);
@@ -1052,58 +1065,121 @@ export class KasirController {
         paymentType?: string
     ): Promise<void> {
         try {
-            // Import WhatsApp service
-            const { WhatsAppNotificationService } = await import('../services/whatsappNotificationService');
+            if (!customer.phone) {
+                console.log('[KasirController] No phone number, skipping notification');
+                return;
+            }
+
+            const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+            const { getBillingMonth } = await import('../utils/periodHelper');
             
-            let message = '';
+            // Format bulan tagihan
+            const paymentDate = new Date();
+            const billingMonth = invoice.period ? 
+                getBillingMonth(invoice.period, paymentDate, invoice.due_date || null) : 
+                (invoice.period || '-');
             
-            if (paymentType === 'debt') {
-                message = `
-*HUTANG TERCATAT* 📝
-
-Pelanggan: ${customer.name}
-ID Pelanggan: ${customer.customer_code}
-
-Detail Hutang:
-📋 No. Invoice: ${invoice.invoice_number}
-📅 Periode: ${invoice.period}
-💰 Total Hutang: Rp ${invoice.remaining_amount.toLocaleString('id-ID')}
-🆔 ID Pencatatan: #${paymentId}
-
-⚠️ Pembayaran ditunda. Mohon segera melakukan pembayaran.
-
-Terima kasih! 🙏
-                `.trim();
-            } else {
-                const statusText = paymentType === 'full' ? 'LUNAS' : 'SEBAGIAN TERBAYAR';
-                message = `
-*PEMBAYARAN DITERIMA* ✅
-
-Pelanggan: ${customer.name}
-ID Pelanggan: ${customer.customer_code}
-
-Detail Pembayaran:
-📋 No. Invoice: ${invoice.invoice_number}
-📅 Periode: ${invoice.period}
-💰 Jumlah Bayar: Rp ${amount.toLocaleString('id-ID')}
-💳 Metode: ${this.getPaymentMethodName(paymentMethod)}
-🆔 ID Pembayaran: #${paymentId}
-${paymentType === 'partial' ? `📊 Sisa Tagihan: Rp ${(invoice.remaining_amount - amount).toLocaleString('id-ID')}` : ''}
-
-Terima kasih atas pembayaran Anda! 🙏
-
-Status layanan Anda telah ${statusText}.
-                `.trim();
+            // Determine notification type
+            const notificationType = paymentType === 'debt' 
+                ? 'payment_debt' 
+                : paymentType === 'partial' 
+                    ? 'payment_partial' 
+                    : 'payment_received';
+            
+            // Prepare variables for template
+            const variables: any = {
+                customer_name: customer.name || 'Pelanggan',
+                customer_code: customer.customer_code || '',
+                invoice_number: invoice.invoice_number || '',
+                billing_month: billingMonth,
+                amount: amount.toLocaleString('id-ID'),
+                payment_method: this.getPaymentMethodName(paymentMethod),
+                payment_id: paymentId.toString()
+            };
+            
+            if (paymentType === 'partial') {
+                variables.total_amount = parseFloat(invoice.total_amount || 0).toLocaleString('id-ID');
+                variables.paid_amount = amount.toLocaleString('id-ID');
+                variables.remaining_amount = (parseFloat(invoice.remaining_amount || 0) - amount).toLocaleString('id-ID');
+                variables.due_date = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : '-';
             }
             
-            // Send notification if customer has phone number
-            if (customer.phone) {
-                await WhatsAppNotificationService.sendMessage(customer.phone, message);
+            if (paymentType === 'debt') {
+                variables.total_amount = parseFloat(invoice.total_amount || 0).toLocaleString('id-ID');
+                variables.debt_amount = parseFloat(invoice.remaining_amount || 0).toLocaleString('id-ID');
+                variables.debt_reason = 'Pembayaran ditunda';
+                variables.debt_date = new Date().toLocaleDateString('id-ID');
+                variables.due_date = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : '-';
+                variables.notes = 'Silakan hubungi customer service untuk informasi lebih lanjut';
+            }
+            
+            // Queue notification using UnifiedNotificationService
+            console.log(`[KasirController] 📤 Queueing ${notificationType} notification for customer ${customer.id}`);
+            
+            await UnifiedNotificationService.queueNotification({
+                customer_id: customer.id,
+                invoice_id: invoice.id,
+                payment_id: paymentId,
+                notification_type: notificationType,
+                channels: ['whatsapp'],
+                variables: variables,
+                priority: 'high'
+            });
+            
+            console.log(`[KasirController] ✅ Payment notification queued successfully`);
+            
+            // Try to process queue immediately (non-blocking)
+            try {
+                const result = await UnifiedNotificationService.sendPendingNotifications(10);
+                console.log(`[KasirController] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed`);
+            } catch (queueError: any) {
+                console.warn(`[KasirController] ⚠️ Queue processing error (non-critical):`, queueError.message);
+                // Non-critical, notification is already queued
             }
             
         } catch (error) {
-            console.error('Error sending WhatsApp notification:', error);
-            // Don't throw error, just log it
+            console.error('[KasirController] Error sending payment notification:', error);
+            // Don't throw error, just log it - payment should still succeed
+        }
+    }
+
+    // Track late payment (internal helper)
+    private async trackLatePayment(invoiceId: number, paymentId: number, paymentDate: string): Promise<void> {
+        try {
+            // Get invoice info
+            const conn = await databasePool.getConnection();
+            try {
+                const [invoiceRows] = await conn.query<RowDataPacket[]>(
+                    `SELECT due_date FROM invoices WHERE id = ?`,
+                    [invoiceId]
+                );
+
+                if (invoiceRows.length === 0) {
+                    return;
+                }
+
+                const invoice = invoiceRows[0];
+                if (!invoice.due_date) {
+                    return;
+                }
+
+                const paymentDateObj = new Date(paymentDate);
+                const dueDateObj = new Date(invoice.due_date);
+
+                // Import and track
+                const { LatePaymentTrackingService } = await import('../services/billing/LatePaymentTrackingService');
+                await LatePaymentTrackingService.trackPayment(
+                    invoiceId,
+                    paymentId,
+                    paymentDateObj,
+                    dueDateObj
+                );
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('[KasirController] Error in trackLatePayment:', error);
+            // Don't throw - this is non-critical
         }
     }
     
@@ -1116,6 +1192,348 @@ Status layanan Anda telah ${statusText}.
             'qris': 'QRIS'
         };
         return methods[method] || method;
+    }
+
+    // Halaman verifikasi pembayaran prepaid
+    public async prepaidVerification(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { PrepaidPaymentService } = await import('../services/prepaid/PrepaidPaymentService');
+            const pendingPayments = await PrepaidPaymentService.getPendingTransactions();
+
+            // Get statistics
+            const conn = await databasePool.getConnection();
+            try {
+                const [stats] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        COUNT(*) as total_pending,
+                        SUM(amount) as total_amount,
+                        COUNT(CASE WHEN TIMESTAMPDIFF(HOUR, created_at, NOW()) > 24 THEN 1 END) as overdue_24h
+                    FROM prepaid_transactions
+                    WHERE payment_status = 'pending' AND payment_method = 'manual_transfer'
+                `);
+
+                res.render('kasir/prepaid-verification', {
+                    title: 'Verifikasi Pembayaran Prepaid',
+                    currentPath: '/kasir/prepaid-verification',
+                    user: req.user,
+                    pendingPayments: pendingPayments || [],
+                    stats: stats[0] || {}
+                });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error loading prepaid verification:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat halaman verifikasi prepaid'
+            });
+        }
+    }
+
+    // Verify prepaid payment
+    public async verifyPrepaidPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { transactionId } = req.params;
+            const { notes } = req.body;
+            const kasirId = req.user!.id;
+
+            const { PrepaidPaymentService } = await import('../services/prepaid/PrepaidPaymentService');
+            const PrepaidActivationService = (await import('../services/prepaid/PrepaidActivationService')).default;
+            // WhatsApp service removed
+
+            // Verify payment
+            await PrepaidPaymentService.verifyPayment(parseInt(transactionId), kasirId, notes);
+
+            // Activate package
+            const activationResult = await PrepaidActivationService.activateFromTransaction(parseInt(transactionId!));
+
+            if (!activationResult.success) {
+                return res.json({
+                    success: false,
+                    error: 'Pembayaran diverifikasi tapi aktivasi gagal: ' + activationResult.error
+                });
+            }
+
+            // Send notification
+            try {
+                const conn = await databasePool.getConnection();
+                try {
+                    const [rows] = await conn.query<RowDataPacket[]>(
+                        'SELECT customer_id FROM prepaid_transactions WHERE id = ?',
+                        [transactionId]
+                    );
+                    if (rows.length > 0) {
+                        // WhatsApp notification removed
+                        // await WhatsAppNotificationService.sendPrepaidPaymentVerifiedNotification(
+                        //     parseInt(transactionId),
+                        //     rows[0].customer_id
+                        // );
+                    }
+                } finally {
+                    conn.release();
+                }
+            } catch (notifError) {
+                console.error('Failed to send notification:', notifError);
+            }
+
+            res.json({
+                success: true,
+                message: 'Pembayaran berhasil diverifikasi dan paket diaktifkan',
+                subscription_id: activationResult.subscription_id
+            });
+        } catch (error) {
+            console.error('Error verifying prepaid payment:', error);
+            res.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Gagal memverifikasi pembayaran'
+            });
+        }
+    }
+
+    // Reject prepaid payment
+    public async rejectPrepaidPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { transactionId } = req.params;
+            const { reason } = req.body;
+            const kasirId = req.user!.id;
+
+            const { PrepaidPaymentService } = await import('../services/prepaid/PrepaidPaymentService');
+            // WhatsApp service removed
+
+            await PrepaidPaymentService.rejectPayment(parseInt(transactionId), kasirId, reason || 'Ditolak oleh kasir');
+
+            // Send notification
+            try {
+                const conn = await databasePool.getConnection();
+                try {
+                    const [rows] = await conn.query<RowDataPacket[]>(
+                        'SELECT customer_id FROM prepaid_transactions WHERE id = ?',
+                        [transactionId]
+                    );
+                    if (rows.length > 0) {
+                        // WhatsApp notification removed
+                        // await WhatsAppNotificationService.sendPrepaidPaymentRejectedNotification(
+                        //     parseInt(transactionId),
+                        //     rows[0].customer_id,
+                        //     reason || 'Ditolak oleh kasir'
+                        // );
+                    }
+                } finally {
+                    conn.release();
+                }
+            } catch (notifError) {
+                console.error('Failed to send notification:', notifError);
+            }
+
+            res.json({
+                success: true,
+                message: 'Pembayaran berhasil ditolak'
+            });
+        } catch (error) {
+            console.error('Error rejecting prepaid payment:', error);
+            res.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Gagal menolak pembayaran'
+            });
+        }
+    }
+
+    // Print invoice individual
+    public async printInvoice(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { invoiceId } = req.params;
+            
+            const conn = await databasePool.getConnection();
+            try {
+                const [invoices] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        i.*,
+                        c.name as customer_name,
+                        c.phone as customer_phone,
+                        c.email as customer_email,
+                        c.address as customer_address,
+                        c.customer_code
+                    FROM invoices i
+                    LEFT JOIN customers c ON i.customer_id = c.id
+                    WHERE i.id = ?
+                `, [invoiceId]);
+                
+                if (invoices.length === 0) {
+                    return res.status(404).send('Invoice tidak ditemukan');
+                }
+                
+                const invoice = invoices[0];
+                
+                // Get invoice items
+                const [items] = await conn.query<RowDataPacket[]>(`
+                    SELECT id, invoice_id, description, quantity, unit_price, total_price, created_at FROM invoice_items WHERE invoice_id = ? ORDER BY id
+                `, [invoiceId]);
+                
+                res.render('kasir/print-invoice', {
+                    title: `Print Invoice ${invoice.invoice_number}`,
+                    invoice,
+                    items,
+                    layout: false
+                });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error printing invoice:', error);
+            res.status(500).send('Gagal mencetak invoice');
+        }
+    }
+
+    // Export payment records
+    public async exportPaymentRecords(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { startDate, endDate } = req.query;
+            
+            const conn = await databasePool.getConnection();
+            try {
+                let query = `
+                    SELECT 
+                        p.id,
+                        p.payment_date,
+                        p.amount,
+                        p.payment_method,
+                        p.reference_number,
+                        p.notes,
+                        p.created_at,
+                        c.customer_code,
+                        c.name as customer_name,
+                        c.phone as customer_phone,
+                        i.invoice_number,
+                        i.period,
+                        u.full_name as kasir_name
+                    FROM payments p
+                    LEFT JOIN invoices i ON p.invoice_id = i.id
+                    LEFT JOIN customers c ON i.customer_id = c.id
+                    LEFT JOIN users u ON p.created_by = u.id
+                    WHERE 1=1
+                `;
+                
+                const params: any[] = [];
+                
+                if (startDate) {
+                    query += ' AND DATE(p.payment_date) >= ?';
+                    params.push(startDate);
+                }
+                
+                if (endDate) {
+                    query += ' AND DATE(p.payment_date) <= ?';
+                    params.push(endDate);
+                }
+                
+                query += ' ORDER BY p.payment_date DESC, p.created_at DESC';
+                
+                const [records] = await conn.query<RowDataPacket[]>(query, params);
+                
+                // Create Excel workbook
+                const wb = XLSX.utils.book_new();
+                
+                // Prepare data
+                const excelData = [
+                    ['TANGGAL', 'CUSTOMER CODE', 'NAMA', 'TELEPON', 'NO INVOICE', 'PERIODE', 'JUMLAH', 'METODE', 'REFERENSI', 'CATATAN', 'KASIR']
+                ];
+                
+                records.forEach((record: any) => {
+                    excelData.push([
+                        new Date(record.payment_date).toLocaleDateString('id-ID'),
+                        record.customer_code || '-',
+                        record.customer_name || '-',
+                        record.customer_phone || '-',
+                        record.invoice_number || '-',
+                        record.period || '-',
+                        record.amount || 0,
+                        this.getPaymentMethodName(record.payment_method || 'cash'),
+                        record.reference_number || '-',
+                        record.notes || '-',
+                        record.kasir_name || '-'
+                    ]);
+                });
+                
+                // Add summary
+                const totalAmount = records.reduce((sum: number, r: any) => sum + (parseFloat(r.amount) || 0), 0);
+                excelData.push([]);
+                excelData.push(['TOTAL', '', '', '', '', '', totalAmount, '', '', '', '']);
+                
+                const ws = XLSX.utils.aoa_to_sheet(excelData);
+                XLSX.utils.book_append_sheet(wb, ws, 'Pembayaran');
+                
+                // Generate buffer
+                const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+                
+                // Set headers
+                const filename = `Pencatatan_Pembayaran_${startDate || 'all'}_${endDate || 'all'}.xlsx`;
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                
+                res.send(excelBuffer);
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error exporting payment records:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal mengekspor data pembayaran'
+            });
+        }
+    }
+
+    // Print payment receipt
+    public async printPaymentRecord(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { paymentId } = req.params;
+            
+            const conn = await databasePool.getConnection();
+            try {
+                const [payments] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        p.*,
+                        c.customer_code,
+                        c.name as customer_name,
+                        c.phone as customer_phone,
+                        c.address,
+                        i.invoice_number,
+                        i.period,
+                        i.total_amount as invoice_total,
+                        pp.name as package_name,
+                        u.full_name as kasir_name
+                    FROM payments p
+                    LEFT JOIN invoices i ON p.invoice_id = i.id
+                    LEFT JOIN customers c ON i.customer_id = c.id
+                    LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
+                    LEFT JOIN users u ON p.created_by = u.id
+                    WHERE p.id = ?
+                `, [paymentId]);
+                
+                if (!payments || payments.length === 0) {
+                    return res.status(404).render('error', {
+                        title: 'Error',
+                        message: 'Data pembayaran tidak ditemukan'
+                    });
+                }
+                
+                const payment = payments[0];
+                
+                res.render('kasir/print-payment-record', {
+                    title: `Bukti Pembayaran #${paymentId}`,
+                    payment,
+                    layout: false
+                });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error printing payment record:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal mencetak bukti pembayaran'
+            });
+        }
     }
 }
 

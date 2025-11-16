@@ -19,6 +19,7 @@ export async function getAboutPage(req: Request, res: Response, next: NextFuncti
         
         res.render('about/index', {
             title: 'Tentang Aplikasi',
+            currentPath: '/about',
             version,
             features,
             updateSettings,
@@ -169,8 +170,8 @@ export async function checkHotfix(req: Request, res: Response, next: NextFunctio
                 // Extract fixes from markdown (simple parsing)
                 const lines = hotfixContent.split('\n');
                 fixes = lines
-                    .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*'))
-                    .map(line => line.trim().substring(1).trim())
+                    .filter((line: string) => line.trim().startsWith('-') || line.trim().startsWith('*'))
+                    .map((line: string) => line.trim().substring(1).trim())
                     .slice(0, 5); // Max 5 items
                 
                 if (fixes.length === 0) {

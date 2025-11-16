@@ -1,0 +1,168 @@
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <i class="fas fa-plus text-blue-500"></i>
+            Buat Template Notifikasi Baru
+        </h1>
+        <p class="text-gray-600 mt-2">Buat template notifikasi baru yang dapat dikustomisasi</p>
+    </div>
+
+    <!-- Form -->
+    <form id="createTemplateForm" class="bg-white rounded-lg shadow-sm p-6">
+        <div class="space-y-6">
+            <!-- Basic Info -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Informasi Dasar</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Template Code *</label>
+                        <input type="text" name="template_code" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="contoh: custom_notification">
+                        <p class="text-xs text-gray-500 mt-1">Kode unik untuk template (huruf kecil, underscore)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama Template *</label>
+                        <input type="text" name="template_name" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="Contoh: Notifikasi Kustom">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Notifikasi *</label>
+                        <select name="notification_type" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Pilih Tipe...</option>
+                            <option value="invoice_created">Invoice Dibuat</option>
+                            <option value="invoice_overdue">Invoice Terlambat</option>
+                            <option value="payment_received">Pembayaran Diterima</option>
+                            <option value="payment_partial">Pembayaran Sebagian</option>
+                            <option value="package_expiring">Paket Akan Berakhir</option>
+                            <option value="package_expired">Paket Berakhir</option>
+                            <option value="package_activated">Paket Diaktifkan</option>
+                            <option value="quota_warning">Peringatan Kuota</option>
+                            <option value="quota_depleted">Kuota Habis</option>
+                            <option value="auto_renew_success">Perpanjangan Otomatis Berhasil</option>
+                            <option value="auto_renew_failed">Perpanjangan Otomatis Gagal</option>
+                            <option value="customer_created">Pelanggan Baru</option>
+                            <option value="customer_deleted">Pelanggan Dihapus</option>
+                            <option value="customer_migrated_to_prepaid">Migrasi ke Prepaid</option>
+                            <option value="customer_migrated_to_postpaid">Migrasi ke Postpaid</option>
+                            <option value="payment_partial">Pembayaran Kurang</option>
+                            <option value="payment_debt">Pembayaran Ditunda/Hutang</option>
+                            <option value="payment_shortage_warning">Peringatan Pembayaran Kurang/Menunggak</option>
+                            <option value="isolation_warning">Peringatan Sebelum Isolir</option>
+                            <option value="service_blocked">Layanan Diblokir</option>
+                            <option value="service_unblocked">Layanan Diaktifkan Kembali</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Channel *</label>
+                        <select name="channel" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="email">Email</option>
+                            <option value="sms">SMS</option>
+                            <option value="push">Push</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                        <select name="priority"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="low">Low</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select name="is_active"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="true" selected>Aktif</option>
+                            <option value="false">Tidak Aktif</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Templates -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Template Pesan</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title Template *</label>
+                        <input type="text" name="title_template" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="Contoh: Invoice Baru - {invoice_number}">
+                        <p class="text-xs text-gray-500 mt-1">Gunakan {variable_name} untuk variabel dinamis</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Message Template *</label>
+                        <textarea name="message_template" rows="8" required
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Contoh: Halo {customer_name}, Invoice baru telah dibuat..."></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Gunakan {variable_name} untuk variabel dinamis. Emoji dapat digunakan.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variables Info -->
+            <div class="bg-blue-50 rounded-lg p-4">
+                <h4 class="font-semibold text-blue-900 mb-2">Variabel yang Tersedia:</h4>
+                <div class="text-sm text-blue-800">
+                    <p class="mb-2">Variabel umum: <code class="bg-blue-100 px-2 py-1 rounded">{customer_name}</code>, <code class="bg-blue-100 px-2 py-1 rounded">{customer_phone}</code>, <code class="bg-blue-100 px-2 py-1 rounded">{customer_email}</code></p>
+                    <p>Variabel spesifik tergantung tipe notifikasi. Lihat dokumentasi untuk daftar lengkap.</p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-4">
+                <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-save"></i> Buat Template
+                </button>
+                <a href="/notification/templates" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                    <i class="fas fa-times"></i> Batal
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('createTemplateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        template_code: formData.get('template_code'),
+        template_name: formData.get('template_name'),
+        notification_type: formData.get('notification_type'),
+        channel: formData.get('channel'),
+        title_template: formData.get('title_template'),
+        message_template: formData.get('message_template'),
+        priority: formData.get('priority'),
+        is_active: formData.get('is_active') === 'true',
+        variables: []
+    };
+    
+    try {
+        const response = await fetch('/api/notification/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Template berhasil dibuat!');
+            window.location.href = '/notification/templates';
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+

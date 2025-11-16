@@ -1,4 +1,4 @@
-<style>
+﻿<style>
     /* Prevent horizontal overflow */
     body {
         overflow-x: hidden;
@@ -20,7 +20,7 @@
 </style>
 
 <!-- Action Buttons Section -->
-<div class="bg-white shadow-sm border border-gray-200 rounded-lg mb-6 p-6">
+<div class="bg-white shadow-lg border border-gray-300 rounded-2xl mb-6 p-6" style="background-color: #ffffff !important;">
         <!-- Action Buttons -->
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
                 <!-- Generate Tagihan -->
@@ -42,7 +42,7 @@
                                 </div>
                                 <% if (typeof odcList !== 'undefined' && odcList && odcList.length > 0) { %>
                                     <% odcList.forEach(function(odc) { %>
-                                        <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>" 
+                                        <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal" 
                                            target="_blank"
                                            class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-cyan-50 border-b border-gray-100 last:border-0 transition-colors">
                                             <i class="fas fa-print mr-2 text-cyan-600"></i><%= odc.name %>
@@ -88,7 +88,7 @@
 </div>
 
     <!-- Filters -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-300 p-6 mb-6" style="background-color: #ffffff !important;">
             <form method="GET">
                 <div class="flex flex-wrap items-end gap-3">
                     <!-- Status Filter -->
@@ -284,12 +284,12 @@
                                             <% } %>
                                             
                                             <!-- Isolate/Restore -->
-                                            <% if (invoice.customer_is_isolated) { %>
+                                            <% if (invoice.status === 'overdue' || invoice.customer_is_isolated) { %>
                                                 <button data-action="restore" 
                                                         data-customer-id="<%= invoice.customer_id %>" 
                                                         data-customer-name="<%= invoice.customer_name %>"
                                                         class="text-orange-600 hover:text-orange-900" 
-                                                        title="Restore">
+                                                        title="Unisolir">
                                                     <i class="fas fa-unlock"></i>
                                                 </button>
                                             <% } else { %>
@@ -410,7 +410,7 @@
                 <label style="display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">
                     Jatuh Tempo (Tanggal ke):
                 </label>
-                <input type="number" id="dueDateOffset" value="7" min="1" max="31" required
+                <input type="number" id="dueDateOffset" value="<%= typeof schedulerSettings !== 'undefined' && schedulerSettings.due_date_offset ? schedulerSettings.due_date_offset : 7 %>" min="1" max="31" required
                        style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
                 <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">
                     <i class="fas fa-info-circle"></i> Tagihan akan jatuh tempo pada tanggal ini setiap bulan
@@ -431,9 +431,22 @@
             
             <!-- Info Box -->
             <div style="background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
-                <p style="font-size: 13px; color: #1e40af; margin: 0;">
+                <p style="font-size: 13px; color: #1e40af; margin: 0; margin-bottom: 8px;">
                     <i class="fas fa-lightbulb" style="margin-right: 6px;"></i>
-                    <strong>Info:</strong> Sistem akan mengambil data dari <strong>semua pelanggan aktif</strong> dan membuat tagihan berdasarkan paket langganan mereka.
+                    <strong>Generate Tagihan Manual</strong>
+                </p>
+                <p style="font-size: 12px; color: #1e40af; margin: 0; margin-bottom: 6px;">
+                    Fitur ini untuk generate tagihan secara <strong>manual</strong> kapan saja. Berguna untuk:
+                </p>
+                <ul style="font-size: 12px; color: #1e40af; margin: 0; padding-left: 20px; line-height: 1.6;">
+                    <li>Generate tagihan untuk periode yang terlewat</li>
+                    <li>Generate tagihan untuk periode tertentu (bisa bulan lalu/ini/depan)</li>
+                    <li>Generate ulang jika ada masalah dengan tagihan</li>
+                    <li>Generate dengan setting berbeda dari scheduler</li>
+                </ul>
+                <p style="font-size: 11px; color: #64748b; margin: 8px 0 0 0; padding-top: 8px; border-top: 1px solid #93c5fd;">
+                    <i class="fas fa-info-circle" style="margin-right: 4px;"></i>
+                    <strong>Catatan:</strong> Sistem juga punya <strong>scheduler otomatis</strong> yang generate tagihan setiap bulan secara otomatis (biasanya tanggal 1). Generate manual ini tidak menggantikan scheduler, tapi sebagai backup/opsi tambahan.
                 </p>
             </div>
             

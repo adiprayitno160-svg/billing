@@ -186,10 +186,10 @@ class PrepaidSpeedProfileController {
 
       // Connect to Mikrotik
       const api = new RouterOSAPI({
-        host: settings.host,
-        port: settings.api_port || 8728,
-        user: settings.username,
-        password: settings.password,
+        host: settings?.host || '',
+        port: settings?.api_port || 8728,
+        user: settings?.username || '',
+        password: settings?.password || '',
         timeout: 10000
       });
 
@@ -266,10 +266,10 @@ class PrepaidSpeedProfileController {
 
       // Connect to Mikrotik
       const api = new RouterOSAPI({
-        host: settings.host,
-        port: settings.api_port || 8728,
-        user: settings.username,
-        password: settings.password,
+        host: settings?.host || '',
+        port: settings?.api_port || 8728,
+        user: settings?.username || '',
+        password: settings?.password || '',
         timeout: 10000
       });
 
@@ -336,10 +336,10 @@ class PrepaidSpeedProfileController {
 
       // Connect to Mikrotik
       const api = new RouterOSAPI({
-        host: settings.host,
-        port: settings.api_port || 8728,
-        user: settings.username,
-        password: settings.password,
+        host: settings?.host || '',
+        port: settings?.api_port || 8728,
+        user: settings?.username || '',
+        password: settings?.password || '',
         timeout: 10000
       });
 

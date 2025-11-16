@@ -1,4 +1,4 @@
-<div class="space-y-6">
+﻿<div class="space-y-6">
 	<!-- Header Section -->
 	<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
 		<div class="flex items-center justify-between">
@@ -25,10 +25,6 @@
 			<div class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
 				<h2 class="text-lg font-bold text-modern-purple-900 mb-4">Informasi Dasar</h2>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-sm font-medium text-modern-purple-600 mb-1">ID Pelanggan</label>
-						<div class="text-lg font-semibold text-modern-purple-800"><%= customer.id %></div>
-					</div>
 					<div>
 						<label class="block text-sm font-medium text-modern-purple-600 mb-1">Kode Pelanggan</label>
 						<div class="text-lg font-semibold text-modern-purple-800"><%= customer.customer_code || '-' %></div>
@@ -76,37 +72,94 @@
 						<div class="text-lg text-modern-blue-700"><%= customer.pppoe_profile_id %></div>
 					</div>
 					<% } %>
-					<div class="md:col-span-2">
-						<label class="block text-sm font-medium text-modern-blue-600 mb-1">Paket Aktif</label>
-						<div class="text-lg text-modern-blue-700">
-							<% if (customer.connection_type === 'pppoe') { %>
-								<%= customer.pppoe_package_name || '-' %>
-							<% } else { %>
-								<%= customer.static_ip_package_name || '-' %>
-							<% } %>
-						</div>
+					<% if (customer.connection_type === 'static_ip' && customer.static_ip_address) { %>
+					<div>
+						<label class="block text-sm font-medium text-modern-blue-600 mb-1">IP Address</label>
+						<div class="text-lg text-modern-blue-700 font-mono"><%= customer.static_ip_address %></div>
 					</div>
+					<% if (customer.static_ip_interface) { %>
+					<div>
+						<label class="block text-sm font-medium text-modern-blue-600 mb-1">Interface</label>
+						<div class="text-lg text-modern-blue-700"><%= customer.static_ip_interface %></div>
+					</div>
+					<% } %>
+					<% } %>
 				</div>
 			</div>
 
-			<!-- Location Information (read-only + map) -->
-			<% if (customer.latitude && customer.longitude) { %>
-			<div class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-white to-modern-green-50/30 p-6 shadow-lg">
-				<h2 class="text-lg font-bold text-modern-green-900 mb-4">Informasi Lokasi</h2>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-sm font-medium text-modern-green-600 mb-1">Latitude</label>
-						<div class="text-lg font-semibold text-modern-green-800"><%= customer.latitude %></div>
+			<!-- Package Information -->
+			<% if ((customer.pppoe_package && customer.connection_type === 'pppoe') || (customer.static_ip_package && customer.connection_type === 'static_ip')) { %>
+			<div class="rounded-2xl border border-modern-yellow-200 bg-gradient-to-br from-white to-modern-yellow-50/30 p-6 shadow-lg">
+				<h2 class="text-lg font-bold text-modern-yellow-900 mb-4">Informasi Paket</h2>
+				<% if (customer.connection_type === 'pppoe' && customer.pppoe_package) { %>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Nama Paket</label>
+							<div class="text-lg font-semibold text-modern-yellow-800"><%= customer.pppoe_package.name %></div>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Harga</label>
+							<div class="text-lg font-semibold text-modern-yellow-800">Rp <%= parseFloat(customer.pppoe_package.price || 0).toLocaleString('id-ID') %></div>
+						</div>
+						<% if (customer.pppoe_package.rate_limit_rx && customer.pppoe_package.rate_limit_tx) { %>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Download Limit</label>
+							<div class="text-lg text-modern-yellow-700"><%= customer.pppoe_package.rate_limit_rx %></div>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Upload Limit</label>
+							<div class="text-lg text-modern-yellow-700"><%= customer.pppoe_package.rate_limit_tx %></div>
+						</div>
+						<% } %>
+						<% if (customer.pppoe_package.description) { %>
+						<div class="md:col-span-2">
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Deskripsi</label>
+							<div class="text-sm text-modern-yellow-700"><%= customer.pppoe_package.description %></div>
+						</div>
+						<% } %>
 					</div>
-					<div>
-						<label class="block text-sm font-medium text-modern-green-600 mb-1">Longitude</label>
-						<div class="text-lg font-semibold text-modern-green-800"><%= customer.longitude %></div>
+				<% } else if (customer.connection_type === 'static_ip' && customer.static_ip_package) { %>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Nama Paket</label>
+							<div class="text-lg font-semibold text-modern-yellow-800"><%= customer.static_ip_package.package_name || customer.static_ip_package.name || '-' %></div>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Harga</label>
+							<div class="text-lg font-semibold text-modern-yellow-800">Rp <%= parseFloat(customer.static_ip_package.price || 0).toLocaleString('id-ID') %></div>
+						</div>
+						<% if (customer.static_ip_package.max_limit_download) { %>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Download Limit</label>
+							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.max_limit_download %></div>
+						</div>
+						<% } %>
+						<% if (customer.static_ip_package.max_limit_upload) { %>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Upload Limit</label>
+							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.max_limit_upload %></div>
+						</div>
+						<% } %>
+						<% if (customer.static_ip_package.parent_download_name) { %>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Parent Download</label>
+							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.parent_download_name %></div>
+						</div>
+						<% } %>
+						<% if (customer.static_ip_package.parent_upload_name) { %>
+						<div>
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Parent Upload</label>
+							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.parent_upload_name %></div>
+						</div>
+						<% } %>
+						<% if (customer.static_ip_package.description) { %>
+						<div class="md:col-span-2">
+							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Deskripsi</label>
+							<div class="text-sm text-modern-yellow-700"><%= customer.static_ip_package.description %></div>
+						</div>
+						<% } %>
 					</div>
-				</div>
-				<div class="mt-4">
-					<div id="detailCustomerMap" style="height: 240px; width: 100%; border: 1px solid #bbf7d0; border-radius: 0.75rem;" class="rounded-lg shadow-sm bg-white"></div>
-					<p class="text-xs text-modern-green-700 mt-2">Lokasi ditampilkan sesuai koordinat tersimpan (read-only).</p>
-				</div>
+				<% } %>
 			</div>
 			<% } %>
 
@@ -117,6 +170,7 @@
 				<div class="text-lg text-modern-orange-800"><%= customer.address %></div>
 			</div>
 			<% } %>
+
 		</div>
 
 		<!-- Sidebar -->
@@ -176,8 +230,29 @@
 		</div>
 	</div>
 
+	<!-- Location Information with Full Page Map -->
+	<% if (customer.latitude && customer.longitude) { %>
+	<div class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-white to-modern-green-50/30 p-6 shadow-lg">
+		<h2 class="text-lg font-bold text-modern-green-900 mb-4">Lokasi Pelanggan</h2>
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+			<div>
+				<label class="block text-sm font-medium text-modern-green-600 mb-1">Latitude</label>
+				<div class="text-lg font-semibold text-modern-green-800"><%= customer.latitude %></div>
+			</div>
+			<div>
+				<label class="block text-sm font-medium text-modern-green-600 mb-1">Longitude</label>
+				<div class="text-lg font-semibold text-modern-green-800"><%= customer.longitude %></div>
+			</div>
+		</div>
+		<div class="mt-4">
+			<div id="detailCustomerMap" style="height: 500px; width: 100%; border: 1px solid #bbf7d0; border-radius: 0.75rem;" class="rounded-lg shadow-sm bg-white"></div>
+			<p class="text-xs text-modern-green-700 mt-2">Lokasi ditampilkan sesuai koordinat tersimpan (read-only).</p>
+		</div>
+	</div>
+	<% } %>
+
 	<!-- Invoices Section -->
-	<% if (invoices && invoices.length > 0) { %>
+	<% if (typeof invoices !== 'undefined' && invoices && invoices.length > 0) { %>
 	<div class="rounded-2xl border border-modern-yellow-200 bg-gradient-to-br from-white to-modern-yellow-50/30 p-6 shadow-lg">
 		<h2 class="text-lg font-bold text-modern-yellow-900 mb-4">Riwayat Tagihan</h2>
 		<div class="overflow-x-auto">

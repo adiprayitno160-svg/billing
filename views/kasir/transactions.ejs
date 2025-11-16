@@ -1,4 +1,4 @@
-<!-- Halaman Transaksi Kasir -->
+﻿<!-- Halaman Transaksi Kasir -->
 <div class="space-y-6">
     <!-- Header -->
     <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
@@ -70,6 +70,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metode</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bukti</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                         </tr>
@@ -147,6 +148,15 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
+                                    <% if (transaction.payment_proof_url) { %>
+                                        <button onclick="viewProof('<%= transaction.payment_proof_url %>')" class="text-blue-600 hover:text-blue-900">
+                                            <i class="fas fa-image mr-1"></i>Lihat Bukti
+                                        </button>
+                                    <% } else { %>
+                                        <span class="text-gray-400 text-sm">Tidak ada</span>
+                                    <% } %>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
                                         <%= new Date(transaction.payment_date).toLocaleDateString('id-ID', { 
                                             day: '2-digit', 
@@ -163,6 +173,24 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
+                                        <% if (transaction.invoice_id) { %>
+                                        <a 
+                                            href="/kasir/print-invoice/<%= transaction.invoice_id %>" 
+                                            target="_blank"
+                                            class="text-purple-600 hover:text-purple-900 p-2 hover:bg-purple-50 rounded transition duration-150"
+                                            title="Print Invoice"
+                                        >
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                        <% } %>
+                                        <a 
+                                            href="/kasir/payment-records/print/<%= transaction.id %>" 
+                                            target="_blank"
+                                            class="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded transition duration-150"
+                                            title="Print Bukti Pembayaran"
+                                        >
+                                            <i class="fas fa-print"></i>
+                                        </a>
                                         <button 
                                             onclick="viewTransaction(<%= transaction.id %>)" 
                                             class="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded transition duration-150"
@@ -238,8 +266,23 @@
     </div>
 </div>
 
+<!-- Modal: View Proof -->
+<div id="proofModal" class="fixed inset-0 bg-black  hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg max-w-4xl w-full m-4 max-h-screen overflow-auto">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Bukti Transfer</h3>
+            <button onclick="closeProofModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-4">
+            <img id="proofImage" src="" alt="Bukti Transfer" class="max-w-full h-auto mx-auto">
+        </div>
+    </div>
+</div>
+
 <!-- Detail Transaction Modal -->
-<div id="transactionDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+<div id="transactionDetailModal" class="fixed inset-0 bg-gray-600  hidden z-50">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div class="p-6">
@@ -362,6 +405,17 @@ async function viewTransaction(paymentId) {
 
 function closeTransactionModal() {
     document.getElementById('transactionDetailModal').classList.add('hidden');
+}
+
+function viewProof(proofUrl) {
+    document.getElementById('proofImage').src = proofUrl;
+    document.getElementById('proofModal').classList.remove('hidden');
+    document.getElementById('proofModal').classList.add('flex');
+}
+
+function closeProofModal() {
+    document.getElementById('proofModal').classList.add('hidden');
+    document.getElementById('proofModal').classList.remove('flex');
 }
 
 // Close modal when clicking outside

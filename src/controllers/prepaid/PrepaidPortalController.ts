@@ -14,6 +14,11 @@ class PrepaidPortalController {
    */
   async showLogin(req: Request, res: Response) {
     try {
+      // Set no-cache headers to prevent browser caching
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       res.render('prepaid/portal-login', {
         title: 'Portal Prepaid - Login',
         layout: false, // No main layout
@@ -55,7 +60,10 @@ class PrepaidPortalController {
       // Verify PIN (simple comparison for now, bcrypt for production)
       // For testing: PIN stored as plain text
       // For production: use bcrypt.compare(portal_pin, portalCustomer.portal_pin)
-      const pinMatch = portal_pin === portalCustomer.portal_pin || 
+      if (!portalCustomer) {
+          return res.status(401).json({ success: false, error: 'Invalid credentials' });
+      }
+      const pinMatch = portal_pin === portalCustomer.portal_pin ||
                        await bcrypt.compare(portal_pin, portalCustomer.portal_pin);
 
       if (!pinMatch) {
@@ -126,7 +134,7 @@ class PrepaidPortalController {
         customer: customer,
         activeSubscription: activeSubscription,
         subscriptionHistory: subscriptionHistory,
-        customerName: (req.session as any)?.customerName || customer.name
+        customerName: (req.session as any)?.customerName || customer?.name || 'Customer'
       });
     } catch (error) {
       console.error('Dashboard error:', error);

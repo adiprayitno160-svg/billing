@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
 	<meta charset="UTF-8" />
@@ -6,37 +6,339 @@
 	<title><%= typeof title !== 'undefined' ? title : 'Billing' %></title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="/assets/styles.css" />
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 	<!-- Chart.js for Interface Traffic Realtime -->
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<!-- Define toggleMenu IMMEDIATELY before any HTML is rendered -->
+	<script>
+	// CRITICAL: Define toggleMenu immediately to prevent "toggleMenu is not defined" errors
+	// This MUST be defined before any HTML with onclick is parsed
+	(function() {
+		// Define on window object immediately
+		window.toggleMenu = function(menuName, event) {
+			try {
+				if (event) {
+					event.preventDefault();
+					event.stopPropagation();
+				}
+				const menuContent = document.getElementById(menuName + '-menu');
+				const arrow = document.getElementById(menuName + '-arrow');
+				if (menuContent && arrow) {
+					const isHidden = menuContent.style.display === 'none' || 
+					                 menuContent.classList.contains('hidden') ||
+					                 (typeof getComputedStyle !== 'undefined' && getComputedStyle(menuContent).display === 'none');
+					if (isHidden) {
+						menuContent.style.display = 'block';
+						menuContent.classList.remove('hidden');
+						menuContent.style.pointerEvents = 'auto';
+						arrow.style.transform = 'rotate(180deg)';
+					} else {
+						menuContent.style.display = 'none';
+						menuContent.classList.add('hidden');
+						arrow.style.transform = 'rotate(0deg)';
+					}
+				}
+			} catch(e) {
+				console.error('Error in toggleMenu:', e);
+			}
+			return false;
+		};
+		
+		// Also define on global scope
+		if (typeof globalThis !== 'undefined') {
+			globalThis.toggleMenu = window.toggleMenu;
+		}
+		
+		// Verify it's defined
+		console.log('✅ toggleMenu function defined immediately, available:', typeof window.toggleMenu !== 'undefined');
+	})();
+	</script>
+	<!-- Load sidebar.js to override with enhanced version -->
+	<script src="/assets/sidebar.js" defer></script>
+	<script>
+	// Remove all onclick attributes from menu buttons as soon as DOM is available
+	(function() {
+		function removeOnclickAttributes() {
+			if (typeof document !== 'undefined' && document.querySelectorAll) {
+				// Remove from all buttons with onclick containing toggleMenu
+				const allButtons = document.querySelectorAll('button[onclick], [onclick]');
+				allButtons.forEach(function(btn) {
+					const onclick = btn.getAttribute('onclick');
+					if (onclick && onclick.includes('toggleMenu')) {
+						btn.removeAttribute('onclick');
+						console.log('✅ Removed onclick from:', btn.getAttribute('data-menu') || btn.className || btn.tagName);
+					}
+				});
+				
+				// Also remove from menu-toggle buttons specifically
+				const menuButtons = document.querySelectorAll('.menu-toggle[data-menu]');
+				menuButtons.forEach(function(btn) {
+					if (btn.hasAttribute('onclick')) {
+						btn.removeAttribute('onclick');
+						console.log('✅ Removed onclick from menu:', btn.getAttribute('data-menu'));
+					}
+				});
+			}
+		}
+		
+		// Run immediately if DOM is ready
+		if (typeof document !== 'undefined') {
+			// Run before DOMContentLoaded
+			removeOnclickAttributes();
+			
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', removeOnclickAttributes);
+			}
+			
+			// Run multiple times to catch late-loading elements
+			setTimeout(removeOnclickAttributes, 0);
+			setTimeout(removeOnclickAttributes, 10);
+			setTimeout(removeOnclickAttributes, 50);
+			setTimeout(removeOnclickAttributes, 100);
+			setTimeout(removeOnclickAttributes, 200);
+			setTimeout(removeOnclickAttributes, 500);
+			setTimeout(removeOnclickAttributes, 1000);
+		}
+	})();
+	</script>
+	<style>
+		:root {
+			--sidebar-width: 16rem;
+			--primary-blue: #2563eb;
+			--primary-blue-dark: #1e40af;
+			--primary-blue-light: #3b82f6;
+			--accent-blue: #60a5fa;
+			--bg-gradient: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%);
+		}
+		body {
+			font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+			-webkit-font-smoothing: antialiased;
+			-moz-osx-font-smoothing: grayscale;
+			background: var(--bg-gradient);
+		}
+		/* Sidebar Background - Modern Blue Gradient */
+		#sidebar {
+			background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 25%, #2563eb 50%, #3b82f6 75%, #60a5fa 100%) !important;
+			background-color: #1e40af !important;
+			box-shadow: 4px 0 20px rgba(30, 64, 175, 0.3);
+		}
+		/* Smooth scrollbar - Modern Blue */
+		::-webkit-scrollbar {
+			width: 10px;
+			height: 10px;
+		}
+		::-webkit-scrollbar-track {
+			background: #e0e7ff;
+			border-radius: 10px;
+		}
+		::-webkit-scrollbar-thumb {
+			background: linear-gradient(180deg, #3b82f6, #2563eb);
+			border-radius: 10px;
+			border: 2px solid #e0e7ff;
+		}
+		::-webkit-scrollbar-thumb:hover {
+			background: linear-gradient(180deg, #2563eb, #1e40af);
+		}
+		/* Horizontal scrollbar for wide pages */
+		body, html {
+			overflow-x: auto;
+		}
+		main {
+			overflow-x: auto;
+		}
+		/* Ensure sidebar menu items are clickable */
+		#sidebar {
+			pointer-events: auto !important;
+			z-index: 1000 !important;
+			position: relative !important;
+		}
+		#sidebar * {
+			pointer-events: auto !important;
+		}
+		#sidebar a,
+		#sidebar button {
+			pointer-events: auto !important;
+			cursor: pointer !important;
+			position: relative;
+			z-index: 1003 !important;
+			user-select: none;
+		}
+		#sidebar .menu-group {
+			position: relative;
+			z-index: 1003 !important;
+			pointer-events: auto !important;
+		}
+		#sidebar .menu-content {
+			pointer-events: auto !important;
+			z-index: 1004 !important;
+		}
+		#sidebar .menu-content a {
+			pointer-events: auto !important;
+			cursor: pointer !important;
+			z-index: 1005 !important;
+		}
+		/* Ensure menu toggle buttons are always clickable */
+		#sidebar .menu-toggle {
+			pointer-events: auto !important;
+			cursor: pointer !important;
+			position: relative !important;
+			z-index: 10003 !important;
+			user-select: none !important;
+		}
+		/* Let child elements be clickable too - they will bubble up to button */
+		#sidebar .menu-toggle * {
+			pointer-events: auto !important;
+		}
+		/* Ensure menu toggle buttons are not blocked by any overlay */
+		#sidebar .menu-toggle::before,
+		#sidebar .menu-toggle::after {
+			pointer-events: none !important;
+		}
+		/* Prevent footer from blocking sidebar */
+		#footer {
+			z-index: 50 !important;
+		}
+		/* Ensure main content doesn't block sidebar - but allow clicks inside */
+		#main-content {
+			/* Don't disable pointer events - just ensure z-index is lower */
+		}
+		/* Prevent any overlay from blocking sidebar */
+		body > *:not(#sidebar) {
+			position: relative;
+		}
+		/* Ensure no element covers sidebar */
+		aside#sidebar {
+			position: relative !important;
+			z-index: 1000 !important;
+		}
+		/* Force sidebar to be on top and clickable */
+		aside#sidebar,
+		aside#sidebar * {
+			pointer-events: auto !important;
+			cursor: default !important;
+		}
+		aside#sidebar a,
+		aside#sidebar button,
+		aside#sidebar .menu-toggle {
+			cursor: pointer !important;
+		}
+		/* Ensure sidebar container doesn't get blocked */
+		.flex.h-screen > aside#sidebar {
+			z-index: 1000 !important;
+			position: relative !important;
+		}
+		/* Prevent dashboard elements from covering sidebar */
+		body > div.flex.h-screen {
+			position: relative;
+		}
+		body > div.flex.h-screen > aside {
+			z-index: 1000 !important;
+		}
+		body > div.flex.h-screen > main {
+			z-index: 1 !important;
+		}
+	</style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans" style="font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';">
-    <div class="flex h-screen overflow-hidden">
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased">
+	<!-- CRITICAL: Remove all onclick attributes before sidebar is rendered -->
+	<script>
+	// Intercept and remove onclick before DOM is fully parsed
+	(function() {
+		const originalCreateElement = document.createElement;
+		document.createElement = function(tagName) {
+			const element = originalCreateElement.call(document, tagName);
+			if (tagName.toLowerCase() === 'button') {
+				const originalSetAttribute = element.setAttribute;
+				element.setAttribute = function(name, value) {
+					if (name === 'onclick' && typeof value === 'string' && value.includes('toggleMenu')) {
+						console.log('Blocked onclick with toggleMenu:', value);
+						return; // Don't set onclick
+					}
+					return originalSetAttribute.call(this, name, value);
+				};
+			}
+			return element;
+		};
+	})();
+	</script>
+    <div class="flex h-screen overflow-hidden" style="position: relative;">
         <!-- Sidebar -->
-        <aside id="sidebar" class="w-64 bg-blue-600 text-white border-r border-blue-700 h-full overflow-y-auto shadow-lg flex-shrink-0 transition-all duration-300">
+        <aside id="sidebar" class="w-64 text-white border-r border-blue-400/30 h-full overflow-y-auto shadow-2xl flex-shrink-0 transition-all duration-300" style="z-index: 1000 !important; position: relative !important;">
 			<%- include('../partials/sidebar') %>
 		</aside>
         
         <!-- Main Content -->
-        <main id="main-content" class="flex-1 h-full overflow-y-auto pb-16 transition-all duration-300">
-            <div class="w-full p-6">
-                <header class="mb-6">
+        <main id="main-content" class="flex-1 h-full overflow-y-auto transition-all duration-300 bg-gradient-to-br from-white via-blue-50/50 to-indigo-50/30" style="padding-bottom: 70px; position: relative; z-index: 1;">
+            <div class="w-full p-4 md:p-6 lg:p-8 max-w-[1920px] mx-auto">
+                <header class="mb-6 md:mb-8">
                     <%- include('../partials/header') %>
                 </header>
                 <%- include('../partials/flash') %>
-                <section>
+                <section class="space-y-6 md:space-y-8">
                     <%- body %>
                 </section>
             </div>
 		</main>
     </div>
     <%- include('../partials/footer') %>
-<script src="/assets/sidebar.js" defer></script>
-<script src="/assets/dashboard.js" defer></script>
+<script>
+// Fix sidebar clickability - ensure menu buttons are always clickable
+(function() {
+    function fixSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        
+        // Force sidebar to be on top
+        sidebar.style.zIndex = '10000';
+        sidebar.style.position = 'relative';
+        sidebar.style.pointerEvents = 'auto';
+        
+        // Ensure menu buttons are clickable
+        const menuButtons = sidebar.querySelectorAll('.menu-toggle[data-menu]');
+        menuButtons.forEach(button => {
+            button.style.pointerEvents = 'auto';
+            button.style.cursor = 'pointer';
+            button.style.position = 'relative';
+            button.style.zIndex = '10003';
+            
+            // Ensure all child elements don't block clicks
+            const children = button.querySelectorAll('*');
+            children.forEach(child => {
+                child.style.pointerEvents = 'auto';
+            });
+        });
+        
+        // Ensure menu content links are clickable
+        const menuLinks = sidebar.querySelectorAll('.menu-content a');
+        menuLinks.forEach(link => {
+            link.style.pointerEvents = 'auto';
+            link.style.cursor = 'pointer';
+            link.style.zIndex = '10005';
+        });
+    }
+    
+    // Run when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(fixSidebar, 50);
+        });
+    } else {
+        setTimeout(fixSidebar, 50);
+    }
+    
+    // Run after sidebar.js has initialized
+    window.addEventListener('load', function() {
+        setTimeout(fixSidebar, 300);
+    }, { once: true });
+    
+    // Also run periodically to ensure it stays fixed
+    setInterval(fixSidebar, 2000);
+})();
+</script>
 
 <!-- Real-time Clock Update -->
 <script>
@@ -123,17 +425,19 @@
             if (!document.getElementById('idleWarning')) {
                 const warningDiv = document.createElement('div');
                 warningDiv.id = 'idleWarning';
-                warningDiv.className = 'fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50 animate-bounce';
+                warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-bounce border border-white/70';
                 warningDiv.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <div>
-                            <div class="font-bold">Tidak Ada Aktivitas</div>
-                            <div class="text-sm">Anda akan logout otomatis dalam 1 menit...</div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
                         </div>
-                        <button onclick="document.getElementById('idleWarning').remove(); idleTime = 0;" class="ml-4 px-3 py-1 bg-white text-orange-500 rounded font-semibold hover:bg-gray-100">
+                        <div class="flex-1">
+                            <div class="font-bold text-base">Tidak Ada Aktivitas</div>
+                            <div class="text-sm opacity-90 mt-0.5">Anda akan logout otomatis dalam 1 menit...</div>
+                        </div>
+                        <button onclick="document.getElementById('idleWarning').remove(); idleTime = 0;" class="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
                             Tetap Login
                         </button>
                     </div>

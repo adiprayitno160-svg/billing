@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { databasePool } from '../db/pool';
 import { checkDatabaseSchema, fixMissingColumns, getDatabaseStatus, runMigration } from '../services/databaseService';
+import { up as runLatePaymentMigration } from '../db/migrations/add-late-payment-tracking';
 
 export async function getDatabaseManagement(req: Request, res: Response, next: NextFunction) {
     try {
@@ -56,6 +57,18 @@ export async function runDatabaseMigration(req: Request, res: Response, next: Ne
         res.redirect('/database/management');
     } catch (err) {
         req.flash('error', `Gagal menjalankan migrasi: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        res.redirect('/database/management');
+    }
+}
+
+export async function runLatePaymentTrackingMigration(req: Request, res: Response, next: NextFunction) {
+    try {
+        await runLatePaymentMigration();
+        
+        req.flash('success', 'Migrasi late payment tracking berhasil dijalankan');
+        res.redirect('/database/management');
+    } catch (err) {
+        req.flash('error', `Gagal menjalankan migrasi late payment tracking: ${err instanceof Error ? err.message : 'Unknown error'}`);
         res.redirect('/database/management');
     }
 }

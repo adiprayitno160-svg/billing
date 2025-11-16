@@ -8,7 +8,6 @@
 import pool from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import telegramBotService from './telegramBotService';
-import whatsappService from './billing/whatsappService';
 
 interface Alert {
     alert_type: 'critical' | 'warning' | 'info';
@@ -40,7 +39,9 @@ export class AlertRoutingService {
             if (alert.recipient_type === 'internal') {
                 return await this.sendToTelegram(alert as InternalAlert);
             } else if (alert.recipient_type === 'customer') {
-                return await this.sendToWhatsApp(alert as CustomerAlert);
+                // WhatsApp service removed - customer alerts disabled
+                console.warn('[AlertRouting] Customer alerts via WhatsApp are disabled');
+                return false;
             }
             
             console.warn('[AlertRouting] Unknown recipient type:', alert.recipient_type);
@@ -120,48 +121,6 @@ export class AlertRoutingService {
         }
     }
     
-    /**
-     * Send alert via WhatsApp (Customer)
-     */
-    private async sendToWhatsApp(alert: CustomerAlert): Promise<boolean> {
-        try {
-            // Get customer phone number
-            const [customers] = await pool.query<RowDataPacket[]>(`
-                SELECT phone FROM customers WHERE id = ?
-            `, [alert.customer_id]);
-            
-            if (customers.length === 0 || !customers[0].phone) {
-                console.warn('[AlertRouting] Customer phone not found:', alert.customer_id);
-                return false;
-            }
-            
-            const phoneNumber = customers[0].phone;
-            
-            // Format message for WhatsApp (no HTML)
-            const message = `*${alert.title}*\n\n${alert.body}`;
-            
-            // Send via WhatsApp service
-            const success = await whatsappService.sendMessage(phoneNumber, message);
-            
-            await this.logAlert({
-                alert_type: alert.alert_type,
-                channel: 'whatsapp',
-                recipient_type: 'customer',
-                recipient_id: alert.customer_id,
-                recipient_identifier: phoneNumber,
-                message_title: alert.title,
-                message_body: alert.body,
-                metadata: alert.metadata,
-                delivery_status: success ? 'sent' : 'failed'
-            });
-            
-            return success;
-            
-        } catch (error) {
-            console.error('[AlertRouting] WhatsApp send error:', error);
-            return false;
-        }
-    }
     
     /**
      * Log alert to database
@@ -318,7 +277,7 @@ export class AlertRoutingService {
         // Mark as sent
         await pool.query(`
             UPDATE sla_records
-            SET notes = CONCAT(COALESCE(notes, ''), '\nWhatsApp notification sent: ', NOW())
+            SET notes = CONCAT(COALESCE(notes, ''), '\nCustomer notification attempted: ', NOW())
             WHERE customer_id = ? AND month_year = ?
         `, [sla.customer_id, sla.month_year]);
     }

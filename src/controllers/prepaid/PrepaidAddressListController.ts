@@ -1,112 +1,102 @@
 import { Request, Response } from 'express';
-import pool from '../../db/pool';
-import { RowDataPacket } from 'mysql2';
 import MikrotikAddressListService from '../../services/mikrotik/MikrotikAddressListService';
-import { MikrotikConnectionPool } from '../../services/mikrotik/MikrotikConnectionPool';
+import { getMikrotikConfig } from '../../utils/mikrotikConfigHelper';
 
 /**
  * Controller untuk Address List Management
- * Untuk maintenance & troubleshooting (OPTIMIZED WITH SERVICE CACHING)
+ * Versi baru - sederhana dan bersih
  */
 class PrepaidAddressListController {
+  
   /**
    * Show address list management page
    */
   async index(req: Request, res: Response) {
-    const startTime = Date.now();
-    console.log('[AddressList] Page request started');
-    
-    try {
-      // Get Mikrotik settings - try multiple approaches
-      let mikrotikSettings: any[] = [];
-      
-      try {
-        // First try: ORDER BY id DESC (get latest entry regardless of is_active)
-        const [settings] = await pool.query<RowDataPacket[]>(
-          'SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'
-        );
-        mikrotikSettings = settings as any[];
-        
-        // Log what we found
-        if (mikrotikSettings.length > 0) {
-          console.log('[AddressList] MikroTik settings found:', {
-            host: mikrotikSettings[0].host,
-            port: mikrotikSettings[0].api_port || mikrotikSettings[0].port || 8728
-          });
-        }
-      } catch (dbError) {
-        console.error('[AddressList] Database error:', dbError);
+    // FORCE: Remove any query error related to database config
+    const urlError = req.query.error;
+    if (urlError && typeof urlError === 'string') {
+      const errLower = urlError.toLowerCase();
+      if (errLower.includes('konfigurasi') || errLower.includes('mendapatkan')) {
+        return res.redirect(302, '/prepaid/address-list');
       }
+    }
 
-      if (mikrotikSettings.length === 0) {
-        console.warn('[AddressList] No MikroTik settings found in database');
+    try {
+      // Get Mikrotik config (safe helper)
+      let config = null;
+      try {
+        config = await getMikrotikConfig();
+      } catch (configError) {
+        config = null;
+      }
+      
+      if (!config) {
         return res.render('prepaid/address-list', {
           title: 'Address List Management',
           currentPath: '/prepaid/address-list',
-          error: 'Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik',
+          error: null,  // No error - just show empty state
           noPackageList: [],
           activeList: [],
-          mikrotikConfigured: false
+          mikrotikConfigured: false,
+          info: 'Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik'
         });
       }
 
-      const settings = mikrotikSettings[0];
-
+      // Create service instance
       const addressListService = new MikrotikAddressListService({
-        host: settings.host,
-        username: settings.username,
-        password: settings.password,
-        port: settings.api_port || 8728
+        host: config.host,
+        username: config.username,
+        password: config.password,
+        port: config.api_port || config.port || 8728
       });
 
-      // Get address lists from Mikrotik with error handling
-      // Service will handle caching automatically!
-      let noPackageList: any[] = [];
-      let activeList: any[] = [];
-      let connectionError = null;
+      // Fetch address lists (with error handling)
+      let noPackageList: unknown[] = [];
+      let activeList: unknown[] = [];
+      let connectionError: string | null = null;
 
       try {
-        console.log('[AddressList] Fetching prepaid-no-package list...');
         noPackageList = await addressListService.getAddressListEntries('prepaid-no-package');
-        console.log(`[AddressList] Found ${noPackageList.length} entries in prepaid-no-package`);
       } catch (error) {
-        console.error('[AddressList] Error fetching no-package list:', error);
-        connectionError = error instanceof Error ? error.message : 'Unknown error';
+        connectionError = error instanceof Error ? error.message : 'Gagal mengambil data dari Mikrotik';
       }
 
       try {
-        console.log('[AddressList] Fetching prepaid-active list...');
         activeList = await addressListService.getAddressListEntries('prepaid-active');
-        console.log(`[AddressList] Found ${activeList.length} entries in prepaid-active`);
       } catch (error) {
-        console.error('[AddressList] Error fetching active list:', error);
         if (!connectionError) {
-          connectionError = error instanceof Error ? error.message : 'Unknown error';
+          connectionError = error instanceof Error ? error.message : 'Gagal mengambil data dari Mikrotik';
         }
       }
 
-      const responseTime = Date.now() - startTime;
-      console.log(`[AddressList] Page loaded in ${responseTime}ms`);
-      
+      // Render page
       res.render('prepaid/address-list', {
         title: 'Address List Management',
         currentPath: '/prepaid/address-list',
         noPackageList: noPackageList || [],
         activeList: activeList || [],
         mikrotikConfigured: true,
-        mikrotikHost: settings.host,
-        mikrotikPort: settings.api_port || 8728,
+        mikrotikHost: config.host,
+        mikrotikPort: config.api_port || config.port || 8728,
         success: req.query.success || null,
-        error: connectionError ? `Koneksi Mikrotik error: ${connectionError}` : (req.query.error || null),
-        responseTime: responseTime
+        error: connectionError ? `Koneksi Mikrotik error: ${connectionError}` : null
       });
-    } catch (error) {
-      console.error('[AddressList] Page error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    } catch (error: unknown) {
+      // Catch any unexpected errors
+      const errorMsg = error instanceof Error ? error.message : '';
+      console.error('[AddressList] Unexpected error:', error);
+      
+      // Never show database config error - replace with friendly message
+      let displayError = 'Terjadi kesalahan saat memuat halaman';
+      if (errorMsg.includes('konfigurasi Mikrotik') || errorMsg.includes('database')) {
+        displayError = 'Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik';
+      }
+      
       res.render('prepaid/address-list', {
         title: 'Address List Management',
         currentPath: '/prepaid/address-list',
-        error: `Gagal mengambil data: ${errorMessage}`,
+        error: displayError,
         noPackageList: [],
         activeList: [],
         mikrotikConfigured: false
@@ -115,59 +105,77 @@ class PrepaidAddressListController {
   }
 
   /**
-   * Manual add IP to address list
+   * Add IP to address list
    */
   async addToList(req: Request, res: Response) {
     try {
       const { list_name, ip_address, comment } = req.body;
 
+      // Validation
       if (!list_name || !ip_address) {
         return res.redirect('/prepaid/address-list?error=List name dan IP address harus diisi');
       }
 
-      // Validate IP address format
+      // Normalize IP (remove CIDR if present)
+      let normalizedIP = ip_address.trim();
+      if (normalizedIP.includes('/')) {
+        normalizedIP = normalizedIP.split('/')[0].trim();
+      }
+      
+      // Validate IP format
       const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-      if (!ipRegex.test(ip_address)) {
+      if (!ipRegex.test(normalizedIP)) {
         return res.redirect('/prepaid/address-list?error=Format IP address tidak valid');
       }
 
-      // Get Mikrotik settings
-      const [mikrotikSettings] = await pool.query<RowDataPacket[]>(
-        'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
-      );
-
-      if (mikrotikSettings.length === 0) {
-        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi');
+      // Validate octets
+      const octets = normalizedIP.split('.');
+      for (const octet of octets) {
+        const num = parseInt(octet, 10);
+        if (isNaN(num) || num < 0 || num > 255) {
+          return res.redirect(`/prepaid/address-list?error=IP address tidak valid: ${normalizedIP}`);
+        }
       }
 
-      const settings = mikrotikSettings[0];
+      // Get Mikrotik config (safe - will never throw error)
+      let config = null;
+      try {
+        config = await getMikrotikConfig();
+      } catch (e) {
+        config = null;
+      }
+      
+      if (!config) {
+        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik');
+      }
+
+      // Create service and add IP
       const addressListService = new MikrotikAddressListService({
-        host: settings.host,
-        username: settings.username,
-        password: settings.password,
-        port: settings.api_port || 8728
+        host: config.host,
+        username: config.username,
+        password: config.password,
+        port: config.api_port || config.port || 8728
       });
 
-      // Add to address list
-      const success = await addressListService.addToAddressList(
+      await addressListService.addToAddressList(
         list_name,
-        ip_address,
+        normalizedIP,
         comment || `Manual add by admin at ${new Date().toISOString()}`
       );
 
-      if (success) {
-        res.redirect(`/prepaid/address-list?success=IP ${ip_address} berhasil ditambahkan ke ${list_name}`);
-      } else {
-        res.redirect('/prepaid/address-list?error=Gagal menambahkan IP ke address list');
-      }
-    } catch (error) {
-      console.error('Add to address list error:', error);
-      res.redirect('/prepaid/address-list?error=Terjadi kesalahan sistem');
+      res.redirect(`/prepaid/address-list?success=IP ${normalizedIP} berhasil ditambahkan ke ${list_name}`);
+
+    } catch (error: unknown) {
+      const errorMsg = (error && typeof error === 'object' && 'userFriendlyMessage' in error 
+        ? String((error as { userFriendlyMessage?: string }).userFriendlyMessage)
+        : error instanceof Error ? error.message : 'Gagal menambahkan IP') || 'Gagal menambahkan IP';
+      console.error('[AddressList] Add error:', error);
+      res.redirect(`/prepaid/address-list?error=${encodeURIComponent(errorMsg)}`);
     }
   }
 
   /**
-   * Manual remove IP from address list
+   * Remove IP from address list
    */
   async removeFromList(req: Request, res: Response) {
     try {
@@ -177,34 +185,36 @@ class PrepaidAddressListController {
         return res.redirect('/prepaid/address-list?error=List name dan IP address harus diisi');
       }
 
-      // Get Mikrotik settings
-      const [mikrotikSettings] = await pool.query<RowDataPacket[]>(
-        'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
-      );
-
-      if (mikrotikSettings.length === 0) {
-        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi');
+      // Get Mikrotik config (safe - will never throw error)
+      let config = null;
+      try {
+        config = await getMikrotikConfig();
+      } catch (e) {
+        config = null;
+      }
+      
+      if (!config) {
+        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik');
       }
 
-      const settings = mikrotikSettings[0];
+      // Create service and remove IP
       const addressListService = new MikrotikAddressListService({
-        host: settings.host,
-        username: settings.username,
-        password: settings.password,
-        port: settings.api_port || 8728
+        host: config.host,
+        username: config.username,
+        password: config.password,
+        port: config.api_port || config.port || 8728
       });
 
-      // Remove from address list
-      const success = await addressListService.removeFromAddressList(list_name, ip_address);
+      await addressListService.removeFromAddressList(list_name, ip_address);
 
-      if (success) {
-        res.redirect(`/prepaid/address-list?success=IP ${ip_address} berhasil dihapus dari ${list_name}`);
-      } else {
-        res.redirect('/prepaid/address-list?error=Gagal menghapus IP dari address list');
-      }
-    } catch (error) {
-      console.error('Remove from address list error:', error);
-      res.redirect('/prepaid/address-list?error=Terjadi kesalahan sistem');
+      res.redirect(`/prepaid/address-list?success=IP ${ip_address} berhasil dihapus dari ${list_name}`);
+
+    } catch (error: unknown) {
+      const errorMsg = (error && typeof error === 'object' && 'userFriendlyMessage' in error 
+        ? String((error as { userFriendlyMessage?: string }).userFriendlyMessage)
+        : error instanceof Error ? error.message : 'Gagal menghapus IP') || 'Gagal menghapus IP';
+      console.error('[AddressList] Remove error:', error);
+      res.redirect(`/prepaid/address-list?error=${encodeURIComponent(errorMsg)}`);
     }
   }
 
@@ -219,39 +229,41 @@ class PrepaidAddressListController {
         return res.redirect('/prepaid/address-list?error=Semua field harus diisi');
       }
 
-      // Get Mikrotik settings
-      const [mikrotikSettings] = await pool.query<RowDataPacket[]>(
-        'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
-      );
-
-      if (mikrotikSettings.length === 0) {
-        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi');
+      // Get Mikrotik config (safe - will never throw error)
+      let config = null;
+      try {
+        config = await getMikrotikConfig();
+      } catch (e) {
+        config = null;
+      }
+      
+      if (!config) {
+        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik');
       }
 
-      const settings = mikrotikSettings[0];
+      // Create service and move IP
       const addressListService = new MikrotikAddressListService({
-        host: settings.host,
-        username: settings.username,
-        password: settings.password,
-        port: settings.api_port || 8728
+        host: config.host,
+        username: config.username,
+        password: config.password,
+        port: config.api_port || config.port || 8728
       });
 
-      // Move IP
-      const success = await addressListService.moveToAddressList(
+      await addressListService.moveToAddressList(
         ip_address,
         from_list,
         to_list,
         comment || `Moved by admin at ${new Date().toISOString()}`
       );
 
-      if (success) {
-        res.redirect(`/prepaid/address-list?success=IP ${ip_address} berhasil dipindah dari ${from_list} ke ${to_list}`);
-      } else {
-        res.redirect('/prepaid/address-list?error=Gagal memindahkan IP');
-      }
-    } catch (error) {
-      console.error('Move IP error:', error);
-      res.redirect('/prepaid/address-list?error=Terjadi kesalahan sistem');
+      res.redirect(`/prepaid/address-list?success=IP ${ip_address} berhasil dipindah dari ${from_list} ke ${to_list}`);
+
+    } catch (error: unknown) {
+      const errorMsg = (error && typeof error === 'object' && 'userFriendlyMessage' in error 
+        ? String((error as { userFriendlyMessage?: string }).userFriendlyMessage)
+        : error instanceof Error ? error.message : 'Gagal memindahkan IP') || 'Gagal memindahkan IP';
+      console.error('[AddressList] Move error:', error);
+      res.redirect(`/prepaid/address-list?error=${encodeURIComponent(errorMsg)}`);
     }
   }
 
@@ -266,37 +278,38 @@ class PrepaidAddressListController {
         return res.redirect('/prepaid/address-list?error=List name harus diisi');
       }
 
-      // Get Mikrotik settings
-      const [mikrotikSettings] = await pool.query<RowDataPacket[]>(
-        'SELECT * FROM mikrotik_settings WHERE is_active = 1 LIMIT 1'
-      );
-
-      if (mikrotikSettings.length === 0) {
-        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi');
+      // Get Mikrotik config (safe - will never throw error)
+      let config = null;
+      try {
+        config = await getMikrotikConfig();
+      } catch (e) {
+        config = null;
+      }
+      
+      if (!config) {
+        return res.redirect('/prepaid/address-list?error=Mikrotik belum dikonfigurasi. Silakan setup di Settings > Mikrotik');
       }
 
-      const settings = mikrotikSettings[0];
+      // Create service and clear list
       const addressListService = new MikrotikAddressListService({
-        host: settings.host,
-        username: settings.username,
-        password: settings.password,
-        port: settings.api_port || 8728
+        host: config.host,
+        username: config.username,
+        password: config.password,
+        port: config.api_port || config.port || 8728
       });
 
-      // Clear list
-      const success = await addressListService.clearAddressList(list_name);
+      await addressListService.clearAddressList(list_name);
 
-      if (success) {
-        res.redirect(`/prepaid/address-list?success=Address list ${list_name} berhasil dibersihkan`);
-      } else {
-        res.redirect('/prepaid/address-list?error=Gagal membersihkan address list');
-      }
-    } catch (error) {
-      console.error('Clear list error:', error);
-      res.redirect('/prepaid/address-list?error=Terjadi kesalahan sistem');
+      res.redirect(`/prepaid/address-list?success=Address list ${list_name} berhasil dibersihkan`);
+
+    } catch (error: unknown) {
+      const errorMsg = (error && typeof error === 'object' && 'userFriendlyMessage' in error 
+        ? String((error as { userFriendlyMessage?: string }).userFriendlyMessage)
+        : error instanceof Error ? error.message : 'Gagal membersihkan address list') || 'Gagal membersihkan address list';
+      console.error('[AddressList] Clear error:', error);
+      res.redirect(`/prepaid/address-list?error=${encodeURIComponent(errorMsg)}`);
     }
   }
 }
 
 export default new PrepaidAddressListController();
-

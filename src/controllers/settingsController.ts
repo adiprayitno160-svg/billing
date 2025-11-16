@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { databasePool } from '../db/pool';
+import { RowDataPacket } from 'mysql2';
 import { testMikrotikConnection, getMikrotikInfo } from '../services/mikrotikService';
 // import { SSHService } from '../services/sshService';
 
@@ -64,19 +65,47 @@ export async function postMikrotikSettings(req: Request, res: Response): Promise
 		use_tls: Boolean(req.body.use_tls)
 	};
 
+	// Check if is_active column exists
+	const [columnCheck] = await databasePool.query<RowDataPacket[]>(
+		`SELECT COLUMN_NAME 
+		 FROM INFORMATION_SCHEMA.COLUMNS 
+		 WHERE TABLE_SCHEMA = DATABASE() 
+		   AND TABLE_NAME = 'mikrotik_settings' 
+		   AND COLUMN_NAME = 'is_active'`
+	);
+	
+	const hasIsActiveColumn = Array.isArray(columnCheck) && columnCheck.length > 0;
+
 	const [rows] = await databasePool.query('SELECT id FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
 	const exists = Array.isArray(rows) && rows.length > 0 ? (rows[0] as any).id : null;
 
 	if (exists) {
-		await databasePool.query(
-			'UPDATE mikrotik_settings SET host=?, port=?, username=?, password=?, use_tls=? WHERE id=?',
-			[payload.host, payload.port, payload.username, payload.password, payload.use_tls ? 1 : 0, exists]
-		);
+		// Set all to inactive first (if column exists), then set current to active
+		if (hasIsActiveColumn) {
+			await databasePool.query('UPDATE mikrotik_settings SET is_active = 0 WHERE is_active = 1');
+			await databasePool.query(
+				'UPDATE mikrotik_settings SET host=?, port=?, username=?, password=?, use_tls=?, is_active=1 WHERE id=?',
+				[payload.host, payload.port, payload.username, payload.password, payload.use_tls ? 1 : 0, exists]
+			);
+		} else {
+			await databasePool.query(
+				'UPDATE mikrotik_settings SET host=?, port=?, username=?, password=?, use_tls=? WHERE id=?',
+				[payload.host, payload.port, payload.username, payload.password, payload.use_tls ? 1 : 0, exists]
+			);
+		}
 	} else {
-		await databasePool.query(
-			'INSERT INTO mikrotik_settings (host, port, username, password, use_tls) VALUES (?, ?, ?, ?, ?)',
-			[payload.host, payload.port, payload.username, payload.password, payload.use_tls ? 1 : 0]
-		);
+		// Insert new with is_active=1 if column exists
+		if (hasIsActiveColumn) {
+			await databasePool.query(
+				'INSERT INTO mikrotik_settings (host, port, username, password, use_tls, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+				[payload.host, payload.port, payload.username, payload.password, payload.use_tls ? 1 : 0]
+			);
+		} else {
+			await databasePool.query(
+				'INSERT INTO mikrotik_settings (host, port, username, password, use_tls) VALUES (?, ?, ?, ?, ?)',
+				[payload.host, payload.port, payload.username, payload.password, payload.use_tls ? 1 : 0]
+			);
+		}
 	}
 
 	// Setelah simpan, langsung uji koneksi untuk memberi notifikasi terhubung atau tidak

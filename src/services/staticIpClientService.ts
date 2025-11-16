@@ -44,7 +44,7 @@ export async function addClientToPackage(packageId: number, clientData: {
     odc_id?: number | null;
     odp_id?: number | null;
     customer_code?: string | null;
-}): Promise<number> {
+}): Promise<{ customerId: number, clientId: number }> {
 	const conn = await databasePool.getConnection();
 	try {
 		// Cek apakah paket penuh
@@ -123,7 +123,7 @@ export async function addClientToPackage(packageId: number, clientData: {
 		
 		await conn.commit();
 		const insertResult = result as any;
-		return insertResult.insertId;
+		return { customerId, clientId: insertResult.insertId };
 	} catch (error) {
 		await conn.rollback();
 		throw error;

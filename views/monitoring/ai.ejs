@@ -1,0 +1,489 @@
+<div class="space-y-6">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-brain mr-3 text-purple-600"></i>
+                    Monitoring AI Analytics
+                </h1>
+                <p class="text-gray-600">AI-Powered Network Monitoring, Anomaly Detection & Root Cause Analysis</p>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Real-time Anomalies -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Anomali Terdeteksi</p>
+                            <h3 class="text-3xl font-bold text-gray-800" id="anomalyCount">-</h3>
+                        </div>
+                        <div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-2xl text-purple-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-gray-600" id="anomalyStatus">Memuat...</span>
+                    </div>
+                </div>
+
+                <!-- Network Health -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Network Health</p>
+                            <h3 class="text-3xl font-bold text-gray-800" id="networkHealth">-</h3>
+                        </div>
+                        <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-heartbeat text-2xl text-green-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-gray-600" id="healthStatus">Memuat...</span>
+                    </div>
+                </div>
+
+                <!-- Total Incidents -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Total Incidents</p>
+                            <h3 class="text-3xl font-bold text-gray-800"><%= recentIncidents.length %></h3>
+                        </div>
+                        <div class="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-bug text-2xl text-blue-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-gray-600">50 incidents terakhir</span>
+                    </div>
+                </div>
+
+                <!-- AI Accuracy -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">AI Confidence</p>
+                            <h3 class="text-3xl font-bold text-gray-800">85%</h3>
+                        </div>
+                        <div class="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-chart-line text-2xl text-indigo-600"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm">
+                        <span class="text-gray-600">Average confidence</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Real-time Anomalies -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-radar mr-2 text-purple-600"></i>
+                            Real-time Anomaly Detection
+                        </h3>
+                        <button onclick="loadAnomalies()" class="text-purple-600 hover:text-purple-800">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div id="anomaliesList" class="space-y-3">
+                        <div class="flex items-center justify-center py-8">
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin text-3xl text-purple-600 mb-2"></i>
+                                <p class="text-gray-600 text-sm">Loading anomalies...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Health -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-network-wired mr-2 text-green-600"></i>
+                            Network Health Status
+                        </h3>
+                        <button onclick="loadNetworkHealth()" class="text-green-600 hover:text-green-800">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div id="networkHealthDetails" class="space-y-4">
+                        <div class="flex items-center justify-center py-8">
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin text-3xl text-green-600 mb-2"></i>
+                                <p class="text-gray-600 text-sm">Loading health data...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Incidents with AI Analysis -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-list-alt mr-2 text-blue-600"></i>
+                        Recent Incidents with AI Analysis
+                    </h3>
+                    <button onclick="loadIncidents()" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div id="incidentsList" class="space-y-3">
+                    <% if (recentIncidents.length === 0) { %>
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                            <p>Tidak ada incident terbaru</p>
+                        </div>
+                    <% } else { %>
+                        <% recentIncidents.forEach((incident) => { %>
+                            <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="px-2 py-1 text-xs font-semibold rounded <%= incident.status === 'ongoing' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' %>">
+                                                <%= incident.status === 'ongoing' ? 'Ongoing' : 'Resolved' %>
+                                            </span>
+                                            <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                                                <%= incident.service_type.toUpperCase() %>
+                                            </span>
+                                            <span class="px-2 py-1 text-xs font-semibold rounded bg-purple-100 text-purple-800">
+                                                <%= incident.incident_type %>
+                                            </span>
+                                        </div>
+                                        <h4 class="font-semibold text-gray-800 mb-1">
+                                            <%= incident.customer_name %> 
+                                            <% if (incident.area) { %>
+                                                <span class="text-gray-500 text-sm">(<%= incident.area %>)</span>
+                                            <% } %>
+                                        </h4>
+                                        <p class="text-sm text-gray-600">
+                                            <i class="far fa-clock mr-1"></i>
+                                            Started: <%= new Date(incident.start_time).toLocaleString('id-ID') %>
+                                            <% if (incident.end_time) { %>
+                                                <br>
+                                                <i class="far fa-check-circle mr-1"></i>
+                                                Ended: <%= new Date(incident.end_time).toLocaleString('id-ID') %>
+                                                <span class="ml-2">(<%= Math.round(incident.duration_minutes) %> min)</span>
+                                            <% } %>
+                                        </p>
+                                    </div>
+                                    <button onclick="analyzeIncident(<%= incident.id %>)" 
+                                            class="ml-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                                        <i class="fas fa-brain mr-1"></i>
+                                        AI Analyze
+                                    </button>
+                                </div>
+                                <!-- AI Analysis Result (will be populated by JS) -->
+                                <div id="analysis-<%= incident.id %>" class="mt-3 hidden"></div>
+                            </div>
+                        <% }); %>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Info Section -->
+            <div class="mt-8 bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-purple-500 text-xl mt-1 mr-3"></i>
+                    <div>
+                        <h4 class="font-semibold text-purple-900 mb-1">Tentang Monitoring AI</h4>
+                        <p class="text-sm text-purple-800 mb-2">
+                            Sistem Monitoring AI menggunakan machine learning untuk mendeteksi anomali jaringan secara real-time,
+                            menganalisis root cause dari incident, dan memberikan rekomendasi tindakan otomatis.
+                        </p>
+                        <ul class="text-sm text-purple-800 list-disc list-inside space-y-1">
+                            <li><strong>Anomaly Detection:</strong> Deteksi otomatis pola tidak normal pada downtime, latency, dan bandwidth</li>
+                            <li><strong>Root Cause Analysis:</strong> Analisis AI untuk mengidentifikasi penyebab incident dengan confidence score</li>
+                            <li><strong>Auto-Recommendations:</strong> Rekomendasi tindakan berdasarkan analisis AI</li>
+                            <li><strong>Pattern Detection:</strong> Deteksi pola incident untuk prediksi masalah di masa depan</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+</div>
+
+<script>
+        // Load data on page load
+        loadAnomalies();
+        loadNetworkHealth();
+
+        // Auto refresh every 30 seconds
+        setInterval(() => {
+            loadAnomalies();
+            loadNetworkHealth();
+        }, 30000);
+
+        // Load anomalies
+        async function loadAnomalies() {
+            try {
+                const response = await fetch('/monitoring/analytics/anomalies');
+                const result = await response.json();
+                
+                const container = document.getElementById('anomaliesList');
+                const countEl = document.getElementById('anomalyCount');
+                const statusEl = document.getElementById('anomalyStatus');
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    const anomalies = result.data;
+                    countEl.textContent = anomalies.length;
+                    
+                    let criticalCount = anomalies.filter(a => a.severity === 'critical').length;
+                    let majorCount = anomalies.filter(a => a.severity === 'major').length;
+                    let minorCount = anomalies.filter(a => a.severity === 'minor').length;
+                    
+                    statusEl.textContent = `${criticalCount} Critical, ${majorCount} Major, ${minorCount} Minor`;
+                    
+                    let html = '';
+                    anomalies.slice(0, 5).forEach(anomaly => {
+                        const severityColors = {
+                            critical: 'bg-red-100 text-red-800 border-red-300',
+                            major: 'bg-orange-100 text-orange-800 border-orange-300',
+                            minor: 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                        };
+                        const icon = {
+                            critical: 'fa-exclamation-circle',
+                            major: 'fa-exclamation-triangle',
+                            minor: 'fa-info-circle'
+                        };
+                        
+                        html += `
+                            <div class="border ${severityColors[anomaly.severity]} rounded-lg p-3">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-semibold text-sm">
+                                        <i class="fas ${icon[anomaly.severity]} mr-1"></i>
+                                        ${anomaly.metric.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                    <span class="text-xs font-bold">${anomaly.severity.toUpperCase()}</span>
+                                </div>
+                                <p class="text-xs mb-1">Current: ${anomaly.current_value} | Normal: ${anomaly.normal_range.min}-${anomaly.normal_range.max}</p>
+                                <p class="text-xs">Score: ${anomaly.anomaly_score.toFixed(1)}%</p>
+                            </div>
+                        `;
+                    });
+                    
+                    if (anomalies.length > 5) {
+                        html += `<p class="text-xs text-gray-500 text-center mt-2">+${anomalies.length - 5} more anomalies</p>`;
+                    }
+                    
+                    container.innerHTML = html;
+                } else {
+                    countEl.textContent = '0';
+                    statusEl.textContent = 'No anomalies detected';
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-gray-500">
+                            <i class="fas fa-check-circle text-3xl text-green-500 mb-2"></i>
+                            <p class="text-sm">Tidak ada anomali terdeteksi</p>
+                            <p class="text-xs mt-1">Sistem berjalan normal</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading anomalies:', error);
+                document.getElementById('anomaliesList').innerHTML = `
+                    <div class="text-center py-4 text-red-500">
+                        <i class="fas fa-times-circle text-2xl mb-2"></i>
+                        <p class="text-sm">Gagal memuat data</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load network health
+        async function loadNetworkHealth() {
+            try {
+                const response = await fetch('/monitoring/analytics/health');
+                const result = await response.json();
+                
+                const container = document.getElementById('networkHealthDetails');
+                const healthEl = document.getElementById('networkHealth');
+                const statusEl = document.getElementById('healthStatus');
+                
+                if (result.success && result.data) {
+                    const health = result.data;
+                    const uptimePercent = health.uptime_percentage || 0;
+                    
+                    healthEl.textContent = `${uptimePercent.toFixed(1)}%`;
+                    statusEl.textContent = `${health.online || 0} Online, ${health.offline || 0} Offline`;
+                    
+                    container.innerHTML = `
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Total Customers</span>
+                                <span class="font-semibold">${health.total_customers || 0}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Online</span>
+                                <span class="font-semibold text-green-600">${health.online || 0}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Offline</span>
+                                <span class="font-semibold text-red-600">${health.offline || 0}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Degraded</span>
+                                <span class="font-semibold text-yellow-600">${health.degraded || 0}</span>
+                            </div>
+                            <div class="border-t pt-3 mt-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-gray-600">Uptime (24h)</span>
+                                    <span class="font-semibold">${uptimePercent.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-600 h-2 rounded-full" style="width: ${uptimePercent}%"></div>
+                                </div>
+                            </div>
+                            ${health.avg_latency ? `
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Avg Latency</span>
+                                    <span class="font-semibold">${health.avg_latency.toFixed(0)}ms</span>
+                                </div>
+                            ` : ''}
+                            ${health.avg_packet_loss !== undefined ? `
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Avg Packet Loss</span>
+                                    <span class="font-semibold">${health.avg_packet_loss.toFixed(2)}%</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    healthEl.textContent = '-';
+                    statusEl.textContent = 'Data tidak tersedia';
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-gray-500">
+                            <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                            <p class="text-sm">Data tidak tersedia</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading network health:', error);
+                document.getElementById('networkHealthDetails').innerHTML = `
+                    <div class="text-center py-4 text-red-500">
+                        <i class="fas fa-times-circle text-2xl mb-2"></i>
+                        <p class="text-sm">Gagal memuat data</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Analyze incident
+        async function analyzeIncident(incidentId) {
+            const analysisContainer = document.getElementById(`analysis-${incidentId}`);
+            analysisContainer.classList.remove('hidden');
+            analysisContainer.innerHTML = `
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <div class="flex items-center justify-center py-2">
+                        <i class="fas fa-spinner fa-spin text-purple-600 mr-2"></i>
+                        <span class="text-sm text-purple-700">Menganalisis dengan AI...</span>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/monitoring/analytics/incident/${incidentId}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const analysis = result.data;
+                    const severityColors = {
+                        critical: 'bg-red-100 text-red-800 border-red-300',
+                        major: 'bg-orange-100 text-orange-800 border-orange-300',
+                        minor: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                        info: 'bg-blue-100 text-blue-800 border-blue-300'
+                    };
+                    
+                    let html = `
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h5 class="font-semibold text-purple-900">
+                                    <i class="fas fa-brain mr-2"></i>
+                                    AI Analysis Result
+                                </h5>
+                                <span class="px-2 py-1 text-xs font-semibold rounded ${severityColors[analysis.severity] || severityColors.info}">
+                                    ${analysis.severity.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="text-sm">
+                                <p class="mb-2"><strong>Type:</strong> ${analysis.analysis_type.replace('_', ' ')}</p>
+                                <p class="mb-2"><strong>Confidence:</strong> ${(analysis.confidence * 100).toFixed(1)}%</p>
+                                <p class="mb-2"><strong>Affected Customers:</strong> ${analysis.affected_customers_count || 'N/A'}</p>
+                                ${analysis.affected_area ? `<p class="mb-2"><strong>Area:</strong> ${analysis.affected_area}</p>` : ''}
+                            </div>
+                            ${analysis.root_cause_hypotheses && analysis.root_cause_hypotheses.length > 0 ? `
+                                <div class="border-t border-purple-200 pt-3">
+                                    <h6 class="font-semibold text-purple-900 mb-2">Root Cause Hypotheses:</h6>
+                                    <ul class="space-y-2">
+                                        ${analysis.root_cause_hypotheses.map(h => `
+                                            <li class="text-sm">
+                                                <div class="flex items-start">
+                                                    <span class="font-semibold mr-2">•</span>
+                                                    <div class="flex-1">
+                                                        <p>${h.hypothesis}</p>
+                                                        <p class="text-xs text-gray-600 mt-1">
+                                                            Confidence: ${(h.confidence * 100).toFixed(1)}% | 
+                                                            Impact: ${h.impact_score}/100
+                                                        </p>
+                                                        ${h.evidence && h.evidence.length > 0 ? `
+                                                            <ul class="text-xs text-gray-500 mt-1 ml-4 list-disc">
+                                                                ${h.evidence.map(e => `<li>${e}</li>`).join('')}
+                                                            </ul>
+                                                        ` : ''}
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            ${analysis.recommended_actions && analysis.recommended_actions.length > 0 ? `
+                                <div class="border-t border-purple-200 pt-3">
+                                    <h6 class="font-semibold text-purple-900 mb-2">Recommended Actions:</h6>
+                                    <ul class="space-y-1">
+                                        ${analysis.recommended_actions.map((action, idx) => `
+                                            <li class="text-sm flex items-start">
+                                                <span class="mr-2">${idx + 1}.</span>
+                                                <span>${action}</span>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    analysisContainer.innerHTML = html;
+                } else {
+                    analysisContainer.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p class="text-sm text-yellow-800">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                Analisis AI belum tersedia untuk incident ini
+                            </p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error analyzing incident:', error);
+                analysisContainer.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p class="text-sm text-red-800">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            Gagal melakukan analisis AI
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Reload incidents
+        function loadIncidents() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
+

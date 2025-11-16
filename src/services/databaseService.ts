@@ -61,6 +61,23 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
     }
 }
 
+// Helper function to safely extract error message
+function getErrorMessage(error: any): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === 'string') {
+        return error;
+    }
+    if (error?.message) {
+        return String(error.message);
+    }
+    if (error?.sqlMessage) {
+        return String(error.sqlMessage);
+    }
+    return String(error);
+}
+
 // Check for schema issues
 export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
     const issues: SchemaIssue[] = [];
@@ -71,7 +88,8 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
         try {
             await conn.execute('SELECT olt_card FROM ftth_odc LIMIT 1');
         } catch (error: any) {
-            if (error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error).includes('Unknown column')) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes('Unknown column')) {
                 issues.push({
                     table: 'ftth_odc',
                     issue: 'Missing column olt_card',
@@ -86,7 +104,8 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
         try {
             await conn.execute('SELECT olt_card FROM ftth_odp LIMIT 1');
         } catch (error: any) {
-            if (error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error).includes('Unknown column')) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes('Unknown column')) {
                 issues.push({
                     table: 'ftth_odp',
                     issue: 'Missing column olt_card',
@@ -101,7 +120,8 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
         try {
             await conn.execute('SELECT olt_port FROM ftth_odc LIMIT 1');
         } catch (error: any) {
-            if (error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error).includes('Unknown column')) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes('Unknown column')) {
                 issues.push({
                     table: 'ftth_odc',
                     issue: 'Missing column olt_port',
@@ -115,7 +135,8 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
         try {
             await conn.execute('SELECT olt_port FROM ftth_odp LIMIT 1');
         } catch (error: any) {
-            if (error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error).includes('Unknown column')) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes('Unknown column')) {
                 issues.push({
                     table: 'ftth_odp',
                     issue: 'Missing column olt_port',
@@ -130,7 +151,8 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
         try {
             await conn.execute('SELECT COUNT(*) FROM static_ip_clients LIMIT 1');
         } catch (error: any) {
-            if (error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error).includes("doesn't exist")) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes("doesn't exist")) {
                 issues.push({
                     table: 'static_ip_clients',
                     issue: 'Missing table',
@@ -154,7 +176,8 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
         try {
             await conn.execute('SELECT max_clients FROM static_ip_packages LIMIT 1');
         } catch (error: any) {
-            if (error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error).includes('Unknown column')) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes('Unknown column')) {
                 issues.push({
                     table: 'static_ip_packages',
                     issue: 'Missing column max_clients',
@@ -274,7 +297,7 @@ export async function runMigration(migrationType?: string): Promise<void> {
                 await conn.execute(index);
             } catch (error: any) {
                 if (String(error).includes('Duplicate key name')) {
-                    console.log(`Index creation warning: ${error instanceof Error ? error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) : String(error)}`);
+                    console.log(`Index creation warning: ${getErrorMessage(error)}`);
                 }
             }
         }

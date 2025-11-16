@@ -102,14 +102,14 @@ export class TelegramAdminController {
                 usersByRole,
                 recentChats,
                 recentNotifications,
-                user: req.session.user
+                user: (req.session as any).user
             });
             
         } catch (error) {
             console.error('Telegram dashboard error:', error);
             res.status(500).render('error', { 
                 error: 'Failed to load dashboard',
-                user: req.session.user
+                user: (req.session as any).user
             });
         }
     }
@@ -191,14 +191,14 @@ export class TelegramAdminController {
                 users: formattedUsers,
                 role: role || '',
                 area: area || '',
-                user: req.session.user
+                user: (req.session as any).user
             });
             
         } catch (error) {
             console.error('Users page error:', error);
             res.status(500).render('error', { 
                 error: 'Failed to load users page',
-                user: req.session.user
+                user: (req.session as any).user
             });
         }
     }
@@ -332,7 +332,7 @@ export class TelegramAdminController {
                 targetArea,
                 customerId,
                 metadata: {
-                    sentBy: req.session.user?.username,
+                    sentBy: (req.session as any).user?.username,
                     sentAt: new Date()
                 }
             });

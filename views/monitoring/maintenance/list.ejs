@@ -1,4 +1,17 @@
-<!-- Maintenance List Page -->
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Billing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <%- include('../partials/navbar') %>
+    
+    <div class="flex">
+        <!-- Maintenance List Page -->
         <div class="flex-1 p-8 max-w-7xl mx-auto w-full">
             <!-- Page Header -->
             <div class="mb-8">
@@ -151,8 +164,9 @@
                 </div>
             </div>
         </div>
+    </div>
 
-<script>
+    <script>
 document.addEventListener('DOMContentLoaded', function() {
     const applyFiltersBtn = document.getElementById('applyFiltersBtn');
     const createMaintenanceBtn = document.getElementById('createMaintenanceBtn');
@@ -187,4 +201,6 @@ function applyFilters() {
     
     window.location.href = '/monitoring/maintenance?' + params.toString();
 }
-</script>
+    </script>
+</body>
+</html>

@@ -15,26 +15,155 @@ function getLastNDatesLabels(days: number): string[] {
 
 async function getTroubleCustomers(): Promise<any[]> {
 	try {
-		// Check if maintenance_schedules table exists
+		// Check which tables exist
 		const [tables] = await databasePool.query(
-			"SHOW TABLES LIKE 'maintenance_schedules'"
-		);
+			"SHOW TABLES"
+		) as any[];
 		
-		if (!tables || (Array.isArray(tables) && tables.length === 0)) {
-			// Table doesn't exist, return empty array
+		const tableNames = Array.isArray(tables) ? tables.map((t: any) => Object.values(t)[0]) : [];
+		const hasMaintenance = tableNames.includes('maintenance_schedules');
+		const hasConnectionLogs = tableNames.includes('connection_logs');
+		const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
+		const hasSlaIncidents = tableNames.includes('sla_incidents');
+		
+		// Check if is_isolated column exists
+		let hasIsolated = false;
+		try {
+			const [cols] = await databasePool.query(
+				"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'is_isolated'"
+			) as any[];
+			hasIsolated = Array.isArray(cols) && cols.length > 0;
+		} catch {
+			hasIsolated = false;
+		}
+
+		// Build UNION query for all trouble sources
+		const queries: string[] = [];
+		const isolatedFilter = hasIsolated ? 'AND (c.is_isolated = 0 OR c.is_isolated IS NULL)' : '';
+
+		// 1. Customers with maintenance schedules
+		if (hasMaintenance) {
+			queries.push(`
+				SELECT DISTINCT
+					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+					m.status as maintenance_status, 
+					COALESCE(m.issue_type, 'Maintenance') as issue_type, 
+					m.created_at as trouble_since,
+					'maintenance' as trouble_type
+				FROM customers c
+				INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
+				WHERE m.status IN ('scheduled', 'in_progress')
+					AND c.status IN ('active', 'suspended')
+			`);
+		}
+
+		// 2. Static IP customers who are offline (not isolated)
+		if (hasStaticIpStatus) {
+			queries.push(`
+				SELECT DISTINCT
+					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+					NULL as maintenance_status,
+					'Offline' as issue_type,
+					COALESCE(sips.last_offline_at, sips.last_check) as trouble_since,
+					'offline' as trouble_type
+				FROM customers c
+				INNER JOIN static_ip_ping_status sips ON c.id = sips.customer_id
+				WHERE c.connection_type = 'static_ip'
+					AND sips.status = 'offline'
+					AND c.status IN ('active', 'suspended')
+					${isolatedFilter}
+					AND sips.last_check >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+			`);
+		}
+
+		// 3. PPPoE customers who are offline (from connection_logs, not isolated)
+		if (hasConnectionLogs) {
+			queries.push(`
+				SELECT DISTINCT
+					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+					NULL as maintenance_status,
+					'Offline' as issue_type,
+					cl_latest.timestamp as trouble_since,
+					'offline' as trouble_type
+				FROM customers c
+				INNER JOIN (
+					SELECT customer_id, MAX(timestamp) as max_timestamp
+					FROM connection_logs
+					WHERE service_type = 'pppoe'
+						AND timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+					GROUP BY customer_id
+				) cl_max ON c.id = cl_max.customer_id
+				INNER JOIN connection_logs cl_latest ON c.id = cl_latest.customer_id 
+					AND cl_latest.timestamp = cl_max.max_timestamp
+					AND cl_latest.service_type = 'pppoe'
+				WHERE c.connection_type = 'pppoe'
+					AND cl_latest.status = 'offline'
+					AND c.status IN ('active', 'suspended')
+					${isolatedFilter}
+					AND NOT EXISTS (
+						SELECT 1 FROM connection_logs cl2
+						WHERE cl2.customer_id = c.id
+							AND cl2.status = 'online'
+							AND cl2.timestamp > cl_latest.timestamp
+							AND cl2.timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+					)
+			`);
+		}
+
+		// 4. Customers with ongoing SLA incidents
+		if (hasSlaIncidents) {
+			queries.push(`
+				SELECT DISTINCT
+					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+					NULL as maintenance_status,
+					CONCAT('SLA: ', si.incident_type) as issue_type,
+					si.start_time as trouble_since,
+					'sla_incident' as trouble_type
+				FROM customers c
+				INNER JOIN sla_incidents si ON c.id = si.customer_id
+				WHERE si.status = 'ongoing'
+					AND c.status IN ('active', 'suspended')
+			`);
+		}
+
+		if (queries.length === 0) {
 			return [];
 		}
 
-		// Table exists, get trouble customers
-		const [rows] = await databasePool.query(`
-			SELECT c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-				   m.status as maintenance_status, m.issue_type, m.created_at as trouble_since
-			FROM customers c
-			LEFT JOIN maintenance_schedules m ON c.id = m.customer_id AND m.status IN ('scheduled', 'in_progress')
-			WHERE c.status IN ('active', 'suspended')
-			ORDER BY m.created_at DESC
-			LIMIT 10
-		`);
+		// Combine all queries with UNION and get unique customers (prioritize maintenance, then offline, then SLA)
+		// Use GROUP BY to get only one record per customer (prioritize by trouble_type)
+		const unionQuery = `
+			SELECT 
+				trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, 
+				trouble.status, trouble.connection_type,
+				COALESCE(
+					MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.maintenance_status END),
+					MAX(trouble.maintenance_status)
+				) as maintenance_status,
+				COALESCE(
+					MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.issue_type END),
+					MAX(CASE WHEN trouble.trouble_type = 'offline' THEN trouble.issue_type END),
+					MAX(CASE WHEN trouble.trouble_type = 'sla_incident' THEN trouble.issue_type END),
+					MAX(trouble.issue_type)
+				) as issue_type,
+				MAX(trouble.trouble_since) as trouble_since,
+				MIN(CASE trouble.trouble_type
+					WHEN 'maintenance' THEN 1
+					WHEN 'offline' THEN 2
+					WHEN 'sla_incident' THEN 3
+					ELSE 4
+				END) as priority_type
+			FROM (
+				${queries.join(' UNION ALL ')}
+			) as trouble
+			GROUP BY trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, trouble.status, trouble.connection_type
+			ORDER BY 
+				priority_type,
+				MAX(trouble.trouble_since) DESC
+			LIMIT 20
+		`;
+
+		const [rows] = await databasePool.query(unionQuery);
 		
 		return rows as any[];
 	} catch (error) {
@@ -44,6 +173,15 @@ async function getTroubleCustomers(): Promise<any[]> {
 }
 
 export async function getDashboard(req: Request, res: Response): Promise<void> {
+	// Check if late_payment_count column exists once (optimization)
+	let hasLatePaymentCount = false;
+	try {
+		const [cols] = await databasePool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'late_payment_count'") as any;
+		hasLatePaymentCount = cols.length > 0;
+	} catch {
+		hasLatePaymentCount = false;
+	}
+
 	// Parallel queries
 	const [
 		activeCustomersP,
@@ -63,7 +201,10 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		mtSettingsP,
 		troubleCustomersP,
 		prepaidCustomersP,
-		activeSubscriptionsP
+		activeSubscriptionsP,
+		latePaymentHighRiskP,
+		latePaymentWarning4P,
+		latePaymentAutoMigrateP
 	] = await Promise.all([
 		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -79,10 +220,32 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_olt'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odc'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odp'),
-		databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
+		databasePool.query('SELECT id, host, port, username, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
 		getTroubleCustomers(),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE billing_mode='prepaid'"),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM prepaid_package_subscriptions WHERE status='active' AND expiry_date > NOW()")
+		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE billing_mode='prepaid'").catch(() => Promise.resolve([[{ cnt: 0 }]])),
+		databasePool.query("SELECT COUNT(*) AS cnt FROM prepaid_package_subscriptions WHERE status='active' AND expiry_date > NOW()").catch(() => Promise.resolve([[{ cnt: 0 }]])),
+		// Optimized: Use pre-checked column existence
+		(async () => {
+			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
+			try {
+				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE (billing_mode='postpaid' OR billing_mode IS NULL OR billing_mode = '') AND COALESCE(late_payment_count, 0) >= 3") as any;
+				return result;
+			} catch { return [[{ cnt: 0 }]]; }
+		})(),
+		(async () => {
+			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
+			try {
+				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE (billing_mode='postpaid' OR billing_mode IS NULL OR billing_mode = '') AND COALESCE(late_payment_count, 0) = 4") as any;
+				return result;
+			} catch { return [[{ cnt: 0 }]]; }
+		})(),
+		(async () => {
+			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
+			try {
+				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE (billing_mode='postpaid' OR billing_mode IS NULL OR billing_mode = '') AND COALESCE(late_payment_count, 0) >= 5") as any;
+				return result;
+			} catch { return [[{ cnt: 0 }]]; }
+		})()
 	]);
 
 	const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -101,6 +264,9 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 	const troubleCustomers = troubleCustomersP ?? [];
 	const prepaidCustomers = (prepaidCustomersP[0] as any)[0]?.cnt ?? 0;
 	const activeSubscriptions = (activeSubscriptionsP[0] as any)[0]?.cnt ?? 0;
+	const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
+	const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
+	const latePaymentAutoMigrate = (latePaymentAutoMigrateP[0] as any)[0]?.cnt ?? 0;
 
 	const labels = getLastNDatesLabels(7);
 	const pointsMap: Record<string, number> = Object.create(null);
@@ -155,6 +321,11 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			totalPrepaid: prepaidCustomers,
 			activeSubscriptions: activeSubscriptions
 		},
+		latePaymentStats: {
+			highRisk: latePaymentHighRisk,
+			warning4: latePaymentWarning4,
+			autoMigrate: latePaymentAutoMigrate
+		},
 		recentRequests,
 		troubleCustomers,
 		chart: { labels, data: dataPoints },
@@ -178,7 +349,7 @@ export async function getInterfaceStats(req: Request, res: Response): Promise<vo
 			return;
 		}
 
-		const [mtSettingsRows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
+		const [mtSettingsRows] = await databasePool.query('SELECT id, host, port, username, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
 		const mtSettings = Array.isArray(mtSettingsRows) && mtSettingsRows.length ? (mtSettingsRows as any[])[0] : null;
 
 		if (!mtSettings) {

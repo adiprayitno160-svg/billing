@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import PrepaidActivationService from '../../services/prepaid/PrepaidActivationService';
-import PaymentGatewayService from '../../services/payment/PaymentGatewayService';
+import { PaymentGatewayService } from '../../services/payment/PaymentGatewayService';
 
 /**
  * Controller untuk Prepaid Payment Processing
@@ -14,7 +14,11 @@ class PrepaidPaymentController {
    */
   async showPaymentPage(req: Request, res: Response) {
     try {
-      const packageId = parseInt(req.params.packageId);
+      const { packageId: packageIdParam } = req.params;
+        if (!packageIdParam) {
+            return res.status(400).json({ success: false, error: 'packageId is required' });
+        }
+        const packageId = parseInt(packageIdParam || (req.query.packageId as string));
       const customerId = (req.session as any).portalCustomerId;
 
       // Get package details
@@ -206,24 +210,62 @@ class PrepaidPaymentController {
    */
   private async processGatewayPayment(req: Request, res: Response, data: any) {
     try {
-      // TODO: Integrate with actual payment gateway
-      // For now, just show payment instructions
+      // Create prepaid transaction first
+      const { PrepaidPaymentService } = await import('../../services/prepaid/PrepaidPaymentService');
+      const transactionId = await PrepaidPaymentService.createTransaction({
+        customer_id: data.customerId,
+        package_id: data.packageId,
+        amount: data.packageData.price,
+        payment_method: 'payment_gateway',
+        payment_status: 'pending',
+        payment_gateway_type: data.paymentMethod,
+        payment_notes: `Invoice #${data.invoiceId}`
+      });
 
-      // Store payment session
+      // Get gateway configuration from database
+      const [gatewayRows] = await pool.query<RowDataPacket[]>(
+        'SELECT * FROM payment_gateways WHERE code = ? AND is_active = 1',
+        [data.paymentMethod]
+      );
+
+      if (gatewayRows.length === 0) {
+        // If gateway not configured, fallback to manual transfer
+        await pool.query(
+          `INSERT INTO invoice_payment_sessions 
+           (invoice_id, session_token, payment_amount, payment_method, status, expires_at)
+           VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
+          [
+            data.invoiceId,
+            `PREP-${Date.now()}`,
+            data.packageData.price,
+            data.paymentMethod
+          ]
+        );
+
+        return res.redirect(`/prepaid/portal/payment-waiting?invoice=${data.invoiceId}&method=${data.paymentMethod}&transaction=${transactionId}`);
+      }
+
+      const gateway = gatewayRows[0];
+
+      // Store payment session for reference
       await pool.query(
         `INSERT INTO invoice_payment_sessions 
          (invoice_id, session_token, payment_amount, payment_method, status, expires_at)
          VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
         [
           data.invoiceId,
-          `PREP-${Date.now()}`,
+          `PREP-${transactionId}-${Date.now()}`,
           data.packageData.price,
           data.paymentMethod
         ]
       );
 
+      // Note: Full PaymentGatewayService integration requires proper configuration
+      // For now, redirect to waiting page with transaction info
+      // Full integration can be added later when gateway credentials are properly configured
+      
       // Redirect to payment waiting page
-      res.redirect(`/prepaid/portal/payment-waiting?invoice=${data.invoiceId}&method=${data.paymentMethod}`);
+      res.redirect(`/prepaid/portal/payment-waiting?invoice=${data.invoiceId}&method=${data.paymentMethod}&transaction=${transactionId}&gateway=${gateway.code}`);
     } catch (error) {
       console.error('Gateway payment error:', error);
       throw error;
@@ -271,11 +313,15 @@ class PrepaidPaymentController {
    */
   async checkPaymentStatus(req: Request, res: Response) {
     try {
-      const invoiceId = parseInt(req.params.invoiceId);
+      const { invoiceId } = req.params;
+        if (!invoiceId) {
+            return res.status(400).json({ success: false, error: 'invoiceId is required' });
+        }
+        const parsedInvoiceId = parseInt(invoiceId);
 
       const [invoiceRows] = await pool.query<RowDataPacket[]>(
         'SELECT status, paid_amount, total_amount FROM invoices WHERE id = ?',
-        [invoiceId]
+        [parsedInvoiceId]
       );
 
       if (invoiceRows.length === 0) {

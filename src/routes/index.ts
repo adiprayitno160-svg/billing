@@ -1,12 +1,12 @@
-// @ts-nocheck
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { databasePool } from '../db/pool';
+import { RowDataPacket } from 'mysql2';
 import { getDashboard, getInterfaceStats } from '../controllers/dashboardController';
 import { getMikrotikSettingsForm, postMikrotikSettings, postMikrotikTest } from '../controllers/settingsController';
 import { UserController } from '../controllers/userController';
 import { KasirController } from '../controllers/kasirController';
-import { AuthMiddleware } from '../middlewares/authMiddleware';
+import { AuthMiddleware, isAuthenticated } from '../middlewares/authMiddleware';
 import { getOltList, getOltEdit, postOltCreate, postOltDelete, postOltUpdate } from '../controllers/ftth/oltController';
 import { getOdcList, getOdcAdd, getOdcEdit, postOdcCreate, postOdcDelete, postOdcUpdate } from '../controllers/ftth/odcController';
 import { getOdpList, getOdpAdd, getOdpEdit, postOdpCreate, postOdpDelete, postOdpUpdate } from '../controllers/ftth/odpController';
@@ -25,6 +25,9 @@ import {
 	postPackageUpdate, 
 	postPackageDelete 
 } from '../controllers/pppoeController';
+import { getProfileById, updateProfile, listProfiles } from '../services/pppoeService';
+import { getMikrotikConfig } from '../services/pppoeService';
+import { findPppProfileIdByName, getPppProfiles, updatePppProfile } from '../services/mikrotikService';
 import { 
 	getStaticIpPackageList, 
 	getStaticIpPackageAdd,
@@ -52,12 +55,14 @@ import authRoutes from './auth';
 import kasirRoutes from './kasir';
 import addressListRoutes from './addressList';
 import billingRoutes from './billing';
-import whatsappApiRoutes from './whatsapp-api';
 import prepaidRoutes from './prepaid';
+import prepaidAdvancedRoutes from './prepaid-advanced';
 import monitoringRoutes from './monitoring';
 import slaRoutes from './sla';
 import maintenanceRoutes from './maintenance';
 import settingsRoutes from './settings';
+import whatsappRoutes from './whatsapp';
+import { pageRouter as notificationPageRouter, apiRouter as notificationApiRouter } from './notification';
 import { BulkOperationsController } from '../controllers/bulkOperationsController';
 import { 
     getAboutPage,
@@ -72,6 +77,7 @@ import {
     getDatabaseManagement,
     fixDatabaseIssues,
     runDatabaseMigration,
+    runLatePaymentTrackingMigration,
     getDatabaseLogs
 } from '../controllers/databaseController';
 import { BackupController } from '../controllers/backupController';
@@ -83,18 +89,28 @@ import {
     getCustomerList,
     getCustomerDetail,
     getCustomerEdit,
-    postCustomerUpdate,
-    deleteCustomer,
+    updateCustomer,
+    // deleteCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
     migrateToPrepaid,
     migrateToPostpaid,
-    getMigrationHistory
+    // getMigrationHistory, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // fixPrepaidCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // fixAllPrepaidCustomers, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // debugCheckCustomerIP, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // testAddIPToAddressList, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // listPrepaidCustomers, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // checkCustomerExists, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // searchCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // quickFixIP, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
+    testMikrotikAddressLists
 } from '../controllers/customerController';
 import { 
     exportCustomersToExcel,
     importCustomersFromExcel,
     getImportTemplate
 } from '../controllers/excelController';
-import { getTestImportPage, testImportExcel } from '../controllers/testImportController';
 // import { 
 //     getInvoiceList,
 //     getInvoiceDetail,
@@ -176,12 +192,18 @@ const upload = multer({
     }
 });
 
+// NOTIFICATION ROUTES - Mount notification page router
+// Mount notification page router at /notification BEFORE middleware
+router.use('/notification', notificationPageRouter);
+
 // Middleware untuk mencegah kasir mengakses halaman admin
 router.use(async (req, res, next) => {
-    // Skip untuk route kasir, auth, dan portal
-    if (req.path.startsWith('/kasir') || 
+    // Skip untuk route kasir, auth, portal, API routes, dan notification
+    if (        req.path.startsWith('/kasir') || 
         req.path.startsWith('/auth') || 
         req.path.startsWith('/portal') ||
+        req.path.startsWith('/api') ||
+        req.path.startsWith('/notification') ||
         req.path === '/login' ||
         req.path === '/logout') {
         return next();
@@ -206,14 +228,100 @@ router.use(async (req, res, next) => {
     return authMiddleware.requireNonKasir(req, res, next);
 });
 
+
+// Simple notification check endpoint - HARUS SEBELUM route lain
+console.log('[ROUTE] Registering GET /api/check-notification');
+router.get('/api/check-notification', async (req, res) => {
+    console.log('[ROUTE] GET /api/check-notification HIT!');
+    try {
+        const connection = await databasePool.getConnection();
+        try {
+            // Cek recent customer_created notifications
+            const [notifications] = await connection.query<RowDataPacket[]>(
+                `SELECT 
+                    unq.id,
+                    unq.customer_id,
+                    c.name as customer_name,
+                    c.phone,
+                    unq.status,
+                    unq.error_message,
+                    unq.created_at,
+                    unq.sent_at,
+                    unq.retry_count
+                 FROM unified_notifications_queue unq
+                 LEFT JOIN customers c ON unq.customer_id = c.id
+                 WHERE unq.notification_type = 'customer_created'
+                 ORDER BY unq.created_at DESC
+                 LIMIT 10`
+            );
+            
+            // Cek template
+            const [templates] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM notification_templates 
+                 WHERE notification_type = 'customer_created' AND channel = 'whatsapp'`
+            );
+            
+            // Cek WhatsApp status
+            let whatsappStatus = { ready: false, error: 'Not checked' };
+            try {
+                const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
+                whatsappStatus = WhatsAppService.getStatus();
+            } catch (e: any) {
+                whatsappStatus = { ready: false, error: e.message };
+            }
+            
+            // Stats
+            const [stats] = await connection.query<RowDataPacket[]>(
+                `SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+                 FROM unified_notifications_queue
+                 WHERE notification_type = 'customer_created'
+                 AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
+            );
+            
+            res.json({
+                success: true,
+                data: {
+                    notifications: notifications,
+                    template: templates[0] || null,
+                    whatsapp: whatsappStatus,
+                    stats: stats[0] || {},
+                    summary: {
+                        totalNotifications: notifications.length,
+                        templateExists: templates.length > 0,
+                        templateActive: templates.length > 0 && templates[0].is_active === 1,
+                        whatsappReady: whatsappStatus.ready
+                    }
+                }
+            });
+        } finally {
+            connection.release();
+        }
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 router.get('/', getDashboard);
 router.get('/api/interface-stats', getInterfaceStats);
+
+// Redirect /dashboard to root (dashboard is the root page)
+router.get('/dashboard', (req, res) => res.redirect('/'));
 
 // Billing routes
 router.use('/billing', billingRoutes);
 
 // Prepaid portal routes
 router.use('/prepaid', prepaidRoutes);
+
+// Advanced Prepaid routes (New system)
+router.use('/prepaid/advanced', prepaidAdvancedRoutes);
 
 // Monitoring routes
 router.use('/monitoring', monitoringRoutes);
@@ -224,20 +332,273 @@ router.use('/monitoring/sla', slaRoutes);
 // Maintenance Schedule routes (submenu of monitoring)
 router.use('/monitoring/maintenance', maintenanceRoutes);
 
+// WhatsApp routes
+router.use('/whatsapp', whatsappRoutes);
 
-// Settings routes
-router.use('/settings', settingsRoutes);
+// ============================================
+// API ROUTES - Must be registered early to avoid conflicts
+// ============================================
 
-// WhatsApp API routes
-router.use('/api/whatsapp', whatsappApiRoutes);
-
-// WhatsApp bot dashboard
-router.get('/whatsapp/bot', (req, res) => {
-    res.render('whatsapp/bot-dashboard', { title: 'WhatsApp Bot Dashboard' });
+// API endpoint untuk create/update PPPoE secret
+// IMPORTANT: This route must be registered before any generic /customers/:id routes
+console.log('[ROUTE REGISTRATION] Registering POST /api/pppoe/secret/create route...');
+router.post('/api/pppoe/secret/create', async (req, res) => {
+    // Log immediately when route is hit - use process.stdout.write to ensure it's flushed
+    process.stdout.write('\n');
+    process.stdout.write('========================================\n');
+    process.stdout.write('[API] ========== ROUTE HIT ==========\n');
+    process.stdout.write('[API] POST /api/pppoe/secret/create - Request received\n');
+    process.stdout.write('[API] Time: ' + new Date().toISOString() + '\n');
+    process.stdout.write('[API] Request method: ' + req.method + '\n');
+    process.stdout.write('[API] Request URL: ' + req.url + '\n');
+    process.stdout.write('[API] Request path: ' + req.path + '\n');
+    process.stdout.write('[API] Request originalUrl: ' + req.originalUrl + '\n');
+    console.log('[API] Request body (raw):', req.body);
+    console.log('[API] Request body (stringified):', JSON.stringify(req.body, null, 2));
+    console.log('[API] Request headers:', JSON.stringify(req.headers, null, 2));
+    process.stdout.write('========================================\n');
+    process.stdout.write('\n');
+    
+    try {
+        // Ensure response is always JSON
+        res.setHeader('Content-Type', 'application/json');
+        
+        const { customerId, username, password, profileId, customerName, packageId } = req.body;
+        
+        console.log('[API] ========== CREATE SECRET API START ==========');
+        console.log('[API] Request body:', JSON.stringify(req.body, null, 2));
+        console.log('[API] Parsed data:', { 
+            customerId, 
+            username: username || 'MISSING', 
+            password: password ? '***' : 'empty', 
+            profileId, 
+            customerName,
+            packageId: packageId || 'MISSING'
+        });
+        
+        if (!customerId) {
+            console.log('[API] ❌ Validation failed - customerId missing');
+            return res.status(400).json({
+                success: false,
+                error: 'customerId wajib diisi'
+            });
+        }
+        
+        if (!username || !username.trim()) {
+            console.log('[API] ❌ Validation failed - username missing or empty');
+            return res.status(400).json({
+                success: false,
+                error: 'username wajib diisi'
+            });
+        }
+        
+        if (!password || !password.trim()) {
+            console.log('[API] ❌ Validation failed - password missing or empty');
+            return res.status(400).json({
+                success: false,
+                error: 'password wajib diisi'
+            });
+        }
+        
+        const cfg = await getMikrotikConfig();
+        if (!cfg) {
+            return res.status(500).json({
+                success: false,
+                error: 'MikroTik tidak dikonfigurasi'
+            });
+        }
+        
+        const { findPppoeSecretIdByName, createPppoeSecret, updatePppoeSecret } = await import('../services/mikrotikService');
+        const { getProfileById, getPackageById } = await import('../services/pppoeService');
+        
+        // Get profile name from package if package is selected
+        let profileName: string | undefined = undefined;
+        
+        // First, try to get profile from package (if package_id is provided)
+        if (packageId) {
+            try {
+                const packageData = await getPackageById(Number(packageId));
+                if (packageData && packageData.profile_id) {
+                    const profile = await getProfileById(packageData.profile_id);
+                    if (profile) {
+                        profileName = profile.name;
+                        console.log(`[API] Profile dari paket (ID: ${packageId}): ${profileName}`);
+                    }
+                }
+            } catch (packageError) {
+                console.error('⚠️ Gagal mendapatkan profile dari paket:', packageError);
+            }
+        }
+        
+        // Fallback: Get profile name if profile_id is provided directly
+        if (!profileName && profileId) {
+            try {
+                const profile = await getProfileById(Number(profileId));
+                if (profile) {
+                    profileName = profile.name;
+                    console.log(`[API] Profile dari profile_id (${profileId}): ${profileName}`);
+                }
+            } catch (profileError) {
+                console.error('⚠️ Gagal mendapatkan profile:', profileError);
+            }
+        }
+        
+        // Use username as the name for PPPoE secret (not customer ID)
+        // IMPORTANT: NEVER use customer ID, always use username
+        const secretName = username.trim();
+        
+        console.log('[API] ========== SECRET CREATION DETAILS ==========');
+        console.log('[API] Customer ID:', customerId);
+        console.log('[API] Username dari form:', username);
+        console.log('[API] Secret Name (FINAL - akan digunakan):', secretName);
+        console.log('[API] ⚠️ IMPORTANT: Secret akan dibuat dengan username, BUKAN customer ID!');
+        console.log('[API] Profile yang akan digunakan:', profileName || 'tidak ada (MikroTik akan menggunakan default)');
+        console.log('[API] Package ID:', packageId || 'tidak ada');
+        
+        // Check if secret already exists (by username or customer ID)
+        let existingSecretByUsername = null;
+        let existingSecretByCustomerId = null;
+        let secretFoundBy = null;
+        
+        // Check by username first
+        try {
+            existingSecretByUsername = await findPppoeSecretIdByName(cfg, secretName);
+            if (existingSecretByUsername) {
+                console.log('[API] Secret found with username:', secretName);
+                secretFoundBy = 'username';
+            }
+        } catch (findError: any) {
+            // Secret doesn't exist with this username
+            console.log(`[API] Secret dengan username "${secretName}" tidak ditemukan`);
+        }
+        
+        // Check by customer ID (for legacy secrets)
+        if (!existingSecretByUsername && customerId && !isNaN(customerId)) {
+            const customerIdStr = customerId.toString();
+            try {
+                existingSecretByCustomerId = await findPppoeSecretIdByName(cfg, customerIdStr);
+                if (existingSecretByCustomerId) {
+                    console.log(`[API] ⚠️ Secret ditemukan dengan Customer ID (legacy): ${customerIdStr}`);
+                    console.log(`[API] ⚠️ Secret ini akan di-update ke username: ${secretName}`);
+                    secretFoundBy = 'customer_id';
+                }
+            } catch (findCustomerIdError: any) {
+                console.log(`[API] Secret dengan Customer ID "${customerIdStr}" tidak ditemukan`);
+            }
+        }
+        
+        if (existingSecretByUsername || existingSecretByCustomerId) {
+            // If secret found with customer ID (legacy), we need to delete and recreate with username
+            if (secretFoundBy === 'customer_id' && customerId && !isNaN(customerId)) {
+                console.log('[API] ⚠️ Secret ditemukan dengan Customer ID (legacy), akan dihapus dan dibuat ulang dengan username');
+                const { deletePppoeSecret } = await import('../services/mikrotikService');
+                
+                // Delete old secret with customer ID
+                await deletePppoeSecret(cfg, customerId.toString());
+                console.log(`[API] ✅ Secret lama dengan Customer ID "${customerId}" berhasil dihapus`);
+                
+                // Create new secret with username
+                await createPppoeSecret(cfg, {
+                    name: secretName, // Use username, not customer ID
+                    password: password,
+                    profile: profileName || undefined,
+                    comment: customerName || `Customer ${customerId}`
+                });
+                
+                console.log(`[API] ✅ Secret baru dengan username "${secretName}" berhasil dibuat`);
+                
+                return res.json({
+                    success: true,
+                    message: `PPPoE secret berhasil diubah dari Customer ID "${customerId}" ke username "${secretName}" di MikroTik${profileName ? ` dengan profile "${profileName}"` : ''}`,
+                    action: 'recreated'
+                });
+            } else {
+                // Update existing secret with username (normal update)
+                const updateData: any = {
+                    password: password,
+                    comment: customerName || `Customer ${customerId}`
+                };
+                
+                if (profileName) {
+                    updateData.profile = profileName;
+                    console.log(`[API] Profile akan di-update ke: ${profileName}`);
+                } else {
+                    console.log(`[API] Profile tidak di-update (tidak ada profile dari paket)`);
+                }
+                
+                // Update secret (already has correct username)
+                await updatePppoeSecret(cfg, secretName, updateData);
+                
+                return res.json({
+                    success: true,
+                    message: `PPPoE secret dengan username "${secretName}" berhasil di-update di MikroTik${profileName ? ` dengan profile "${profileName}"` : ''}`,
+                    action: 'updated'
+                });
+            }
+        } else {
+            // Create new secret
+            // IMPORTANT: Don't use 'default' as fallback - let MikroTik use its default or get from package
+            console.log('[API] ========== CREATING NEW SECRET ==========');
+            console.log('[API] Secret akan dibuat dengan:');
+            console.log('[API]    - Name (username):', secretName);
+            console.log('[API]    - Profile:', profileName || 'tidak ada (MikroTik default)');
+            console.log('[API]    - Comment:', customerName || `Customer ${customerId}`);
+            console.log('[API] ⚠️ IMPORTANT: Secret dibuat dengan username, BUKAN customer ID!');
+            
+            if (!profileName) {
+                console.warn('[API] ⚠️ Profile tidak ditemukan dari paket atau profile_id. Secret akan dibuat tanpa profile (MikroTik akan menggunakan default).');
+            }
+            
+            await createPppoeSecret(cfg, {
+                name: secretName, // ALWAYS use username, NEVER customer ID
+                password: password,
+                profile: profileName || undefined, // Don't set profile if not found, let MikroTik use default
+                comment: customerName || `Customer ${customerId}`
+            });
+            
+            console.log('[API] ✅ Secret berhasil dibuat dengan username:', secretName);
+            console.log('[API] ========== CREATE SECRET API END ==========');
+            
+            return res.json({
+                success: true,
+                message: `PPPoE secret dengan username "${secretName}" berhasil dibuat di MikroTik${profileName ? ` dengan profile "${profileName}"` : ' (menggunakan profile default MikroTik)'}`,
+                action: 'created'
+            });
+        }
+    } catch (error: unknown) {
+        console.error('\n');
+        console.error('========================================');
+        console.error('[API] ========== ERROR OCCURRED ==========');
+        console.error('[API] Error creating/updating PPPoE secret:', error);
+        console.error('[API] Error type:', typeof error);
+        console.error('[API] Error message:', error instanceof Error ? error.message : String(error));
+        console.error('[API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('========================================');
+        console.error('\n');
+        
+        const errorMessage = error instanceof Error ? error.message : 'Gagal membuat/update PPPoE secret';
+        
+        // Ensure error response is also JSON
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(500).json({
+            success: false,
+            error: errorMessage
+        });
+    }
 });
+
 
 // Portal routes
 router.use('/portal', portalRoutes);
+
+// Settings routes - MUST be registered BEFORE specific /settings routes to avoid conflicts
+router.use('/settings', settingsRoutes);
+
+// Mount API router for notification
+console.log('[ROUTE REGISTRATION] Registering /api/notification routes...');
+router.use('/api/notification', notificationApiRouter);
+console.log('[ROUTE REGISTRATION] /api/notification routes registered');
+
 
 // Pengaturan -> MikroTik
 router.get('/settings/mikrotik', getMikrotikSettingsForm);
@@ -253,12 +614,7 @@ router.post('/settings/payment-gateway', (req, res) => {
 });
 
 
-// Pengaturan -> WhatsApp
-router.get('/settings/whatsapp', (req, res) => res.render('settings/whatsapp', { title: 'Pengaturan WhatsApp Business' }));
-router.post('/settings/whatsapp', (req, res) => {
-    // TODO: Implement whatsapp settings
-    res.redirect('/settings/whatsapp');
-});
+// Pengaturan -> WhatsApp (REMOVED - user requested deletion)
 
 // Pengaturan -> User Management
 const userController = new UserController();
@@ -299,13 +655,429 @@ router.post('/ftth/odp/:id/delete', postOdpDelete);
 
 // Paket Internet -> PPPOE
 // Profile routes
+// IMPORTANT: Routes dengan path spesifik HARUS ditempatkan SEBELUM routes dengan parameter dinamis
 router.get('/packages/pppoe/profiles', getProfileList);
 router.post('/packages/pppoe/profiles/sync', postSyncProfiles);
 router.get('/packages/pppoe/profiles/new', getProfileForm);
+router.get('/packages/pppoe/profiles/test-update-100', async (req: Request, res: Response) => {
+	try {
+		const { RouterOSAPI } = await import('routeros-api');
+		
+		console.log('🚀 [QUICK TEST] Starting update for package 100...');
+		
+		// Get MikroTik config
+		const config = await getMikrotikConfig();
+		if (!config) {
+			req.flash('error', 'Konfigurasi MikroTik tidak ditemukan');
+			return res.redirect('/packages/pppoe/profiles');
+		}
+
+		// Cari profil paket 100
+		const allProfiles = await listProfiles();
+		const profile100 = allProfiles.find(p => 
+			p.name.toLowerCase().includes('100') || 
+			p.name.toLowerCase().includes('paket 100') ||
+			p.id === 100
+		);
+
+		if (!profile100) {
+			req.flash('error', 'Profile paket 100 tidak ditemukan');
+			return res.redirect('/packages/pppoe/profiles');
+		}
+
+		// Connect to MikroTik
+		const api = new RouterOSAPI({
+			host: config.host,
+			port: config.port,
+			user: config.username,
+			password: config.password,
+			timeout: 10000
+		});
+
+		await api.connect();
+
+		// Cari profile di MikroTik
+		const mikrotikProfiles = await getPppProfiles(config);
+		const foundProfile = mikrotikProfiles.find(p => p.name === profile100.name);
+		
+		if (!foundProfile) {
+			api.close();
+			req.flash('error', `Profile "${profile100.name}" tidak ditemukan di MikroTik`);
+			return res.redirect('/packages/pppoe/profiles');
+		}
+
+		const mikrotikId = foundProfile['.id'];
+		
+		// Update langsung ke 10M/10M
+		await api.write('/ppp/profile/set', [
+			`=.id=${mikrotikId}`,
+			`=rate-limit=10M/10M`
+		]);
+
+		// Verify
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		const verifyProfiles = await getPppProfiles(config);
+		const verifyProfile = verifyProfiles.find(p => p['.id'] === mikrotikId);
+		
+		api.close();
+
+		if (verifyProfile && (verifyProfile['rate-limit']?.includes('10M') || verifyProfile['rate-limit-rx']?.includes('10M'))) {
+			req.flash('success', `Profile "${profile100.name}" berhasil diupdate ke 10M/10M di MikroTik!`);
+		} else {
+			req.flash('error', 'Update gagal atau belum terverifikasi');
+		}
+
+		res.redirect('/packages/pppoe/profiles');
+	} catch (error: any) {
+		console.error('❌ [QUICK TEST] Error:', error);
+		req.flash('error', `Gagal update: ${error.message || 'Unknown error'}`);
+		res.redirect('/packages/pppoe/profiles');
+	}
+});
+
+// Routes dengan parameter dinamis HARUS setelah routes spesifik
 router.get('/packages/pppoe/profiles/:id/edit', getProfileEdit);
 router.post('/packages/pppoe/profiles/create', postProfileCreate);
 router.post('/packages/pppoe/profiles/:id/update', postProfileUpdate);
 router.delete('/packages/pppoe/profiles/:id', postProfileDelete);
+
+// Test endpoint untuk sinkronisasi profil
+router.get('/api/test/profile-sync/:id', async (req: Request, res: Response) => {
+	try {
+		const profileId = Number(req.params.id);
+		
+		if (!profileId || isNaN(profileId)) {
+			return res.status(400).json({ 
+				success: false, 
+				error: 'Profile ID tidak valid' 
+			});
+		}
+
+		// Get profile dari database
+		const profile = await getProfileById(profileId);
+		if (!profile) {
+			return res.status(404).json({ 
+				success: false, 
+				error: 'Profile tidak ditemukan' 
+			});
+		}
+
+		// Get MikroTik config
+		const config = await getMikrotikConfig();
+		if (!config) {
+			return res.status(500).json({ 
+				success: false, 
+				error: 'Konfigurasi MikroTik tidak ditemukan' 
+			});
+		}
+
+		const testResults: any = {
+			profile: {
+				id: profile.id,
+				name: profile.name,
+				rate_limit_rx: (profile as any).rate_limit_rx,
+				rate_limit_tx: (profile as any).rate_limit_tx
+			},
+			mikrotik: {
+				config: {
+					host: config.host,
+					port: config.port,
+					username: config.username
+				}
+			},
+			steps: []
+		};
+
+		// Step 1: Cari profile di MikroTik
+		testResults.steps.push({
+			step: 1,
+			action: 'Mencari profile di MikroTik',
+			status: 'running'
+		});
+
+		const mikrotikId = await findPppProfileIdByName(config, profile.name);
+		
+		if (mikrotikId) {
+			testResults.steps[0].status = 'success';
+			testResults.steps[0].result = `Profile ditemukan di MikroTik dengan ID: ${mikrotikId}`;
+			testResults.mikrotik.profile_id = mikrotikId;
+		} else {
+			testResults.steps[0].status = 'warning';
+			testResults.steps[0].result = 'Profile tidak ditemukan di MikroTik';
+		}
+
+		// Step 2: Get semua profile dari MikroTik untuk verifikasi
+		testResults.steps.push({
+			step: 2,
+			action: 'Mengambil semua profile dari MikroTik',
+			status: 'running'
+		});
+
+		const mikrotikProfiles = await getPppProfiles(config);
+		const foundProfile = mikrotikProfiles.find(p => p.name === profile.name);
+		
+		if (foundProfile) {
+			testResults.steps[1].status = 'success';
+			testResults.steps[1].result = `Profile ditemukan dengan rate-limit: ${foundProfile['rate-limit'] || 'N/A'}`;
+			testResults.mikrotik.current_rate_limit = foundProfile['rate-limit'];
+			testResults.mikrotik.current_rate_limit_rx = foundProfile['rate-limit-rx'];
+			testResults.mikrotik.current_rate_limit_tx = foundProfile['rate-limit-tx'];
+		} else {
+			testResults.steps[1].status = 'warning';
+			testResults.steps[1].result = 'Profile tidak ditemukan di daftar profile MikroTik';
+		}
+
+		// Step 3: Test update (simulasi)
+		testResults.steps.push({
+			step: 3,
+			action: 'Test update profile ke MikroTik',
+			status: 'info'
+		});
+
+		const dbRateLimitRx = (profile as any).rate_limit_rx || '0';
+		const dbRateLimitTx = (profile as any).rate_limit_tx || '0';
+		
+		testResults.steps[2].result = `Database: RX=${dbRateLimitRx}, TX=${dbRateLimitTx}`;
+		if (foundProfile) {
+			const mtRateLimitRx = foundProfile['rate-limit-rx'] || 'N/A';
+			const mtRateLimitTx = foundProfile['rate-limit-tx'] || 'N/A';
+			testResults.steps[2].result += ` | MikroTik: RX=${mtRateLimitRx}, TX=${mtRateLimitTx}`;
+			
+			if (dbRateLimitRx !== mtRateLimitRx || dbRateLimitTx !== mtRateLimitTx) {
+				testResults.steps[2].status = 'warning';
+				testResults.steps[2].result += ' | ⚠️ Nilai tidak sama! Perlu sinkronisasi.';
+				testResults.sync_needed = true;
+			} else {
+				testResults.steps[2].status = 'success';
+				testResults.steps[2].result += ' | ✅ Nilai sudah sama.';
+				testResults.sync_needed = false;
+			}
+		} else {
+			testResults.steps[2].status = 'warning';
+			testResults.steps[2].result += ' | ⚠️ Profile tidak ada di MikroTik, perlu dibuat.';
+			testResults.sync_needed = true;
+		}
+
+		testResults.success = true;
+		testResults.message = 'Test sinkronisasi selesai';
+
+		res.json(testResults);
+
+	} catch (error: any) {
+		console.error('Test sync error:', error);
+		res.status(500).json({
+			success: false,
+			error: error.message || 'Gagal menjalankan test sinkronisasi',
+			stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+		});
+	}
+});
+
+// Test endpoint untuk update profile paket 100 ke 10M dengan retry otomatis
+router.get('/test/force-update-profile-100', async (req: Request, res: Response) => {
+	const { RouterOSAPI } = await import('routeros-api');
+	
+	try {
+		console.log('🚀 [FORCE UPDATE] Starting force update for package 100 profile...');
+		
+		// Get MikroTik config
+		const config = await getMikrotikConfig();
+		if (!config) {
+			return res.status(500).json({ 
+				success: false, 
+				error: 'Konfigurasi MikroTik tidak ditemukan' 
+			});
+		}
+
+		// Cari profil paket 100 - bisa dari nama atau ID
+		const allProfiles = await listProfiles();
+		const profile100 = allProfiles.find(p => 
+			p.name.toLowerCase().includes('100') || 
+			p.name.toLowerCase().includes('paket 100') ||
+			p.id === 100
+		);
+
+		if (!profile100) {
+			return res.status(404).json({ 
+				success: false, 
+				error: 'Profile paket 100 tidak ditemukan',
+				available_profiles: allProfiles.map(p => ({ id: p.id, name: p.name }))
+			});
+		}
+
+		console.log(`✅ [FORCE UPDATE] Found profile: ${profile100.name} (ID: ${profile100.id})`);
+
+		// Connect to MikroTik
+		const api = new RouterOSAPI({
+			host: config.host,
+			port: config.port,
+			user: config.username,
+			password: config.password,
+			timeout: 10000
+		});
+
+		await api.connect();
+		console.log('✅ [FORCE UPDATE] Connected to MikroTik');
+
+		// Cari profile di MikroTik
+		const mikrotikProfiles = await getPppProfiles(config);
+		const foundProfile = mikrotikProfiles.find(p => p.name === profile100.name);
+		
+		if (!foundProfile) {
+			api.close();
+			return res.status(404).json({ 
+				success: false, 
+				error: `Profile "${profile100.name}" tidak ditemukan di MikroTik`,
+				available_mikrotik_profiles: mikrotikProfiles.map(p => p.name)
+			});
+		}
+
+		const mikrotikId = foundProfile['.id'];
+		const currentRateLimit = foundProfile['rate-limit'] || 'N/A';
+		
+		console.log(`📊 [FORCE UPDATE] Current rate-limit in MikroTik: ${currentRateLimit}`);
+		console.log(`📊 [FORCE UPDATE] Target: 10M/10M`);
+
+		const results: any = {
+			profile: {
+				id: profile100.id,
+				name: profile100.name,
+				database_rate_limit_rx: (profile100 as any).rate_limit_rx,
+				database_rate_limit_tx: (profile100 as any).rate_limit_tx
+			},
+			mikrotik: {
+				profile_id: mikrotikId,
+				current_rate_limit: currentRateLimit,
+				target_rate_limit: '10M/10M'
+			},
+			attempts: []
+		};
+
+		// Try multiple methods to update
+		const updateMethods = [
+			{
+				name: 'Method 1: Direct API write with simple format',
+				execute: async () => {
+					await api.write('/ppp/profile/set', [
+						`=.id=${mikrotikId}`,
+						`=rate-limit=10M/10M`
+					]);
+				}
+			},
+			{
+				name: 'Method 2: Using updatePppProfile function',
+				execute: async () => {
+					await updatePppProfile(config, mikrotikId, {
+						'rate-limit-rx': '10M',
+						'rate-limit-tx': '10M'
+					});
+				}
+			},
+			{
+				name: 'Method 3: Direct API with explicit format',
+				execute: async () => {
+					await api.write('/ppp/profile/set', [
+						`=.id=${mikrotikId}`,
+						`=rate-limit=10M/10M`,
+						`=name=${profile100.name}`
+					]);
+				}
+			}
+		];
+
+		let success = false;
+		let lastError: any = null;
+
+		for (let i = 0; i < updateMethods.length; i++) {
+			const method = updateMethods[i];
+			console.log(`🔄 [FORCE UPDATE] Attempt ${i + 1}: ${method.name}`);
+			
+			try {
+				// Close and reconnect for each attempt
+				api.close();
+				await new Promise(resolve => setTimeout(resolve, 500));
+				await api.connect();
+
+				await method.execute();
+				
+				// Verify update
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				const verifyProfiles = await getPppProfiles(config);
+				const verifyProfile = verifyProfiles.find(p => p['.id'] === mikrotikId);
+				
+				if (verifyProfile) {
+					const newRateLimit = verifyProfile['rate-limit'] || '';
+					const newRx = verifyProfile['rate-limit-rx'] || '';
+					const newTx = verifyProfile['rate-limit-tx'] || '';
+					
+					console.log(`✅ [FORCE UPDATE] Verification - Rate limit: ${newRateLimit}, RX: ${newRx}, TX: ${newTx}`);
+					
+					// Check if update successful (10M/10M or 10M in RX/TX)
+					if (newRateLimit.includes('10M') || newRx.includes('10M') || newTx.includes('10M')) {
+						results.attempts.push({
+							method: method.name,
+							status: 'success',
+							message: 'Update berhasil!',
+							verified_rate_limit: newRateLimit,
+							verified_rx: newRx,
+							verified_tx: newTx
+						});
+						success = true;
+						results.final_rate_limit = newRateLimit;
+						results.final_rx = newRx;
+						results.final_tx = newTx;
+						break;
+					} else {
+						results.attempts.push({
+							method: method.name,
+							status: 'partial',
+							message: 'Command berhasil tapi nilai belum sesuai',
+							verified_rate_limit: newRateLimit,
+							verified_rx: newRx,
+							verified_tx: newTx
+						});
+					}
+				} else {
+					results.attempts.push({
+						method: method.name,
+						status: 'error',
+						message: 'Profile tidak ditemukan setelah update'
+					});
+				}
+			} catch (error: any) {
+				console.error(`❌ [FORCE UPDATE] Method ${i + 1} failed:`, error.message);
+				lastError = error;
+				results.attempts.push({
+					method: method.name,
+					status: 'error',
+					message: error.message || 'Unknown error',
+					error: error.toString()
+				});
+			}
+		}
+
+		api.close();
+
+		if (success) {
+			results.success = true;
+			results.message = 'Profile berhasil diupdate ke 10M/10M!';
+			res.json(results);
+		} else {
+			results.success = false;
+			results.message = 'Semua metode update gagal';
+			results.last_error = lastError?.message;
+			res.status(500).json(results);
+		}
+
+	} catch (error: any) {
+		console.error('❌ [FORCE UPDATE] Error:', error);
+		res.status(500).json({
+			success: false,
+			error: error.message || 'Gagal menjalankan force update',
+			stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+		});
+	}
+});
 
 // Package routes
 router.get('/packages/pppoe/packages', getPackageList);
@@ -359,6 +1131,58 @@ router.get('/test-mikrotik-ip', testMikrotikIpAdd);
 // Auto debug system untuk IP static
 router.get('/auto-debug-ip-static', autoDebugIpStatic);
 
+// Debug endpoint untuk test interface dari MikroTik
+router.get('/api/debug/interfaces', async (req, res) => {
+    try {
+        const { getMikrotikConfig } = await import('../services/staticIpPackageService');
+        const { getInterfaces } = await import('../services/mikrotikService');
+        
+        console.log('=== DEBUG INTERFACE FETCH ===');
+        const cfg = await getMikrotikConfig();
+        
+        if (!cfg) {
+            return res.json({
+                success: false,
+                error: 'MikroTik config tidak ditemukan',
+                message: 'Silakan konfigurasi MikroTik terlebih dahulu di Settings'
+            });
+        }
+        
+        console.log('MikroTik Config:', {
+            host: cfg.host,
+            port: cfg.port,
+            username: cfg.username,
+            password: '***'
+        });
+        
+        const interfaces = await getInterfaces(cfg);
+        
+        res.json({
+            success: true,
+            message: `Berhasil mengambil ${interfaces.length} interfaces`,
+            data: {
+                config: {
+                    host: cfg.host,
+                    port: cfg.port,
+                    username: cfg.username
+                },
+                interfaces: interfaces,
+                count: interfaces.length,
+                interfaceNames: interfaces.map(i => i.name)
+            }
+        });
+    } catch (error: unknown) {
+        console.error('Error in debug interfaces:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        res.status(500).json({
+            success: false,
+            error: errorMessage,
+            stack: errorStack
+        });
+    }
+});
+
 // Debug endpoint untuk test queue creation
 router.get('/debug-queue-test', async (req, res) => {
     try {
@@ -395,8 +1219,9 @@ router.get('/debug-queue-test', async (req, res) => {
                 '=comment=Test minimal queue'
             ]);
             console.log('✅ Minimal queue created:', minimalQueue);
-        } catch (error: any) {
-            console.log('❌ Minimal queue failed:', error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('❌ Minimal queue failed:', errorMessage);
         }
 
         // Test 3: Coba buat queue dengan packet-marks
@@ -410,8 +1235,9 @@ router.get('/debug-queue-test', async (req, res) => {
                 '=comment=Test queue with marks'
             ]);
             console.log('✅ Queue with marks created:', queueWithMarks);
-        } catch (error: any) {
-            console.log('❌ Queue with marks failed:', error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('❌ Queue with marks failed:', errorMessage);
         }
 
         // Test 4: Coba buat queue dengan limit-at
@@ -425,8 +1251,9 @@ router.get('/debug-queue-test', async (req, res) => {
                 '=comment=Test queue with limit-at'
             ]);
             console.log('✅ Queue with limit-at created:', queueWithLimit);
-        } catch (error: any) {
-            console.log('❌ Queue with limit-at failed:', error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('❌ Queue with limit-at failed:', errorMessage);
         }
 
         // Test 5: Coba buat queue dengan priority
@@ -440,8 +1267,9 @@ router.get('/debug-queue-test', async (req, res) => {
                 '=comment=Test queue with priority'
             ]);
             console.log('✅ Queue with priority created:', queueWithPriority);
-        } catch (error: any) {
-            console.log('❌ Queue with priority failed:', error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('❌ Queue with priority failed:', errorMessage);
         }
 
         // Test 6: Coba buat queue dengan semua parameter
@@ -457,8 +1285,9 @@ router.get('/debug-queue-test', async (req, res) => {
                 '=comment=Test queue with all parameters'
             ]);
             console.log('✅ Queue with all parameters created:', queueAllParams);
-        } catch (error: any) {
-            console.log('❌ Queue with all parameters failed:', error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.log('❌ Queue with all parameters failed:', errorMessage);
         }
 
         await api.close();
@@ -467,17 +1296,18 @@ router.get('/debug-queue-test', async (req, res) => {
             message: 'Queue debug test completed. Check console for details.' 
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Queue debug test error:', error);
-        res.status(500).json({ error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ error: errorMessage });
     }
 });
 
 
 // Pelanggan - routes harus diurutkan dari yang paling spesifik ke yang paling umum
-router.get('/customers', getCustomerList);
-router.get('/customers/', getCustomerList);
 router.get('/customers/list', getCustomerList);
+router.get('/customers/', getCustomerList);
+router.get('/customers', getCustomerList);
 router.get('/customers/export', exportCustomersToExcel);
 router.get('/customers/template', getImportTemplate);
 
@@ -600,18 +1430,20 @@ router.post('/test-import', upload.single('excelFile'), async (req, res) => {
                 );
 
                 results.success++;
-            } catch (err: any) {
+            } catch (err: unknown) {
                 results.failed++;
-                results.errors.push('Row ' + rowNum + ': ' + err.message);
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                results.errors.push('Row ' + rowNum + ': ' + errorMessage);
             }
         }
 
         console.log('TEST IMPORT DONE:', results);
         res.json({ success: true, results });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('TEST IMPORT ERROR:', error);
-        res.json({ success: false, error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.json({ success: false, error: errorMessage });
     }
 });
 
@@ -766,10 +1598,14 @@ router.get('/customers/new-static-ip', async (req, res) => {
 
 // POST route untuk form new-pppoe - HARUS SEBELUM route dengan parameter
 router.post('/customers/new-pppoe', async (req, res) => {
+    console.log('\n\n');
+    console.log('═══════════════════════════════════════════════════════════');
     console.log('=== ROUTE HIT: POST /customers/new-pppoe ===');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
     try {
         console.log('=== NEW PPPOE CLIENT REQUEST ===');
-        console.log('Request body:', req.body);
         console.log('ODP ID from request:', req.body.odp_id);
         console.log('ODC ID from request:', req.body.odc_id);
         console.log('OLT ID from request:', req.body.olt_id);
@@ -788,7 +1624,8 @@ router.post('/customers/new-pppoe', async (req, res) => {
             longitude,
             olt_id,
             odc_id,
-            odp_id
+            odp_id,
+            enable_billing
         } = req.body;
         
         console.log('Parsed data:', { 
@@ -805,16 +1642,34 @@ router.post('/customers/new-pppoe', async (req, res) => {
         if (!package_id) throw new Error('Paket wajib dipilih');
         if (!odp_id) throw new Error('ODP wajib dipilih');
         
+        // Validate customer_code
+        if (!customer_code || customer_code.trim() === '') {
+            throw new Error('Kode pelanggan tidak boleh kosong');
+        }
+        
         // Simpan ke database
         const conn = await databasePool.getConnection();
         try {
-            // Insert customer
+            // Start transaction explicitly
+            await conn.beginTransaction();
+            // Check if customer_code already exists
+            const [existingCodeRows] = await conn.execute(
+                'SELECT id, name FROM customers WHERE customer_code = ?',
+                [customer_code.trim()]
+            );
+            
+            if (Array.isArray(existingCodeRows) && existingCodeRows.length > 0) {
+                const existingCustomer = (existingCodeRows as any)[0];
+                throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
+            }
+            
+            // Insert customer (pppoe_username will be set to customer ID after insert)
             const insertQuery = `
                 INSERT INTO customers (
                     customer_code, name, phone, email, address, odc_id, odp_id,
                     connection_type, status, latitude, longitude,
                     pppoe_username, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW())
             `;
             
             console.log('Inserting customer with data:', {
@@ -825,29 +1680,383 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 odc_id, 
                 odp_id, 
                 latitude, 
-                longitude, 
-                username
+                longitude
             });
             
-            const result = await conn.execute(insertQuery, [
+            const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null, 
-                odc_id || null, odp_id, latitude || null, longitude || null, username
+                odc_id || null, odp_id, latitude || null, longitude || null
             ]);
             
             console.log('Insert result:', result);
-            console.log('PPPOE customer saved successfully');
+            const customerId = (result as any)?.insertId;
+            
+            // Validate customerId exists
+            if (!customerId || isNaN(Number(customerId))) {
+                console.error('❌ Invalid customerId from insert:', customerId);
+                console.error('❌ Insert result:', JSON.stringify(result, null, 2));
+                throw new Error('Gagal menyimpan pelanggan: ID tidak valid');
+            }
+            
+            console.log('✅ PPPOE customer saved successfully with ID:', customerId);
+            console.log('📱 Customer phone number:', phone_number || 'NOT SET');
+            console.log('📱 Phone number trimmed:', phone_number ? phone_number.trim() : 'EMPTY');
+            
+            // Update pppoe_username to customer ID (within same transaction)
+            await conn.execute(
+                'UPDATE customers SET pppoe_username = ? WHERE id = ?',
+                [customerId.toString(), customerId]
+            );
+            console.log('✅ Updated pppoe_username to customer ID');
+            
+            // Sync secret ke MikroTik - Name = Customer ID, Comment = Customer Name
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('🔄 ========== MULAI SYNC SECRET KE MIKROTIK ==========');
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('   Customer ID:', customerId);
+            console.log('   Secret name (Customer ID):', customerId.toString());
+            console.log('   Customer name:', client_name);
+            console.log('   Password provided:', password ? 'YES' : 'NO');
+            
+            try {
+                console.log('   Step 1: Import services...');
+                const { getMikrotikConfig } = await import('../services/pppoeService');
+                const { createPppoeSecret, findPppoeSecretIdByName, updatePppoeSecret } = await import('../services/mikrotikService');
+                console.log('   ✅ Services imported');
+                
+                console.log('   Step 2: Get MikroTik config...');
+                const config = await getMikrotikConfig();
+                if (!config) {
+                    console.error('   ❌ MikroTik config tidak ditemukan, skip sync secret');
+                } else {
+                    console.log('   ✅ MikroTik config ditemukan:', {
+                        host: config.host,
+                        port: config.port,
+                        username: config.username
+                    });
+                    
+                    // Get package untuk profile
+                    let profileName = 'GRATIS'; // Default ke 'GRATIS' (uppercase)
+                    try {
+                        console.log('   Step 3: Get package info...');
+                        const { getPackageById } = await import('../services/pppoeService');
+                        const pkg = await getPackageById(Number(package_id));
+                        profileName = pkg?.profile_name || 'GRATIS';
+                        console.log('   ✅ Profile name dari package:', profileName);
+                    } catch (pkgError: any) {
+                        console.error('   ⚠️ Gagal mendapatkan package:', pkgError.message);
+                        console.error('   ⚠️ Akan menggunakan profile default: GRATIS');
+                    }
+                    
+                    // Cek apakah profile ada di MikroTik
+                    console.log('   Step 3.5: Cek profile di MikroTik...');
+                    try {
+                        const { getPppProfiles } = await import('../services/mikrotikService');
+                        const profiles = await getPppProfiles(config);
+                        const profileNames = profiles.map(p => p.name);
+                        console.log('   📋 Profile yang tersedia di MikroTik:', profileNames);
+                        
+                        // Cek apakah profile ada (case-insensitive)
+                        const profileExists = profileNames.some(p => p.toLowerCase() === profileName.toLowerCase());
+                        if (!profileExists) {
+                            console.warn(`   ⚠️ Profile "${profileName}" tidak ditemukan di MikroTik!`);
+                            console.warn(`   ⚠️ Akan mencoba tanpa profile atau gunakan profile pertama yang tersedia`);
+                            
+                            // Coba cari profile yang mirip
+                            const similarProfile = profileNames.find(p => 
+                                p.toLowerCase().includes('gratis') || 
+                                p.toLowerCase().includes('free') ||
+                                p.toLowerCase() === 'default'
+                            );
+                            
+                            if (similarProfile) {
+                                console.log(`   ✅ Menggunakan profile alternatif: "${similarProfile}"`);
+                                profileName = similarProfile;
+                            } else if (profileNames.length > 0) {
+                                console.log(`   ⚠️ Menggunakan profile pertama yang tersedia: "${profileNames[0]}"`);
+                                profileName = profileNames[0];
+                            } else {
+                                console.warn(`   ❌ Tidak ada profile tersedia, akan membuat secret tanpa profile`);
+                                profileName = ''; // Kosongkan untuk tidak set profile
+                            }
+                        } else {
+                            // Gunakan nama profile yang tepat dari MikroTik (case-sensitive)
+                            const exactProfile = profileNames.find(p => p.toLowerCase() === profileName.toLowerCase());
+                            if (exactProfile) {
+                                profileName = exactProfile;
+                            }
+                            console.log(`   ✅ Profile "${profileName}" ditemukan di MikroTik`);
+                        }
+                    } catch (profileError: any) {
+                        console.error('   ⚠️ Error saat cek profile:', profileError.message);
+                        console.error('   ⚠️ Akan lanjut tanpa cek profile');
+                    }
+                    
+                    // Use customer ID as the name for PPPoE secret
+                    const secretName = customerId.toString();
+                    
+                    // Cek apakah secret sudah ada dengan customer ID
+                    console.log('   Step 4: Cek apakah secret sudah ada...');
+                    let existingSecretId = null;
+                    try {
+                        existingSecretId = await findPppoeSecretIdByName(config, secretName);
+                        if (existingSecretId) {
+                            console.log('   ✅ Secret sudah ada dengan ID:', existingSecretId);
+                        } else {
+                            console.log('   ℹ️ Secret belum ada, akan dibuat baru');
+                        }
+                    } catch (findError: any) {
+                        // Ignore error, secret doesn't exist
+                        console.log('   ℹ️ Secret belum ada, akan dibuat baru');
+                    }
+                    
+                    if (existingSecretId) {
+                        console.log('   Step 5: Update secret yang sudah ada...');
+                        try {
+                            await updatePppoeSecret(config, secretName, {
+                                name: secretName, // Use customer ID as name
+                                password: password,
+                                profile: profileName,
+                                comment: client_name // Use customer name as comment
+                            });
+                            console.log(`   ✅ PPPoE secret dengan ID "${secretName}" berhasil di-update di MikroTik`);
+                        } catch (updateError: any) {
+                            console.error('   ❌ Error saat update secret:', updateError.message);
+                            throw updateError;
+                        }
+                    } else {
+                        console.log('   Step 5: Create secret baru...');
+                        console.log('   📤 Data yang akan dikirim:', {
+                            name: secretName, // Customer ID
+                            password: password ? '***' : 'NOT SET',
+                            profile: profileName,
+                            comment: client_name // Customer name
+                        });
+                        
+                        try {
+                            await createPppoeSecret(config, {
+                                name: secretName, // Use customer ID as name
+                                password: password,
+                                profile: profileName,
+                                comment: client_name // Use customer name as comment
+                            });
+                            console.log(`   ✅ PPPoE secret dengan ID "${secretName}" berhasil dibuat di MikroTik`);
+                        } catch (createError: any) {
+                            console.error('   ❌ Error saat create secret:');
+                            console.error('      Error message:', createError.message);
+                            console.error('      Error code:', createError.code);
+                            console.error('      Error name:', createError.name);
+                            console.error('      Error stack:', createError.stack);
+                            throw createError;
+                        }
+                    }
+                }
+                console.log('✅ ========== SYNC SECRET SELESAI ==========');
+            } catch (mikrotikError: any) {
+                console.error('❌ ========== ERROR SYNC SECRET KE MIKROTIK ==========');
+                console.error('   Error type:', typeof mikrotikError);
+                console.error('   Error message:', mikrotikError?.message || 'NO MESSAGE');
+                console.error('   Error code:', mikrotikError?.code || 'N/A');
+                console.error('   Error name:', mikrotikError?.name || 'N/A');
+                console.error('   Error stack:', mikrotikError?.stack || 'NO STACK');
+                console.error('   Customer ID:', customerId);
+                console.error('   Secret name (Customer ID):', customerId.toString());
+                console.error('   Profile name:', profileName);
+                
+                // Log error detail untuk debugging
+                if (mikrotikError?.response) {
+                    console.error('   Error response:', mikrotikError.response);
+                }
+                if (mikrotikError?.request) {
+                    console.error('   Error request:', mikrotikError.request);
+                }
+                
+                // Log full error object untuk debugging
+                try {
+                    console.error('   Full error object:', JSON.stringify(mikrotikError, Object.getOwnPropertyNames(mikrotikError), 2));
+                } catch (stringifyError) {
+                    console.error('   Cannot stringify error object:', stringifyError);
+                }
+                
+                console.error('❌ ========== END ERROR SYNC SECRET ==========');
+                
+                // Non-critical error - customer created successfully
+                // Tapi kita log dengan detail untuk debugging
+            }
+            
+            // Create subscription if enable_billing is checked
+            const enableBilling = enable_billing === '1' || enable_billing === 'on';
+            if (enableBilling && package_id) {
+                try {
+                    const { getPackageById } = await import('../services/pppoeService');
+                    const pkg = await getPackageById(Number(package_id));
+                    
+                    if (pkg) {
+                        const registrationDate = new Date();
+                        const startDate = registrationDate.toISOString().slice(0, 10);
+                        const endDate = new Date(registrationDate);
+                        endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
+                        const endDateStr = endDate.toISOString().slice(0, 10);
+                        
+                        // Insert subscription
+                        const [subResult] = await conn.execute(`
+                            INSERT INTO subscriptions (
+                                customer_id, 
+                                package_id,
+                                package_name, 
+                                price, 
+                                start_date, 
+                                end_date, 
+                                status,
+                                created_at,
+                                updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                        `, [
+                            customerId,
+                            package_id,
+                            pkg.name,
+                            pkg.price,
+                            startDate,
+                            endDateStr
+                        ]);
+                        
+                        console.log('✅ Subscription created for customer:', customerId);
+                        console.log(`   Package: ${pkg.name}, Price: Rp ${pkg.price}, Start: ${startDate}`);
+                    } else {
+                        console.warn('⚠️ Package not found for ID:', package_id);
+                    }
+                } catch (subError) {
+                    console.error('❌ Failed to create subscription:', subError);
+                    // Non-critical error - customer created successfully
+                }
+            }
+            
+            // Commit transaction before sending welcome message
+            await conn.commit();
+            console.log('✅ Database transaction committed successfully');
+            
+            // Send notification to customer and admin (non-blocking)
+            console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
+            try {
+                const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
+                const [packageRows] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT name FROM pppoe_packages WHERE id = ?',
+                    [package_id]
+                );
+                const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
+                
+                console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
+                    customerId,
+                    customerName: client_name,
+                    customerCode: customer_code,
+                    phone: phone_number || 'N/A',
+                    connectionType: 'pppoe',
+                    packageName: packageName || 'N/A'
+                });
+                
+                const result = await CustomerNotificationService.notifyNewCustomer({
+                    customerId: customerId,
+                    customerName: client_name,
+                    customerCode: customer_code,
+                    phone: phone_number || undefined,
+                    connectionType: 'pppoe',
+                    address: address || undefined,
+                    packageName: packageName,
+                    createdBy: (req.session as any).user?.username || undefined
+                });
+                
+                console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
+                
+                if (result.customer.success) {
+                    console.log('✅ Customer notification sent successfully');
+                } else {
+                    console.error('❌ Customer notification failed:', result.customer.message);
+                }
+                
+                if (result.admin.success) {
+                    console.log('✅ Admin notification sent successfully');
+                } else {
+                    console.error('❌ Admin notification failed:', result.admin.message);
+                }
+            } catch (notifError: any) {
+                console.error('❌ [NOTIFICATION] Exception in notification process:', {
+                    message: notifError.message,
+                    stack: notifError.stack,
+                    customerId: customerId
+                });
+                // Non-critical, don't block customer creation
+            }
             
             // Redirect ke halaman sukses atau list pelanggan
             res.redirect('/customers/list?success=pppoe_customer_created');
+        } catch (dbError) {
+            // Rollback transaction on error
+            await conn.rollback();
+            throw dbError;
         } finally {
             conn.release();
         }
         
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error creating PPPOE customer:', error);
         
         // Redirect kembali ke form dengan error
-        res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(error.message));
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(errorMessage));
+    }
+});
+
+// TEST ENDPOINT: Debug create secret PPPoE
+router.get('/test/debug-create-secret', async (req: Request, res: Response) => {
+    try {
+        const testName = req.query.name as string || 'testuser';
+        const testPassword = req.query.password as string || 'test123';
+        const testProfile = req.query.profile as string || 'gratis';
+        
+        console.log('\n\n═══════════════════════════════════════════════════════════');
+        console.log('=== DEBUG CREATE SECRET ===');
+        console.log('═══════════════════════════════════════════════════════════');
+        
+        const { getMikrotikConfig } = await import('../services/pppoeService');
+        const { createPppoeSecret, findPppoeSecretIdByName } = await import('../services/mikrotikService');
+        
+        const config = await getMikrotikConfig();
+        if (!config) {
+            return res.json({ success: false, error: 'MikroTik config tidak ditemukan' });
+        }
+        
+        console.log('Config:', { host: config.host, port: config.port, username: config.username });
+        
+        // Test create
+        try {
+            console.log('Creating secret...');
+            await createPppoeSecret(config, {
+                name: testName,
+                password: testPassword,
+                profile: testProfile,
+                comment: 'Test secret'
+            });
+            
+            // Verify
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const secretId = await findPppoeSecretIdByName(config, testName);
+            
+            res.json({
+                success: true,
+                message: 'Secret created successfully',
+                secretId: secretId,
+                testData: { name: testName, profile: testProfile }
+            });
+        } catch (error: any) {
+            console.error('Error:', error);
+            res.json({
+                success: false,
+                error: error.message,
+                stack: error.stack
+            });
+        }
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -1037,8 +2246,9 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         req.flash('success', 'Pelanggan berhasil diperbarui');
         res.redirect('/packages/static-ip/clients');
         
-    } catch (err: any) {
-        req.flash('error', err.message || 'Gagal memperbarui pelanggan');
+    } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Gagal memperbarui pelanggan';
+        req.flash('error', errorMessage);
         res.redirect(`/customers/edit-static-ip/${req.params.id}`);
     }
 });
@@ -1069,6 +2279,10 @@ router.get('/api/packages/:connectionType', async (req, res) => {
     }
 });
 
+// ============================================
+// API Routes - Must be before generic routes
+// ============================================
+
 // API: Ambil daftar PPPoE secrets untuk pemilihan username/password pada edit pelanggan
 router.get('/api/pppoe/secrets', async (req, res) => {
     try {
@@ -1097,12 +2311,16 @@ router.get('/api/pppoe/secrets', async (req, res) => {
             .filter(item => !usedUsernames.has(item.name)); // Filter out already used usernames
         
         res.json(data);
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error('Error fetching PPPoE secrets:', e);
         // Kembalikan array kosong agar UI tetap bisa jalan sambil menampilkan pesan
         res.json([]);
     }
 });
+
+// API endpoint untuk create/update PPPoE secret - MOVED TO TOP OF FILE (line ~255)
+// This route is now registered early to avoid conflicts
+// DUPLICATE ROUTE - REMOVED FROM HERE
 
 router.post('/customers/new-static-ip', async (req, res) => {
     console.log('=== ROUTE HIT: POST /customers/new-static-ip ===');
@@ -1121,13 +2339,33 @@ router.post('/customers/new-static-ip', async (req, res) => {
             longitude,
             olt_id,
             odc_id,
-            odp_id
+            odp_id,
+            enable_billing
         } = req.body;
         console.log('Parsed data:', { client_name, customer_code, ip_address, package_id, interface: iface });
         
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!ip_address) throw new Error('IP statis wajib diisi (contoh: 192.168.1.1/30)');
         if (!package_id) throw new Error('Paket wajib dipilih');
+        
+        // Validate customer_code if provided
+        if (customer_code && customer_code.trim() !== '') {
+            const conn = await databasePool.getConnection();
+            try {
+                const [existingCodeRows] = await conn.execute(
+                    'SELECT id, name FROM customers WHERE customer_code = ?',
+                    [customer_code.trim()]
+                );
+                
+                if (Array.isArray(existingCodeRows) && existingCodeRows.length > 0) {
+                    const existingCustomer = (existingCodeRows as any)[0];
+                    throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
+                }
+            } finally {
+                conn.release();
+            }
+        }
+        
         const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
         if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
         const pkgId = Number(package_id);
@@ -1151,7 +2389,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
             else if (ipInt === secondHost) peerIp = intToIp(firstHost);
             else peerIp = intToIp(secondHost); // fallback
         }
-        await addClientToPackage(pkgId, {
+        const { customerId } = await addClientToPackage(pkgId, {
             client_name,
             ip_address,
             network,
@@ -1189,9 +2427,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 } else {
                     console.log('No interface specified, skipping IP address addition');
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Failed to add IP address:', error);
-                throw new Error(`Gagal menambahkan IP ke MikroTik: ${error.message}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                throw new Error(`Gagal menambahkan IP ke MikroTik: ${errorMessage}`);
             }
             
             const downloadMark = peerIp;
@@ -1257,7 +2496,125 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 ...(useBurst ? { burstLimit: blUpload, burstThreshold: btUpload, burstTime: btimeUpload } : {})
             });
         }
+        
+        // Create subscription if enable_billing is checked
+        const enableBilling = enable_billing === '1' || enable_billing === 'on';
+        if (enableBilling && package_id) {
+            try {
+                const pkg = await getStaticIpPackageById(pkgId);
+                
+                if (pkg) {
+                    const registrationDate = new Date();
+                    const startDate = registrationDate.toISOString().slice(0, 10);
+                    const endDate = new Date(registrationDate);
+                    endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
+                    const endDateStr = endDate.toISOString().slice(0, 10);
+                    
+                    // Get database connection for subscription
+                    const conn2 = await databasePool.getConnection();
+                    try {
+                        // Insert subscription
+                        const [subResult] = await conn2.execute(`
+                            INSERT INTO subscriptions (
+                                customer_id, 
+                                package_id,
+                                package_name, 
+                                price, 
+                                start_date, 
+                                end_date, 
+                                status,
+                                created_at,
+                                updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                        `, [
+                            customerId,
+                            package_id,
+                            pkg.name,
+                            pkg.price,
+                            startDate,
+                            endDateStr
+                        ]);
+                        
+                        console.log('✅ Subscription created for customer:', customerId);
+                        console.log(`   Package: ${pkg.name}, Price: Rp ${pkg.price}, Start: ${startDate}`);
+                    } finally {
+                        conn2.release();
+                    }
+                } else {
+                    console.warn('⚠️ Package not found for ID:', package_id);
+                }
+            } catch (subError) {
+                console.error('❌ Failed to create subscription:', subError);
+                // Non-critical error - customer created successfully
+            }
+        }
+        
+        
         console.log('Static IP customer saved successfully');
+        
+        // Send notification to customer and admin (non-blocking)
+        console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
+        try {
+            const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
+            const [packageRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT name FROM static_ip_packages WHERE id = ?',
+                [package_id]
+            );
+            const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
+            
+            // Get customer code
+            const [customerRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT customer_code, name, phone, address FROM customers WHERE id = ?',
+                [customerId]
+            );
+            const customer = customerRows.length > 0 ? customerRows[0] : null;
+            
+            if (customer) {
+                console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
+                    customerId,
+                    customerName: customer.name,
+                    customerCode: customer.customer_code || 'N/A',
+                    phone: customer.phone || 'N/A',
+                    connectionType: 'static_ip',
+                    packageName: packageName || 'N/A'
+                });
+                
+                const result = await CustomerNotificationService.notifyNewCustomer({
+                    customerId: customerId,
+                    customerName: customer.name,
+                    customerCode: customer.customer_code || '',
+                    phone: customer.phone || undefined,
+                    connectionType: 'static_ip',
+                    address: customer.address || undefined,
+                    packageName: packageName,
+                    createdBy: (req.session as any).user?.username || undefined
+                });
+                
+                console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
+                
+                if (result.customer.success) {
+                    console.log('✅ Customer notification sent successfully');
+                } else {
+                    console.error('❌ Customer notification failed:', result.customer.message);
+                }
+                
+                if (result.admin.success) {
+                    console.log('✅ Admin notification sent successfully');
+                } else {
+                    console.error('❌ Admin notification failed:', result.admin.message);
+                }
+            } else {
+                console.error('❌ [NOTIFICATION] Customer not found for ID:', customerId);
+            }
+        } catch (notifError: any) {
+            console.error('❌ [NOTIFICATION] Exception in notification process:', {
+                message: notifError.message,
+                stack: notifError.stack,
+                customerId: customerId
+            });
+            // Non-critical, don't block customer creation
+        }
+        
         res.redirect('/customers/list?success=static_ip_customer_created');
     } catch (e) {
         console.error('Error creating static IP client:', e);
@@ -1284,10 +2641,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 ORDER BY o.name
             `);
             
-            // @ts-ignore
+            const errorMessage = e instanceof Error ? e.message : 'Gagal menyimpan';
             res.status(400).render('customers/new_static_ip', { 
                 title: 'Pelanggan IP Statis Baru', 
-                error: e?.message || 'Gagal menyimpan', 
+                error: errorMessage, 
                 packages, 
                 interfaces, 
                 odpData: odpRows,
@@ -1322,9 +2679,10 @@ router.get('/api/test/queue/test-connection', async (req, res) => {
             message: 'Test koneksi MikroTik',
             data: result
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error in test-connection:', error);
-        res.status(500).json({ error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ error: errorMessage });
     }
 });
 
@@ -1349,9 +2707,10 @@ router.get('/api/test/queue/direct-test', async (req, res) => {
             message: 'Direct MikroTik test',
             data: result
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Direct test error:', error);
-        res.status(500).json({ error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ error: errorMessage });
     }
 });
 
@@ -1383,9 +2742,10 @@ router.get('/api/test/queue/create-direct', async (req, res) => {
             message: 'Direct queue creation test completed',
             data: { queueName: 'test-queue-direct' }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Direct queue creation error:', error);
-        res.status(500).json({ error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ error: errorMessage });
     }
 });
 
@@ -1437,9 +2797,10 @@ router.get('/api/test/queue/custom-name-test', async (req, res) => {
                 }
             }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Custom name test error:', error);
-        res.status(500).json({ error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ error: errorMessage });
     }
 });
 
@@ -4004,6 +5365,7 @@ router.get('/about/update-history', getUpdateHistoryPage);
 router.get('/database/management', getDatabaseManagement);
 router.post('/database/fix', fixDatabaseIssues);
 router.post('/database/migrate', runDatabaseMigration);
+router.post('/database/migrate/late-payment-tracking', runLatePaymentTrackingMigration);
 router.get('/database/logs', getDatabaseLogs);
 
 // Backup & Restore routes
@@ -4121,6 +5483,11 @@ router.get('/api/debug/customers/check', async (req, res) => {
 
 
 
+// Initialize new controllers (must be before routes that use them)
+const wsService = (global as any).wsService;
+const reportingController = new ReportingController(databasePool);
+const bulkOperationsController = new BulkOperationsController(databasePool, wsService);
+
 // Bulk Operations Routes
 router.post('/api/bulk/ont/toggle-status', (req, res) => bulkOperationsController.bulkToggleONTStatus(req, res));
 router.post('/api/bulk/ont/sync', (req, res) => bulkOperationsController.bulkSyncONTs(req, res));
@@ -4128,11 +5495,6 @@ router.post('/api/bulk/ont/update-info', (req, res) => bulkOperationsController.
 router.post('/api/bulk/ont/assign', (req, res) => bulkOperationsController.bulkAssignONTs(req, res));
 router.post('/api/bulk/ont/unassign', (req, res) => bulkOperationsController.bulkUnassignONTs(req, res));
 router.get('/api/bulk/operations/history', (req, res) => bulkOperationsController.getBulkOperationHistory(req, res));
-
-// Initialize new controllers
-const wsService = (global as any).wsService;
-const reportingController = new ReportingController(databasePool);
-const bulkOperationsController = new BulkOperationsController(databasePool, wsService);
 
 // Monitoring Page - Duplicate route removed (already defined above)
 
@@ -4261,292 +5623,7 @@ router.get('/billing/reports', (req, res) => {
 // router.get('/billing/accounting/balance-sheet', AccountingController.getBalanceSheet);
 // router.get('/billing/accounting/export', AccountingController.exportReport);
 
-// WhatsApp Routes
-router.get('/whatsapp/dashboard', (req, res) => {
-    res.render('whatsapp/dashboard', { 
-        title: 'WhatsApp Dashboard',
-        statistics: {
-            totalSessions: 0,
-            activeChats: 0,
-            totalMessages: 0,
-            responseRate: 100
-        }
-    });
-});
-router.get('/whatsapp/commands', (req, res) => res.render('whatsapp/commands', { title: 'WhatsApp Commands' }));
-router.get('/whatsapp/sessions', (req, res) => res.render('whatsapp/sessions', { title: 'Chat Sessions', sessions: [] }));
-router.get('/whatsapp/notifications', (req, res) => res.render('whatsapp/notifications', { title: 'Notifications', notifications: [] }));
-router.get('/whatsapp/templates', (req, res) => {
-    const templates = [
-        {
-            id: 1,
-            name: 'Invoice Tagihan Bulanan',
-            category: 'Tagihan',
-            active: true,
-            content: `Halo {{nama_customer}},
 
-📧 *TAGIHAN BULAN {{bulan}}*
-
-Invoice No: {{invoice_number}}
-Paket: {{paket}}
-Periode: {{periode}}
-Total Tagihan: Rp {{total_tagihan}}
-Jatuh Tempo: {{tanggal_jatuh_tempo}}
-
-Silakan lakukan pembayaran sebelum jatuh tempo untuk menghindari isolasi.
-
-💳 *CARA BAYAR:*
-• Transfer ke rekening terdaftar
-• Konfirmasi via WA: "BAYAR {{invoice_number}}"
-
-Terima kasih! 🙏`
-        },
-        {
-            id: 2,
-            name: 'Payment Reminder (3 Hari Sebelum)',
-            category: 'Reminder',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-⏰ *REMINDER PEMBAYARAN*
-
-Tagihan Anda akan jatuh tempo dalam *3 hari*:
-
-Invoice: {{invoice_number}}
-Total: Rp {{total_tagihan}}
-Jatuh Tempo: {{tanggal_jatuh_tempo}}
-
-Mohon segera lakukan pembayaran untuk menjaga layanan tetap aktif.
-
-Terima kasih! 🙏`
-        },
-        {
-            id: 3,
-            name: 'Payment Overdue (Lewat Jatuh Tempo)',
-            category: 'Overdue',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-⚠️ *TAGIHAN TERTUNGGAK*
-
-Tagihan Anda telah melewati jatuh tempo:
-
-Invoice: {{invoice_number}}
-Total: Rp {{total_tagihan}}
-Telat: {{hari_telat}} hari
-Denda: Rp {{denda}}
-
-Mohon segera lakukan pembayaran untuk menghindari isolasi layanan.
-
-Jika sudah bayar, silakan konfirmasi.
-
-Terima kasih! 🙏`
-        },
-        {
-            id: 4,
-            name: 'Isolasi Warning (1 Hari Sebelum)',
-            category: 'Isolasi',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-🚨 *PERINGATAN ISOLASI*
-
-Layanan internet Anda akan di-ISOLASI besok karena tagihan belum terbayar:
-
-Invoice: {{invoice_number}}
-Total + Denda: Rp {{total_dengan_denda}}
-Tunggakan: {{hari_telat}} hari
-
-Segera lakukan pembayaran untuk menghindari isolasi!
-
-💳 Transfer & Konfirmasi sekarang juga.`
-        },
-        {
-            id: 5,
-            name: 'Isolasi Notification',
-            category: 'Isolasi',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-⛔ *LAYANAN DI-ISOLASI*
-
-Layanan internet Anda telah di-isolasi karena tagihan tertunggak:
-
-Invoice: {{invoice_number}}
-Total: Rp {{total_dengan_denda}}
-
-Untuk aktivasi kembali:
-1. Bayar tagihan + denda
-2. Konfirmasi pembayaran ke kami
-3. Layanan akan aktif max 1 jam
-
-Hubungi CS untuk info lebih lanjut.`
-        },
-        {
-            id: 6,
-            name: 'Payment Confirmation',
-            category: 'Konfirmasi',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-✅ *PEMBAYARAN DITERIMA*
-
-Terima kasih! Pembayaran Anda telah kami terima:
-
-Invoice: {{invoice_number}}
-Jumlah: Rp {{jumlah_bayar}}
-Tanggal: {{tanggal_bayar}}
-Status: LUNAS ✅
-
-Layanan Anda tetap aktif.
-
-Terima kasih atas kepercayaan Anda! 🙏`
-        },
-        {
-            id: 7,
-            name: 'Unisolasi Success',
-            category: 'Aktivasi',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-✅ *LAYANAN AKTIF KEMBALI*
-
-Layanan internet Anda telah di-AKTIVASI kembali!
-
-Pembayaran: LUNAS
-Status: AKTIF ✅
-
-Silakan cek koneksi internet Anda.
-Jika masih ada masalah, hubungi CS kami.
-
-Terima kasih! 🙏`
-        },
-        {
-            id: 8,
-            name: 'Welcome New Customer',
-            category: 'Welcome',
-            active: true,
-            content: `Selamat Datang {{nama_customer}}! 👋
-
-Terima kasih telah bergabung dengan kami!
-
-📝 *DATA ANDA:*
-Customer ID: {{customer_id}}
-Paket: {{paket}}
-Kecepatan: {{speed}}
-
-📱 *INFO PENTING:*
-• Tagihan akan dikirim setiap tanggal {{tanggal_tagihan}}
-• Jatuh tempo: {{jatuh_tempo}} hari setelahnya
-• Ketik "MENU" untuk bantuan
-
-Selamat menikmati layanan internet kami! 🚀`
-        },
-        {
-            id: 9,
-            name: 'Customer Service Response',
-            category: 'CS',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-Terima kasih telah menghubungi kami.
-
-Untuk bantuan lebih lanjut, silakan pilih:
-
-1️⃣ Cek Tagihan: ketik "TAGIHAN"
-2️⃣ Konfirmasi Bayar: ketik "BAYAR"
-3️⃣ Komplain: ketik "KOMPLAIN"
-4️⃣ Informasi Paket: ketik "PAKET"
-
-Atau hubungi CS: {{nomor_cs}}
-
-Kami siap membantu! 😊`
-        },
-        {
-            id: 10,
-            name: 'Maintenance Notification',
-            category: 'Info',
-            active: true,
-            content: `Pemberitahuan Maintenance
-
-Kepada Yth. Pelanggan setia kami,
-
-🔧 *JADWAL MAINTENANCE*
-
-Tanggal: {{tanggal}}
-Waktu: {{waktu_mulai}} - {{waktu_selesai}}
-Area: {{area}}
-
-Layanan internet akan terputus sementara.
-
-Mohon maaf atas ketidaknyamanannya.
-
-Terima kasih atas pengertian Anda! 🙏`
-        },
-        {
-            id: 11,
-            name: 'Complaint Received',
-            category: 'Komplain',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-✅ *KOMPLAIN DITERIMA*
-
-Nomor Tiket: {{ticket_number}}
-Keluhan: {{deskripsi}}
-
-Tim teknis kami akan segera menindaklanjuti.
-
-Estimasi penanganan: {{estimasi}}
-
-Terima kasih atas kesabaran Anda! 🙏`
-        },
-        {
-            id: 12,
-            name: 'Package Upgrade Info',
-            category: 'Upgrade',
-            active: true,
-            content: `Halo {{nama_customer}},
-
-🚀 *UPGRADE PAKET INTERNET*
-
-Paket Sekarang: {{paket_lama}} ({{speed_lama}})
-Paket Baru: {{paket_baru}} ({{speed_baru}})
-
-Selisih Harga: Rp {{selisih}}/bulan
-Berlaku: {{tanggal_berlaku}}
-
-Untuk upgrade, silakan hubungi CS atau ketik "UPGRADE"
-
-Tingkatkan pengalaman internet Anda! ✨`
-        }
-    ];
-    
-    res.render('whatsapp/templates', { 
-        title: 'Message Templates',
-        templates: templates
-    });
-});
-router.get('/whatsapp/binding', (req, res) => res.render('whatsapp/binding', { title: 'WhatsApp Web Binding' }));
-
-// WhatsApp Web Routes
-import whatsappWebRoutes from './whatsappWeb';
-router.use('/whatsapp-web', whatsappWebRoutes);
-
-// Legacy WhatsApp routes - DISABLED (controller not imported)
-// router.get('/billing/whatsapp-bot', WhatsAppBotController.getBotDashboard);
-// router.post('/billing/whatsapp-bot/webhook', WhatsAppBotController.receiveMessage);
-// router.post('/billing/whatsapp-bot/upload', WhatsAppBotController.handleImageUpload);
-// router.get('/billing/whatsapp-bot/sessions', WhatsAppBotController.getBotSessions);
-// router.get('/billing/whatsapp-bot/sessions/:session_id/messages', WhatsAppBotController.getSessionMessages);
-// router.get('/billing/whatsapp-bot/transfer-proofs', WhatsAppBotController.getTransferProofs);
-// router.post('/billing/whatsapp-bot/transfer-proofs/:proof_id/approve', WhatsAppBotController.approveTransferProof);
-// router.post('/billing/whatsapp-bot/transfer-proofs/:proof_id/reject', WhatsAppBotController.rejectTransferProof);
-// router.get('/billing/whatsapp-bot/ai-analysis', WhatsAppBotController.getAIAnalysis);
-// router.get('/billing/whatsapp-bot/translation-stats', WhatsAppBotController.getTranslationStats);
-// router.post('/billing/whatsapp-bot/test', WhatsAppBotController.testBot);
-// router.get('/billing/whatsapp-bot/config', WhatsAppBotController.getBotConfig);
-// router.post('/billing/whatsapp-bot/config', WhatsAppBotController.updateBotConfig);
 
 // Machine Learning Routes - DISABLED (controller not imported)
 // import { MachineLearningController } from '../controllers/billing/machineLearningController';
@@ -4633,19 +5710,175 @@ router.get('/billing/payment', (req, res) => {
 
 
 // Routes dengan parameter harus di bawah routes yang lebih spesifik
-router.get('/customers/:id/edit', getCustomerEdit);
-router.get('/customers/:id', getCustomerDetail);
-router.post('/customers/:id', postCustomerUpdate);
-router.put('/customers/:id', postCustomerUpdate);
-router.patch('/customers/:id', postCustomerUpdate);
+// Customer detail and edit routes - MUST be after migration routes but before generic /customers/:id routes
+router.get('/customers/:id/edit', (req, res, next) => {
+    console.log('[ROUTE] GET /customers/:id/edit - Customer ID:', req.params.id);
+    getCustomerEdit(req, res, next);
+});
 
-// Migration endpoints
+// Migration endpoints - MUST be before generic /customers/:id routes
 router.post('/customers/:id/migrate-to-prepaid', migrateToPrepaid);
 router.post('/customers/:id/migrate-to-postpaid', migrateToPostpaid);
-router.get('/customers/:id/migration-history', getMigrationHistory);
 
-router.delete('/customers/:id', deleteCustomer);
+// DELETE route must be BEFORE GET route to ensure proper routing
+router.delete('/customers/:id', authMiddleware.requireAuth.bind(authMiddleware), async (req, res) => {
+    try {
+        const { deleteCustomer } = await import('../controllers/customerController');
+        return deleteCustomer(req as any, res as any);
+    } catch (error) {
+        console.error('Error in delete customer route:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        // Ensure JSON response
+        res.status(500).json({
+            success: false,
+            error: errorMessage
+        });
+    }
+});
 
+// POST/PUT/PATCH routes must be BEFORE GET route to avoid conflicts
+router.post('/customers/:id', updateCustomer);
+router.put('/customers/:id', updateCustomer);
+router.patch('/customers/:id', updateCustomer);
+router.get('/customers/:id', (req, res, next) => {
+    console.log('[ROUTE] GET /customers/:id - Customer ID:', req.params.id);
+    getCustomerDetail(req, res, next);
+});
+// router.post('/customers/:id/fix-prepaid', fixPrepaidCustomer); // COMMENTED OUT - not exported
+// router.post('/prepaid/fix-all-customers', fixAllPrepaidCustomers); // COMMENTED OUT - not exported
+// router.get('/customers/:id/debug-ip', debugCheckCustomerIP); // COMMENTED OUT - not exported
+// router.get('/customers/:id/check', checkCustomerExists); // COMMENTED OUT - not exported
+// router.get('/prepaid/customers/list', listPrepaidCustomers); // COMMENTED OUT - not exported
+// router.get('/customers/search', searchCustomerByName); // COMMENTED OUT - not exported
+// router.get('/quick-fix-ip', quickFixIP); // COMMENTED OUT - not exported
+// router.get('/quick-fix-customer', quickFixCustomerByName); // COMMENTED OUT - not exported
+// router.get('/quick-check-customer/:id', quickCheckCustomer); // COMMENTED OUT - not exported
+router.get('/test-mikrotik-address-lists', testMikrotikAddressLists);
+// router.post('/test/add-ip-to-list', testAddIPToAddressList); // COMMENTED OUT - not exported
+// router.get('/customers/:id/migration-history', getMigrationHistory); // COMMENTED OUT - not exported
+
+// Reset customer to postpaid (useful for testing/support)
+router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
+    try {
+        const customerId = parseInt(req.params.customerId);
+        if (!customerId || isNaN(customerId)) {
+            return res.json({ success: false, error: 'Invalid customer ID' });
+        }
+        
+        console.log(`\n🧪 Resetting customer ${customerId} to postpaid...`);
+        
+        // Get customer data first to get IP and connection type
+        const [customers] = await databasePool.query<RowDataPacket[]>(
+            'SELECT id, name, connection_type FROM customers WHERE id = ?',
+            [customerId]
+        );
+        
+        if (customers.length === 0) {
+            return res.json({ success: false, error: 'Customer tidak ditemukan' });
+        }
+        
+        const customer = customers[0];
+        
+        // Get customer IP if static IP
+        let ipAddress = null;
+        if (customer.connection_type === 'static_ip') {
+            const [staticIPs] = await databasePool.query<RowDataPacket[]>(
+                'SELECT ip_address FROM static_ip_clients WHERE customer_id = ? LIMIT 1',
+                [customerId]
+            );
+            if (staticIPs.length > 0) {
+                // Calculate IP from CIDR if needed (/30 subnet)
+                const rawIP = staticIPs[0].ip_address;
+                
+                // Helper function to calculate customer IP
+                const calculateCustomerIP = (cidrAddress: string): string => {
+                    try {
+                        const [ipPart, prefixStr] = cidrAddress.split('/');
+                        const prefix = prefixStr ? parseInt(prefixStr, 10) : 0;
+                        
+                        // For /30 subnet: network, gateway (.1), customer (.2), broadcast
+                        if (prefix === 30) {
+                            const ipToInt = (ip: string): number => {
+                                return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
+                            };
+                            
+                            const intToIp = (int: number): string => {
+                                return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                            };
+                            
+                            const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                            const networkInt = ipToInt(ipPart) & mask;
+                            const firstHost = networkInt + 1;  // Gateway
+                            const secondHost = networkInt + 2; // Customer
+                            const ipInt = ipToInt(ipPart);
+                            
+                            if (ipInt === firstHost) {
+                                return intToIp(secondHost);
+                            } else if (ipInt === secondHost) {
+                                return ipPart;
+                            } else {
+                                return intToIp(secondHost);
+                            }
+                        }
+                        
+                        return ipPart; // No CIDR or not /30
+                    } catch (e) {
+                        return cidrAddress.split('/')[0]; // Fallback to IP part only
+                    }
+                };
+                
+                ipAddress = calculateCustomerIP(rawIP);
+                console.log(`🧪 IP calculated: ${rawIP} -> ${ipAddress}`);
+            }
+        }
+        
+        // Remove from prepaid address lists if IP exists
+        if (ipAddress) {
+            console.log(`🧪 Removing IP ${ipAddress} from prepaid address lists...`);
+            try {
+                const getMikrotikConfig = (await import('../utils/mikrotikConfigHelper')).getMikrotikConfig;
+                const settings = await getMikrotikConfig();
+                
+                if (settings) {
+                    const MikrotikAddressListService = (await import('../services/mikrotik/MikrotikAddressListService')).default;
+                    const addressListService = new MikrotikAddressListService({
+                        host: settings.host,
+                        port: Number(settings.port || 8728),
+                        username: settings.username,
+                        password: settings.password
+                    });
+                    
+                    // Remove from all prepaid lists
+                    await addressListService.removeFromAddressList('prepaid-no-package', ipAddress);
+                    await addressListService.removeFromAddressList('prepaid-active', ipAddress);
+                    console.log(`✅ IP removed from prepaid address lists`);
+                }
+            } catch (addrError) {
+                console.warn(`⚠️ Failed to remove from address list (non-critical):`, addrError);
+            }
+        }
+        
+        // Update database
+        await databasePool.query('UPDATE customers SET billing_mode = ? WHERE id = ?', ['postpaid', customerId]);
+        await databasePool.query('UPDATE customers SET is_isolated = ? WHERE id = ?', [0, customerId]);
+        
+        console.log(`✅ Customer ${customerId} reset to postpaid`);
+        
+        res.json({
+            success: true,
+            message: `Customer ${customerId} reset to postpaid - ready for testing`
+        });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('🧪 Reset error:', errorMessage);
+        res.status(500).json({
+            success: false,
+            error: errorMessage
+        });
+    }
+});
+
+// DELETE route must be before GET route to ensure proper routing
 // Quick fix endpoint for SLA views
 router.get('/fix-sla-views', async (req, res) => {
     try {

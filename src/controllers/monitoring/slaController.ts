@@ -84,7 +84,11 @@ export class SLAController {
      */
     async customerDetail(req: Request, res: Response): Promise<void> {
         try {
-            const customerId = parseInt(req.params.customerId);
+            const { customerId } = req.params;
+        if (!customerId) {
+            return res.status(400).json({ success: false, error: 'customerId is required' });
+        }
+        const parsedCustomerId = parseInt(customerId);
             const month = req.query.month as string || new Date().toISOString().slice(0, 7);
             const monthDate = new Date(month + '-01');
             
@@ -112,7 +116,7 @@ export class SLAController {
                 LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
                 LEFT JOIN static_ip_packages sp ON c.connection_type = 'static_ip' AND sic.package_id = sp.id
                 WHERE c.id = ?
-            `, [customerId]);
+            `, [parsedCustomerId]);
             
             if (customers.length === 0) {
                 res.status(404).json({ success: false, message: 'Customer not found' });
@@ -122,7 +126,7 @@ export class SLAController {
             const customer = customers[0];
             
             // Get SLA record for the month
-            const slaRecord = await slaMonitoringService.getCustomerSLASummary(customerId, monthDate);
+            const slaRecord = await slaMonitoringService.getCustomerSLASummary(parsedCustomerId, monthDate);
             
             // Get incidents history
             const [incidents] = await pool.query<RowDataPacket[]>(`
@@ -135,18 +139,21 @@ export class SLAController {
                     AND start_time >= ?
                     AND start_time < DATE_ADD(?, INTERVAL 1 MONTH)
                 ORDER BY start_time DESC
-            `, [customerId, monthDate, monthDate]);
+            `, [parsedCustomerId, monthDate, monthDate]);
             
             // Get bandwidth data (if PPPoE)
             let bandwidthData = null;
+            if (!customer) {
+                return res.status(404).json({ success: false, error: 'Customer not found' });
+            }
             if (customer.service_type === 'pppoe') {
-                bandwidthData = await bandwidthLogService.getCustomerBandwidth24h(customerId);
+                bandwidthData = await bandwidthLogService.getCustomerBandwidth24h(parsedCustomerId);
             }
             
             // Get ping status (if Static IP)
             let pingStatus = null;
             if (customer.service_type === 'static_ip') {
-                pingStatus = await pingService.getCustomerStatus(customerId);
+                pingStatus = await pingService.getCustomerStatus(parsedCustomerId);
             }
             
             // Get monthly SLA history (last 6 months)
@@ -242,7 +249,7 @@ export class SLAController {
                 WHERE ${whereClause}
             `, params);
             
-            const total = countResult[0].total;
+            const total = countResult[0]?.total || 0;
             const totalPages = Math.ceil(total / limit);
             
             // Get areas for filter
@@ -282,7 +289,11 @@ export class SLAController {
      */
     async excludeIncident(req: Request, res: Response): Promise<void> {
         try {
-            const incidentId = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             const { exclude_reason, exclude_notes } = req.body;
             
             // Validate exclude reason
@@ -326,7 +337,11 @@ export class SLAController {
      */
     async approveDiscount(req: Request, res: Response): Promise<void> {
         try {
-            const slaRecordId = parseInt(req.params.id);
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
             const userId = (req.user as any)?.id;
             
             if (!userId) {
@@ -357,9 +372,13 @@ export class SLAController {
      */
     async getBandwidthTrend(req: Request, res: Response): Promise<void> {
         try {
-            const customerId = parseInt(req.params.customerId);
+            const { customerId } = req.params;
+        if (!customerId) {
+            return res.status(400).json({ success: false, error: 'customerId is required' });
+        }
+        const parsedCustomerId = parseInt(customerId);
             
-            const trend = await bandwidthLogService.getBandwidthTrend24h(customerId);
+            const trend = await bandwidthLogService.getBandwidthTrend24h(parsedCustomerId);
             
             res.json({ 
                 success: true, 

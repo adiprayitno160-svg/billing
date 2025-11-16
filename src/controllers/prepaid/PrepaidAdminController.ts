@@ -99,11 +99,11 @@ class PrepaidAdminController {
         if (mtSettingsRows && mtSettingsRows.length > 0) {
           const mtSettings = mtSettingsRows[0];
           const config: MikroTikConfig = {
-            host: mtSettings.host,
-            port: mtSettings.port,
-            username: mtSettings.username,
-            password: mtSettings.password,
-            use_tls: mtSettings.use_tls
+            host: mtSettings?.host || '',
+            port: mtSettings?.port || 8728,
+            username: mtSettings?.username || '',
+            password: mtSettings?.password || '',
+            use_tls: mtSettings?.use_tls ?? false
           };
           
           mikrotikInfo = await getMikrotikInfo(config);

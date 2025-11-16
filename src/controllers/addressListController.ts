@@ -21,9 +21,12 @@ export class AddressListController {
 	}
 
 	static async getAddressListById(req: Request, res: Response) {
-		try {
-			const { id } = req.params;
-			const addressList = await AddressListService.getAddressListWithItems(parseInt(id));
+	try {
+		const { id } = req.params;
+		if (!id) {
+			return res.status(400).json({ success: false, error: 'ID is required' });
+		}
+		const addressList = await AddressListService.getAddressListWithItems(parseInt(id));
 			
 			if (!addressList) {
 				return res.status(404).json({
@@ -88,6 +91,9 @@ export class AddressListController {
 	static async updateAddressList(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
+			if (!id) {
+				return res.status(400).json({ success: false, error: 'ID is required' });
+			}
 			const { name, description, status } = req.body;
 
 			// Check if name already exists (if name is being changed)
@@ -131,6 +137,9 @@ export class AddressListController {
 	static async deleteAddressList(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
+			if (!id) {
+				return res.status(400).json({ success: false, error: 'ID is required' });
+			}
 			const addressList = await AddressListService.getAddressListById(parseInt(id));
 			
 			if (!addressList) {
@@ -143,7 +152,7 @@ export class AddressListController {
 			// Remove from MikroTik first
 			await AddressListMikrotikService.removeAddressListFromMikrotik(addressList.name);
 
-			const deleted = await AddressListService.deleteAddressList(parseInt(id));
+			const deleted = await AddressListService.deleteAddressList(parseInt(id!));
 			
 			if (!deleted) {
 				return res.status(500).json({
@@ -169,6 +178,9 @@ export class AddressListController {
 	static async getAddressListItems(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
+			if (!id) {
+				return res.status(400).json({ success: false, error: 'ID is required' });
+			}
 			const items = await AddressListService.getAddressListItems(parseInt(id));
 			
 			res.json({
@@ -187,6 +199,9 @@ export class AddressListController {
 	static async createAddressListItem(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
+			if (!id) {
+				return res.status(400).json({ success: false, error: 'ID is required' });
+			}
 			const { address, comment, disabled } = req.body;
 
 			if (!address) {
@@ -226,6 +241,9 @@ export class AddressListController {
 	static async updateAddressListItem(req: Request, res: Response) {
 		try {
 			const { id, itemId } = req.params;
+			if (!id || !itemId) {
+				return res.status(400).json({ success: false, error: 'ID and itemId are required' });
+			}
 			const { address, comment, disabled } = req.body;
 
 			const existingItem = await AddressListService.getAddressListItemById(parseInt(itemId));
@@ -271,6 +289,9 @@ export class AddressListController {
 	static async deleteAddressListItem(req: Request, res: Response) {
 		try {
 			const { id, itemId } = req.params;
+			if (!id || !itemId) {
+				return res.status(400).json({ success: false, error: 'ID and itemId are required' });
+			}
 
 			const item = await AddressListService.getAddressListItemById(parseInt(itemId));
 			if (!item) {
@@ -312,6 +333,9 @@ export class AddressListController {
 	static async createBulkAddressListItems(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
+			if (!id) {
+				return res.status(400).json({ success: false, error: 'ID is required' });
+			}
 			const { addresses } = req.body;
 
 			if (!addresses || !Array.isArray(addresses)) {
@@ -347,6 +371,9 @@ export class AddressListController {
 	static async syncAddressListToMikrotik(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
+			if (!id) {
+				return res.status(400).json({ success: false, error: 'ID is required' });
+			}
 			const result = await AddressListMikrotikService.syncAddressListToMikrotik(parseInt(id));
 
 			if (result) {
@@ -390,6 +417,9 @@ export class AddressListController {
 	static async getAddressListFromMikrotik(req: Request, res: Response) {
 		try {
 			const { listName } = req.params;
+			if (!listName || typeof listName !== 'string') {
+				return res.status(400).json({ success: false, error: 'listName is required' });
+			}
 			const addresses = await AddressListMikrotikService.getAddressListFromMikrotik(listName);
 
 			res.json({

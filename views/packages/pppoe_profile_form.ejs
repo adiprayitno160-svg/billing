@@ -1,4 +1,4 @@
-<div class="space-y-6">
+﻿<div class="space-y-6 pb-24">
     <div class="mb-6">
         <div class="flex items-center gap-3 mb-2">
             <a href="/packages/pppoe/profiles" class="text-blue-600 hover:text-blue-800">
@@ -130,6 +130,51 @@
             <!-- Burst Limiting Section -->
             <div class="border-t border-slate-200 pt-6">
                 <h3 class="text-lg font-semibold text-slate-800 mb-4">🚀 Burst Limiting (Opsional)</h3>
+                
+                <!-- Burst Calculator -->
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-semibold text-purple-900">
+                            <i class="fas fa-calculator mr-2"></i>
+                            Burst Queue Calculator
+                        </h4>
+                        <button type="button" onclick="calculateBurst()" class="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">
+                            <i class="fas fa-calculator mr-1"></i>Hitung
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs text-purple-700 mb-1">Rate Limit RX</label>
+                            <input type="text" id="calc_rate_rx" placeholder="10M" 
+                                   class="w-full rounded border border-purple-300 px-2 py-1.5 text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-purple-700 mb-1">Burst Multiplier</label>
+                            <select id="calc_multiplier" class="w-full rounded border border-purple-300 px-2 py-1.5 text-sm">
+                                <option value="1.5">1.5x (Moderate)</option>
+                                <option value="2" selected>2x (Standard)</option>
+                                <option value="2.5">2.5x (High)</option>
+                                <option value="3">3x (Very High)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-purple-700 mb-1">Burst Time (seconds)</label>
+                            <input type="number" id="calc_time" value="10" min="1" max="60"
+                                   class="w-full rounded border border-purple-300 px-2 py-1.5 text-sm" />
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-purple-200">
+                        <p class="text-xs text-purple-700 mb-2">Rekomendasi:</p>
+                        <div class="text-xs text-purple-800 space-y-1">
+                            <div><strong>Burst Limit:</strong> <span id="calc_result_burst">-</span></div>
+                            <div><strong>Burst Threshold:</strong> <span id="calc_result_threshold">-</span></div>
+                            <div><strong>Burst Time:</strong> <span id="calc_result_time">-</span></div>
+                        </div>
+                        <button type="button" onclick="applyBurstCalculation()" class="mt-2 px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">
+                            <i class="fas fa-check mr-1"></i>Terapkan ke Form
+                        </button>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">
@@ -229,4 +274,64 @@
         </form>
     </div>
 </div>
+
+<script>
+function parseSpeed(speed) {
+    if (!speed) return 0;
+    speed = speed.toString().trim();
+    const num = parseFloat(speed);
+    if (speed.toUpperCase().includes('G')) return num * 1000;
+    if (speed.toUpperCase().includes('M')) return num;
+    if (speed.toUpperCase().includes('K')) return num / 1000;
+    return num;
+}
+
+function formatSpeed(mbps) {
+    if (mbps >= 1000) return (mbps / 1000).toFixed(1) + 'G';
+    if (mbps >= 1) return mbps.toFixed(1) + 'M';
+    return (mbps * 1000).toFixed(0) + 'K';
+}
+
+function calculateBurst() {
+    const rateRx = document.getElementById('calc_rate_rx').value;
+    const multiplier = parseFloat(document.getElementById('calc_multiplier').value);
+    const time = document.getElementById('calc_time').value;
+    
+    if (!rateRx) {
+        alert('Masukkan Rate Limit RX terlebih dahulu');
+        return;
+    }
+    
+    const rateMbps = parseSpeed(rateRx);
+    const burstLimit = rateMbps * multiplier;
+    const threshold = rateMbps * 0.8; // 80% of rate limit
+    
+    document.getElementById('calc_result_burst').textContent = formatSpeed(burstLimit) + ' (RX/TX)';
+    document.getElementById('calc_result_threshold').textContent = formatSpeed(threshold) + ' (RX/TX)';
+    document.getElementById('calc_result_time').textContent = time + 's (RX/TX)';
+    
+    // Store calculation results
+    window.burstCalc = {
+        burstLimit: formatSpeed(burstLimit),
+        threshold: formatSpeed(threshold),
+        time: time + 's'
+    };
+}
+
+function applyBurstCalculation() {
+    if (!window.burstCalc) {
+        alert('Hitung terlebih dahulu!');
+        return;
+    }
+    
+    document.querySelector('input[name="burst_limit_rx"]').value = window.burstCalc.burstLimit;
+    document.querySelector('input[name="burst_limit_tx"]').value = window.burstCalc.burstLimit;
+    document.querySelector('input[name="burst_threshold_rx"]').value = window.burstCalc.threshold;
+    document.querySelector('input[name="burst_threshold_tx"]').value = window.burstCalc.threshold;
+    document.querySelector('input[name="burst_time_rx"]').value = window.burstCalc.time;
+    document.querySelector('input[name="burst_time_tx"]').value = window.burstCalc.time;
+    
+    alert('Nilai burst telah diterapkan ke form!');
+}
+</script>
 

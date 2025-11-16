@@ -1,11 +1,123 @@
 import { databasePool } from '../../db/pool';
+import { BillingLogService } from './BillingLogService';
+import { RowDataPacket } from 'mysql2';
+
+// Type definitions for query results
+interface BillingStatistics extends RowDataPacket {
+    active_customers: number;
+    isolated_customers: number;
+    pending_bills: number;
+    overdue_bills: number;
+    paid_bills: number;
+    monthly_revenue: number;
+    successful_payments: number;
+    total_customers: number;
+    overdue_amount: number;
+    pending_amount: number;
+}
+
+interface BillingTrend extends RowDataPacket {
+    date: Date;
+    total_bills: number;
+    paid_bills: number;
+    overdue_bills: number;
+    revenue: number;
+}
+
+interface CustomerPaymentBehavior extends RowDataPacket {
+    id: number;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    total_invoices: number;
+    paid_invoices: number;
+    overdue_invoices: number;
+    avg_payment_delay: number | null;
+    is_isolated: boolean;
+    last_invoice_date: Date | null;
+}
+
+interface OverdueCustomer extends RowDataPacket {
+    id: number;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    invoice_id: number;
+    amount: number;
+    due_date: Date;
+    days_overdue: number;
+    status: string;
+}
+
+interface BillingActivity extends RowDataPacket {
+    activity_type: 'isolation' | 'restore' | 'payment' | 'invoice';
+    description: string;
+    timestamp: Date;
+    status: 'warning' | 'success' | 'info';
+    reason: string | null;
+}
+
+interface NotificationCount extends RowDataPacket {
+    count: string;
+}
+
+interface AutoActionsSettings extends RowDataPacket {
+    auto_isolate: string | null;
+    auto_restore: string | null;
+    auto_notifications: string | null;
+}
+
+interface CustomerSearchResult extends RowDataPacket {
+    id: number;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    is_isolated: boolean;
+    total_invoices: number;
+    overdue_count: number;
+    last_due_date: Date | null;
+}
+
+interface SystemHealthMetrics {
+    database: {
+        connected: boolean;
+        status: 'healthy' | 'unhealthy';
+    };
+    notifications: {
+        failures_last_7_days: number;
+        status: 'healthy' | 'warning' | 'unknown';
+    };
+    auto_actions: {
+        isolate: boolean;
+        restore: boolean;
+        notifications: boolean;
+    };
+    overall_status: 'healthy' | 'warning' | 'unhealthy';
+}
+
+interface SlaStatistics {
+    overall_sla?: number;
+    sla_incidents?: number;
+    sla_compliance?: number;
+    total?: number;
+    compliant?: number;
+    nonCompliant?: number;
+}
+
+interface DashboardSummary {
+    billing: BillingStatistics;
+    system: SystemHealthMetrics;
+    activities: BillingActivity[];
+    sla: SlaStatistics;
+    timestamp: string;
+}
 
 export class BillingDashboardService {
     
     /**
      * Get comprehensive billing statistics
      */
-    static async getBillingStatistics() {
+    static async getBillingStatistics(): Promise<BillingStatistics> {
         try {
             const query = `
                 SELECT 
@@ -21,10 +133,21 @@ export class BillingDashboardService {
                     (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE status IN ('sent', 'partial')) as pending_amount
             `;
             
-            const [result] = await databasePool.execute(query);
-            return (result as any)[0];
+            const [result] = await databasePool.execute<BillingStatistics[]>(query);
+            const stats = result[0];
+            
+            if (!stats) {
+                throw new Error('Failed to retrieve billing statistics');
+            }
+            
+            // Log successful retrieval
+            await BillingLogService.info('billing', 'BillingDashboard', 'Billing statistics retrieved', {
+                stats
+            });
+            
+            return stats;
         } catch (error) {
-            console.error('Error getting billing statistics:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting billing statistics', error as Error);
             throw error;
         }
     }
@@ -32,7 +155,7 @@ export class BillingDashboardService {
     /**
      * Get billing trends for charts
      */
-    static async getBillingTrends(days: number = 30) {
+    static async getBillingTrends(days: number = 30): Promise<BillingTrend[]> {
         try {
             const query = `
                 SELECT 
@@ -47,10 +170,11 @@ export class BillingDashboardService {
                 ORDER BY date DESC
             `;
             
-            const [result] = await databasePool.execute(query, [days]);
+            const [result] = await databasePool.execute<BillingTrend[]>(query, [days]);
+            await BillingLogService.info('billing', 'BillingDashboard', `Billing trends retrieved for ${days} days`);
             return result;
         } catch (error) {
-            console.error('Error getting billing trends:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting billing trends', error as Error);
             throw error;
         }
     }
@@ -58,7 +182,7 @@ export class BillingDashboardService {
     /**
      * Get customer payment behavior
      */
-    static async getCustomerPaymentBehavior() {
+    static async getCustomerPaymentBehavior(): Promise<CustomerPaymentBehavior[]> {
         try {
             const query = `
                 SELECT 
@@ -79,10 +203,11 @@ export class BillingDashboardService {
                 LIMIT 50
             `;
             
-            const [result] = await databasePool.execute(query);
+            const [result] = await databasePool.execute<CustomerPaymentBehavior[]>(query);
+            await BillingLogService.info('billing', 'BillingDashboard', 'Customer payment behavior retrieved');
             return result;
         } catch (error) {
-            console.error('Error getting customer payment behavior:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting customer payment behavior', error as Error);
             throw error;
         }
     }
@@ -90,7 +215,7 @@ export class BillingDashboardService {
     /**
      * Get overdue customers for quick action
      */
-    static async getOverdueCustomers(limit: number = 20) {
+    static async getOverdueCustomers(limit: number = 20): Promise<OverdueCustomer[]> {
         try {
             const query = `
                 SELECT 
@@ -111,10 +236,15 @@ export class BillingDashboardService {
                 LIMIT ?
             `;
             
-            const [result] = await databasePool.execute(query, [limit]);
+            const [result] = await databasePool.execute<OverdueCustomer[]>(query, [limit]);
+            const overdueCount = result.length;
+            await BillingLogService.info('billing', 'BillingDashboard', `Retrieved ${overdueCount} overdue customers`, {
+                limit,
+                count: overdueCount
+            });
             return result;
         } catch (error) {
-            console.error('Error getting overdue customers:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting overdue customers', error as Error);
             throw error;
         }
     }
@@ -122,7 +252,7 @@ export class BillingDashboardService {
     /**
      * Get recent billing activities
      */
-    static async getRecentBillingActivities(limit: number = 20) {
+    static async getRecentBillingActivities(limit: number = 20): Promise<BillingActivity[]> {
         try {
             const query = `
                 SELECT 
@@ -177,10 +307,11 @@ export class BillingDashboardService {
                 LIMIT ?
             `;
             
-            const [result] = await databasePool.execute(query, [limit]);
+            const [result] = await databasePool.execute<BillingActivity[]>(query, [limit]);
+            await BillingLogService.info('billing', 'BillingDashboard', 'Recent billing activities retrieved');
             return result;
         } catch (error) {
-            console.error('Error getting recent billing activities:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting recent billing activities', error as Error);
             throw error;
         }
     }
@@ -188,7 +319,7 @@ export class BillingDashboardService {
     /**
      * Get system health metrics
      */
-    static async getSystemHealthMetrics() {
+    static async getSystemHealthMetrics(): Promise<SystemHealthMetrics> {
         try {
             // Database health
             const dbHealth = await databasePool.query('SELECT 1 as health');
@@ -201,8 +332,8 @@ export class BillingDashboardService {
                 WHERE status = 'failed' 
                 AND sent_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
             `;
-            const notificationResult = await databasePool.query(notificationQuery);
-            const notificationFailures = parseInt((notificationResult[0] as any)[0]?.count || '0');
+            const [notificationResult] = await databasePool.execute<NotificationCount[]>(notificationQuery);
+            const notificationFailures = parseInt(notificationResult[0]?.count || '0', 10);
             
             // Get auto actions status
             const autoActionsQuery = `
@@ -211,10 +342,10 @@ export class BillingDashboardService {
                     (SELECT setting_value FROM system_settings WHERE setting_key = 'auto_restore_enabled' LIMIT 1) as auto_restore,
                     (SELECT setting_value FROM system_settings WHERE setting_key = 'auto_notifications_enabled' LIMIT 1) as auto_notifications
             `;
-            const [autoActionsResult] = await databasePool.execute(autoActionsQuery);
-            const autoActions = (autoActionsResult as any)[0];
+            const [autoActionsResult] = await databasePool.execute<AutoActionsSettings[]>(autoActionsQuery);
+            const autoActions = autoActionsResult[0];
             
-            return {
+            const health: SystemHealthMetrics = {
                 database: {
                     connected: dbConnected,
                     status: dbConnected ? 'healthy' : 'unhealthy'
@@ -230,26 +361,36 @@ export class BillingDashboardService {
                 },
                 overall_status: dbConnected && notificationFailures < 10 ? 'healthy' : 'warning'
             };
+            
+            if (health.overall_status !== 'healthy') {
+                await BillingLogService.warning('system', 'BillingDashboard', 'System health check shows non-healthy status', health);
+            } else {
+                await BillingLogService.info('system', 'BillingDashboard', 'System health check passed');
+            }
+            
+            return health;
         } catch (error) {
-            console.error('Error getting system health metrics:', error);
-            return {
+            await BillingLogService.error('system', 'BillingDashboard', 'Error getting system health metrics', error as Error);
+            const errorHealth: SystemHealthMetrics = {
                 database: { connected: false, status: 'unhealthy' },
                 notifications: { failures_last_7_days: 0, status: 'unknown' },
                 auto_actions: { isolate: false, restore: false, notifications: false },
                 overall_status: 'unhealthy'
             };
+            return errorHealth;
         }
     }
 
     /**
      * Get SLA statistics
      */
-    static async getSlaStatistics() {
+    static async getSlaStatistics(): Promise<SlaStatistics> {
         try {
             const slaStats = { total: 0, compliant: 0, nonCompliant: 0 };
+            await BillingLogService.info('billing', 'BillingDashboard', 'SLA statistics retrieved');
             return slaStats;
         } catch (error) {
-            console.error('Error getting SLA statistics:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting SLA statistics', error as Error);
             return {
                 overall_sla: 0,
                 sla_incidents: 0,
@@ -261,7 +402,7 @@ export class BillingDashboardService {
     /**
      * Search customers for quick actions
      */
-    static async searchCustomers(searchTerm: string, limit: number = 20) {
+    static async searchCustomers(searchTerm: string, limit: number = 20): Promise<CustomerSearchResult[]> {
         try {
             const query = `
                 SELECT 
@@ -282,10 +423,14 @@ export class BillingDashboardService {
             `;
             
             const searchPattern = `%${searchTerm}%`;
-            const [result] = await databasePool.execute(query, [searchPattern, searchPattern, searchPattern, limit]);
+            const [result] = await databasePool.execute<CustomerSearchResult[]>(query, [searchPattern, searchPattern, searchPattern, limit]);
+            await BillingLogService.info('billing', 'BillingDashboard', `Customer search performed: "${searchTerm}"`, {
+                searchTerm,
+                resultsCount: result.length
+            });
             return result;
         } catch (error) {
-            console.error('Error searching customers:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error searching customers', error as Error);
             throw error;
         }
     }
@@ -293,7 +438,7 @@ export class BillingDashboardService {
     /**
      * Get dashboard summary for quick overview
      */
-    static async getDashboardSummary() {
+    static async getDashboardSummary(): Promise<DashboardSummary> {
         try {
             const [
                 billingStats,
@@ -307,15 +452,18 @@ export class BillingDashboardService {
                 this.getSlaStatistics()
             ]);
 
-            return {
+            const summary = {
                 billing: billingStats,
                 system: systemHealth,
                 activities: recentActivities,
                 sla: slaStats,
                 timestamp: new Date().toISOString()
             };
+            
+            await BillingLogService.info('billing', 'BillingDashboard', 'Dashboard summary retrieved');
+            return summary;
         } catch (error) {
-            console.error('Error getting dashboard summary:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error getting dashboard summary', error as Error);
             throw error;
         }
     }
@@ -327,35 +475,44 @@ export class BillingDashboardService {
         auto_isolate?: boolean;
         auto_restore?: boolean;
         auto_notifications?: boolean;
-    }) {
+    }): Promise<boolean> {
         try {
-            const updates = [];
+            // Use parameterized queries to prevent SQL injection
+            const settingsToUpdate: string[] = [];
+            const values: string[] = [];
             
             if (settings.auto_isolate !== undefined) {
-                updates.push(`('auto_isolate_enabled', '${settings.auto_isolate}', NOW())`);
+                settingsToUpdate.push('auto_isolate_enabled');
+                values.push(settings.auto_isolate ? 'true' : 'false');
             }
             
             if (settings.auto_restore !== undefined) {
-                updates.push(`('auto_restore_enabled', '${settings.auto_restore}', NOW())`);
+                settingsToUpdate.push('auto_restore_enabled');
+                values.push(settings.auto_restore ? 'true' : 'false');
             }
             
             if (settings.auto_notifications !== undefined) {
-                updates.push(`('auto_notifications_enabled', '${settings.auto_notifications}', NOW())`);
+                settingsToUpdate.push('auto_notifications_enabled');
+                values.push(settings.auto_notifications ? 'true' : 'false');
             }
             
-            if (updates.length > 0) {
-                const query = `
-                    INSERT INTO system_settings (setting_key, setting_value, updated_at) 
-                    VALUES ${updates.join(', ')}
-                    ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()
-                `;
+            // Update each setting individually using parameterized query
+            for (let i = 0; i < settingsToUpdate.length; i++) {
+                const key = settingsToUpdate[i];
+                const value = values[i];
                 
-                await databasePool.execute(query);
+                await databasePool.execute(
+                    `INSERT INTO system_settings (setting_key, setting_value, updated_at) 
+                     VALUES (?, ?, NOW())
+                     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()`,
+                    [key, value]
+                );
             }
             
+            await BillingLogService.info('billing', 'BillingDashboard', 'Auto billing settings updated', { settings });
             return true;
         } catch (error) {
-            console.error('Error updating auto billing settings:', error);
+            await BillingLogService.error('billing', 'BillingDashboard', 'Error updating auto billing settings', error as Error, { settings });
             throw error;
         }
     }

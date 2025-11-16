@@ -3,6 +3,8 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { getMikrotikConfig } from '../../services/pppoeService';
 import { getPppoeActiveConnections, getPppoeSecrets } from '../../services/mikrotikService';
+import MonitoringAnalyticsService from '../../services/monitoring/monitoringAnalyticsService';
+import IncidentAIService from '../../services/monitoring/incidentAIService';
 
 export class MonitoringController {
     
@@ -164,6 +166,7 @@ export class MonitoringController {
             console.log('Rendering view...');
             res.render('monitoring/pppoe', {
                 title: 'Monitor PPPoE',
+                currentPath: '/monitoring/pppoe',
                 customers: customersWithStatus,
                 odcList: odcList || [],
                 pagination: {
@@ -216,6 +219,16 @@ export class MonitoringController {
                 queryParams.push(status);
             }
 
+            if (pingStatus) {
+                // Filter by ping status - need to join with ping status table
+                if (pingStatus === 'isolated') {
+                    whereConditions.push('c.is_isolated = 1');
+                } else {
+                    whereConditions.push('(c.is_isolated = 0 AND sips.status = ?)');
+                    queryParams.push(pingStatus);
+                }
+            }
+
             const whereClause = whereConditions.length > 0 
                 ? 'WHERE ' + whereConditions.join(' AND ') 
                 : '';
@@ -253,13 +266,57 @@ export class MonitoringController {
                 [...queryParams, limit, offset]
             ) as [RowDataPacket[], any];
 
-            // Get total count
-            const countQuery = `SELECT COUNT(*) as total FROM static_ip_clients sic LEFT JOIN customers c ON sic.customer_id = c.id ${whereClause}`;
+            // Get total count with same joins and filters
+            const countQuery = `
+                SELECT COUNT(*) as total 
+                FROM static_ip_clients sic 
+                LEFT JOIN customers c ON sic.customer_id = c.id
+                LEFT JOIN static_ip_ping_status sips ON c.id = sips.customer_id
+                ${whereClause}
+            `;
             const [countResult] = await databasePool.query(countQuery, queryParams) as [RowDataPacket[], any];
             const totalCount = countResult[0]?.total || 0;
 
+            // Helper function to calculate peer IP (router client IP) from CIDR
+            const calculatePeerIP = (cidrAddress: string): string => {
+                try {
+                    const [ipOnly, prefixStr] = cidrAddress.split('/');
+                    const prefix = Number(prefixStr || '0');
+                    
+                    const ipToInt = (ip: string) => {
+                        return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                    };
+                    const intToIp = (int: number) => {
+                        return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                    };
+                    
+                    if (prefix === 30) {
+                        const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                        const networkInt = ipToInt(ipOnly) & mask;
+                        const firstHost = networkInt + 1;
+                        const secondHost = networkInt + 2;
+                        const ipInt = ipToInt(ipOnly);
+                        
+                        if (ipInt === firstHost) {
+                            return intToIp(secondHost);
+                        } else if (ipInt === secondHost) {
+                            return intToIp(firstHost);
+                        } else {
+                            return intToIp(secondHost);
+                        }
+                    }
+                    
+                    return ipOnly;
+                } catch (error) {
+                    return cidrAddress.split('/')[0];
+                }
+            };
+
             // Merge with ping status and calculate downtime
             const clientsWithStatus = await Promise.all(clients.map(async client => {
+                // Calculate peer IP (router client IP) for display
+                const peerIP = calculatePeerIP(client.ip_address || '');
+                
                 // Get current downtime if offline
                 let currentDowntime = null;
                 if (client.ping_status === 'offline' && !client.is_isolated) {
@@ -296,7 +353,9 @@ export class MonitoringController {
                 return {
                     ...client,
                     actual_status: actualStatus,
-                    current_downtime: currentDowntime
+                    current_downtime: currentDowntime,
+                    peer_ip: peerIP, // Add peer IP for display
+                    mikrotik_ip: client.ip_address // Keep original MikroTik IP for reference
                 };
             }));
 
@@ -317,6 +376,7 @@ export class MonitoringController {
             };
 
             res.render('monitoring/static-ip', {
+                currentPath: '/monitoring/static-ip',
                 title: 'Monitor Static IP',
                 clients: filteredClients,
                 stats,
@@ -466,8 +526,8 @@ export class MonitoringController {
                 success: true,
                 online: true,
                 data: {
-                    upload: session['bytes-in'] || 0,
-                    download: session['bytes-out'] || 0,
+                    upload: (session as any)['bytes-in'] || session['bytes_in'] || 0,
+                    download: (session as any)['bytes-out'] || session['bytes_out'] || 0,
                     uptime: session.uptime || '0s',
                     address: session.address || '-'
                 }
@@ -488,11 +548,16 @@ export class MonitoringController {
         try {
             const { customerId } = req.params;
 
-            // Get customer and ping status
-            const [customerResult] = await databasePool.query(
+            // Get customer and ping status - try from static_ip_clients first since customer_id might be in sic table
+            // Handle both cases: customer_id from customers table or from static_ip_clients table
+            let [customerResult] = await databasePool.query(
                 `SELECT 
-                    c.id, c.name, c.customer_code, c.is_isolated,
-                    sic.ip_address, sic.client_name,
+                    COALESCE(c.id, sic.customer_id) as id,
+                    COALESCE(c.name, sic.client_name) as name,
+                    COALESCE(c.customer_code, sic.customer_code) as customer_code,
+                    COALESCE(c.is_isolated, 0) as is_isolated,
+                    sic.ip_address, 
+                    sic.client_name,
                     sips.status as ping_status,
                     sips.response_time_ms,
                     sips.packet_loss_percent,
@@ -501,12 +566,37 @@ export class MonitoringController {
                     sips.last_online_at,
                     sips.last_offline_at,
                     sips.uptime_percent_24h
-                FROM customers c
-                LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
-                LEFT JOIN static_ip_ping_status sips ON c.id = sips.customer_id
-                WHERE c.id = ?`,
-                [customerId]
+                FROM static_ip_clients sic
+                LEFT JOIN customers c ON sic.customer_id = c.id
+                LEFT JOIN static_ip_ping_status sips ON sic.customer_id = sips.customer_id
+                WHERE sic.customer_id = ? OR sic.id = ?`,
+                [customerId, customerId]
             ) as [RowDataPacket[], any];
+
+            // If not found, try by static_ip_clients.id
+            if (customerResult.length === 0) {
+                [customerResult] = await databasePool.query(
+                    `SELECT 
+                        sic.customer_id as id,
+                        sic.client_name as name,
+                        sic.customer_code,
+                        0 as is_isolated,
+                        sic.ip_address, 
+                        sic.client_name,
+                        sips.status as ping_status,
+                        sips.response_time_ms,
+                        sips.packet_loss_percent,
+                        sips.consecutive_failures,
+                        sips.last_check,
+                        sips.last_online_at,
+                        sips.last_offline_at,
+                        sips.uptime_percent_24h
+                    FROM static_ip_clients sic
+                    LEFT JOIN static_ip_ping_status sips ON sic.customer_id = sips.customer_id
+                    WHERE sic.id = ?`,
+                    [customerId]
+                ) as [RowDataPacket[], any];
+            }
 
             if (customerResult.length === 0) {
                 res.status(404).json({ success: false, message: 'Customer not found' });
@@ -514,6 +604,27 @@ export class MonitoringController {
             }
 
             const customer = customerResult[0];
+            // customer.id is already COALESCE(c.id, sic.customer_id) from the query
+            // Use it for queries that require a valid customer_id from customers table
+            const actualCustomerId = customer?.id;
+            if (!actualCustomerId) {
+                return res.status(404).json({ success: false, error: 'Customer not found' });
+            }
+
+            // If we don't have a valid customer_id, we can't get downtime history
+            // (downtime history is linked to customers.id, not static_ip_clients.id)
+            if (!actualCustomerId) {
+                res.json({
+                    success: true,
+                    data: {
+                        customer,
+                        downtime_history: [],
+                        ongoing_incident: null,
+                        connection_logs: []
+                    }
+                });
+                return;
+            }
 
             // Get downtime history (last 30 days)
             const [downtimeHistory] = await databasePool.query(
@@ -532,7 +643,7 @@ export class MonitoringController {
                     AND start_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                 ORDER BY start_time DESC
                 LIMIT 100`,
-                [customerId]
+                [actualCustomerId]
             ) as [RowDataPacket[], any];
 
             // Get current ongoing incident
@@ -546,7 +657,7 @@ export class MonitoringController {
                     AND service_type = 'static_ip'
                     AND status = 'ongoing'
                 LIMIT 1`,
-                [customerId]
+                [actualCustomerId]
             ) as [RowDataPacket[], any];
 
             // Get 24h connection logs for uptime chart
@@ -561,7 +672,7 @@ export class MonitoringController {
                     AND service_type = 'static_ip'
                     AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                 ORDER BY timestamp ASC`,
-                [customerId]
+                [actualCustomerId]
             ) as [RowDataPacket[], any];
 
             res.json({
@@ -633,6 +744,163 @@ export class MonitoringController {
             res.status(500).json({
                 success: false,
                 message: error.message || 'Gagal mendapatkan riwayat downtime'
+            });
+        }
+    }
+    
+    /**
+     * GET /monitoring/analytics/bandwidth
+     * Get bandwidth analytics
+     */
+    async getBandwidthAnalytics(req: Request, res: Response): Promise<void> {
+        try {
+            const days = parseInt(req.query.days as string) || 30;
+            
+            const summary = await MonitoringAnalyticsService.getBandwidthSummary();
+            const trend = await MonitoringAnalyticsService.getBandwidthTrend(days);
+            const topCustomers = await MonitoringAnalyticsService.getTopCustomersByBandwidth(10);
+            const byArea = await MonitoringAnalyticsService.getBandwidthByArea(days);
+            
+            res.json({
+                success: true,
+                data: {
+                    summary,
+                    trend,
+                    top_customers: topCustomers,
+                    by_area: byArea
+                }
+            });
+        } catch (error: any) {
+            console.error('Error getting bandwidth analytics:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Gagal mendapatkan analytics bandwidth'
+            });
+        }
+    }
+    
+    /**
+     * GET /monitoring/analytics/health
+     * Get network health overview
+     */
+    async getNetworkHealth(req: Request, res: Response): Promise<void> {
+        try {
+            const health = await MonitoringAnalyticsService.getNetworkHealth();
+            
+            res.json({
+                success: true,
+                data: health
+            });
+        } catch (error: any) {
+            console.error('Error getting network health:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Gagal mendapatkan health network'
+            });
+        }
+    }
+    
+    /**
+     * GET /monitoring/analytics/anomalies
+     * Get real-time anomalies
+     */
+    async getAnomalies(req: Request, res: Response): Promise<void> {
+        try {
+            const anomalies = await IncidentAIService.detectRealTimeAnomalies();
+            
+            res.json({
+                success: true,
+                data: anomalies
+            });
+        } catch (error: any) {
+            console.error('Error getting anomalies:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Gagal mendapatkan anomalies'
+            });
+        }
+    }
+    
+    /**
+     * GET /monitoring/analytics/incident/:id
+     * Get AI analysis for specific incident
+     */
+    async getIncidentAnalysis(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ success: false, error: 'id is required' });
+        }
+        const customerId = parseInt(id);
+            
+            if (!incidentId) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Invalid incident ID'
+                });
+                return;
+            }
+            
+            const analysis = await IncidentAIService.analyzeIncident(incidentId);
+            
+            if (!analysis) {
+                res.status(404).json({
+                    success: false,
+                    message: 'Incident not found or analysis unavailable'
+                });
+                return;
+            }
+            
+            res.json({
+                success: true,
+                data: analysis
+            });
+        } catch (error: any) {
+            console.error('Error getting incident analysis:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Gagal mendapatkan analisis incident'
+            });
+        }
+    }
+
+    /**
+     * GET /monitoring/ai
+     * Monitoring AI Analytics page
+     */
+    async getAIAnalyticsPage(req: Request, res: Response): Promise<void> {
+        try {
+            // Get recent incidents for analysis
+            const [recentIncidents] = await databasePool.query(`
+                SELECT 
+                    si.id,
+                    si.customer_id,
+                    si.service_type,
+                    si.incident_type,
+                    si.start_time,
+                    si.end_time,
+                    si.duration_minutes,
+                    si.status,
+                    c.name as customer_name,
+                    odc.name as area
+                FROM sla_incidents si
+                JOIN customers c ON si.customer_id = c.id
+                LEFT JOIN odc_list odc ON c.odc_id = odc.id
+                WHERE si.status IN ('ongoing', 'resolved')
+                ORDER BY si.start_time DESC
+                LIMIT 50
+            `) as [RowDataPacket[], any];
+
+            res.render('monitoring/ai', {
+                title: 'Monitoring AI Analytics',
+                currentPath: '/monitoring/ai',
+                recentIncidents: recentIncidents || []
+            });
+        } catch (error) {
+            console.error('Error loading AI Analytics page:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat halaman Monitoring AI'
             });
         }
     }

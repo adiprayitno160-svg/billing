@@ -76,24 +76,38 @@ export class InvoiceService {
             
             const invoiceId = (invoiceResult as any).insertId;
             
-            // Insert invoice items
-            for (const item of items) {
+            // Insert invoice items using batch insert for better performance
+            if (items.length > 0) {
                 const itemQuery = `
                     INSERT INTO invoice_items (
                         invoice_id, description, quantity, unit_price, total_price
-                    ) VALUES (?, ?, ?, ?, ?)
+                    ) VALUES ?
                 `;
                 
-                await connection.execute(itemQuery, [
+                const itemValues = items.map(item => [
                     invoiceId,
                     item.description,
                     item.quantity || 1,
                     item.unit_price,
                     item.total_price
                 ]);
+                
+                await connection.query(itemQuery, [itemValues]);
             }
             
             await connection.commit();
+            
+            // Send notification if invoice status is 'sent'
+            if (invoiceData.status === 'sent' || invoiceData.status === undefined) {
+                try {
+                    const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+                    await UnifiedNotificationService.notifyInvoiceCreated(invoiceId);
+                } catch (notifError) {
+                    console.error('Error sending invoice created notification:', notifError);
+                    // Don't throw - notification failure shouldn't break invoice creation
+                }
+            }
+            
             return invoiceId;
             
         } catch (error) {
@@ -223,14 +237,16 @@ export class InvoiceService {
             }
             
             // Coba dengan tabel subscriptions terlebih dahulu
+            // Generate invoice berdasarkan DAY(start_date) untuk billing mengikuti tanggal daftar
             let subscriptionQuery = `
                 SELECT s.id as subscription_id, s.customer_id, s.package_name, s.price,
-                       c.name as customer_name, c.email, c.phone
+                       c.name as customer_name, c.email, c.phone, s.start_date,
+                       DAY(s.start_date) as billing_day
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
-                AND s.start_date <= ?
-                AND (s.end_date IS NULL OR s.end_date >= ?)
+                AND (s.end_date IS NULL OR s.end_date >= CURDATE())
+                AND DAY(s.start_date) = DAY(CURDATE())  -- Generate invoice pada tanggal yang sama dengan tanggal daftar
                 AND s.customer_id NOT IN (
                     SELECT DISTINCT customer_id 
                     FROM invoices 
@@ -239,7 +255,7 @@ export class InvoiceService {
             `;
             
             console.log(`[InvoiceService] Executing subscription query for period: ${period}`);
-            const [subscriptionResult] = await databasePool.query(subscriptionQuery, [periodDate, periodDate, period]);
+            const [subscriptionResult] = await databasePool.query(subscriptionQuery, [period]);
             console.log(`[InvoiceService] Found ${(subscriptionResult as any[]).length} subscriptions`);
             
             if ((subscriptionResult as any[]).length > 0) {
@@ -249,8 +265,10 @@ export class InvoiceService {
                     try {
                         console.log(`[InvoiceService] Processing subscription: ${subscription.subscription_id} for customer: ${subscription.customer_name}`);
                         
-                        const dueDate = new Date(periodDate);
-                        dueDate.setDate(dueDate.getDate() + 7); // Jatuh tempo H+7
+                        // Billing mengikuti tanggal daftar: Jatuh tempo H+1 dari tanggal tagihan
+                        const invoiceDate = new Date(subscription.start_date || periodDate);
+                        const dueDate = new Date(invoiceDate);
+                        dueDate.setDate(dueDate.getDate() + 1); // Jatuh tempo H+1
                         
                         // Check for carry over amount (with error handling)
                         let carryOverAmount = 0;
