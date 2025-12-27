@@ -231,13 +231,15 @@
 								<td class="py-4 px-4 text-modern-purple-700">
 									<%= customer.phone || '-' %>
 								</td>
+
 								<td class="py-4 px-4 text-modern-purple-700">
-									<span
-										class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
-										<%= customer.connection_type==='static_ip' ? 'IP Static' :
-											(customer.connection_type==='pppoe' ? 'PPPoE' :
-											(customer.connection_type_display || 'PPPoE' )) %>
-									</span>
+									<% let connLabel=customer.connection_type_display || 'PPPoE' ; if
+										(customer.connection_type==='static_ip' ) connLabel='IP Static' ; else if
+										(customer.connection_type==='pppoe' ) connLabel='PPPoE' ; %>
+										<span
+											class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
+											<%= connLabel %>
+										</span>
 								</td>
 
 								<td class="py-4 px-4 text-modern-purple-700">
