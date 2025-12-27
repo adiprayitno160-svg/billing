@@ -9,8 +9,8 @@ const authMiddleware = new AuthMiddleware();
 // Middleware to force kasir layout for all kasir routes (except print pages)
 const forceKasirLayout = (req: Request, res: Response, next: NextFunction) => {
     // Skip layout for print pages
-    if (!req.path.startsWith('/print-checklist') && 
-        !req.path.startsWith('/receipt') && 
+    if (!req.path.startsWith('/print-checklist') &&
+        !req.path.startsWith('/receipt') &&
         !req.path.startsWith('/print-invoice') &&
         !req.path.startsWith('/payment-records/print')) {
         res.locals.layout = 'layouts/kasir';
@@ -60,19 +60,19 @@ router.get('/print-odc/:odc_id', async (req, res) => {
         try {
             const { odc_id } = req.params;
             const { period, format } = req.query;
-            
+
             // Get ODC info
             const [odcResult] = await conn.query(
                 'SELECT * FROM ftth_odc WHERE id = ?',
                 [odc_id]
             ) as any;
-            
+
             if (odcResult.length === 0) {
                 return res.status(404).send('ODC not found');
             }
-            
+
             const odc = odcResult[0];
-            
+
             // Get invoices for this ODC
             let invoicesQuery = `
                 SELECT 
@@ -94,23 +94,23 @@ router.get('/print-odc/:odc_id', async (req, res) => {
                 WHERE c.odc_id = ?
                 AND i.status IN ('sent', 'partial', 'overdue')
             `;
-            
+
             const queryParams: any[] = [odc_id];
-            
+
             if (period) {
                 invoicesQuery += ' AND i.period = ?';
                 queryParams.push(period);
             }
-            
+
             invoicesQuery += ' ORDER BY c.name ASC';
-            
+
             const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
-            
+
             // Choose view based on format
-            const viewName = format === 'thermal' 
-                ? 'billing/tagihan-print-odc' 
+            const viewName = format === 'thermal'
+                ? 'billing/tagihan-print-odc'
                 : 'billing/tagihan-print-odc-a4';
-            
+
             res.render(viewName, {
                 title: `Print Tagihan Area ${odc.name}`,
                 odc,
@@ -135,7 +135,7 @@ router.get('/print-all', async (req, res) => {
         const conn = await databasePool.getConnection();
         try {
             const { status, odc_id, search, period, format } = req.query;
-            
+
             // Build query
             let query = `
                 SELECT 
@@ -160,19 +160,19 @@ router.get('/print-all', async (req, res) => {
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
                 WHERE i.status IN ('sent', 'partial', 'overdue')
             `;
-            
+
             const queryParams: any[] = [];
-            
+
             if (status) {
                 query = query.replace("WHERE i.status IN ('sent', 'partial', 'overdue')", 'WHERE i.status = ?');
                 queryParams.push(status);
             }
-            
+
             if (odc_id) {
                 query += ' AND c.odc_id = ?';
                 queryParams.push(odc_id);
             }
-            
+
             if (search) {
                 query += ` AND (
                     c.name LIKE ? OR 
@@ -182,21 +182,21 @@ router.get('/print-all', async (req, res) => {
                 const searchParam = `%${search}%`;
                 queryParams.push(searchParam, searchParam, searchParam);
             }
-            
+
             if (period) {
                 query += ' AND i.period = ?';
                 queryParams.push(period);
             }
-            
+
             query += ' ORDER BY o.name ASC, c.name ASC';
-            
+
             const [invoices] = await conn.query(query, queryParams) as any;
-            
+
             // Choose view based on format
-            const viewName = format === 'thermal' 
-                ? 'billing/tagihan-print-all' 
+            const viewName = format === 'thermal'
+                ? 'billing/tagihan-print-all'
                 : 'billing/tagihan-print-all-a4';
-            
+
             res.render(viewName, {
                 title: 'Print Semua Tagihan',
                 invoices,
@@ -216,10 +216,7 @@ router.get('/print-all', async (req, res) => {
 // Print receipt after payment
 router.get('/receipt/:paymentId', kasirController.printReceipt.bind(kasirController));
 
-// Prepaid verification
-router.get('/prepaid-verification', kasirController.prepaidVerification.bind(kasirController));
-router.post('/prepaid-verification/verify/:transactionId', kasirController.verifyPrepaidPayment.bind(kasirController));
-router.post('/prepaid-verification/reject/:transactionId', kasirController.rejectPrepaidPayment.bind(kasirController));
+
 
 // Print invoice individual
 router.get('/print-invoice/:invoiceId', kasirController.printInvoice.bind(kasirController));

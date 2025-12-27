@@ -9,17 +9,35 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export class WhatsAppSettingsController {
-    
+
     /**
      * Show WhatsApp settings page
      */
     static async showSettings(req: Request, res: Response): Promise<void> {
         try {
             // Get WhatsApp service status
-            const status = WhatsAppService.getStatus();
+            let status = WhatsAppService.getStatus();
+
+            // Force initialize if not initialized yet
+            if (!status.initialized && !status.initializing) {
+                console.log('🔄 Force initializing WhatsApp service...');
+                try {
+                    // Don't await - initialize in background
+                    WhatsAppService.initialize()
+                        .then(() => console.log('✅ WhatsApp service initialized successfully'))
+                        .catch(err => console.error('❌ Failed to initialize WhatsApp:', err));
+
+                    // Wait a bit for initialization to start
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    status = WhatsAppService.getStatus();
+                } catch (initError) {
+                    console.error('⚠️ Error during WhatsApp initialization:', initError);
+                }
+            }
+
             const stats = await WhatsAppService.getNotificationStats();
             let qrCode = WhatsAppService.getQRCode();
-            
+
             // If not ready and no QR code, try to initialize or regenerate
             // Note: QR code generation is async and happens via event, so we check status
             if (!status.ready && !qrCode) {
@@ -31,12 +49,12 @@ export class WhatsAppSettingsController {
                     console.log('⚠️ WhatsApp initialized but QR code not available yet. It will appear automatically when ready.');
                 }
             }
-            
+
             // Get QR code URL if available (using local endpoint)
-            const qrCodeUrl = qrCode 
+            const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
-            
+
             res.render('settings/whatsapp', {
                 title: 'Pengaturan WhatsApp',
                 currentPath: '/settings/whatsapp',
@@ -46,7 +64,7 @@ export class WhatsAppSettingsController {
                 qrCodeUrl,
                 user: (req.session as any).user
             });
-            
+
         } catch (error) {
             console.error('Error loading WhatsApp settings:', error);
             res.status(500).render('error', {
@@ -55,7 +73,7 @@ export class WhatsAppSettingsController {
             });
         }
     }
-    
+
     /**
      * Get WhatsApp status (AJAX endpoint)
      */
@@ -64,11 +82,11 @@ export class WhatsAppSettingsController {
             const status = WhatsAppService.getStatus();
             const stats = await WhatsAppService.getNotificationStats();
             const qrCode = WhatsAppService.getQRCode();
-            
-            const qrCodeUrl = qrCode 
+
+            const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
-            
+
             res.json({
                 success: true,
                 data: {
@@ -85,14 +103,14 @@ export class WhatsAppSettingsController {
             });
         }
     }
-    
+
     /**
      * Test send WhatsApp message
      */
     static async testSendMessage(req: Request, res: Response): Promise<void> {
         try {
             const { phone, message } = req.body;
-            
+
             if (!phone) {
                 res.json({
                     success: false,
@@ -100,7 +118,7 @@ export class WhatsAppSettingsController {
                 });
                 return;
             }
-            
+
             if (!message || !message.trim()) {
                 res.json({
                     success: false,
@@ -108,7 +126,7 @@ export class WhatsAppSettingsController {
                 });
                 return;
             }
-            
+
             // Check if WhatsApp is ready
             const status = WhatsAppService.getStatus();
             if (!status.ready) {
@@ -118,12 +136,12 @@ export class WhatsAppSettingsController {
                 });
                 return;
             }
-            
+
             // Send test message
             const result = await WhatsAppService.sendMessage(phone.trim(), message.trim(), {
                 template: 'test_message'
             });
-            
+
             if (result.success) {
                 res.json({
                     success: true,
@@ -146,17 +164,17 @@ export class WhatsAppSettingsController {
             });
         }
     }
-    
+
     /**
      * Regenerate QR code
      */
     static async regenerateQR(req: Request, res: Response): Promise<void> {
         try {
             console.log('🔄 Starting QR code regeneration...');
-            
+
             // First clear session if exists
             const sessionPath = path.join(process.cwd(), 'whatsapp-session');
-            
+
             // Destroy client first
             try {
                 const status = WhatsAppService.getStatus();
@@ -168,7 +186,7 @@ export class WhatsAppSettingsController {
             } catch (err) {
                 console.warn('⚠️ Error destroying client:', err);
             }
-            
+
             // Delete session folder if exists
             if (fs.existsSync(sessionPath)) {
                 try {
@@ -181,15 +199,15 @@ export class WhatsAppSettingsController {
             } else {
                 console.log('ℹ️ No session folder found');
             }
-            
+
             // Wait a bit before reinitializing to ensure cleanup is complete
             console.log('⏳ Waiting before reinitializing...');
             await new Promise(resolve => setTimeout(resolve, 2000));
-            
+
             // Regenerate QR code
             console.log('🔄 Regenerating QR code...');
             await WhatsAppService.regenerateQRCode();
-            
+
             // Wait for QR code to be generated (up to 15 seconds)
             console.log('⏳ Waiting for QR code generation...');
             let attempts = 0;
@@ -199,28 +217,28 @@ export class WhatsAppSettingsController {
                 await new Promise(resolve => setTimeout(resolve, 500));
                 qrCode = WhatsAppService.getQRCode();
                 attempts++;
-                
+
                 if (attempts % 5 === 0) {
                     console.log(`⏳ Still waiting for QR code... (${attempts}/${maxAttempts})`);
                 }
             }
-            
+
             const status = WhatsAppService.getStatus();
-            
-            const qrCodeUrl = qrCode 
+
+            const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
-            
+
             if (qrCode) {
                 console.log('✅ QR code generated successfully');
             } else {
                 console.warn('⚠️ QR code not generated yet, but client might still be initializing');
             }
-            
+
             res.json({
                 success: true,
-                message: qrCode 
-                    ? 'QR code berhasil di-generate. Silakan scan dengan WhatsApp Anda.' 
+                message: qrCode
+                    ? 'QR code berhasil di-generate. Silakan scan dengan WhatsApp Anda.'
                     : 'QR code sedang di-generate. Silakan refresh halaman dalam beberapa detik atau tunggu hingga QR code muncul.',
                 data: {
                     qrCode: qrCode || null,

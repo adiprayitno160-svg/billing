@@ -1,6 +1,6 @@
 /**
  * Late Payment Controller
- * Admin interface for managing late payment tracking and auto-migration
+ * Admin interface for managing late payment tracking
  */
 
 import { Request, Response } from 'express';
@@ -21,19 +21,17 @@ export class LatePaymentController {
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME = 'customers' 
-        AND COLUMN_NAME IN ('billing_mode', 'late_payment_count', 'last_late_payment_date', 'consecutive_on_time_payments')
+        AND COLUMN_NAME IN ('late_payment_count', 'last_late_payment_date', 'consecutive_on_time_payments')
       `);
-      
-      const hasBillingMode = columnCheck.some((col: any) => col.COLUMN_NAME === 'billing_mode');
+
       const hasLatePaymentCount = columnCheck.some((col: any) => col.COLUMN_NAME === 'late_payment_count');
       const hasLastLatePaymentDate = columnCheck.some((col: any) => col.COLUMN_NAME === 'last_late_payment_date');
       const hasConsecutiveOnTime = columnCheck.some((col: any) => col.COLUMN_NAME === 'consecutive_on_time_payments');
-      
-      const billingModeFilter = hasBillingMode ? "WHERE (billing_mode = 'postpaid' OR billing_mode IS NULL)" : "";
+
 
       // Get statistics
       let statsRows: any[] = [{ total_customers: 0, count_3_or_more: 0, count_4: 0, count_5_or_more: 0, high_risk_customers: 0 }];
-      
+
       if (hasLatePaymentCount) {
         [statsRows] = await pool.query<RowDataPacket[]>(`
           SELECT 
@@ -43,14 +41,13 @@ export class LatePaymentController {
             COUNT(CASE WHEN COALESCE(late_payment_count, 0) >= 5 THEN 1 END) as count_5_or_more,
             SUM(CASE WHEN COALESCE(late_payment_count, 0) >= 3 THEN 1 ELSE 0 END) as high_risk_customers
           FROM customers
-          ${billingModeFilter}
         `);
       } else {
         // If column doesn't exist, get total customers only
         const [totalRows] = await pool.query<RowDataPacket[]>(`
-          SELECT COUNT(*) as total_customers FROM customers ${billingModeFilter}
+          SELECT COUNT(*) as total_customers FROM customers
         `);
-        statsRows = [{ 
+        statsRows = [{
           total_customers: totalRows[0]?.total_customers || 0,
           count_3_or_more: 0,
           count_4: 0,
@@ -72,42 +69,13 @@ export class LatePaymentController {
             ${hasLastLatePaymentDate ? 'c.last_late_payment_date,' : 'NULL as last_late_payment_date,'}
             ${hasConsecutiveOnTime ? 'COALESCE(c.consecutive_on_time_payments, 0) as consecutive_on_time_payments' : '0 as consecutive_on_time_payments'}
           FROM customers c
-          WHERE ${hasBillingMode ? "(c.billing_mode = 'postpaid' OR c.billing_mode IS NULL) AND" : ""} 
-            COALESCE(c.late_payment_count, 0) >= 3
+          WHERE COALESCE(c.late_payment_count, 0) >= 3
           ORDER BY COALESCE(c.late_payment_count, 0) DESC, ${hasLastLatePaymentDate ? 'c.last_late_payment_date' : 'NULL'} DESC
           LIMIT 20
         `);
       }
 
-      // Check if late_payment_audit_log table exists
-      let recentMigrations: any[] = [];
-      try {
-        const [tableCheck] = await pool.query<RowDataPacket[]>(`
-          SELECT TABLE_NAME 
-          FROM INFORMATION_SCHEMA.TABLES 
-          WHERE TABLE_SCHEMA = DATABASE() 
-          AND TABLE_NAME = 'late_payment_audit_log'
-        `);
-        
-        if (tableCheck.length > 0) {
-          const [migrations] = await pool.query<RowDataPacket[]>(`
-            SELECT 
-              la.customer_id,
-              c.customer_code,
-              c.name,
-              la.created_at,
-              la.reason
-            FROM late_payment_audit_log la
-            JOIN customers c ON la.customer_id = c.id
-            WHERE la.action = 'migration_failed' OR la.reason LIKE '%Auto-reset: Migrated to prepaid%'
-            ORDER BY la.created_at DESC
-            LIMIT 10
-          `);
-          recentMigrations = migrations;
-        }
-      } catch (error) {
-        console.warn('[LatePaymentController] late_payment_audit_log table not found, skipping recent migrations');
-      }
+
 
       const stats = statsRows[0] || {};
 
@@ -116,7 +84,6 @@ export class LatePaymentController {
         currentPath: '/billing/late-payment',
         stats,
         highRiskCustomers,
-        recentMigrations,
         success: req.query.success || null,
         error: req.query.error || null
       });
@@ -135,11 +102,11 @@ export class LatePaymentController {
    */
   async report(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        customer_id, 
-        min_count, 
-        max_count, 
-        date_from, 
+      const {
+        customer_id,
+        min_count,
+        max_count,
+        date_from,
         date_to,
         page = '1',
         limit = '50'
@@ -153,18 +120,15 @@ export class LatePaymentController {
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME = 'customers' 
-        AND COLUMN_NAME IN ('billing_mode', 'late_payment_count', 'last_late_payment_date', 'consecutive_on_time_payments')
+        AND COLUMN_NAME IN ('late_payment_count', 'last_late_payment_date', 'consecutive_on_time_payments')
       `);
-      
-      const hasBillingMode = columnCheck.some((col: any) => col.COLUMN_NAME === 'billing_mode');
+
       const hasLatePaymentCount = columnCheck.some((col: any) => col.COLUMN_NAME === 'late_payment_count');
       const hasLastLatePaymentDate = columnCheck.some((col: any) => col.COLUMN_NAME === 'last_late_payment_date');
       const hasConsecutiveOnTime = columnCheck.some((col: any) => col.COLUMN_NAME === 'consecutive_on_time_payments');
 
       // Build filters
-      let whereClause = hasBillingMode 
-        ? "WHERE (c.billing_mode = 'postpaid' OR c.billing_mode IS NULL)"
-        : "WHERE 1=1";
+      let whereClause = "WHERE 1=1";
       const params: any[] = [];
 
       if (customer_id) {
@@ -203,7 +167,7 @@ export class LatePaymentController {
           ${hasLatePaymentCount ? 'COALESCE(c.late_payment_count, 0) as late_payment_count,' : '0 as late_payment_count,'}
           ${hasLastLatePaymentDate ? 'c.last_late_payment_date,' : 'NULL as last_late_payment_date,'}
           ${hasConsecutiveOnTime ? 'COALESCE(c.consecutive_on_time_payments, 0) as consecutive_on_time_payments,' : '0 as consecutive_on_time_payments,'}
-          ${hasBillingMode ? "COALESCE(c.billing_mode, 'postpaid') as billing_mode" : "'postpaid' as billing_mode"}
+          'postpaid' as billing_mode
          FROM customers c
          ${whereClause}
          ORDER BY ${hasLatePaymentCount ? 'COALESCE(c.late_payment_count, 0) DESC,' : ''} c.name ASC
@@ -277,7 +241,7 @@ export class LatePaymentController {
           WHERE TABLE_SCHEMA = DATABASE() 
           AND TABLE_NAME = 'late_payment_audit_log'
         `);
-        
+
         if (tableCheck.length > 0) {
           const [log] = await pool.query<RowDataPacket[]>(
             `SELECT * FROM late_payment_audit_log 
@@ -453,7 +417,7 @@ export class LatePaymentController {
         'Late Payment Count': customer.late_payment_count,
         'Tanggal Late Payment Terakhir': customer.last_late_payment_date || '-',
         'Consecutive On-Time Payments': customer.consecutive_on_time_payments,
-        'Billing Mode': customer.billing_mode
+        'Billing Mode': 'postpaid'
       }));
 
       const ws = XLSX.utils.json_to_sheet(excelData);

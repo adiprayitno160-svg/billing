@@ -97,7 +97,6 @@ export class GeminiService {
         imageBuffer: Buffer,
         expectedAmount?: number,
         expectedBank?: string,
-        transactionType: 'invoice' | 'prepaid' = 'invoice',
         customerName?: string,
         invoiceNumber?: string
     ): Promise<GeminiAnalysisResult> {
@@ -116,9 +115,8 @@ export class GeminiService {
 
             // Prepare prompt with comprehensive fraud detection
             const prompt = this.buildAnalysisPrompt(
-                expectedAmount, 
-                expectedBank, 
-                transactionType,
+                expectedAmount,
+                expectedBank,
                 customerName,
                 invoiceNumber
             );
@@ -149,7 +147,7 @@ export class GeminiService {
 
         } catch (error) {
             console.error('Error in Gemini analysis:', error);
-            
+
             // Fallback: return safe default
             return {
                 isValid: false,
@@ -175,7 +173,6 @@ export class GeminiService {
     private static buildAnalysisPrompt(
         expectedAmount?: number,
         expectedBank?: string,
-        transactionType: 'invoice' | 'prepaid' = 'invoice',
         customerName?: string,
         invoiceNumber?: string
     ): string {
@@ -184,8 +181,7 @@ export class GeminiService {
             expectedAmount,
             expectedBank,
             customerName,
-            invoiceNumber,
-            transactionType
+            invoiceNumber
         );
     }
 
@@ -200,7 +196,7 @@ export class GeminiService {
         try {
             // Extract JSON from response (might have markdown code blocks)
             let jsonText = responseText.trim();
-            
+
             // Remove markdown code blocks if present
             if (jsonText.startsWith('```')) {
                 jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -213,7 +209,7 @@ export class GeminiService {
             const riskLevel = parsed.riskLevel || parsed.validation?.riskLevel || 'high';
             const riskScore = parsed.riskScore || 0;
             const fraudIndicators = parsed.fraudIndicators || [];
-            
+
             const result: Omit<GeminiAnalysisResult, 'rawResponse'> = {
                 isValid: parsed.isValid === true,
                 confidence: Math.min(100, Math.max(0, parsed.confidence || 0)),
@@ -231,17 +227,17 @@ export class GeminiService {
                     isRecent: parsed.validation?.isRecent === true,
                     amountMatches: parsed.validation?.amountMatches === true,
                     bankMatches: parsed.validation?.bankMatches === true,
-                    riskLevel: ['low', 'medium', 'high', 'critical'].includes(riskLevel) 
+                    riskLevel: ['low', 'medium', 'high', 'critical'].includes(riskLevel)
                         ? riskLevel as 'low' | 'medium' | 'high' | 'critical'
                         : 'high',
-                    riskReasons: Array.isArray(parsed.validation?.riskReasons) 
-                        ? parsed.validation.riskReasons 
-                        : (fraudIndicators.length > 0 
+                    riskReasons: Array.isArray(parsed.validation?.riskReasons)
+                        ? parsed.validation.riskReasons
+                        : (fraudIndicators.length > 0
                             ? fraudIndicators.map((ind: any) => ind.description || ind).filter(Boolean)
                             : [])
                 }
             };
-            
+
             // Store additional data if available (for future use)
             if (riskScore > 0) {
                 (result as any).riskScore = riskScore;
@@ -274,7 +270,7 @@ export class GeminiService {
         } catch (error) {
             console.error('Error parsing Gemini response:', error);
             console.error('Response text:', responseText);
-            
+
             // Return safe default
             return {
                 isValid: false,
@@ -309,7 +305,7 @@ export class GeminiService {
         if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
             return 'image/webp';
         }
-        
+
         // Default to JPEG
         return 'image/jpeg';
     }

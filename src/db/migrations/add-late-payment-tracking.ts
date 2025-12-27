@@ -1,6 +1,6 @@
 /**
  * Migration: Add Late Payment Tracking System
- * Creates tables and columns for tracking late payments and auto-migration to prepaid
+ * Creates tables and columns for tracking late payments
  */
 
 import pool from '../pool';
@@ -8,7 +8,7 @@ import { ResultSetHeader } from 'mysql2';
 
 export async function up(): Promise<void> {
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
 
@@ -74,8 +74,7 @@ export async function up(): Promise<void> {
     try {
       await connection.query(`
         ALTER TABLE customers 
-        ADD INDEX idx_late_payment_count (late_payment_count),
-        ADD INDEX idx_billing_mode_late_count (billing_mode, late_payment_count)
+        ADD INDEX idx_late_payment_count (late_payment_count)
       `);
     } catch (error: any) {
       // Indexes might already exist, ignore
@@ -87,10 +86,9 @@ export async function up(): Promise<void> {
     // 5. Insert default system settings for late payment
     await connection.query(`
       INSERT IGNORE INTO system_settings (setting_key, setting_value, setting_description, category) VALUES
-      ('late_payment_threshold', '5', 'Jumlah late payment sebelum auto-migrate ke prepaid', 'late_payment'),
+      ('late_payment_threshold', '5', 'Jumlah late payment threshold untuk sanksi/warning', 'late_payment'),
       ('late_payment_rolling_months', '12', 'Periode rolling count (bulan)', 'late_payment'),
       ('consecutive_on_time_reset', '3', 'Jumlah pembayaran tepat waktu berturut-turut untuk reset counter', 'late_payment'),
-      ('enable_auto_migrate_late_payment', '1', 'Enable/disable auto-migration (1=enabled, 0=disabled)', 'late_payment'),
       ('late_payment_warning_at_3', '1', 'Kirim warning setelah 3x late payment (1=enabled, 0=disabled)', 'late_payment'),
       ('late_payment_warning_at_4', '1', 'Kirim final warning setelah 4x late payment (1=enabled, 0=disabled)', 'late_payment')
     `);
@@ -108,7 +106,7 @@ export async function up(): Promise<void> {
 
 export async function down(): Promise<void> {
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
 
@@ -134,8 +132,7 @@ export async function down(): Promise<void> {
     try {
       await connection.query(`
         ALTER TABLE customers 
-        DROP INDEX idx_late_payment_count,
-        DROP INDEX idx_billing_mode_late_count
+        DROP INDEX idx_late_payment_count
       `);
     } catch (error: any) {
       console.warn('Warning dropping indexes:', error.message);
@@ -148,7 +145,6 @@ export async function down(): Promise<void> {
         'late_payment_threshold',
         'late_payment_rolling_months',
         'consecutive_on_time_reset',
-        'enable_auto_migrate_late_payment',
         'late_payment_warning_at_3',
         'late_payment_warning_at_4'
       )

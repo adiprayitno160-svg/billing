@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { databasePool } from '../db/pool';
 import { getMikrotikInfo, getInterfaces, MikroTikConfig } from '../services/mikrotikService';
+import { ServerMonitoringService } from '../services/serverMonitoringService';
 
 function getLastNDatesLabels(days: number): string[] {
 	const labels: string[] = [];
@@ -19,13 +20,13 @@ async function getTroubleCustomers(): Promise<any[]> {
 		const [tables] = await databasePool.query(
 			"SHOW TABLES"
 		) as any[];
-		
+
 		const tableNames = Array.isArray(tables) ? tables.map((t: any) => Object.values(t)[0]) : [];
 		const hasMaintenance = tableNames.includes('maintenance_schedules');
 		const hasConnectionLogs = tableNames.includes('connection_logs');
 		const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
 		const hasSlaIncidents = tableNames.includes('sla_incidents');
-		
+
 		// Check if is_isolated column exists
 		let hasIsolated = false;
 		try {
@@ -37,17 +38,31 @@ async function getTroubleCustomers(): Promise<any[]> {
 			hasIsolated = false;
 		}
 
+		// Check if issue_type column exists in maintenance_schedules
+		let hasIssueType = false;
+		if (hasMaintenance) {
+			try {
+				const [cols] = await databasePool.query(
+					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME = 'issue_type'"
+				) as any[];
+				hasIssueType = Array.isArray(cols) && cols.length > 0;
+			} catch {
+				hasIssueType = false;
+			}
+		}
+
 		// Build UNION query for all trouble sources
 		const queries: string[] = [];
 		const isolatedFilter = hasIsolated ? 'AND (c.is_isolated = 0 OR c.is_isolated IS NULL)' : '';
 
 		// 1. Customers with maintenance schedules
 		if (hasMaintenance) {
+			const issueTypeColumn = hasIssueType ? "COALESCE(m.issue_type, 'Maintenance')" : "'Maintenance'";
 			queries.push(`
 				SELECT DISTINCT
 					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
 					m.status as maintenance_status, 
-					COALESCE(m.issue_type, 'Maintenance') as issue_type, 
+					${issueTypeColumn} as issue_type, 
 					m.created_at as trouble_since,
 					'maintenance' as trouble_type
 				FROM customers c
@@ -164,7 +179,7 @@ async function getTroubleCustomers(): Promise<any[]> {
 		`;
 
 		const [rows] = await databasePool.query(unionQuery);
-		
+
 		return rows as any[];
 	} catch (error) {
 		console.error('Error fetching trouble customers:', error);
@@ -200,11 +215,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		odpCountP,
 		mtSettingsP,
 		troubleCustomersP,
-		prepaidCustomersP,
-		activeSubscriptionsP,
 		latePaymentHighRiskP,
-		latePaymentWarning4P,
-		latePaymentAutoMigrateP
+		latePaymentWarning4P
 	] = await Promise.all([
 		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -220,29 +232,19 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_olt'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odc'),
 		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odp'),
-		databasePool.query('SELECT id, host, port, username, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
+		databasePool.query('SELECT id, host, port, username, password, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
 		getTroubleCustomers(),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE billing_mode='prepaid'").catch(() => Promise.resolve([[{ cnt: 0 }]])),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM prepaid_package_subscriptions WHERE status='active' AND expiry_date > NOW()").catch(() => Promise.resolve([[{ cnt: 0 }]])),
-		// Optimized: Use pre-checked column existence
 		(async () => {
 			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
 			try {
-				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE (billing_mode='postpaid' OR billing_mode IS NULL OR billing_mode = '') AND COALESCE(late_payment_count, 0) >= 3") as any;
+				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 3") as any;
 				return result;
 			} catch { return [[{ cnt: 0 }]]; }
 		})(),
 		(async () => {
 			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
 			try {
-				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE (billing_mode='postpaid' OR billing_mode IS NULL OR billing_mode = '') AND COALESCE(late_payment_count, 0) = 4") as any;
-				return result;
-			} catch { return [[{ cnt: 0 }]]; }
-		})(),
-		(async () => {
-			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
-			try {
-				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE (billing_mode='postpaid' OR billing_mode IS NULL OR billing_mode = '') AND COALESCE(late_payment_count, 0) >= 5") as any;
+				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 4") as any;
 				return result;
 			} catch { return [[{ cnt: 0 }]]; }
 		})()
@@ -261,12 +263,10 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 	const odpCount = (odpCountP[0] as any)[0]?.cnt ?? 0;
 	const newRequests = (newRequests7dP[0] as any)[0]?.cnt ?? 0;
 	const recentRequests = (recentRequestsP[0] as any) ?? [];
-	const troubleCustomers = troubleCustomersP ?? [];
-	const prepaidCustomers = (prepaidCustomersP[0] as any)[0]?.cnt ?? 0;
-	const activeSubscriptions = (activeSubscriptionsP[0] as any)[0]?.cnt ?? 0;
+	// Ensure troubleCustomers is always an array
+	const troubleCustomers = Array.isArray(troubleCustomersP) ? troubleCustomersP : [];
 	const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
 	const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
-	const latePaymentAutoMigrate = (latePaymentAutoMigrateP[0] as any)[0]?.cnt ?? 0;
 
 	const labels = getLastNDatesLabels(7);
 	const pointsMap: Record<string, number> = Object.create(null);
@@ -285,6 +285,11 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 
 	if (mtSettings) {
 		try {
+			// Validate that password exists
+			if (!mtSettings.password) {
+				throw new Error('Password MikroTik tidak ditemukan. Silakan konfigurasi ulang di Settings > MikroTik');
+			}
+
 			const config: MikroTikConfig = {
 				host: mtSettings.host,
 				port: mtSettings.port,
@@ -292,39 +297,52 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				password: mtSettings.password,
 				use_tls: mtSettings.use_tls
 			};
-			
+
+			console.log(`[Dashboard] Attempting to connect to MikroTik at ${config.host}:${config.port}...`);
 			mikrotikInfo = await getMikrotikInfo(config);
+			console.log(`[Dashboard] ✅ MikroTik info retrieved successfully`);
+
 			interfaces = await getInterfaces(config);
+			console.log(`[Dashboard] ✅ Retrieved ${interfaces.length} interfaces`);
+
 			connectionStatus = { connected: true, error: null };
 		} catch (error: any) {
-			connectionStatus = { connected: false, error: error?.message || 'Gagal mengambil data MikroTik' };
+			const errorMessage = error?.message || 'Gagal mengambil data MikroTik';
+			console.error(`[Dashboard] ❌ Error connecting to MikroTik:`, errorMessage);
+			connectionStatus = { connected: false, error: errorMessage };
+			// Set empty arrays to prevent undefined errors in view
+			mikrotikInfo = null;
+			interfaces = [];
 		}
+	}
+
+	// Get server monitoring status
+	let serverMonitoring = null;
+	try {
+		serverMonitoring = await ServerMonitoringService.getServerStatus();
+	} catch (error: any) {
+		console.error(`[Dashboard] ❌ Error getting server monitoring:`, error);
 	}
 
 	res.render('dashboard/index', {
 		title: 'Dashboard',
-		stats: { 
-			activeCustomers, 
-			inactiveCustomers, 
+		stats: {
+			activeCustomers,
+			inactiveCustomers,
 			suspendedCustomers,
-			totalCustomers, 
+			totalCustomers,
 			pppoeCustomers,
 			staticIpCustomers,
-			pppoePackages, 
-			pppoeProfiles, 
-			newRequests, 
-			oltCount, 
-			odcCount, 
-			odpCount 
-		},
-		prepaidStats: {
-			totalPrepaid: prepaidCustomers,
-			activeSubscriptions: activeSubscriptions
+			pppoePackages,
+			pppoeProfiles,
+			newRequests,
+			oltCount,
+			odcCount,
+			odpCount
 		},
 		latePaymentStats: {
 			highRisk: latePaymentHighRisk,
-			warning4: latePaymentWarning4,
-			autoMigrate: latePaymentAutoMigrate
+			warning4: latePaymentWarning4
 		},
 		recentRequests,
 		troubleCustomers,
@@ -332,7 +350,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		settings: mtSettings,
 		mikrotikInfo,
 		interfaces,
-		connectionStatus
+		connectionStatus,
+		serverMonitoring
 	});
 }
 
@@ -349,11 +368,18 @@ export async function getInterfaceStats(req: Request, res: Response): Promise<vo
 			return;
 		}
 
-		const [mtSettingsRows] = await databasePool.query('SELECT id, host, port, username, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
+		const [mtSettingsRows] = await databasePool.query('SELECT id, host, port, username, password, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
 		const mtSettings = Array.isArray(mtSettingsRows) && mtSettingsRows.length ? (mtSettingsRows as any[])[0] : null;
 
 		if (!mtSettings) {
 			res.json([]);
+			return;
+		}
+
+		// Validate password exists
+		if (!mtSettings.password) {
+			console.error('[getInterfaceStats] ❌ Password MikroTik tidak ditemukan');
+			res.status(500).json({ error: 'Password MikroTik tidak ditemukan. Silakan konfigurasi ulang di Settings > MikroTik' });
 			return;
 		}
 
@@ -365,14 +391,14 @@ export async function getInterfaceStats(req: Request, res: Response): Promise<vo
 			use_tls: mtSettings.use_tls
 		};
 
-		// Add timeout protection - max 3 seconds
+		// Add timeout protection - max 5 seconds
 		const timeoutPromise = new Promise<any[]>((_, reject) => {
-			setTimeout(() => reject(new Error('MikroTik request timeout')), 3000);
+			setTimeout(() => reject(new Error('MikroTik request timeout')), 5000);
 		});
 
 		const interfacesPromise = getInterfaces(config);
 		const interfaces = await Promise.race([interfacesPromise, timeoutPromise]);
-		
+
 		// Update cache
 		interfaceStatsCache = {
 			data: interfaces,
@@ -382,7 +408,7 @@ export async function getInterfaceStats(req: Request, res: Response): Promise<vo
 		res.json(interfaces);
 	} catch (error: any) {
 		console.error('Error fetching interface stats:', error);
-		
+
 		// Return cached data if available, even if expired
 		if (interfaceStatsCache) {
 			res.json(interfaceStatsCache.data);

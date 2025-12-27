@@ -11,6 +11,9 @@ router.use(isAuthenticated);
 // Dashboard monitoring
 router.get('/dashboard', (req, res) => controller.getMonitoringDashboard(req, res));
 
+// Troubled customers monitoring
+router.get('/trouble', (req, res) => controller.monitorTrouble(req, res));
+
 // PPPoE monitoring
 router.get('/pppoe', (req, res) => controller.monitorPPPoE(req, res));
 

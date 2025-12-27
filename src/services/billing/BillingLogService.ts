@@ -8,7 +8,7 @@ import { databasePool } from '../../db/pool';
 import { AIAnomalyDetectionService } from './AIAnomalyDetectionService';
 
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
-export type LogType = 
+export type LogType =
     | 'billing'
     | 'payment'
     | 'invoice'
@@ -21,8 +21,7 @@ export type LogType =
     | 'system'
     | 'mikrotik'
     | 'whatsapp'
-    | 'telegram'
-    | 'prepaid';
+    | 'telegram';
 
 export interface LogContext {
     [key: string]: any;
@@ -46,7 +45,7 @@ export interface LogEntry {
 export class BillingLogService {
     private static logDir = path.join(process.cwd(), 'logs');
     private static anomalyDetector = new AIAnomalyDetectionService();
-    
+
     /**
      * Initialize logging directory
      */
@@ -84,11 +83,11 @@ export class BillingLogService {
             // Run AI anomaly detection for errors and warnings
             if (entry.level === 'error' || entry.level === 'critical' || entry.level === 'warning') {
                 const anomaly = await this.anomalyDetector.detectAnomaly(entry, logId);
-                
+
                 if (anomaly.isAnomaly) {
                     // Update log with anomaly detection result
                     await this.updateLogAnomaly(logId, anomaly);
-                    
+
                     // Log anomaly separately
                     await this.logAnomaly(entry, anomaly, logId);
                 }
@@ -209,7 +208,7 @@ export class BillingLogService {
         const conn = await databasePool.getConnection();
         try {
             const today = new Date().toISOString().split('T')[0];
-            
+
             await conn.execute(`
                 INSERT INTO log_statistics (stat_date, service_name, log_level, log_count, error_count)
                 VALUES (?, ?, ?, 1, ?)

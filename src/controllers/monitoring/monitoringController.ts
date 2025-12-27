@@ -5,9 +5,10 @@ import { getMikrotikConfig } from '../../services/pppoeService';
 import { getPppoeActiveConnections, getPppoeSecrets } from '../../services/mikrotikService';
 import MonitoringAnalyticsService from '../../services/monitoring/monitoringAnalyticsService';
 import IncidentAIService from '../../services/monitoring/incidentAIService';
+import NetworkMonitoringService from '../../services/monitoring/NetworkMonitoringService';
 
 export class MonitoringController {
-    
+
     /**
      * Dashboard monitoring - gabungan PPPoE dan Static IP
      */
@@ -35,7 +36,7 @@ export class MonitoringController {
 
                 // Get online sessions from MikroTik
                 let onlinePPPoE = 0;
-                
+
                 try {
                     const mikrotikConfig = await getMikrotikConfig();
                     if (mikrotikConfig) {
@@ -60,6 +61,29 @@ export class MonitoringController {
             res.status(500).render('error', {
                 title: 'Error',
                 message: 'Gagal memuat dashboard monitoring'
+            });
+        }
+    }
+
+    /**
+     * Monitor Troubled Customers (Full Page)
+     */
+    async monitorTrouble(req: Request, res: Response): Promise<void> {
+        try {
+            const troubleCustomers = await NetworkMonitoringService.getTroubleCustomers();
+
+            res.render('monitoring/trouble', {
+                title: 'Monitor Pelanggan Trouble',
+                currentPath: '/monitoring/trouble',
+                troubleCustomers,
+                updatedAt: new Date(),
+                fullWidth: true
+            });
+        } catch (error) {
+            console.error('Error loading trouble monitoring:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat monitoring trouble: ' + (error instanceof Error ? error.message : String(error))
             });
         }
     }
@@ -122,7 +146,7 @@ export class MonitoringController {
 
             console.log('Executing customers query...');
             const [customers] = await databasePool.query(
-                customersQuery, 
+                customersQuery,
                 [...queryParams, limit, offset]
             ) as [RowDataPacket[], any];
             console.log(`Found ${customers.length} customers`);
@@ -229,8 +253,8 @@ export class MonitoringController {
                 }
             }
 
-            const whereClause = whereConditions.length > 0 
-                ? 'WHERE ' + whereConditions.join(' AND ') 
+            const whereClause = whereConditions.length > 0
+                ? 'WHERE ' + whereConditions.join(' AND ')
                 : '';
 
             // Get static IP clients with ping status
@@ -286,7 +310,7 @@ export class MonitoringController {
                 // IMPORTANT: IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
                 // IP yang ditampilkan ke user harus IP client (192.168.1.2)
                 const peerIP = client.ip_address ? calculateCustomerIP(client.ip_address) : '';
-                
+
                 // Get current downtime if offline
                 let currentDowntime = null;
                 if (client.ping_status === 'offline' && !client.is_isolated) {
@@ -302,7 +326,7 @@ export class MonitoringController {
                         LIMIT 1`,
                         [client.customer_id]
                     ) as [RowDataPacket[], any];
-                    
+
                     if (downtimeResult.length > 0) {
                         currentDowntime = downtimeResult[0];
                     }
@@ -401,7 +425,7 @@ export class MonitoringController {
                 res.status(404).json({ success: false, message: 'Customer not found' });
                 return;
             }
-            
+
             // Get online status from MikroTik
             let sessionInfo = null;
             try {
@@ -725,7 +749,7 @@ export class MonitoringController {
             });
         }
     }
-    
+
     /**
      * GET /monitoring/analytics/bandwidth
      * Get bandwidth analytics
@@ -733,12 +757,12 @@ export class MonitoringController {
     async getBandwidthAnalytics(req: Request, res: Response): Promise<void> {
         try {
             const days = parseInt(req.query.days as string) || 30;
-            
+
             const summary = await MonitoringAnalyticsService.getBandwidthSummary();
             const trend = await MonitoringAnalyticsService.getBandwidthTrend(days);
             const topCustomers = await MonitoringAnalyticsService.getTopCustomersByBandwidth(10);
             const byArea = await MonitoringAnalyticsService.getBandwidthByArea(days);
-            
+
             res.json({
                 success: true,
                 data: {
@@ -756,7 +780,7 @@ export class MonitoringController {
             });
         }
     }
-    
+
     /**
      * GET /monitoring/analytics/health
      * Get network health overview
@@ -764,7 +788,7 @@ export class MonitoringController {
     async getNetworkHealth(req: Request, res: Response): Promise<void> {
         try {
             const health = await MonitoringAnalyticsService.getNetworkHealth();
-            
+
             res.json({
                 success: true,
                 data: health
@@ -777,7 +801,7 @@ export class MonitoringController {
             });
         }
     }
-    
+
     /**
      * GET /monitoring/analytics/anomalies
      * Get real-time anomalies
@@ -785,7 +809,7 @@ export class MonitoringController {
     async getAnomalies(req: Request, res: Response): Promise<void> {
         try {
             const anomalies = await IncidentAIService.detectRealTimeAnomalies();
-            
+
             res.json({
                 success: true,
                 data: anomalies
@@ -798,7 +822,7 @@ export class MonitoringController {
             });
         }
     }
-    
+
     /**
      * GET /monitoring/analytics/incident/:id
      * Get AI analysis for specific incident
@@ -806,11 +830,11 @@ export class MonitoringController {
     async getIncidentAnalysis(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-        if (!id) {
-            return res.status(400).json({ success: false, error: 'id is required' });
-        }
-        const customerId = parseInt(id);
-            
+            if (!id) {
+                return res.status(400).json({ success: false, error: 'id is required' });
+            }
+            const customerId = parseInt(id);
+
             if (!incidentId) {
                 res.status(400).json({
                     success: false,
@@ -818,9 +842,9 @@ export class MonitoringController {
                 });
                 return;
             }
-            
+
             const analysis = await IncidentAIService.analyzeIncident(incidentId);
-            
+
             if (!analysis) {
                 res.status(404).json({
                     success: false,
@@ -828,7 +852,7 @@ export class MonitoringController {
                 });
                 return;
             }
-            
+
             res.json({
                 success: true,
                 data: analysis

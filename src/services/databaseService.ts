@@ -24,7 +24,7 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
         // Test connection
         const [versionResult] = await conn.execute('SELECT VERSION() as version');
         const version = Array.isArray(versionResult) ? (versionResult[0] as any).version : 'Unknown';
-        
+
         // Get table count
         const [tablesResult] = await conn.execute(`
             SELECT COUNT(*) as count 
@@ -32,7 +32,7 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
             WHERE table_schema = DATABASE()
         `);
         const totalTables = Array.isArray(tablesResult) ? (tablesResult[0] as any).count : 0;
-        
+
         // Get total rows across all tables
         const [rowsResult] = await conn.execute(`
             SELECT SUM(table_rows) as total_rows
@@ -40,7 +40,7 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
             WHERE table_schema = DATABASE()
         `);
         const totalRows = Array.isArray(rowsResult) ? (rowsResult[0] as any).total_rows || 0 : 0;
-        
+
         return {
             connected: true,
             version,
@@ -82,7 +82,7 @@ function getErrorMessage(error: any): string {
 export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
     const issues: SchemaIssue[] = [];
     const conn = await databasePool.getConnection();
-    
+
     try {
         // Check for missing columns in ftth_odc
         try {
@@ -99,7 +99,7 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
                 });
             }
         }
-        
+
         // Check for missing columns in ftth_odp
         try {
             await conn.execute('SELECT olt_card FROM ftth_odp LIMIT 1');
@@ -115,7 +115,7 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
                 });
             }
         }
-        
+
         // Check for missing columns olt_port
         try {
             await conn.execute('SELECT olt_port FROM ftth_odc LIMIT 1');
@@ -131,7 +131,7 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
                 });
             }
         }
-        
+
         try {
             await conn.execute('SELECT olt_port FROM ftth_odp LIMIT 1');
         } catch (error: any) {
@@ -146,7 +146,7 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
                 });
             }
         }
-        
+
         // Check for missing static_ip_clients table
         try {
             await conn.execute('SELECT COUNT(*) FROM static_ip_clients LIMIT 1');
@@ -171,7 +171,7 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
                 });
             }
         }
-        
+
         // Check for missing max_clients column in static_ip_packages
         try {
             await conn.execute('SELECT max_clients FROM static_ip_packages LIMIT 1');
@@ -187,11 +187,11 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
                 });
             }
         }
-        
+
     } finally {
         conn.release();
     }
-    
+
     return issues;
 }
 
@@ -200,50 +200,50 @@ export async function fixMissingColumns(): Promise<void> {
     const conn = await databasePool.getConnection();
     try {
         await conn.beginTransaction();
-        
+
         // Fix ftth_odc table
         try {
             await conn.execute('ALTER TABLE ftth_odc ADD COLUMN olt_card INT NULL DEFAULT NULL AFTER used_ports');
         } catch (error: any) {
-            if (String(error).includes('Duplicate column name')) {
+            if (!String(error).includes('Duplicate column name')) {
                 throw error;
             }
         }
-        
+
         try {
             await conn.execute('ALTER TABLE ftth_odc ADD COLUMN olt_port INT NULL DEFAULT NULL AFTER olt_card');
         } catch (error: any) {
-            if (String(error).includes('Duplicate column name')) {
+            if (!String(error).includes('Duplicate column name')) {
                 throw error;
             }
         }
-        
+
         // Fix ftth_odp table
         try {
             await conn.execute('ALTER TABLE ftth_odp ADD COLUMN olt_card INT NULL DEFAULT NULL AFTER used_ports');
         } catch (error: any) {
-            if (String(error).includes('Duplicate column name')) {
+            if (!String(error).includes('Duplicate column name')) {
                 throw error;
             }
         }
-        
+
         try {
             await conn.execute('ALTER TABLE ftth_odp ADD COLUMN olt_port INT NULL DEFAULT NULL AFTER olt_card');
         } catch (error: any) {
-            if (String(error).includes('Duplicate column name')) {
+            if (!String(error).includes('Duplicate column name')) {
                 throw error;
             }
         }
-        
+
         // Fix static_ip_packages table
         try {
             await conn.execute('ALTER TABLE static_ip_packages ADD COLUMN max_clients INT DEFAULT 1 AFTER max_limit_download');
         } catch (error: any) {
-            if (String(error).includes('Duplicate column name')) {
+            if (!String(error).includes('Duplicate column name')) {
                 throw error;
             }
         }
-        
+
         // Create static_ip_clients table if not exists
         try {
             await conn.execute(`
@@ -263,7 +263,7 @@ export async function fixMissingColumns(): Promise<void> {
                 throw error;
             }
         }
-        
+
         await conn.commit();
     } catch (error) {
         await conn.rollback();
@@ -278,10 +278,10 @@ export async function runMigration(migrationType?: string): Promise<void> {
     const conn = await databasePool.getConnection();
     try {
         await conn.beginTransaction();
-        
+
         // Run all necessary migrations
         await fixMissingColumns();
-        
+
         // Create missing indexes
         const indexes = [
             'CREATE INDEX IF NOT EXISTS idx_ftth_odc_olt_card ON ftth_odc (olt_card)',
@@ -291,7 +291,7 @@ export async function runMigration(migrationType?: string): Promise<void> {
             'CREATE INDEX IF NOT EXISTS idx_static_ip_clients_package ON static_ip_clients (package_id)',
             'CREATE INDEX IF NOT EXISTS idx_static_ip_clients_status ON static_ip_clients (status)'
         ];
-        
+
         for (const index of indexes) {
             try {
                 await conn.execute(index);
@@ -301,7 +301,7 @@ export async function runMigration(migrationType?: string): Promise<void> {
                 }
             }
         }
-        
+
         await conn.commit();
     } catch (error) {
         await conn.rollback();

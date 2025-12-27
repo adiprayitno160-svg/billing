@@ -1,11 +1,11 @@
 /**
  * Late Payment Tracking Service
- * Handles tracking late payments and auto-migration to prepaid
+ * Handles tracking late payments and service suspension triggers
  */
 
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
-import MigrationService from '../customer/MigrationService';
+
 // WhatsApp service removed
 
 export interface LatePaymentStats {
@@ -32,7 +32,7 @@ export class LatePaymentTrackingService {
 
       // Get invoice and customer info
       const [invoiceRows] = await connection.query<RowDataPacket[]>(
-        `SELECT i.*, c.id as customer_id, c.billing_mode, c.name as customer_name, c.phone
+        `SELECT i.*, c.id as customer_id, c.name as customer_name, c.phone
          FROM invoices i
          JOIN customers c ON i.customer_id = c.id
          WHERE i.id = ?`,
@@ -45,11 +45,7 @@ export class LatePaymentTrackingService {
 
       const invoice = invoiceRows[0];
 
-      // Skip tracking if customer is already prepaid
-      if (invoice.billing_mode === 'prepaid') {
-        await connection.commit();
-        return { isLate: false, daysLate: 0 };
-      }
+
 
       // Check if payment is late
       const paymentDateObj = new Date(paymentDate);
@@ -64,7 +60,7 @@ export class LatePaymentTrackingService {
         WHERE TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME = 'customer_late_payment_tracking'
       `);
-      
+
       if (tableCheck.length > 0) {
         // Record in tracking table
         await connection.query(
@@ -89,7 +85,7 @@ export class LatePaymentTrackingService {
       if (isLate) {
         // Increment consecutive late payments will be handled by calculateLatePaymentCount
         await this.calculateLatePaymentCount(invoice.customer_id);
-        
+
         // Update last late payment date
         await connection.query(
           `UPDATE customers 
@@ -114,9 +110,7 @@ export class LatePaymentTrackingService {
       await connection.commit();
 
       // Check and trigger migration if needed (after commit)
-      if (isLate) {
-        await this.checkAndTriggerMigration(invoice.customer_id);
-      }
+
 
       return { isLate, daysLate };
     } catch (error) {
@@ -143,7 +137,7 @@ export class LatePaymentTrackingService {
         AND TABLE_NAME = 'customers' 
         AND COLUMN_NAME = 'late_payment_count'
       `);
-      
+
       if (columns.length === 0) {
         // Column doesn't exist, return 0
         console.warn('[LatePaymentTrackingService] late_payment_count column does not exist, skipping calculation');
@@ -155,7 +149,7 @@ export class LatePaymentTrackingService {
         const [settings] = await connection.query<RowDataPacket[]>(
           `SELECT setting_value FROM system_settings WHERE setting_key = 'late_payment_rolling_months'`
         );
-        months = settings.length > 0 ? parseInt(settings[0].setting_value) : 12;
+        months = settings.length > 0 ? parseInt(settings[0]!.setting_value) : 12;
       }
 
       // Calculate cutoff date
@@ -171,7 +165,7 @@ export class LatePaymentTrackingService {
           WHERE TABLE_SCHEMA = DATABASE() 
           AND TABLE_NAME = 'customer_late_payment_tracking'
         `);
-        
+
         if (tableCheck.length > 0) {
           // Count late payments in period
           const [countRows] = await connection.query<RowDataPacket[]>(
@@ -212,108 +206,7 @@ export class LatePaymentTrackingService {
   /**
    * Check and trigger migration if threshold reached
    */
-  static async checkAndTriggerMigration(customerId: number): Promise<boolean> {
-    const connection = await pool.getConnection();
 
-    try {
-      // Check if auto-migration is enabled
-      const [enableRows] = await connection.query<RowDataPacket[]>(
-        `SELECT setting_value FROM system_settings WHERE setting_key = 'enable_auto_migrate_late_payment'`
-      );
-      const enabled = enableRows.length > 0 && enableRows[0].setting_value === '1';
-
-      if (!enabled) {
-        return false;
-      }
-
-      // Get threshold
-      const [thresholdRows] = await connection.query<RowDataPacket[]>(
-        `SELECT setting_value FROM system_settings WHERE setting_key = 'late_payment_threshold'`
-      );
-      const threshold = thresholdRows.length > 0 ? parseInt(thresholdRows[0].setting_value) : 5;
-
-      // Get customer info
-      const [customerRows] = await connection.query<RowDataPacket[]>(
-        `SELECT * FROM customers WHERE id = ?`,
-        [customerId]
-      );
-
-      if (customerRows.length === 0) {
-        return false;
-      }
-
-      const customer = customerRows[0];
-
-      // Skip if already prepaid
-      if (customer.billing_mode === 'prepaid') {
-        return false;
-      }
-
-      // Check late payment count (with safe fallback)
-      const lateCount = customer.late_payment_count ?? 0;
-
-      // Send warnings
-      if (lateCount === 3) {
-        await this.sendLatePaymentWarning(customerId, 3);
-      } else if (lateCount === 4) {
-        await this.sendLatePaymentWarning(customerId, 4);
-      }
-
-      // Trigger migration if threshold reached
-      if (lateCount >= threshold) {
-        console.log(`[LatePaymentTrackingService] Auto-migrating customer ${customerId} due to ${lateCount} late payments`);
-
-        // Save snapshot before migration
-        await this.saveMigrationSnapshot(customerId, lateCount);
-
-        // Trigger migration with retry
-        let migrationSuccess = false;
-        let retries = 3;
-
-        while (retries > 0 && !migrationSuccess) {
-          try {
-            await MigrationService.migrateToPrepaid(customerId);
-            migrationSuccess = true;
-
-            // Reset counter after successful migration
-            await this.resetCounter(customerId, 0, 'Auto-reset: Migrated to prepaid due to late payment');
-
-            // Send notification
-            await this.sendMigrationNotification(customerId);
-
-            console.log(`✅ Customer ${customerId} successfully auto-migrated to prepaid`);
-          } catch (error) {
-            retries--;
-            console.error(`❌ Migration failed for customer ${customerId}, retries left: ${retries}`, error);
-
-            if (retries === 0) {
-              // Log error and alert admin
-              await this.logAudit(
-                customerId,
-                'migration_failed',
-                lateCount,
-                lateCount,
-                `Auto-migration failed: ${error instanceof Error ? error.message : String(error)}`,
-                0
-              );
-            } else {
-              // Wait before retry (exponential backoff)
-              await new Promise(resolve => setTimeout(resolve, 2000 * (4 - retries)));
-            }
-          }
-        }
-
-        return migrationSuccess;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('[LatePaymentTrackingService] Error checking migration:', error);
-      return false;
-    } finally {
-      connection.release();
-    }
-  }
 
   /**
    * Check and reset counter if customer has consecutive on-time payments
@@ -326,7 +219,7 @@ export class LatePaymentTrackingService {
       const [resetRows] = await connection.query<RowDataPacket[]>(
         `SELECT setting_value FROM system_settings WHERE setting_key = 'consecutive_on_time_reset'`
       );
-      const resetThreshold = resetRows.length > 0 ? parseInt(resetRows[0].setting_value) : 3;
+      const resetThreshold = resetRows.length > 0 ? parseInt(resetRows[0]!.setting_value) : 3;
 
       // Check if columns exist first
       const [columns] = await connection.query<RowDataPacket[]>(`
@@ -336,9 +229,9 @@ export class LatePaymentTrackingService {
         AND TABLE_NAME = 'customers' 
         AND COLUMN_NAME IN ('consecutive_on_time_payments', 'late_payment_count')
       `);
-      
+
       const hasColumns = columns.length >= 2;
-      
+
       if (!hasColumns) {
         return; // Skip if columns don't exist
       }
@@ -395,7 +288,7 @@ export class LatePaymentTrackingService {
         WHERE TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME = 'customer_late_payment_tracking'
       `);
-      
+
       if (tableCheck.length === 0) {
         // Table doesn't exist, return empty array
         console.warn('[LatePaymentTrackingService] customer_late_payment_tracking table does not exist, returning empty history');
@@ -468,7 +361,7 @@ Halo *${customer.name}*,
 
 Anda sudah *3x* melakukan pembayaran telat.
 
-Jika mencapai *${threshold}x* pembayaran telat, akun Anda akan otomatis dipindahkan ke sistem PREPAID.
+Jika mencapai *${threshold}x* pembayaran telat, layanan Anda mungkin akan ditangguhkan.
 
 Untuk pembayaran tepat waktu, silakan bayar sebelum tanggal jatuh tempo.
 
@@ -480,9 +373,9 @@ Halo *${customer.name}*,
 
 Anda sudah *4x* melakukan pembayaran telat.
 
-⚠️ PERINGATAN: *1x lagi* pembayaran telat, akun Anda akan OTOMATIS dipindahkan ke sistem PREPAID.
+⚠️ PERINGATAN: *1x lagi* pembayaran telat, layanan Anda mungkin akan ditangguhkan.
 
-Harap segera lakukan pembayaran tepat waktu untuk menghindari pemindahan ke sistem prepaid.
+Harap segera lakukan pembayaran tepat waktu.
 
 Terima kasih.`;
       }
@@ -496,7 +389,7 @@ Terima kasih.`;
           try {
             const { WhatsAppService } = await import('../whatsapp/WhatsAppService');
             const result = await WhatsAppService.sendMessage(customer.phone, message, {
-              customerId: customerId,
+              customerId: customerId.toString(),
               template: count === 3 ? 'late_payment_warning_3' : 'late_payment_warning_4'
             });
             sent = result.success;
@@ -518,69 +411,8 @@ Terima kasih.`;
     }
   }
 
-  /**
-   * Send migration notification
-   */
-  static async sendMigrationNotification(customerId: number): Promise<void> {
-    try {
-      // Get customer and portal info
-      const [rows] = await pool.query<RowDataPacket[]>(
-        `SELECT c.*, pc.portal_id, pc.portal_pin
-         FROM customers c
-         LEFT JOIN portal_customers pc ON c.id = pc.customer_id
-         WHERE c.id = ?`,
-        [customerId]
-      );
 
-      if (rows.length === 0 || !rows[0].phone) {
-        return;
-      }
 
-      const customer = rows[0];
-
-      // Get portal URL from settings
-      const [urlRows] = await pool.query<RowDataPacket[]>(
-        `SELECT setting_value FROM system_settings WHERE setting_key = 'prepaid_portal_url'`
-      );
-      const portalUrl = urlRows.length > 0 ? urlRows[0].setting_value : 'http://localhost:3000';
-
-      const message = `📢 INFORMASI PEMINDAHAN KE SISTEM PREPAID
-
-Halo *${customer.name}*,
-
-Karena Anda sudah 5x melakukan pembayaran telat, akun Anda telah OTOMATIS dipindahkan ke sistem PREPAID.
-
-Mulai sekarang:
-- Anda harus login ke portal prepaid untuk membeli paket internet
-${customer.portal_id ? `- Portal ID: *${customer.portal_id}*\n${customer.portal_pin ? `- PIN: *${customer.portal_pin}*` : ''}` : ''}
-
-Silakan login di: ${portalUrl}/prepaid/portal/login
-
-Terima kasih.`;
-
-      // Send via WhatsApp with retry
-      let sent = false;
-      let retries = 3;
-
-      while (retries > 0 && !sent) {
-        try {
-          sent = await WhatsAppNotificationService.sendMessage(customer.phone, message);
-          if (sent) {
-            console.log(`✅ Migration notification sent to customer ${customerId}`);
-          }
-        } catch (error) {
-          retries--;
-          if (retries === 0) {
-            console.error(`❌ Failed to send migration notification to customer ${customerId} after 3 retries`);
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[LatePaymentTrackingService] Error sending migration notification:', error);
-    }
-  }
 
   /**
    * Reset counter (admin or system)
@@ -604,7 +436,7 @@ Terima kasih.`;
         AND TABLE_NAME = 'customers' 
         AND COLUMN_NAME = 'late_payment_count'
       `);
-      
+
       if (columns.length === 0) {
         throw new Error('late_payment_count column does not exist. Please run migration.');
       }
@@ -629,16 +461,16 @@ Terima kasih.`;
         AND TABLE_NAME = 'customers' 
         AND COLUMN_NAME IN ('late_payment_count', 'consecutive_on_time_payments', 'last_late_payment_date')
       `);
-      
+
       const hasLateCount = allColumns.some((col: any) => col.COLUMN_NAME === 'late_payment_count');
       const hasConsecutive = allColumns.some((col: any) => col.COLUMN_NAME === 'consecutive_on_time_payments');
       const hasLastLateDate = allColumns.some((col: any) => col.COLUMN_NAME === 'last_late_payment_date');
-      
+
       const updateParts: string[] = [];
       if (hasLateCount) updateParts.push('late_payment_count = 0');
       if (hasConsecutive) updateParts.push('consecutive_on_time_payments = 0');
       if (hasLastLateDate) updateParts.push('last_late_payment_date = NULL');
-      
+
       if (updateParts.length > 0) {
         await connection.query(
           `UPDATE customers 
@@ -693,7 +525,7 @@ Terima kasih.`;
         AND TABLE_NAME = 'customers' 
         AND COLUMN_NAME = 'late_payment_count'
       `);
-      
+
       if (columns.length === 0) {
         throw new Error('late_payment_count column does not exist. Please run migration.');
       }
@@ -731,10 +563,7 @@ Terima kasih.`;
       await connection.commit();
       console.log(`✅ Adjusted late payment count for customer ${customerId} from ${oldCount} to ${newCount}`);
 
-      // Check migration after adjustment
-      if (newCount >= 5) {
-        await this.checkAndTriggerMigration(customerId);
-      }
+
     } catch (error) {
       await connection.rollback();
       console.error('[LatePaymentTrackingService] Error adjusting counter:', error);
@@ -757,7 +586,7 @@ Terima kasih.`;
         AND TABLE_NAME = 'customers' 
         AND COLUMN_NAME IN ('late_payment_count', 'last_late_payment_date', 'consecutive_on_time_payments')
       `);
-      
+
       const hasLatePaymentColumns = columns.some((col: any) => col.COLUMN_NAME === 'late_payment_count');
       const hasLastLatePaymentDate = columns.some((col: any) => col.COLUMN_NAME === 'last_late_payment_date');
       const hasConsecutiveOnTime = columns.some((col: any) => col.COLUMN_NAME === 'consecutive_on_time_payments');
@@ -786,12 +615,12 @@ Terima kasih.`;
           WHERE TABLE_SCHEMA = DATABASE() 
           AND TABLE_NAME = 'customer_late_payment_tracking'
         `);
-        
+
         if (tableCheck.length > 0) {
           const [periodRows] = await pool.query<RowDataPacket[]>(
             `SELECT setting_value FROM system_settings WHERE setting_key = 'late_payment_rolling_months'`
           );
-          const months = periodRows.length > 0 ? parseInt(periodRows[0].setting_value) : 12;
+          const months = periodRows.length > 0 ? parseInt(periodRows[0]!.setting_value) : 12;
           const cutoffDate = new Date();
           cutoffDate.setMonth(cutoffDate.getMonth() - months);
 
@@ -868,9 +697,8 @@ Terima kasih.`;
           COALESCE(c.late_payment_count, 0) as late_payment_count,
           c.last_late_payment_date,
           COALESCE(c.consecutive_on_time_payments, 0) as consecutive_on_time_payments,
-          COALESCE(c.billing_mode, 'postpaid') as billing_mode
+          'postpaid' as billing_mode
         FROM customers c
-        WHERE (c.billing_mode IS NULL OR c.billing_mode != 'prepaid')
       `;
 
       const params: any[] = [];
@@ -924,48 +752,8 @@ Terima kasih.`;
     }
   }
 
-  /**
-   * Save migration snapshot before auto-migration
-   */
-  private static async saveMigrationSnapshot(customerId: number, lateCount: number): Promise<void> {
-    try {
-      // Get all late payment records
-      const history = await this.getLatePaymentHistory(customerId, 100);
 
-      // Get customer info
-      const [customerRows] = await pool.query<RowDataPacket[]>(
-        `SELECT * FROM customers WHERE id = ?`,
-        [customerId]
-      );
 
-      const snapshot = {
-        customer_id: customerId,
-        late_payment_count: lateCount,
-        late_payment_history: history,
-        customer_info: customerRows[0],
-        migration_reason: 'Auto-migration due to late payment threshold',
-        migrated_at: new Date().toISOString()
-      };
-
-      // Log in migration_history if table exists
-      try {
-        await pool.query(
-          `INSERT INTO migration_history 
-           (customer_id, from_mode, to_mode, migrated_by, notes, created_at)
-           VALUES (?, 'postpaid', 'prepaid', 0, ?, NOW())`,
-          [
-            customerId,
-            JSON.stringify(snapshot)
-          ]
-        );
-      } catch (error) {
-        // migration_history might not exist or different structure
-        console.warn('Could not save migration snapshot to migration_history:', error);
-      }
-    } catch (error) {
-      console.error('[LatePaymentTrackingService] Error saving snapshot:', error);
-    }
-  }
 
   /**
    * Daily re-calculation job (to be called by scheduler)
@@ -977,7 +765,7 @@ Terima kasih.`;
     try {
       // Get all postpaid customers
       const [customers] = await pool.query<RowDataPacket[]>(
-        `SELECT id FROM customers WHERE billing_mode = 'postpaid'`
+        `SELECT id FROM customers`
       );
 
       for (const customer of customers) {

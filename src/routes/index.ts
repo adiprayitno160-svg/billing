@@ -10,62 +10,63 @@ import { AuthMiddleware, isAuthenticated } from '../middlewares/authMiddleware';
 import { getOltList, getOltEdit, postOltCreate, postOltDelete, postOltUpdate } from '../controllers/ftth/oltController';
 import { getOdcList, getOdcAdd, getOdcEdit, postOdcCreate, postOdcDelete, postOdcUpdate } from '../controllers/ftth/odcController';
 import { getOdpList, getOdpAdd, getOdpEdit, postOdpCreate, postOdpDelete, postOdpUpdate } from '../controllers/ftth/odpController';
-import { 
-	getProfileList, 
-	postSyncProfiles,
-	getProfileForm,
-	getProfileEdit,
-	postProfileCreate,
-	postProfileUpdate,
-	postProfileDelete,
-	getPackageList, 
-	getPackageForm,
-	getPackageEdit,
-	postPackageCreate, 
-	postPackageUpdate, 
-	postPackageDelete 
+import {
+    getProfileList,
+    postSyncProfiles,
+    getProfileForm,
+    getProfileEdit,
+    postProfileCreate,
+    postProfileUpdate,
+    postProfileDelete,
+    getPackageList,
+    getPackageForm,
+    getPackageEdit,
+    postPackageCreate,
+    postPackageUpdate,
+    postPackageDelete
 } from '../controllers/pppoeController';
 import { getProfileById, updateProfile, listProfiles } from '../services/pppoeService';
 import { getMikrotikConfig } from '../services/pppoeService';
 import { findPppProfileIdByName, getPppProfiles, updatePppProfile } from '../services/mikrotikService';
-import { 
-	getStaticIpPackageList, 
-	getStaticIpPackageAdd,
-	getStaticIpPackageEdit,
-	postStaticIpPackageCreate, 
-	postStaticIpPackageUpdate, 
-	postStaticIpPackageDelete,
+import {
+    getStaticIpPackageList,
+    getStaticIpPackageAdd,
+    getStaticIpPackageEdit,
+    postStaticIpPackageCreate,
+    postStaticIpPackageUpdate,
+    postStaticIpPackageDelete,
     postStaticIpPackageCreateQueues,
     postStaticIpPackageDeleteQueues
 } from '../controllers/staticIpPackageController';
-import { 
+import {
     getStaticIpClientList,
     getStaticIpClientAdd,
     postStaticIpClientCreate,
     postStaticIpClientDelete,
-	   getStaticIpClientEdit,
-	   postStaticIpClientUpdate,
-	   testMikrotikIpAdd,
-	   autoDebugIpStatic
+    getStaticIpClientEdit,
+    postStaticIpClientUpdate,
+    testMikrotikIpAdd,
+    autoDebugIpStatic
 } from '../controllers/staticIpClientController';
 import { ReportingController } from '../controllers/reportingController';
 import paymentRoutes from './payment';
-import portalRoutes from './portal';
+
 import authRoutes from './auth';
 import kasirRoutes from './kasir';
 import addressListRoutes from './addressList';
 import billingRoutes from './billing';
-import prepaidRoutes from './prepaid';
 import accountingRoutes from './accounting';
-import prepaidAdvancedRoutes from './prepaid-advanced';
 import monitoringRoutes from './monitoring';
 import slaRoutes from './sla';
 import maintenanceRoutes from './maintenance';
 import settingsRoutes from './settings';
 import whatsappRoutes from './whatsapp';
+
 import { pageRouter as notificationPageRouter, apiRouter as notificationApiRouter } from './notification';
+import genieacsRoutes from './genieacs';
+import wifiAdminRoutes from './wifi-admin';
 import { BulkOperationsController } from '../controllers/bulkOperationsController';
-import { 
+import {
     getAboutPage,
     checkUpdates,
     updateAppVersion,
@@ -74,7 +75,7 @@ import {
     checkHotfix,
     applyHotfixUpdate
 } from '../controllers/aboutController';
-import { 
+import {
     getDatabaseManagement,
     fixDatabaseIssues,
     runDatabaseMigration,
@@ -86,28 +87,16 @@ import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 
 // import { BillingDashboardController } from '../controllers/billing/billingDashboardController';
-import { 
+import {
     getCustomerList,
     getCustomerDetail,
     getCustomerEdit,
     updateCustomer,
-    // deleteCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    migrateToPrepaid,
-    migrateToPostpaid,
-    // getMigrationHistory, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // fixPrepaidCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // fixAllPrepaidCustomers, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // debugCheckCustomerIP, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // testAddIPToAddressList, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // listPrepaidCustomers, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // checkCustomerExists, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // searchCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // quickFixIP, // TEMPORARILY COMMENTED OUT - not exported from customerController
     // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
     // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
     testMikrotikAddressLists
 } from '../controllers/customerController';
-import { 
+import {
     exportCustomersToExcel,
     importCustomersFromExcel,
     getImportTemplate
@@ -172,17 +161,17 @@ const upload = multer({
             mimetype: file.mimetype,
             fieldname: file.fieldname
         });
-        
+
         // More lenient mime type check for production compatibility
-        const isExcelMimetype = 
+        const isExcelMimetype =
             file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
             file.mimetype === 'application/vnd.ms-excel' ||
             file.mimetype === 'application/octet-stream'; // Fallback for some servers
-        
-        const isExcelExtension = 
+
+        const isExcelExtension =
             file.originalname.toLowerCase().endsWith('.xlsx') ||
             file.originalname.toLowerCase().endsWith('.xls');
-        
+
         if (isExcelMimetype || isExcelExtension) {
             console.log('✅ File accepted');
             cb(null, true);
@@ -199,17 +188,17 @@ router.use('/notification', notificationPageRouter);
 
 // Middleware untuk mencegah kasir mengakses halaman admin
 router.use(async (req, res, next) => {
-    // Skip untuk route kasir, auth, portal, API routes, dan notification
-    if (        req.path.startsWith('/kasir') || 
-        req.path.startsWith('/auth') || 
-        req.path.startsWith('/portal') ||
+    // Skip untuk route kasir, auth, API routes, dan notification
+    if (req.path.startsWith('/kasir') ||
+        req.path.startsWith('/auth') ||
+
         req.path.startsWith('/api') ||
         req.path.startsWith('/notification') ||
         req.path === '/login' ||
         req.path === '/logout') {
         return next();
     }
-    
+
     // Load user first jika ada session
     const userId = (req.session as any)?.userId;
     if (userId && !req.user) {
@@ -224,7 +213,7 @@ router.use(async (req, res, next) => {
             console.error('Error loading user:', error);
         }
     }
-    
+
     // Terapkan requireNonKasir untuk route lainnya
     return authMiddleware.requireNonKasir(req, res, next);
 });
@@ -255,13 +244,13 @@ router.get('/api/check-notification', async (req, res) => {
                  ORDER BY unq.created_at DESC
                  LIMIT 10`
             );
-            
+
             // Cek template
             const [templates] = await connection.query<RowDataPacket[]>(
                 `SELECT * FROM notification_templates 
                  WHERE notification_type = 'customer_created' AND channel = 'whatsapp'`
             );
-            
+
             // Cek WhatsApp status
             let whatsappStatus = { ready: false, error: 'Not checked' };
             try {
@@ -270,7 +259,7 @@ router.get('/api/check-notification', async (req, res) => {
             } catch (e: any) {
                 whatsappStatus = { ready: false, error: e.message };
             }
-            
+
             // Stats
             const [stats] = await connection.query<RowDataPacket[]>(
                 `SELECT 
@@ -282,7 +271,7 @@ router.get('/api/check-notification', async (req, res) => {
                  WHERE notification_type = 'customer_created'
                  AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
             );
-            
+
             res.json({
                 success: true,
                 data: {
@@ -318,16 +307,14 @@ router.get('/dashboard', (req, res) => res.redirect('/'));
 // Billing routes
 router.use('/billing', billingRoutes);
 
-// Prepaid portal routes
-router.use('/prepaid', prepaidRoutes);
+
 
 // Accounting routes
 console.log('[ROUTE REGISTRATION] Registering /accounting routes...');
 router.use('/accounting', accountingRoutes);
 console.log('[ROUTE REGISTRATION] Accounting routes registered successfully');
 
-// Advanced Prepaid routes (New system)
-router.use('/prepaid/advanced', prepaidAdvancedRoutes);
+
 
 // Monitoring routes
 router.use('/monitoring', monitoringRoutes);
@@ -341,9 +328,42 @@ router.use('/monitoring/maintenance', maintenanceRoutes);
 // WhatsApp routes
 router.use('/whatsapp', whatsappRoutes);
 
+// GenieACS routes
+router.use('/genieacs', genieacsRoutes);
+
+// WiFi Admin routes
+router.use('/wifi-admin', wifiAdminRoutes);
+
+
+
 // ============================================
 // API ROUTES - Must be registered early to avoid conflicts
 // ============================================
+
+// API endpoint untuk get customers with device_id (for WiFi admin)
+router.get('/api/customers', async (req, res) => {
+    try {
+        const hasDevice = req.query.has_device === 'true';
+
+        let query = 'SELECT id, name, phone, device_id FROM customers';
+        if (hasDevice) {
+            query += ' WHERE device_id IS NOT NULL';
+        }
+        query += ' ORDER BY name ASC';
+
+        const [customers] = await databasePool.query<RowDataPacket[]>(query);
+
+        res.json({
+            success: true,
+            customers
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
 
 // API endpoint untuk create/update PPPoE secret
 // IMPORTANT: This route must be registered before any generic /customers/:id routes
@@ -364,24 +384,24 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
     console.log('[API] Request headers:', JSON.stringify(req.headers, null, 2));
     process.stdout.write('========================================\n');
     process.stdout.write('\n');
-    
+
     try {
         // Ensure response is always JSON
         res.setHeader('Content-Type', 'application/json');
-        
+
         const { customerId, username, password, profileId, customerName, packageId } = req.body;
-        
+
         console.log('[API] ========== CREATE SECRET API START ==========');
         console.log('[API] Request body:', JSON.stringify(req.body, null, 2));
-        console.log('[API] Parsed data:', { 
-            customerId, 
-            username: username || 'MISSING', 
-            password: password ? '***' : 'empty', 
-            profileId, 
+        console.log('[API] Parsed data:', {
+            customerId,
+            username: username || 'MISSING',
+            password: password ? '***' : 'empty',
+            profileId,
             customerName,
             packageId: packageId || 'MISSING'
         });
-        
+
         if (!customerId) {
             console.log('[API] ❌ Validation failed - customerId missing');
             return res.status(400).json({
@@ -389,7 +409,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 error: 'customerId wajib diisi'
             });
         }
-        
+
         if (!username || !username.trim()) {
             console.log('[API] ❌ Validation failed - username missing or empty');
             return res.status(400).json({
@@ -397,7 +417,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 error: 'username wajib diisi'
             });
         }
-        
+
         if (!password || !password.trim()) {
             console.log('[API] ❌ Validation failed - password missing or empty');
             return res.status(400).json({
@@ -405,7 +425,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 error: 'password wajib diisi'
             });
         }
-        
+
         const cfg = await getMikrotikConfig();
         if (!cfg) {
             return res.status(500).json({
@@ -413,13 +433,13 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 error: 'MikroTik tidak dikonfigurasi'
             });
         }
-        
+
         const { findPppoeSecretIdByName, createPppoeSecret, updatePppoeSecret } = await import('../services/mikrotikService');
         const { getProfileById, getPackageById } = await import('../services/pppoeService');
-        
+
         // Get profile name from package if package is selected
         let profileName: string | undefined = undefined;
-        
+
         // First, try to get profile from package (if package_id is provided)
         if (packageId) {
             try {
@@ -435,7 +455,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 console.error('⚠️ Gagal mendapatkan profile dari paket:', packageError);
             }
         }
-        
+
         // Fallback: Get profile name if profile_id is provided directly
         if (!profileName && profileId) {
             try {
@@ -448,11 +468,11 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 console.error('⚠️ Gagal mendapatkan profile:', profileError);
             }
         }
-        
+
         // Use username as the name for PPPoE secret (not customer ID)
         // IMPORTANT: NEVER use customer ID, always use username
         const secretName = username.trim();
-        
+
         console.log('[API] ========== SECRET CREATION DETAILS ==========');
         console.log('[API] Customer ID:', customerId);
         console.log('[API] Username dari form:', username);
@@ -460,12 +480,12 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
         console.log('[API] ⚠️ IMPORTANT: Secret akan dibuat dengan username, BUKAN customer ID!');
         console.log('[API] Profile yang akan digunakan:', profileName || 'tidak ada (MikroTik akan menggunakan default)');
         console.log('[API] Package ID:', packageId || 'tidak ada');
-        
+
         // Check if secret already exists (by username or customer ID)
         let existingSecretByUsername = null;
         let existingSecretByCustomerId = null;
         let secretFoundBy = null;
-        
+
         // Check by username first
         try {
             existingSecretByUsername = await findPppoeSecretIdByName(cfg, secretName);
@@ -477,7 +497,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
             // Secret doesn't exist with this username
             console.log(`[API] Secret dengan username "${secretName}" tidak ditemukan`);
         }
-        
+
         // Check by customer ID (for legacy secrets)
         if (!existingSecretByUsername && customerId && !isNaN(customerId)) {
             const customerIdStr = customerId.toString();
@@ -492,17 +512,17 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                 console.log(`[API] Secret dengan Customer ID "${customerIdStr}" tidak ditemukan`);
             }
         }
-        
+
         if (existingSecretByUsername || existingSecretByCustomerId) {
             // If secret found with customer ID (legacy), we need to delete and recreate with username
             if (secretFoundBy === 'customer_id' && customerId && !isNaN(customerId)) {
                 console.log('[API] ⚠️ Secret ditemukan dengan Customer ID (legacy), akan dihapus dan dibuat ulang dengan username');
                 const { deletePppoeSecret } = await import('../services/mikrotikService');
-                
+
                 // Delete old secret with customer ID
                 await deletePppoeSecret(cfg, customerId.toString());
                 console.log(`[API] ✅ Secret lama dengan Customer ID "${customerId}" berhasil dihapus`);
-                
+
                 // Create new secret with username
                 await createPppoeSecret(cfg, {
                     name: secretName, // Use username, not customer ID
@@ -510,9 +530,9 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                     profile: profileName || undefined,
                     comment: customerName || `Customer ${customerId}`
                 });
-                
+
                 console.log(`[API] ✅ Secret baru dengan username "${secretName}" berhasil dibuat`);
-                
+
                 return res.json({
                     success: true,
                     message: `PPPoE secret berhasil diubah dari Customer ID "${customerId}" ke username "${secretName}" di MikroTik${profileName ? ` dengan profile "${profileName}"` : ''}`,
@@ -524,17 +544,17 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
                     password: password,
                     comment: customerName || `Customer ${customerId}`
                 };
-                
+
                 if (profileName) {
                     updateData.profile = profileName;
                     console.log(`[API] Profile akan di-update ke: ${profileName}`);
                 } else {
                     console.log(`[API] Profile tidak di-update (tidak ada profile dari paket)`);
                 }
-                
+
                 // Update secret (already has correct username)
                 await updatePppoeSecret(cfg, secretName, updateData);
-                
+
                 return res.json({
                     success: true,
                     message: `PPPoE secret dengan username "${secretName}" berhasil di-update di MikroTik${profileName ? ` dengan profile "${profileName}"` : ''}`,
@@ -550,21 +570,21 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
             console.log('[API]    - Profile:', profileName || 'tidak ada (MikroTik default)');
             console.log('[API]    - Comment:', customerName || `Customer ${customerId}`);
             console.log('[API] ⚠️ IMPORTANT: Secret dibuat dengan username, BUKAN customer ID!');
-            
+
             if (!profileName) {
                 console.warn('[API] ⚠️ Profile tidak ditemukan dari paket atau profile_id. Secret akan dibuat tanpa profile (MikroTik akan menggunakan default).');
             }
-            
+
             await createPppoeSecret(cfg, {
                 name: secretName, // ALWAYS use username, NEVER customer ID
                 password: password,
                 profile: profileName || undefined, // Don't set profile if not found, let MikroTik use default
                 comment: customerName || `Customer ${customerId}`
             });
-            
+
             console.log('[API] ✅ Secret berhasil dibuat dengan username:', secretName);
             console.log('[API] ========== CREATE SECRET API END ==========');
-            
+
             return res.json({
                 success: true,
                 message: `PPPoE secret dengan username "${secretName}" berhasil dibuat di MikroTik${profileName ? ` dengan profile "${profileName}"` : ' (menggunakan profile default MikroTik)'}`,
@@ -581,9 +601,9 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
         console.error('[API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         console.error('========================================');
         console.error('\n');
-        
+
         const errorMessage = error instanceof Error ? error.message : 'Gagal membuat/update PPPoE secret';
-        
+
         // Ensure error response is also JSON
         res.setHeader('Content-Type', 'application/json');
         return res.status(500).json({
@@ -595,7 +615,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
 
 
 // Portal routes
-router.use('/portal', portalRoutes);
+
 
 // Settings routes - MUST be registered BEFORE specific /settings routes to avoid conflicts
 router.use('/settings', settingsRoutes);
@@ -666,79 +686,79 @@ router.get('/packages/pppoe/profiles', getProfileList);
 router.post('/packages/pppoe/profiles/sync', postSyncProfiles);
 router.get('/packages/pppoe/profiles/new', getProfileForm);
 router.get('/packages/pppoe/profiles/test-update-100', async (req: Request, res: Response) => {
-	try {
-		const { RouterOSAPI } = await import('routeros-api');
-		
-		console.log('🚀 [QUICK TEST] Starting update for package 100...');
-		
-		// Get MikroTik config
-		const config = await getMikrotikConfig();
-		if (!config) {
-			req.flash('error', 'Konfigurasi MikroTik tidak ditemukan');
-			return res.redirect('/packages/pppoe/profiles');
-		}
+    try {
+        const { RouterOSAPI } = await import('routeros-api');
 
-		// Cari profil paket 100
-		const allProfiles = await listProfiles();
-		const profile100 = allProfiles.find(p => 
-			p.name.toLowerCase().includes('100') || 
-			p.name.toLowerCase().includes('paket 100') ||
-			p.id === 100
-		);
+        console.log('🚀 [QUICK TEST] Starting update for package 100...');
 
-		if (!profile100) {
-			req.flash('error', 'Profile paket 100 tidak ditemukan');
-			return res.redirect('/packages/pppoe/profiles');
-		}
+        // Get MikroTik config
+        const config = await getMikrotikConfig();
+        if (!config) {
+            req.flash('error', 'Konfigurasi MikroTik tidak ditemukan');
+            return res.redirect('/packages/pppoe/profiles');
+        }
 
-		// Connect to MikroTik
-		const api = new RouterOSAPI({
-			host: config.host,
-			port: config.port,
-			user: config.username,
-			password: config.password,
-			timeout: 10000
-		});
+        // Cari profil paket 100
+        const allProfiles = await listProfiles();
+        const profile100 = allProfiles.find(p =>
+            p.name.toLowerCase().includes('100') ||
+            p.name.toLowerCase().includes('paket 100') ||
+            p.id === 100
+        );
 
-		await api.connect();
+        if (!profile100) {
+            req.flash('error', 'Profile paket 100 tidak ditemukan');
+            return res.redirect('/packages/pppoe/profiles');
+        }
 
-		// Cari profile di MikroTik
-		const mikrotikProfiles = await getPppProfiles(config);
-		const foundProfile = mikrotikProfiles.find(p => p.name === profile100.name);
-		
-		if (!foundProfile) {
-			api.close();
-			req.flash('error', `Profile "${profile100.name}" tidak ditemukan di MikroTik`);
-			return res.redirect('/packages/pppoe/profiles');
-		}
+        // Connect to MikroTik
+        const api = new RouterOSAPI({
+            host: config.host,
+            port: config.port,
+            user: config.username,
+            password: config.password,
+            timeout: 10000
+        });
 
-		const mikrotikId = foundProfile['.id'];
-		
-		// Update langsung ke 10M/10M
-		await api.write('/ppp/profile/set', [
-			`=.id=${mikrotikId}`,
-			`=rate-limit=10M/10M`
-		]);
+        await api.connect();
 
-		// Verify
-		await new Promise(resolve => setTimeout(resolve, 1000));
-		const verifyProfiles = await getPppProfiles(config);
-		const verifyProfile = verifyProfiles.find(p => p['.id'] === mikrotikId);
-		
-		api.close();
+        // Cari profile di MikroTik
+        const mikrotikProfiles = await getPppProfiles(config);
+        const foundProfile = mikrotikProfiles.find(p => p.name === profile100.name);
 
-		if (verifyProfile && (verifyProfile['rate-limit']?.includes('10M') || verifyProfile['rate-limit-rx']?.includes('10M'))) {
-			req.flash('success', `Profile "${profile100.name}" berhasil diupdate ke 10M/10M di MikroTik!`);
-		} else {
-			req.flash('error', 'Update gagal atau belum terverifikasi');
-		}
+        if (!foundProfile) {
+            api.close();
+            req.flash('error', `Profile "${profile100.name}" tidak ditemukan di MikroTik`);
+            return res.redirect('/packages/pppoe/profiles');
+        }
 
-		res.redirect('/packages/pppoe/profiles');
-	} catch (error: any) {
-		console.error('❌ [QUICK TEST] Error:', error);
-		req.flash('error', `Gagal update: ${error.message || 'Unknown error'}`);
-		res.redirect('/packages/pppoe/profiles');
-	}
+        const mikrotikId = foundProfile['.id'];
+
+        // Update langsung ke 10M/10M
+        await api.write('/ppp/profile/set', [
+            `=.id=${mikrotikId}`,
+            `=rate-limit=10M/10M`
+        ]);
+
+        // Verify
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const verifyProfiles = await getPppProfiles(config);
+        const verifyProfile = verifyProfiles.find(p => p['.id'] === mikrotikId);
+
+        api.close();
+
+        if (verifyProfile && (verifyProfile['rate-limit']?.includes('10M') || verifyProfile['rate-limit-rx']?.includes('10M'))) {
+            req.flash('success', `Profile "${profile100.name}" berhasil diupdate ke 10M/10M di MikroTik!`);
+        } else {
+            req.flash('error', 'Update gagal atau belum terverifikasi');
+        }
+
+        res.redirect('/packages/pppoe/profiles');
+    } catch (error: any) {
+        console.error('❌ [QUICK TEST] Error:', error);
+        req.flash('error', `Gagal update: ${error.message || 'Unknown error'}`);
+        res.redirect('/packages/pppoe/profiles');
+    }
 });
 
 // Routes dengan parameter dinamis HARUS setelah routes spesifik
@@ -749,340 +769,340 @@ router.delete('/packages/pppoe/profiles/:id', postProfileDelete);
 
 // Test endpoint untuk sinkronisasi profil
 router.get('/api/test/profile-sync/:id', async (req: Request, res: Response) => {
-	try {
-		const profileId = Number(req.params.id);
-		
-		if (!profileId || isNaN(profileId)) {
-			return res.status(400).json({ 
-				success: false, 
-				error: 'Profile ID tidak valid' 
-			});
-		}
+    try {
+        const profileId = Number(req.params.id);
 
-		// Get profile dari database
-		const profile = await getProfileById(profileId);
-		if (!profile) {
-			return res.status(404).json({ 
-				success: false, 
-				error: 'Profile tidak ditemukan' 
-			});
-		}
+        if (!profileId || isNaN(profileId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Profile ID tidak valid'
+            });
+        }
 
-		// Get MikroTik config
-		const config = await getMikrotikConfig();
-		if (!config) {
-			return res.status(500).json({ 
-				success: false, 
-				error: 'Konfigurasi MikroTik tidak ditemukan' 
-			});
-		}
+        // Get profile dari database
+        const profile = await getProfileById(profileId);
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                error: 'Profile tidak ditemukan'
+            });
+        }
 
-		const testResults: any = {
-			profile: {
-				id: profile.id,
-				name: profile.name,
-				rate_limit_rx: (profile as any).rate_limit_rx,
-				rate_limit_tx: (profile as any).rate_limit_tx
-			},
-			mikrotik: {
-				config: {
-					host: config.host,
-					port: config.port,
-					username: config.username
-				}
-			},
-			steps: []
-		};
+        // Get MikroTik config
+        const config = await getMikrotikConfig();
+        if (!config) {
+            return res.status(500).json({
+                success: false,
+                error: 'Konfigurasi MikroTik tidak ditemukan'
+            });
+        }
 
-		// Step 1: Cari profile di MikroTik
-		testResults.steps.push({
-			step: 1,
-			action: 'Mencari profile di MikroTik',
-			status: 'running'
-		});
+        const testResults: any = {
+            profile: {
+                id: profile.id,
+                name: profile.name,
+                rate_limit_rx: (profile as any).rate_limit_rx,
+                rate_limit_tx: (profile as any).rate_limit_tx
+            },
+            mikrotik: {
+                config: {
+                    host: config.host,
+                    port: config.port,
+                    username: config.username
+                }
+            },
+            steps: []
+        };
 
-		const mikrotikId = await findPppProfileIdByName(config, profile.name);
-		
-		if (mikrotikId) {
-			testResults.steps[0].status = 'success';
-			testResults.steps[0].result = `Profile ditemukan di MikroTik dengan ID: ${mikrotikId}`;
-			testResults.mikrotik.profile_id = mikrotikId;
-		} else {
-			testResults.steps[0].status = 'warning';
-			testResults.steps[0].result = 'Profile tidak ditemukan di MikroTik';
-		}
+        // Step 1: Cari profile di MikroTik
+        testResults.steps.push({
+            step: 1,
+            action: 'Mencari profile di MikroTik',
+            status: 'running'
+        });
 
-		// Step 2: Get semua profile dari MikroTik untuk verifikasi
-		testResults.steps.push({
-			step: 2,
-			action: 'Mengambil semua profile dari MikroTik',
-			status: 'running'
-		});
+        const mikrotikId = await findPppProfileIdByName(config, profile.name);
 
-		const mikrotikProfiles = await getPppProfiles(config);
-		const foundProfile = mikrotikProfiles.find(p => p.name === profile.name);
-		
-		if (foundProfile) {
-			testResults.steps[1].status = 'success';
-			testResults.steps[1].result = `Profile ditemukan dengan rate-limit: ${foundProfile['rate-limit'] || 'N/A'}`;
-			testResults.mikrotik.current_rate_limit = foundProfile['rate-limit'];
-			testResults.mikrotik.current_rate_limit_rx = foundProfile['rate-limit-rx'];
-			testResults.mikrotik.current_rate_limit_tx = foundProfile['rate-limit-tx'];
-		} else {
-			testResults.steps[1].status = 'warning';
-			testResults.steps[1].result = 'Profile tidak ditemukan di daftar profile MikroTik';
-		}
+        if (mikrotikId) {
+            testResults.steps[0].status = 'success';
+            testResults.steps[0].result = `Profile ditemukan di MikroTik dengan ID: ${mikrotikId}`;
+            testResults.mikrotik.profile_id = mikrotikId;
+        } else {
+            testResults.steps[0].status = 'warning';
+            testResults.steps[0].result = 'Profile tidak ditemukan di MikroTik';
+        }
 
-		// Step 3: Test update (simulasi)
-		testResults.steps.push({
-			step: 3,
-			action: 'Test update profile ke MikroTik',
-			status: 'info'
-		});
+        // Step 2: Get semua profile dari MikroTik untuk verifikasi
+        testResults.steps.push({
+            step: 2,
+            action: 'Mengambil semua profile dari MikroTik',
+            status: 'running'
+        });
 
-		const dbRateLimitRx = (profile as any).rate_limit_rx || '0';
-		const dbRateLimitTx = (profile as any).rate_limit_tx || '0';
-		
-		testResults.steps[2].result = `Database: RX=${dbRateLimitRx}, TX=${dbRateLimitTx}`;
-		if (foundProfile) {
-			const mtRateLimitRx = foundProfile['rate-limit-rx'] || 'N/A';
-			const mtRateLimitTx = foundProfile['rate-limit-tx'] || 'N/A';
-			testResults.steps[2].result += ` | MikroTik: RX=${mtRateLimitRx}, TX=${mtRateLimitTx}`;
-			
-			if (dbRateLimitRx !== mtRateLimitRx || dbRateLimitTx !== mtRateLimitTx) {
-				testResults.steps[2].status = 'warning';
-				testResults.steps[2].result += ' | ⚠️ Nilai tidak sama! Perlu sinkronisasi.';
-				testResults.sync_needed = true;
-			} else {
-				testResults.steps[2].status = 'success';
-				testResults.steps[2].result += ' | ✅ Nilai sudah sama.';
-				testResults.sync_needed = false;
-			}
-		} else {
-			testResults.steps[2].status = 'warning';
-			testResults.steps[2].result += ' | ⚠️ Profile tidak ada di MikroTik, perlu dibuat.';
-			testResults.sync_needed = true;
-		}
+        const mikrotikProfiles = await getPppProfiles(config);
+        const foundProfile = mikrotikProfiles.find(p => p.name === profile.name);
 
-		testResults.success = true;
-		testResults.message = 'Test sinkronisasi selesai';
+        if (foundProfile) {
+            testResults.steps[1].status = 'success';
+            testResults.steps[1].result = `Profile ditemukan dengan rate-limit: ${foundProfile['rate-limit'] || 'N/A'}`;
+            testResults.mikrotik.current_rate_limit = foundProfile['rate-limit'];
+            testResults.mikrotik.current_rate_limit_rx = foundProfile['rate-limit-rx'];
+            testResults.mikrotik.current_rate_limit_tx = foundProfile['rate-limit-tx'];
+        } else {
+            testResults.steps[1].status = 'warning';
+            testResults.steps[1].result = 'Profile tidak ditemukan di daftar profile MikroTik';
+        }
 
-		res.json(testResults);
+        // Step 3: Test update (simulasi)
+        testResults.steps.push({
+            step: 3,
+            action: 'Test update profile ke MikroTik',
+            status: 'info'
+        });
 
-	} catch (error: any) {
-		console.error('Test sync error:', error);
-		res.status(500).json({
-			success: false,
-			error: error.message || 'Gagal menjalankan test sinkronisasi',
-			stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-		});
-	}
+        const dbRateLimitRx = (profile as any).rate_limit_rx || '0';
+        const dbRateLimitTx = (profile as any).rate_limit_tx || '0';
+
+        testResults.steps[2].result = `Database: RX=${dbRateLimitRx}, TX=${dbRateLimitTx}`;
+        if (foundProfile) {
+            const mtRateLimitRx = foundProfile['rate-limit-rx'] || 'N/A';
+            const mtRateLimitTx = foundProfile['rate-limit-tx'] || 'N/A';
+            testResults.steps[2].result += ` | MikroTik: RX=${mtRateLimitRx}, TX=${mtRateLimitTx}`;
+
+            if (dbRateLimitRx !== mtRateLimitRx || dbRateLimitTx !== mtRateLimitTx) {
+                testResults.steps[2].status = 'warning';
+                testResults.steps[2].result += ' | ⚠️ Nilai tidak sama! Perlu sinkronisasi.';
+                testResults.sync_needed = true;
+            } else {
+                testResults.steps[2].status = 'success';
+                testResults.steps[2].result += ' | ✅ Nilai sudah sama.';
+                testResults.sync_needed = false;
+            }
+        } else {
+            testResults.steps[2].status = 'warning';
+            testResults.steps[2].result += ' | ⚠️ Profile tidak ada di MikroTik, perlu dibuat.';
+            testResults.sync_needed = true;
+        }
+
+        testResults.success = true;
+        testResults.message = 'Test sinkronisasi selesai';
+
+        res.json(testResults);
+
+    } catch (error: any) {
+        console.error('Test sync error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Gagal menjalankan test sinkronisasi',
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
 });
 
 // Test endpoint untuk update profile paket 100 ke 10M dengan retry otomatis
 router.get('/test/force-update-profile-100', async (req: Request, res: Response) => {
-	const { RouterOSAPI } = await import('routeros-api');
-	
-	try {
-		console.log('🚀 [FORCE UPDATE] Starting force update for package 100 profile...');
-		
-		// Get MikroTik config
-		const config = await getMikrotikConfig();
-		if (!config) {
-			return res.status(500).json({ 
-				success: false, 
-				error: 'Konfigurasi MikroTik tidak ditemukan' 
-			});
-		}
+    const { RouterOSAPI } = await import('routeros-api');
 
-		// Cari profil paket 100 - bisa dari nama atau ID
-		const allProfiles = await listProfiles();
-		const profile100 = allProfiles.find(p => 
-			p.name.toLowerCase().includes('100') || 
-			p.name.toLowerCase().includes('paket 100') ||
-			p.id === 100
-		);
+    try {
+        console.log('🚀 [FORCE UPDATE] Starting force update for package 100 profile...');
 
-		if (!profile100) {
-			return res.status(404).json({ 
-				success: false, 
-				error: 'Profile paket 100 tidak ditemukan',
-				available_profiles: allProfiles.map(p => ({ id: p.id, name: p.name }))
-			});
-		}
+        // Get MikroTik config
+        const config = await getMikrotikConfig();
+        if (!config) {
+            return res.status(500).json({
+                success: false,
+                error: 'Konfigurasi MikroTik tidak ditemukan'
+            });
+        }
 
-		console.log(`✅ [FORCE UPDATE] Found profile: ${profile100.name} (ID: ${profile100.id})`);
+        // Cari profil paket 100 - bisa dari nama atau ID
+        const allProfiles = await listProfiles();
+        const profile100 = allProfiles.find(p =>
+            p.name.toLowerCase().includes('100') ||
+            p.name.toLowerCase().includes('paket 100') ||
+            p.id === 100
+        );
 
-		// Connect to MikroTik
-		const api = new RouterOSAPI({
-			host: config.host,
-			port: config.port,
-			user: config.username,
-			password: config.password,
-			timeout: 10000
-		});
+        if (!profile100) {
+            return res.status(404).json({
+                success: false,
+                error: 'Profile paket 100 tidak ditemukan',
+                available_profiles: allProfiles.map(p => ({ id: p.id, name: p.name }))
+            });
+        }
 
-		await api.connect();
-		console.log('✅ [FORCE UPDATE] Connected to MikroTik');
+        console.log(`✅ [FORCE UPDATE] Found profile: ${profile100.name} (ID: ${profile100.id})`);
 
-		// Cari profile di MikroTik
-		const mikrotikProfiles = await getPppProfiles(config);
-		const foundProfile = mikrotikProfiles.find(p => p.name === profile100.name);
-		
-		if (!foundProfile) {
-			api.close();
-			return res.status(404).json({ 
-				success: false, 
-				error: `Profile "${profile100.name}" tidak ditemukan di MikroTik`,
-				available_mikrotik_profiles: mikrotikProfiles.map(p => p.name)
-			});
-		}
+        // Connect to MikroTik
+        const api = new RouterOSAPI({
+            host: config.host,
+            port: config.port,
+            user: config.username,
+            password: config.password,
+            timeout: 10000
+        });
 
-		const mikrotikId = foundProfile['.id'];
-		const currentRateLimit = foundProfile['rate-limit'] || 'N/A';
-		
-		console.log(`📊 [FORCE UPDATE] Current rate-limit in MikroTik: ${currentRateLimit}`);
-		console.log(`📊 [FORCE UPDATE] Target: 10M/10M`);
+        await api.connect();
+        console.log('✅ [FORCE UPDATE] Connected to MikroTik');
 
-		const results: any = {
-			profile: {
-				id: profile100.id,
-				name: profile100.name,
-				database_rate_limit_rx: (profile100 as any).rate_limit_rx,
-				database_rate_limit_tx: (profile100 as any).rate_limit_tx
-			},
-			mikrotik: {
-				profile_id: mikrotikId,
-				current_rate_limit: currentRateLimit,
-				target_rate_limit: '10M/10M'
-			},
-			attempts: []
-		};
+        // Cari profile di MikroTik
+        const mikrotikProfiles = await getPppProfiles(config);
+        const foundProfile = mikrotikProfiles.find(p => p.name === profile100.name);
 
-		// Try multiple methods to update
-		const updateMethods = [
-			{
-				name: 'Method 1: Direct API write with simple format',
-				execute: async () => {
-					await api.write('/ppp/profile/set', [
-						`=.id=${mikrotikId}`,
-						`=rate-limit=10M/10M`
-					]);
-				}
-			},
-			{
-				name: 'Method 2: Using updatePppProfile function',
-				execute: async () => {
-					await updatePppProfile(config, mikrotikId, {
-						'rate-limit-rx': '10M',
-						'rate-limit-tx': '10M'
-					});
-				}
-			},
-			{
-				name: 'Method 3: Direct API with explicit format',
-				execute: async () => {
-					await api.write('/ppp/profile/set', [
-						`=.id=${mikrotikId}`,
-						`=rate-limit=10M/10M`,
-						`=name=${profile100.name}`
-					]);
-				}
-			}
-		];
+        if (!foundProfile) {
+            api.close();
+            return res.status(404).json({
+                success: false,
+                error: `Profile "${profile100.name}" tidak ditemukan di MikroTik`,
+                available_mikrotik_profiles: mikrotikProfiles.map(p => p.name)
+            });
+        }
 
-		let success = false;
-		let lastError: any = null;
+        const mikrotikId = foundProfile['.id'];
+        const currentRateLimit = foundProfile['rate-limit'] || 'N/A';
 
-		for (let i = 0; i < updateMethods.length; i++) {
-			const method = updateMethods[i];
-			console.log(`🔄 [FORCE UPDATE] Attempt ${i + 1}: ${method.name}`);
-			
-			try {
-				// Close and reconnect for each attempt
-				api.close();
-				await new Promise(resolve => setTimeout(resolve, 500));
-				await api.connect();
+        console.log(`📊 [FORCE UPDATE] Current rate-limit in MikroTik: ${currentRateLimit}`);
+        console.log(`📊 [FORCE UPDATE] Target: 10M/10M`);
 
-				await method.execute();
-				
-				// Verify update
-				await new Promise(resolve => setTimeout(resolve, 1000));
-				const verifyProfiles = await getPppProfiles(config);
-				const verifyProfile = verifyProfiles.find(p => p['.id'] === mikrotikId);
-				
-				if (verifyProfile) {
-					const newRateLimit = verifyProfile['rate-limit'] || '';
-					const newRx = verifyProfile['rate-limit-rx'] || '';
-					const newTx = verifyProfile['rate-limit-tx'] || '';
-					
-					console.log(`✅ [FORCE UPDATE] Verification - Rate limit: ${newRateLimit}, RX: ${newRx}, TX: ${newTx}`);
-					
-					// Check if update successful (10M/10M or 10M in RX/TX)
-					if (newRateLimit.includes('10M') || newRx.includes('10M') || newTx.includes('10M')) {
-						results.attempts.push({
-							method: method.name,
-							status: 'success',
-							message: 'Update berhasil!',
-							verified_rate_limit: newRateLimit,
-							verified_rx: newRx,
-							verified_tx: newTx
-						});
-						success = true;
-						results.final_rate_limit = newRateLimit;
-						results.final_rx = newRx;
-						results.final_tx = newTx;
-						break;
-					} else {
-						results.attempts.push({
-							method: method.name,
-							status: 'partial',
-							message: 'Command berhasil tapi nilai belum sesuai',
-							verified_rate_limit: newRateLimit,
-							verified_rx: newRx,
-							verified_tx: newTx
-						});
-					}
-				} else {
-					results.attempts.push({
-						method: method.name,
-						status: 'error',
-						message: 'Profile tidak ditemukan setelah update'
-					});
-				}
-			} catch (error: any) {
-				console.error(`❌ [FORCE UPDATE] Method ${i + 1} failed:`, error.message);
-				lastError = error;
-				results.attempts.push({
-					method: method.name,
-					status: 'error',
-					message: error.message || 'Unknown error',
-					error: error.toString()
-				});
-			}
-		}
+        const results: any = {
+            profile: {
+                id: profile100.id,
+                name: profile100.name,
+                database_rate_limit_rx: (profile100 as any).rate_limit_rx,
+                database_rate_limit_tx: (profile100 as any).rate_limit_tx
+            },
+            mikrotik: {
+                profile_id: mikrotikId,
+                current_rate_limit: currentRateLimit,
+                target_rate_limit: '10M/10M'
+            },
+            attempts: []
+        };
 
-		api.close();
+        // Try multiple methods to update
+        const updateMethods = [
+            {
+                name: 'Method 1: Direct API write with simple format',
+                execute: async () => {
+                    await api.write('/ppp/profile/set', [
+                        `=.id=${mikrotikId}`,
+                        `=rate-limit=10M/10M`
+                    ]);
+                }
+            },
+            {
+                name: 'Method 2: Using updatePppProfile function',
+                execute: async () => {
+                    await updatePppProfile(config, mikrotikId, {
+                        'rate-limit-rx': '10M',
+                        'rate-limit-tx': '10M'
+                    });
+                }
+            },
+            {
+                name: 'Method 3: Direct API with explicit format',
+                execute: async () => {
+                    await api.write('/ppp/profile/set', [
+                        `=.id=${mikrotikId}`,
+                        `=rate-limit=10M/10M`,
+                        `=name=${profile100.name}`
+                    ]);
+                }
+            }
+        ];
 
-		if (success) {
-			results.success = true;
-			results.message = 'Profile berhasil diupdate ke 10M/10M!';
-			res.json(results);
-		} else {
-			results.success = false;
-			results.message = 'Semua metode update gagal';
-			results.last_error = lastError?.message;
-			res.status(500).json(results);
-		}
+        let success = false;
+        let lastError: any = null;
 
-	} catch (error: any) {
-		console.error('❌ [FORCE UPDATE] Error:', error);
-		res.status(500).json({
-			success: false,
-			error: error.message || 'Gagal menjalankan force update',
-			stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-		});
-	}
+        for (let i = 0; i < updateMethods.length; i++) {
+            const method = updateMethods[i];
+            console.log(`🔄 [FORCE UPDATE] Attempt ${i + 1}: ${method.name}`);
+
+            try {
+                // Close and reconnect for each attempt
+                api.close();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await api.connect();
+
+                await method.execute();
+
+                // Verify update
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const verifyProfiles = await getPppProfiles(config);
+                const verifyProfile = verifyProfiles.find(p => p['.id'] === mikrotikId);
+
+                if (verifyProfile) {
+                    const newRateLimit = verifyProfile['rate-limit'] || '';
+                    const newRx = verifyProfile['rate-limit-rx'] || '';
+                    const newTx = verifyProfile['rate-limit-tx'] || '';
+
+                    console.log(`✅ [FORCE UPDATE] Verification - Rate limit: ${newRateLimit}, RX: ${newRx}, TX: ${newTx}`);
+
+                    // Check if update successful (10M/10M or 10M in RX/TX)
+                    if (newRateLimit.includes('10M') || newRx.includes('10M') || newTx.includes('10M')) {
+                        results.attempts.push({
+                            method: method.name,
+                            status: 'success',
+                            message: 'Update berhasil!',
+                            verified_rate_limit: newRateLimit,
+                            verified_rx: newRx,
+                            verified_tx: newTx
+                        });
+                        success = true;
+                        results.final_rate_limit = newRateLimit;
+                        results.final_rx = newRx;
+                        results.final_tx = newTx;
+                        break;
+                    } else {
+                        results.attempts.push({
+                            method: method.name,
+                            status: 'partial',
+                            message: 'Command berhasil tapi nilai belum sesuai',
+                            verified_rate_limit: newRateLimit,
+                            verified_rx: newRx,
+                            verified_tx: newTx
+                        });
+                    }
+                } else {
+                    results.attempts.push({
+                        method: method.name,
+                        status: 'error',
+                        message: 'Profile tidak ditemukan setelah update'
+                    });
+                }
+            } catch (error: any) {
+                console.error(`❌ [FORCE UPDATE] Method ${i + 1} failed:`, error.message);
+                lastError = error;
+                results.attempts.push({
+                    method: method.name,
+                    status: 'error',
+                    message: error.message || 'Unknown error',
+                    error: error.toString()
+                });
+            }
+        }
+
+        api.close();
+
+        if (success) {
+            results.success = true;
+            results.message = 'Profile berhasil diupdate ke 10M/10M!';
+            res.json(results);
+        } else {
+            results.success = false;
+            results.message = 'Semua metode update gagal';
+            results.last_error = lastError?.message;
+            res.status(500).json(results);
+        }
+
+    } catch (error: any) {
+        console.error('❌ [FORCE UPDATE] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Gagal menjalankan force update',
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
 });
 
 // Package routes
@@ -1103,23 +1123,23 @@ router.post('/packages/static-ip/:id/update', postStaticIpPackageUpdate);
 router.post('/packages/static-ip/:id/delete-queues', postStaticIpPackageDeleteQueues);
 // Test route first
 router.post('/test-route', (req, res) => {
-	console.log('=== TEST ROUTE HIT ===');
-	res.json({ message: 'Test route working', timestamp: new Date() });
+    console.log('=== TEST ROUTE HIT ===');
+    res.json({ message: 'Test route working', timestamp: new Date() });
 });
 
 router.post('/packages/static-ip/:id/create-queues', (req, res) => {
-	console.log('=== ROUTE HIT ===');
-	console.log('Route create-queues hit for ID:', req.params.id);
-	console.log('Request body:', req.body);
-	console.log('Request method:', req.method);
-	console.log('Request URL:', req.url);
-	
-	try {
-		postStaticIpPackageCreateQueues(req, res, () => {});
-	} catch (error) {
-		console.error('Error in create-queues route:', error);
-		res.status(500).send('Internal Server Error');
-	}
+    console.log('=== ROUTE HIT ===');
+    console.log('Route create-queues hit for ID:', req.params.id);
+    console.log('Request body:', req.body);
+    console.log('Request method:', req.method);
+    console.log('Request URL:', req.url);
+
+    try {
+        postStaticIpPackageCreateQueues(req, res, () => { });
+    } catch (error) {
+        console.error('Error in create-queues route:', error);
+        res.status(500).send('Internal Server Error');
+    }
 });
 
 // Static IP Client routes
@@ -1142,10 +1162,10 @@ router.get('/api/debug/interfaces', async (req, res) => {
     try {
         const { getMikrotikConfig } = await import('../services/staticIpPackageService');
         const { getInterfaces } = await import('../services/mikrotikService');
-        
+
         console.log('=== DEBUG INTERFACE FETCH ===');
         const cfg = await getMikrotikConfig();
-        
+
         if (!cfg) {
             return res.json({
                 success: false,
@@ -1153,16 +1173,16 @@ router.get('/api/debug/interfaces', async (req, res) => {
                 message: 'Silakan konfigurasi MikroTik terlebih dahulu di Settings'
             });
         }
-        
+
         console.log('MikroTik Config:', {
             host: cfg.host,
             port: cfg.port,
             username: cfg.username,
             password: '***'
         });
-        
+
         const interfaces = await getInterfaces(cfg);
-        
+
         res.json({
             success: true,
             message: `Berhasil mengambil ${interfaces.length} interfaces`,
@@ -1297,9 +1317,9 @@ router.get('/debug-queue-test', async (req, res) => {
         }
 
         await api.close();
-        res.json({ 
-            success: true, 
-            message: 'Queue debug test completed. Check console for details.' 
+        res.json({
+            success: true,
+            message: 'Queue debug test completed. Check console for details.'
         });
 
     } catch (error: unknown) {
@@ -1393,7 +1413,7 @@ router.get('/test-import', (req, res) => {
 router.post('/test-import', upload.single('excelFile'), async (req, res) => {
     try {
         console.log('TEST IMPORT START');
-        
+
         if (!req.file) {
             return res.json({ success: false, error: 'No file' });
         }
@@ -1456,40 +1476,40 @@ router.post('/test-import', upload.single('excelFile'), async (req, res) => {
 router.post('/customers/import', (req, res, next) => {
     console.log('📥 Import request received');
     console.log('Content-Type:', req.headers['content-type']);
-    
+
     upload.single('excelFile')(req, res, (err) => {
         if (err) {
             console.error('❌ Multer error:', err);
             if (err instanceof multer.MulterError) {
                 if (err.code === 'LIMIT_FILE_SIZE') {
-                    return res.status(400).json({ 
+                    return res.status(400).json({
                         success: false,
-                        error: 'File terlalu besar. Maksimal 10MB' 
+                        error: 'File terlalu besar. Maksimal 10MB'
                     });
                 }
-                return res.status(400).json({ 
+                return res.status(400).json({
                     success: false,
-                    error: 'Error upload file: ' + err.message 
+                    error: 'Error upload file: ' + err.message
                 });
             }
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: err.message || 'Error upload file' 
+                error: err.message || 'Error upload file'
             });
         }
-        
+
         console.log('✅ File upload OK');
         console.log('File info:', req.file ? {
             originalname: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size
         } : 'No file');
-        
+
         importCustomersFromExcel(req, res).catch(err => {
             console.error('❌ Import controller error:', err);
-            res.status(500).json({ 
+            res.status(500).json({
                 success: false,
-                error: 'Internal server error: ' + err.message 
+                error: 'Internal server error: ' + err.message
             });
         });
     });
@@ -1497,20 +1517,20 @@ router.post('/customers/import', (req, res, next) => {
 router.get('/customers/new-pppoe', async (req, res) => {
     try {
         console.log('Starting new-pppoe route...');
-        
+
         const packages = await listPppoePackages();
         console.log('Packages loaded:', packages.length);
-        
+
         const profiles = await listPppoeProfiles();
         console.log('Profiles loaded:', profiles.length);
-        
+
         const conn = await databasePool.getConnection();
         try {
             // Get ODC list for dropdown
             const [odcRows] = await conn.query(`
                 SELECT id, name FROM ftth_odc ORDER BY name
             `);
-            
+
             // Get ODP list for dropdown
             const [odpRows] = await conn.query(`
                 SELECT 
@@ -1525,16 +1545,16 @@ router.get('/customers/new-pppoe', async (req, res) => {
                 LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
                 ORDER BY o.name
             `);
-            
+
             // Generate customer code dengan format YYYYMMDDHHMMSS
             const initial_customer_code = CustomerIdGenerator.generateCustomerId();
-            
+
             console.log('Generated customer code:', initial_customer_code);
             console.log('ODP Data for PPPOE:', odpRows);
-            
-            res.render('customers/new_pppoe', { 
-                title: 'Pelanggan PPPOE Baru', 
-                packages, 
+
+            res.render('customers/new_pppoe', {
+                title: 'Pelanggan PPPOE Baru',
+                packages,
                 profiles,
                 odcList: odcRows,
                 odpData: odpRows,
@@ -1553,22 +1573,22 @@ router.get('/customers/new-pppoe', async (req, res) => {
 router.get('/customers/new-static-ip', async (req, res) => {
     const packages = await listStaticIpPackages();
     const cfg = await getMikrotikConfig();
-    
-        // Generate customer code dengan format YYYYMMDDHHMMSS
-        const initial_customer_code = CustomerIdGenerator.generateCustomerId();
-        
-        // Generate current timestamp for default values
-        const now = new Date();
-        const timestamp = now.getFullYear().toString() + 
-                         (now.getMonth() + 1).toString().padStart(2, '0') + 
-                         now.getDate().toString().padStart(2, '0') + 
-                         now.getHours().toString().padStart(2, '0') + 
-                         now.getMinutes().toString().padStart(2, '0') + 
-                         now.getSeconds().toString().padStart(2, '0');
-        
-        const conn = await databasePool.getConnection();
-        try {
-        
+
+    // Generate customer code dengan format YYYYMMDDHHMMSS
+    const initial_customer_code = CustomerIdGenerator.generateCustomerId();
+
+    // Generate current timestamp for default values
+    const now = new Date();
+    const timestamp = now.getFullYear().toString() +
+        (now.getMonth() + 1).toString().padStart(2, '0') +
+        now.getDate().toString().padStart(2, '0') +
+        now.getHours().toString().padStart(2, '0') +
+        now.getMinutes().toString().padStart(2, '0') +
+        now.getSeconds().toString().padStart(2, '0');
+
+    const conn = await databasePool.getConnection();
+    try {
+
         // Get ODP data
         const [odpRows] = await conn.execute(`
             SELECT 
@@ -1583,13 +1603,13 @@ router.get('/customers/new-static-ip', async (req, res) => {
             LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
             ORDER BY o.name
         `);
-        
+
         // Get interfaces from MikroTik
         const interfaces = cfg ? await getInterfaces(cfg) : [];
-        
-        res.render('customers/new_static_ip', { 
-            title: 'Pelanggan IP Statis Baru', 
-            packages, 
+
+        res.render('customers/new_static_ip', {
+            title: 'Pelanggan IP Statis Baru',
+            packages,
             mikrotikConfig: cfg,
             interfaces,
             odpData: odpRows,
@@ -1617,13 +1637,13 @@ router.post('/customers/new-pppoe', async (req, res) => {
         console.log('OLT ID from request:', req.body.olt_id);
         console.log('Request method:', req.method);
         console.log('Request URL:', req.url);
-        
-        const { 
+
+        const {
             customer_code,
-            client_name, 
-            username, 
-            password, 
-            package_id, 
+            client_name,
+            username,
+            password,
+            package_id,
             address,
             phone_number,
             latitude,
@@ -1633,26 +1653,26 @@ router.post('/customers/new-pppoe', async (req, res) => {
             odp_id,
             enable_billing
         } = req.body;
-        
-        console.log('Parsed data:', { 
-            customer_code, 
-            client_name, 
-            username, 
-            package_id 
+
+        console.log('Parsed data:', {
+            customer_code,
+            client_name,
+            username,
+            package_id
         });
-        
+
         // Validasi input
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!username) throw new Error('Username PPPOE wajib diisi');
         if (!password) throw new Error('Password PPPOE wajib diisi');
         if (!package_id) throw new Error('Paket wajib dipilih');
         if (!odp_id) throw new Error('ODP wajib dipilih');
-        
+
         // Validate customer_code
         if (!customer_code || customer_code.trim() === '') {
             throw new Error('Kode pelanggan tidak boleh kosong');
         }
-        
+
         // Simpan ke database
         const conn = await databasePool.getConnection();
         try {
@@ -1663,12 +1683,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 'SELECT id, name FROM customers WHERE customer_code = ?',
                 [customer_code.trim()]
             );
-            
+
             if (Array.isArray(existingCodeRows) && existingCodeRows.length > 0) {
                 const existingCustomer = (existingCodeRows as any)[0];
                 throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
             }
-            
+
             // Insert customer (pppoe_username will be set to customer ID after insert)
             const insertQuery = `
                 INSERT INTO customers (
@@ -1677,44 +1697,44 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     pppoe_username, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW())
             `;
-            
+
             console.log('Inserting customer with data:', {
-                customer_code, 
-                client_name, 
-                phone_number, 
-                address, 
-                odc_id, 
-                odp_id, 
-                latitude, 
+                customer_code,
+                client_name,
+                phone_number,
+                address,
+                odc_id,
+                odp_id,
+                latitude,
                 longitude
             });
-            
+
             const [result] = await conn.execute(insertQuery, [
-                customer_code, client_name, phone_number || null, null, address || null, 
+                customer_code, client_name, phone_number || null, null, address || null,
                 odc_id || null, odp_id, latitude || null, longitude || null
             ]);
-            
+
             console.log('Insert result:', result);
             const customerId = (result as any)?.insertId;
-            
+
             // Validate customerId exists
             if (!customerId || isNaN(Number(customerId))) {
                 console.error('❌ Invalid customerId from insert:', customerId);
                 console.error('❌ Insert result:', JSON.stringify(result, null, 2));
                 throw new Error('Gagal menyimpan pelanggan: ID tidak valid');
             }
-            
+
             console.log('✅ PPPOE customer saved successfully with ID:', customerId);
             console.log('📱 Customer phone number:', phone_number || 'NOT SET');
             console.log('📱 Phone number trimmed:', phone_number ? phone_number.trim() : 'EMPTY');
-            
+
             // Update pppoe_username to customer ID (within same transaction)
             await conn.execute(
                 'UPDATE customers SET pppoe_username = ? WHERE id = ?',
                 [customerId.toString(), customerId]
             );
             console.log('✅ Updated pppoe_username to customer ID');
-            
+
             // Sync secret ke MikroTik - Name = Customer ID, Comment = Customer Name
             console.log('═══════════════════════════════════════════════════════════');
             console.log('🔄 ========== MULAI SYNC SECRET KE MIKROTIK ==========');
@@ -1723,13 +1743,13 @@ router.post('/customers/new-pppoe', async (req, res) => {
             console.log('   Secret name (Customer ID):', customerId.toString());
             console.log('   Customer name:', client_name);
             console.log('   Password provided:', password ? 'YES' : 'NO');
-            
+
             try {
                 console.log('   Step 1: Import services...');
                 const { getMikrotikConfig } = await import('../services/pppoeService');
                 const { createPppoeSecret, findPppoeSecretIdByName, updatePppoeSecret } = await import('../services/mikrotikService');
                 console.log('   ✅ Services imported');
-                
+
                 console.log('   Step 2: Get MikroTik config...');
                 const config = await getMikrotikConfig();
                 if (!config) {
@@ -1740,7 +1760,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         port: config.port,
                         username: config.username
                     });
-                    
+
                     // Get package untuk profile
                     let profileName = 'GRATIS'; // Default ke 'GRATIS' (uppercase)
                     try {
@@ -1753,7 +1773,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         console.error('   ⚠️ Gagal mendapatkan package:', pkgError.message);
                         console.error('   ⚠️ Akan menggunakan profile default: GRATIS');
                     }
-                    
+
                     // Cek apakah profile ada di MikroTik
                     console.log('   Step 3.5: Cek profile di MikroTik...');
                     try {
@@ -1761,20 +1781,20 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         const profiles = await getPppProfiles(config);
                         const profileNames = profiles.map(p => p.name);
                         console.log('   📋 Profile yang tersedia di MikroTik:', profileNames);
-                        
+
                         // Cek apakah profile ada (case-insensitive)
                         const profileExists = profileNames.some(p => p.toLowerCase() === profileName.toLowerCase());
                         if (!profileExists) {
                             console.warn(`   ⚠️ Profile "${profileName}" tidak ditemukan di MikroTik!`);
                             console.warn(`   ⚠️ Akan mencoba tanpa profile atau gunakan profile pertama yang tersedia`);
-                            
+
                             // Coba cari profile yang mirip
-                            const similarProfile = profileNames.find(p => 
-                                p.toLowerCase().includes('gratis') || 
+                            const similarProfile = profileNames.find(p =>
+                                p.toLowerCase().includes('gratis') ||
                                 p.toLowerCase().includes('free') ||
                                 p.toLowerCase() === 'default'
                             );
-                            
+
                             if (similarProfile) {
                                 console.log(`   ✅ Menggunakan profile alternatif: "${similarProfile}"`);
                                 profileName = similarProfile;
@@ -1797,10 +1817,10 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         console.error('   ⚠️ Error saat cek profile:', profileError.message);
                         console.error('   ⚠️ Akan lanjut tanpa cek profile');
                     }
-                    
+
                     // Use customer ID as the name for PPPoE secret
                     const secretName = customerId.toString();
-                    
+
                     // Cek apakah secret sudah ada dengan customer ID
                     console.log('   Step 4: Cek apakah secret sudah ada...');
                     let existingSecretId = null;
@@ -1815,7 +1835,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         // Ignore error, secret doesn't exist
                         console.log('   ℹ️ Secret belum ada, akan dibuat baru');
                     }
-                    
+
                     if (existingSecretId) {
                         console.log('   Step 5: Update secret yang sudah ada...');
                         try {
@@ -1838,7 +1858,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             profile: profileName,
                             comment: client_name // Customer name
                         });
-                        
+
                         try {
                             await createPppoeSecret(config, {
                                 name: secretName, // Use customer ID as name
@@ -1868,7 +1888,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 console.error('   Customer ID:', customerId);
                 console.error('   Secret name (Customer ID):', customerId.toString());
                 console.error('   Profile name:', profileName);
-                
+
                 // Log error detail untuk debugging
                 if (mikrotikError?.response) {
                     console.error('   Error response:', mikrotikError.response);
@@ -1876,34 +1896,34 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 if (mikrotikError?.request) {
                     console.error('   Error request:', mikrotikError.request);
                 }
-                
+
                 // Log full error object untuk debugging
                 try {
                     console.error('   Full error object:', JSON.stringify(mikrotikError, Object.getOwnPropertyNames(mikrotikError), 2));
                 } catch (stringifyError) {
                     console.error('   Cannot stringify error object:', stringifyError);
                 }
-                
+
                 console.error('❌ ========== END ERROR SYNC SECRET ==========');
-                
+
                 // Non-critical error - customer created successfully
                 // Tapi kita log dengan detail untuk debugging
             }
-            
+
             // Create subscription if enable_billing is checked
             const enableBilling = enable_billing === '1' || enable_billing === 'on';
             if (enableBilling && package_id) {
                 try {
                     const { getPackageById } = await import('../services/pppoeService');
                     const pkg = await getPackageById(Number(package_id));
-                    
+
                     if (pkg) {
                         const registrationDate = new Date();
                         const startDate = registrationDate.toISOString().slice(0, 10);
                         const endDate = new Date(registrationDate);
                         endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
                         const endDateStr = endDate.toISOString().slice(0, 10);
-                        
+
                         // Insert subscription
                         const [subResult] = await conn.execute(`
                             INSERT INTO subscriptions (
@@ -1925,7 +1945,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             startDate,
                             endDateStr
                         ]);
-                        
+
                         console.log('✅ Subscription created for customer:', customerId);
                         console.log(`   Package: ${pkg.name}, Price: Rp ${pkg.price}, Start: ${startDate}`);
                     } else {
@@ -1936,11 +1956,11 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     // Non-critical error - customer created successfully
                 }
             }
-            
+
             // Commit transaction before sending welcome message
             await conn.commit();
             console.log('✅ Database transaction committed successfully');
-            
+
             // Send notification to customer and admin (non-blocking)
             console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
             try {
@@ -1950,7 +1970,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     [package_id]
                 );
                 const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
-                
+
                 console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
                     customerId,
                     customerName: client_name,
@@ -1959,7 +1979,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     connectionType: 'pppoe',
                     packageName: packageName || 'N/A'
                 });
-                
+
                 const result = await CustomerNotificationService.notifyNewCustomer({
                     customerId: customerId,
                     customerName: client_name,
@@ -1970,15 +1990,15 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     packageName: packageName,
                     createdBy: (req.session as any).user?.username || undefined
                 });
-                
+
                 console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
-                
+
                 if (result.customer.success) {
                     console.log('✅ Customer notification sent successfully');
                 } else {
                     console.error('❌ Customer notification failed:', result.customer.message);
                 }
-                
+
                 if (result.admin.success) {
                     console.log('✅ Admin notification sent successfully');
                 } else {
@@ -1992,7 +2012,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 });
                 // Non-critical, don't block customer creation
             }
-            
+
             // Redirect ke halaman sukses atau list pelanggan
             res.redirect('/customers/list?success=pppoe_customer_created');
         } catch (dbError) {
@@ -2002,10 +2022,10 @@ router.post('/customers/new-pppoe', async (req, res) => {
         } finally {
             conn.release();
         }
-        
+
     } catch (error: unknown) {
         console.error('Error creating PPPOE customer:', error);
-        
+
         // Redirect kembali ke form dengan error
         const errorMessage = error instanceof Error ? error.message : String(error);
         res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(errorMessage));
@@ -2018,21 +2038,21 @@ router.get('/test/debug-create-secret', async (req: Request, res: Response) => {
         const testName = req.query.name as string || 'testuser';
         const testPassword = req.query.password as string || 'test123';
         const testProfile = req.query.profile as string || 'gratis';
-        
+
         console.log('\n\n═══════════════════════════════════════════════════════════');
         console.log('=== DEBUG CREATE SECRET ===');
         console.log('═══════════════════════════════════════════════════════════');
-        
+
         const { getMikrotikConfig } = await import('../services/pppoeService');
         const { createPppoeSecret, findPppoeSecretIdByName } = await import('../services/mikrotikService');
-        
+
         const config = await getMikrotikConfig();
         if (!config) {
             return res.json({ success: false, error: 'MikroTik config tidak ditemukan' });
         }
-        
+
         console.log('Config:', { host: config.host, port: config.port, username: config.username });
-        
+
         // Test create
         try {
             console.log('Creating secret...');
@@ -2042,11 +2062,11 @@ router.get('/test/debug-create-secret', async (req: Request, res: Response) => {
                 profile: testProfile,
                 comment: 'Test secret'
             });
-            
+
             // Verify
             await new Promise(resolve => setTimeout(resolve, 1000));
             const secretId = await findPppoeSecretIdByName(config, testName);
-            
+
             res.json({
                 success: true,
                 message: 'Secret created successfully',
@@ -2086,16 +2106,16 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
             req.flash('error', 'Pelanggan tidak ditemukan');
             return res.redirect('/packages/static-ip/clients');
         }
-        
+
         const pkg = await getStaticIpPackageById(client.package_id);
         if (!pkg) {
             req.flash('error', 'Paket tidak ditemukan');
             return res.redirect('/packages/static-ip/clients');
         }
-        
+
         const cfg = await getMikrotikConfig();
         const interfaces = cfg ? await getInterfaces(cfg) : [];
-        
+
         // Get ODP data with OLT and ODC info
         const conn = await databasePool.getConnection();
         try {
@@ -2112,7 +2132,7 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
                 LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
                 ORDER BY o.name
             `);
-            
+
             res.render('customers/edit_static_ip', {
                 title: 'Edit Pelanggan IP Static',
                 client,
@@ -2134,9 +2154,9 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
 router.post('/customers/edit-static-ip/:id', async (req, res) => {
     try {
         const clientId = Number(req.params.id);
-        const { 
-            client_name, 
-            ip_address, 
+        const {
+            client_name,
+            ip_address,
             interface: iface,
             address,
             phone_number,
@@ -2146,35 +2166,35 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             odc_id,
             odp_id
         } = req.body;
-        
+
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!ip_address) throw new Error('IP statis wajib diisi');
-        
+
         // Validasi format IP CIDR
         const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
         if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
-        
+
         // Ambil data lama untuk sinkronisasi Mikrotik
         const oldClient = await getClientById(clientId);
         const pkg = await getStaticIpPackageById(oldClient.package_id);
         const cfg = await getMikrotikConfig();
-        
+
         if (cfg && pkg && oldClient) {
             // 1) Hapus resource lama (IP, mangle, queues)
             if (oldClient.ip_address) {
                 await removeIpAddress(cfg, oldClient.ip_address);
             }
-            
+
             // Hapus mangle rules lama
-            const ipToInt = (ip: string) => ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0;
-            const intToIp = (int: number) => [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.');
+            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
             const [ipOnlyRaw, prefixStrRaw] = String(oldClient.ip_address || '').split('/');
             const ipOnly: string = ipOnlyRaw || '';
             const prefix: number = Number(prefixStrRaw || '0');
-            const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
             const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
             let peerIp = ipOnly;
-            if (prefix === 30){
+            if (prefix === 30) {
                 const firstHost = networkInt + 1;
                 const secondHost = networkInt + 2;
                 const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
@@ -2183,26 +2203,26 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             const downloadMark: string = peerIp;
             const uploadMark: string = `UP-${peerIp}`;
             await removeMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
-            
+
             // Hapus queues lama
             await deleteClientQueuesByClientName(cfg, oldClient.client_name);
-            
+
             // 2) Tambahkan resource baru sesuai input
             if (iface) {
-                await addIpAddress(cfg, { 
-                    interface: iface, 
-                    address: ip_address, 
-                    comment: client_name 
+                await addIpAddress(cfg, {
+                    interface: iface,
+                    address: ip_address,
+                    comment: client_name
                 });
             }
-            
+
             // Tambah mangle rules baru
             const [newIpOnly, newPrefixStr] = ip_address.split('/');
             const newPrefix = Number(newPrefixStr);
-            const newMask = newPrefix===0 ? 0 : (0xFFFFFFFF << (32-newPrefix))>>>0;
+            const newMask = newPrefix === 0 ? 0 : (0xFFFFFFFF << (32 - newPrefix)) >>> 0;
             const newNetworkInt = ipToInt(newIpOnly) & newMask;
             let newPeerIp = newIpOnly;
-            if (newPrefix === 30){
+            if (newPrefix === 30) {
                 const firstHost = newNetworkInt + 1;
                 const secondHost = newNetworkInt + 2;
                 const ipInt = ipToInt(newIpOnly);
@@ -2211,13 +2231,13 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             const newDownloadMark: string = newPeerIp;
             const newUploadMark: string = `UP-${newPeerIp}`;
             await addMangleRulesForClient(cfg, { peerIp: newPeerIp, downloadMark: newDownloadMark, uploadMark: newUploadMark });
-            
+
             const mlDownload = (pkg as any).child_download_limit || (pkg as any).shared_download_limit || pkg.max_limit_download;
             const mlUpload = (pkg as any).child_upload_limit || (pkg as any).shared_upload_limit || pkg.max_limit_upload;
-            
+
             const packageDownloadQueue = pkg.name;
             const packageUploadQueue = `UP-${pkg.name}`;
-            
+
             await createQueueTree(cfg, {
                 name: client_name,
                 parent: packageDownloadQueue,
@@ -2235,11 +2255,11 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
                 priority: (pkg as any).child_priority_upload || '8'
             });
         }
-        
+
         // Update database
-        await updateClient(clientId, { 
-            client_name, 
-            ip_address, 
+        await updateClient(clientId, {
+            client_name,
+            ip_address,
             interface: iface || null,
             address: address || null,
             phone_number: phone_number || null,
@@ -2251,7 +2271,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         });
         req.flash('success', 'Pelanggan berhasil diperbarui');
         res.redirect('/packages/static-ip/clients');
-        
+
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Gagal memperbarui pelanggan';
         req.flash('error', errorMessage);
@@ -2269,7 +2289,7 @@ import { listPackages as listPppoePackages, listProfiles as listPppoeProfiles } 
 router.get('/api/packages/:connectionType', async (req, res) => {
     try {
         const { connectionType } = req.params;
-        
+
         if (connectionType === 'pppoe') {
             const packages = await listPppoePackages();
             res.json(packages);
@@ -2298,13 +2318,13 @@ router.get('/api/pppoe/secrets', async (req, res) => {
             return res.json([]);
         }
         const secrets = await getPppoeSecrets(cfg);
-        
+
         // Get all used usernames from database
         const [usedRows] = await databasePool.execute(
             'SELECT DISTINCT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL AND pppoe_username != ""'
         );
         const usedUsernames = new Set((usedRows as any[]).map(r => r.pppoe_username));
-        
+
         // Normalisasi struktur minimal yang dibutuhkan: name, password, profile (opsional)
         // Only return usernames NOT in the database
         const data = (secrets || [])
@@ -2315,7 +2335,7 @@ router.get('/api/pppoe/secrets', async (req, res) => {
                 profile: s.profile || ''
             }))
             .filter(item => !usedUsernames.has(item.name)); // Filter out already used usernames
-        
+
         res.json(data);
     } catch (e: unknown) {
         console.error('Error fetching PPPoE secrets:', e);
@@ -2333,11 +2353,11 @@ router.post('/customers/new-static-ip', async (req, res) => {
     try {
         console.log('=== NEW STATIC IP CLIENT REQUEST ===');
         console.log('Request body:', req.body);
-        const { 
-            client_name, 
-            customer_code, 
-            ip_address, 
-            package_id, 
+        const {
+            client_name,
+            customer_code,
+            ip_address,
+            package_id,
             interface: iface,
             address,
             phone_number,
@@ -2349,11 +2369,11 @@ router.post('/customers/new-static-ip', async (req, res) => {
             enable_billing
         } = req.body;
         console.log('Parsed data:', { client_name, customer_code, ip_address, package_id, interface: iface });
-        
+
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!ip_address) throw new Error('IP statis wajib diisi (contoh: 192.168.1.1/30)');
         if (!package_id) throw new Error('Paket wajib dipilih');
-        
+
         // Validate customer_code if provided
         if (customer_code && customer_code.trim() !== '') {
             const conn = await databasePool.getConnection();
@@ -2362,7 +2382,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                     'SELECT id, name FROM customers WHERE customer_code = ?',
                     [customer_code.trim()]
                 );
-                
+
                 if (Array.isArray(existingCodeRows) && existingCodeRows.length > 0) {
                     const existingCustomer = (existingCodeRows as any)[0];
                     throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
@@ -2371,18 +2391,18 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 conn.release();
             }
         }
-        
+
         const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
         if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
         const pkgId = Number(package_id);
         const full = await isPackageFull(pkgId);
         if (full) throw new Error('Paket sudah penuh');
         // Hitung network dari CIDR
-        function ipToInt(ip){return ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0}
-        function intToIp(int){return [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.')}
+        function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
+        function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
         const [ipOnly, prefixStr] = ip_address.split('/');
         const prefix = Number(prefixStr);
-        const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+        const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
         const networkInt = ipToInt(ipOnly) & mask;
         const network = intToIp(networkInt);
         // Compute peer IP for /30: other usable host within subnet
@@ -2418,16 +2438,16 @@ router.post('/customers/new-static-ip', async (req, res) => {
         console.log('Interface:', iface);
         console.log('IP Address:', ip_address);
         console.log('Client Name:', client_name);
-        
+
         if (cfg && pkg) {
             try {
                 // 1) Tambah IP address ke interface
                 if (iface) {
                     console.log('Adding IP address to MikroTik...');
-                    await addIpAddress(cfg, { 
-                        interface: iface, 
-                        address: ip_address, 
-                        comment: client_name 
+                    await addIpAddress(cfg, {
+                        interface: iface,
+                        address: ip_address,
+                        comment: client_name
                     });
                     console.log('IP address added successfully');
                 } else {
@@ -2438,7 +2458,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 throw new Error(`Gagal menambahkan IP ke MikroTik: ${errorMessage}`);
             }
-            
+
             const downloadMark = peerIp;
             const uploadMark = `UP-${peerIp}`;
             await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
@@ -2480,7 +2500,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
 
             const packageDownloadQueue = pkg.name;
             const packageUploadQueue = `UP-${pkg.name}`;
-            
+
             await createQueueTree(cfg, {
                 name: client_name,
                 parent: packageDownloadQueue,
@@ -2502,20 +2522,20 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 ...(useBurst ? { burstLimit: blUpload, burstThreshold: btUpload, burstTime: btimeUpload } : {})
             });
         }
-        
+
         // Create subscription if enable_billing is checked
         const enableBilling = enable_billing === '1' || enable_billing === 'on';
         if (enableBilling && package_id) {
             try {
                 const pkg = await getStaticIpPackageById(pkgId);
-                
+
                 if (pkg) {
                     const registrationDate = new Date();
                     const startDate = registrationDate.toISOString().slice(0, 10);
                     const endDate = new Date(registrationDate);
                     endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
                     const endDateStr = endDate.toISOString().slice(0, 10);
-                    
+
                     // Get database connection for subscription
                     const conn2 = await databasePool.getConnection();
                     try {
@@ -2540,7 +2560,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                             startDate,
                             endDateStr
                         ]);
-                        
+
                         console.log('✅ Subscription created for customer:', customerId);
                         console.log(`   Package: ${pkg.name}, Price: Rp ${pkg.price}, Start: ${startDate}`);
                     } finally {
@@ -2554,10 +2574,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 // Non-critical error - customer created successfully
             }
         }
-        
-        
+
+
         console.log('Static IP customer saved successfully');
-        
+
         // Send notification to customer and admin (non-blocking)
         console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
         try {
@@ -2567,14 +2587,14 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 [package_id]
             );
             const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
-            
+
             // Get customer code
             const [customerRows] = await databasePool.query<RowDataPacket[]>(
                 'SELECT customer_code, name, phone, address FROM customers WHERE id = ?',
                 [customerId]
             );
             const customer = customerRows.length > 0 ? customerRows[0] : null;
-            
+
             if (customer) {
                 console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
                     customerId,
@@ -2584,7 +2604,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                     connectionType: 'static_ip',
                     packageName: packageName || 'N/A'
                 });
-                
+
                 const result = await CustomerNotificationService.notifyNewCustomer({
                     customerId: customerId,
                     customerName: customer.name,
@@ -2595,15 +2615,15 @@ router.post('/customers/new-static-ip', async (req, res) => {
                     packageName: packageName,
                     createdBy: (req.session as any).user?.username || undefined
                 });
-                
+
                 console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
-                
+
                 if (result.customer.success) {
                     console.log('✅ Customer notification sent successfully');
                 } else {
                     console.error('❌ Customer notification failed:', result.customer.message);
                 }
-                
+
                 if (result.admin.success) {
                     console.log('✅ Admin notification sent successfully');
                 } else {
@@ -2620,7 +2640,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
             });
             // Non-critical, don't block customer creation
         }
-        
+
         res.redirect('/customers/list?success=static_ip_customer_created');
     } catch (e) {
         console.error('Error creating static IP client:', e);
@@ -2629,7 +2649,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
         const interfaces = cfg ? await getInterfaces(cfg) : [];
         // Generate initial customer code in YYYYMMDDHHMMSS format
         const initial_customer_code = CustomerIdGenerator.generateCustomerId();
-        
+
         // Get ODP data for error page
         const conn = await databasePool.getConnection();
         try {
@@ -2646,15 +2666,15 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
                 ORDER BY o.name
             `);
-            
+
             const errorMessage = e instanceof Error ? e.message : 'Gagal menyimpan';
-            res.status(400).render('customers/new_static_ip', { 
-                title: 'Pelanggan IP Statis Baru', 
-                error: errorMessage, 
-                packages, 
-                interfaces, 
+            res.status(400).render('customers/new_static_ip', {
+                title: 'Pelanggan IP Statis Baru',
+                error: errorMessage,
+                packages,
+                interfaces,
                 odpData: odpRows,
-                initial_customer_code 
+                initial_customer_code
             });
         } finally {
             conn.release();
@@ -2667,7 +2687,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
 router.get('/api/test/queue/test-connection', async (req, res) => {
     try {
         const { testMikrotikConnection } = await import('../services/mikrotikService');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -2675,11 +2695,11 @@ router.get('/api/test/queue/test-connection', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         console.log('Testing connection to MikroTik:', config.host, config.port);
-        
+
         const result = await testMikrotikConnection(config);
-        
+
         res.json({
             success: true,
             message: 'Test koneksi MikroTik',
@@ -2695,7 +2715,7 @@ router.get('/api/test/queue/test-connection', async (req, res) => {
 router.get('/api/test/queue/direct-test', async (req, res) => {
     try {
         console.log('=== DIRECT MIKROTIK TEST ===');
-        
+
         // Test dengan konfigurasi langsung
         const { testMikrotikConnection } = await import('../services/mikrotikService');
         const result = await testMikrotikConnection({
@@ -2705,9 +2725,9 @@ router.get('/api/test/queue/direct-test', async (req, res) => {
             password: 'adi',
             use_tls: false
         });
-        
+
         console.log('Direct test result:', result);
-        
+
         res.json({
             success: true,
             message: 'Direct MikroTik test',
@@ -2723,10 +2743,10 @@ router.get('/api/test/queue/direct-test', async (req, res) => {
 router.get('/api/test/queue/create-direct', async (req, res) => {
     try {
         console.log('=== DIRECT QUEUE CREATION TEST ===');
-        
+
         // Test buat queue langsung dengan konfigurasi
         const { createQueueTree } = await import('../services/mikrotikService');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -2734,7 +2754,7 @@ router.get('/api/test/queue/create-direct', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         console.log('Creating test queue...');
         await createQueueTree(config, {
             name: 'test-queue-direct',
@@ -2742,7 +2762,7 @@ router.get('/api/test/queue/create-direct', async (req, res) => {
             maxLimit: '10M',
             comment: 'Test queue created directly'
         });
-        
+
         res.json({
             success: true,
             message: 'Direct queue creation test completed',
@@ -2759,9 +2779,9 @@ router.get('/api/test/queue/create-direct', async (req, res) => {
 router.get('/api/test/queue/custom-name-test', async (req, res) => {
     try {
         console.log('=== CUSTOM QUEUE NAME TEST ===');
-        
+
         const { createQueueTree, getQueueTrees } = await import('../services/mikrotikService');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -2769,11 +2789,11 @@ router.get('/api/test/queue/custom-name-test', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         // Test dengan nama yang sangat spesifik
         const customName = `PAKET_HEMAT_${Date.now()}`;
         console.log('Creating queue with custom name:', customName);
-        
+
         // Buat queue dengan nama custom
         await createQueueTree(config, {
             name: customName,
@@ -2781,16 +2801,16 @@ router.get('/api/test/queue/custom-name-test', async (req, res) => {
             maxLimit: '5M',
             comment: `Test queue dengan nama custom: ${customName}`
         });
-        
+
         console.log('Queue created, now verifying...');
-        
+
         // Verifikasi apakah queue benar-benar dibuat dengan nama custom
         const queues = await getQueueTrees(config);
         const createdQueue = queues.find((q: any) => q.name === customName);
-        
+
         console.log('All queues:', queues.map((q: any) => q.name));
         console.log('Created queue found:', createdQueue);
-        
+
         res.json({
             success: true,
             message: 'Custom queue name test completed',
@@ -2813,9 +2833,9 @@ router.get('/api/test/queue/custom-name-test', async (req, res) => {
 router.get('/api/test/queue/auto-test', async (req, res) => {
     try {
         console.log('=== AUTO TESTING QUEUE CREATION FORMATS ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -2823,7 +2843,7 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -2831,13 +2851,13 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `autotest${Date.now()}`;
         const results = [];
-        
+
         // Test 1: Simple string with quotes
         try {
             const command1 = `/queue/tree/add name="${testName}1" parent="UPLOAD ALL" max-limit="5M" comment="Auto test 1"`;
@@ -2847,7 +2867,7 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
         } catch (error: any) {
             results.push({ format: 'String with quotes', success: false, error: error.message });
         }
-        
+
         // Test 2: Array format
         try {
             const command2 = ['/queue/tree/add', `name=${testName}2`, 'parent=UPLOAD ALL', 'max-limit=5M', 'comment=Auto test 2'];
@@ -2857,7 +2877,7 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
         } catch (error: any) {
             results.push({ format: 'Array format', success: false, error: error.message });
         }
-        
+
         // Test 3: Object format
         try {
             const command3 = {
@@ -2872,7 +2892,7 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
         } catch (error: any) {
             results.push({ format: 'Object format', success: false, error: error.message });
         }
-        
+
         // Test 4: Simple string without quotes
         try {
             const command4 = `/queue/tree/add name=${testName}4 parent=UPLOAD ALL max-limit=5M comment=Auto test 4`;
@@ -2882,7 +2902,7 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
         } catch (error: any) {
             results.push({ format: 'String without quotes', success: false, error: error.message });
         }
-        
+
         // Test 5: Separate parameters
         try {
             await api.write('/queue/tree/add', 'name', `${testName}5`);
@@ -2893,14 +2913,14 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
         } catch (error: any) {
             results.push({ format: 'Separate parameters', success: false, error: error.message });
         }
-        
+
         // Check what was actually created
         console.log('Checking created queues...');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('autotest'));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Auto test completed',
@@ -2919,9 +2939,9 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
 router.get('/api/test/queue/loop-test', async (req, res) => {
     try {
         console.log('=== LOOP TESTING QUEUE CREATION FORMATS ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -2929,7 +2949,7 @@ router.get('/api/test/queue/loop-test', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -2937,13 +2957,13 @@ router.get('/api/test/queue/loop-test', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `looptest${Date.now()}`;
         const results = [];
-        
+
         // Define multiple command formats to test
         const commandFormats = [
             {
@@ -2984,49 +3004,49 @@ router.get('/api/test/queue/loop-test', async (req, res) => {
                 command: `/queue/tree/add name=${testName}8 parent=UPLOAD ALL max-limit=5M comment=Loop test 8`
             }
         ];
-        
+
         // Test each format
         for (let i = 0; i < commandFormats.length; i++) {
             const format = commandFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`Testing ${format.name}...`);
                 const result = await api.write(format.command);
-                results.push({ 
-                    format: format.name, 
-                    success: true, 
+                results.push({
+                    format: format.name,
+                    success: true,
                     result: result,
                     command: format.command
                 });
                 console.log(`✅ ${format.name} succeeded`);
             } catch (error: any) {
-                results.push({ 
-                    format: format.name, 
-                    success: false, 
+                results.push({
+                    format: format.name,
+                    success: false,
                     error: error.message,
                     command: format.command
                 });
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('Checking created queues...');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('looptest'));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Loop test completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -3041,9 +3061,9 @@ router.get('/api/test/queue/loop-test', async (req, res) => {
 router.get('/api/test/queue/find-format', async (req, res) => {
     try {
         console.log('=== FINDING CORRECT PARAMETER FORMAT ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3051,7 +3071,7 @@ router.get('/api/test/queue/find-format', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3059,13 +3079,13 @@ router.get('/api/test/queue/find-format', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `find${Date.now()}`;
         const results = [];
-        
+
         // Define comprehensive command formats to test
         const commandFormats = [
             // String formats
@@ -3077,68 +3097,68 @@ router.get('/api/test/queue/find-format', async (req, res) => {
             { name: 'String 6: Parent first', command: `/queue/tree/add parent="UPLOAD ALL" name="${testName}6" max-limit="5M" comment="Test 6"` },
             { name: 'String 7: Name only', command: `/queue/tree/add name="${testName}7"` },
             { name: 'String 8: Name with parent', command: `/queue/tree/add name="${testName}8" parent="UPLOAD ALL"` },
-            
+
             // Array formats
             { name: 'Array 1: Basic array', command: ['/queue/tree/add', `name=${testName}9`, 'parent=UPLOAD ALL', 'max-limit=5M', 'comment=Test 9'] },
             { name: 'Array 2: With quotes', command: ['/queue/tree/add', `name="${testName}10"`, 'parent="UPLOAD ALL"', 'max-limit="5M"', 'comment="Test 10"'] },
             { name: 'Array 3: Name only', command: ['/queue/tree/add', `name=${testName}11`] },
             { name: 'Array 4: Different order', command: ['/queue/tree/add', 'parent=UPLOAD ALL', `name=${testName}12`, 'max-limit=5M', 'comment=Test 12'] },
-            
+
             // Object formats
             { name: 'Object 1: Basic object', command: { name: `${testName}13`, parent: 'UPLOAD ALL', 'max-limit': '5M', comment: 'Test 13' } },
             { name: 'Object 2: Name only', command: { name: `${testName}14` } },
             { name: 'Object 3: With empty values', command: { name: `${testName}15`, parent: 'UPLOAD ALL', 'max-limit': '5M', comment: 'Test 15' } },
             { name: 'Object 4: Different order', command: { parent: 'UPLOAD ALL', name: `${testName}16`, 'max-limit': '5M', comment: 'Test 16' } },
-            
+
             // Special formats
             { name: 'Special 1: With =', command: `/queue/tree/add name=${testName}17 parent=UPLOAD ALL max-limit=5M comment=Test 17` },
             { name: 'Special 2: With spaces', command: `/queue/tree/add name = "${testName}18" parent = "UPLOAD ALL" max-limit = "5M" comment = "Test 18"` },
             { name: 'Special 3: No spaces', command: `/queue/tree/add name=${testName}19 parent=UPLOAD ALL max-limit=5M comment=Test 19` },
             { name: 'Special 4: With dashes', command: `/queue/tree/add name="${testName}20" parent="UPLOAD ALL" max-limit="5M" comment="Test 20"` },
         ];
-        
+
         // Test each format
         for (let i = 0; i < commandFormats.length; i++) {
             const format = commandFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`Testing ${format.name}...`);
                 const result = await api.write(format.command);
-                results.push({ 
-                    format: format.name, 
-                    success: true, 
+                results.push({
+                    format: format.name,
+                    success: true,
                     result: result,
                     command: format.command
                 });
                 console.log(`✅ ${format.name} succeeded`);
             } catch (error: any) {
-                results.push({ 
-                    format: format.name, 
-                    success: false, 
+                results.push({
+                    format: format.name,
+                    success: false,
                     error: error.message,
                     command: format.command
                 });
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('Checking created queues...');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('find'));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Find format test completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -3153,9 +3173,9 @@ router.get('/api/test/queue/find-format', async (req, res) => {
 router.get('/api/test/queue/auto-find', async (req, res) => {
     try {
         console.log('=== AUTO FINDING CORRECT FORMAT ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3163,7 +3183,7 @@ router.get('/api/test/queue/auto-find', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3171,13 +3191,13 @@ router.get('/api/test/queue/auto-find', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `autofind${Date.now()}`;
         const results = [];
-        
+
         // Test different approaches systematically
         const approaches = [
             {
@@ -3245,7 +3265,7 @@ router.get('/api/test/queue/auto-find', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test each approach
         for (const approach of approaches) {
             try {
@@ -3266,25 +3286,25 @@ router.get('/api/test/queue/auto-find', async (req, res) => {
                 console.log(`❌ ${approach.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('\n=== Checking created queues ===');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('autofind'));
-        
+
         console.log('Created queues:', createdQueues.map((q: any) => q.name));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Auto find test completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -3309,9 +3329,9 @@ router.post('/api/test/simple', (req, res) => {
 router.get('/api/test/queue/auto-test-all', async (req, res) => {
     try {
         console.log('=== AUTO TEST ALL COMMAND FORMATS ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3319,7 +3339,7 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3327,13 +3347,13 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `autotest${Date.now()}`;
         const results = [];
-        
+
         // Test semua format command yang mungkin
         const commandFormats = [
             // Format 1: Array dengan name pertama
@@ -3387,16 +3407,16 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
                 command: ['/queue/tree/add', 'parent=UPLOAD ALL', `name=${testName}10`, 'max-limit=5M', 'comment=Test 10']
             }
         ];
-        
+
         // Test setiap format
         for (let i = 0; i < commandFormats.length; i++) {
             const format = commandFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} ===`);
                 console.log('Command:', format.command);
-                
+
                 let result;
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
@@ -3405,7 +3425,7 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
                 } else {
                     result = await api.write(format.command);
                 }
-                
+
                 results.push({
                     format: format.name,
                     success: true,
@@ -3423,25 +3443,25 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('\n=== Checking created queues ===');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('autotest'));
-        
+
         console.log('Created queues:', createdQueues.map((q: any) => q.name));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Auto test all completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -3457,9 +3477,9 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
 router.get('/api/test/queue/routeros-v6', async (req, res) => {
     try {
         console.log('=== TEST KHUSUS ROUTEROS V6 ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3467,7 +3487,7 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3475,13 +3495,13 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = 'ROUTEROSV6';
         const results = [];
-        
+
         // Test berbagai format parameter name untuk RouterOS V6
         const commandFormats = [
             {
@@ -3549,16 +3569,16 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test setiap format
         for (let i = 0; i < commandFormats.length; i++) {
             const format = commandFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} ===`);
                 console.log('Command:', format.command);
-                
+
                 let result;
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
@@ -3567,7 +3587,7 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
                 } else {
                     result = await api.write(format.command);
                 }
-                
+
                 results.push({
                     format: format.name,
                     success: true,
@@ -3585,25 +3605,25 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('\n=== Checking created queues ===');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('ROUTEROSV6'));
-        
+
         console.log('Created queues:', createdQueues.map((q: any) => q.name));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'RouterOS V6 test completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -3619,9 +3639,9 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
 router.get('/api/test/queue/mikrotik-official', async (req, res) => {
     try {
         console.log('=== TEST BERDASARKAN DOKUMENTASI RESMI MIKROTIK ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3629,7 +3649,7 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3637,13 +3657,13 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = 'TEST123';
         const results = [];
-        
+
         // Test berdasarkan dokumentasi resmi MikroTik
         const commandFormats = [
             {
@@ -3706,16 +3726,16 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test setiap format
         for (let i = 0; i < commandFormats.length; i++) {
             const format = commandFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} ===`);
                 console.log('Command:', format.command);
-                
+
                 let result;
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
@@ -3724,7 +3744,7 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
                 } else {
                     result = await api.write(format.command);
                 }
-                
+
                 results.push({
                     format: format.name,
                     success: true,
@@ -3742,25 +3762,25 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('\n=== Checking created queues ===');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('TEST123'));
-        
+
         console.log('Created queues:', createdQueues.map((q: any) => q.name));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'MikroTik official test completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit'],
                     packetMark: q['packet-mark'],
@@ -3779,9 +3799,9 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
 router.get('/api/test/queue/test123', async (req, res) => {
     try {
         console.log('=== TEST AUTOMATIS QUEUE TEST123 ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3789,7 +3809,7 @@ router.get('/api/test/queue/test123', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3797,13 +3817,13 @@ router.get('/api/test/queue/test123', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = 'TEST123';
         const results = [];
-        
+
         // Test berbagai format command untuk TEST123
         const commandFormats = [
             {
@@ -3831,16 +3851,16 @@ router.get('/api/test/queue/test123', async (req, res) => {
                 command: { parent: 'DOWNLOAD ALL', name: testName, 'max-limit': '5M', comment: 'Test queue' }
             }
         ];
-        
+
         // Test setiap format
         for (let i = 0; i < commandFormats.length; i++) {
             const format = commandFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} ===`);
                 console.log('Command:', format.command);
-                
+
                 let result;
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
@@ -3849,7 +3869,7 @@ router.get('/api/test/queue/test123', async (req, res) => {
                 } else {
                     result = await api.write(format.command);
                 }
-                
+
                 results.push({
                     format: format.name,
                     success: true,
@@ -3867,25 +3887,25 @@ router.get('/api/test/queue/test123', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('\n=== Checking created queues ===');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('TEST123'));
-        
+
         console.log('Created queues:', createdQueues.map((q: any) => q.name));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Test123 completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -3901,9 +3921,9 @@ router.get('/api/test/queue/test123', async (req, res) => {
 router.get('/api/test/queue/debug-all', async (req, res) => {
     try {
         console.log('=== DEBUG ALL QUEUES ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3911,7 +3931,7 @@ router.get('/api/test/queue/debug-all', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3919,24 +3939,24 @@ router.get('/api/test/queue/debug-all', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         // Get all queues
         const queues = await api.write('/queue/tree/print');
         console.log('All queues:', queues);
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Debug all queues completed',
             data: {
                 totalQueues: queues.length,
-                queues: queues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                queues: queues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit'],
                     disabled: q.disabled
@@ -3953,9 +3973,9 @@ router.get('/api/test/queue/debug-all', async (req, res) => {
 router.get('/api/test/queue/simple-fix', async (req, res) => {
     try {
         console.log('=== SIMPLE FIX TEST ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -3963,7 +3983,7 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -3971,13 +3991,13 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `SIMPLE${Date.now()}`;
         const results = [];
-        
+
         // Test format yang paling sederhana dan paling mungkin berhasil
         const simpleFormats = [
             {
@@ -4021,7 +4041,7 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test setiap format
         for (const format of simpleFormats) {
             try {
@@ -4042,25 +4062,25 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         // Check what was actually created
         console.log('\n=== Checking created queues ===');
         const queues = await api.write('/queue/tree/print');
         const createdQueues = queues.filter((q: any) => q.name && q.name.includes('SIMPLE'));
-        
+
         console.log('Created queues:', createdQueues.map((q: any) => q.name));
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Simple fix test completed',
             data: {
                 testName,
                 results,
-                createdQueues: createdQueues.map((q: any) => ({ 
-                    name: q.name, 
-                    parent: q.parent, 
+                createdQueues: createdQueues.map((q: any) => ({
+                    name: q.name,
+                    parent: q.parent,
                     comment: q.comment,
                     maxLimit: q['max-limit']
                 }))
@@ -4076,9 +4096,9 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
 router.get('/api/test/queue/test-fixed-service', async (req, res) => {
     try {
         console.log('=== TEST FIXED MIKROTIK SERVICE ===');
-        
+
         const { createQueueTree } = await import('../services/mikrotikService');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -4086,12 +4106,12 @@ router.get('/api/test/queue/test-fixed-service', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const testName = `FIXED${Date.now()}`;
-        
+
         console.log('Testing fixed createQueueTree function...');
         console.log('Queue name:', testName);
-        
+
         // Test dengan format yang sudah diperbaiki
         await createQueueTree(config, {
             name: testName,
@@ -4099,9 +4119,9 @@ router.get('/api/test/queue/test-fixed-service', async (req, res) => {
             maxLimit: '5M',
             comment: 'Test queue dengan nama custom'
         });
-        
+
         console.log('✅ createQueueTree completed successfully');
-        
+
         res.json({
             success: true,
             message: 'Fixed service test completed',
@@ -4120,9 +4140,9 @@ router.get('/api/test/queue/test-fixed-service', async (req, res) => {
 router.get('/api/test/queue/check-connection', async (req, res) => {
     try {
         console.log('=== CHECK MIKROTIK CONNECTION ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -4130,10 +4150,10 @@ router.get('/api/test/queue/check-connection', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         console.log('Testing connection to MikroTik...');
         console.log('Config:', config);
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -4141,16 +4161,16 @@ router.get('/api/test/queue/check-connection', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik successfully');
-        
+
         // Test simple command
         const result = await api.write('/system/identity/print');
         console.log('✅ System identity:', result);
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'MikroTik connection successful',
@@ -4161,7 +4181,7 @@ router.get('/api/test/queue/check-connection', async (req, res) => {
         });
     } catch (error: any) {
         console.error('❌ MikroTik connection failed:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: error.message,
             message: 'Failed to connect to MikroTik. Please check credentials and network.'
         });
@@ -4172,9 +4192,9 @@ router.get('/api/test/queue/check-connection', async (req, res) => {
 router.get('/api/test/queue/php-format-test', async (req, res) => {
     try {
         console.log('=== PHP FORMAT TEST ===');
-        
+
         const { createQueueTree } = await import('../services/mikrotikService');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -4182,21 +4202,21 @@ router.get('/api/test/queue/php-format-test', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const testName = `PHP_FORMAT${Date.now()}`;
-        
+
         console.log('Testing all PHP formats...');
         console.log('Queue name:', testName);
-        
+
         await createQueueTree(config, {
             name: testName,
             parent: 'DOWNLOAD ALL',
             maxLimit: '5M',
             comment: 'Test semua format PHP'
         });
-        
+
         console.log('✅ PHP format test completed');
-        
+
         res.json({
             success: true,
             message: 'PHP format test completed',
@@ -4215,9 +4235,9 @@ router.get('/api/test/queue/php-format-test', async (req, res) => {
 router.get('/api/test/queue/loop-until-success', async (req, res) => {
     try {
         console.log('=== LOOP UNTIL SUCCESS TEST ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -4225,7 +4245,7 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -4233,15 +4253,15 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `LOOP${Date.now()}`;
         const results = [];
         let attempt = 1;
         const maxAttempts = 50; // Maksimal 50 percobaan
-        
+
         // Daftar format yang akan dicoba secara berulang
         const formatTemplates = [
             // Object formats
@@ -4251,7 +4271,7 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
             { name: 'Object 4', command: (name: string) => ({ parent: 'UPLOAD ALL', name }) },
             { name: 'Object 5', command: (name: string) => ({ name, parent: 'global' }) },
             { name: 'Object 6', command: (name: string) => ({ parent: 'global', name }) },
-            
+
             // Array formats
             { name: 'Array 1', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL'] },
             { name: 'Array 2', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`] },
@@ -4259,76 +4279,76 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
             { name: 'Array 4', command: (name: string) => ['/queue/tree/add', 'parent=UPLOAD ALL', `name=${name}`] },
             { name: 'Array 5', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=global'] },
             { name: 'Array 6', command: (name: string) => ['/queue/tree/add', 'parent=global', `name=${name}`] },
-            
+
             // Format dengan quotes
             { name: 'Object 7', command: (name: string) => ({ name: `"${name}"`, parent: 'DOWNLOAD ALL' }) },
             { name: 'Object 8', command: (name: string) => ({ parent: '"DOWNLOAD ALL"', name }) },
             { name: 'Array 7', command: (name: string) => ['/queue/tree/add', `name="${name}"`, 'parent=DOWNLOAD ALL'] },
             { name: 'Array 8', command: (name: string) => ['/queue/tree/add', 'parent="DOWNLOAD ALL"', `name=${name}`] },
-            
+
             // Format dengan parameter tambahan
             { name: 'Object 9', command: (name: string) => ({ name, parent: 'DOWNLOAD ALL', 'max-limit': '5M' }) },
             { name: 'Object 10', command: (name: string) => ({ parent: 'DOWNLOAD ALL', name, 'max-limit': '5M' }) },
             { name: 'Array 9', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL', 'max-limit=5M'] },
             { name: 'Array 10', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`, 'max-limit=5M'] },
-            
+
             // Format dengan comment
             { name: 'Object 11', command: (name: string) => ({ name, parent: 'DOWNLOAD ALL', comment: 'Loop test' }) },
             { name: 'Object 12', command: (name: string) => ({ parent: 'DOWNLOAD ALL', name, comment: 'Loop test' }) },
             { name: 'Array 11', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL', 'comment=Loop test'] },
             { name: 'Array 12', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`, 'comment=Loop test'] },
-            
+
             // Format dengan semua parameter
             { name: 'Object 13', command: (name: string) => ({ name, parent: 'DOWNLOAD ALL', 'max-limit': '5M', comment: 'Loop test' }) },
             { name: 'Object 14', command: (name: string) => ({ parent: 'DOWNLOAD ALL', name, 'max-limit': '5M', comment: 'Loop test' }) },
             { name: 'Array 13', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL', 'max-limit=5M', 'comment=Loop test'] },
             { name: 'Array 14', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`, 'max-limit=5M', 'comment=Loop test'] },
-            
+
             // Format khusus RouterOS
             { name: 'Object 15', command: (name: string) => ({ name, parent: 'DOWNLOAD ALL', priority: '8' }) },
             { name: 'Object 16', command: (name: string) => ({ parent: 'DOWNLOAD ALL', name, priority: '8' }) },
             { name: 'Array 15', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL', 'priority=8'] },
             { name: 'Array 16', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`, 'priority=8'] },
-            
+
             // Format dengan parameter khusus
             { name: 'Object 17', command: (name: string) => ({ name, parent: 'DOWNLOAD ALL', 'packet-mark': `mark_${name}` }) },
             { name: 'Object 18', command: (name: string) => ({ parent: 'DOWNLOAD ALL', name, 'packet-mark': `mark_${name}` }) },
             { name: 'Array 17', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL', `packet-mark=mark_${name}`] },
             { name: 'Array 18', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`, `packet-mark=mark_${name}`] },
-            
+
             // Format dengan limit-at
             { name: 'Object 19', command: (name: string) => ({ name, parent: 'DOWNLOAD ALL', 'limit-at': '0' }) },
             { name: 'Object 20', command: (name: string) => ({ parent: 'DOWNLOAD ALL', name, 'limit-at': '0' }) },
             { name: 'Array 19', command: (name: string) => ['/queue/tree/add', `name=${name}`, 'parent=DOWNLOAD ALL', 'limit-at=0'] },
             { name: 'Array 20', command: (name: string) => ['/queue/tree/add', 'parent=DOWNLOAD ALL', `name=${name}`, 'limit-at=0'] }
         ];
-        
+
         // Loop sampai ketemu atau mencapai max attempts
         while (attempt <= maxAttempts) {
             const currentTestName = `${testName}_${attempt}`;
             console.log(`\n=== ATTEMPT ${attempt}/${maxAttempts} ===`);
             console.log(`Testing with name: ${currentTestName}`);
-            
+
             let foundWorkingFormat = false;
-            
+
             // Coba setiap format template
             for (let i = 0; i < formatTemplates.length; i++) {
                 const template = formatTemplates[i];
                 if (!template) continue;
-                
+
                 try {
                     const command = template.command(currentTestName);
                     console.log(`Testing ${template.name}:`, command);
-                    
+
                     let result;
                     if (Array.isArray(command)) {
                         result = await api.write(command);
                     } else {
                         result = await api.write('/queue/tree/add', command);
                     }
-                    
+
                     console.log(`✅ ${template.name} succeeded:`, result);
-                    
+
                     // Simpan hasil
                     results.push({
                         attempt,
@@ -4337,12 +4357,12 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
                         result: result,
                         testName: currentTestName
                     });
-                    
+
                     // Cek apakah queue benar-benar dibuat dengan nama custom
                     console.log('Checking if queue was created with custom name...');
                     const queues = await api.write('/queue/tree/print');
                     const createdQueue = queues.find((q: any) => q.name === currentTestName);
-                    
+
                     if (createdQueue) {
                         console.log('🎉 SUCCESS! Queue created with custom name:', createdQueue);
                         foundWorkingFormat = true;
@@ -4350,7 +4370,7 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
                     } else {
                         console.log('❌ Queue not found with custom name. Available queues:', queues.map((q: any) => q.name));
                     }
-                    
+
                 } catch (error: any) {
                     console.log(`❌ ${template.name} failed: ${error.message}`);
                     results.push({
@@ -4362,19 +4382,19 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
                     });
                 }
             }
-            
+
             if (foundWorkingFormat) {
                 break;
             }
-            
+
             attempt++;
-            
+
             // Tunggu sebentar sebelum attempt berikutnya
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Loop until success test completed',
@@ -4383,7 +4403,7 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
                 totalAttempts: attempt - 1,
                 maxAttempts,
                 results,
-                message: attempt > maxAttempts ? 
+                message: attempt > maxAttempts ?
                     'Max attempts reached. Please check MikroTik for queue with name: ' + testName + '_*' :
                     'Found working format! Please check MikroTik for queue with name: ' + testName + '_*'
             }
@@ -4398,9 +4418,9 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
 router.get('/api/test/queue/comprehensive-test', async (req, res) => {
     try {
         console.log('=== COMPREHENSIVE MIKROTIK FORMAT TEST ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -4408,7 +4428,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -4416,13 +4436,13 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `COMPREHENSIVE${Date.now()}`;
         const results = [];
-        
+
         // Daftar semua format yang mungkin dengan berbagai variasi
         const allFormats = [
             // Object formats dengan berbagai parent
@@ -4474,7 +4494,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                     return await api.write('/queue/tree/add', command);
                 }
             },
-            
+
             // Array formats dengan berbagai parent
             {
                 name: 'Array 1: name first, parent DOWNLOAD ALL',
@@ -4524,7 +4544,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // Format dengan quotes
             {
                 name: 'Object 7: name first with quotes, parent DOWNLOAD ALL',
@@ -4558,7 +4578,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // Format dengan parameter tambahan
             {
                 name: 'Object 9: name first, parent DOWNLOAD ALL, with max-limit',
@@ -4592,7 +4612,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // Format dengan comment
             {
                 name: 'Object 11: name first, parent DOWNLOAD ALL, with comment',
@@ -4626,14 +4646,14 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // Format dengan semua parameter
             {
                 name: 'Object 13: name first, parent DOWNLOAD ALL, with all params',
                 test: async () => {
-                    const command = { 
-                        name: testName, 
-                        parent: 'DOWNLOAD ALL', 
+                    const command = {
+                        name: testName,
+                        parent: 'DOWNLOAD ALL',
                         'max-limit': '5M',
                         comment: 'Comprehensive test'
                     };
@@ -4644,9 +4664,9 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
             {
                 name: 'Object 14: parent DOWNLOAD ALL first, name second, with all params',
                 test: async () => {
-                    const command = { 
-                        parent: 'DOWNLOAD ALL', 
-                        name: testName, 
+                    const command = {
+                        parent: 'DOWNLOAD ALL',
+                        name: testName,
                         'max-limit': '5M',
                         comment: 'Comprehensive test'
                     };
@@ -4670,7 +4690,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // Format khusus RouterOS
             {
                 name: 'Object 15: name first, parent DOWNLOAD ALL, with priority',
@@ -4705,25 +4725,25 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test setiap format
         for (let i = 0; i < allFormats.length; i++) {
             const format = allFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} (${i + 1}/${allFormats.length}) ===`);
                 const result = await format.test();
-                
+
                 results.push({
                     format: format.name,
                     success: true,
                     result: result,
                     index: i + 1
                 });
-                
+
                 console.log(`✅ ${format.name} succeeded:`, result);
-                
+
             } catch (error: any) {
                 results.push({
                     format: format.name,
@@ -4734,9 +4754,9 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Comprehensive MikroTik format test completed',
@@ -4757,9 +4777,9 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
 router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
     try {
         console.log('=== AUTO TEST WITH DOWNLOAD ALL PARENT ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -4767,7 +4787,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -4775,13 +4795,13 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `TEST${Date.now()}`;
         const results = [];
-        
+
         // Daftar semua format yang mungkin dengan parent DOWNLOAD ALL
         const allFormats = [
             // Object formats
@@ -4836,9 +4856,9 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
             {
                 name: 'Object 7: name first, parent DOWNLOAD ALL, with all params',
                 test: async () => {
-                    const command = { 
-                        name: testName, 
-                        parent: 'DOWNLOAD ALL', 
+                    const command = {
+                        name: testName,
+                        parent: 'DOWNLOAD ALL',
                         'max-limit': '5M',
                         comment: 'Auto test'
                     };
@@ -4849,9 +4869,9 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
             {
                 name: 'Object 8: parent DOWNLOAD ALL first, name second, with all params',
                 test: async () => {
-                    const command = { 
-                        parent: 'DOWNLOAD ALL', 
-                        name: testName, 
+                    const command = {
+                        parent: 'DOWNLOAD ALL',
+                        name: testName,
                         'max-limit': '5M',
                         comment: 'Auto test'
                     };
@@ -4859,7 +4879,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                     return await api.write('/queue/tree/add', command);
                 }
             },
-            
+
             // Array formats
             {
                 name: 'Array 1: name first, parent DOWNLOAD ALL',
@@ -4925,7 +4945,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // String formats
             {
                 name: 'String 1: name first, parent DOWNLOAD ALL',
@@ -4992,25 +5012,25 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test setiap format
         for (let i = 0; i < allFormats.length; i++) {
             const format = allFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} (${i + 1}/${allFormats.length}) ===`);
                 const result = await format.test();
-                
+
                 results.push({
                     format: format.name,
                     success: true,
                     result: result,
                     index: i + 1
                 });
-                
+
                 console.log(`✅ ${format.name} succeeded:`, result);
-                
+
             } catch (error: any) {
                 results.push({
                     format: format.name,
@@ -5021,9 +5041,9 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Auto test with DOWNLOAD ALL parent completed',
@@ -5044,9 +5064,9 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
 router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
     try {
         console.log('=== AUTO FIND WORKING FORMAT ===');
-        
+
         const { RouterOSAPI } = await import('routeros-api');
-        
+
         const config = {
             host: '192.168.5.1',
             port: 8728,
@@ -5054,7 +5074,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
             password: 'adi',
             use_tls: false
         };
-        
+
         const api = new RouterOSAPI({
             host: config.host,
             port: config.port,
@@ -5062,14 +5082,14 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
             password: config.password,
             timeout: 5000
         });
-        
+
         await api.connect();
         console.log('✅ Connected to MikroTik');
-        
+
         const testName = `AUTO${Date.now()}`;
         const results = [];
         let workingFormat = null;
-        
+
         // Daftar semua format yang mungkin
         const allFormats = [
             // Object formats
@@ -5124,9 +5144,9 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
             {
                 name: 'Object 7: name first, parent second, with all params',
                 test: async () => {
-                    const command = { 
-                        name: testName, 
-                        parent: 'global', 
+                    const command = {
+                        name: testName,
+                        parent: 'global',
                         'max-limit': '5M',
                         comment: 'Auto test'
                     };
@@ -5137,9 +5157,9 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
             {
                 name: 'Object 8: parent first, name second, with all params',
                 test: async () => {
-                    const command = { 
-                        parent: 'global', 
-                        name: testName, 
+                    const command = {
+                        parent: 'global',
+                        name: testName,
                         'max-limit': '5M',
                         comment: 'Auto test'
                     };
@@ -5147,7 +5167,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                     return await api.write('/queue/tree/add', command);
                 }
             },
-            
+
             // Array formats
             {
                 name: 'Array 1: name first, parent second',
@@ -5213,7 +5233,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                     return await api.write(command);
                 }
             },
-            
+
             // String formats
             {
                 name: 'String 1: name first, parent second',
@@ -5280,30 +5300,30 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 }
             }
         ];
-        
+
         // Test setiap format sampai menemukan yang berhasil
         for (let i = 0; i < allFormats.length; i++) {
             const format = allFormats[i];
             if (!format) continue;
-            
+
             try {
                 console.log(`\n=== Testing ${format.name} (${i + 1}/${allFormats.length}) ===`);
                 const result = await format.test();
-                
+
                 results.push({
                     format: format.name,
                     success: true,
                     result: result,
                     index: i + 1
                 });
-                
+
                 console.log(`✅ ${format.name} succeeded:`, result);
-                
+
                 // Cek apakah queue benar-benar dibuat dengan nama custom
                 console.log('Checking if queue was created with custom name...');
                 const queues = await api.write('/queue/tree/print');
                 const createdQueue = queues.find((q: any) => q.name === testName);
-                
+
                 if (createdQueue) {
                     console.log('🎉 SUCCESS! Queue created with custom name:', createdQueue);
                     workingFormat = format.name;
@@ -5311,7 +5331,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 } else {
                     console.log('❌ Queue not found with custom name. Available queues:', queues.map((q: any) => q.name));
                 }
-                
+
             } catch (error: any) {
                 results.push({
                     format: format.name,
@@ -5322,9 +5342,9 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 console.log(`❌ ${format.name} failed: ${error.message}`);
             }
         }
-        
+
         api.close();
-        
+
         res.json({
             success: true,
             message: 'Auto find working format completed',
@@ -5583,17 +5603,17 @@ router.get('/billing/customers/isolate', (req, res) => {
 
 // Billing Payments Routes
 router.get('/billing/payments', (req, res) => {
-    res.render('billing/payments/dashboard', { 
+    res.render('billing/payments/dashboard', {
         title: 'Pembayaran Billing',
-        currentPath: req.path 
+        currentPath: req.path
     });
 });
 
 // Billing Reports Routes
 router.get('/billing/reports', (req, res) => {
-    res.render('billing/reports/dashboard', { 
+    res.render('billing/reports/dashboard', {
         title: 'Laporan Billing',
-        currentPath: req.path 
+        currentPath: req.path
     });
 });
 
@@ -5650,7 +5670,6 @@ router.get('/billing/reports', (req, res) => {
 
 // Payment Gateway Routes
 router.use('/payment', paymentRoutes);
-router.use('/portal', portalRoutes);
 
 // Auth Routes
 router.use('/', authRoutes);
@@ -5671,12 +5690,12 @@ router.use('/address-list', addressListRoutes);
 router.get('/api/ftth/olt-slot/:oltId/ports', async (req, res) => {
     try {
         const oltId = parseInt(req.params.oltId);
-        
+
         const [rows] = await databasePool.query(
             'SELECT port_name, status, ont_count, max_onts FROM olt_port_info WHERE olt_id = ? ORDER BY port_number',
             [oltId]
         );
-        
+
         res.json({
             success: true,
             data: rows
@@ -5692,24 +5711,24 @@ router.get('/api/ftth/olt-slot/:oltId/ports', async (req, res) => {
 
 // Payment Dashboard Routes
 router.get('/payment/dashboard', (req, res) => {
-    res.render('payment/dashboard', { 
+    res.render('payment/dashboard', {
         title: 'Payment Gateway Dashboard',
-        currentPath: req.path 
+        currentPath: req.path
     });
 });
 
 router.get('/payment/status', (req, res) => {
-    res.render('payment/status', { 
+    res.render('payment/status', {
         title: 'Status Pembayaran',
-        currentPath: req.path 
+        currentPath: req.path
     });
 });
 
 // Billing Payment Routes
 router.get('/billing/payment', (req, res) => {
-    res.render('billing/payment', { 
+    res.render('billing/payment', {
         title: 'Pembayaran Invoice',
-        currentPath: req.path 
+        currentPath: req.path
     });
 });
 
@@ -5723,8 +5742,6 @@ router.get('/customers/:id/edit', (req, res, next) => {
 });
 
 // Migration endpoints - MUST be before generic /customers/:id routes
-router.post('/customers/:id/migrate-to-prepaid', migrateToPrepaid);
-router.post('/customers/:id/migrate-to-postpaid', migrateToPostpaid);
 
 // DELETE route must be BEFORE GET route to ensure proper routing
 router.delete('/customers/:id', authMiddleware.requireAuth.bind(authMiddleware), async (req, res) => {
@@ -5770,21 +5787,21 @@ router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
         if (!customerId || isNaN(customerId)) {
             return res.json({ success: false, error: 'Invalid customer ID' });
         }
-        
+
         console.log(`\n🧪 Resetting customer ${customerId} to postpaid...`);
-        
+
         // Get customer data first to get IP and connection type
         const [customers] = await databasePool.query<RowDataPacket[]>(
             'SELECT id, name, connection_type FROM customers WHERE id = ?',
             [customerId]
         );
-        
+
         if (customers.length === 0) {
             return res.json({ success: false, error: 'Customer tidak ditemukan' });
         }
-        
+
         const customer = customers[0];
-        
+
         // Get customer IP if static IP
         let ipAddress = null;
         if (customer.connection_type === 'static_ip') {
@@ -5795,29 +5812,29 @@ router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
             if (staticIPs.length > 0) {
                 // Calculate IP from CIDR if needed (/30 subnet)
                 const rawIP = staticIPs[0].ip_address;
-                
+
                 // Helper function to calculate customer IP
                 const calculateCustomerIP = (cidrAddress: string): string => {
                     try {
                         const [ipPart, prefixStr] = cidrAddress.split('/');
                         const prefix = prefixStr ? parseInt(prefixStr, 10) : 0;
-                        
+
                         // For /30 subnet: network, gateway (.1), customer (.2), broadcast
                         if (prefix === 30) {
                             const ipToInt = (ip: string): number => {
                                 return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
                             };
-                            
+
                             const intToIp = (int: number): string => {
                                 return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
                             };
-                            
+
                             const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
                             const networkInt = ipToInt(ipPart) & mask;
                             const firstHost = networkInt + 1;  // Gateway
                             const secondHost = networkInt + 2; // Customer
                             const ipInt = ipToInt(ipPart);
-                            
+
                             if (ipInt === firstHost) {
                                 return intToIp(secondHost);
                             } else if (ipInt === secondHost) {
@@ -5826,25 +5843,25 @@ router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
                                 return intToIp(secondHost);
                             }
                         }
-                        
+
                         return ipPart; // No CIDR or not /30
                     } catch (e) {
                         return cidrAddress.split('/')[0]; // Fallback to IP part only
                     }
                 };
-                
+
                 ipAddress = calculateCustomerIP(rawIP);
                 console.log(`🧪 IP calculated: ${rawIP} -> ${ipAddress}`);
             }
         }
-        
+
         // Remove from prepaid address lists if IP exists
         if (ipAddress) {
             console.log(`🧪 Removing IP ${ipAddress} from prepaid address lists...`);
             try {
                 const getMikrotikConfig = (await import('../utils/mikrotikConfigHelper')).getMikrotikConfig;
                 const settings = await getMikrotikConfig();
-                
+
                 if (settings) {
                     const MikrotikAddressListService = (await import('../services/mikrotik/MikrotikAddressListService')).default;
                     const addressListService = new MikrotikAddressListService({
@@ -5853,7 +5870,7 @@ router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
                         username: settings.username,
                         password: settings.password
                     });
-                    
+
                     // Remove from all prepaid lists
                     await addressListService.removeFromAddressList('prepaid-no-package', ipAddress);
                     await addressListService.removeFromAddressList('prepaid-active', ipAddress);
@@ -5863,13 +5880,13 @@ router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
                 console.warn(`⚠️ Failed to remove from address list (non-critical):`, addrError);
             }
         }
-        
+
         // Update database
         await databasePool.query('UPDATE customers SET billing_mode = ? WHERE id = ?', ['postpaid', customerId]);
         await databasePool.query('UPDATE customers SET is_isolated = ? WHERE id = ?', [0, customerId]);
-        
+
         console.log(`✅ Customer ${customerId} reset to postpaid`);
-        
+
         res.json({
             success: true,
             message: `Customer ${customerId} reset to postpaid - ready for testing`
@@ -5889,14 +5906,14 @@ router.get('/test/reset-to-postpaid/:customerId', async (req, res) => {
 router.get('/fix-sla-views', async (req, res) => {
     try {
         const connection = await databasePool.getConnection();
-        
+
         try {
             // Drop old tables first to avoid conflicts
             await connection.query(`SET FOREIGN_KEY_CHECKS = 0`);
             await connection.query(`DROP TABLE IF EXISTS sla_incidents`);
             await connection.query(`DROP TABLE IF EXISTS sla_records`);
             await connection.query(`SET FOREIGN_KEY_CHECKS = 1`);
-            
+
             // Create sla_incidents table with correct structure
             await connection.query(`
                 CREATE TABLE sla_incidents (
@@ -5922,7 +5939,7 @@ router.get('/fix-sla-views', async (req, res) => {
                     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             `);
-            
+
             // Create v_active_incidents view
             await connection.query(`
                 CREATE OR REPLACE VIEW v_active_incidents AS
@@ -5946,7 +5963,7 @@ router.get('/fix-sla-views', async (req, res) => {
                 WHERE si.status = 'ongoing'
                 ORDER BY si.duration_minutes DESC, si.start_time ASC
             `);
-            
+
             // Create sla_records table with correct structure
             await connection.query(`
                 CREATE TABLE sla_records (
@@ -5964,7 +5981,7 @@ router.get('/fix-sla-views', async (req, res) => {
                     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             `);
-            
+
             // Create other views
             await connection.query(`
                 CREATE OR REPLACE VIEW v_monthly_sla_summary AS
@@ -5981,9 +5998,9 @@ router.get('/fix-sla-views', async (req, res) => {
                 GROUP BY sr.month_year
                 ORDER BY sr.month_year DESC
             `);
-            
+
             connection.release();
-            
+
             res.send(`
                 <html>
                 <head>
@@ -6015,12 +6032,12 @@ router.get('/fix-sla-views', async (req, res) => {
                 </body>
                 </html>
             `);
-            
+
         } catch (err) {
             connection.release();
             throw err;
         }
-        
+
     } catch (error) {
         console.error('Error fixing SLA views:', error);
         res.status(500).send(`

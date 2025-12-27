@@ -20,16 +20,11 @@
             <i class="fas fa-search text-blue-600 mr-2"></i>Pencarian Cepat Pelanggan
         </h3>
         <div class="flex gap-3">
-            <input 
-                type="text" 
-                id="quickSearch" 
+            <input type="text" id="quickSearch"
                 placeholder="Cari Customer Code, Nama, atau No HP untuk proses pembayaran..."
-                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-            <button 
-                onclick="goToPayment()"
-                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold whitespace-nowrap"
-            >
+                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <button onclick="goToPayment()"
+                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold whitespace-nowrap">
                 <i class="fas fa-credit-card mr-2"></i>Bayar
             </button>
         </div>
@@ -45,7 +40,9 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Transaksi Hari Ini</p>
-                    <p class="text-3xl font-bold text-gray-900"><%= stats.todayTransactions || 0 %></p>
+                    <p class="text-3xl font-bold text-gray-900">
+                        <%= stats.todayTransactions || 0 %>
+                    </p>
                 </div>
                 <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-receipt text-blue-600 text-xl"></i>
@@ -62,7 +59,9 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Pendapatan Hari Ini</p>
-                    <p class="text-3xl font-bold text-gray-900">Rp <%= (stats.todayRevenue || 0).toLocaleString('id-ID') %></p>
+                    <p class="text-3xl font-bold text-gray-900">Rp <%= (stats.todayRevenue || 0).toLocaleString('id-ID')
+                            %>
+                    </p>
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
@@ -79,7 +78,9 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Pembayaran Pending</p>
-                    <p class="text-3xl font-bold text-gray-900"><%= stats.pendingPayments || 0 %></p>
+                    <p class="text-3xl font-bold text-gray-900">
+                        <%= stats.pendingPayments || 0 %>
+                    </p>
                 </div>
                 <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-clock text-yellow-600 text-xl"></i>
@@ -96,7 +97,9 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Total Transaksi</p>
-                    <p class="text-3xl font-bold text-gray-900"><%= stats.totalTransactions || 0 %></p>
+                    <p class="text-3xl font-bold text-gray-900">
+                        <%= stats.totalTransactions || 0 %>
+                    </p>
                 </div>
                 <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-chart-line text-purple-600 text-xl"></i>
@@ -117,7 +120,8 @@
                 <i class="fas fa-bolt mr-2 text-blue-600"></i>Aksi Cepat
             </h3>
             <div class="grid grid-cols-2 gap-4">
-                <a href="/kasir/payments" class="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition duration-200">
+                <a href="/kasir/payments"
+                    class="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition duration-200">
                     <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
                         <i class="fas fa-credit-card text-white"></i>
                     </div>
@@ -126,7 +130,8 @@
                         <p class="text-sm text-gray-600">Proses pembayaran</p>
                     </div>
                 </a>
-                <a href="/kasir/transactions" class="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition duration-200">
+                <a href="/kasir/transactions"
+                    class="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition duration-200">
                     <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
                         <i class="fas fa-receipt text-white"></i>
                     </div>
@@ -135,7 +140,8 @@
                         <p class="text-sm text-gray-600">Lihat transaksi</p>
                     </div>
                 </a>
-                <a href="/kasir/print" class="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition duration-200">
+                <a href="/kasir/print"
+                    class="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition duration-200">
                     <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
                         <i class="fas fa-print text-white"></i>
                     </div>
@@ -144,16 +150,9 @@
                         <p class="text-sm text-gray-600">Cetak tagihan</p>
                     </div>
                 </a>
-                <a href="/kasir/prepaid-verification" class="flex items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition duration-200">
-                    <div class="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-check-circle text-white"></i>
-                    </div>
-                    <div>
-                        <p class="font-medium text-gray-900">Verifikasi Prepaid</p>
-                        <p class="text-sm text-gray-600">Verifikasi pembayaran</p>
-                    </div>
-                </a>
-                <a href="/kasir/reports" class="flex items-center p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition duration-200">
+
+                <a href="/kasir/reports"
+                    class="flex items-center p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition duration-200">
                     <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center mr-3">
                         <i class="fas fa-chart-bar text-white"></i>
                     </div>
@@ -287,16 +286,16 @@
     let quickSearchTimeout;
     let selectedCustomerId = null;
 
-    document.getElementById('quickSearch').addEventListener('input', function(e) {
+    document.getElementById('quickSearch').addEventListener('input', function (e) {
         const query = e.target.value.trim();
-        
+
         clearTimeout(quickSearchTimeout);
-        
+
         if (query.length < 2) {
             document.getElementById('quickSearchResults').classList.add('hidden');
             return;
         }
-        
+
         quickSearchTimeout = setTimeout(() => {
             searchCustomersQuick(query);
         }, 300);
@@ -306,7 +305,7 @@
         try {
             const response = await fetch(`/kasir/api/search-customer?q=${encodeURIComponent(query)}`);
             const data = await response.json();
-            
+
             if (data.success && data.data.length > 0) {
                 displayQuickSearchResults(data.data);
             } else {
@@ -328,16 +327,16 @@
                         <div class="text-sm text-gray-600">
                             📞 ${customer.phone || '-'} | 
                             📦 ${customer.package_name || 'No Package'} |
-                            ${customer.pending_count > 0 ? 
-                                `<span class="text-red-600 font-semibold">${customer.pending_count} tagihan pending</span>` : 
-                                '<span class="text-green-600">✓ Lunas</span>'}
+                            ${customer.pending_count > 0 ?
+                `<span class="text-red-600 font-semibold">${customer.pending_count} tagihan pending</span>` :
+                '<span class="text-green-600">✓ Lunas</span>'}
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </div>
             </div>
         `).join('');
-        
+
         document.getElementById('quickSearchResults').classList.remove('hidden');
     }
 
@@ -349,18 +348,18 @@
 
     function goToPayment() {
         const searchValue = document.getElementById('quickSearch').value.trim();
-        
+
         if (!searchValue) {
             alert('Silakan cari pelanggan terlebih dahulu');
             return;
         }
-        
+
         // Redirect to payment page with search query
         window.location.href = `/kasir/payments?search=${encodeURIComponent(searchValue)}`;
     }
 
     // Enter key on search to trigger payment
-    document.getElementById('quickSearch').addEventListener('keypress', function(e) {
+    document.getElementById('quickSearch').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             goToPayment();
         }

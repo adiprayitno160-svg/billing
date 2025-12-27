@@ -1,0 +1,1 @@
+{"version":3,"file":"autoLogoutMiddleware.d.ts","sourceRoot":"","sources":["../../src/middlewares/autoLogoutMiddleware.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAI1D;;;GAGG;AACH,wBAAsB,oBAAoB,CAAC,GAAG,EAAE,OAAO,EAAE,GAAG,EAAE,QAAQ,EAAE,IAAI,EAAE,YAAY,iBAsBzF"}

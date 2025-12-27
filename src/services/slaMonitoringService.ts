@@ -392,7 +392,8 @@ export class SLAMonitoringService {
         const incidentCount = incidents[0]?.incident_count || 0;
         
         // Calculate discount if SLA breached
-        const slaPercentage = ((totalMinutes - downtimeMinutes) / totalMinutes) * 100;
+        // Prevent division by zero
+        const slaPercentage = totalMinutes > 0 ? ((totalMinutes - downtimeMinutes) / totalMinutes) * 100 : 100;
         let discountAmount = 0;
         
         if (slaPercentage < slaTarget) {

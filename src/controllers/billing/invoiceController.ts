@@ -3,7 +3,7 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export class InvoiceController {
-    
+
     /**
      * Get invoice list with filters
      */
@@ -15,7 +15,7 @@ export class InvoiceController {
             const search = req.query.search as string || '';
             const period = req.query.period as string || '';
             const odc_id = req.query.odc_id as string || '';
-            
+
             const offset = (page - 1) * limit;
 
             // Build query conditions
@@ -42,8 +42,8 @@ export class InvoiceController {
                 queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
             }
 
-            const whereClause = whereConditions.length > 0 
-                ? 'WHERE ' + whereConditions.join(' AND ') 
+            const whereClause = whereConditions.length > 0
+                ? 'WHERE ' + whereConditions.join(' AND ')
                 : '';
 
             // Get invoices with customer info and ODC data
@@ -101,7 +101,7 @@ export class InvoiceController {
                     SUM(remaining_amount) as total_remaining
                 FROM invoices
             `;
-            
+
             const [statsResult] = await databasePool.query(statsQuery);
             const stats = (statsResult as RowDataPacket[])[0];
 
@@ -119,7 +119,7 @@ export class InvoiceController {
                     WHERE task_name = 'invoice_generation'
                     LIMIT 1
                 `);
-                
+
                 if (schedulerResult && schedulerResult.length > 0) {
                     const row = schedulerResult[0];
                     if (row && row.config) {
@@ -172,7 +172,7 @@ export class InvoiceController {
     async getInvoiceDetail(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-            
+
             const invoiceQuery = `
                 SELECT 
                     i.*,
@@ -239,7 +239,7 @@ export class InvoiceController {
      */
     async createManualInvoice(req: Request, res: Response): Promise<void> {
         const conn = await databasePool.getConnection();
-        
+
         try {
             await conn.beginTransaction();
 
@@ -300,9 +300,9 @@ export class InvoiceController {
                         invoice_id, description, quantity, unit_price, total_price, created_at
                     ) VALUES (?, ?, ?, ?, ?, NOW())
                 `;
-                
+
                 const total_price = parseFloat(item.quantity) * parseFloat(item.unit_price);
-                
+
                 await conn.execute(itemInsertQuery, [
                     invoiceId,
                     item.description,
@@ -338,7 +338,7 @@ export class InvoiceController {
      */
     async generateBulkInvoices(req: Request, res: Response): Promise<void> {
         const conn = await databasePool.getConnection();
-        
+
         try {
             await conn.beginTransaction();
 
@@ -350,24 +350,8 @@ export class InvoiceController {
 
             // Get all active customers with their subscriptions (if any)
             // This ensures we capture all active customers, not just those with active subscriptions
-            // First, check if billing_mode column exists
-            let billingModeFilter = '';
-            try {
-                const [columnCheck] = await conn.query<RowDataPacket[]>(`
-                    SELECT COUNT(*) as count 
-                    FROM information_schema.COLUMNS 
-                    WHERE TABLE_SCHEMA = DATABASE() 
-                    AND TABLE_NAME = 'customers' 
-                    AND COLUMN_NAME = 'billing_mode'
-                `);
-                const hasBillingMode = (columnCheck[0]?.count || 0) > 0;
-                if (hasBillingMode) {
-                    billingModeFilter = `AND (c.billing_mode IS NULL OR c.billing_mode = 'postpaid' OR c.billing_mode = '')`;
-                }
-            } catch (e) {
-                console.warn('Could not check for billing_mode column, proceeding without filter:', e);
-            }
-            
+            const billingModeFilter = ''; // System is now postpaid only, no filter needed
+
             const subscriptionsQuery = `
                 SELECT 
                     COALESCE(s.id, 0) as id,
@@ -392,7 +376,7 @@ export class InvoiceController {
             const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery);
 
             console.log(`Found ${subscriptions.length} active customers for billing`);
-            
+
             // Log breakdown
             const withSubscription = subscriptions.filter((s: any) => s.id && s.id > 0).length;
             const withoutSubscription = subscriptions.length - withSubscription;
@@ -406,31 +390,31 @@ export class InvoiceController {
                 WHERE period = ?
             `;
             const [existingInvoices] = await conn.query<RowDataPacket[]>(checkQuery, [currentPeriod]);
-            
+
             console.log(`Found ${existingInvoices.length} existing invoices for period ${currentPeriod}`);
             if (existingInvoices.length > 0) {
-                console.log('Existing invoices:', existingInvoices.map((inv: any) => 
+                console.log('Existing invoices:', existingInvoices.map((inv: any) =>
                     `customer_id: ${inv.customer_id}, subscription_id: ${inv.subscription_id}`
                 ));
             }
-            
+
             // Create a map for exact match: customer_id + subscription_id (handling NULL as 0)
             const exactMatchSet = new Set<string>();
             // Also track customers with invoices that have NULL/0 subscription_id (legacy invoices)
             const customersWithLegacyInvoices = new Set<number>();
-            
+
             for (const inv of existingInvoices as any[]) {
                 const normalizedSubId = inv.normalized_subscription_id || 0;
                 exactMatchSet.add(`${inv.customer_id}_${normalizedSubId}`);
-                
+
                 // Track if this is a legacy invoice (NULL or 0 subscription_id)
                 if (!inv.subscription_id || inv.subscription_id === 0) {
                     customersWithLegacyInvoices.add(inv.customer_id);
                 }
             }
-            
+
             if (customersWithLegacyInvoices.size > 0) {
-                console.log(`Found ${customersWithLegacyInvoices.size} customers with legacy invoices (NULL subscription_id):`, 
+                console.log(`Found ${customersWithLegacyInvoices.size} customers with legacy invoices (NULL subscription_id):`,
                     Array.from(customersWithLegacyInvoices));
             }
 
@@ -444,22 +428,22 @@ export class InvoiceController {
                     // Normalize subscription_id: if 0 or null, treat as 0
                     const normalizedSubId = (subscription.id && subscription.id > 0) ? subscription.id : 0;
                     const exactKey = `${subscription.customer_id}_${normalizedSubId}`;
-                    
+
                     // Check if invoice already exists for this period
                     // Priority: 1) Exact match (same customer + subscription), 2) Legacy invoice for same customer
                     const hasExactMatch = exactMatchSet.has(exactKey);
                     const hasLegacyInvoice = customersWithLegacyInvoices.has(subscription.customer_id);
-                    
+
                     if (hasExactMatch || hasLegacyInvoice) {
                         skippedCount++;
                         const subscriptionInfo = subscription.id && subscription.id > 0 ? `subscription_id: ${subscription.id}` : 'no subscription';
-                        const reason = hasExactMatch 
+                        const reason = hasExactMatch
                             ? `exact match found (customer_id: ${subscription.customer_id}, subscription_id: ${subscription.id || 'NULL'})`
                             : `customer has legacy invoice with NULL/0 subscription_id for this period (customer_id: ${subscription.customer_id})`;
                         console.log(`⚠ Invoice already exists for customer ${subscription.customer_name} (${subscriptionInfo}) - ${reason}`);
                         continue;
                     }
-                    
+
                     const hasActiveSubscription = subscription.id && subscription.id > 0;
                     console.log(`✓ Processing customer ${subscription.customer_name} (customer_id: ${subscription.customer_id}${hasActiveSubscription ? `, subscription_id: ${subscription.id}` : ', no active subscription - using default price'})`);
 
@@ -511,7 +495,7 @@ export class InvoiceController {
                         ) VALUES (?, ?, 1, ?, ?, NOW())
                     `;
 
-                    const description = subscriptionPrice > 0 
+                    const description = subscriptionPrice > 0
                         ? `Paket ${packageName} - ${currentPeriod}`
                         : `Paket Internet Bulanan - ${currentPeriod}`;
 
@@ -596,7 +580,7 @@ export class InvoiceController {
      */
     async deleteInvoice(req: Request, res: Response): Promise<void> {
         const conn = await databasePool.getConnection();
-        
+
         try {
             await conn.beginTransaction();
 
@@ -619,7 +603,7 @@ export class InvoiceController {
 
             // Delete invoice items first
             await conn.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
-            
+
             // Delete invoice
             await conn.execute('DELETE FROM invoices WHERE id = ?', [id]);
 
@@ -648,10 +632,10 @@ export class InvoiceController {
      */
     private async generateInvoiceNumber(period: string, conn?: any): Promise<string> {
         const connection = conn || databasePool;
-        
+
         // Format: INV/YYYY/MM/XXXX
         const [year, month] = period.split('-');
-        
+
         // Get last invoice number for this period
         const [result] = await connection.query(`
             SELECT invoice_number 
@@ -662,7 +646,7 @@ export class InvoiceController {
         `, [period]) as [RowDataPacket[], any];
 
         let sequence = 1;
-        
+
         if (result.length > 0 && result[0]) {
             const lastNumber = result[0].invoice_number;
             const match = lastNumber.match(/\/(\d+)$/);

@@ -1,5 +1,3 @@
-<%- include('../partials/header', { title: title || 'Pengaturan AI Pembayaran' }) %>
-
 <div class="container-fluid py-6">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
@@ -16,253 +14,234 @@
         </div>
 
         <!-- Flash Messages -->
-        <% if (typeof success !== 'undefined' && success) { %>
-        <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-lg shadow-sm">
-            <div class="flex items-center">
-                <i class="fas fa-check-circle text-green-500 text-xl mr-3"></i>
-                <p class="text-green-800 font-medium"><%= success %></p>
-            </div>
-        </div>
-        <% } %>
-
-        <% if (typeof error !== 'undefined' && error) { %>
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg shadow-sm">
-            <div class="flex items-center">
-                <i class="fas fa-exclamation-circle text-red-500 text-xl mr-3"></i>
-                <p class="text-red-800 font-medium"><%= error %></p>
-            </div>
-        </div>
-        <% } %>
-
-        <!-- Settings Form -->
-        <form action="/settings/ai" method="POST" id="aiSettingsForm" class="bg-white rounded-lg shadow-lg p-6">
-            <!-- API Key Section -->
-            <div class="mb-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-key mr-2 text-purple-600"></i>
-                    API Configuration
-                </h2>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label for="api_key" class="block text-sm font-medium text-gray-700 mb-2">
-                            Gemini API Key <span class="text-red-500">*</span>
-                        </label>
-                        <div class="flex gap-2">
-                            <input 
-                                type="password" 
-                                id="api_key" 
-                                name="api_key" 
-                                value="<%= settings.api_key || '' %>"
-                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                placeholder="Masukkan Gemini API Key"
-                                required
-                            />
-                            <button 
-                                type="button" 
-                                id="toggleApiKey" 
-                                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-                            >
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button 
-                                type="button" 
-                                id="testApiKey" 
-                                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition"
-                            >
-                                <i class="fas fa-vial mr-2"></i>
-                                Test
-                            </button>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Dapatkan API Key di <a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-500 hover:underline">Google AI Studio</a>
-                        </p>
-                        <div id="testResult" class="mt-2 hidden"></div>
-                    </div>
-
-                    <div>
-                        <label for="model" class="block text-sm font-medium text-gray-700 mb-2">
-                            Model
-                        </label>
-                        <select 
-                            id="model" 
-                            name="model" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                            <option value="gemini-1.5-pro" <%= settings.model === 'gemini-1.5-pro' ? 'selected' : '' %>>Gemini 1.5 Pro</option>
-                            <option value="gemini-1.5-flash" <%= settings.model === 'gemini-1.5-flash' ? 'selected' : '' %>>Gemini 1.5 Flash</option>
-                            <option value="gemini-pro" <%= settings.model === 'gemini-pro' ? 'selected' : '' %>>Gemini Pro</option>
-                        </select>
-                    </div>
+        <% if (typeof success !=='undefined' && success) { %>
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-lg shadow-sm">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle text-green-500 text-xl mr-3"></i>
+                    <p class="text-green-800 font-medium">
+                        <%= success %>
+                    </p>
                 </div>
             </div>
+            <% } %>
 
-            <!-- Enable/Disable Section -->
-            <div class="mb-8 border-t pt-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-toggle-on mr-2 text-purple-600"></i>
-                    Status
-                </h2>
-                
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                            <label for="enabled" class="text-sm font-medium text-gray-700 cursor-pointer">
-                                Aktifkan AI Analysis
-                            </label>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Aktifkan analisis bukti transfer menggunakan Gemini AI
+                <% if (typeof error !=='undefined' && error) { %>
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-circle text-red-500 text-xl mr-3"></i>
+                            <p class="text-red-800 font-medium">
+                                <%= error %>
                             </p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                id="enabled" 
-                                name="enabled" 
-                                value="1"
-                                <%= settings.enabled ? 'checked' : '' %>
-                                class="sr-only peer"
-                            />
-                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                        </label>
                     </div>
+                    <% } %>
 
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                            <label for="auto_approve_enabled" class="text-sm font-medium text-gray-700 cursor-pointer">
-                                Aktifkan Auto-Approve
-                            </label>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Otomatis approve pembayaran jika sesuai kriteria
-                            </p>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                id="auto_approve_enabled" 
-                                name="auto_approve_enabled" 
-                                value="1"
-                                <%= settings.auto_approve_enabled ? 'checked' : '' %>
-                                class="sr-only peer"
-                            />
-                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                        </label>
-                    </div>
-                </div>
-            </div>
+                        <!-- Settings Form -->
+                        <form action="/settings/ai" method="POST" id="aiSettingsForm"
+                            class="bg-white rounded-lg shadow-lg p-6">
+                            <!-- API Key Section -->
+                            <div class="mb-8">
+                                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-key mr-2 text-purple-600"></i>
+                                    API Configuration
+                                </h2>
 
-            <!-- Auto-Approve Criteria -->
-            <div class="mb-8 border-t pt-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-sliders-h mr-2 text-purple-600"></i>
-                    Kriteria Auto-Approve
-                </h2>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label for="min_confidence" class="block text-sm font-medium text-gray-700 mb-2">
-                            Minimum Confidence Score (%)
-                        </label>
-                        <input 
-                            type="number" 
-                            id="min_confidence" 
-                            name="min_confidence" 
-                            value="<%= settings.min_confidence || 70 %>"
-                            min="0" 
-                            max="100"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            required
-                        />
-                        <p class="text-xs text-gray-500 mt-1">
-                            Minimum confidence score untuk auto-approve (0-100)
-                        </p>
-                    </div>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="api_key" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Gemini API Key <span class="text-red-500">*</span>
+                                        </label>
+                                        <div class="flex gap-2">
+                                            <input type="password" id="api_key" name="api_key"
+                                                value="<%= settings.api_key || '' %>"
+                                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                placeholder="Masukkan Gemini API Key" required />
+                                            <button type="button" id="toggleApiKey"
+                                                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" id="testApiKey"
+                                                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+                                                <i class="fas fa-vial mr-2"></i>
+                                                Test
+                                            </button>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            Dapatkan API Key di <a href="https://makersuite.google.com/app/apikey"
+                                                target="_blank" class="text-blue-500 hover:underline">Google AI
+                                                Studio</a>
+                                        </p>
+                                        <div id="testResult" class="mt-2 hidden"></div>
+                                    </div>
 
-                    <div>
-                        <label for="risk_threshold" class="block text-sm font-medium text-gray-700 mb-2">
-                            Risk Threshold
-                        </label>
-                        <select 
-                            id="risk_threshold" 
-                            name="risk_threshold" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                            <option value="low" <%= settings.risk_threshold === 'low' ? 'selected' : '' %>>Low (Hanya approve jika risiko rendah)</option>
-                            <option value="medium" <%= settings.risk_threshold === 'medium' ? 'selected' : '' %>>Medium (Approve risiko rendah & sedang)</option>
-                            <option value="high" <%= settings.risk_threshold === 'high' ? 'selected' : '' %>>High (Approve semua kecuali risiko sangat tinggi)</option>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Maksimum tingkat risiko yang dapat di-approve otomatis
-                        </p>
-                    </div>
+                                    <div>
+                                        <label for="model" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Model
+                                        </label>
+                                        <select id="model" name="model"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                            <option value="gemini-1.5-pro" <%=settings.model==='gemini-1.5-pro'
+                                                ? 'selected' : '' %>>Gemini 1.5 Pro</option>
+                                            <option value="gemini-1.5-flash" <%=settings.model==='gemini-1.5-flash'
+                                                ? 'selected' : '' %>>Gemini 1.5 Flash</option>
+                                            <option value="gemini-pro" <%=settings.model==='gemini-pro' ? 'selected'
+                                                : '' %>>Gemini Pro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div>
-                        <label for="max_age_days" class="block text-sm font-medium text-gray-700 mb-2">
-                            Maksimum Umur Bukti Transfer (Hari)
-                        </label>
-                        <input 
-                            type="number" 
-                            id="max_age_days" 
-                            name="max_age_days" 
-                            value="<%= settings.max_age_days || 7 %>"
-                            min="1" 
-                            max="30"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            required
-                        />
-                        <p class="text-xs text-gray-500 mt-1">
-                            Bukti transfer yang lebih lama dari ini akan ditolak
-                        </p>
-                    </div>
-                </div>
-            </div>
+                            <!-- Enable/Disable Section -->
+                            <div class="mb-8 border-t pt-6">
+                                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-toggle-on mr-2 text-purple-600"></i>
+                                    Status
+                                </h2>
 
-            <!-- Info Box -->
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-info-circle text-blue-500 text-xl"></i>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-blue-800">
-                            Informasi
-                        </h3>
-                        <div class="mt-2 text-sm text-blue-700">
-                            <ul class="list-disc list-inside space-y-1">
-                                <li>AI akan menganalisis bukti transfer untuk invoice dan prepaid</li>
-                                <li>Auto-approve hanya berlaku jika semua kriteria terpenuhi</li>
-                                <li>Pembayaran yang tidak memenuhi kriteria akan masuk manual review</li>
-                                <li>Mendukung Brimo, Bank Transfer, dan E-Wallet</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <label for="enabled"
+                                                class="text-sm font-medium text-gray-700 cursor-pointer">
+                                                Aktifkan AI Analysis
+                                            </label>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Aktifkan analisis bukti transfer menggunakan Gemini AI
+                                            </p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="enabled" name="enabled" value="1"
+                                                <%=settings.enabled ? 'checked' : '' %>
+                                            class="sr-only peer"
+                                            />
+                                            <div
+                                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
+                                            </div>
+                                        </label>
+                                    </div>
 
-            <!-- Submit Button -->
-            <div class="flex justify-end gap-3">
-                <button 
-                    type="button" 
-                    onclick="window.location.reload()" 
-                    class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition"
-                >
-                    Batal
-                </button>
-                <button 
-                    type="submit" 
-                    class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
-                >
-                    <i class="fas fa-save mr-2"></i>
-                    Simpan Pengaturan
-                </button>
-            </div>
-        </form>
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <label for="auto_approve_enabled"
+                                                class="text-sm font-medium text-gray-700 cursor-pointer">
+                                                Aktifkan Auto-Approve
+                                            </label>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Otomatis approve pembayaran jika sesuai kriteria
+                                            </p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="auto_approve_enabled" name="auto_approve_enabled"
+                                                value="1" <%=settings.auto_approve_enabled ? 'checked' : '' %>
+                                            class="sr-only peer"
+                                            />
+                                            <div
+                                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Auto-Approve Criteria -->
+                            <div class="mb-8 border-t pt-6">
+                                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-sliders-h mr-2 text-purple-600"></i>
+                                    Kriteria Auto-Approve
+                                </h2>
+
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="min_confidence"
+                                            class="block text-sm font-medium text-gray-700 mb-2">
+                                            Minimum Confidence Score (%)
+                                        </label>
+                                        <input type="number" id="min_confidence" name="min_confidence"
+                                            value="<%= settings.min_confidence || 70 %>" min="0" max="100"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            required />
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            Minimum confidence score untuk auto-approve (0-100)
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label for="risk_threshold"
+                                            class="block text-sm font-medium text-gray-700 mb-2">
+                                            Risk Threshold
+                                        </label>
+                                        <select id="risk_threshold" name="risk_threshold"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                            <option value="low" <%=settings.risk_threshold==='low' ? 'selected' : '' %>
+                                                >Low (Hanya approve jika risiko rendah)</option>
+                                            <option value="medium" <%=settings.risk_threshold==='medium' ? 'selected'
+                                                : '' %>>Medium (Approve risiko rendah & sedang)
+                                            </option>
+                                            <option value="high" <%=settings.risk_threshold==='high' ? 'selected' : ''
+                                                %>>High (Approve semua kecuali risiko sangat tinggi)</option>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            Maksimum tingkat risiko yang dapat di-approve otomatis
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label for="max_age_days" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Maksimum Umur Bukti Transfer (Hari)
+                                        </label>
+                                        <input type="number" id="max_age_days" name="max_age_days"
+                                            value="<%= settings.max_age_days || 7 %>" min="1" max="30"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            required />
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            Bukti transfer yang lebih lama dari ini akan ditolak
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Info Box -->
+                            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-info-circle text-blue-500 text-xl"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-blue-800">
+                                            Informasi
+                                        </h3>
+                                        <div class="mt-2 text-sm text-blue-700">
+                                            <ul class="list-disc list-inside space-y-1">
+                                                <li>AI akan menganalisis bukti transfer untuk invoice</li>
+                                                <li>Auto-approve hanya berlaku jika semua kriteria terpenuhi</li>
+                                                <li>Pembayaran yang tidak memenuhi kriteria akan masuk manual review
+                                                </li>
+                                                <li>Mendukung Brimo, Bank Transfer, dan E-Wallet</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.location.reload()"
+                                    class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition">
+                                    Batal
+                                </button>
+                                <button type="submit"
+                                    class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Simpan Pengaturan
+                                </button>
+                            </div>
+                        </form>
     </div>
 </div>
 
 <script>
     // Toggle API key visibility
-    document.getElementById('toggleApiKey')?.addEventListener('click', function() {
+    document.getElementById('toggleApiKey')?.addEventListener('click', function () {
         const apiKeyInput = document.getElementById('api_key');
         const icon = this.querySelector('i');
         if (apiKeyInput.type === 'password') {
@@ -277,7 +256,7 @@
     });
 
     // Test API key
-    document.getElementById('testApiKey')?.addEventListener('click', async function() {
+    document.getElementById('testApiKey')?.addEventListener('click', async function () {
         const apiKey = document.getElementById('api_key').value;
         const testResult = document.getElementById('testResult');
         const button = this;
@@ -322,15 +301,3 @@
         }
     });
 </script>
-
-<%- include('../partials/footer') %>
-
-
-
-
-
-
-
-
-
-

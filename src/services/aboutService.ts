@@ -79,7 +79,7 @@ export async function getAppVersion(): Promise<AppVersion> {
     try {
         // Use MAJOR version only (from VERSION_MAJOR file)
         const currentVersion = GitHubService.getMajorVersion();
-        
+
         // Check for MAJOR updates only (ignores hotfixes)
         const updateCheck = await GitHubService.checkForMajorUpdates();
 
@@ -95,7 +95,7 @@ export async function getAppVersion(): Promise<AppVersion> {
             latest: updateCheck.latestVersion,
             releaseDate: updateCheck.publishedAt || new Date().toISOString(),
             changelog: changelog.length > 0 ? changelog : [
-                'Sistem Prepaid Management dengan integrasi MikroTik',
+                'Sistem Billing Management dengan integrasi MikroTik',
                 'WhatsApp Bot untuk notifikasi otomatis',
                 'Telegram Bot untuk monitoring dan manajemen',
                 'Dashboard monitoring real-time',
@@ -133,13 +133,7 @@ export async function getAppFeatures(): Promise<AppFeature[]> {
             status: 'active',
             category: 'billing'
         },
-        {
-            name: 'Prepaid System',
-            description: 'Sistem prepaid untuk pelanggan dengan voucher dan auto-renewal',
-            version: currentVersion,
-            status: 'active',
-            category: 'billing'
-        },
+
         {
             name: 'MikroTik Integration',
             description: 'Integrasi lengkap dengan MikroTik RouterOS untuk manajemen PPPoE dan Static IP',
@@ -196,13 +190,7 @@ export async function getAppFeatures(): Promise<AppFeature[]> {
             status: 'active',
             category: 'billing'
         },
-        {
-            name: 'Customer Portal',
-            description: 'Portal pelanggan untuk cek tagihan dan pembayaran mandiri',
-            version: currentVersion,
-            status: 'active',
-            category: 'system'
-        },
+
         {
             name: 'Backup & Restore',
             description: 'Sistem backup dan restore database otomatis',

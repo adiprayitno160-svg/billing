@@ -1,0 +1,331 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SystemSettingsController = void 0;
+const pool_1 = __importDefault(require("../../db/pool"));
+/**
+ * Controller untuk System Settings
+ * Manage konfigurasi sistem
+ */
+class SystemSettingsController {
+    /**
+     * Show system settings page
+     */
+    static async index(req, res) {
+        try {
+            // Ensure system_settings table exists
+            await SystemSettingsController.ensureSystemSettingsTable();
+            // Get all settings grouped by category
+            const [settings] = await pool_1.default.query(`SELECT * FROM system_settings ORDER BY category, setting_key`);
+            // Group by category
+            const groupedSettings = {};
+            settings.forEach((setting) => {
+                const category = setting.category || 'general';
+                if (!groupedSettings[category]) {
+                    groupedSettings[category] = [];
+                }
+                groupedSettings[category].push(setting);
+            });
+            res.render('settings/system', {
+                title: 'Pengaturan Sistem',
+                currentPath: '/settings/system',
+                groupedSettings,
+                success: req.query.success || null,
+                error: req.query.error || null
+            });
+        }
+        catch (error) {
+            console.error('System settings page error:', error);
+            res.status(500).send('Error loading system settings');
+        }
+    }
+    /**
+     * Update system settings
+     */
+    static async updateSettings(req, res) {
+        try {
+            const settings = req.body;
+            console.log('Received settings:', Object.keys(settings));
+            // Define boolean settings that use 'true'/'false'
+            const boolTrueFalseSettings = [
+                'auto_isolate_enabled',
+                'auto_restore_enabled',
+                'auto_notifications_enabled',
+                'domain_mode_enabled',
+                'local_mode_enabled',
+                'auto_logout_enabled'
+            ];
+            // Define boolean settings that use '1'/'0'
+            const boolOneZeroSettings = [
+                'late_payment_warning_at_3',
+                'late_payment_warning_at_4'
+            ];
+            // Update each setting using INSERT ... ON DUPLICATE KEY UPDATE
+            for (const [key, value] of Object.entries(settings)) {
+                // Handle array values (happens when checkbox + hidden field both exist)
+                let rawValue = value;
+                if (Array.isArray(value)) {
+                    // Express sends array when multiple inputs have same name
+                    // Checkbox checked: ['true', 'false'] or ['1', '0'] 
+                    // Checkbox unchecked: ['false'] or ['0']
+                    // Check if any value indicates "checked" state
+                    const isChecked = value.includes('true') || value.includes('1') || value.includes(true);
+                    if (isChecked) {
+                        // Find the "checked" value
+                        rawValue = value.find(v => v === 'true' || v === '1' || v === true) || value[0];
+                    }
+                    else {
+                        // Unchecked, use the unchecked value
+                        rawValue = value[0];
+                    }
+                }
+                let settingValue = String(rawValue || '');
+                // Handle boolean settings that use 'true'/'false'
+                if (boolTrueFalseSettings.includes(key)) {
+                    // Check if checkbox was checked
+                    const isChecked = (Array.isArray(value) && (value.includes('true') || value.includes(true))) ||
+                        rawValue === 'true' || rawValue === true || rawValue === '1';
+                    settingValue = isChecked ? 'true' : 'false';
+                }
+                // Handle boolean settings that use '1'/'0'
+                else if (boolOneZeroSettings.includes(key)) {
+                    const isChecked = (Array.isArray(value) && (value.includes('1') || value.includes(true))) ||
+                        rawValue === '1' || rawValue === 'true' || rawValue === true;
+                    settingValue = isChecked ? '1' : '0';
+                }
+                // Use INSERT ... ON DUPLICATE KEY UPDATE (compatible with all MySQL versions)
+                try {
+                    await pool_1.default.query(`INSERT INTO system_settings (setting_key, setting_value, updated_at) 
+             VALUES (?, ?, NOW())
+             ON DUPLICATE KEY UPDATE 
+               setting_value = VALUES(setting_value), 
+               updated_at = NOW()`, [key, settingValue]);
+                    console.log(`✅ Updated setting: ${key} = ${settingValue}`);
+                }
+                catch (queryError) {
+                    // If INSERT ... ON DUPLICATE KEY UPDATE fails, try UPDATE
+                    console.error(`⚠️ Error updating setting ${key} with INSERT:`, queryError?.message || queryError);
+                    try {
+                        await pool_1.default.query(`UPDATE system_settings 
+               SET setting_value = ?, updated_at = NOW() 
+               WHERE setting_key = ?`, [settingValue, key]);
+                        console.log(`✅ Updated setting via UPDATE: ${key} = ${settingValue}`);
+                    }
+                    catch (updateError) {
+                        // If UPDATE also fails, try INSERT (in case record doesn't exist)
+                        console.error(`⚠️ Error updating setting ${key} with UPDATE:`, updateError?.message || updateError);
+                        try {
+                            await pool_1.default.query(`INSERT INTO system_settings (setting_key, setting_value, updated_at) 
+                 VALUES (?, ?, NOW())`, [key, settingValue]);
+                            console.log(`✅ Inserted new setting: ${key} = ${settingValue}`);
+                        }
+                        catch (insertError) {
+                            console.error(`❌ All methods failed for setting ${key}:`, insertError?.message || insertError);
+                            throw new Error(`Failed to save setting '${key}': ${insertError?.sqlMessage || insertError?.message || 'Unknown error'}`);
+                        }
+                    }
+                }
+            }
+            res.redirect('/settings/system?success=Pengaturan berhasil diupdate');
+        }
+        catch (error) {
+            // Enhanced error logging
+            const errorDetails = {
+                message: error?.message || 'Unknown error',
+                sqlMessage: error?.sqlMessage || null,
+                sqlState: error?.sqlState || null,
+                code: error?.code || null,
+                errno: error?.errno || null,
+                stack: error?.stack || null
+            };
+            console.error('❌ [SystemSettings] Update settings error:', errorDetails);
+            console.error('   Error object:', error);
+            // Get detailed error message
+            let errorMsg = 'Unknown error occurred';
+            if (error?.sqlMessage) {
+                errorMsg = error.sqlMessage;
+            }
+            else if (error?.message) {
+                errorMsg = error.message;
+            }
+            else if (error?.code) {
+                errorMsg = `Database error: ${error.code}`;
+            }
+            // Log to file if logger is available
+            try {
+                const { BillingLogService } = await Promise.resolve().then(() => __importStar(require('../../services/billing/BillingLogService')));
+                await BillingLogService.error('system', 'SystemSettings', 'Failed to update system settings', error, {
+                    errorDetails,
+                    settingsReceived: Object.keys(req.body || {})
+                });
+            }
+            catch (logError) {
+                // If logging fails, continue with redirect
+                console.error('Failed to log error:', logError);
+            }
+            // Redirect with error message (limit message length to avoid URL too long)
+            const safeErrorMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
+            res.redirect(`/settings/system?error=${encodeURIComponent('Gagal update settings: ' + safeErrorMsg)}`);
+        }
+    }
+    /**
+     * Get setting value by key
+     */
+    static async getSettingValue(key) {
+        try {
+            const [rows] = await pool_1.default.query('SELECT setting_value FROM system_settings WHERE setting_key = ?', [key]);
+            if (Array.isArray(rows) && rows.length > 0) {
+                return rows[0]?.setting_value || null;
+            }
+            return null;
+        }
+        catch (error) {
+            console.error(`Error getting setting ${key}:`, error);
+            return null;
+        }
+    }
+    /**
+     * Get active URL based on domain/local mode settings
+     * This is a convenience method that uses UrlConfigService
+     */
+    static async getActiveUrl() {
+        try {
+            const { UrlConfigService } = await Promise.resolve().then(() => __importStar(require('../../utils/urlConfigService')));
+            return await UrlConfigService.getActiveUrl();
+        }
+        catch (error) {
+            console.error('Error getting active URL:', error);
+            return 'http://localhost:3000';
+        }
+    }
+    /**
+     * Ensure system_settings table exists
+     */
+    static async ensureSystemSettingsTable() {
+        try {
+            // Create table if not exists
+            await pool_1.default.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          setting_key VARCHAR(100) UNIQUE NOT NULL,
+          setting_value TEXT,
+          setting_description TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_setting_key (setting_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+            // Check if category column exists
+            const [categoryColumn] = await pool_1.default.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'system_settings' 
+          AND COLUMN_NAME = 'category'
+      `);
+            const hasCategoryColumn = Array.isArray(categoryColumn) && categoryColumn.length > 0;
+            // Add category column if it doesn't exist
+            if (!hasCategoryColumn) {
+                try {
+                    await pool_1.default.query(`
+            ALTER TABLE system_settings 
+            ADD COLUMN category VARCHAR(50) DEFAULT 'general' AFTER setting_description,
+            ADD INDEX idx_category (category)
+          `);
+                    console.log('✅ [AutoFix] Added category column to system_settings');
+                }
+                catch (alterError) {
+                    if (!alterError?.message?.includes('Duplicate column')) {
+                        console.warn('⚠️ [AutoFix] Could not add category column:', alterError?.message);
+                    }
+                }
+            }
+            // Insert default settings based on available columns
+            if (hasCategoryColumn) {
+                await pool_1.default.query(`
+          INSERT IGNORE INTO system_settings (setting_key, setting_value, setting_description, category) VALUES
+          ('app_version', '1.0.0', 'Versi aplikasi sistem billing', 'general'),
+          ('domain_url', 'https://billing.example.com', 'URL domain untuk akses aplikasi (production)', 'url'),
+          ('local_url', 'http://localhost:3000', 'URL lokal untuk akses aplikasi (development)', 'url'),
+          ('domain_mode_enabled', 'false', 'Aktifkan penggunaan domain URL', 'url'),
+          ('local_mode_enabled', 'true', 'Aktifkan penggunaan local URL', 'url'),
+
+          ('grace_period_days', '3', 'Jumlah hari grace period sebelum late payment dihitung', 'late_payment'),
+
+          ('late_payment_rolling_months', '12', 'Periode rolling count (bulan)', 'late_payment'),
+          ('consecutive_on_time_reset', '3', 'Jumlah pembayaran tepat waktu berturut-turut untuk reset counter', 'late_payment'),
+
+          ('late_payment_warning_at_3', '1', 'Kirim warning setelah 3x late payment (1=enabled, 0=disabled)', 'late_payment'),
+          ('late_payment_warning_at_4', '1', 'Kirim final warning setelah 4x late payment (1=enabled, 0=disabled)', 'late_payment'),
+          ('auto_isolate_enabled', 'false', 'Enable/disable auto isolation untuk customer yang telat bayar', 'billing'),
+          ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar', 'billing'),
+          ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing', 'billing'),
+          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas', 'general')
+        `);
+            }
+            else {
+                // Insert without category column (backward compatible)
+                await pool_1.default.query(`
+          INSERT IGNORE INTO system_settings (setting_key, setting_value, setting_description) VALUES
+          ('app_version', '1.0.0', 'Versi aplikasi sistem billing'),
+          ('domain_url', 'https://billing.example.com', 'URL domain untuk akses aplikasi (production)'),
+          ('local_url', 'http://localhost:3000', 'URL lokal untuk akses aplikasi (development)'),
+          ('domain_mode_enabled', 'false', 'Aktifkan penggunaan domain URL'),
+          ('local_mode_enabled', 'true', 'Aktifkan penggunaan local URL'),
+
+          ('grace_period_days', '3', 'Jumlah hari grace period sebelum late payment dihitung'),
+
+          ('late_payment_rolling_months', '12', 'Periode rolling count (bulan)'),
+          ('consecutive_on_time_reset', '3', 'Jumlah pembayaran tepat waktu berturut-turut untuk reset counter'),
+
+          ('late_payment_warning_at_3', '1', 'Kirim warning setelah 3x late payment (1=enabled, 0=disabled)'),
+          ('late_payment_warning_at_4', '1', 'Kirim final warning setelah 4x late payment (1=enabled, 0=disabled)'),
+          ('auto_isolate_enabled', 'false', 'Enable/disable auto isolation untuk customer yang telat bayar'),
+          ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar'),
+          ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing'),
+          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas')
+        `);
+            }
+        }
+        catch (error) {
+            console.error('Error ensuring system_settings table:', error);
+        }
+    }
+}
+exports.SystemSettingsController = SystemSettingsController;
+//# sourceMappingURL=SystemSettingsController.js.map

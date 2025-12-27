@@ -70,7 +70,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			address TEXT NULL,
 			odc_id INT NULL,
 			odp_id INT NULL,
-			connection_type ENUM('pppoe','static_ip','prepaid') DEFAULT 'pppoe',
+			connection_type ENUM('pppoe','static_ip') DEFAULT 'pppoe',
 			status ENUM('active','inactive','suspended') DEFAULT 'active',
 			latitude DECIMAL(10,7) NULL,
 			longitude DECIMAL(10,7) NULL,
@@ -239,12 +239,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			UNIQUE KEY unique_address_per_list (address_list_id, address)
 		)`);
 
-		// Ensure prepaid_package_subscriptions has last_notified_at column
-		await addCol(`ALTER TABLE prepaid_package_subscriptions ADD COLUMN last_notified_at TIMESTAMP NULL AFTER expiry_date`);
 
-		// Ensure prepaid_packages has download_limit and upload_limit columns for PPPoE rate limiting
-		await addCol(`ALTER TABLE prepaid_packages ADD COLUMN download_limit VARCHAR(50) NULL AFTER allow_custom_speed`);
-		await addCol(`ALTER TABLE prepaid_packages ADD COLUMN upload_limit VARCHAR(50) NULL AFTER download_limit`);
 
 		// Ensure mikrotik_address_list_items has required columns
 		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN customer_id INT NULL AFTER id`);
@@ -278,7 +273,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			// Table might not exist yet, that's OK - will be created above
 			console.log('[DB] maintenance_schedules table columns check failed, will use defaults');
 		}
-		
+
 		// Helper function to safely add column with AFTER clause
 		const addColAfter = async (columnName: string, columnDef: string, afterColumn?: string) => {
 			if (afterColumn && columnNames.includes(afterColumn)) {
@@ -290,9 +285,9 @@ export async function ensureInitialSchema(): Promise<void> {
 				if (!columnNames.includes(columnName)) columnNames.push(columnName);
 			}
 		};
-		
+
 		await addColAfter('title', 'VARCHAR(255) NULL', 'id');
-		
+
 		// Add start_time - find a suitable position
 		if (columnNames.includes('scheduled_date')) {
 			await addColAfter('start_time', 'DATETIME NULL', 'scheduled_date');
@@ -303,14 +298,14 @@ export async function ensureInitialSchema(): Promise<void> {
 		} else {
 			await addColAfter('start_time', 'DATETIME NULL');
 		}
-		
+
 		// Add end_time after start_time (will be added after start_time is created)
 		if (columnNames.includes('start_time')) {
 			await addColAfter('end_time', 'DATETIME NULL', 'start_time');
 		} else {
 			await addColAfter('end_time', 'DATETIME NULL');
 		}
-		
+
 		// Add other columns
 		await addColAfter('affected_customers', 'JSON NULL', columnNames.includes('customer_id') ? 'customer_id' : undefined);
 		await addColAfter('created_by', 'INT NULL', columnNames.includes('notes') ? 'notes' : undefined);
@@ -319,12 +314,12 @@ export async function ensureInitialSchema(): Promise<void> {
 		await addColAfter('estimated_duration_minutes', 'INT NULL', (columnNames.includes('end_time') ? 'end_time' : undefined));
 		await addColAfter('notification_sent', 'TINYINT(1) DEFAULT 0', (columnNames.includes('created_by') ? 'created_by' : undefined));
 		await addColAfter('notification_sent_at', 'TIMESTAMP NULL', (columnNames.includes('notification_sent') ? 'notification_sent' : undefined));
-		
+
 		// Make customer_id nullable since we're using affected_customers JSON now
 		if (columnNames.includes('customer_id')) {
 			await addCol(`ALTER TABLE maintenance_schedules MODIFY COLUMN customer_id INT NULL`);
 		}
-		
+
 		// Add index for start_time if not exists
 		try {
 			await conn.query(`CREATE INDEX idx_start_time ON maintenance_schedules(start_time)`);
@@ -450,34 +445,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			 'Pembayaran Sebagian Diterima - {invoice_number}',
 			 'Halo {customer_name},\n\n✅ Pembayaran sebagian telah diterima:\n\n📄 Invoice: {invoice_number}\n💰 Dibayar: Rp {paid_amount}\n💵 Sisa: Rp {remaining_amount}\n\nSilakan lakukan pelunasan untuk invoice ini.',
 			 '["customer_name", "invoice_number", "paid_amount", "remaining_amount"]', 'normal'),
-			('package_expiring', 'Paket Akan Berakhir', 'package_expiring', 'whatsapp',
-			 'Paket Internet Akan Berakhir',
-			 'Halo {customer_name},\n\n⏰ Paket internet Anda akan berakhir dalam {days} hari:\n\n📦 Paket: {package_name}\n📅 Berakhir: {expiry_date}\n\nSegera perpanjang untuk menghindari gangguan layanan.',
-			 '["customer_name", "package_name", "days", "expiry_date"]', 'normal'),
-			('package_expired', 'Paket Berakhir', 'package_expired', 'whatsapp',
-			 'Paket Internet Telah Berakhir',
-			 'Halo {customer_name},\n\n⚠️ Paket internet Anda telah berakhir:\n\n📦 Paket: {package_name}\n📅 Berakhir: {expiry_date}\n\nSilakan beli paket baru untuk melanjutkan layanan.',
-			 '["customer_name", "package_name", "expiry_date"]', 'high'),
-			('quota_warning', 'Peringatan Kuota', 'quota_warning', 'whatsapp',
-			 'Peringatan: Kuota Hampir Habis',
-			 'Halo {customer_name},\n\n⚠️ Kuota internet Anda hampir habis:\n\n📊 Tersisa: {remaining_gb} GB ({percentage}%)\n📦 Paket: {package_name}\n\nSegera top up untuk menghindari gangguan layanan.',
-			 '["customer_name", "remaining_gb", "percentage", "package_name"]', 'normal'),
-			('quota_depleted', 'Kuota Habis', 'quota_depleted', 'whatsapp',
-			 'Kuota Internet Habis',
-			 'Halo {customer_name},\n\n❌ Kuota internet Anda telah habis:\n\n📦 Paket: {package_name}\n\nLayanan telah ditangguhkan. Silakan beli paket baru.',
-			 '["customer_name", "package_name"]', 'high'),
-			('package_activated', 'Paket Diaktifkan', 'package_activated', 'whatsapp',
-			 'Paket Internet Aktif',
-			 'Halo {customer_name},\n\n✅ Paket internet Anda telah diaktifkan:\n\n📦 Paket: {package_name}\n⚡ Kecepatan: {speed} Mbps\n⏱️ Durasi: {duration} hari\n📅 Berakhir: {expiry_date}\n\nNikmati layanan internet Anda!',
-			 '["customer_name", "package_name", "speed", "duration", "expiry_date"]', 'normal'),
-			('auto_renew_success', 'Perpanjangan Otomatis Berhasil', 'auto_renew_success', 'whatsapp',
-			 'Paket Otomatis Diperpanjang',
-			 'Halo {customer_name},\n\n✅ Paket internet Anda telah diperpanjang secara otomatis menggunakan saldo deposit.\n\n📦 Paket: {package_name}\n💰 Saldo tersisa: Rp {remaining_balance}',
-			 '["customer_name", "package_name", "remaining_balance"]', 'normal'),
-			('auto_renew_failed', 'Perpanjangan Otomatis Gagal', 'auto_renew_failed', 'whatsapp',
-			 'Gagal Perpanjangan Otomatis',
-			 'Halo {customer_name},\n\n❌ Gagal memperpanjang paket secara otomatis:\n\n📦 Paket: {package_name}\n💰 Saldo deposit tidak mencukupi\n\nSilakan top up deposit atau beli paket manual.',
-			 '["customer_name", "package_name"]', 'high'),
+
 			('customer_created', 'Pelanggan Baru', 'customer_created', 'whatsapp',
 			 'Selamat Datang - {customer_code}',
 			 '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support',
@@ -491,7 +459,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			 '✅ *Layanan Internet Diaktifkan Kembali*\n\nHalo {customer_name},\n\nLayanan internet Anda telah diaktifkan kembali!\n\n📋 *Informasi:*\n{details}\n\n💡 *Terima Kasih:*\nTerima kasih telah melakukan pembayaran. Nikmati layanan internet Anda kembali!\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
 			 '["customer_name", "details"]', 'normal')
 		`);
-		
+
 		// Ensure customer_created template exists (additional check)
 		await conn.query(`INSERT IGNORE INTO notification_templates 
 			(template_code, template_name, notification_type, channel, title_template, message_template, variables, priority, is_active) VALUES
@@ -511,7 +479,7 @@ export async function ensureInitialSchema(): Promise<void> {
 	} finally {
 		conn.release();
 	}
-	
+
 	// Ensure new templates exist (run after schema creation)
 	try {
 		const { ensureNotificationTemplates } = await import('../utils/ensureNotificationTemplates');

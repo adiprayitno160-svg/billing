@@ -380,7 +380,7 @@ export class IncidentAIService {
         
         if (!rows[0]?.incident_count) return null;
         
-        const currentCount = rows[0].incident_count;
+        const currentCount = rows[0]?.incident_count || 0;
         
         // Get baseline (average of last 7 days same hour)
         const baselineQuery = `
@@ -432,7 +432,7 @@ export class IncidentAIService {
         const [rows] = await databasePool.query<RowDataPacket[]>(query);
         if (!rows[0]?.avg_latency) return null;
         
-        const currentAvg = rows[0].avg_latency;
+        const currentAvg = rows[0]?.avg_latency || 0;
         const baseline = 50; // 50ms baseline
         
         const increasePercentage = ((currentAvg - baseline) / baseline) * 100;
@@ -465,7 +465,7 @@ export class IncidentAIService {
         const [rows] = await databasePool.query<RowDataPacket[]>(query);
         if (!rows[0]?.avg_packet_loss) return null;
         
-        const currentLoss = rows[0].avg_packet_loss;
+        const currentLoss = rows[0]?.avg_packet_loss || 0;
         const baselineLoss = 0.5; // 0.5% baseline
         
         const ratio = currentLoss / baselineLoss;

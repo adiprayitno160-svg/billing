@@ -12,25 +12,21 @@ import router from './routes/index';
 import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
-import PrepaidSchedulerService from './services/prepaid/PrepaidSchedulerServiceComplete';
-import PrepaidMonitoringScheduler from './schedulers/PrepaidMonitoringScheduler';
+
 import { WhatsAppService } from './services/whatsapp/WhatsAppService';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
 import { companyInfoMiddleware } from './middlewares/companyInfoMiddleware';
+import { autoLogoutMiddleware } from './middlewares/autoLogoutMiddleware';
 import { injectAppVersion } from './middlewares/versionMiddleware';
-import { 
-	autoFixPrepaidPackagesTable, 
-	autoFixPrepaidSubscriptionsTable,
-	autoFixPrepaidTransactionsTable,
-	autoFixPortalCustomersTable,
-	autoFixPrepaidSubscriptionsTableFull,
+import {
 	autoFixInvoicesAndPaymentsTables
 } from './utils/autoFixDatabase';
 import { loggingMiddleware, errorLoggingMiddleware } from './middlewares/loggingMiddleware';
 import { BillingLogService } from './services/billing/BillingLogService';
 import { AIAnomalyDetectionService } from './services/billing/AIAnomalyDetectionService';
+import { pppoeStatsMiddleware } from './middlewares/pppoeStatsMiddleware';
 
 // Load .env but don't override existing environment variables (e.g., from PM2)
 dotenv.config({ override: false });
@@ -42,35 +38,41 @@ const port = Number(process.env.PORT ?? 3000);
 
 // Security & perf
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: [
-                "'self'",
-                "'unsafe-inline'",
-                "https://cdn.jsdelivr.net",
-                "https://fonts.googleapis.com",
-                "https://cdnjs.cloudflare.com"
-            ],
-            scriptSrc: [
-                "'self'",
-                "'unsafe-inline'",
-                "https://cdn.jsdelivr.net",
-                "https://cdn.tailwindcss.com",
-                "https://cdnjs.cloudflare.com"
-            ],
-            scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
-            imgSrc: ["'self'", "data:", "https:", "http:"],
-            connectSrc: [
-                "'self'",
-                "https://cdn.jsdelivr.net",
-                "https://cdn.tailwindcss.com"
-            ],
-            upgradeInsecureRequests: null
-        }
-    },
-    hsts: false
+	contentSecurityPolicy: {
+		directives: {
+			defaultSrc: ["'self'"],
+			styleSrc: [
+				"'self'",
+				"'unsafe-inline'",
+				"https://cdn.jsdelivr.net",
+				"https://fonts.googleapis.com",
+				"https://cdnjs.cloudflare.com",
+				"https://unpkg.com"
+			],
+			scriptSrc: [
+				"'self'",
+				"'unsafe-inline'",
+				"https://cdn.jsdelivr.net",
+				"https://cdn.tailwindcss.com",
+				"https://cdnjs.cloudflare.com",
+				"https://unpkg.com"
+			],
+			scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"],
+			fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+			imgSrc: ["'self'", "data:", "https:", "http:", "blob:"],
+			connectSrc: [
+				"'self'",
+				"https://cdn.jsdelivr.net",
+				"https://cdn.tailwindcss.com",
+				"https://unpkg.com",
+				"https://*.tile.openstreetmap.org",
+				"https://*.basemaps.cartocdn.com",
+				"https://router.project-osrm.org"
+			],
+			upgradeInsecureRequests: null
+		}
+	},
+	hsts: false
 }));
 app.use(compression());
 app.use(morgan('dev'));
@@ -80,7 +82,7 @@ app.use(session({
 	secret: process.env.SESSION_SECRET || 'billing-secret-key',
 	resave: false,
 	saveUninitialized: false,
-	cookie: { 
+	cookie: {
 		secure: false,
 		maxAge: 10 * 60 * 1000 // 10 minutes in milliseconds
 	},
@@ -112,7 +114,7 @@ app.use((req, res, next) => {
 	// Expose authenticated user (if any) to views
 	try {
 		(res.locals as any).user = (req as any).user || null;
-	} catch {}
+	} catch { }
 	// Feature flags / UI toggles
 	(res.locals as any).hideBillingCustomersMenu = String(process.env.HIDE_BILLING_CUSTOMERS_MENU).toLowerCase() === 'true';
 	// Set default title
@@ -138,11 +140,21 @@ app.use((req, res, next) => {
 // Company info middleware - provides company settings to all views
 app.use(companyInfoMiddleware);
 
+// Auto logout middleware - provides auto logout setting to all views
+app.use(autoLogoutMiddleware);
+
 // Version middleware - provides app version to all views
 app.use(injectAppVersion);
 
 // Logging middleware - must be before routes
 app.use(loggingMiddleware);
+
+// PPPoE Stats middleware - for sidebar
+app.use(pppoeStatsMiddleware);
+
+// Network monitoring routes (public - no auth required)
+import networkMonitoringRoutes from './routes/networkMonitoring';
+app.use('/monitoring', networkMonitoringRoutes);
 
 // Root router
 app.use('/', router);
@@ -157,9 +169,9 @@ app.use('/payment', paymentRoutes);
 // 404 handler
 app.use((req, res, next) => {
 	// Check if this is an API request (JSON expected)
-	const acceptsJson = req.headers.accept?.includes('application/json') || 
-	                   req.headers['content-type']?.includes('application/json');
-	
+	const acceptsJson = req.headers.accept?.includes('application/json') ||
+		req.headers['content-type']?.includes('application/json');
+
 	if (acceptsJson || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH' || req.path.startsWith('/api/')) {
 		return res.status(404).json({
 			success: false,
@@ -169,7 +181,7 @@ app.use((req, res, next) => {
 			method: req.method
 		});
 	}
-	
+
 	res.status(404).render('error', {
 		title: 'Halaman Tidak Ditemukan',
 		status: 404,
@@ -195,11 +207,11 @@ async function start() {
 	try {
 		console.log('Starting server initialization...');
 		console.log(`Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
-		
+
 		console.log('Ensuring initial schema...');
 		await ensureInitialSchema();
 		console.log('Schema ensured');
-		
+
 		// Ensure AI settings table exists
 		try {
 			console.log('Ensuring AI settings table...');
@@ -210,7 +222,7 @@ async function start() {
 			console.error('⚠️ Error ensuring AI settings table (non-critical):', error);
 			// Non-critical, continue startup
 		}
-		
+
 		// Ensure notification templates exist
 		try {
 			console.log('Ensuring notification templates...');
@@ -221,47 +233,22 @@ async function start() {
 			console.error('⚠️ Error ensuring notification templates (non-critical):', error);
 			// Non-critical, continue startup
 		}
-		
+
 		console.log('Checking database connection...');
 		await checkDatabaseConnection();
 		console.log('Database connection OK');
-		
+
 		// Initialize logging system
 		console.log('Initializing logging system...');
 		await BillingLogService.initialize();
 		const anomalyDetector = new AIAnomalyDetectionService();
 		await anomalyDetector.initialize();
 		console.log('✅ Logging system initialized');
-		
-		// Auto-fix missing columns in prepaid_packages table
-		await autoFixPrepaidPackagesTable();
-		console.log('Prepaid packages table checked');
-		
-		// Auto-fix/create prepaid_package_subscriptions table (full)
-		await autoFixPrepaidSubscriptionsTableFull();
-		console.log('Prepaid subscriptions table checked');
-		
-		// Auto-fix missing columns in prepaid_package_subscriptions table
-		await autoFixPrepaidSubscriptionsTable();
-		console.log('Prepaid subscriptions columns checked');
-		
-		// Auto-fix/create prepaid_transactions table
-		await autoFixPrepaidTransactionsTable();
-		console.log('Prepaid transactions table checked');
-		
-		// Auto-fix/create portal_customers table
-		await autoFixPortalCustomersTable();
-		console.log('Portal customers table checked');
-		
-		// Ensure purchase tables exist
-		try {
-			const { ensurePurchaseTables } = await import('./utils/autoFixDatabase');
-			await ensurePurchaseTables();
-			console.log('✅ Purchase tables ensured');
-		} catch (error) {
-			console.error('⚠️ Error ensuring purchase tables (non-critical):', error);
-		}
-		
+
+
+
+
+
 		// Ensure invoices and payments tables exist (CRITICAL for bookkeeping)
 		try {
 			await autoFixInvoicesAndPaymentsTables();
@@ -269,52 +256,57 @@ async function start() {
 		} catch (error) {
 			console.error('⚠️ Error ensuring invoices and payments tables (non-critical):', error);
 		}
-		
+
+		// Initialize WiFi management database (auto-create tables)
+		try {
+			console.log('Initializing WiFi management database...');
+			const { WiFiDatabaseSetup } = await import('./services/genieacs/WiFiDatabaseSetup');
+			await WiFiDatabaseSetup.initialize();
+			console.log('✅ WiFi management database initialized');
+		} catch (error) {
+			console.error('⚠️ Error initializing WiFi database (non-critical):', error);
+			// Non-critical, continue startup
+		}
+
 		// Initialize billing scheduler
 		SchedulerService.initialize();
 		console.log('Billing scheduler initialized');
-		
+
 		// Initialize invoice auto-generation scheduler
 		await InvoiceSchedulerService.initialize();
-		console.log('Invoice auto-generation scheduler initialized');
-		
-		// Initialize Prepaid Scheduler
-		await PrepaidSchedulerService.initialize();
-		console.log('Prepaid scheduler initialized');
-		
-		// Initialize Prepaid Monitoring Scheduler (auto-expire check)
-		PrepaidMonitoringScheduler.start();
-		console.log('Prepaid monitoring scheduler started');
-		
+
+
+
 		// Initialize Notification Scheduler
 		const { NotificationScheduler } = await import('./services/notification/NotificationScheduler');
 		NotificationScheduler.initialize();
 		console.log('Notification scheduler initialized');
-		
+
 		// Initialize WhatsApp Business service
-		try {
-			await WhatsAppService.initialize();
-			console.log('WhatsApp Business service initialized');
-		} catch (error) {
-			console.error('Failed to initialize WhatsApp service:', error);
-			console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
-		}
-		
+		// Initialize WhatsApp Business service (non-blocking)
+		WhatsAppService.initialize()
+			.then(() => console.log('WhatsApp Business service initialized'))
+			.catch(error => {
+				console.error('Failed to initialize WhatsApp service:', error);
+				console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
+			});
+		console.log('WhatsApp service initialization started in background');
+
 		// Initialize default users
 		const authController = new AuthController();
 		await authController.initializeDefaultUsers();
 		console.log('Default users initialized');
-		
-		
+
+
 		// Create HTTP server
 		const server = createServer(app);
-		
-		
+
+
 		server.listen(port, '0.0.0.0', () => {
 			console.log(`Server running on http://localhost:${port}`);
 			console.log(`Server also accessible on http://0.0.0.0:${port}`);
 			console.log(`WebSocket available at ws://localhost:${port}/ws`);
-			
+
 		});
 	} catch (err) {
 		console.error('Failed to start server:', err);

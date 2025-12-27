@@ -1,0 +1,277 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TranslationService = void 0;
+const pool_1 = require("../../db/pool");
+class TranslationService {
+    /**
+     * Translate text with caching
+     */
+    static async translateText(text, sourceLanguage = 'id', targetLanguage = 'en') {
+        try {
+            // Check cache first
+            const cached = await this.getCachedTranslation(text, sourceLanguage, targetLanguage);
+            if (cached) {
+                return cached.translated_text;
+            }
+            // Perform translation
+            const translatedText = await this.performTranslation(text, sourceLanguage, targetLanguage);
+            // Cache the result
+            await this.cacheTranslation(text, sourceLanguage, targetLanguage, translatedText, 0.9);
+            return translatedText;
+        }
+        catch (error) {
+            console.error('Error translating text:', error);
+            return text; // Return original text if translation fails
+        }
+    }
+    /**
+     * Get cached translation
+     */
+    static async getCachedTranslation(text, sourceLanguage, targetLanguage) {
+        const query = `
+            SELECT * FROM translation_cache 
+            WHERE source_text = ? 
+            AND source_language = ? 
+            AND target_language = ?
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `;
+        const [result] = await pool_1.databasePool.query(query, [text, sourceLanguage, targetLanguage]);
+        const translations = result;
+        return translations.length > 0 ? translations[0] : undefined;
+    }
+    /**
+     * Cache translation
+     */
+    static async cacheTranslation(sourceText, sourceLanguage, targetLanguage, translatedText, confidence) {
+        const query = `
+            INSERT INTO translation_cache (source_text, source_language, target_language, translated_text, confidence_score)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        await pool_1.databasePool.query(query, [
+            sourceText,
+            sourceLanguage,
+            targetLanguage,
+            translatedText,
+            confidence
+        ]);
+    }
+    /**
+     * Perform translation (mock implementation)
+     */
+    static async performTranslation(text, sourceLanguage, targetLanguage) {
+        // Mock translation implementation
+        // In production, this would use Google Translate API, Azure Translator, etc.
+        const translations = {
+            'id': {
+                'en': {
+                    'halo': 'hello',
+                    'terima kasih': 'thank you',
+                    'tagihan': 'invoice',
+                    'pembayaran': 'payment',
+                    'bukti transfer': 'transfer proof',
+                    'status': 'status',
+                    'bantuan': 'help',
+                    'komplain': 'complaint',
+                    'selamat datang': 'welcome',
+                    'saya butuh bantuan': 'i need help',
+                    'bagaimana cara bayar': 'how to pay',
+                    'kapan tagihan jatuh tempo': 'when is the invoice due',
+                    'saya sudah bayar': 'i have paid',
+                    'cek status pembayaran': 'check payment status',
+                    'upload bukti transfer': 'upload transfer proof'
+                },
+                'zh': {
+                    'halo': '你好',
+                    'terima kasih': '谢谢',
+                    'tagihan': '发票',
+                    'pembayaran': '付款',
+                    'bukti transfer': '转账证明',
+                    'status': '状态',
+                    'bantuan': '帮助',
+                    'komplain': '投诉'
+                }
+            },
+            'en': {
+                'id': {
+                    'hello': 'halo',
+                    'thank you': 'terima kasih',
+                    'invoice': 'tagihan',
+                    'payment': 'pembayaran',
+                    'transfer proof': 'bukti transfer',
+                    'status': 'status',
+                    'help': 'bantuan',
+                    'complaint': 'komplain',
+                    'welcome': 'selamat datang',
+                    'i need help': 'saya butuh bantuan',
+                    'how to pay': 'bagaimana cara bayar',
+                    'when is the invoice due': 'kapan tagihan jatuh tempo',
+                    'i have paid': 'saya sudah bayar',
+                    'check payment status': 'cek status pembayaran',
+                    'upload transfer proof': 'upload bukti transfer'
+                }
+            }
+        };
+        // Simple word-by-word translation
+        let translatedText = text.toLowerCase();
+        if (translations[sourceLanguage] && translations[sourceLanguage][targetLanguage]) {
+            const translationMap = translations[sourceLanguage][targetLanguage];
+            for (const [source, target] of Object.entries(translationMap)) {
+                translatedText = translatedText.replace(new RegExp(source, 'gi'), target);
+            }
+        }
+        // If no translation found, return original text
+        if (translatedText === text.toLowerCase()) {
+            return text;
+        }
+        return translatedText;
+    }
+    /**
+     * Translate WhatsApp message
+     */
+    static async translateWhatsAppMessage(message, customerLanguage = 'id', botLanguage = 'id') {
+        if (customerLanguage === botLanguage) {
+            return message;
+        }
+        return await this.translateText(message, customerLanguage, botLanguage);
+    }
+    /**
+     * Translate customer response
+     */
+    static async translateCustomerResponse(message, customerLanguage = 'id', adminLanguage = 'id') {
+        if (customerLanguage === adminLanguage) {
+            return message;
+        }
+        return await this.translateText(message, customerLanguage, adminLanguage);
+    }
+    /**
+     * Detect language
+     */
+    static async detectLanguage(text) {
+        // Simple language detection based on common words
+        const lowerText = text.toLowerCase();
+        // Indonesian indicators
+        const indonesianWords = ['halo', 'terima kasih', 'tagihan', 'pembayaran', 'bukti', 'status', 'bantuan', 'komplain'];
+        const indonesianCount = indonesianWords.filter(word => lowerText.includes(word)).length;
+        // English indicators
+        const englishWords = ['hello', 'thank you', 'invoice', 'payment', 'proof', 'status', 'help', 'complaint'];
+        const englishCount = englishWords.filter(word => lowerText.includes(word)).length;
+        // Chinese indicators
+        const chineseWords = ['你好', '谢谢', '发票', '付款', '证明', '状态', '帮助', '投诉'];
+        const chineseCount = chineseWords.filter(word => lowerText.includes(word)).length;
+        if (indonesianCount > englishCount && indonesianCount > chineseCount) {
+            return 'id';
+        }
+        else if (englishCount > indonesianCount && englishCount > chineseCount) {
+            return 'en';
+        }
+        else if (chineseCount > indonesianCount && chineseCount > englishCount) {
+            return 'zh';
+        }
+        return 'id'; // Default to Indonesian
+    }
+    /**
+     * Get supported languages
+     */
+    static getSupportedLanguages() {
+        return {
+            'id': 'Bahasa Indonesia',
+            'en': 'English',
+            'zh': '中文 (Chinese)',
+            'ja': '日本語 (Japanese)',
+            'ko': '한국어 (Korean)',
+            'th': 'ไทย (Thai)',
+            'vi': 'Tiếng Việt (Vietnamese)',
+            'ms': 'Bahasa Melayu (Malay)'
+        };
+    }
+    /**
+     * Get translation statistics
+     */
+    static async getTranslationStatistics(days = 30) {
+        const query = `
+            SELECT 
+                source_language,
+                target_language,
+                COUNT(*) as translation_count,
+                AVG(confidence_score) as avg_confidence
+            FROM translation_cache 
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+            GROUP BY source_language, target_language
+            ORDER BY translation_count DESC
+        `;
+        const [result] = await pool_1.databasePool.query(query, [days]);
+        return result;
+    }
+    /**
+     * Clean old cache entries
+     */
+    static async cleanOldCache(days = 90) {
+        const query = `
+            DELETE FROM translation_cache 
+            WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+        `;
+        const [result] = await pool_1.databasePool.query(query, [days]);
+        return result.affectedRows;
+    }
+    /**
+     * Translate invoice content
+     */
+    static async translateInvoiceContent(invoiceData, targetLanguage = 'en') {
+        const translatedInvoice = { ...invoiceData };
+        // Translate customer name if needed
+        if (invoiceData.customer_name) {
+            translatedInvoice.customer_name = await this.translateText(invoiceData.customer_name, 'id', targetLanguage);
+        }
+        // Translate package name if needed
+        if (invoiceData.package_name) {
+            translatedInvoice.package_name = await this.translateText(invoiceData.package_name, 'id', targetLanguage);
+        }
+        // Translate status if needed
+        if (invoiceData.status) {
+            const statusTranslations = {
+                'sent': { 'en': 'sent', 'id': 'terkirim' },
+                'paid': { 'en': 'paid', 'id': 'lunas' },
+                'overdue': { 'en': 'overdue', 'id': 'terlambat' },
+                'partial': { 'en': 'partial', 'id': 'sebagian' },
+                'draft': { 'en': 'draft', 'id': 'draft' }
+            };
+            if (statusTranslations[invoiceData.status] && statusTranslations[invoiceData.status][targetLanguage]) {
+                translatedInvoice.status = statusTranslations[invoiceData.status][targetLanguage];
+            }
+        }
+        return translatedInvoice;
+    }
+    /**
+     * Translate WhatsApp bot responses
+     */
+    static async translateBotResponse(response, customerLanguage = 'id') {
+        if (customerLanguage === 'id') {
+            return response;
+        }
+        // Translate common bot responses
+        const responseTranslations = {
+            'id': {
+                'en': {
+                    'Selamat datang di Billing Bot': 'Welcome to Billing Bot',
+                    'Saya siap membantu Anda': 'I am ready to help you',
+                    'Ketik "menu" untuk melihat opsi': 'Type "menu" to see options',
+                    'Terima kasih atas kepercayaan Anda': 'Thank you for your trust',
+                    'Pembayaran berhasil dikonfirmasi': 'Payment successfully confirmed',
+                    'Bukti transfer diterima': 'Transfer proof received',
+                    'Maaf, terjadi kesalahan': 'Sorry, an error occurred',
+                    'Hubungi customer service': 'Contact customer service'
+                }
+            }
+        };
+        if (responseTranslations['id'] && responseTranslations['id'][customerLanguage]) {
+            const translations = responseTranslations['id'][customerLanguage];
+            for (const [source, target] of Object.entries(translations)) {
+                response = response.replace(new RegExp(source, 'gi'), target);
+            }
+        }
+        return response;
+    }
+}
+exports.TranslationService = TranslationService;
+//# sourceMappingURL=translationService.js.map

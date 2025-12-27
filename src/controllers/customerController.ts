@@ -42,24 +42,9 @@ export const getCustomerList = async (req: Request, res: Response) => {
             SELECT 
                 c.*,
                 s.package_name as postpaid_package_name,
-                s.price as subscription_price,
-                pc.portal_id,
-                pc.status as portal_status,
-                pps.id as prepaid_subscription_id,
-                pps.expiry_date as prepaid_expiry_date,
-                pps.status as prepaid_subscription_status,
-                pp.name as prepaid_package_name,
-                CASE 
-                    WHEN c.connection_type = 'pppoe' THEN 'PPPOE'
-                    WHEN c.connection_type = 'static_ip' THEN 'IP Statis'
-                    WHEN c.connection_type = 'prepaid' THEN 'Prepaid'
-                    ELSE 'Unknown'
-                END as connection_type_display
+                s.price as subscription_price
             FROM customers c
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
-            LEFT JOIN portal_customers pc ON c.id = pc.customer_id
-            LEFT JOIN prepaid_package_subscriptions pps ON c.id = pps.customer_id AND pps.status = 'active'
-            LEFT JOIN prepaid_packages pp ON pps.package_id = pp.id
             ${whereClause}
             ORDER BY c.created_at DESC
             LIMIT ? OFFSET ?
@@ -74,10 +59,10 @@ export const getCustomerList = async (req: Request, res: Response) => {
         const [countResult] = await databasePool.query<RowDataPacket[]>(countQuery, countParams);
         const total = countResult[0]?.total || 0;
 
-        // Map results to include package_name (either postpaid or prepaid)
+        // Map results to include package_name
         const customersWithPackages = customers.map((customer: any) => ({
             ...customer,
-            package_name: customer.prepaid_package_name || customer.postpaid_package_name || null
+            package_name: customer.postpaid_package_name || null
         }));
 
         // Get statistics for the view
@@ -133,7 +118,7 @@ export const getCustomerList = async (req: Request, res: Response) => {
 export const testMikrotikAddressLists = async (req: Request, res: Response) => {
     try {
         const config = await getMikrotikConfig();
-        
+
         if (!config) {
             return res.send(`
                 <html>
@@ -161,7 +146,7 @@ export const testMikrotikAddressLists = async (req: Request, res: Response) => {
         // Get all address lists
         const allAddressLists = await api.write('/ip/firewall/address-list/print');
         const allListsArray = Array.isArray(allAddressLists) ? allAddressLists : [];
-        
+
         // Group by list name
         const listsByName: { [key: string]: any[] } = {};
         for (const entry of allListsArray) {
@@ -318,95 +303,7 @@ export const testMikrotikAddressLists = async (req: Request, res: Response) => {
     }
 };
 
-/**
- * Migrate customer to prepaid
- */
-export const migrateToPrepaid = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        if (!id) {
-            return res.status(400).json({ success: false, error: 'ID is required' });
-        }
-        const customerId = parseInt(id);
-        const userId = (req.session as any)?.userId;
 
-        if (!customerId || isNaN(customerId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Customer ID tidak valid'
-            });
-        }
-
-        // Use simple version for more reliable migration
-        const MigrationServiceSimple = (await import('../services/customer/MigrationServiceSimple')).default;
-        const result = await MigrationServiceSimple.migrateToPrepaid(customerId, userId);
-
-        if (result.success) {
-            res.json({
-                success: true,
-                message: result.message,
-                portal_id: result.portal_id,
-                portal_pin: result.portal_pin
-            });
-        } else {
-            res.status(400).json({
-                success: false,
-                error: result.error || result.message
-            });
-        }
-    } catch (error: unknown) {
-        console.error('Error migrating to prepaid:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat migrasi';
-        res.status(500).json({
-            success: false,
-            error: errorMessage
-        });
-    }
-};
-
-/**
- * Migrate customer to postpaid
- */
-export const migrateToPostpaid = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        if (!id) {
-            return res.status(400).json({ success: false, error: 'ID is required' });
-        }
-        const customerId = parseInt(id);
-        const userId = (req.session as any)?.userId;
-
-        if (!customerId || isNaN(customerId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Customer ID tidak valid'
-            });
-        }
-
-        // Use simple version for more reliable migration
-        const MigrationServiceSimple = (await import('../services/customer/MigrationServiceSimple')).default;
-        const result = await MigrationServiceSimple.migrateToPostpaid(customerId, userId);
-
-        if (result.success) {
-            res.json({
-                success: true,
-                message: result.message
-            });
-        } else {
-            res.status(400).json({
-                success: false,
-                error: result.error || result.message
-            });
-        }
-    } catch (error: unknown) {
-        console.error('Error migrating to postpaid:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat migrasi';
-        res.status(500).json({
-            success: false,
-            error: errorMessage
-        });
-    }
-};
 
 /**
  * Get customer detail page
@@ -441,27 +338,10 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
                 pp.rate_limit_tx,
                 pp.price as pppoe_package_price,
                 pp.description as pppoe_package_description,
-                pps.id as prepaid_subscription_id,
-                pps.expiry_date as prepaid_expiry_date,
-                pps.status as prepaid_subscription_status,
-                prep.name as prepaid_package_name,
-                prep.price as prepaid_package_price,
-                sic.ip_address as static_ip_address,
-                sic.interface as static_ip_interface,
-                sic.package_id as static_ip_package_id,
-                sp.name as static_ip_package_name,
-                sp.price as static_ip_package_price,
-                sp.max_limit_download,
-                sp.max_limit_upload,
-                odc.name as odc_name,
-                odc.location as odc_location,
-                odp.name as odp_name,
                 olt.name as olt_name
             FROM customers c
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
             LEFT JOIN pppoe_packages pp ON s.package_id = pp.id AND c.connection_type = 'pppoe'
-            LEFT JOIN prepaid_package_subscriptions pps ON c.id = pps.customer_id AND pps.status = 'active'
-            LEFT JOIN prepaid_packages prep ON pps.package_id = prep.id
             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
             LEFT JOIN static_ip_packages sp ON sic.package_id = sp.id
             LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
@@ -514,11 +394,6 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
                 max_limit_download: customer.max_limit_download,
                 max_limit_upload: customer.max_limit_upload
             };
-        } else if (customer.connection_type === 'prepaid' && customer.prepaid_package_name) {
-            packageData = {
-                name: customer.prepaid_package_name,
-                price: customer.prepaid_package_price
-            };
         }
 
         // Get customer invoices
@@ -526,8 +401,8 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
         try {
             const [invoicesResult] = await databasePool.query<RowDataPacket[]>(
                 `SELECT * FROM invoices 
-                 WHERE customer_id = ? 
-                 ORDER BY created_at DESC`,
+             WHERE customer_id = ? 
+             ORDER BY created_at DESC`,
                 [customerId]
             );
             invoices = Array.isArray(invoicesResult) ? invoicesResult : [];
@@ -541,8 +416,7 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
             customer: {
                 ...customer,
                 pppoe_package: customer.connection_type === 'pppoe' ? packageData : null,
-                static_ip_package: customer.connection_type === 'static_ip' ? packageData : null,
-                prepaid_package: customer.connection_type === 'prepaid' ? packageData : null
+                static_ip_package: customer.connection_type === 'static_ip' ? packageData : null
             },
             invoices: invoices || [],
             currentPath: `/customers/${customerId}`
@@ -746,7 +620,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     error: 'Pelanggan tidak ditemukan'
                 });
             }
-            
+
             const oldCustomer = customers[0];
             if (!oldCustomer) {
                 return res.status(404).json({ success: false, error: 'Customer not found' });
@@ -848,11 +722,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
             }
 
             await conn.commit();
-            
+
             // Sync secret ke MikroTik untuk PPPoE customers
             const currentConnectionType = connection_type || oldCustomer.connection_type;
             const newName = name || oldName;
-            
+
             console.log('\n');
             console.log('========================================');
             console.log('[Edit Customer] ========== PPPoE SYNC START ==========');
@@ -861,19 +735,19 @@ export const updateCustomer = async (req: Request, res: Response) => {
             console.log('[Edit Customer] New Name:', newName);
             console.log('========================================');
             console.log('\n');
-            
+
             if (currentConnectionType === 'pppoe') {
                 try {
                     const { getMikrotikConfig } = await import('../services/pppoeService');
                     const { findPppoeSecretIdByName, updatePppoeSecret, createPppoeSecret } = await import('../services/mikrotikService');
-                    
+
                     const config = await getMikrotikConfig();
                     if (config && newName) {
                         const oldSecretUsername = oldPppoeUsername || '';
-                        
+
                         // Get profile name from package if package is selected
                         let profileName: string | undefined = undefined;
-                        
+
                         // First, try to get profile from package (priority)
                         // Check both pppoe_package from form and existing package_id from customer
                         const packageIdToUse = pppoe_package || (oldCustomer as any).package_id || (oldCustomer as any).pppoe_package_id;
@@ -906,7 +780,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         } else {
                             console.log(`[Edit Customer PPPoE] ⚠️ Tidak ada paket yang dipilih (pppoe_package: ${pppoe_package}, existing package_id: ${(oldCustomer as any).package_id})`);
                         }
-                        
+
                         // Fallback: Get profile name if profile_id is provided directly
                         if (!profileName && pppoe_profile_id) {
                             try {
@@ -925,9 +799,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 console.error('⚠️ Gagal mendapatkan profile:', profileError);
                             }
                         }
-                        
+
                         console.log(`[Edit Customer PPPoE] Profile yang akan digunakan: ${profileName || 'tidak ada (MikroTik akan menggunakan default)'}`);
-                        
+
                         // Use username from form as the name for PPPoE secret (not customer ID)
                         // IMPORTANT: Use the username from form, not customer ID
                         console.log(`[Edit Customer PPPoE] ========== DEBUG START ==========`);
@@ -935,7 +809,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         console.log(`[Edit Customer PPPoE] pppoe_username from form (raw):`, pppoe_username);
                         console.log(`[Edit Customer PPPoE] pppoe_username type:`, typeof pppoe_username);
                         console.log(`[Edit Customer PPPoE] oldPppoeUsername from DB:`, oldPppoeUsername);
-                        
+
                         // Get username - prioritize form value, then old username from DB
                         let newUsername = '';
                         if (pppoe_username && typeof pppoe_username === 'string' && pppoe_username.trim()) {
@@ -950,21 +824,21 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             // Don't create secret if no username
                             throw new Error('Username PPPoE wajib diisi untuk membuat secret di MikroTik');
                         }
-                        
+
                         const secretName = newUsername; // ALWAYS use username, never customer ID
-                        
+
                         console.log(`[Edit Customer PPPoE] ✅ Secret Name (FINAL): "${secretName}"`);
                         console.log(`[Edit Customer PPPoE] ✅ Secret akan dibuat/di-update dengan username: "${secretName}"`);
                         console.log(`[Edit Customer PPPoE] New Name: ${newName}`);
                         console.log(`[Edit Customer PPPoE] Password provided: ${pppoe_password ? 'YES (length: ' + pppoe_password.length + ')' : 'NO'}`);
                         console.log(`[Edit Customer PPPoE] ========== DEBUG END ==========`);
-                        
+
                         // Cek apakah secret sudah ada (dengan username baru, username lama, atau customer ID)
                         let existingSecretId = null;
                         let existingSecretByNewUsername = null;
                         let existingSecretByCustomerId = null;
                         let secretFoundBy = null; // Track which identifier found the secret
-                        
+
                         // Check by new username first (priority)
                         if (newUsername) {
                             try {
@@ -978,7 +852,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan username baru: ${newUsername}`);
                             }
                         }
-                        
+
                         // Check by old username (for backward compatibility)
                         if (!existingSecretByNewUsername && oldSecretUsername && oldSecretUsername !== newUsername) {
                             try {
@@ -992,7 +866,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan username lama: ${oldSecretUsername}`);
                             }
                         }
-                        
+
                         // Check by customer ID (for legacy secrets created with customer ID)
                         if (!existingSecretByNewUsername && !existingSecretId && customerId && !isNaN(customerId)) {
                             const customerIdStr = customerId.toString();
@@ -1008,7 +882,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan Customer ID: ${customerIdStr}`);
                             }
                         }
-                        
+
                         // Determine password to use: new password if provided (and not empty), otherwise use old password, or generate new one only if customer has no password at all
                         let passwordToUse: string;
                         if (pppoe_password && pppoe_password.trim() !== '') {
@@ -1029,17 +903,17 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             }
                             console.log(`[Edit Customer PPPoE] 🔑 Password auto-generated: ${passwordToUse.length} characters`);
                         }
-                        
+
                         if (existingSecretId || existingSecretByNewUsername || existingSecretByCustomerId) {
                             // If secret found with customer ID (legacy), we need to delete and recreate with username
                             if (secretFoundBy === 'customer_id' && customerId && !isNaN(customerId)) {
                                 console.log(`[Edit Customer PPPoE] ⚠️ Secret ditemukan dengan Customer ID (legacy), akan dihapus dan dibuat ulang dengan username`);
                                 const { deletePppoeSecret } = await import('../services/mikrotikService');
-                                
+
                                 // Delete old secret with customer ID
                                 await deletePppoeSecret(config, customerId.toString());
                                 console.log(`[Edit Customer PPPoE] ✅ Secret lama dengan Customer ID "${customerId}" berhasil dihapus`);
-                                
+
                                 // Create new secret with username
                                 await createPppoeSecret(config, {
                                     name: secretName, // Use username, not customer ID
@@ -1047,9 +921,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                     profile: profileName || undefined,
                                     comment: newName
                                 });
-                                
+
                                 console.log(`[Edit Customer PPPoE] ✅ Secret baru dengan username "${secretName}" berhasil dibuat`);
-                                
+
                                 // Update username di database dengan username baru
                                 if (newUsername) {
                                     await conn.query(
@@ -1063,12 +937,12 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 const updateData: any = {
                                     comment: newName // Use customer name as comment
                                 };
-                                
+
                                 // Update password jika ada (baik password baru maupun tetap pakai yang lama)
                                 if (passwordToUse) {
                                     updateData.password = passwordToUse;
                                 }
-                                
+
                                 // Update profile jika ada (dari paket atau profile_id)
                                 if (profileName) {
                                     updateData.profile = profileName;
@@ -1076,7 +950,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 } else {
                                     console.log(`[Edit Customer PPPoE] Profile tidak di-update (tidak ada profile dari paket)`);
                                 }
-                                
+
                                 // Determine which identifier to use for updating
                                 let secretToUpdate: string;
                                 if (existingSecretByNewUsername) {
@@ -1086,13 +960,13 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 } else {
                                     secretToUpdate = newUsername || oldSecretUsername;
                                 }
-                                
+
                                 console.log(`[Edit Customer PPPoE] Secret ditemukan dengan identifier: ${secretFoundBy}, akan di-update: ${secretToUpdate}`);
-                                
+
                                 // Update secret di MikroTik - use existing secret identifier
                                 await updatePppoeSecret(config, secretToUpdate, updateData);
                             }
-                            
+
                             // Update username di database dengan username baru
                             if (newUsername && newUsername !== oldSecretUsername) {
                                 await conn.query(
@@ -1100,7 +974,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                     [newUsername, customerId]
                                 );
                             }
-                            
+
                             // Update password di database hanya jika password baru diisi (jika kosong, tetap gunakan password lama)
                             if (pppoe_password && pppoe_password.trim() !== '') {
                                 // Password baru diisi, update ke database
@@ -1113,16 +987,16 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 // Password tidak diisi, tidak perlu update (tetap menggunakan password lama)
                                 console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, tetap menggunakan password yang ada`);
                             }
-                            
+
                             console.log(`✅ PPPoE secret dengan username "${secretName}" berhasil di-update di MikroTik`);
                         } else {
                             // Create secret baru jika belum ada (secret dihapus atau belum pernah dibuat)
                             console.log(`[Edit Customer PPPoE] 🔄 Secret tidak ditemukan, akan membuat secret baru...`);
-                            
+
                             console.log(`[Edit Customer PPPoE] Password baru: ${pppoe_password && pppoe_password.trim() !== '' ? 'ADA (length: ' + pppoe_password.length + ')' : 'TIDAK ADA'}`);
                             console.log(`[Edit Customer PPPoE] Password lama: ${oldPppoePassword ? 'ADA (length: ' + oldPppoePassword.length + ')' : 'TIDAK ADA'}`);
                             console.log(`[Edit Customer PPPoE] Password yang akan digunakan: ${passwordToUse ? 'ADA (length: ' + passwordToUse.length + ')' : 'TIDAK ADA'}`);
-                            
+
                             if (passwordToUse && secretName) {
                                 console.log(`[Edit Customer PPPoE] ========== CREATING NEW SECRET ==========`);
                                 console.log(`[Edit Customer PPPoE] 📤 Membuat secret baru:`);
@@ -1131,16 +1005,16 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                 console.log(`[Edit Customer PPPoE]    - Comment: ${newName}`);
                                 console.log(`[Edit Customer PPPoE]    - Password: ${passwordToUse ? 'ADA' : 'TIDAK ADA'}`);
                                 console.log(`[Edit Customer PPPoE] ⚠️ IMPORTANT: Secret dibuat dengan username "${secretName}", BUKAN customer ID!`);
-                                
+
                                 await createPppoeSecret(config, {
                                     name: secretName, // ALWAYS use username, NEVER customer ID
                                     password: passwordToUse,
                                     profile: profileName || undefined, // Don't set profile if not found, let MikroTik use default
                                     comment: newName // Use customer name as comment
                                 });
-                                
+
                                 console.log(`[Edit Customer PPPoE] ✅ Secret berhasil dibuat dengan username: "${secretName}"`);
-                                
+
                                 // Update username di database dengan username baru
                                 if (newUsername) {
                                     await conn.query(
@@ -1148,7 +1022,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                         [newUsername, customerId]
                                     );
                                 }
-                                
+
                                 // Update password di database hanya jika password baru diisi atau auto-generated (jika customer belum punya password)
                                 if (pppoe_password && pppoe_password.trim() !== '') {
                                     // Password baru diisi, update ke database
@@ -1168,7 +1042,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                     // Password tidak diisi dan ada password lama, tidak perlu update (tetap menggunakan password lama)
                                     console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, tetap menggunakan password yang ada`);
                                 }
-                                
+
                                 console.log(`✅ PPPoE secret dengan username "${secretName}" berhasil dibuat di MikroTik`);
                             } else {
                                 console.error(`❌ Password atau username tidak tersedia, tidak bisa membuat secret baru`);
@@ -1255,12 +1129,12 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             try {
                 console.log(`[DeleteCustomer] Attempting to send notification for customer ${customerId}...`);
                 console.log(`[DeleteCustomer] Customer data: name=${customer.name}, phone=${customer.phone}, code=${customer.customer_code}`);
-                
+
                 if (customer.phone) {
                     try {
                         const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
                         console.log(`[DeleteCustomer] Queueing notification via UnifiedNotificationService...`);
-                        
+
                         const notificationIds = await UnifiedNotificationService.queueNotification({
                             customer_id: customerId,
                             notification_type: 'customer_deleted',
@@ -1271,9 +1145,9 @@ export const deleteCustomer = async (req: Request, res: Response) => {
                             },
                             priority: 'high'
                         });
-                        
+
                         console.log(`✅ Notification queued for customer deletion: ${customer.name} (${customer.phone}) - Notification IDs: ${notificationIds.join(', ')}`);
-                        
+
                         // Process queue immediately (same as customer_created)
                         try {
                             const result = await UnifiedNotificationService.sendPendingNotifications(10);
@@ -1297,15 +1171,15 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             // Delete from MikroTik based on connection type
             try {
                 const { getMikrotikConfig } = await import('../services/pppoeService');
-                const { 
+                const {
                     deletePppoeSecret,
                     removeIpAddress,
                     removeMangleRulesForClient,
                     deleteClientQueuesByClientName
                 } = await import('../services/mikrotikService');
-                
+
                 const config = await getMikrotikConfig();
-                
+
                 if (config) {
                     if (customer.connection_type === 'pppoe') {
                         // Delete PPPoE secret from MikroTik
@@ -1324,21 +1198,21 @@ export const deleteCustomer = async (req: Request, res: Response) => {
                             'SELECT id, client_name, ip_address, interface FROM static_ip_clients WHERE customer_id = ?',
                             [customerId]
                         );
-                        
+
                         if (staticIpClients && staticIpClients.length > 0) {
-                            const staticIpClient = staticIpClients[0];
-                            
+                            const staticIpClient = staticIpClients[0]!;
+
                             try {
                                 // Delete IP address from MikroTik
                                 if (staticIpClient.ip_address) {
                                     await removeIpAddress(config, staticIpClient.ip_address);
                                     console.log(`✅ IP address "${staticIpClient.ip_address}" berhasil dihapus dari MikroTik`);
                                 }
-                                
+
                                 // Calculate peer IP and marks for mangle deletion
                                 const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
                                 const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-                                
+
                                 if (staticIpClient.ip_address) {
                                     const [ipOnlyRaw, prefixStrRaw] = String(staticIpClient.ip_address || '').split('/');
                                     const ipOnly: string = ipOnlyRaw || '';
@@ -1346,21 +1220,21 @@ export const deleteCustomer = async (req: Request, res: Response) => {
                                     const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
                                     const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
                                     let peerIp = ipOnly;
-                                    
+
                                     if (prefix === 30) {
                                         const firstHost = networkInt + 1;
                                         const secondHost = networkInt + 2;
                                         const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
                                         peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
                                     }
-                                    
+
                                     const downloadMark: string = peerIp;
                                     const uploadMark: string = `UP-${peerIp}`;
-                                    
+
                                     // Delete firewall mangle rules
                                     await removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
                                     console.log(`✅ Firewall mangle rules untuk "${peerIp}" berhasil dihapus dari MikroTik`);
-                                    
+
                                     // Delete queue trees
                                     if (staticIpClient.client_name) {
                                         await deleteClientQueuesByClientName(config, staticIpClient.client_name);
@@ -1380,10 +1254,8 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             }
 
             // Delete related data first
-            await conn.query('DELETE FROM prepaid_package_subscriptions WHERE customer_id = ?', [customerId]);
             await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
             await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
-            await conn.query('DELETE FROM portal_customers WHERE customer_id = ?', [customerId]);
             await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
 
             // Delete customer
@@ -1399,7 +1271,7 @@ export const deleteCustomer = async (req: Request, res: Response) => {
     } catch (error: unknown) {
         console.error('Error deleting customer:', error);
         const errorMessage = error instanceof Error ? error.message : 'Gagal menghapus pelanggan';
-        
+
         // Ensure JSON response - check if response already sent
         if (!res.headersSent) {
             res.status(500).json({
@@ -1418,7 +1290,7 @@ export const deleteCustomer = async (req: Request, res: Response) => {
 export const bulkDeleteCustomers = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;
-        
+
         if (!ids || !Array.isArray(ids) || ids.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -1427,7 +1299,7 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
         }
 
         const customerIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
-        
+
         if (customerIds.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -1440,7 +1312,7 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
         const errors: { id: number; error: string }[] = [];
 
         const conn = await databasePool.getConnection();
-        
+
         try {
             await conn.beginTransaction();
 
@@ -1468,12 +1340,12 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     try {
                         console.log(`[BulkDelete] Attempting to send notification for customer ${customerId}...`);
                         console.log(`[BulkDelete] Customer data: name=${customer.name}, phone=${customer.phone}, code=${customer.customer_code}`);
-                        
+
                         if (customer.phone) {
                             try {
                                 const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
                                 console.log(`[BulkDelete] Queueing notification via UnifiedNotificationService...`);
-                                
+
                                 const notificationIds = await UnifiedNotificationService.queueNotification({
                                     customer_id: customerId,
                                     notification_type: 'customer_deleted',
@@ -1484,9 +1356,9 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                                     },
                                     priority: 'high'
                                 });
-                                
+
                                 console.log(`✅ Notification queued for customer deletion: ${customer.name} (${customer.phone}) - Notification IDs: ${notificationIds.join(', ')}`);
-                                
+
                                 // Process queue immediately (same as customer_created)
                                 try {
                                     const result = await UnifiedNotificationService.sendPendingNotifications(10);
@@ -1510,15 +1382,15 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     // Delete from MikroTik based on connection type
                     try {
                         const { getMikrotikConfig } = await import('../services/pppoeService');
-                        const { 
+                        const {
                             deletePppoeSecret,
                             removeIpAddress,
                             removeMangleRulesForClient,
                             deleteClientQueuesByClientName
                         } = await import('../services/mikrotikService');
-                        
+
                         const config = await getMikrotikConfig();
-                        
+
                         if (config) {
                             if (customer.connection_type === 'pppoe') {
                                 // Delete PPPoE secret from MikroTik
@@ -1537,21 +1409,21 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                                     'SELECT id, client_name, ip_address, interface FROM static_ip_clients WHERE customer_id = ?',
                                     [customerId]
                                 );
-                                
+
                                 if (staticIpClients && staticIpClients.length > 0) {
-                                    const staticIpClient = staticIpClients[0];
-                                    
+                                    const staticIpClient = staticIpClients[0]!;
+
                                     try {
                                         // Delete IP address from MikroTik
                                         if (staticIpClient.ip_address) {
                                             await removeIpAddress(config, staticIpClient.ip_address);
                                             console.log(`✅ IP address "${staticIpClient.ip_address}" berhasil dihapus dari MikroTik`);
                                         }
-                                        
+
                                         // Calculate peer IP and marks for mangle deletion
                                         const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
                                         const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-                                        
+
                                         if (staticIpClient.ip_address) {
                                             const [ipOnlyRaw, prefixStrRaw] = String(staticIpClient.ip_address || '').split('/');
                                             const ipOnly: string = ipOnlyRaw || '';
@@ -1559,21 +1431,21 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                                             const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
                                             const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
                                             let peerIp = ipOnly;
-                                            
+
                                             if (prefix === 30) {
                                                 const firstHost = networkInt + 1;
                                                 const secondHost = networkInt + 2;
                                                 const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
                                                 peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
                                             }
-                                            
+
                                             const downloadMark: string = peerIp;
                                             const uploadMark: string = `UP-${peerIp}`;
-                                            
+
                                             // Delete firewall mangle rules
                                             await removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
                                             console.log(`✅ Firewall mangle rules untuk "${peerIp}" berhasil dihapus dari MikroTik`);
-                                            
+
                                             // Delete queue trees
                                             if (staticIpClient.client_name) {
                                                 await deleteClientQueuesByClientName(config, staticIpClient.client_name);
@@ -1593,10 +1465,8 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     }
 
                     // Delete related data first
-                    await conn.query('DELETE FROM prepaid_package_subscriptions WHERE customer_id = ?', [customerId]);
                     await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
                     await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
-                    await conn.query('DELETE FROM portal_customers WHERE customer_id = ?', [customerId]);
                     await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
 
                     // Delete customer
@@ -1634,7 +1504,7 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
     } catch (error: unknown) {
         console.error('Error in bulk delete customers:', error);
         const errorMessage = error instanceof Error ? error.message : 'Gagal melakukan hapus massal';
-        
+
         if (!res.headersSent) {
             res.status(500).json({
                 success: false,

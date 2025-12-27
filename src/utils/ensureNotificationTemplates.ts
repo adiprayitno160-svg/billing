@@ -7,7 +7,7 @@ import { databasePool } from '../db/pool';
 
 export async function ensureNotificationTemplates(): Promise<void> {
   const conn = await databasePool.getConnection();
-  
+
   try {
     // Templates to ensure exist
     const templates = [
@@ -55,28 +55,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         priority: 'high',
         is_active: true
       },
-      {
-        template_code: 'customer_migrated_to_prepaid',
-        template_name: 'Migrasi ke Prepaid',
-        notification_type: 'customer_migrated_to_prepaid',
-        channel: 'whatsapp',
-        title_template: 'Migrasi ke Sistem Prepaid',
-        message_template: '🔄 *Migrasi ke Sistem Prepaid*\n\nHalo {customer_name},\n\nKami memberitahukan bahwa akun Anda dengan kode pelanggan *{customer_code}* telah dimigrasikan ke sistem *Prepaid*.\n\n📋 *Informasi Migrasi:*\n• Nama: {customer_name}\n• Kode Pelanggan: {customer_code}\n• Sistem Baru: Prepaid\n• Portal ID: {portal_id}\n• Portal PIN: {portal_pin}\n\n💡 *Cara Menggunakan:*\n• Login ke portal prepaid menggunakan Portal ID dan PIN di atas\n• Pilih paket internet yang diinginkan\n• Lakukan pembayaran sesuai paket yang dipilih\n• Paket akan aktif otomatis setelah pembayaran\n\n📱 *Akses Portal:*\n{portal_url}\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
-        variables: JSON.stringify(['customer_name', 'customer_code', 'portal_id', 'portal_pin', 'portal_url']),
-        priority: 'normal',
-        is_active: true
-      },
-      {
-        template_code: 'customer_migrated_to_postpaid',
-        template_name: 'Migrasi ke Postpaid',
-        notification_type: 'customer_migrated_to_postpaid',
-        channel: 'whatsapp',
-        title_template: 'Migrasi ke Sistem Postpaid',
-        message_template: '🔄 *Migrasi ke Sistem Postpaid*\n\nHalo {customer_name},\n\nKami memberitahukan bahwa akun Anda dengan kode pelanggan *{customer_code}* telah dimigrasikan ke sistem *Postpaid*.\n\n📋 *Informasi Migrasi:*\n• Nama: {customer_name}\n• Kode Pelanggan: {customer_code}\n• Sistem Baru: Postpaid\n\n💡 *Cara Kerja Postpaid:*\n• Anda akan menerima tagihan bulanan sesuai paket yang aktif\n• Pembayaran dilakukan setelah menerima tagihan\n• Layanan akan aktif setelah pembayaran diterima\n• Tagihan akan dikirim setiap bulan secara otomatis\n\n📱 *Informasi Penting:*\n• Pastikan nomor telepon Anda aktif untuk menerima notifikasi tagihan\n• Lakukan pembayaran tepat waktu untuk menghindari gangguan layanan\n• Hubungi kami jika ada pertanyaan tentang tagihan\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
-        variables: JSON.stringify(['customer_name', 'customer_code']),
-        priority: 'normal',
-        is_active: true
-      },
+
       {
         template_code: 'payment_partial',
         template_name: 'Pembayaran Kurang',
@@ -122,14 +101,14 @@ export async function ensureNotificationTemplates(): Promise<void> {
         is_active: true
       }
     ];
-    
+
     for (const template of templates) {
       // Check if template exists
       const [existing] = await conn.query(
         'SELECT id FROM notification_templates WHERE template_code = ?',
         [template.template_code]
       );
-      
+
       if (Array.isArray(existing) && existing.length === 0) {
         // Insert template
         await conn.query(
@@ -154,7 +133,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         console.log(`ℹ️  Template ${template.template_code} already exists`);
       }
     }
-    
+
     console.log('✅ All notification templates ensured');
   } catch (error) {
     console.error('❌ Error ensuring notification templates:', error);

@@ -4,23 +4,22 @@
  */
 
 export class FraudDetectionPrompts {
-    
-    /**
-     * PROMPT 1: Payment Proof Verification (Enhanced)
-     * Untuk analisis bukti pembayaran dengan deteksi fraud yang lebih ketat
-     */
-    static getPaymentProofVerificationPrompt(
-        expectedAmount?: number,
-        expectedBank?: string,
-        customerName?: string,
-        invoiceNumber?: string,
-        transactionType: 'invoice' | 'prepaid' = 'invoice'
-    ): string {
-        return `Anda adalah ahli analisis bukti pembayaran digital dan deteksi fraud yang berpengalaman. Tugas Anda adalah menganalisis gambar bukti transfer dengan sangat teliti untuk mendeteksi potensi fraud.
+
+  /**
+   * PROMPT 1: Payment Proof Verification (Enhanced)
+   * Untuk analisis bukti pembayaran dengan deteksi fraud yang lebih ketat
+   */
+  static getPaymentProofVerificationPrompt(
+    expectedAmount?: number,
+    expectedBank?: string,
+    customerName?: string,
+    invoiceNumber?: string
+  ): string {
+    return `Anda adalah ahli analisis bukti pembayaran digital dan deteksi fraud yang berpengalaman. Tugas Anda adalah menganalisis gambar bukti transfer dengan sangat teliti untuk mendeteksi potensi fraud.
 
 KONTEKS SISTEM:
 - Sistem billing internet service provider
-- Verifikasi pembayaran invoice atau paket prepaid
+- Verifikasi pembayaran invoice
 - Target: Deteksi fraud dengan akurasi tinggi
 
 DATA YANG DIHARAPKAN:
@@ -28,7 +27,7 @@ ${expectedAmount ? `- Nominal yang diharapkan: Rp ${expectedAmount.toLocaleStrin
 ${expectedBank ? `- Bank yang diharapkan: ${expectedBank}` : '- Bank: Tidak ditentukan'}
 ${customerName ? `- Nama pelanggan: ${customerName}` : ''}
 ${invoiceNumber ? `- Nomor invoice/tagihan: ${invoiceNumber}` : ''}
-- Tipe transaksi: ${transactionType === 'invoice' ? 'Pembayaran Invoice' : 'Pembayaran Paket Prepaid'}
+- Tipe transaksi: Pembayaran Invoice
 
 TUGAS ANALISIS (URUTAN PRIORITAS):
 
@@ -144,23 +143,23 @@ PENTING:
 - Berikan reasoning yang jelas untuk setiap fraud indicator
 - Pastikan response hanya berisi JSON yang valid, tanpa teks tambahan di luar JSON
 `;
-    }
+  }
 
-    /**
-     * PROMPT 2: Customer Data Verification
-     * Untuk verifikasi data customer baru atau perubahan data
-     */
-    static getCustomerDataVerificationPrompt(
-        customerData: {
-            name?: string;
-            phone?: string;
-            email?: string;
-            address?: string;
-            customerCode?: string;
-        },
-        existingData?: any
-    ): string {
-        return `Anda adalah sistem verifikasi data customer untuk mencegah fraud dan duplikasi. Analisis data customer berikut dengan teliti.
+  /**
+   * PROMPT 2: Customer Data Verification
+   * Untuk verifikasi data customer baru atau perubahan data
+   */
+  static getCustomerDataVerificationPrompt(
+    customerData: {
+      name?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      customerCode?: string;
+    },
+    existingData?: any
+  ): string {
+    return `Anda adalah sistem verifikasi data customer untuk mencegah fraud dan duplikasi. Analisis data customer berikut dengan teliti.
 
 DATA CUSTOMER BARU/PERUBAHAN:
 ${customerData.name ? `- Nama: ${customerData.name}` : '- Nama: Tidak ada'}
@@ -227,17 +226,17 @@ OUTPUT FORMAT (JSON):
   "reasoning": "string"
 }
 `;
-    }
+  }
 
-    /**
-     * PROMPT 3: Transaction Pattern Analysis
-     * Untuk analisis pola transaksi yang mencurigakan
-     */
-    static getTransactionPatternAnalysisPrompt(
-        transactionHistory: any[],
-        currentTransaction: any
-    ): string {
-        return `Anda adalah sistem analisis pola transaksi untuk mendeteksi fraud. Analisis pola transaksi berikut.
+  /**
+   * PROMPT 3: Transaction Pattern Analysis
+   * Untuk analisis pola transaksi yang mencurigakan
+   */
+  static getTransactionPatternAnalysisPrompt(
+    transactionHistory: any[],
+    currentTransaction: any
+  ): string {
+    return `Anda adalah sistem analisis pola transaksi untuk mendeteksi fraud. Analisis pola transaksi berikut.
 
 HISTORY TRANSAKSI (${transactionHistory.length} transaksi terakhir):
 ${JSON.stringify(transactionHistory.slice(0, 10), null, 2)}
@@ -300,14 +299,14 @@ OUTPUT FORMAT (JSON):
   "reasoning": "string"
 }
 `;
-    }
+  }
 
-    /**
-     * PROMPT 4: Image Metadata Analysis
-     * Untuk analisis metadata gambar bukti pembayaran
-     */
-    static getImageMetadataAnalysisPrompt(): string {
-        return `Anda adalah ahli analisis metadata gambar untuk deteksi fraud. Analisis metadata gambar bukti pembayaran berikut.
+  /**
+   * PROMPT 4: Image Metadata Analysis
+   * Untuk analisis metadata gambar bukti pembayaran
+   */
+  static getImageMetadataAnalysisPrompt(): string {
+    return `Anda adalah ahli analisis metadata gambar untuk deteksi fraud. Analisis metadata gambar bukti pembayaran berikut.
 
 TUGAS ANALISIS:
 
@@ -353,18 +352,18 @@ OUTPUT FORMAT (JSON):
   "recommendation": "approve" | "review" | "reject"
 }
 `;
-    }
+  }
 
-    /**
-     * PROMPT 5: Comprehensive Fraud Scan
-     * Scan menyeluruh untuk semua aspek fraud detection
-     */
-    static getComprehensiveFraudScanPrompt(
-        paymentData: any,
-        customerData: any,
-        transactionHistory: any[]
-    ): string {
-        return `Anda adalah sistem comprehensive fraud detection yang menganalisis semua aspek untuk mendeteksi fraud.
+  /**
+   * PROMPT 5: Comprehensive Fraud Scan
+   * Scan menyeluruh untuk semua aspek fraud detection
+   */
+  static getComprehensiveFraudScanPrompt(
+    paymentData: any,
+    customerData: any,
+    transactionHistory: any[]
+  ): string {
+    return `Anda adalah sistem comprehensive fraud detection yang menganalisis semua aspek untuk mendeteksi fraud.
 
 DATA PEMBAYARAN:
 ${JSON.stringify(paymentData, null, 2)}
@@ -442,17 +441,17 @@ OUTPUT FORMAT (JSON):
   "requiredActions": ["string"]
 }
 `;
-    }
+  }
 
-    /**
-     * PROMPT 6: Real-time Fraud Monitoring
-     * Untuk monitoring real-time dan deteksi fraud patterns
-     */
-    static getRealTimeFraudMonitoringPrompt(
-        recentTransactions: any[],
-        systemMetrics: any
-    ): string {
-        return `Anda adalah sistem real-time fraud monitoring yang menganalisis pola transaksi untuk mendeteksi fraud patterns.
+  /**
+   * PROMPT 6: Real-time Fraud Monitoring
+   * Untuk monitoring real-time dan deteksi fraud patterns
+   */
+  static getRealTimeFraudMonitoringPrompt(
+    recentTransactions: any[],
+    systemMetrics: any
+  ): string {
+    return `Anda adalah sistem real-time fraud monitoring yang menganalisis pola transaksi untuk mendeteksi fraud patterns.
 
 TRANSAKSI TERAKHIR (${recentTransactions.length} transaksi):
 ${JSON.stringify(recentTransactions, null, 2)}
@@ -511,6 +510,7 @@ OUTPUT FORMAT (JSON):
   "reasoning": "string"
 }
 `;
-    }
+  }
 }
+
 

@@ -10,7 +10,6 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import alertRoutingService from '../alertRoutingService';
-import SmartNotificationService from '../prepaid/advanced/SmartNotificationService';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 import { NotificationTemplateService } from '../notification/NotificationTemplateService';
 import { calculateCustomerIP } from '../../utils/ipHelper';

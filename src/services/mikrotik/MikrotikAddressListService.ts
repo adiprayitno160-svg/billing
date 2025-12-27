@@ -4,7 +4,7 @@ import MikrotikCacheService from './MikrotikCacheService';
 
 /**
  * Service untuk manage Mikrotik Address List
- * Digunakan untuk prepaid system: redirect & firewall rules
+ * Digunakan untuk redirect & firewall rules
  * OPTIMIZED WITH CONNECTION POOL & CACHING
  */
 
@@ -25,7 +25,7 @@ export class MikrotikAddressListService {
 
   /**
    * Add IP address to address list
-   * @param listName - Name of address list (e.g., 'prepaid-no-package', 'prepaid-active')
+   * @param listName - Name of address list (e.g., 'isolated', 'active-customers')
    * @param ipAddress - IP address to add
    * @param comment - Optional comment
    */
@@ -45,7 +45,7 @@ export class MikrotikAddressListService {
     console.log(`[AddressList]   Username: ${this.config.username}`);
     console.log(`[AddressList]   Has Password: ${!!this.config.password}`);
     console.log(`[AddressList] ==========================================\n`);
-    
+
     const api = new RouterOSAPI({
       host: this.config.host,
       port: this.config.port,
@@ -64,18 +64,18 @@ export class MikrotikAddressListService {
         username: this.config.username,
         hasPassword: !!this.config.password
       });
-      
+
       // Enforce strict timeout with Promise.race to fail fast on connection issues
       // Increase timeout to 10 seconds for better reliability
       const CONNECTION_TIMEOUT = 10000; // 10 seconds
-      
+
       const connectPromise = api.connect();
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new Error(`Connection timeout: Cannot connect to Mikrotik ${this.config.host}:${this.config.port} within ${CONNECTION_TIMEOUT}ms. Check network connectivity and Mikrotik API status.`));
         }, CONNECTION_TIMEOUT);
       });
-      
+
       await Promise.race([connectPromise, timeoutPromise]);
       apiConnected = true;
       console.log(`[AddressList] ✅ Connected successfully to ${this.config.host}:${this.config.port}`);
@@ -88,22 +88,22 @@ export class MikrotikAddressListService {
           `?address=${ipAddress}`
         ]);
         const checkArray = Array.isArray(checkEntries) ? checkEntries : [];
-        
+
         if (checkArray.length > 0) {
           console.log(`✅ IP ${ipAddress} already exists in list ${listName}`);
           console.log(`[AddressList] Existing entry:`, checkArray[0]);
           return true; // Already exists, this is success
         }
-        
+
         console.log(`[AddressList] IP ${ipAddress} not found in list, will add it`);
-        
+
         // Also check total entries in list for info
         const allEntries = await api.write('/ip/firewall/address-list/print', [
           `?list=${listName}`
         ]);
         const allEntriesArray = Array.isArray(allEntries) ? allEntries : [];
         console.log(`[AddressList] List '${listName}' currently has ${allEntriesArray.length} entries`);
-        
+
       } catch (listError: any) {
         const errorMsg = listError?.message || String(listError);
         // If list doesn't exist, that's OK - it will be auto-created
@@ -150,41 +150,41 @@ export class MikrotikAddressListService {
 
       console.log(`[AddressList] Adding IP with params:`, params);
       console.log(`[AddressList] List: ${listName}, IP: ${ipAddress}, Comment: ${finalComment}`);
-      
+
       // Retry mechanism for transient errors
       let retries = 2; // Try up to 3 times total
       let lastError: any = null;
       let attemptNumber = 0;
-      
+
       while (retries >= 0) {
         attemptNumber++;
         try {
           console.log(`[AddressList] Attempt ${attemptNumber}/3: Adding IP to address list...`);
-          
+
           // Try to add IP to address list
           const result = await api.write('/ip/firewall/address-list/add', params);
-          
+
           console.log(`[AddressList] ✅ API write completed`);
           console.log(`[AddressList] API response type:`, typeof result);
           console.log(`[AddressList] API response:`, result);
-          
+
           // Mikrotik API returns empty on success for add commands
           // If we get here without exception, it's a success
           console.log(`✅ Successfully added ${ipAddress} to address-list: ${listName}`);
-          
+
           // Clear cache for this list
           MikrotikCacheService.clearByPattern(`addresslist:${listName}`);
-          
+
           // Wait a bit then verify it was added
           await new Promise(resolve => setTimeout(resolve, 500));
-          
+
           // Verify by checking if IP exists in list
           try {
             const verifyResult = await api.write('/ip/firewall/address-list/print', [
               `?list=${listName}`,
               `?address=${ipAddress}`
             ]);
-            
+
             const verifyArray = Array.isArray(verifyResult) ? verifyResult : [];
             if (verifyArray.length > 0) {
               console.log(`[AddressList] ✅ Verification: IP ${ipAddress} confirmed in list ${listName}`);
@@ -203,7 +203,7 @@ export class MikrotikAddressListService {
           lastError = addError;
           const errorMsg = addError?.message || addError?.toString() || 'Unknown error';
           const errno = (addError && typeof addError === 'object' && 'errno' in addError) ? (addError as any).errno : null;
-          
+
           console.error(`[AddressList] ❌ Error on attempt ${attemptNumber}:`, errorMsg);
           console.error(`[AddressList] Error details:`, {
             message: errorMsg,
@@ -211,33 +211,33 @@ export class MikrotikAddressListService {
             code: addError?.code,
             type: addError?.name || typeof addError
           });
-          
+
           // Check if IP already exists - this is actually success
-          if (errorMsg.includes('already') || 
-              errorMsg.toLowerCase().includes('duplicate') ||
-              errorMsg.includes('already have') ||
-              errorMsg.toLowerCase().includes('entry already')) {
+          if (errorMsg.includes('already') ||
+            errorMsg.toLowerCase().includes('duplicate') ||
+            errorMsg.includes('already have') ||
+            errorMsg.toLowerCase().includes('entry already')) {
             console.log(`[AddressList] ℹ️ IP already exists in list (this is success)`);
             return true;
           }
-          
+
           // Permission errors - don't retry
-          if (errorMsg.includes('permission') || 
-              errorMsg.includes('denied') || 
-              errorMsg.includes('policy') ||
-              errorMsg.includes('not allowed')) {
+          if (errorMsg.includes('permission') ||
+            errorMsg.includes('denied') ||
+            errorMsg.includes('policy') ||
+            errorMsg.includes('not allowed')) {
             console.error(`[AddressList] ❌ Permission denied: User ${this.config.username} needs write permission for firewall/address-list`);
             throw new Error(`Permission denied: User ${this.config.username} needs write permission for firewall/address-list`);
           }
-          
+
           // Check if this is a connection error that might benefit from retry
-          const isConnectionError = errno === -4039 || 
+          const isConnectionError = errno === -4039 ||
             errorMsg.includes('ECONNREFUSED') ||
             errorMsg.includes('connection') ||
             errorMsg.includes('timeout') ||
             errorMsg.includes('ECONNRESET') ||
             (errorMsg.includes('RosException') && errno);
-          
+
           // Retry connection errors up to 2 more times with delay
           if (isConnectionError && retries > 0) {
             const delayMs = 1000 * (3 - retries); // 1s, 2s delays
@@ -246,13 +246,13 @@ export class MikrotikAddressListService {
             retries--;
             continue;
           }
-          
+
           // Non-connection errors or last retry - throw immediately
           if (retries === 0) {
             console.error(`[AddressList] ❌ All retry attempts exhausted`);
             throw addError;
           }
-          
+
           // For other errors, try once more
           if (!isConnectionError) {
             console.warn(`[AddressList] ⚠️ Non-connection error, retrying once more... (${retries} retries left)`);
@@ -260,32 +260,32 @@ export class MikrotikAddressListService {
             retries--;
             continue;
           }
-          
+
           retries--;
         }
       }
-      
+
       // Should never reach here, but just in case
       throw lastError || new Error('Failed to add IP after retries');
     } catch (error: any) {
       const errorMsg = error?.message || error?.toString() || 'Unknown error';
       const errno = (error && typeof error === 'object' && 'errno' in error) ? (error as any).errno : null;
-      
+
       console.error(`[AddressList] ❌ CRITICAL ERROR adding ${ipAddress} to address-list ${listName}`);
       console.error(`[AddressList] Error type:`, error?.name || typeof error);
       console.error(`[AddressList] Error message:`, errorMsg);
       console.error(`[AddressList] Error code:`, error?.code);
       console.error(`[AddressList] Error errno:`, errno);
       console.error(`[AddressList] Error stack:`, error?.stack);
-      
+
       // Create user-friendly error message
       let userFriendlyError = 'Gagal menambahkan IP ke address list';
-      
+
       if (error?.message) {
         // Connection errors (most common issue)
-        if (error.message.includes('Connection timeout') || error.message.includes('timeout') || 
-            error.message.includes('ECONNREFUSED') || errno === -4039 ||
-            error.message.includes('connection') || error.message.includes('ECONNRESET')) {
+        if (error.message.includes('Connection timeout') || error.message.includes('timeout') ||
+          error.message.includes('ECONNREFUSED') || errno === -4039 ||
+          error.message.includes('connection') || error.message.includes('ECONNRESET')) {
           userFriendlyError = `❌ KONEKSI GAGAL: Tidak bisa terhubung ke Mikrotik ${this.config.host}:${this.config.port}\n\n` +
             `🔍 CHECKLIST:\n` +
             `1. ✅ Pastikan Mikrotik API aktif (Services > API > Enabled)\n` +
@@ -317,7 +317,7 @@ export class MikrotikAddressListService {
           userFriendlyError = `❌ Error: ${error.message}`;
         }
       }
-      
+
       // Log detailed troubleshooting info
       console.error(`[AddressList] ⚠️ TROUBLESHOOTING INFO:`);
       console.error(`[AddressList]   1. Mikrotik Host: ${this.config.host}:${this.config.port}`);
@@ -325,10 +325,10 @@ export class MikrotikAddressListService {
       console.error(`[AddressList]   3. IP Address: ${ipAddress}`);
       console.error(`[AddressList]   4. Address List: ${listName}`);
       console.error(`[AddressList]   5. Error: ${errorMsg}`);
-      
+
       // Store error for better error reporting
       (error as any).userFriendlyMessage = userFriendlyError;
-      
+
       // Throw error with user-friendly message so controller can catch it
       const enhancedError = new Error(userFriendlyError);
       (enhancedError as any).userFriendlyMessage = userFriendlyError;
@@ -371,7 +371,7 @@ export class MikrotikAddressListService {
         `?list=${listName}`
       ]);
       const allEntriesArray = Array.isArray(allEntries) ? allEntries : [];
-      
+
       // Filter entries matching the IP address
       const entries = allEntriesArray.filter((entry: any) => entry.address === ipAddress);
 
@@ -417,10 +417,10 @@ export class MikrotikAddressListService {
     try {
       // Remove from old list
       await this.removeFromAddressList(fromList, ipAddress);
-      
+
       // Add to new list
       await this.addToAddressList(toList, ipAddress, comment);
-      
+
       console.log(`✅ Moved ${ipAddress} from ${fromList} to ${toList}`);
       return true;
     } catch (error) {
@@ -454,7 +454,7 @@ export class MikrotikAddressListService {
         `?list=${listName}`
       ]);
       const allEntriesArray = Array.isArray(allEntries) ? allEntries : [];
-      
+
       // Check if IP exists
       const entries = allEntriesArray.filter((entry: any) => entry.address === ipAddress);
       return entries.length > 0;
@@ -474,14 +474,14 @@ export class MikrotikAddressListService {
     // Check cache first (INSTANT!)
     const cacheKey = `addresslist:${listName}`;
     const cached = MikrotikCacheService.get<any[]>(cacheKey);
-    
+
     if (cached) {
       console.log(`[AddressList] Cache HIT for ${listName}`);
       return cached;
     }
-    
+
     console.log(`[AddressList] Cache MISS for ${listName}, fetching from Mikrotik...`);
-    
+
     const api = new RouterOSAPI({
       host: this.config.host,
       port: this.config.port,
@@ -498,12 +498,12 @@ export class MikrotikAddressListService {
       ]);
 
       const result = Array.isArray(entries) ? entries : [];
-      
+
       // Cache the result for 3 minutes
       MikrotikCacheService.set(cacheKey, result, 180000); // 3 minutes
-      
+
       console.log(`[AddressList] Cached ${result.length} entries for ${listName}`);
-      
+
       return result;
     } catch (error) {
       console.error(`❌ Failed to get entries from address-list ${listName}:`, error);

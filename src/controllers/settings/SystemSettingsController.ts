@@ -4,7 +4,7 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 /**
  * Controller untuk System Settings
- * Manage konfigurasi sistem termasuk Prepaid Portal URL
+ * Manage konfigurasi sistem
  */
 export class SystemSettingsController {
   /**
@@ -53,21 +53,18 @@ export class SystemSettingsController {
 
       // Define boolean settings that use 'true'/'false'
       const boolTrueFalseSettings = [
-        'auto_isolate_enabled', 
-        'auto_restore_enabled', 
-        'auto_notifications_enabled', 
-        'prepaid_portal_enabled', 
-        'prepaid_enabled', 
-        'prepaid_redirect_splash_page', 
-        'prepaid_auto_whatsapp_notification', 
-        'portal_redirect_enabled',
+        'auto_isolate_enabled',
+        'auto_restore_enabled',
+        'auto_notifications_enabled',
+
         'domain_mode_enabled',
-        'local_mode_enabled'
+        'local_mode_enabled',
+        'auto_logout_enabled'
       ];
 
       // Define boolean settings that use '1'/'0'
       const boolOneZeroSettings = [
-        'enable_auto_migrate_late_payment',
+
         'late_payment_warning_at_3',
         'late_payment_warning_at_4'
       ];
@@ -90,20 +87,20 @@ export class SystemSettingsController {
             rawValue = value[0];
           }
         }
-        
+
         let settingValue: string = String(rawValue || '');
-        
+
         // Handle boolean settings that use 'true'/'false'
         if (boolTrueFalseSettings.includes(key)) {
           // Check if checkbox was checked
           const isChecked = (Array.isArray(value) && (value.includes('true') || value.includes(true))) ||
-                           rawValue === 'true' || rawValue === true || rawValue === '1';
+            rawValue === 'true' || rawValue === true || rawValue === '1';
           settingValue = isChecked ? 'true' : 'false';
-        } 
+        }
         // Handle boolean settings that use '1'/'0'
         else if (boolOneZeroSettings.includes(key)) {
           const isChecked = (Array.isArray(value) && (value.includes('1') || value.includes(true))) ||
-                           rawValue === '1' || rawValue === 'true' || rawValue === true;
+            rawValue === '1' || rawValue === 'true' || rawValue === true;
           settingValue = isChecked ? '1' : '0';
         }
 
@@ -158,10 +155,10 @@ export class SystemSettingsController {
         errno: error?.errno || null,
         stack: error?.stack || null
       };
-      
+
       console.error('❌ [SystemSettings] Update settings error:', errorDetails);
       console.error('   Error object:', error);
-      
+
       // Get detailed error message
       let errorMsg = 'Unknown error occurred';
       if (error?.sqlMessage) {
@@ -171,7 +168,7 @@ export class SystemSettingsController {
       } else if (error?.code) {
         errorMsg = `Database error: ${error.code}`;
       }
-      
+
       // Log to file if logger is available
       try {
         const { BillingLogService } = await import('../../services/billing/BillingLogService');
@@ -183,7 +180,7 @@ export class SystemSettingsController {
         // If logging fails, continue with redirect
         console.error('Failed to log error:', logError);
       }
-      
+
       // Redirect with error message (limit message length to avoid URL too long)
       const safeErrorMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
       res.redirect(`/settings/system?error=${encodeURIComponent('Gagal update settings: ' + safeErrorMsg)}`);
@@ -279,22 +276,18 @@ export class SystemSettingsController {
           ('local_url', 'http://localhost:3000', 'URL lokal untuk akses aplikasi (development)', 'url'),
           ('domain_mode_enabled', 'false', 'Aktifkan penggunaan domain URL', 'url'),
           ('local_mode_enabled', 'true', 'Aktifkan penggunaan local URL', 'url'),
-          ('prepaid_portal_url', 'http://localhost:3000', 'URL server billing untuk redirect prepaid portal', 'prepaid'),
-          ('prepaid_portal_enabled', 'true', 'Enable/disable prepaid portal system', 'prepaid'),
-          ('prepaid_enabled', 'true', 'Enable/disable fitur prepaid secara keseluruhan', 'prepaid'),
-          ('prepaid_redirect_splash_page', 'true', 'Redirect ke splash page atau langsung login', 'prepaid'),
-          ('prepaid_auto_whatsapp_notification', 'true', 'Auto WhatsApp notification untuk prepaid', 'prepaid'),
-          ('portal_redirect_enabled', 'true', 'Enable/disable redirect ke portal prepaid', 'prepaid'),
+
           ('grace_period_days', '3', 'Jumlah hari grace period sebelum late payment dihitung', 'late_payment'),
-          ('late_payment_threshold', '5', 'Jumlah late payment sebelum auto-migrate ke prepaid', 'late_payment'),
+
           ('late_payment_rolling_months', '12', 'Periode rolling count (bulan)', 'late_payment'),
           ('consecutive_on_time_reset', '3', 'Jumlah pembayaran tepat waktu berturut-turut untuk reset counter', 'late_payment'),
-          ('enable_auto_migrate_late_payment', '1', 'Enable/disable auto-migration (1=enabled, 0=disabled)', 'late_payment'),
+
           ('late_payment_warning_at_3', '1', 'Kirim warning setelah 3x late payment (1=enabled, 0=disabled)', 'late_payment'),
           ('late_payment_warning_at_4', '1', 'Kirim final warning setelah 4x late payment (1=enabled, 0=disabled)', 'late_payment'),
           ('auto_isolate_enabled', 'false', 'Enable/disable auto isolation untuk customer yang telat bayar', 'billing'),
           ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar', 'billing'),
-          ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing', 'billing')
+          ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing', 'billing'),
+          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas', 'general')
         `);
       } else {
         // Insert without category column (backward compatible)
@@ -305,22 +298,18 @@ export class SystemSettingsController {
           ('local_url', 'http://localhost:3000', 'URL lokal untuk akses aplikasi (development)'),
           ('domain_mode_enabled', 'false', 'Aktifkan penggunaan domain URL'),
           ('local_mode_enabled', 'true', 'Aktifkan penggunaan local URL'),
-          ('prepaid_portal_url', 'http://localhost:3000', 'URL server billing untuk redirect prepaid portal'),
-          ('prepaid_portal_enabled', 'true', 'Enable/disable prepaid portal system'),
-          ('prepaid_enabled', 'true', 'Enable/disable fitur prepaid secara keseluruhan'),
-          ('prepaid_redirect_splash_page', 'true', 'Redirect ke splash page atau langsung login'),
-          ('prepaid_auto_whatsapp_notification', 'true', 'Auto WhatsApp notification untuk prepaid'),
-          ('portal_redirect_enabled', 'true', 'Enable/disable redirect ke portal prepaid'),
+
           ('grace_period_days', '3', 'Jumlah hari grace period sebelum late payment dihitung'),
-          ('late_payment_threshold', '5', 'Jumlah late payment sebelum auto-migrate ke prepaid'),
+
           ('late_payment_rolling_months', '12', 'Periode rolling count (bulan)'),
           ('consecutive_on_time_reset', '3', 'Jumlah pembayaran tepat waktu berturut-turut untuk reset counter'),
-          ('enable_auto_migrate_late_payment', '1', 'Enable/disable auto-migration (1=enabled, 0=disabled)'),
+
           ('late_payment_warning_at_3', '1', 'Kirim warning setelah 3x late payment (1=enabled, 0=disabled)'),
           ('late_payment_warning_at_4', '1', 'Kirim final warning setelah 4x late payment (1=enabled, 0=disabled)'),
           ('auto_isolate_enabled', 'false', 'Enable/disable auto isolation untuk customer yang telat bayar'),
           ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar'),
-          ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing')
+          ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing'),
+          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas')
         `);
       }
     } catch (error) {

@@ -1,0 +1,349 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const pool_1 = __importDefault(require("../../db/pool"));
+const PrepaidActivationService_1 = __importDefault(require("../../services/prepaid/PrepaidActivationService"));
+/**
+ * Controller untuk Prepaid Payment Processing
+ * Handle payment method selection, payment processing, dan activation
+ */
+class PrepaidPaymentController {
+    /**
+     * Show payment page
+     */
+    async showPaymentPage(req, res) {
+        try {
+            const { packageId: packageIdParam } = req.params;
+            if (!packageIdParam) {
+                return res.status(400).json({ success: false, error: 'packageId is required' });
+            }
+            const packageId = parseInt(packageIdParam || req.query.packageId);
+            const customerId = req.session.portalCustomerId;
+            // Get package details
+            const [packageRows] = await pool_1.default.query(`SELECT 
+          pp.*,
+          sp.download_mbps,
+          sp.upload_mbps
+         FROM prepaid_packages pp
+         LEFT JOIN speed_profiles sp ON pp.speed_profile_id = sp.id
+         WHERE pp.id = ?`, [packageId]);
+            if (packageRows.length === 0) {
+                return res.redirect('/prepaid/portal/packages?error=Paket tidak ditemukan');
+            }
+            const packageData = packageRows[0];
+            // Get customer
+            const [customerRows] = await pool_1.default.query('SELECT * FROM customers WHERE id = ?', [customerId]);
+            // Get available payment methods/gateways
+            const [gateways] = await pool_1.default.query('SELECT * FROM payment_gateways WHERE is_active = 1');
+            res.render('prepaid/portal-payment', {
+                title: `Pembayaran - ${packageData.name}`,
+                layout: false,
+                package: packageData,
+                customer: customerRows[0],
+                gateways: gateways,
+                customerName: req.session.customerName,
+                error: req.query.error || null
+            });
+        }
+        catch (error) {
+            console.error('Payment page error:', error);
+            res.status(500).send('Server error');
+        }
+    }
+    /**
+     * Process payment
+     */
+    async processPayment(req, res) {
+        try {
+            const { package_id, payment_method } = req.body;
+            const customerId = req.session.portalCustomerId;
+            if (!package_id || !payment_method) {
+                return res.redirect(`/prepaid/portal/payment/${package_id}?error=Data tidak lengkap`);
+            }
+            const packageId = parseInt(package_id);
+            // Get package details
+            const [packageRows] = await pool_1.default.query('SELECT * FROM prepaid_packages WHERE id = ?', [packageId]);
+            if (packageRows.length === 0) {
+                return res.redirect('/prepaid/portal/packages?error=Paket tidak valid');
+            }
+            const packageData = packageRows[0];
+            // Get customer
+            const [customerRows] = await pool_1.default.query('SELECT * FROM customers WHERE id = ?', [customerId]);
+            const customer = customerRows[0];
+            // Create invoice for this purchase
+            const invoiceNumber = await this.generateInvoiceNumber();
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 1); // Due in 1 day
+            const [invoiceResult] = await pool_1.default.query(`INSERT INTO invoices 
+         (invoice_number, customer_id, period, due_date, subtotal, total_amount, remaining_amount, status, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)`, [
+                invoiceNumber,
+                customerId,
+                new Date().toISOString().slice(0, 7), // YYYY-MM
+                dueDate,
+                packageData.price,
+                packageData.price,
+                packageData.price,
+                `Prepaid package: ${packageData.name}`
+            ]);
+            const invoiceId = invoiceResult.insertId;
+            // Add invoice item
+            await pool_1.default.query(`INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price)
+         VALUES (?, ?, 1, ?, ?)`, [invoiceId, `Paket Prepaid: ${packageData.name}`, packageData.price, packageData.price]);
+            // Determine payment processing based on method
+            if (payment_method === 'cash') {
+                // Cash payment - direct activation (for testing)
+                return await this.processCashPayment(req, res, {
+                    customerId,
+                    packageId,
+                    invoiceId,
+                    packageData,
+                    customer
+                });
+            }
+            else {
+                // Gateway payment (QRIS, Transfer, etc)
+                return await this.processGatewayPayment(req, res, {
+                    customerId,
+                    packageId,
+                    invoiceId,
+                    packageData,
+                    customer,
+                    paymentMethod: payment_method
+                });
+            }
+        }
+        catch (error) {
+            console.error('Payment processing error:', error);
+            const packageId = req.body.package_id;
+            res.redirect(`/prepaid/portal/payment/${packageId}?error=Gagal memproses pembayaran`);
+        }
+    }
+    /**
+     * Process cash payment (direct activation for testing)
+     */
+    async processCashPayment(req, res, data) {
+        const connection = await pool_1.default.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Mark invoice as paid
+            await connection.query(`UPDATE invoices 
+         SET status = 'paid', paid_amount = total_amount, remaining_amount = 0, updated_at = NOW()
+         WHERE id = ?`, [data.invoiceId]);
+            // Create payment record
+            await connection.query(`INSERT INTO payments (invoice_id, payment_method, amount, payment_date, reference_number, notes)
+         VALUES (?, 'cash', ?, NOW(), ?, 'Portal prepaid - cash payment')`, [data.invoiceId, data.packageData.price, `CASH-${Date.now()}`]);
+            await connection.commit();
+            connection.release();
+            // Activate package
+            const activation = await PrepaidActivationService_1.default.activatePackage({
+                customer_id: data.customerId,
+                package_id: data.packageId,
+                invoice_id: data.invoiceId,
+                purchase_price: data.packageData.price
+            });
+            if (activation.success) {
+                // Redirect to success page
+                res.redirect(`/prepaid/portal/success?invoice=${data.invoiceId}`);
+            }
+            else {
+                res.redirect(`/prepaid/portal/payment/${data.packageId}?error=Aktivasi gagal`);
+            }
+        }
+        catch (error) {
+            await connection.rollback();
+            connection.release();
+            throw error;
+        }
+    }
+    /**
+     * Process payment gateway
+     */
+    async processGatewayPayment(req, res, data) {
+        try {
+            // Create prepaid transaction first
+            const { PrepaidPaymentService } = await Promise.resolve().then(() => __importStar(require('../../services/prepaid/PrepaidPaymentService')));
+            const transactionId = await PrepaidPaymentService.createTransaction({
+                customer_id: data.customerId,
+                package_id: data.packageId,
+                amount: data.packageData.price,
+                payment_method: 'payment_gateway',
+                payment_status: 'pending',
+                payment_gateway_type: data.paymentMethod,
+                payment_notes: `Invoice #${data.invoiceId}`
+            });
+            // Get gateway configuration from database
+            const [gatewayRows] = await pool_1.default.query('SELECT * FROM payment_gateways WHERE code = ? AND is_active = 1', [data.paymentMethod]);
+            if (gatewayRows.length === 0) {
+                // If gateway not configured, fallback to manual transfer
+                await pool_1.default.query(`INSERT INTO invoice_payment_sessions 
+           (invoice_id, session_token, payment_amount, payment_method, status, expires_at)
+           VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))`, [
+                    data.invoiceId,
+                    `PREP-${Date.now()}`,
+                    data.packageData.price,
+                    data.paymentMethod
+                ]);
+                return res.redirect(`/prepaid/portal/payment-waiting?invoice=${data.invoiceId}&method=${data.paymentMethod}&transaction=${transactionId}`);
+            }
+            const gateway = gatewayRows[0];
+            // Store payment session for reference
+            await pool_1.default.query(`INSERT INTO invoice_payment_sessions 
+         (invoice_id, session_token, payment_amount, payment_method, status, expires_at)
+         VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))`, [
+                data.invoiceId,
+                `PREP-${transactionId}-${Date.now()}`,
+                data.packageData.price,
+                data.paymentMethod
+            ]);
+            // Note: Full PaymentGatewayService integration requires proper configuration
+            // For now, redirect to waiting page with transaction info
+            // Full integration can be added later when gateway credentials are properly configured
+            // Redirect to payment waiting page
+            res.redirect(`/prepaid/portal/payment-waiting?invoice=${data.invoiceId}&method=${data.paymentMethod}&transaction=${transactionId}&gateway=${gateway.code}`);
+        }
+        catch (error) {
+            console.error('Gateway payment error:', error);
+            throw error;
+        }
+    }
+    /**
+     * Show payment waiting page (for gateway payments)
+     */
+    async showPaymentWaiting(req, res) {
+        try {
+            const invoiceId = parseInt(req.query.invoice);
+            const paymentMethod = req.query.method;
+            // Get invoice details
+            const [invoiceRows] = await pool_1.default.query(`SELECT i.*, ii.description 
+         FROM invoices i
+         LEFT JOIN invoice_items ii ON i.id = ii.invoice_id
+         WHERE i.id = ?`, [invoiceId]);
+            if (invoiceRows.length === 0) {
+                return res.redirect('/prepaid/portal/packages?error=Invoice tidak ditemukan');
+            }
+            const invoice = invoiceRows[0];
+            res.render('prepaid/portal-payment-waiting', {
+                title: 'Menunggu Pembayaran',
+                layout: false,
+                invoice: invoice,
+                paymentMethod: paymentMethod,
+                customerName: req.session.customerName
+            });
+        }
+        catch (error) {
+            console.error('Payment waiting page error:', error);
+            res.status(500).send('Server error');
+        }
+    }
+    /**
+     * Check payment status (API for polling)
+     */
+    async checkPaymentStatus(req, res) {
+        try {
+            const { invoiceId } = req.params;
+            if (!invoiceId) {
+                return res.status(400).json({ success: false, error: 'invoiceId is required' });
+            }
+            const parsedInvoiceId = parseInt(invoiceId);
+            const [invoiceRows] = await pool_1.default.query('SELECT status, paid_amount, total_amount FROM invoices WHERE id = ?', [parsedInvoiceId]);
+            if (invoiceRows.length === 0) {
+                return res.json({ success: false, error: 'Invoice not found' });
+            }
+            const invoice = invoiceRows[0];
+            res.json({
+                success: true,
+                status: invoice.status,
+                paid: invoice.status === 'paid',
+                amount_paid: invoice.paid_amount,
+                total_amount: invoice.total_amount
+            });
+        }
+        catch (error) {
+            console.error('Check payment status error:', error);
+            res.status(500).json({ success: false, error: 'Server error' });
+        }
+    }
+    /**
+     * Show success page
+     */
+    async showSuccessPage(req, res) {
+        try {
+            const invoiceId = parseInt(req.query.invoice);
+            const customerId = req.session.portalCustomerId;
+            // Get invoice details
+            const [invoiceRows] = await pool_1.default.query(`SELECT i.*, ii.description 
+         FROM invoices i
+         LEFT JOIN invoice_items ii ON i.id = ii.invoice_id
+         WHERE i.id = ? AND i.customer_id = ?`, [invoiceId, customerId]);
+            if (invoiceRows.length === 0) {
+                return res.redirect('/prepaid/portal/packages?error=Invoice tidak ditemukan');
+            }
+            const invoice = invoiceRows[0];
+            // Get active subscription
+            const subscription = await PrepaidActivationService_1.default.getActiveSubscription(customerId);
+            res.render('prepaid/portal-success', {
+                title: 'Pembayaran Berhasil',
+                layout: false,
+                invoice: invoice,
+                subscription: subscription,
+                customerName: req.session.customerName
+            });
+        }
+        catch (error) {
+            console.error('Success page error:', error);
+            res.status(500).send('Server error');
+        }
+    }
+    /**
+     * Generate invoice number
+     */
+    async generateInvoiceNumber() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        // Get count for this month
+        const [rows] = await pool_1.default.query(`SELECT COUNT(*) as count FROM invoices 
+       WHERE invoice_number LIKE ? AND invoice_number LIKE '%PREP%'`, [`INV/PREP/${year}/${month}/%`]);
+        const count = (rows[0].count || 0) + 1;
+        const sequence = String(count).padStart(4, '0');
+        return `INV/PREP/${year}/${month}/${sequence}`;
+    }
+}
+exports.default = new PrepaidPaymentController();
+//# sourceMappingURL=PrepaidPaymentController.js.map

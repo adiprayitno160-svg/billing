@@ -178,7 +178,7 @@ export class SLAController {
                 WHERE customer_id = ?
                 ORDER BY month_year DESC
                 LIMIT 6
-            `, [customerId]);
+            `, [parsedCustomerId]);
             
             res.render('monitoring/sla/customer-detail', {
                 title: `SLA Detail - ${customer.name}`,
@@ -298,10 +298,10 @@ export class SLAController {
     async excludeIncident(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-        if (!id) {
-            return res.status(400).json({ success: false, error: 'id is required' });
-        }
-        const customerId = parseInt(id);
+            if (!id) {
+                return res.status(400).json({ success: false, error: 'id is required' });
+            }
+            const incidentId = parseInt(id);
             const { exclude_reason, exclude_notes } = req.body;
             
             // Validate exclude reason
@@ -346,10 +346,10 @@ export class SLAController {
     async approveDiscount(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-        if (!id) {
-            return res.status(400).json({ success: false, error: 'id is required' });
-        }
-        const customerId = parseInt(id);
+            if (!id) {
+                return res.status(400).json({ success: false, error: 'id is required' });
+            }
+            const slaRecordId = parseInt(id);
             const userId = (req.user as any)?.id;
             
             if (!userId) {

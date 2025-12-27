@@ -1,15 +1,18 @@
 module.exports = {
   apps: [{
     name: 'billing-app',
-    script: 'src/server.ts',
-    interpreter: 'node_modules/.bin/ts-node-dev',
-    interpreter_args: '--respawn --transpile-only',
+    script: 'dist/server.js',
     instances: 1,
     exec_mode: 'fork',
     watch: false,
     max_memory_restart: '1G',
     env: {
-      NODE_ENV: 'development'
+      NODE_ENV: 'development',
+      PORT: 3001
+    },
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: 3001
     },
     error_file: './logs/pm2-error.log',
     out_file: './logs/pm2-out.log',

@@ -18,14 +18,7 @@ export type NotificationType =
   | 'payment_received'
   | 'payment_partial'
   | 'payment_failed'
-  | 'package_expiring'
-  | 'package_expired'
-  | 'package_activated'
-  | 'quota_warning'
-  | 'quota_depleted'
-  | 'auto_renew_success'
-  | 'auto_renew_failed'
-  | 'voucher_applied'
+
   | 'referral_reward'
   | 'maintenance_scheduled'
   | 'service_restored'
@@ -33,7 +26,7 @@ export type NotificationType =
   | 'service_unblocked'
   | 'customer_created'
   | 'customer_deleted'
-  | 'customer_migrated_to_prepaid'
+
   | 'customer_migrated_to_postpaid'
   | 'payment_debt'
   | 'isolation_warning'
@@ -63,26 +56,26 @@ export class UnifiedNotificationService {
       notification_type: data.notification_type,
       channels: data.channels || ['whatsapp']
     });
-    
+
     const connection = await databasePool.getConnection();
     const notificationIds: number[] = [];
-    
+
     try {
       // Determine channels
       const channels = data.channels || ['whatsapp'];
-      
+
       // Get customer info
       const [customerRows] = await connection.query<RowDataPacket[]>(
         'SELECT name, phone, email FROM customers WHERE id = ?',
         [data.customer_id]
       );
-      
+
       if (customerRows.length === 0) {
         throw new Error(`Customer ${data.customer_id} not found`);
       }
-      
-      const customer = customerRows[0];
-      
+
+      const customer = customerRows[0]!;
+
       // Prepare variables with customer info
       const allVariables = {
         customer_name: customer.name || 'Pelanggan',
@@ -90,7 +83,7 @@ export class UnifiedNotificationService {
         customer_email: customer.email || '',
         ...data.variables
       };
-      
+
       // Process each channel
       for (const channel of channels) {
         // Get template for this notification type and channel
@@ -98,7 +91,7 @@ export class UnifiedNotificationService {
           data.notification_type,
           channel
         );
-        
+
         if (!template) {
           // Check if template exists but is inactive
           const [inactiveRows] = await connection.query<RowDataPacket[]>(
@@ -106,27 +99,27 @@ export class UnifiedNotificationService {
              WHERE notification_type = ? AND channel = ?`,
             [data.notification_type, channel]
           );
-          
-          if (inactiveRows.length > 0 && !inactiveRows[0].is_active) {
-            console.error(`[UnifiedNotification] ❌ Template found but is INACTIVE: ${inactiveRows[0].template_code} for ${data.notification_type} on ${channel}. Please activate it in the notification templates page.`);
-            throw new Error(`Template ${inactiveRows[0].template_code} exists but is inactive. Please activate it in the notification templates page.`);
+
+          if (inactiveRows.length > 0 && !inactiveRows[0]!.is_active) {
+            console.error(`[UnifiedNotification] ❌ Template found but is INACTIVE: ${inactiveRows[0]!.template_code} for ${data.notification_type} on ${channel}. Please activate it in the notification templates page.`);
+            throw new Error(`Template ${inactiveRows[0]!.template_code} exists but is inactive. Please activate it in the notification templates page.`);
           } else {
             console.error(`[UnifiedNotification] ❌ No template found for ${data.notification_type} on ${channel}. Please create a template in the notification templates page.`);
             throw new Error(`No template found for ${data.notification_type} on ${channel}. Please create a template in the notification templates page.`);
           }
         }
-        
+
         // Replace variables in template
         let title = NotificationTemplateService.replaceVariables(
           template.title_template,
           allVariables
         );
-        
+
         let message = NotificationTemplateService.replaceVariables(
           template.message_template,
           allVariables
         );
-        
+
         // Insert into queue
         const [result] = await connection.query<ResultSetHeader>(
           `INSERT INTO unified_notifications_queue 
@@ -147,7 +140,7 @@ export class UnifiedNotificationService {
             data.scheduled_for || null
           ]
         );
-        
+
         notificationIds.push(result.insertId);
         console.log(`[UnifiedNotification] ✅ Notification queued (ID: ${result.insertId}) for ${channel}`, {
           customer_id: data.customer_id,
@@ -155,11 +148,11 @@ export class UnifiedNotificationService {
           template_code: template.template_code
         });
       }
-      
+
       console.log(`[UnifiedNotification] 📊 Total notifications queued: ${notificationIds.length}`, {
         notification_ids: notificationIds
       });
-      
+
       return notificationIds;
     } catch (error: any) {
       console.error(`[UnifiedNotification] ❌ Fatal error in queueNotification:`, {
@@ -173,7 +166,7 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
+
   /**
    * Send pending notifications
    */
@@ -183,13 +176,13 @@ export class UnifiedNotificationService {
     skipped: number;
   }> {
     console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit})...`);
-    
+
     const connection = await databasePool.getConnection();
-    
+
     let sent = 0;
     let failed = 0;
     let skipped = 0;
-    
+
     try {
       // Get pending notifications that are due
       const [notifications] = await connection.query<RowDataPacket[]>(
@@ -206,14 +199,14 @@ export class UnifiedNotificationService {
          LIMIT ?`,
         [limit]
       );
-      
+
       console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
-      
+
       if (notifications.length === 0) {
         console.log(`[UnifiedNotification] ℹ️ No pending notifications to process`);
         return { sent: 0, failed: 0, skipped: 0 };
       }
-      
+
       for (const notif of notifications) {
         console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
           customer_id: notif.customer_id,
@@ -227,34 +220,34 @@ export class UnifiedNotificationService {
             'SELECT phone, email FROM customers WHERE id = ?',
             [notif.customer_id]
           );
-          
+
           if (customerRows.length === 0) {
             await this.markAsFailed(notif.id, 'Customer not found');
             failed++;
             continue;
           }
-          
-          const customer = customerRows[0];
-          
+
+          const customer = customerRows[0]!;
+
           // Check channel requirements
           if (notif.channel === 'whatsapp' && !customer.phone) {
             await this.markAsSkipped(notif.id, 'No phone number');
             skipped++;
             continue;
           }
-          
+
           if (notif.channel === 'email' && !customer.email) {
             await this.markAsSkipped(notif.id, 'No email address');
             skipped++;
             continue;
           }
-          
+
           // Send notification
           console.log(`[UnifiedNotification] 🚀 Attempting to send notification ID: ${notif.id}`);
-          
+
           // Try to send - this will throw error if fails
           await this.sendNotification(notif, customer);
-          
+
           // Only mark as sent if sendNotification completed without error
           // This means WhatsApp/email/etc actually sent successfully
           await connection.query(
@@ -263,7 +256,7 @@ export class UnifiedNotificationService {
              WHERE id = ?`,
             [notif.id]
           );
-          
+
           console.log(`[UnifiedNotification] ✅ Notification ID: ${notif.id} marked as sent (actually sent successfully)`);
           sent++;
         } catch (error: any) {
@@ -275,10 +268,10 @@ export class UnifiedNotificationService {
             notification_type: notif.notification_type,
             channel: notif.channel
           });
-          
+
           const retryCount = (notif.retry_count || 0) + 1;
           const maxRetries = notif.max_retries || 3;
-          
+
           if (retryCount < maxRetries) {
             // Retry - keep status as pending for retry
             console.log(`[UnifiedNotification] 🔄 Retrying notification ID: ${notif.id} (attempt ${retryCount}/${maxRetries})`);
@@ -297,7 +290,7 @@ export class UnifiedNotificationService {
           }
         }
       }
-      
+
       console.log(`[UnifiedNotification] 📊 Processing complete: ${sent} sent, ${failed} failed, ${skipped} skipped`);
       return { sent, failed, skipped };
     } catch (error: any) {
@@ -310,13 +303,13 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
+
   /**
    * Send notification via appropriate channel
    */
   private static async sendNotification(notification: any, customer: any): Promise<void> {
     const fullMessage = `${notification.title}\n\n${notification.message}`;
-    
+
     console.log(`[UnifiedNotification] 📤 Sending ${notification.channel} notification to customer ${notification.customer_id}...`);
     console.log(`[UnifiedNotification] 📋 Details:`, {
       notification_id: notification.id,
@@ -325,23 +318,23 @@ export class UnifiedNotificationService {
       customer_phone: customer.phone ? `${customer.phone.substring(0, 3)}***` : 'N/A',
       message_length: fullMessage.length
     });
-    
+
     switch (notification.channel) {
       case 'whatsapp':
         if (!customer.phone) {
           console.error(`[UnifiedNotification] ❌ No phone number for customer ${notification.customer_id}`);
           throw new Error('Customer phone number not found');
         }
-        
+
         // Check WhatsApp client status before sending
         const whatsappStatus = WhatsAppService.getStatus();
         console.log(`[UnifiedNotification] 📱 WhatsApp Status:`, whatsappStatus);
-        
+
         if (!whatsappStatus.ready) {
-          const errorMsg = whatsappStatus.hasQRCode 
+          const errorMsg = whatsappStatus.hasQRCode
             ? 'WhatsApp client is not ready. QR code needs to be scanned. Please check WhatsApp status.'
             : 'WhatsApp client is not ready. Please initialize WhatsApp service first.';
-          
+
           console.error(`[UnifiedNotification] ❌ WhatsApp not ready:`, {
             ready: whatsappStatus.ready,
             initialized: whatsappStatus.initialized,
@@ -350,13 +343,13 @@ export class UnifiedNotificationService {
             phone: customer.phone,
             notification_id: notification.id
           });
-          
+
           throw new Error(errorMsg);
         }
-        
+
         console.log(`[UnifiedNotification] 📱 Sending WhatsApp to ${customer.phone}...`);
         console.log(`[UnifiedNotification] 📝 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
-        
+
         const whatsappResult = await WhatsAppService.sendMessage(
           customer.phone,
           fullMessage,
@@ -365,7 +358,7 @@ export class UnifiedNotificationService {
             template: notification.template_code || 'unified_notification'
           }
         );
-        
+
         if (!whatsappResult.success) {
           const errorMsg = whatsappResult.error || 'WhatsApp send failed';
           console.error(`[UnifiedNotification] ❌ WhatsApp send failed:`, {
@@ -377,33 +370,33 @@ export class UnifiedNotificationService {
           });
           throw new Error(errorMsg);
         }
-        
+
         console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {
           messageId: whatsappResult.messageId,
           notification_id: notification.id
         });
         break;
-        
+
       case 'email':
         // TODO: Implement email sending
         console.log(`[Email] Would send to ${customer.email}: ${notification.title}`);
         break;
-        
+
       case 'sms':
         // TODO: Implement SMS sending
         console.log(`[SMS] Would send to ${customer.phone}: ${notification.title}`);
         break;
-        
+
       case 'push':
         // TODO: Implement push notification
         console.log(`[Push] Would send to customer ${notification.customer_id}: ${notification.title}`);
         break;
-        
+
       default:
         throw new Error(`Unsupported channel: ${notification.channel}`);
     }
   }
-  
+
   /**
    * Mark notification as failed
    */
@@ -420,7 +413,7 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
+
   /**
    * Mark notification as skipped
    */
@@ -437,13 +430,13 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
+
   /**
    * Send invoice created notification
    */
   static async notifyInvoiceCreated(invoiceId: number): Promise<void> {
     const connection = await databasePool.getConnection();
-    
+
     try {
       const [invoiceRows] = await connection.query<RowDataPacket[]>(
         `SELECT i.*, c.name as customer_name, c.phone, c.email
@@ -452,14 +445,14 @@ export class UnifiedNotificationService {
          WHERE i.id = ?`,
         [invoiceId]
       );
-      
+
       if (invoiceRows.length === 0) {
         return;
       }
-      
-      const invoice = invoiceRows[0];
+
+      const invoice = invoiceRows[0]!;
       const dueDate = new Date(invoice.due_date);
-      
+
       await this.queueNotification({
         customer_id: invoice.customer_id,
         invoice_id: invoiceId,
@@ -475,13 +468,13 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
+
   /**
    * Send invoice overdue notification
    */
   static async notifyInvoiceOverdue(invoiceId: number): Promise<void> {
     const connection = await databasePool.getConnection();
-    
+
     try {
       const [invoiceRows] = await connection.query<RowDataPacket[]>(
         `SELECT i.*, c.name as customer_name
@@ -490,16 +483,16 @@ export class UnifiedNotificationService {
          WHERE i.id = ?`,
         [invoiceId]
       );
-      
+
       if (invoiceRows.length === 0) {
         return;
       }
-      
-      const invoice = invoiceRows[0];
+
+      const invoice = invoiceRows[0]!;
       const dueDate = new Date(invoice.due_date);
       const now = new Date();
       const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       await this.queueNotification({
         customer_id: invoice.customer_id,
         invoice_id: invoiceId,
@@ -516,13 +509,13 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
+
   /**
    * Send payment received notification
    */
   static async notifyPaymentReceived(paymentId: number): Promise<void> {
     const connection = await databasePool.getConnection();
-    
+
     try {
       const [paymentRows] = await connection.query<RowDataPacket[]>(
         `SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount,
@@ -533,18 +526,18 @@ export class UnifiedNotificationService {
          WHERE p.id = ?`,
         [paymentId]
       );
-      
+
       if (paymentRows.length === 0) {
         return;
       }
-      
-      const payment = paymentRows[0];
+
+      const payment = paymentRows[0]!;
       const paymentDate = new Date(payment.payment_date);
       const remainingAmount = parseFloat(payment.remaining_amount || '0');
-      
+
       // Determine notification type
       const notificationType = remainingAmount > 0 ? 'payment_partial' : 'payment_received';
-      
+
       await this.queueNotification({
         customer_id: payment.customer_id,
         invoice_id: payment.invoice_id,
@@ -563,168 +556,10 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
-  
-  /**
-   * Schedule package expiry notifications
-   */
-  static async schedulePackageExpiryNotifications(subscriptionId: number): Promise<void> {
-    const connection = await databasePool.getConnection();
-    
-    try {
-      const [subRows] = await connection.query<RowDataPacket[]>(
-        `SELECT ps.*, pp.name as package_name, c.id as customer_id
-         FROM prepaid_package_subscriptions ps
-         JOIN prepaid_packages pp ON ps.package_id = pp.id
-         JOIN customers c ON ps.customer_id = c.id
-         WHERE ps.id = ?`,
-        [subscriptionId]
-      );
-      
-      if (subRows.length === 0) {
-        return;
-      }
-      
-      const subscription = subRows[0];
-      const expiryDate = new Date(subscription.expiry_date);
-      const now = new Date();
-      
-      // Schedule 7 days before
-      const warningDate7 = new Date(expiryDate);
-      warningDate7.setDate(warningDate7.getDate() - 7);
-      
-      if (warningDate7 > now) {
-        await this.queueNotification({
-          customer_id: subscription.customer_id,
-          subscription_id: subscriptionId,
-          notification_type: 'package_expiring',
-          variables: {
-            package_name: subscription.package_name,
-            days: '7',
-            expiry_date: NotificationTemplateService.formatDate(expiryDate)
-          },
-          scheduled_for: warningDate7
-        });
-      }
-      
-      // Schedule 3 days before
-      const warningDate3 = new Date(expiryDate);
-      warningDate3.setDate(warningDate3.getDate() - 3);
-      
-      if (warningDate3 > now) {
-        await this.queueNotification({
-          customer_id: subscription.customer_id,
-          subscription_id: subscriptionId,
-          notification_type: 'package_expiring',
-          variables: {
-            package_name: subscription.package_name,
-            days: '3',
-            expiry_date: NotificationTemplateService.formatDate(expiryDate)
-          },
-          scheduled_for: warningDate3
-        });
-      }
-      
-      // Schedule 1 day before
-      const warningDate1 = new Date(expiryDate);
-      warningDate1.setDate(warningDate1.getDate() - 1);
-      
-      if (warningDate1 > now) {
-        await this.queueNotification({
-          customer_id: subscription.customer_id,
-          subscription_id: subscriptionId,
-          notification_type: 'package_expiring',
-          priority: 'high',
-          variables: {
-            package_name: subscription.package_name,
-            days: '1',
-            expiry_date: NotificationTemplateService.formatDate(expiryDate)
-          },
-          scheduled_for: warningDate1
-        });
-      }
-    } finally {
-      connection.release();
-    }
-  }
-  
-  /**
-   * Send package activated notification
-   */
-  static async notifyPackageActivated(subscriptionId: number): Promise<void> {
-    const connection = await databasePool.getConnection();
-    
-    try {
-      const [subRows] = await connection.query<RowDataPacket[]>(
-        `SELECT ps.*, pp.name as package_name, pp.speed_mbps, pp.duration_days,
-                c.id as customer_id
-         FROM prepaid_package_subscriptions ps
-         JOIN prepaid_packages pp ON ps.package_id = pp.id
-         JOIN customers c ON ps.customer_id = c.id
-         WHERE ps.id = ?`,
-        [subscriptionId]
-      );
-      
-      if (subRows.length === 0) {
-        return;
-      }
-      
-      const subscription = subRows[0];
-      const expiryDate = new Date(subscription.expiry_date);
-      
-      await this.queueNotification({
-        customer_id: subscription.customer_id,
-        subscription_id: subscriptionId,
-        notification_type: 'package_activated',
-        variables: {
-          package_name: subscription.package_name,
-          speed: subscription.speed_mbps || 'N/A',
-          duration: subscription.duration_days || 'N/A',
-          expiry_date: NotificationTemplateService.formatDate(expiryDate)
-        }
-      });
-    } finally {
-      connection.release();
-    }
-  }
-  
-  /**
-   * Send package expired notification
-   */
-  static async notifyPackageExpired(subscriptionId: number): Promise<void> {
-    const connection = await databasePool.getConnection();
-    
-    try {
-      const [subRows] = await connection.query<RowDataPacket[]>(
-        `SELECT ps.*, pp.name as package_name, c.id as customer_id
-         FROM prepaid_package_subscriptions ps
-         JOIN prepaid_packages pp ON ps.package_id = pp.id
-         JOIN customers c ON ps.customer_id = c.id
-         WHERE ps.id = ?`,
-        [subscriptionId]
-      );
-      
-      if (subRows.length === 0) {
-        return;
-      }
-      
-      const subscription = subRows[0];
-      const expiryDate = new Date(subscription.expiry_date);
-      
-      await this.queueNotification({
-        customer_id: subscription.customer_id,
-        subscription_id: subscriptionId,
-        notification_type: 'package_expired',
-        priority: 'high',
-        variables: {
-          package_name: subscription.package_name,
-          expiry_date: NotificationTemplateService.formatDate(expiryDate)
-        }
-      });
-    } finally {
-      connection.release();
-    }
-  }
-  
+
+
+
+
   /**
    * Get notification statistics
    */
@@ -738,7 +573,7 @@ export class UnifiedNotificationService {
     by_channel: Record<string, number>;
   }> {
     const connection = await databasePool.getConnection();
-    
+
     try {
       const [statsRows] = await connection.query<RowDataPacket[]>(
         `SELECT 
@@ -751,7 +586,7 @@ export class UnifiedNotificationService {
          WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
         [days]
       );
-      
+
       const [typeRows] = await connection.query<RowDataPacket[]>(
         `SELECT notification_type, COUNT(*) as count
          FROM unified_notifications_queue
@@ -759,7 +594,7 @@ export class UnifiedNotificationService {
          GROUP BY notification_type`,
         [days]
       );
-      
+
       const [channelRows] = await connection.query<RowDataPacket[]>(
         `SELECT channel, COUNT(*) as count
          FROM unified_notifications_queue
@@ -767,19 +602,19 @@ export class UnifiedNotificationService {
          GROUP BY channel`,
         [days]
       );
-      
-      const stats = statsRows[0] || {};
+
+      const stats = (statsRows[0] || {}) as any;
       const by_type: Record<string, number> = {};
       const by_channel: Record<string, number> = {};
-      
+
       typeRows.forEach((row: any) => {
         by_type[row.notification_type] = parseInt(row.count);
       });
-      
+
       channelRows.forEach((row: any) => {
         by_channel[row.channel] = parseInt(row.count);
       });
-      
+
       return {
         total: parseInt(stats.total || '0'),
         sent: parseInt(stats.sent || '0'),

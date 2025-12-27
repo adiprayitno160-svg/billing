@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build output
-dist/
+# dist/  # Include dist for easier deployment
 build/
 
 # Environment variables

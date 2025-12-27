@@ -18,8 +18,10 @@ export class UrlConfigService {
       );
 
       const settings: { [key: string]: string } = {};
-      rows.forEach((row: any) => {
-        settings[row.setting_key] = row.setting_value;
+      rows.forEach((row: RowDataPacket) => {
+        if (row.setting_key && row.setting_value) {
+          settings[row.setting_key as string] = row.setting_value as string;
+        }
       });
 
       const domainModeEnabled = settings.domain_mode_enabled === 'true';
@@ -34,7 +36,7 @@ export class UrlConfigService {
         return localUrl;
       } else {
         // Fallback ke localhost jika tidak ada yang diaktifkan
-        return localUrl || 'http://localhost:3000';
+        return 'http://localhost:3000';
       }
     } catch (error) {
       console.error('[UrlConfigService] Error getting active URL:', error);
@@ -55,7 +57,8 @@ export class UrlConfigService {
       );
 
       if (Array.isArray(rows) && rows.length > 0 && rows[0]) {
-        return rows[0].setting_value || null;
+        const firstRow = rows[0] as RowDataPacket;
+        return (firstRow.setting_value as string) || null;
       }
 
       return null;
@@ -77,7 +80,8 @@ export class UrlConfigService {
       );
 
       if (Array.isArray(rows) && rows.length > 0 && rows[0]) {
-        return rows[0].setting_value || null;
+        const firstRow = rows[0] as RowDataPacket;
+        return (firstRow.setting_value as string) || null;
       }
 
       return null;
@@ -99,7 +103,8 @@ export class UrlConfigService {
       );
 
       if (Array.isArray(rows) && rows.length > 0 && rows[0]) {
-        return rows[0].setting_value === 'true';
+        const firstRow = rows[0] as RowDataPacket;
+        return (firstRow.setting_value as string) === 'true';
       }
 
       return false;
@@ -121,7 +126,8 @@ export class UrlConfigService {
       );
 
       if (Array.isArray(rows) && rows.length > 0 && rows[0]) {
-        return rows[0].setting_value === 'true';
+        const firstRow = rows[0] as RowDataPacket;
+        return (firstRow.setting_value as string) === 'true';
       }
 
       return false;

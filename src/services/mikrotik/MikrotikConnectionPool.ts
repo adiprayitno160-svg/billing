@@ -47,7 +47,7 @@ export class MikrotikConnectionPool {
           'SELECT host, port, username, password FROM mikrotik_settings LIMIT 1'
         );
         
-        if (anyRows.length === 0) {
+        if (anyRows.length === 0 || !anyRows[0]) {
           return null;
         }
         
@@ -60,6 +60,10 @@ export class MikrotikConnectionPool {
         
         this.saveToCache(cacheKey, settings);
         return settings;
+      }
+      
+      if (!rows[0]) {
+        return null;
       }
       
       const settings = {

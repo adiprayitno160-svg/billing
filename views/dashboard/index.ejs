@@ -1,1046 +1,552 @@
 ﻿<div class="space-y-6">
 	<!-- KPI Cards - Modern Grid Design -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3 md:gap-4">
+	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
 		<!-- Total Pelanggan -->
-		<div class="bg-gradient-to-br from-indigo-500 via-purple-600 to-purple-700 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #6366f1 0%, #9333ea 50%, #7c3aed 100%) !important;">
+		<div class="bg-gradient-to-br from-indigo-500 via-purple-600 to-purple-700 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70"
+			style="background: linear-gradient(135deg, #6366f1 0%, #9333ea 50%, #7c3aed 100%) !important;">
 			<div class="flex items-center justify-center gap-2 mb-3">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-					<path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2.5">
+					<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+					<circle cx="9" cy="7" r="4" />
+					<path d="M23 21v-2a4 4 0 00-3-3.87" />
+					<path d="M16 3.13a4 4 0 010 7.75" />
 				</svg>
 			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.totalCustomers %></div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight">
+				<%= stats.totalCustomers %>
+			</div>
 			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Total</div>
 		</div>
 
 		<!-- Pelanggan Aktif -->
-		<div class="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #14b8a6 0%, #10b981 50%, #16a34a 100%) !important;">
+		<div class="bg-gradient-to-br from-teal-500 via-emerald-500 to-green-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70"
+			style="background: linear-gradient(135deg, #14b8a6 0%, #10b981 50%, #16a34a 100%) !important;">
 			<div class="flex items-center justify-center gap-2 mb-3">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2.5">
+					<path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+					<polyline points="22 4 12 14.01 9 11.01" />
 				</svg>
 			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.activeCustomers %></div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight">
+				<%= stats.activeCustomers %>
+			</div>
 			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Aktif</div>
 		</div>
 
 		<!-- PPPoE -->
-		<div class="bg-gradient-to-br from-blue-400 via-cyan-400 to-cyan-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #60a5fa 0%, #22d3ee 50%, #06b6d4 100%) !important;">
+		<div class="bg-gradient-to-br from-blue-400 via-cyan-400 to-cyan-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70"
+			style="background: linear-gradient(135deg, #60a5fa 0%, #22d3ee 50%, #06b6d4 100%) !important;">
 			<div class="flex items-center justify-center gap-2 mb-3">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2.5">
+					<rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+					<path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
 				</svg>
 			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.pppoeCustomers %></div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight">
+				<%= stats.pppoeCustomers %>
+			</div>
 			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">PPPoE</div>
 		</div>
 
 		<!-- IP Static -->
-		<div class="bg-gradient-to-br from-pink-400 via-rose-500 to-amber-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #f472b6 0%, #f43f5e 50%, #f59e0b 100%) !important;">
+		<div class="bg-gradient-to-br from-pink-400 via-rose-500 to-amber-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70"
+			style="background: linear-gradient(135deg, #f472b6 0%, #f43f5e 50%, #f59e0b 100%) !important;">
 			<div class="flex items-center justify-center gap-2 mb-3">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-					<line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2.5">
+					<rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+					<rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+					<line x1="6" y1="6" x2="6.01" y2="6" />
+					<line x1="6" y1="18" x2="6.01" y2="18" />
 				</svg>
 			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.staticIpCustomers %></div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight">
+				<%= stats.staticIpCustomers %>
+			</div>
 			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Static IP</div>
 		</div>
 
 		<!-- Isolir -->
-		<div class="bg-gradient-to-br from-fuchsia-400 via-pink-500 to-red-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70" style="background: linear-gradient(135deg, #e879f9 0%, #ec4899 50%, #ef4444 100%) !important;">
+		<div class="bg-gradient-to-br from-fuchsia-400 via-pink-500 to-red-500 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-white/70"
+			style="background: linear-gradient(135deg, #e879f9 0%, #ec4899 50%, #ef4444 100%) !important;">
 			<div class="flex items-center justify-center gap-2 mb-3">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2.5">
+					<circle cx="12" cy="12" r="10" />
+					<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
 				</svg>
 			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= stats.suspendedCustomers %></div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight">
+				<%= stats.suspendedCustomers %>
+			</div>
 			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Isolir</div>
 		</div>
 
 		<!-- Nonaktif -->
-		<div class="bg-gradient-to-br from-gray-400 via-slate-500 to-gray-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-gray-500" style="background: linear-gradient(135deg, #9ca3af 0%, #64748b 50%, #4b5563 100%) !important;">
+		<div class="bg-gradient-to-br from-gray-400 via-slate-500 to-gray-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 text-white text-center border border-gray-500"
+			style="background: linear-gradient(135deg, #9ca3af 0%, #64748b 50%, #4b5563 100%) !important;">
 			<div class="flex items-center justify-center gap-2 mb-3">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2.5">
+					<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+					<path d="M13.73 21a2 2 0 01-3.46 0" />
 				</svg>
 			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight text-white"><%= stats.inactiveCustomers %></div>
+			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight text-white">
+				<%= stats.inactiveCustomers %>
+			</div>
 			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide text-white">Nonaktif</div>
 		</div>
 
-		<!-- Prepaid -->
-		<div onclick="window.location='/prepaid/dashboard'" class="bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-white text-center border border-white/70 group" style="background: linear-gradient(135deg, #fbbf24 0%, #f97316 50%, #ea580c 100%) !important;">
-			<div class="flex items-center justify-center gap-2 mb-3 group-hover:scale-110 transition-transform duration-300">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-				</svg>
-			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
-			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Prepaid</div>
-		</div>
 
-		<!-- Prepaid Active -->
-		<div onclick="window.location='/prepaid/subscriptions'" class="bg-gradient-to-br from-emerald-400 via-green-400 to-cyan-400 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer text-white text-center border border-white/70 group" style="background: linear-gradient(135deg, #34d399 0%, #4ade80 50%, #22d3ee 100%) !important;">
-			<div class="flex items-center justify-center gap-2 mb-3 group-hover:scale-110 transition-transform duration-300">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-					<polyline points="20 6 9 17 4 12"/>
-				</svg>
-			</div>
-			<div class="text-2xl md:text-3xl font-bold leading-none mb-2 tracking-tight"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
-			<div class="text-xs opacity-90 font-semibold uppercase tracking-wide">Active</div>
-		</div>
 	</div>
 
-	<!-- Prepaid System Quick Info -->
-	<div class="bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 border-2 border-purple-300 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden" style="background: linear-gradient(135deg, #9333ea 0%, #ec4899 50%, #f97316 100%) !important; border: 3px solid rgba(196, 181, 253, 0.8) !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;">
-		<div class="flex items-start justify-between relative z-10">
-			<div class="flex-1">
-				<div class="flex items-center gap-4 mb-4">
-					<div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl border-2 border-white/70" style="background-color: rgba(255, 255, 255, 0.9) !important;">
-						<svg class="w-10 h-10 drop-shadow-lg" fill="#9333ea" viewBox="0 0 24 24" style="color: #9333ea !important; fill: #9333ea !important;">
-							<path d="M13 3L4 14h7v7l9-11h-7V3z"/>
-						</svg>
-					</div>
-					<div>
-						<h3 class="text-2xl font-extrabold text-white mb-1 drop-shadow-lg" style="color: #ffffff !important; text-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important;">💰 Prepaid System</h3>
-						<p class="text-sm text-white font-bold drop-shadow-md" style="color: #ffffff !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.2) !important;">Self-Service Portal dengan Redirect Paksa</p>
-					</div>
-				</div>
-				<div class="grid grid-cols-4 gap-3 mb-4">
-					<!-- Total Prepaid -->
-					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-orange-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
-						<div class="flex items-center justify-between mb-2">
-							<div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-sm">
-								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-								</svg>
-							</div>
-							<div class="text-2xl font-bold text-orange-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.totalPrepaid : 0 %></div>
-						</div>
-						<div class="text-xs text-gray-600 font-semibold">Total Prepaid</div>
-					</div>
-					
-					<!-- Active Subscription -->
-					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-green-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
-						<div class="flex items-center justify-between mb-2">
-							<div class="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
-								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-								</svg>
-							</div>
-							<div class="text-2xl font-bold text-green-600"><%= typeof prepaidStats !== 'undefined' ? prepaidStats.activeSubscriptions : 0 %></div>
-						</div>
-						<div class="text-xs text-gray-600 font-semibold">Active Subscription</div>
-					</div>
-					
-					<!-- Late Payment High Risk -->
-					<div onclick="window.location='/billing/late-payment'" class="bg-white rounded-lg p-3 shadow-xl border-2 border-red-400 hover:shadow-2xl transition-all duration-200 cursor-pointer" style="background-color: #ffffff !important;">
-						<div class="flex items-center justify-between mb-2">
-							<div class="w-8 h-8 bg-gradient-to-br from-red-400 to-rose-500 rounded-lg flex items-center justify-center shadow-sm">
-								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-								</svg>
-							</div>
-							<div class="text-2xl font-bold text-red-600"><%= typeof latePaymentStats !== 'undefined' ? latePaymentStats.highRisk : 0 %></div>
-						</div>
-						<div class="text-xs text-gray-600 font-semibold">Late Payment (≥3x)</div>
-					</div>
-					
-					<!-- Need Package -->
-					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-blue-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
-						<div class="flex items-center justify-between mb-2">
-							<div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-sm">
-								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-								</svg>
-							</div>
-							<div class="text-2xl font-bold text-blue-600"><%= typeof prepaidStats !== 'undefined' ? (prepaidStats.totalPrepaid - prepaidStats.activeSubscriptions) : 0 %></div>
-						</div>
-						<div class="text-xs text-gray-600 font-semibold">Need Package</div>
-					</div>
-					
-					<!-- Active Rate -->
-					<div class="bg-white rounded-lg p-3 shadow-xl border-2 border-purple-400 hover:shadow-2xl transition-all duration-200" style="background-color: #ffffff !important;">
-						<div class="flex items-center justify-between mb-2">
-							<div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center shadow-sm">
-								<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-								</svg>
-							</div>
-							<div class="text-2xl font-bold text-purple-600">
-								<%= typeof prepaidStats !== 'undefined' && prepaidStats.totalPrepaid > 0 ? Math.round((prepaidStats.activeSubscriptions / prepaidStats.totalPrepaid) * 100) : 0 %>%
-							</div>
-						</div>
-						<div class="text-xs text-gray-600 font-semibold">Active Rate</div>
-					</div>
-				</div>
-				<div class="flex gap-3">
-					<a href="/prepaid/dashboard" class="inline-flex items-center px-5 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white text-sm font-bold rounded-lg hover:shadow-xl hover:from-orange-700 hover:to-yellow-700 transform hover:scale-105 transition-all duration-200" style="color: #ffffff !important;">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #ffffff !important;">
-							<path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-						</svg>
-						<span style="color: #ffffff !important;">📊 Dashboard Prepaid</span>
-					</a>
-					<a href="/prepaid/packages" class="inline-flex items-center px-5 py-3 bg-white text-orange-700 text-sm font-bold rounded-lg border-2 border-orange-500 hover:bg-orange-100 hover:border-orange-600 transform hover:scale-105 transition-all duration-200 shadow-lg" style="background-color: #ffffff !important; color: #ea580c !important;">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #ea580c !important;">
-							<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-						</svg>
-						<span style="color: #ea580c !important;">📦 Kelola Paket</span>
-					</a>
-					<a href="/prepaid/customers" class="inline-flex items-center px-5 py-3 bg-white text-blue-700 text-sm font-bold rounded-lg border-2 border-blue-500 hover:bg-blue-100 hover:border-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg" style="background-color: #ffffff !important; color: #1d4ed8 !important;">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #1d4ed8 !important;">
-							<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
-						</svg>
-						<span style="color: #1d4ed8 !important;">👥 Lihat Customer</span>
-					</a>
-					<a href="/prepaid/portal/splash" target="_blank" class="inline-flex items-center px-5 py-3 bg-white text-green-700 text-sm font-bold rounded-lg border-2 border-green-500 hover:bg-green-100 hover:border-green-600 transform hover:scale-105 transition-all duration-200 shadow-lg" style="background-color: #ffffff !important; color: #15803d !important;">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style="color: #15803d !important;">
-							<path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-							<path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-						</svg>
-						<span style="color: #15803d !important;">🌐 Test Portal</span>
-					</a>
-				</div>
-			</div>
-			<div class="ml-4">
-				<div class="rounded-lg p-4 text-center min-w-[120px]">
-					<div class="text-xs text-white font-bold mb-2 drop-shadow-md">Status Scheduler</div>
-					<div class="inline-flex items-center px-3 py-1 rounded-full bg-green-400 text-white text-sm font-bold shadow-lg">
-						<span class="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>
-						Running
-					</div>
-					<div class="text-xs text-white font-semibold mt-2 drop-shadow-md">Auto-check every 5 min</div>
-				</div>
-			</div>
-		</div>
-	</div>
 
-	<!-- MikroTik Status & Interface Speed -->
-	<div class="grid gap-6 grid-cols-1 lg:grid-cols-2">
+
+	<!-- MikroTik Status, Server Monitoring & Interface Speed -->
+	<div class="grid gap-6 grid-cols-1 lg:grid-cols-3">
 		<!-- Status MikroTik (Kiri) -->
-		<% if (typeof mikrotikInfo !== 'undefined' && mikrotikInfo) { %>
-		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
-			<div class="flex items-center justify-between mb-4">
-				<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
-				<% if (connectionStatus.connected) { %>
-					<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
-						<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>
-						Terhubung
-					</span>
-				<% } else { %>
-					<span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
-						<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
-						Terputus
-					</span>
-				<% } %>
-			</div>
-			<div class="grid grid-cols-2 gap-3">
-				<div class="bg-gray-50 rounded-lg p-3">
-					<div class="text-xs text-gray-600 font-medium">Identity</div>
-					<div class="text-sm font-bold text-gray-900 truncate"><%= mikrotikInfo.identity || '-' %></div>
-				</div>
-				<div class="bg-gray-50 rounded-lg p-3">
-					<div class="text-xs text-gray-600 font-medium">Version</div>
-					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.version || '-' %></div>
-				</div>
-				<div class="bg-gray-50 rounded-lg p-3">
-					<div class="text-xs text-gray-600 font-medium">Uptime</div>
-					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.uptime || '-' %></div>
-				</div>
-				<div class="bg-gray-50 rounded-lg p-3">
-					<div class="text-xs text-gray-600 font-medium">CPU Load</div>
-					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.cpuLoad || '-' %>%</div>
-				</div>
-				<div class="bg-gray-50 rounded-lg p-3">
-					<div class="text-xs text-gray-600 font-medium">Board</div>
-					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo['board-name'] || '-' %></div>
-				</div>
-				<div class="bg-gray-50 rounded-lg p-3">
-					<div class="text-xs text-gray-600 font-medium">CPU</div>
-					<div class="text-sm font-bold text-gray-900"><%= mikrotikInfo.cpu || '-' %></div>
-				</div>
-			</div>
-		</div>
-		<% } else { %>
-		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
-			<h2 class="text-lg font-semibold text-gray-900 mb-4">Status MikroTik</h2>
-			<div class="text-center py-8">
-				<p class="text-gray-500 mb-3">MikroTik belum dikonfigurasi</p>
-				<a href="/settings/mikrotik" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-md hover:shadow-lg">Konfigurasi Sekarang</a>
-			</div>
-		</div>
-		<% } %>
-
-		<!-- Interface Speed Realtime (Kanan) -->
-		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
-			<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-				<h2 class="text-lg font-semibold text-gray-900">Interface Traffic Realtime</h2>
-				<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
-				<div style="position: relative;">
-					<button id="interfaceSelector" style="padding: 0.375rem 0.75rem; font-size: 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.375rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
-						<svg xmlns="http://www.w3.org/2000/svg" style="width: 1rem; height: 1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<polyline points="6 9 12 15 18 9"/>
-						</svg>
-						Pilih Interface
-					</button>
-					<div id="interfaceDropdown" style="display: none; position: absolute; right: 0; top: 2.5rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); padding: 0.5rem; z-index: 10; min-width: 12rem; max-height: 20rem; overflow-y: auto;">
-						<% 
-						const chartColors = ['rgb(59, 130, 246)', 'rgb(34, 197, 94)', 'rgb(168, 85, 247)', 'rgb(249, 115, 22)', 'rgb(234, 88, 12)', 'rgb(236, 72, 153)'];
-						interfaces.forEach(function(iface, idx) { 
-						%>
-						<label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; cursor: pointer; border-radius: 0.25rem; font-size: 0.875rem;" class="hover:bg-gray-50">
-							<input type="checkbox" class="interface-checkbox" data-interface="<%= iface.name %>" data-color="<%= chartColors[idx % chartColors.length] %>" <%= idx === 0 ? 'checked' : '' %> style="width: 1rem; height: 1rem; cursor: pointer;">
-							<span style="height: 0.625rem; width: 0.625rem; border-radius: 9999px; background-color: <%= chartColors[idx % chartColors.length] %>;"></span>
-							<span style="font-weight: 500; color: #374151; flex: 1;"><%= iface.name %></span>
-							<% if (iface.running) { %>
-								<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: rgb(34, 197, 94);"></span>
-							<% } else { %>
-								<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: rgb(156, 163, 175);"></span>
+		<% if (typeof mikrotikInfo !=='undefined' && mikrotikInfo) { %>
+			<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+				style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+				<div class="flex items-center justify-between mb-4">
+					<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
+					<% if (connectionStatus.connected) { %>
+						<span
+							class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+							<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>
+							Terhubung
+						</span>
+						<% } else { %>
+							<span
+								class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+								<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
+								Terputus
+							</span>
 							<% } %>
-						</label>
-						<% }) %>
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					<div class="bg-gray-50 rounded-lg p-3">
+						<div class="text-xs text-gray-600 font-medium">Identity</div>
+						<div class="text-sm font-bold text-gray-900 truncate">
+							<%= mikrotikInfo.identity || '-' %>
+						</div>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-3">
+						<div class="text-xs text-gray-600 font-medium">Version</div>
+						<div class="text-sm font-bold text-gray-900">
+							<%= mikrotikInfo.version || '-' %>
+						</div>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-3">
+						<div class="text-xs text-gray-600 font-medium">Uptime</div>
+						<div class="text-sm font-bold text-gray-900">
+							<%= mikrotikInfo.uptime || '-' %>
+						</div>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-3">
+						<div class="text-xs text-gray-600 font-medium">CPU Load</div>
+						<div class="text-sm font-bold text-gray-900">
+							<%= mikrotikInfo.cpuLoad || '-' %>%
+						</div>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-3">
+						<div class="text-xs text-gray-600 font-medium">Board</div>
+						<div class="text-sm font-bold text-gray-900">
+							<%= mikrotikInfo['board-name'] || '-' %>
+						</div>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-3">
+						<div class="text-xs text-gray-600 font-medium">CPU</div>
+						<div class="text-sm font-bold text-gray-900">
+							<%= mikrotikInfo.cpu || '-' %>
+						</div>
 					</div>
 				</div>
-				<% } %>
-			</div>
-			<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
-			<div style="height: 14rem; position: relative; margin-bottom: 0.75rem; background: #f9fafb; border-radius: 0.5rem;">
-				<canvas id="interfaceChart" style="width: 100%; height: 100%; display: block;"></canvas>
-				<div id="chartLoadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: block; z-index: 10;">
-					<div style="font-size: 0.875rem; color: #6b7280;">
-						<svg style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; animation: spin 1s linear infinite;" viewBox="0 0 24 24">
-							<circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-							<path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-						</svg>
-						Memuat grafik...
-					</div>
-				</div>
-				<div id="chartErrorIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; z-index: 10;">
-					<div style="font-size: 0.875rem; color: #ef4444;">❌ Gagal memuat grafik</div>
-					<div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">Cek console untuk detail</div>
-				</div>
-			</div>
-			<style>
-				@keyframes spin {
-					to { transform: rotate(360deg); }
-				}
-			</style>
-			<div id="interfaceLegend" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-				<% 
-				const legendColors = ['rgb(59, 130, 246)', 'rgb(34, 197, 94)', 'rgb(168, 85, 247)', 'rgb(249, 115, 22)'];
-				interfaces.slice(0, 4).forEach(function(iface, idx) { 
-				%>
-				<div data-interface-legend="<%= iface.name %>" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; line-height: 1rem;">
-					<span style="height: 0.75rem; width: 0.75rem; border-radius: 9999px; background-color: <%= legendColors[idx] %>;"></span>
-					<span style="font-weight: 500; color: #374151;"><%= iface.name %></span>
-					<% if (iface.running) { %>
-						<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; margin-left: auto; background-color: rgb(34, 197, 94);"></span>
-					<% } else { %>
-						<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; margin-left: auto; background-color: rgb(156, 163, 175);"></span>
-					<% } %>
-				</div>
-				<% }) %>
 			</div>
 			<% } else { %>
-			<div style="text-align: center; padding: 2rem 0;">
-				<p style="color: #6b7280; font-size: 0.875rem;">Data interface tidak tersedia</p>
-			</div>
-			<% } %>
-		</div>
-	</div>
-
-<script>
-	console.log('========================================');
-	console.log('=== 📡 INTERFACE DATA DEBUG (Initial Page Load) ===');
-	console.log('Interfaces defined:', typeof interfaces !== 'undefined');
-	console.log('Interfaces exists:', <%- typeof interfaces !== 'undefined' && interfaces ? 'true' : 'false' %>);
-	console.log('Interfaces is array:', <%- typeof interfaces !== 'undefined' && Array.isArray(interfaces) ? 'true' : 'false' %>);
-	console.log('Interfaces length:', <%- typeof interfaces !== 'undefined' && interfaces ? interfaces.length : 0 %>);
-	<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
-	console.log('✅ Interfaces data AVAILABLE, chart initialization script WILL be loaded');
-	console.log('First 2 interfaces:', <%- JSON.stringify(interfaces.slice(0, 2)) %>);
-	<% } else { %>
-	console.log('❌ CRITICAL: No interfaces data available!');
-	console.log('  - typeof interfaces:', '<%- typeof interfaces %>');
-	console.log('  - interfaces value:', <%- JSON.stringify(interfaces) %>);
-	console.log('  - Chart initialization script will NOT be loaded!');
-	<% } %>
-	console.log('========================================');
-</script>
-
-<% if (typeof interfaces !== 'undefined' && interfaces && interfaces.length > 0) { %>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous" onload="console.log('✅ Chart.js CDN loaded!');" onerror="console.error('❌ Failed to load Chart.js from CDN!');"></script>
-<script>
-(function() {
-	console.log('=== 🚀 DEBUG: Interface Chart Loading START ===');
-	console.log('Step 1: Script executing...');
-	console.log('Step 1.5: Chart.js script should be loaded above');
-	
-	const allInterfaces = <%- JSON.stringify(interfaces) %>;
-	console.log('Step 2: All interfaces data:', allInterfaces);
-	console.log('Step 3: Interfaces count:', allInterfaces.length);
-	
-	// DEBUG: Check if elements exist BEFORE DOMContentLoaded
-	console.log('🔍 Step 3.1: PRE-CHECK - Document ready state:', document.readyState);
-	console.log('🔍 Step 3.2: PRE-CHECK - Canvas exists?', !!document.getElementById('interfaceChart'));
-	console.log('🔍 Step 3.3: PRE-CHECK - Selector button exists?', !!document.getElementById('interfaceSelector'));
-	console.log('🔍 Step 3.4: PRE-CHECK - Dropdown exists?', !!document.getElementById('interfaceDropdown'));
-	console.log('🔍 Step 3.5: PRE-CHECK - All checkboxes:', document.querySelectorAll('.interface-checkbox').length);
-	console.log('🔍 Step 3.6: PRE-CHECK - Checked checkboxes:', document.querySelectorAll('.interface-checkbox:checked').length);
-	
-	const chartColors = ['rgb(59, 130, 246)', 'rgb(34, 197, 94)', 'rgb(168, 85, 247)', 'rgb(249, 115, 22)', 'rgb(234, 88, 12)', 'rgb(236, 72, 153)'];
-	
-	let chart = null;
-	let previousData = {};
-	let updateInterval = null;
-	let dataBuffer = {}; // Buffer for smoothing data
-	
-	function showLoading() {
-		const loading = document.getElementById('chartLoadingIndicator');
-		const error = document.getElementById('chartErrorIndicator');
-		if (loading) loading.style.display = 'block';
-		if (error) error.style.display = 'none';
-	}
-	
-	function hideLoading() {
-		const loading = document.getElementById('chartLoadingIndicator');
-		if (loading) loading.style.display = 'none';
-	}
-	
-	function showError() {
-		const loading = document.getElementById('chartLoadingIndicator');
-		const error = document.getElementById('chartErrorIndicator');
-		if (loading) loading.style.display = 'none';
-		if (error) error.style.display = 'block';
-	}
-	
-	function initChart() {
-		console.log('========================================');
-		console.log('🎯 Step 4: initChart() called');
-		console.log('🎯 Step 5: Document ready state:', document.readyState);
-		
-		// DEBUG: Verify all elements exist NOW
-		console.log('🔍 POST-DOM CHECK:');
-		console.log('  - Canvas:', !!document.getElementById('interfaceChart'));
-		console.log('  - Selector button:', !!document.getElementById('interfaceSelector'));
-		console.log('  - Dropdown:', !!document.getElementById('interfaceDropdown'));
-		console.log('  - All checkboxes:', document.querySelectorAll('.interface-checkbox').length);
-		console.log('  - Checked checkboxes:', document.querySelectorAll('.interface-checkbox:checked').length);
-		
-		// Show checked checkboxes details
-		const checkedBoxes = document.querySelectorAll('.interface-checkbox:checked');
-		console.log('📋 Checked checkboxes details:');
-		checkedBoxes.forEach((cb, i) => {
-			console.log(`  ${i+1}. Interface: ${cb.dataset.interface}, Color: ${cb.dataset.color}, Checked: ${cb.checked}`);
-		});
-		
-		showLoading();
-		
-		const ctx = document.getElementById('interfaceChart');
-		console.log('Step 6: Canvas element:', ctx);
-		
-		if (!ctx) {
-			console.error('❌ ERROR: Canvas element not found!');
-			console.log('Available elements with id:', document.querySelectorAll('[id*="interface"]'));
-			showError();
-			return;
-		}
-
-		console.log('Step 7: Checking Chart.js...');
-		console.log('Step 8: typeof Chart:', typeof Chart);
-		
-		if (typeof Chart === 'undefined') {
-			console.error('❌ ERROR: Chart.js not loaded!');
-			console.log('Window.Chart:', window.Chart);
-			showError();
-			return;
-		}
-
-		console.log('✅ Step 9: Chart.js loaded successfully');
-
-		// Get selected interfaces
-		const selectedInterfaces = getSelectedInterfaces();
-		console.log('Step 10: Selected interfaces:', selectedInterfaces);
-		console.log('Step 11: Selected count:', selectedInterfaces.length);
-		
-		if (selectedInterfaces.length === 0) {
-			console.warn('⚠️ WARNING: No interfaces selected!');
-			showLoading();
-			const loading = document.getElementById('chartLoadingIndicator');
-			if (loading) {
-				loading.innerHTML = '<div style="font-size: 0.875rem; color: #6b7280; padding: 1rem;"><svg style="width: 2.5rem; height: 2.5rem; margin: 0 auto 0.75rem; color: #9ca3af;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div style="font-weight: 600; margin-bottom: 0.25rem;">Pilih Interface untuk Monitoring</div><div style="font-size: 0.75rem; color: #9ca3af;">Klik tombol "Pilih Interface" di atas untuk memilih interface yang ingin dimonitor</div></div>';
-				loading.style.display = 'block';
-			}
-			return;
-		}
-		
-		// Create chart
-		console.log('Step 12: Creating Chart instance...');
-		console.log('Step 12.1: Canvas element:', ctx);
-		console.log('Step 12.2: Canvas width:', ctx.width, 'height:', ctx.height);
-		console.log('Step 12.3: Canvas parent:', ctx.parentElement);
-		console.log('Step 12.4: Canvas visible:', ctx.offsetWidth > 0 && ctx.offsetHeight > 0);
-		
-		try {
-			const chartConfig = {
-			type: 'line',
-			data: {
-				labels: Array(20).fill(''),
-				datasets: selectedInterfaces.map((iface, idx) => {
-					const color = iface.color;
-					const bgColor = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
-					console.log(`Step 12.5.${idx}: Creating dataset for ${iface.name} with color ${color}`);
-					return {
-						label: iface.name,
-						data: Array(20).fill(0),
-						borderColor: color,
-						backgroundColor: bgColor,
-						borderWidth: 2,
-						tension: 0.4,
-						fill: true,
-						pointRadius: 0
-					};
-				})
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: { display: false },
-					tooltip: { 
-						enabled: true,
-						mode: 'index',
-						intersect: false,
-						callbacks: {
-							label: function(context) {
-								let label = context.dataset.label || '';
-								if (label) label += ': ';
-								const value = context.parsed.y;
-								if (value >= 1000000) label += (value / 1000000).toFixed(2) + ' Mb/s';
-								else if (value >= 1000) label += (value / 1000).toFixed(2) + ' Kb/s';
-								else label += value.toFixed(0) + ' b/s';
-								return label;
-							}
-						}
-					}
-				},
-				scales: {
-					y: {
-						beginAtZero: true,
-						ticks: {
-							callback: function(value) {
-								if (value >= 1000000) return (value / 1000000).toFixed(1) + ' Mb/s';
-								if (value >= 1000) return (value / 1000).toFixed(1) + ' Kb/s';
-								return value + ' b/s';
-							}
-						}
-					},
-					x: { display: false }
-				},
-				animation: { duration: 300 }
-			}
-		};
-		
-			console.log('Step 12.6: Chart config ready:', chartConfig);
-			console.log('Step 12.7: Calling new Chart()...');
-			
-			chart = new Chart(ctx, chartConfig);
-			
-			console.log('✅ Step 13: Chart created successfully!');
-			console.log('Step 14: Chart instance:', chart);
-			console.log('Step 14.1: Chart datasets count:', chart.data.datasets.length);
-			console.log('Step 14.2: Chart canvas:', chart.canvas);
-			hideLoading();
-		} catch (error) {
-			console.error('❌ ERROR creating chart:', error);
-			console.error('Error details:', error.message);
-			console.error('Stack trace:', error.stack);
-			showError();
-			return;
-		}
-
-		// Setup interface selector FIRST (this forces checkboxes to be checked)
-		setupInterfaceSelector();
-		
-		// Now get selected interfaces again after forcing
-		const finalSelectedInterfaces = getSelectedInterfaces();
-		console.log('Step 14.5: Final selected interfaces after forcing:', finalSelectedInterfaces);
-		console.log('Step 14.6: Final selected count:', finalSelectedInterfaces.length);
-		
-		// If still no interfaces after forcing, show error
-		if (finalSelectedInterfaces.length === 0) {
-			console.error('❌ CRITICAL: No interfaces selected even after forcing!');
-			showError();
-			return;
-		}
-		
-		// Update chart datasets with forced selections - 2 lines per interface (RX and TX)
-		const newDatasets = [];
-		finalSelectedInterfaces.forEach((iface) => {
-			const color = iface.color;
-			const bgColorRx = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
-			const bgColorTx = color.replace('rgb', 'rgba').replace(')', ', 0.05)');
-			
-			// RX Line (solid)
-			newDatasets.push({
-				label: iface.name + ' RX',
-				data: Array(20).fill(0),
-				borderColor: color,
-				backgroundColor: bgColorRx,
-				borderWidth: 2,
-				tension: 0.4,
-				fill: true,
-				pointRadius: 0,
-				interfaceName: iface.name,
-				dataType: 'rx'  // Changed from 'type' to 'dataType' to avoid conflict with Chart.js
-			});
-			
-			// TX Line (dashed)
-			newDatasets.push({
-				label: iface.name + ' TX',
-				data: Array(20).fill(0),
-				borderColor: color,
-				backgroundColor: bgColorTx,
-				borderWidth: 2,
-				borderDash: [5, 5],
-				tension: 0.4,
-				fill: false,
-				pointRadius: 0,
-				interfaceName: iface.name,
-				dataType: 'tx'  // Changed from 'type' to 'dataType' to avoid conflict with Chart.js
-			});
-		});
-		
-		// Replace datasets atomically
-		chart.data.datasets = newDatasets;
-		chart.update('none');  // Update without animation to avoid race conditions
-		console.log('✅ Chart datasets updated with', finalSelectedInterfaces.length, 'interfaces');
-		
-		// Update legend
-		updateLegend(finalSelectedInterfaces);
-		
-		// Initialize previous data and buffer
-		console.log('Step 14.7: Initializing previous data and buffer...');
-		finalSelectedInterfaces.forEach(iface => {
-			const rxValue = parseInt(iface['rx-byte'] || iface.rxByte || iface['rxByte'] || 0);
-			const txValue = parseInt(iface['tx-byte'] || iface.txByte || iface['txByte'] || 0);
-			console.log(`  Init ${iface.name}: RX=${rxValue}, TX=${txValue}`);
-			previousData[iface.name] = {
-				rx: rxValue,
-				tx: txValue
-			};
-			// Initialize buffer with zero to prevent initial spikes
-			dataBuffer[iface.name] = {
-				rx: 0,
-				tx: 0
-			};
-		});
-
-		// Start update interval
-		startUpdateInterval();
-	}
-
-	function getSelectedInterfaces() {
-		console.log('getSelectedInterfaces() called');
-		const checkboxes = document.querySelectorAll('.interface-checkbox:checked');
-		console.log('Checked checkboxes:', checkboxes);
-		console.log('Checked count:', checkboxes.length);
-		
-		const result = Array.from(checkboxes).map(cb => {
-			const name = cb.dataset.interface;
-			const color = cb.dataset.color;
-			console.log('Processing checkbox:', { name, color });
-			const iface = allInterfaces.find(i => i.name === name);
-			console.log('Found interface:', iface);
-			return { ...iface, color };
-		});
-		
-		console.log('getSelectedInterfaces() result:', result);
-		return result;
-	}
-
-	function updateChart() {
-		console.log('updateChart() called');
-		const selectedInterfaces = getSelectedInterfaces();
-		console.log('Selected interfaces for update:', selectedInterfaces);
-		
-		// Handle empty selection - show message
-		if (selectedInterfaces.length === 0) {
-			console.warn('⚠️ No interfaces selected after update');
-			showLoading();
-			const loading = document.getElementById('chartLoadingIndicator');
-			if (loading) {
-				loading.innerHTML = '<div style="font-size: 0.875rem; color: #6b7280;">Pilih minimal 1 interface untuk menampilkan grafik</div>';
-				loading.style.display = 'block';
-			}
-			// Clear chart
-			if (chart) {
-				chart.data.datasets = [];
-				chart.update();
-			}
-			return;
-		}
-		
-		hideLoading();
-		
-		// Update datasets - 2 lines per interface (RX and TX)
-		// First, save existing datasets
-		const existingDatasets = chart.data.datasets;
-		
-		// Build new datasets array
-		const newDatasets = [];
-		selectedInterfaces.forEach((iface) => {
-			// Find existing datasets
-			const existingRxDataset = existingDatasets.find(d => d.interfaceName === iface.name && d.dataType === 'rx');
-			const existingTxDataset = existingDatasets.find(d => d.interfaceName === iface.name && d.dataType === 'tx');
-			
-			const color = iface.color;
-			const bgColorRx = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
-			const bgColorTx = color.replace('rgb', 'rgba').replace(')', ', 0.05)');
-			
-			// RX Line (solid)
-			newDatasets.push({
-				label: iface.name + ' RX',
-				data: existingRxDataset ? existingRxDataset.data : Array(20).fill(0),
-				borderColor: color,
-				backgroundColor: bgColorRx,
-				borderWidth: 2,
-				tension: 0.4,
-				fill: true,
-				pointRadius: 0,
-				interfaceName: iface.name,
-				dataType: 'rx'
-			});
-			
-			// TX Line (dashed)
-			newDatasets.push({
-				label: iface.name + ' TX',
-				data: existingTxDataset ? existingTxDataset.data : Array(20).fill(0),
-				borderColor: color,
-				backgroundColor: bgColorTx,
-				borderWidth: 2,
-				borderDash: [5, 5],
-				tension: 0.4,
-				fill: false,
-				pointRadius: 0,
-				interfaceName: iface.name,
-				dataType: 'tx'
-			});
-		});
-		
-		// Replace datasets atomically
-		chart.data.datasets = newDatasets;
-		
-		// Update legend
-		updateLegend(selectedInterfaces);
-		
-		// Reset previous data and buffer for new interfaces
-		const newPreviousData = {};
-		const newDataBuffer = {};
-		selectedInterfaces.forEach(iface => {
-			newPreviousData[iface.name] = previousData[iface.name] || {
-				rx: parseInt(iface['rx-byte'] || iface.rxByte || 0),
-				tx: parseInt(iface['tx-byte'] || iface.txByte || 0)
-			};
-			// Initialize buffer for new interfaces
-			newDataBuffer[iface.name] = dataBuffer[iface.name] || {
-				rx: 0,
-				tx: 0
-			};
-		});
-		previousData = newPreviousData;
-		dataBuffer = newDataBuffer;
-		
-		chart.update('active');  // Update with smooth animation
-	}
-
-	function updateLegend(selectedInterfaces) {
-		const legendDiv = document.getElementById('interfaceLegend');
-		legendDiv.innerHTML = selectedInterfaces.map(iface => {
-			const running = iface.running;
-			const statusColor = running ? 'rgb(34, 197, 94)' : 'rgb(156, 163, 175)';
-			return `
-				<div data-interface-legend="${iface.name}" style="display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.75rem; padding: 0.625rem; background: #f9fafb; border-radius: 0.375rem; border-left: 3px solid ${iface.color};">
-					<div style="display: flex; align-items: center; gap: 0.5rem;">
-						<span style="height: 0.75rem; width: 0.75rem; border-radius: 9999px; background-color: ${iface.color}; flex-shrink: 0;"></span>
-						<span style="font-weight: 700; color: #374151; flex-shrink: 0; font-size: 0.8rem;">${iface.name}</span>
-						<span style="height: 0.375rem; width: 0.375rem; border-radius: 9999px; background-color: ${statusColor}; margin-left: auto; flex-shrink: 0;"></span>
-					</div>
-					<div style="display: flex; gap: 1rem; padding-left: 1.25rem; font-size: 0.7rem; font-family: monospace;">
-						<div style="display: flex; flex-direction: column; gap: 0.125rem;">
-							<div style="display: flex; align-items: center; gap: 0.375rem;">
-								<div style="width: 1.5rem; height: 2px; background-color: ${iface.color}; border-radius: 1px;"></div>
-								<span style="color: #6b7280; font-weight: 500; font-size: 0.65rem;">RX (Download)</span>
-							</div>
-							<span data-speed-rx="${iface.name}" style="color: #2563eb; font-weight: 700; font-size: 0.75rem; padding-left: 2rem;">0 b/s</span>
-						</div>
-						<div style="display: flex; flex-direction: column; gap: 0.125rem;">
-							<div style="display: flex; align-items: center; gap: 0.375rem;">
-								<div style="width: 1.5rem; height: 2px; background: repeating-linear-gradient(to right, ${iface.color} 0, ${iface.color} 4px, transparent 4px, transparent 8px); border-radius: 1px;"></div>
-								<span style="color: #6b7280; font-weight: 500; font-size: 0.65rem;">TX (Upload)</span>
-							</div>
-							<span data-speed-tx="${iface.name}" style="color: #059669; font-weight: 700; font-size: 0.75rem; padding-left: 2rem;">0 b/s</span>
-						</div>
+				<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl"
+					style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+					<h2 class="text-lg font-semibold text-gray-900 mb-4">Status MikroTik</h2>
+					<div class="text-center py-8">
+						<p class="text-gray-500 mb-3">MikroTik belum dikonfigurasi</p>
+						<a href="/settings/mikrotik"
+							class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-md hover:shadow-lg">Konfigurasi
+							Sekarang</a>
 					</div>
 				</div>
-			`;
-		}).join('');
-	}
-	
-	function formatSpeed(bytesPerSec) {
-		if (bytesPerSec >= 1000000000) {
-			return (bytesPerSec / 1000000000).toFixed(2) + ' Gb/s';
-		} else if (bytesPerSec >= 1000000) {
-			return (bytesPerSec / 1000000).toFixed(2) + ' Mb/s';
-		} else if (bytesPerSec >= 1000) {
-			return (bytesPerSec / 1000).toFixed(2) + ' Kb/s';
-		}
-		return bytesPerSec.toFixed(0) + ' b/s';
-	}
+				<% } %>
 
-	function startUpdateInterval() {
-		if (updateInterval) clearInterval(updateInterval);
-		
-		let firstRun = true;
-		const UPDATE_INTERVAL_MS = 3000; // Increased from 2000 to 3000ms for more stable readings
-		const SMOOTHING_FACTOR = 0.7; // Higher = smoother but slower response (0-1)
-		
-		updateInterval = setInterval(async () => {
-			// Skip if chart is not initialized
-			if (!chart || !chart.data || !chart.data.datasets) {
-				return;
-			}
-			
-			try {
-				// Add timeout to fetch request
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-				
-				const response = await fetch('/api/interface-stats', {
-					signal: controller.signal
-				});
-				
-				clearTimeout(timeoutId);
-				
-				if (!response.ok) {
-					console.error('Failed to fetch interface stats:', response.status);
-					return;
-				}
-				
-				const newData = await response.json();
-				
-				// Debug: Log first API response
-				if (firstRun) {
-					console.log('=== 🔍 FIRST API RESPONSE DEBUG ===');
-					console.log('Total interfaces from API:', newData.length);
-					console.log('First interface full data:', newData[0]);
-					console.log('DBN interface:', newData.find(i => i.name === 'DBN'));
-					firstRun = false;
-				}
-				
-				// Group datasets by interface
-				const interfaceNames = [...new Set(chart.data.datasets.map(d => d.interfaceName))];
-				
-				interfaceNames.forEach((ifaceName, idx) => {
-					const newIface = newData.find(i => i.name === ifaceName);
-					
-					if (newIface && previousData[ifaceName]) {
-						// Try different field name formats
-						const rxBytes = parseInt(newIface['rx-byte'] || newIface.rxByte || newIface['rxByte'] || 0);
-						const txBytes = parseInt(newIface['tx-byte'] || newIface.txByte || newIface['txByte'] || 0);
-						
-						// Calculate raw rates (bytes per second)
-						const intervalSeconds = UPDATE_INTERVAL_MS / 1000;
-						let rxRate = Math.max(0, (rxBytes - previousData[ifaceName].rx) / intervalSeconds);
-						let txRate = Math.max(0, (txBytes - previousData[ifaceName].tx) / intervalSeconds);
-						
-						// Initialize buffer if not exists
-						if (!dataBuffer[ifaceName]) {
-							dataBuffer[ifaceName] = { rx: rxRate, tx: txRate };
-						}
-						
-						// Apply exponential moving average for smoothing
-						// This reduces spikes and makes the graph more stable
-						rxRate = (dataBuffer[ifaceName].rx * SMOOTHING_FACTOR) + (rxRate * (1 - SMOOTHING_FACTOR));
-						txRate = (dataBuffer[ifaceName].tx * SMOOTHING_FACTOR) + (txRate * (1 - SMOOTHING_FACTOR));
-						
-						// Update buffer
-						dataBuffer[ifaceName] = { rx: rxRate, tx: txRate };
-						
-						// Debug log for first interface only
-						if (idx === 0) {
-							console.log(`[${ifaceName}] RX: ${formatSpeed(rxRate * 8)} | TX: ${formatSpeed(txRate * 8)}`);
-						}
-						
-						// Update RX dataset
-						const rxDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'rx');
-						if (rxDataset) {
-							rxDataset.data.shift();
-							rxDataset.data.push(rxRate * 8); // Convert to bits per second
-						}
-						
-						// Update TX dataset
-						const txDataset = chart.data.datasets.find(d => d.interfaceName === ifaceName && d.dataType === 'tx');
-						if (txDataset) {
-							txDataset.data.shift();
-							txDataset.data.push(txRate * 8); // Convert to bits per second
-						}
-						
-						// Update speed in legend - RX and TX only
-						const speedRxElement = document.querySelector(`[data-speed-rx="${ifaceName}"]`);
-						const speedTxElement = document.querySelector(`[data-speed-tx="${ifaceName}"]`);
-						
-						if (speedRxElement) {
-							speedRxElement.textContent = formatSpeed(rxRate * 8);
-							// Color coding for RX
-							if (rxRate * 8 > 1000000) {
-								speedRxElement.style.color = '#1d4ed8'; // dark blue
-								speedRxElement.style.fontWeight = '700';
-							} else if (rxRate * 8 > 1000) {
-								speedRxElement.style.color = '#2563eb'; // blue
-								speedRxElement.style.fontWeight = '600';
-							} else {
-								speedRxElement.style.color = '#6b7280'; // gray
-								speedRxElement.style.fontWeight = '500';
-							}
-						}
-						
-						if (speedTxElement) {
-							speedTxElement.textContent = formatSpeed(txRate * 8);
-							// Color coding for TX
-							if (txRate * 8 > 1000000) {
-								speedTxElement.style.color = '#047857'; // dark green
-								speedTxElement.style.fontWeight = '700';
-							} else if (txRate * 8 > 1000) {
-								speedTxElement.style.color = '#059669'; // green
-								speedTxElement.style.fontWeight = '600';
-							} else {
-								speedTxElement.style.color = '#6b7280'; // gray
-								speedTxElement.style.fontWeight = '500';
-							}
-						}
-						
-						previousData[ifaceName] = { rx: rxBytes, tx: txBytes };
-					}
-				});
-				
-				// Use 'active' mode for smoother animation
-				chart.update('active');
-			} catch (error) {
-				// Only log if it's not an abort error (expected timeout)
-				if (error.name !== 'AbortError') {
-					console.error('Error updating chart:', error);
-				}
-				// Silently continue - will retry on next interval
-			}
-		}, UPDATE_INTERVAL_MS);
-	}
+					<!-- Server Monitoring (Tengah) -->
+					<% if (typeof serverMonitoring !=='undefined' && serverMonitoring) { %>
+						<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+							style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+							<div class="flex items-center justify-between mb-4">
+								<h2 class="text-lg font-semibold text-gray-900">Monitoring Server</h2>
+								<% if (serverMonitoring.server.status==='online' ) { %>
+									<span
+										class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+										<span class="h-2 w-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
+										Online
+									</span>
+									<% } else { %>
+										<span
+											class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+											<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
+											Offline
+										</span>
+										<% } %>
+							</div>
+							<div class="grid grid-cols-2 gap-3">
+								<div class="bg-gray-50 rounded-lg p-3">
+									<div class="text-xs text-gray-600 font-medium">CPU Load (1m)</div>
+									<div class="text-sm font-bold text-gray-900">
+										<% const cpuLoadPercent=serverMonitoring.server.cpu.loadPercent || 0; const
+											cpuColor=cpuLoadPercent> 80 ? 'text-red-600' : cpuLoadPercent > 60 ?
+											'text-yellow-600' : 'text-green-600';
+											%>
+											<span class="<%= cpuColor %>">
+												<%= cpuLoadPercent.toFixed(1) %>%
+											</span>
+									</div>
+								</div>
+								<div class="bg-gray-50 rounded-lg p-3">
+									<div class="text-xs text-gray-600 font-medium">CPU Cores</div>
+									<div class="text-sm font-bold text-gray-900">
+										<%= serverMonitoring.server.cpu.cores %>
+									</div>
+								</div>
+								<div class="bg-gray-50 rounded-lg p-3">
+									<div class="text-xs text-gray-600 font-medium">Memory Usage</div>
+									<div class="text-sm font-bold text-gray-900">
+										<% const memPercent=serverMonitoring.server.memory.usagePercent.toFixed(1);
+											const memColor=memPercent> 80 ? 'text-red-600' : memPercent > 60 ?
+											'text-yellow-600' : 'text-green-600';
+											%>
+											<span class="<%= memColor %>">
+												<%= memPercent %>%
+											</span>
+									</div>
+								</div>
+								<div class="bg-gray-50 rounded-lg p-3">
+									<div class="text-xs text-gray-600 font-medium">Memory Used</div>
+									<div class="text-sm font-bold text-gray-900">
+										<% const memUsedGB=(serverMonitoring.server.memory.used / (1024 * 1024 *
+											1024)).toFixed(2); const memTotalGB=(serverMonitoring.server.memory.total /
+											(1024 * 1024 * 1024)).toFixed(2); %>
+											<%= memUsedGB %> / <%= memTotalGB %> GB
+									</div>
+								</div>
+								<div class="bg-gray-50 rounded-lg p-3">
+									<div class="text-xs text-gray-600 font-medium">Server Uptime</div>
+									<div class="text-sm font-bold text-gray-900">
+										<%= serverMonitoring.server.uptime %>
+									</div>
+								</div>
+								<div class="bg-gray-50 rounded-lg p-3">
+									<div class="text-xs text-gray-600 font-medium">Database</div>
+									<div
+										class="text-sm font-bold <%= serverMonitoring.database.connected ? 'text-green-600' : 'text-red-600' %>">
+										<%= serverMonitoring.database.connected ? 'Connected' : 'Disconnected' %>
+									</div>
+								</div>
+							</div>
+							<div class="mt-4 pt-4 border-t border-gray-200">
+								<div class="flex items-center justify-between text-xs">
+									<div class="text-gray-600">
+										<span class="font-medium">Platform:</span>
+										<%= serverMonitoring.server.platform %>
+									</div>
+									<div class="text-gray-600">
+										<span class="font-medium">Node:</span>
+										<%= serverMonitoring.server.nodeVersion %>
+									</div>
+								</div>
+								<div class="mt-2 flex items-center justify-between text-xs">
+									<div class="text-gray-600">
+										<span class="font-medium">System Health:</span>
+										<% if (serverMonitoring.systemHealth.overall_status==='healthy' ) { %>
+											<span class="text-green-600 font-semibold">Healthy</span>
+											<% } else if (serverMonitoring.systemHealth.overall_status==='warning' ) {
+												%>
+												<span class="text-yellow-600 font-semibold">Warning</span>
+												<% } else { %>
+													<span class="text-red-600 font-semibold">Unhealthy</span>
+													<% } %>
+									</div>
+									<div class="text-gray-500">
+										Last check: <%= new Date(serverMonitoring.lastCheck).toLocaleTimeString('id-ID')
+											%>
+									</div>
+								</div>
+							</div>
+						</div>
+						<% } else { %>
+							<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl"
+								style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+								<h2 class="text-lg font-semibold text-gray-900 mb-4">Monitoring Server</h2>
+								<div class="text-center py-8">
+									<p class="text-gray-500 mb-3">Data monitoring tidak tersedia</p>
+								</div>
+							</div>
+							<% } %>
 
-	function setupInterfaceSelector() {
-		console.log('========================================');
-		console.log('🔧 Step 15: setupInterfaceSelector() called');
-		
-		const selectorBtn = document.getElementById('interfaceSelector');
-		const dropdown = document.getElementById('interfaceDropdown');
-		const checkboxes = document.querySelectorAll('.interface-checkbox');
-		
-		console.log('🔍 SELECTOR ELEMENTS:');
-		console.log('  - Selector button:', selectorBtn);
-		console.log('  - Dropdown:', dropdown);
-		console.log('  - Checkboxes count:', checkboxes.length);
-		
-		// Verify checked state
-		const checkedCount = document.querySelectorAll('.interface-checkbox:checked').length;
-		console.log('📊 Currently checked interfaces:', checkedCount);
-		
-		// Fallback: if no checkboxes are checked, force check the first one
-		if (checkedCount === 0 && checkboxes.length > 0) {
-			console.log('⚠️ WARNING: No checkboxes checked, forcing first checkbox...');
-			checkboxes[0].checked = true;
-			console.log('✅ First interface checked:', checkboxes[0].dataset.interface);
-		}
-		
-		// Log first 5 checkbox states
-		console.log('📋 FIRST 5 CHECKBOXES STATE:');
-		checkboxes.forEach((cb, i) => {
-			if (i < 5) {
-				console.log(`  ${i+1}. [${cb.checked ? '✅' : '❌'}] ${cb.dataset.interface}`);
-			}
-		});
-		
-		if (!selectorBtn || !dropdown) {
-			console.error('❌ ERROR: Selector elements not found!');
-			return;
-		}
-		
-		// Toggle dropdown
-		selectorBtn.addEventListener('click', (e) => {
-			console.log('Selector button clicked');
-			e.stopPropagation();
-			dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-			console.log('Dropdown display:', dropdown.style.display);
-		});
-		
-		// Close dropdown when clicking outside
-		document.addEventListener('click', (e) => {
-			if (!dropdown.contains(e.target) && e.target !== selectorBtn) {
-				dropdown.style.display = 'none';
-			}
-		});
-		
-		// Handle checkbox changes
-		checkboxes.forEach((cb, idx) => {
-			console.log(`Checkbox ${idx}:`, cb.dataset.interface, 'checked:', cb.checked);
-			cb.addEventListener('change', () => {
-				console.log('Checkbox changed:', cb.dataset.interface, 'new state:', cb.checked);
-				updateChart();
-			});
-		});
-		
-		console.log('✅ Step 16: Interface selector setup complete');
-	}
+								<!-- Interface Traffic Realtime (New & Improved) -->
+								<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 lg:col-span-1"
+									style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 
-	console.log('Step 17: Checking document ready state:', document.readyState);
-	
-	// Wait for Chart.js to load
-	function waitForChart(callback, maxAttempts = 50) {
-		let attempts = 0;
-		const checkInterval = setInterval(() => {
-			attempts++;
-			console.log(`Attempt ${attempts}: Checking for Chart.js...`);
-			
-			if (typeof Chart !== 'undefined') {
-				console.log('✅ Chart.js is ready!');
-				clearInterval(checkInterval);
-				callback();
-			} else if (attempts >= maxAttempts) {
-				console.error('❌ Chart.js failed to load after', maxAttempts, 'attempts');
-				clearInterval(checkInterval);
-				showError();
-			}
-		}, 100);
-	}
-	
-	if (document.readyState === 'loading') {
-		console.log('Step 18: Document loading, adding DOMContentLoaded listener');
-		document.addEventListener('DOMContentLoaded', () => {
-			console.log('Step 19: DOMContentLoaded event fired');
-			waitForChart(initChart);
-		});
-	} else {
-		console.log('Step 18: Document already loaded, waiting for Chart.js');
-		waitForChart(initChart);
-	}
-})();
-</script>
-<% } %>
+									<div class="flex items-center justify-between mb-4">
+										<h2 class="text-lg font-semibold text-gray-900">Live Traffic</h2>
+										<% if (typeof interfaces !=='undefined' && interfaces && interfaces.length> 0) {
+											%>
+											<select id="interfaceSelect"
+												class="text-xs border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+												<% interfaces.forEach(function(iface) { %>
+													<option value="<%= iface.name %>">
+														<%= iface.name %>
+													</option>
+													<% }); %>
+											</select>
+											<% } %>
+									</div>
+
+									<% if (typeof interfaces !=='undefined' && interfaces && interfaces.length> 0) { %>
+										<div class="relative h-56 w-full">
+											<canvas id="trafficChart"></canvas>
+											<div id="trafficLoading"
+												class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">
+												<div class="text-center text-gray-500 text-sm">
+													<svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-2"
+														xmlns="http://www.w3.org/2000/svg" fill="none"
+														viewBox="0 0 24 24">
+														<circle class="opacity-25" cx="12" cy="12" r="10"
+															stroke="currentColor" stroke-width="4"></circle>
+														<path class="opacity-75" fill="currentColor"
+															d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+														</path>
+													</svg>
+													Memuat data...
+												</div>
+											</div>
+										</div>
+
+										<div class="grid grid-cols-2 gap-4 mt-4 text-center">
+											<div class="bg-blue-50 rounded-lg p-2 border border-blue-100">
+												<div class="text-xs text-blue-600 font-medium uppercase tracking-wider">
+													Download (RX)</div>
+												<div id="rxSpeed" class="text-lg font-bold text-blue-700">0 bps</div>
+											</div>
+											<div class="bg-green-50 rounded-lg p-2 border border-green-100">
+												<div
+													class="text-xs text-green-600 font-medium uppercase tracking-wider">
+													Upload (TX)</div>
+												<div id="txSpeed" class="text-lg font-bold text-green-700">0 bps</div>
+											</div>
+										</div>
+
+										<script
+											src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+										<script>
+											document.addEventListener('DOMContentLoaded', function () {
+												const ctx = document.getElementById('trafficChart').getContext('2d');
+												const select = document.getElementById('interfaceSelect');
+												const loading = document.getElementById('trafficLoading');
+												const rxDisplay = document.getElementById('rxSpeed');
+												const txDisplay = document.getElementById('txSpeed');
+
+												let chart;
+												let pollInterval;
+												let previousData = { rx: 0, tx: 0 };
+												let lastTime = Date.now();
+
+												// Determine max interface speed for scaling (optional, static 1Gbps for now or dynamic)
+												// For now, let Chart.js auto-scale
+
+												function formatSpeed(bits) {
+													if (bits >= 1000000000) return (bits / 1000000000).toFixed(2) + ' Gbps';
+													if (bits >= 1000000) return (bits / 1000000).toFixed(2) + ' Mbps';
+													if (bits >= 1000) return (bits / 1000).toFixed(2) + ' Kbps';
+													return bits.toFixed(0) + ' bps';
+												}
+
+												function initChart() {
+													chart = new Chart(ctx, {
+														type: 'line',
+														data: {
+															labels: Array(20).fill(''),
+															datasets: [
+																{
+																	label: 'Download (RX)',
+																	data: Array(20).fill(0),
+																	borderColor: '#2563eb', // Blue-600
+																	backgroundColor: 'rgba(37, 99, 235, 0.1)',
+																	borderWidth: 2,
+																	fill: true,
+																	tension: 0.4,
+																	pointRadius: 0
+																},
+																{
+																	label: 'Upload (TX)',
+																	data: Array(20).fill(0),
+																	borderColor: '#16a34a', // Green-600
+																	backgroundColor: 'rgba(22, 163, 74, 0.05)',
+																	borderWidth: 2,
+																	borderDash: [5, 5],
+																	fill: true,
+																	tension: 0.4,
+																	pointRadius: 0
+																}
+															]
+														},
+														options: {
+															responsive: true,
+															maintainAspectRatio: false,
+															animation: { duration: 0 }, // Disable animation for realtime feel
+															interaction: {
+																mode: 'index',
+																intersect: false,
+															},
+															plugins: {
+																legend: { display: false },
+																tooltip: {
+																	callbacks: {
+																		label: function (context) {
+																			return context.dataset.label + ': ' + formatSpeed(context.parsed.y);
+																		}
+																	}
+																}
+															},
+															scales: {
+																y: {
+																	beginAtZero: true,
+																	ticks: {
+																		callback: function (value) {
+																			return formatSpeed(value);
+																		}
+																	},
+																	grid: {
+																		color: 'rgba(0, 0, 0, 0.05)'
+																	}
+																},
+																x: {
+																	display: false
+																}
+															}
+														}
+													});
+												}
+
+												async function updateTraffic() {
+													if (!select) return;
+													const ifaceName = select.value;
+
+													try {
+														const response = await fetch('/api/interface-stats');
+														if (!response.ok) throw new Error('Network error');
+														const data = await response.json();
+
+														const iface = data.find(i => i.name === ifaceName);
+														if (!iface) return;
+
+														const currentTime = Date.now();
+														const timeDiff = (currentTime - lastTime) / 1000; // seconds
+														if (timeDiff <= 0) return;
+
+														// Ensure numeric values
+														const currentRx = parseInt(iface['rx-byte'] || iface.rxByte || 0);
+														const currentTx = parseInt(iface['tx-byte'] || iface.txByte || 0);
+
+														// Calculate speed (bits per second)
+														// (Current Bytes - Previous Bytes) * 8 / Time Difference
+														// Handle counter wrap or initial run where pervious is 0
+														let rxSpeed = 0;
+														let txSpeed = 0;
+
+														if (previousData.rx > 0 && currentRx >= previousData.rx) {
+															rxSpeed = ((currentRx - previousData.rx) * 8) / timeDiff;
+														}
+														if (previousData.tx > 0 && currentTx >= previousData.tx) {
+															txSpeed = ((currentTx - previousData.tx) * 8) / timeDiff;
+														}
+
+														// Update Display
+														rxDisplay.textContent = formatSpeed(rxSpeed);
+														txDisplay.textContent = formatSpeed(txSpeed);
+
+														// Update Chart
+														if (chart) {
+															// Shift old data
+															chart.data.labels.shift();
+															chart.data.labels.push('');
+
+															chart.data.datasets[0].data.shift();
+															chart.data.datasets[0].data.push(rxSpeed);
+
+															chart.data.datasets[1].data.shift();
+															chart.data.datasets[1].data.push(txSpeed);
+
+															chart.update('none'); // Update mode 'none' for performance
+														}
+
+														// Store current as previous
+														previousData.rx = currentRx;
+														previousData.tx = currentTx;
+														lastTime = currentTime;
+
+														// Hide loading once we have data
+														if (loading) loading.style.display = 'none';
+
+													} catch (e) {
+														console.error('Traffic update error:', e);
+													}
+												}
+
+												// Initialize
+												if (typeof Chart !== 'undefined') {
+													initChart();
+													// Initial data fetch immediately, then interval
+													updateTraffic();
+													pollInterval = setInterval(updateTraffic, 3000);
+												} else {
+													console.error('Chart.js not loaded');
+													if (loading) loading.innerHTML = '<span class="text-red-500">Gagal memuat library grafik</span>';
+												}
+
+												// Reset chart data when interface changes
+												select.addEventListener('change', function () {
+													if (loading) loading.style.display = 'flex';
+													previousData = { rx: 0, tx: 0 }; // Reset counter baseline
+													if (chart) {
+														chart.data.datasets[0].data = Array(20).fill(0);
+														chart.data.datasets[1].data = Array(20).fill(0);
+														chart.update();
+													}
+												});
+											});
+										</script>
+										<% } else { %>
+											<div class="h-40 flex flex-col items-center justify-center text-gray-400">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-2"
+													fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+												</svg>
+												<span class="text-sm">Data interface tidak tersedia</span>
+											</div>
+											<% } %>
+								</div>
+	</div>
 
 	<!-- Monitor Pelanggan Trouble -->
-	<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+	<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+		style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="text-lg font-semibold text-gray-900">Monitor Pelanggan Trouble</h2>
-			<a href="/monitoring/maintenance" class="text-sm text-blue-600 hover:text-blue-800">Lihat Semua</a>
+			<a href="/monitoring/trouble" class="text-sm text-blue-600 hover:text-blue-800">Lihat Semua</a>
 		</div>
 		<div class="overflow-x-auto">
 			<table class="min-w-full text-sm">
@@ -1056,65 +562,99 @@
 					</tr>
 				</thead>
 				<tbody>
-					<% if (typeof troubleCustomers !== 'undefined' && troubleCustomers && troubleCustomers.length > 0) { %>
+					<% if (typeof troubleCustomers !=='undefined' && troubleCustomers && troubleCustomers.length> 0) {
+						%>
 						<% troubleCustomers.forEach(function(customer) { %>
-						<tr class="border-b border-gray-100 hover:bg-gray-50">
-							<td class="py-3 pr-4 text-gray-800 font-medium"><%= customer.customer_code || '-' %></td>
-							<td class="py-3 pr-4 text-gray-900"><%= customer.name %></td>
-							<td class="py-3 pr-4 text-gray-600"><%= customer.pppoe_username || '-' %></td>
-							<td class="py-3 pr-4">
-								<% if (customer.connection_type === 'pppoe') { %>
-									<span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800">PPPoE</span>
-								<% } else if (customer.connection_type === 'static_ip') { %>
-									<span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-1 text-xs text-indigo-800">Static IP</span>
+							<tr class="border-b border-gray-100 hover:bg-gray-50">
+								<td class="py-3 pr-4 text-gray-800 font-medium">
+									<%= customer.customer_code || '-' %>
+								</td>
+								<td class="py-3 pr-4 text-gray-900">
+									<%= customer.name %>
+								</td>
+								<td class="py-3 pr-4 text-gray-600">
+									<%= customer.pppoe_username || '-' %>
+								</td>
+								<td class="py-3 pr-4">
+									<% if (customer.connection_type==='pppoe' ) { %>
+										<span
+											class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800">PPPoE</span>
+										<% } else if (customer.connection_type==='static_ip' ) { %>
+											<span
+												class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-1 text-xs text-indigo-800">Static
+												IP</span>
+											<% } else { %>
+												<span
+													class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">
+													<%= customer.connection_type || '-' %>
+												</span>
+												<% } %>
+								</td>
+								<td class="py-3 pr-4 text-gray-600">
+									<%= customer.issue_type || '-' %>
+								</td>
+								<td class="py-3 pr-4">
+									<% if (customer.maintenance_status==='in_progress' ) { %>
+										<span
+											class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Sedang
+											Ditangani</span>
+										<% } else if (customer.maintenance_status==='scheduled' ) { %>
+											<span
+												class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Terjadwal</span>
+											<% } else if (customer.issue_type==='Offline' ) { %>
+												<span
+													class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">🔴
+													Offline</span>
+												<% } else if (customer.issue_type &&
+													customer.issue_type.startsWith('SLA:')) { %>
+													<span
+														class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">⚠️
+														<%= customer.issue_type %>
+													</span>
+													<% } else if (customer.status==='active' ) { %>
+														<span
+															class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Normal</span>
+														<% } else if (customer.status==='suspended' ) { %>
+															<span
+																class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Isolir</span>
+															<% } else { %>
+																<span
+																	class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">
+																	<%= customer.status %>
+																</span>
+																<% } %>
+								</td>
+								<td class="py-3 pr-4 text-gray-600">
+									<% if (customer.trouble_since) { %>
+										<%= new Date(customer.trouble_since).toLocaleString('id-ID', { day: '2-digit' ,
+											month: 'short' , year: 'numeric' , hour: '2-digit' , minute: '2-digit' }) %>
+											<% } else { %>
+												-
+												<% } %>
+								</td>
+							</tr>
+							<% }) %>
 								<% } else { %>
-									<span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800"><%= customer.connection_type || '-' %></span>
-								<% } %>
-							</td>
-							<td class="py-3 pr-4 text-gray-600"><%= customer.issue_type || '-' %></td>
-							<td class="py-3 pr-4">
-								<% if (customer.maintenance_status === 'in_progress') { %>
-									<span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Sedang Ditangani</span>
-								<% } else if (customer.maintenance_status === 'scheduled') { %>
-									<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Terjadwal</span>
-								<% } else if (customer.issue_type === 'Offline') { %>
-									<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">🔴 Offline</span>
-								<% } else if (customer.issue_type && customer.issue_type.startsWith('SLA:')) { %>
-									<span class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">⚠️ <%= customer.issue_type %></span>
-								<% } else if (customer.status === 'active') { %>
-									<span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Normal</span>
-								<% } else if (customer.status === 'suspended') { %>
-									<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Isolir</span>
-								<% } else { %>
-									<span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800"><%= customer.status %></span>
-								<% } %>
-							</td>
-							<td class="py-3 pr-4 text-gray-600">
-								<% if (customer.trouble_since) { %>
-									<%= new Date(customer.trouble_since).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
-								<% } else { %>
-									-
-								<% } %>
-							</td>
-						</tr>
-						<% }) %>
-					<% } else { %>
-						<tr>
-							<td class="py-8 text-center text-gray-500" colspan="7">
-								<div class="flex flex-col items-center">
-									<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-									</svg>
-									<p>Tidak ada pelanggan yang mengalami trouble</p>
-								</div>
-							</td>
-						</tr>
-					<% } %>
+									<tr>
+										<td class="py-8 text-center text-gray-500" colspan="7">
+											<div class="flex flex-col items-center">
+												<svg xmlns="http://www.w3.org/2000/svg"
+													class="h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24"
+													stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+												</svg>
+												<p>Tidak ada pelanggan yang mengalami
+													trouble</p>
+											</div>
+										</td>
+									</tr>
+									<% } %>
 				</tbody>
 			</table>
 		</div>
 	</div>
-</div>
 
-<script>
-// Dashboard scripts
+	<script>
+		// Dashboard scripts

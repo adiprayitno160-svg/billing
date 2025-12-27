@@ -7,24 +7,38 @@ import { Message, MessageMedia } from 'whatsapp-web.js';
 import { WhatsAppService } from './WhatsAppService';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
-import { PrepaidPackageService } from '../prepaid/PrepaidPackageService';
+
 import { PaymentVerificationService } from './PaymentVerificationService';
 import { AIAnomalyDetectionService } from '../billing/AIAnomalyDetectionService';
+import { WiFiManagementService } from '../genieacs/WiFiManagementService';
 
-export interface PurchaseCode {
-    id: number;
-    code: string;
-    customer_id: number;
-    package_id: number;
-    amount: number;
-    status: 'pending' | 'paid' | 'expired' | 'cancelled';
-    expires_at: Date;
-    created_at: Date;
-}
+
 
 export class WhatsAppBotService {
     private static readonly COMMAND_PREFIX = '/';
-    private static readonly CODE_EXPIRY_HOURS = 24;
+
+
+    /**
+     * Validate if sender is a registered customer
+     * Returns customer object if valid, null otherwise (and sends rejection message)
+     */
+    private static async validateCustomer(phone: string): Promise<any | null> {
+        const customer = await this.getCustomerByPhone(phone);
+
+        if (!customer) {
+            await this.sendMessage(
+                phone,
+                '⛔ *AKSES DITOLAK*\n\n' +
+                'Maaf, nomor WhatsApp Anda belum terdaftar di sistem kami.\n\n' +
+                'Menu ini khusus untuk pelanggan terdaftar.\n' +
+                'Silakan hubungi admin/customer service untuk pendaftaran.'
+            );
+            return null;
+        }
+
+        return customer;
+    }
+
 
     /**
      * Initialize bot message handler
@@ -38,13 +52,15 @@ export class WhatsAppBotService {
      * Handle incoming WhatsApp message
      */
     static async handleMessage(message: Message): Promise<void> {
+        let phone = '';
         try {
-            const from = message.from;
+            const from = message.from || '';
+            if (!from) return;
             const body = message.body?.trim() || '';
             const hasMedia = message.hasMedia;
 
             // Extract phone number (remove @c.us)
-            const phone = from.split('@')[0];
+            phone = from.split('@')[0] || '';
 
             console.log(`[WhatsAppBot] Message from ${phone}: ${body.substring(0, 50)}...`);
 
@@ -81,54 +97,29 @@ export class WhatsAppBotService {
      */
     private static async handleMediaMessage(message: Message, phone: string): Promise<void> {
         try {
+            // Validate customer first
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
+
             const media = await message.downloadMedia();
-            
-            // Get customer by phone
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT * FROM customers WHERE phone = ? LIMIT 1',
-                [phone]
-            );
-
-            if (customers.length === 0) {
-                await this.sendMessage(
-                    phone,
-                    '❌ *Pelanggan Tidak Ditemukan*\n\n' +
-                    'Nomor WhatsApp Anda belum terdaftar sebagai pelanggan.\n' +
-                    'Silakan hubungi customer service untuk registrasi.'
-                );
-                return;
-            }
-
-            const customer = customers[0];
 
             // Process payment verification - AI will analyze and match automatically
             await this.sendMessage(phone, '⏳ Sedang menganalisa bukti transfer Anda dengan AI...\nMohon tunggu sebentar.');
 
             const verificationResult = await PaymentVerificationService.verifyPaymentProofAuto(
                 media,
-                customer.id,
-                customer.billing_mode || 'postpaid'
+                customer.id
             );
 
             if (verificationResult.success) {
-                if (verificationResult.type === 'prepaid') {
-                    await this.sendMessage(
-                        phone,
-                        '✅ *Pembayaran Berhasil Diverifikasi!*\n\n' +
-                        `Paket: ${verificationResult.packageName || 'Paket Internet'}\n` +
-                        `Jumlah: Rp ${verificationResult.amount?.toLocaleString('id-ID') || '0'}\n\n` +
-                        'Paket internet Anda akan segera diaktifkan. Terima kasih!'
-                    );
-                } else {
-                    await this.sendMessage(
-                        phone,
-                        '✅ *Pembayaran Berhasil Diverifikasi!*\n\n' +
-                        `Invoice: ${verificationResult.invoiceNumber || '-'}\n` +
-                        `Jumlah: Rp ${verificationResult.amount?.toLocaleString('id-ID') || '0'}\n` +
-                        `Status: ${verificationResult.invoiceStatus || 'Lunas'}\n\n` +
-                        'Terima kasih atas pembayaran Anda!'
-                    );
-                }
+                await this.sendMessage(
+                    phone,
+                    '✅ *Pembayaran Berhasil Diverifikasi!*\n\n' +
+                    `Invoice: ${verificationResult.invoiceNumber || '-'}\n` +
+                    `Jumlah: Rp ${verificationResult.amount?.toLocaleString('id-ID') || '0'}\n` +
+                    `Status: ${verificationResult.invoiceStatus || 'Lunas'}\n\n` +
+                    'Terima kasih atas pembayaran Anda!'
+                );
             } else {
                 await this.sendMessage(
                     phone,
@@ -159,26 +150,40 @@ export class WhatsAppBotService {
 
         if (cmd === '/start' || cmd === '/menu' || cmd === '/help') {
             await this.showMainMenu(phone);
-        } else if (cmd === '/paket' || cmd.startsWith('/paket ')) {
-            await this.showPackages(phone);
-        } else if (cmd.startsWith('/beli ')) {
-            const packageId = parseInt(cmd.split(' ')[1]);
-            if (packageId) {
-                await this.handlePurchase(phone, packageId);
+        } else if (cmd === '/tagihan' || cmd.startsWith('/tagihan')) {
+            await this.showInvoices(phone);
+        } else if (cmd === '/wifi' || cmd === '/ubahwifi') {
+            await this.showWiFiMenu(phone);
+        } else if (cmd.startsWith('/wifi_ssid ')) {
+            const newSSID = command.substring(11).trim();
+            await this.changeWiFiSSID(phone, newSSID);
+        } else if (cmd.startsWith('/wifi_password ')) {
+            const newPassword = command.substring(15).trim();
+            await this.changeWiFiPassword(phone, newPassword);
+        } else if (cmd === '/reboot') {
+            await this.rebootOnt(phone);
+        } else if (cmd.startsWith('/wifi_both ')) {
+            // Format: /wifi_both SSID|Password
+            const parts = command.substring(11).trim().split('|');
+            if (parts.length === 2 && parts[0] && parts[1]) {
+                await this.changeWiFiBoth(phone, parts[0].trim(), parts[1].trim());
             } else {
-                await this.sendMessage(phone, '❌ Format salah. Gunakan: /beli [ID_PAKET]');
+                await this.sendMessage(
+                    phone,
+                    '❌ *Format salah!*\n\n' +
+                    'Gunakan format: /wifi_both SSID|Password\n' +
+                    'Contoh: /wifi_both MyWiFi|password123'
+                );
             }
-        } else if (cmd === '/status' || cmd.startsWith('/status ')) {
-            await this.showPurchaseStatus(phone);
         } else {
             await this.sendMessage(
                 phone,
                 '❌ *Command tidak dikenal*\n\n' +
                 'Gunakan salah satu command berikut:\n' +
                 '*/menu* - Tampilkan menu utama\n' +
-                '*/paket* - Lihat daftar paket\n' +
-                '*/beli [ID]* - Beli paket\n' +
-                '*/status* - Cek status pembelian'
+                '*/tagihan* - Lihat tagihan\n' +
+                '*/wifi* - Ubah WiFi\n' +
+                '*/reboot* - Restart Perangkat'
             );
         }
     }
@@ -189,27 +194,14 @@ export class WhatsAppBotService {
     private static async handleMenuCommand(message: Message, phone: string, command: string): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
-        // Get customer billing mode
-        const [customers] = await databasePool.query<RowDataPacket[]>(
-            'SELECT billing_mode FROM customers WHERE phone = ? LIMIT 1',
-            [phone]
-        );
-        const billingMode = customers.length > 0 ? customers[0].billing_mode : 'postpaid';
-
-        if (cmd === '1') {
-            if (billingMode === 'prepaid') {
-                await this.showPackages(phone);
-            } else {
-                await this.showInvoices(phone);
-            }
-        } else if (cmd === '2' || cmd === 'status' || cmd === 'cek status') {
-            await this.showPurchaseStatus(phone);
-        } else if (cmd === '3' || cmd === 'bantuan' || cmd === 'help') {
-            await this.showHelp(phone);
-        } else if (cmd === 'paket' || cmd === 'paket internet') {
-            await this.showPackages(phone);
-        } else if (cmd === 'tagihan' || cmd === 'invoice') {
+        if (cmd === '1' || cmd === 'tagihan' || cmd === 'invoice') {
             await this.showInvoices(phone);
+        } else if (cmd === '2' || cmd === 'bantuan' || cmd === 'help') {
+            await this.showHelp(phone);
+        } else if (cmd === '3' || cmd === 'wifi' || cmd === 'ubahwifi') {
+            await this.showWiFiMenu(phone);
+        } else if (cmd === '4' || cmd === 'reboot' || cmd === 'restart') {
+            await this.rebootOnt(phone);
         } else {
             await this.showMainMenu(phone);
         }
@@ -219,7 +211,7 @@ export class WhatsAppBotService {
      * Check if command is menu navigation
      */
     private static isMenuCommand(command: string): boolean {
-        const menuCommands = ['1', '2', '3', 'paket', 'tagihan', 'invoice', 'status', 'bantuan', 'help', 'menu'];
+        const menuCommands = ['1', '2', '3', '4', 'tagihan', 'invoice', 'bantuan', 'help', 'menu', 'wifi', 'ubahwifi', 'reboot', 'restart'];
         return menuCommands.includes(command.toLowerCase());
     }
 
@@ -227,248 +219,32 @@ export class WhatsAppBotService {
      * Show main menu
      */
     private static async showMainMenu(phone: string): Promise<void> {
-        // Get customer info to show relevant menu
-        const [customers] = await databasePool.query<RowDataPacket[]>(
-            'SELECT billing_mode FROM customers WHERE phone = ? LIMIT 1',
-            [phone]
-        );
+        // Validate customer access first
+        const customer = await this.validateCustomer(phone);
+        if (!customer) return;
 
-        const billingMode = customers.length > 0 ? customers[0].billing_mode : 'postpaid';
+        const menu = `🏠 *MENU UTAMA*
+Hai *${customer.name || 'Pelanggan'}*,
 
-        let menu = `🤖 *BOT PEMBAYARAN INTERNET*
-
-Selamat datang! Pilih menu:
-
-`;
-
-        if (billingMode === 'prepaid') {
-            menu += `1️⃣ *Paket Internet* - Lihat daftar paket
-2️⃣ *Status Pembelian* - Cek status pembelian
-3️⃣ *Bantuan* - Informasi bantuan
+1️⃣ *Tagihan* - Lihat tagihan yang belum dibayar
+2️⃣ *Bantuan* - Informasi bantuan
+3️⃣ *WiFi* - Ubah nama WiFi & password
+4️⃣ *Reboot* - Restart Perangkat (ONT)
 
 *Cara Menggunakan:*
-• Ketik angka menu (1, 2, 3) atau
-• Ketik command: /paket, /status, /help
-
-*Atau gunakan command:*
-/paket - Lihat paket
-/beli [ID] - Beli paket
-/status - Cek status`;
-        } else {
-            menu += `1️⃣ *Tagihan* - Lihat tagihan yang belum dibayar
-2️⃣ *Status Pembayaran* - Cek status pembayaran
-3️⃣ *Bantuan* - Informasi bantuan
-
-*Cara Menggunakan:*
-• Ketik angka menu (1, 2, 3) atau
-• Ketik command: /tagihan, /status, /help
+• Ketik angka menu (1, 2, 3, 4) atau
+• Ketik command: /tagihan, /help, /wifi, /reboot
 
 *Atau gunakan command:*
 /tagihan - Lihat tagihan
-/status - Cek status
+/wifi - Ubah WiFi
+/reboot - Reboot ONT
+/help - Bantuan
 
 *💡 TIP:*
 Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
-        }
 
         await this.sendMessage(phone, menu);
-    }
-
-    /**
-     * Show available packages
-     */
-    private static async showPackages(phone: string): Promise<void> {
-        try {
-            const packages = await PrepaidPackageService.getActivePackages();
-
-            if (packages.length === 0) {
-                await this.sendMessage(phone, '⚠️ Tidak ada paket yang tersedia saat ini.');
-                return;
-            }
-
-            let message = '📦 *DAFTAR PAKET INTERNET*\n\n';
-
-            packages.forEach((pkg, index) => {
-                message += `${index + 1}. *${pkg.name}*\n`;
-                message += `   💨 ${pkg.download_mbps} Mbps / ${pkg.upload_mbps} Mbps\n`;
-                message += `   ⏱️ ${pkg.duration_days} hari\n`;
-                message += `   💰 Rp ${parseFloat(pkg.price.toString()).toLocaleString('id-ID')}\n`;
-                if (pkg.description) {
-                    message += `   📝 ${pkg.description.substring(0, 50)}...\n`;
-                }
-                message += `   🆔 ID: ${pkg.id}\n\n`;
-            });
-
-            message += '*Cara Membeli:*\n';
-            message += 'Ketik: /beli [ID_PAKET]\n';
-            message += 'Contoh: /beli 1';
-
-            await this.sendMessage(phone, message);
-
-        } catch (error: any) {
-            console.error('[WhatsAppBot] Error showing packages:', error);
-            await this.sendMessage(phone, '❌ Gagal memuat daftar paket. Silakan coba lagi.');
-        }
-    }
-
-    /**
-     * Handle purchase
-     */
-    private static async handlePurchase(phone: string, packageId: number): Promise<void> {
-        try {
-            // Get customer by phone
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT * FROM customers WHERE phone = ? LIMIT 1',
-                [phone]
-            );
-
-            if (customers.length === 0) {
-                await this.sendMessage(
-                    phone,
-                    '❌ *Pelanggan Tidak Ditemukan*\n\n' +
-                    'Nomor WhatsApp Anda belum terdaftar sebagai pelanggan.\n' +
-                    'Silakan hubungi customer service untuk registrasi.'
-                );
-                return;
-            }
-
-            const customer = customers[0];
-
-            // Get package
-            const packageData = await PrepaidPackageService.getPackageById(packageId);
-            if (!packageData) {
-                await this.sendMessage(phone, '❌ Paket tidak ditemukan.');
-                return;
-            }
-
-            // Generate purchase code
-            const purchaseCode = await this.generatePurchaseCode(
-                customer.id,
-                packageId,
-                parseFloat(packageData.price.toString())
-            );
-
-            // Get payment info
-            const [paymentSettings] = await databasePool.query<RowDataPacket[]>(
-                `SELECT setting_value FROM system_settings WHERE setting_key = 'payment_bank_account' LIMIT 1`
-            );
-            const bankAccount = paymentSettings.length > 0 ? paymentSettings[0].setting_value : 'Silakan hubungi admin';
-
-            const message = `✅ *KODE PEMBELIAN BERHASIL DIBUAT*
-
-📦 *Paket:* ${packageData.name}
-💰 *Harga:* Rp ${parseFloat(packageData.price.toString()).toLocaleString('id-ID')}
-⏱️ *Durasi:* ${packageData.duration_days} hari
-💨 *Speed:* ${packageData.download_mbps} Mbps / ${packageData.upload_mbps} Mbps
-
-🔑 *KODE PEMBELIAN:*
-*${purchaseCode.code}*
-
-📋 *CARA PEMBAYARAN:*
-1. Transfer ke rekening:
-   ${bankAccount}
-
-2. *PENTING:* Cantumkan kode pembelian di keterangan transfer:
-   *${purchaseCode.code}*
-
-3. Setelah transfer, kirim bukti transfer (foto) ke chat ini
-
-⏰ *Kode berlaku:* 24 jam
-📅 *Expired:* ${new Date(purchaseCode.expires_at).toLocaleString('id-ID')}
-
-*Catatan:* Jika tidak melakukan pembayaran dalam 24 jam, kode akan expired.`;
-
-            await this.sendMessage(phone, message);
-
-        } catch (error: any) {
-            console.error('[WhatsAppBot] Error handling purchase:', error);
-            await this.sendMessage(phone, '❌ Gagal membuat kode pembelian. Silakan coba lagi.');
-        }
-    }
-
-    /**
-     * Generate purchase code
-     */
-    private static async generatePurchaseCode(
-        customerId: number,
-        packageId: number,
-        amount: number
-    ): Promise<PurchaseCode> {
-        // Generate unique code: PREFIX + TIMESTAMP + RANDOM
-        const prefix = 'PKT';
-        const timestamp = Date.now().toString().slice(-8);
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        const code = `${prefix}${timestamp}${random}`;
-
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + this.CODE_EXPIRY_HOURS);
-
-        const [result] = await databasePool.query<ResultSetHeader>(
-            `INSERT INTO purchase_codes 
-             (code, customer_id, package_id, amount, status, expires_at, created_at)
-             VALUES (?, ?, ?, ?, 'pending', ?, NOW())`,
-            [code, customerId, packageId, amount, expiresAt]
-        );
-
-        return {
-            id: result.insertId,
-            code,
-            customer_id: customerId,
-            package_id: packageId,
-            amount,
-            status: 'pending',
-            expires_at: expiresAt,
-            created_at: new Date()
-        };
-    }
-
-    /**
-     * Show purchase status
-     */
-    private static async showPurchaseStatus(phone: string): Promise<void> {
-        try {
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id FROM customers WHERE phone = ? LIMIT 1',
-                [phone]
-            );
-
-            if (customers.length === 0) {
-                await this.sendMessage(phone, '❌ Pelanggan tidak ditemukan.');
-                return;
-            }
-
-            const [codes] = await databasePool.query<RowDataPacket[]>(
-                `SELECT pc.*, pp.name as package_name 
-                 FROM purchase_codes pc
-                 JOIN prepaid_packages pp ON pc.package_id = pp.id
-                 WHERE pc.customer_id = ?
-                 ORDER BY pc.created_at DESC
-                 LIMIT 5`,
-                [customers[0].id]
-            );
-
-            if (codes.length === 0) {
-                await this.sendMessage(phone, '📭 Anda belum memiliki riwayat pembelian.');
-                return;
-            }
-
-            let message = '📋 *RIWAYAT PEMBELIAN*\n\n';
-
-            codes.forEach((code, index) => {
-                const statusEmoji = code.status === 'paid' ? '✅' : code.status === 'expired' ? '⏰' : '⏳';
-                message += `${index + 1}. ${statusEmoji} *${code.code}*\n`;
-                message += `   Paket: ${code.package_name}\n`;
-                message += `   Jumlah: Rp ${parseFloat(code.amount.toString()).toLocaleString('id-ID')}\n`;
-                message += `   Status: ${this.getStatusText(code.status)}\n`;
-                message += `   Tanggal: ${new Date(code.created_at).toLocaleString('id-ID')}\n\n`;
-            });
-
-            await this.sendMessage(phone, message);
-
-        } catch (error: any) {
-            console.error('[WhatsAppBot] Error showing status:', error);
-            await this.sendMessage(phone, '❌ Gagal memuat status. Silakan coba lagi.');
-        }
     }
 
     /**
@@ -476,60 +252,11 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
      */
     private static async showInvoices(phone: string): Promise<void> {
         try {
-            // Normalize phone number for database query
-            // Remove @c.us if present, and try multiple formats
-            let normalizedPhone = phone.replace('@c.us', '').trim();
-            
-            // Try to find customer with different phone formats
-            let customer: any = null;
-            
-            // Try exact match first
-            const [customersExact] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, billing_mode, phone FROM customers WHERE phone = ? LIMIT 1',
-                [normalizedPhone]
-            );
-            
-            if (customersExact.length > 0) {
-                customer = customersExact[0];
-            } else {
-                // Try with leading 0 removed (if starts with 62)
-                if (normalizedPhone.startsWith('62')) {
-                    const phoneWithZero = '0' + normalizedPhone.substring(2);
-                    const [customersZero] = await databasePool.query<RowDataPacket[]>(
-                        'SELECT id, billing_mode, phone FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                        [phoneWithZero, normalizedPhone]
-                    );
-                    if (customersZero.length > 0) {
-                        customer = customersZero[0];
-                    }
-                } else if (normalizedPhone.startsWith('0')) {
-                    // Try with 62 prefix
-                    const phoneWith62 = '62' + normalizedPhone.substring(1);
-                    const [customers62] = await databasePool.query<RowDataPacket[]>(
-                        'SELECT id, billing_mode, phone FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                        [phoneWith62, normalizedPhone]
-                    );
-                    if (customers62.length > 0) {
-                        customer = customers62[0];
-                    }
-                }
-            }
+            // Validate customer access first
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
 
-            if (!customer) {
-                await this.sendMessage(phone, '❌ Pelanggan tidak ditemukan.\n\nNomor WhatsApp Anda belum terdaftar sebagai pelanggan.\nSilakan hubungi customer service untuk registrasi.');
-                return;
-            }
 
-            if (customer.billing_mode !== 'postpaid') {
-                await this.sendMessage(
-                    phone,
-                    'ℹ️ Fitur ini untuk pelanggan postpaid.\n\n' +
-                    'Untuk pelanggan prepaid, gunakan:\n' +
-                    '*/paket* - Lihat paket\n' +
-                    '*/beli [ID]* - Beli paket'
-                );
-                return;
-            }
 
             // Get unpaid invoices
             // Use COALESCE to handle NULL values safely
@@ -562,7 +289,7 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
                     const remaining = parseFloat(String(invoice.remaining_amount || 0));
                     const total = parseFloat(String(invoice.total_amount || 0));
                     const paid = parseFloat(String(invoice.paid_amount || 0));
-                    
+
                     // Format due date safely
                     let dueDate = '-';
                     if (invoice.due_date) {
@@ -579,16 +306,16 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
                             console.warn(`[WhatsAppBot] Error formatting date for invoice ${invoice.id}:`, dateError);
                         }
                     }
-                    
+
                     let statusText = 'Belum Dibayar';
                     if (invoice.status === 'partial') {
                         statusText = 'Sebagian Dibayar';
                     } else if (invoice.status === 'overdue') {
                         statusText = 'Terlambat';
                     }
-                    
+
                     const invoiceNumber = invoice.invoice_number || `INV-${invoice.id || 'N/A'}`;
-                    
+
                     message += `${index + 1}. *${invoiceNumber}*\n`;
                     message += `   💰 Total: Rp ${total.toLocaleString('id-ID')}\n`;
                     message += `   💵 Dibayar: Rp ${paid.toLocaleString('id-ID')}\n`;
@@ -620,7 +347,7 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
                 phone: phone
             });
             await this.sendMessage(
-                phone, 
+                phone,
                 '❌ Gagal memuat tagihan.\n\n' +
                 'Silakan coba lagi atau hubungi customer service.\n' +
                 'Error: ' + (error.message || 'Unknown error')
@@ -628,30 +355,26 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
         }
     }
 
-    /**
-     * Show help
-     */
     private static async showHelp(phone: string): Promise<void> {
-        const help = `📖 *BANTUAN*
+        // Validate customer access first
+        const customer = await this.validateCustomer(phone);
+        if (!customer) return;
 
-*Cara Membayar (Postpaid):*
+        const help = `📖 *BANTUAN*
+Hai ${customer.name},
+
+*Cara Membayar:*
 1. Ketik: /tagihan (untuk lihat tagihan)
 2. Transfer sesuai jumlah tagihan
 3. Kirim foto bukti transfer ke chat ini
 4. Sistem akan verifikasi otomatis dengan AI
 
-*Cara Membeli Paket (Prepaid):*
-1. Ketik: /paket (untuk lihat daftar)
-2. Ketik: /beli [ID_PAKET]
-3. Transfer sesuai instruksi
-4. Kirim foto bukti transfer ke chat ini
-
 *Command yang Tersedia:*
 /menu - Menu utama
-/paket - Daftar paket (prepaid)
-/beli [ID] - Beli paket (prepaid)
-/tagihan - Lihat tagihan (postpaid)
-/status - Cek status
+/tagihan - Lihat tagihan
+/wifi - Ubah WiFi
+/reboot - Reboot ONT
+/help - Bantuan
 
 *Pertanyaan?*
 Hubungi customer service untuk bantuan lebih lanjut.`;
@@ -660,17 +383,364 @@ Hubungi customer service untuk bantuan lebih lanjut.`;
     }
 
     /**
-     * Get status text
+     * Show WiFi menu
      */
-    private static getStatusText(status: string): string {
-        const statusMap: { [key: string]: string } = {
-            'pending': 'Menunggu Pembayaran',
-            'paid': 'Sudah Dibayar',
-            'expired': 'Kedaluwarsa',
-            'cancelled': 'Dibatalkan'
-        };
-        return statusMap[status] || status;
+    private static async showWiFiMenu(phone: string): Promise<void> {
+        // Validate customer access first
+        const customer = await this.validateCustomer(phone);
+        if (!customer) return;
+
+        const menu = `📶 *UBAH WIFI*
+        
+Hai ${customer.name},
+
+Anda dapat mengubah nama WiFi (SSID) dan/atau password WiFi Anda.
+
+*Command yang tersedia:*
+
+1️⃣ *Ubah SSID saja*
+   /wifi_ssid [nama_baru]
+   Contoh: /wifi_ssid MyHomeWiFi
+
+2️⃣ *Ubah Password saja*
+   /wifi_password [password_baru]
+   Contoh: /wifi_password mypassword123
+
+3️⃣ *Ubah SSID dan Password*
+   /wifi_both [SSID]|[Password]
+   Contoh: /wifi_both MyHomeWiFi|mypassword123
+
+*⚠️ Catatan Penting:*
+• Password minimal 8 karakter, maksimal 63 karakter
+• Perubahan akan diterapkan dalam beberapa saat
+• Perangkat WiFi Anda mungkin restart otomatis
+• Setelah perubahan, sambungkan ulang dengan kredensial baru
+
+Ketik /menu untuk kembali ke menu utama.`;
+
+        await this.sendMessage(phone, menu);
     }
+
+    /**
+     * Reboot ONT
+     */
+    private static async rebootOnt(phone: string): Promise<void> {
+        // Validate customer access
+        const customer = await this.validateCustomer(phone);
+        if (!customer) return;
+
+        await this.sendMessage(phone, '⏳ Sedang memproses permintaan reboot ONT...');
+
+        const wifiService = new WiFiManagementService();
+        const result = await wifiService.rebootCustomerDevice(customer.id);
+
+        if (result.success) {
+            await this.sendMessage(
+                phone,
+                '✅ *Reboot Berhasil!*\n\n' +
+                'Perangkat ONT sedang direstart.\n' +
+                'Internet akan terputus sementara (sekitar 2-3 menit).\n' +
+                'Silakan tunggu hingga lampu indikator normal kembali.'
+            );
+        } else {
+            await this.sendMessage(
+                phone,
+                `❌ *Gagal Reboot*\n\n` +
+                `Error: ${result.message}\n\n` +
+                `Silakan coba lagi atau hubungi customer service.`
+            );
+        }
+    }
+
+    /**
+     * Change WiFi SSID only
+     */
+    private static async changeWiFiSSID(phone: string, newSSID: string): Promise<void> {
+        try {
+            if (!newSSID || newSSID.length === 0) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *SSID tidak boleh kosong!*\n\n' +
+                    'Gunakan format: /wifi_ssid [nama_baru]\n' +
+                    'Contoh: /wifi_ssid MyHomeWiFi'
+                );
+                return;
+            }
+
+            // Validate customer access
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
+
+            // Get device ID
+            const wifiService = new WiFiManagementService();
+            const deviceId = await wifiService.getCustomerDeviceId(customer.id);
+
+            if (!deviceId) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *Device tidak ditemukan*\n\n' +
+                    'Akun Anda belum terhubung dengan perangkat WiFi.\n' +
+                    'Silakan hubungi customer service.'
+                );
+                return;
+            }
+
+            await this.sendMessage(phone, '⏳ Sedang memproses perubahan SSID WiFi...');
+
+            // Change WiFi SSID
+            const result = await wifiService.changeWiFiCredentials(deviceId, newSSID, undefined);
+
+            // Save request to database
+            await wifiService.saveWiFiChangeRequest({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: phone,
+                deviceId: deviceId,
+                newSSID: newSSID,
+                requestedAt: new Date(),
+                status: result.success ? 'completed' : 'failed',
+                errorMessage: result.success ? undefined : result.message
+            });
+
+            if (result.success) {
+                await this.sendMessage(
+                    phone,
+                    `✅ *SSID WiFi Berhasil Diubah!*\n\n` +
+                    `SSID Baru: *${newSSID}*\n\n` +
+                    `Perubahan akan diterapkan dalam beberapa saat.\n` +
+                    `Silakan sambungkan ulang perangkat Anda dengan SSID baru.`
+                );
+            } else {
+                await this.sendMessage(
+                    phone,
+                    `❌ *Gagal Mengubah SSID*\n\n` +
+                    `Error: ${result.message}\n\n` +
+                    `Silakan coba lagi atau hubungi customer service.`
+                );
+            }
+
+        } catch (error: any) {
+            console.error('[WhatsAppBot] Error changing WiFi SSID:', error);
+            await this.sendMessage(
+                phone,
+                '❌ Terjadi kesalahan saat mengubah SSID WiFi.\n' +
+                'Silakan coba lagi atau hubungi customer service.'
+            );
+        }
+    }
+
+    /**
+     * Change WiFi Password only
+     */
+    private static async changeWiFiPassword(phone: string, newPassword: string): Promise<void> {
+        try {
+            if (!newPassword || newPassword.length < 8) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *Password tidak valid!*\n\n' +
+                    'Password minimal 8 karakter.\n\n' +
+                    'Gunakan format: /wifi_password [password_baru]\n' +
+                    'Contoh: /wifi_password mypassword123'
+                );
+                return;
+            }
+
+            // Validate customer access
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
+
+            // Get device ID
+            const wifiService = new WiFiManagementService();
+            const deviceId = await wifiService.getCustomerDeviceId(customer.id);
+
+            if (!deviceId) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *Device tidak ditemukan*\n\n' +
+                    'Akun Anda belum terhubung dengan perangkat WiFi.\n' +
+                    'Silakan hubungi customer service.'
+                );
+                return;
+            }
+
+            await this.sendMessage(phone, '⏳ Sedang memproses perubahan password WiFi...');
+
+            // Change WiFi Password
+            const result = await wifiService.changeWiFiCredentials(deviceId, undefined, newPassword);
+
+            // Save request to database
+            await wifiService.saveWiFiChangeRequest({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: phone,
+                deviceId: deviceId,
+                newPassword: newPassword,
+                requestedAt: new Date(),
+                status: result.success ? 'completed' : 'failed',
+                errorMessage: result.success ? undefined : result.message
+            });
+
+            if (result.success) {
+                await this.sendMessage(
+                    phone,
+                    `✅ *Password WiFi Berhasil Diubah!*\n\n` +
+                    `Password Baru: *${newPassword}*\n\n` +
+                    `⚠️ PENTING: Simpan password ini dengan aman!\n\n` +
+                    `Perubahan akan diterapkan dalam beberapa saat.\n` +
+                    `Silakan sambungkan ulang perangkat Anda dengan password baru.`
+                );
+            } else {
+                await this.sendMessage(
+                    phone,
+                    `❌ *Gagal Mengubah Password*\n\n` +
+                    `Error: ${result.message}\n\n` +
+                    `Silakan coba lagi atau hubungi customer service.`
+                );
+            }
+
+        } catch (error: any) {
+            console.error('[WhatsAppBot] Error changing WiFi password:', error);
+            await this.sendMessage(
+                phone,
+                '❌ Terjadi kesalahan saat mengubah password WiFi.\n' +
+                'Silakan coba lagi atau hubungi customer service.'
+            );
+        }
+    }
+
+    /**
+     * Change both WiFi SSID and Password
+     */
+    private static async changeWiFiBoth(phone: string, newSSID: string, newPassword: string): Promise<void> {
+        try {
+            if (!newSSID || newSSID.length === 0) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *SSID tidak boleh kosong!*'
+                );
+                return;
+            }
+
+            if (!newPassword || newPassword.length < 8) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *Password tidak valid!*\n\n' +
+                    'Password minimal 8 karakter.'
+                );
+                return;
+            }
+
+            // Validate customer access
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
+
+            // Get device ID
+            const wifiService = new WiFiManagementService();
+            const deviceId = await wifiService.getCustomerDeviceId(customer.id);
+
+            if (!deviceId) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *Device tidak ditemukan*\n\n' +
+                    'Akun Anda belum terhubung dengan perangkat WiFi.\n' +
+                    'Silakan hubungi customer service.'
+                );
+                return;
+            }
+
+            await this.sendMessage(phone, '⏳ Sedang memproses perubahan SSID dan Password WiFi...');
+
+            // Change both
+            const result = await wifiService.changeWiFiCredentials(deviceId, newSSID, newPassword);
+
+            // Save request to database
+            await wifiService.saveWiFiChangeRequest({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: phone,
+                deviceId: deviceId,
+                newSSID: newSSID,
+                newPassword: newPassword,
+                requestedAt: new Date(),
+                status: result.success ? 'completed' : 'failed',
+                errorMessage: result.success ? undefined : result.message
+            });
+
+            if (result.success) {
+                await this.sendMessage(
+                    phone,
+                    `✅ *WiFi Berhasil Diubah!*\n\n` +
+                    `SSID Baru: *${newSSID}*\n` +
+                    `Password Baru: *${newPassword}*\n\n` +
+                    `⚠️ PENTING: Simpan kredensial ini dengan aman!\n\n` +
+                    `Perubahan akan diterapkan dalam beberapa saat.\n` +
+                    `Silakan sambungkan ulang perangkat Anda dengan kredensial baru.`
+                );
+            } else {
+                await this.sendMessage(
+                    phone,
+                    `❌ *Gagal Mengubah WiFi*\n\n` +
+                    `Error: ${result.message}\n\n` +
+                    `Silakan coba lagi atau hubungi customer service.`
+                );
+            }
+
+        } catch (error: any) {
+            console.error('[WhatsAppBot] Error changing WiFi credentials:', error);
+            await this.sendMessage(
+                phone,
+                '❌ Terjadi kesalahan saat mengubah WiFi.\n' +
+                'Silakan coba lagi atau hubungi customer service.'
+            );
+        }
+    }
+
+    /**
+     * Get customer by phone number (helper)
+     */
+    private static async getCustomerByPhone(phone: string): Promise<any | null> {
+        try {
+            let normalizedPhone = phone.replace('@c.us', '').trim();
+
+            // Try exact match first
+            const [customersExact] = await databasePool.query<RowDataPacket[]>(
+                'SELECT * FROM customers WHERE phone = ? LIMIT 1',
+                [normalizedPhone]
+            );
+
+            if (customersExact.length > 0) {
+                return customersExact[0];
+            }
+
+            // Try with leading 0 removed (if starts with 62)
+            if (normalizedPhone.startsWith('62')) {
+                const phoneWithZero = '0' + normalizedPhone.substring(2);
+                const [customersZero] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
+                    [phoneWithZero, normalizedPhone]
+                );
+                if (customersZero.length > 0) {
+                    return customersZero[0];
+                }
+            } else if (normalizedPhone.startsWith('0')) {
+                // Try with 62 prefix
+                const phoneWith62 = '62' + normalizedPhone.substring(1);
+                const [customers62] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
+                    [phoneWith62, normalizedPhone]
+                );
+                if (customers62.length > 0) {
+                    return customers62[0];
+                }
+            }
+
+            return null;
+        } catch (error: any) {
+            console.error('[WhatsAppBot] Error getting customer by phone:', error);
+            return null;
+        }
+    }
+
 
     /**
      * Send message helper

@@ -22,7 +22,9 @@
     "deploy": "npm run build && pm2 reload billing-app",
     "test:bot": "node test-bot-response.js",
     "rebuild": "npm run build",
-    "rebuild:restart": "npm run build && npm run pm2:restart"
+    "rebuild:restart": "npm run build && npm run pm2:restart",
+    "monitoring:init": "ts-node src/scripts/initNetworkMonitoring.ts",
+    "monitoring:daemon": "ts-node src/scripts/monitoringDaemon.ts"
   },
   "keywords": [],
   "author": "",

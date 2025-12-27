@@ -1,0 +1,626 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WhatsAppService = void 0;
+const whatsapp_web_js_1 = require("whatsapp-web.js");
+// @ts-ignore - qrcode-terminal doesn't have type definitions
+const qrcode = __importStar(require("qrcode-terminal"));
+const pool_1 = require("../../db/pool");
+class WhatsAppService {
+    /**
+     * Initialize WhatsApp client
+     */
+    static async initialize() {
+        if (this.isInitialized) {
+            console.log('WhatsApp service already initialized');
+            return;
+        }
+        if (this.isInitializing) {
+            console.log('WhatsApp service is already in the process of initializing');
+            return;
+        }
+        try {
+            this.isInitializing = true;
+            console.log('📱 Initializing WhatsApp Business service...');
+            console.log(`   Session path: ${this.sessionPath}`);
+            // Check if puppeteer is available
+            try {
+                const puppeteer = require('puppeteer');
+                console.log('✅ Puppeteer loaded successfully');
+            }
+            catch (puppeteerError) {
+                console.error('❌ Puppeteer not available:', puppeteerError);
+                throw new Error('Puppeteer is required for WhatsApp service');
+            }
+            console.log('⏳ Creating WhatsApp client...');
+            this.client = new whatsapp_web_js_1.Client({
+                authStrategy: new whatsapp_web_js_1.LocalAuth({
+                    dataPath: this.sessionPath
+                }),
+                puppeteer: {
+                    headless: true,
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
+                    ]
+                }
+            });
+            console.log('✅ WhatsApp client created');
+            // QR Code event
+            this.client.on('qr', (qr) => {
+                console.log('📱 WhatsApp QR Code generated. Scan with your phone:');
+                qrcode.generate(qr, { small: true });
+                console.log('\n🌐 QR Code stored for web access');
+                console.log(`   QR Code length: ${qr.length} characters`);
+                // Store QR code for API access
+                this.currentQRCode = qr;
+                this.isReady = false;
+                this.isAuthenticated = false;
+                console.log('✅ QR Code ready for binding');
+            });
+            // Ready event
+            this.client.on('ready', () => {
+                console.log('✅ WhatsApp client is ready!');
+                this.isReady = true;
+                this.isAuthenticated = true;
+                this.currentQRCode = null; // Clear QR code after ready
+                this.reconnectAttempts = 0;
+            });
+            // Authentication event
+            this.client.on('authenticated', () => {
+                console.log('✅ WhatsApp authenticated successfully');
+                this.isAuthenticated = true;
+                this.currentQRCode = null; // Clear QR code after authenticated
+            });
+            // Authentication failure event
+            this.client.on('auth_failure', (msg) => {
+                console.error('❌ WhatsApp authentication failed:', msg);
+                this.isReady = false;
+                this.isAuthenticated = false;
+                // Don't clear QR code on auth failure, might need to regenerate
+                // this.currentQRCode = null;
+            });
+            // Disconnected event
+            this.client.on('disconnected', (reason) => {
+                console.log('⚠️ WhatsApp client disconnected:', reason);
+                this.isReady = false;
+                this.isAuthenticated = false;
+                this.currentQRCode = null;
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`🔄 Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                    setTimeout(() => {
+                        this.initialize().catch(err => {
+                            console.error('Failed to reconnect WhatsApp:', err);
+                        });
+                    }, 5000);
+                }
+                else {
+                    console.error('❌ Max reconnection attempts reached. Please restart the server.');
+                }
+            });
+            // Message event (for receiving messages)
+            this.client.on('message', async (message) => {
+                // Handle incoming messages via bot service
+                try {
+                    const { WhatsAppBotService } = await Promise.resolve().then(() => __importStar(require('./WhatsAppBotService')));
+                    await WhatsAppBotService.handleMessage(message);
+                }
+                catch (error) {
+                    console.error('[WhatsAppService] Error handling bot message:', error);
+                }
+            });
+            // Initialize the client
+            console.log('⏳ Calling client.initialize()...');
+            console.log('   This may take 30-60 seconds...');
+            // Set a timeout for initialization
+            const initTimeout = setTimeout(() => {
+                if (!this.isInitialized) {
+                    console.warn('⚠️ client.initialize() is taking longer than 60 seconds.');
+                    console.warn('   This might indicate:');
+                    console.warn('   - Puppeteer/Chromium download in progress');
+                    console.warn('   - Network connectivity issues');
+                    console.warn('   - Firewall blocking Chromium');
+                }
+            }, 60000);
+            await this.client.initialize();
+            clearTimeout(initTimeout);
+            console.log('✅ client.initialize() completed!');
+            this.isInitialized = true;
+            this.isInitializing = false;
+            // Wait a bit for QR code to be generated (if needed)
+            // QR code will be generated automatically via 'qr' event if not authenticated
+            console.log('⏳ Waiting for authentication or QR code generation...');
+            console.log('   - If you have an existing session, it will auto-authenticate');
+            console.log('   - If this is first time, QR code will be generated within 5-10 seconds');
+        }
+        catch (error) {
+            this.isInitializing = false;
+            this.isInitialized = false;
+            console.error('❌ Failed to initialize WhatsApp service:');
+            console.error('   Error:', error.message || error);
+            console.error('   Stack:', error.stack);
+            // Provide helpful error messages
+            if (error.message && error.message.includes('Could not find Chrome')) {
+                console.error('\n⚠️ SOLUTION: Chromium not found. Make sure puppeteer is properly installed:');
+                console.error('   Run: npm install puppeteer');
+            }
+            else if (error.message && error.message.includes('Protocol error')) {
+                console.error('\n⚠️ SOLUTION: Browser connection issue. Try:');
+                console.error('   1. Delete whatsapp-session folder');
+                console.error('   2. Restart the server');
+            }
+            throw error;
+        }
+    }
+    /**
+     * Check if WhatsApp client is ready
+     */
+    static isClientReady() {
+        return this.isReady && this.client !== null;
+    }
+    /**
+     * Get client status
+     */
+    static getStatus() {
+        return {
+            ready: this.isReady,
+            initialized: this.isInitialized,
+            initializing: this.isInitializing,
+            authenticated: this.isAuthenticated,
+            hasQRCode: this.currentQRCode !== null
+        };
+    }
+    /**
+     * Get current QR code
+     */
+    static getQRCode() {
+        return this.currentQRCode;
+    }
+    /**
+     * Regenerate QR code by destroying and reinitializing client
+     */
+    static async regenerateQRCode() {
+        try {
+            console.log('🔄 Regenerating QR code...');
+            // Destroy existing client first
+            if (this.client) {
+                try {
+                    await this.destroy();
+                }
+                catch (err) {
+                    console.warn('Error destroying client:', err);
+                }
+            }
+            // Clear session folder to force new QR code
+            const fs = require('fs');
+            const path = require('path');
+            const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+            if (fs.existsSync(sessionPath)) {
+                try {
+                    fs.rmSync(sessionPath, { recursive: true, force: true });
+                    console.log('✅ Session folder deleted');
+                }
+                catch (err) {
+                    console.warn('Error deleting session folder:', err);
+                }
+            }
+            // Reset state
+            this.currentQRCode = null;
+            this.isReady = false;
+            this.isAuthenticated = false;
+            this.isInitialized = false;
+            this.reconnectAttempts = 0;
+            // Wait a bit before reinitializing
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Reinitialize
+            await this.initialize();
+            // Wait for QR code to be generated (max 15 seconds)
+            let attempts = 0;
+            const maxAttempts = 30; // 15 seconds total
+            while (!this.currentQRCode && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+                // Check if client is still initializing
+                if (!this.isInitialized && attempts > 10) {
+                    console.warn('⚠️ Client initialization taking longer than expected...');
+                }
+            }
+            if (this.currentQRCode) {
+                console.log('✅ QR code regenerated successfully');
+            }
+            else {
+                console.warn('⚠️ QR code not generated yet. This might be because:');
+                console.warn('   1. Client is still initializing (wait a bit longer)');
+                console.warn('   2. Session is still valid (client might be ready)');
+                console.warn('   3. There was an error during initialization');
+                // Check if client is ready (session might still be valid)
+                if (this.isReady) {
+                    console.log('ℹ️ Client is ready (session still valid), no QR code needed');
+                }
+            }
+        }
+        catch (error) {
+            console.error('Failed to regenerate QR code:', error);
+            throw error;
+        }
+    }
+    /**
+     * Format phone number to WhatsApp format
+     */
+    static formatPhoneNumber(phone) {
+        // Validate input
+        if (!phone || typeof phone !== 'string') {
+            throw new Error('Invalid phone number: phone must be a non-empty string');
+        }
+        // Remove all non-digit characters
+        let cleaned = phone.replace(/\D/g, '');
+        // Validate that we have digits after cleaning
+        if (!cleaned || cleaned.length < 8) {
+            throw new Error(`Invalid phone number: "${phone}" does not contain enough digits (minimum 8 digits required)`);
+        }
+        // If starts with 0, replace with country code (62 for Indonesia)
+        if (cleaned.startsWith('0')) {
+            cleaned = '62' + cleaned.substring(1);
+        }
+        // If doesn't start with country code, add it
+        if (!cleaned.startsWith('62')) {
+            cleaned = '62' + cleaned;
+        }
+        // Final validation: should be at least 10 digits (62 + 8 digits minimum)
+        if (cleaned.length < 10) {
+            throw new Error(`Invalid phone number: "${phone}" results in invalid format "${cleaned}"`);
+        }
+        return cleaned + '@c.us';
+    }
+    /**
+     * Send WhatsApp message
+     */
+    static async sendMessage(phone, message, options = {}) {
+        if (!this.isClientReady()) {
+            const error = 'WhatsApp client is not ready. Please scan QR code first.';
+            console.error('❌', error);
+            // Log to database
+            await this.logNotification(options.customerId, phone, message, 'failed', error, options.template);
+            return { success: false, error };
+        }
+        try {
+            const formattedPhone = this.formatPhoneNumber(phone);
+            console.log(`📱 [WhatsApp] Sending message:`);
+            console.log(`   Original phone: ${phone}`);
+            console.log(`   Formatted phone: ${formattedPhone}`);
+            console.log(`   Message length: ${message.length} chars`);
+            // Send message
+            const result = await this.client.sendMessage(formattedPhone, message);
+            console.log(`✅ WhatsApp message sent to ${phone} (formatted: ${formattedPhone})`);
+            console.log(`   Message ID: ${result.id._serialized}`);
+            // Log success to database
+            await this.logNotification(options.customerId, phone, message, 'sent', undefined, options.template);
+            return {
+                success: true,
+                messageId: result.id._serialized
+            };
+        }
+        catch (error) {
+            const errorMessage = error.message || 'Unknown error';
+            console.error(`❌ Failed to send WhatsApp message to ${phone}:`, errorMessage);
+            // Log failure to database
+            await this.logNotification(options.customerId, phone, message, 'failed', errorMessage, options.template);
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }
+    /**
+     * Send WhatsApp message with media
+     */
+    static async sendMessageWithMedia(phone, message, mediaPath, options = {}) {
+        if (!this.isClientReady()) {
+            const error = 'WhatsApp client is not ready. Please scan QR code first.';
+            console.error('❌', error);
+            await this.logNotification(options.customerId, phone, message, 'failed', error, options.template);
+            return { success: false, error };
+        }
+        try {
+            const formattedPhone = this.formatPhoneNumber(phone);
+            const media = whatsapp_web_js_1.MessageMedia.fromFilePath(mediaPath);
+            const result = await this.client.sendMessage(formattedPhone, media, { caption: message });
+            console.log(`✅ WhatsApp message with media sent to ${phone}`);
+            await this.logNotification(options.customerId, phone, message, 'sent', undefined, options.template);
+            return {
+                success: true,
+                messageId: result.id._serialized
+            };
+        }
+        catch (error) {
+            const errorMessage = error.message || 'Unknown error';
+            console.error(`❌ Failed to send WhatsApp message with media to ${phone}:`, errorMessage);
+            await this.logNotification(options.customerId, phone, message, 'failed', errorMessage, options.template);
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }
+    /**
+     * Send bulk messages
+     */
+    static async sendBulkMessages(recipients, delayMs = 2000) {
+        const results = [];
+        let successCount = 0;
+        let failedCount = 0;
+        for (const recipient of recipients) {
+            const result = await this.sendMessage(recipient.phone, recipient.message, {
+                customerId: recipient.customerId
+            });
+            results.push({
+                phone: recipient.phone,
+                success: result.success,
+                error: result.error
+            });
+            if (result.success) {
+                successCount++;
+            }
+            else {
+                failedCount++;
+            }
+            // Delay between messages to avoid rate limiting
+            if (delayMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+        return {
+            success: successCount,
+            failed: failedCount,
+            results
+        };
+    }
+    /**
+     * Log notification to database
+     */
+    static async logNotification(customerId, recipient, message, status, errorMessage, template) {
+        try {
+            // Check table structure to use correct columns
+            let query;
+            let params;
+            try {
+                // Check what columns exist
+                const [columns] = await pool_1.databasePool.query('SHOW COLUMNS FROM notification_logs');
+                const columnNames = columns.map((col) => col.Field);
+                if (columnNames.includes('channel')) {
+                    // New format with channel column
+                    query = `
+                        INSERT INTO notification_logs 
+                        (customer_id, channel, recipient, template, message, status, error_message, sent_at, created_at)
+                        VALUES (?, 'whatsapp', ?, ?, ?, ?, ?, ?, NOW())
+                    `;
+                    params = [
+                        customerId || null,
+                        recipient,
+                        template || null,
+                        message,
+                        status,
+                        errorMessage || null,
+                        status === 'sent' ? new Date() : null
+                    ];
+                }
+                else if (columnNames.includes('notification_type')) {
+                    // Old format with notification_type enum
+                    query = `
+                        INSERT INTO notification_logs 
+                        (customer_id, notification_type, message, status, sent_at, created_at)
+                        VALUES (?, 'whatsapp', ?, ?, ?, NOW())
+                    `;
+                    params = [
+                        customerId || null,
+                        message,
+                        status,
+                        status === 'sent' ? new Date() : null
+                    ];
+                }
+                else {
+                    // Fallback - minimal columns
+                    query = `
+                        INSERT INTO notification_logs 
+                        (customer_id, message, status, sent_at, created_at)
+                        VALUES (?, ?, ?, ?, NOW())
+                    `;
+                    params = [
+                        customerId || null,
+                        message,
+                        status,
+                        status === 'sent' ? new Date() : null
+                    ];
+                }
+            }
+            catch (checkError) {
+                // If check fails, use minimal format
+                query = `
+                    INSERT INTO notification_logs 
+                    (customer_id, message, status, sent_at, created_at)
+                    VALUES (?, ?, ?, ?, NOW())
+                `;
+                params = [
+                    customerId || null,
+                    message,
+                    status,
+                    status === 'sent' ? new Date() : null
+                ];
+            }
+            await pool_1.databasePool.query(query, params);
+        }
+        catch (error) {
+            console.error('Failed to log notification to database:', error);
+            // Non-critical, don't throw
+        }
+    }
+    /**
+     * Get notification history
+     */
+    static async getNotificationHistory(limit = 50, customerId, status) {
+        try {
+            let query = `
+                SELECT 
+                    id,
+                    customer_id,
+                    channel,
+                    recipient,
+                    template,
+                    message,
+                    status,
+                    error_message,
+                    sent_at,
+                    created_at
+                FROM notification_logs
+                WHERE channel = 'whatsapp'
+            `;
+            const params = [];
+            if (customerId) {
+                query += ' AND customer_id = ?';
+                params.push(customerId);
+            }
+            if (status) {
+                query += ' AND status = ?';
+                params.push(status);
+            }
+            query += ' ORDER BY created_at DESC LIMIT ?';
+            params.push(limit);
+            const [rows] = await pool_1.databasePool.query(query, params);
+            return rows;
+        }
+        catch (error) {
+            console.error('Failed to get notification history:', error);
+            return [];
+        }
+    }
+    /**
+     * Get notification statistics
+     */
+    static async getNotificationStats() {
+        try {
+            // Try with channel column first, fallback to all notifications if column doesn't exist
+            let query = `
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+                FROM notification_logs
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            `;
+            // Try to filter by channel if column exists (use cache to avoid repeated checks)
+            if (this.channelColumnExists === null) {
+                // First time check - cache the result
+                try {
+                    const [testRows] = await pool_1.databasePool.query('SELECT channel FROM notification_logs LIMIT 1');
+                    this.channelColumnExists = testRows.length > 0;
+                    if (!this.channelColumnExists) {
+                        console.log('⚠️ notification_logs.channel column not found, using all notifications');
+                    }
+                }
+                catch (err) {
+                    // Column doesn't exist, use query without channel filter
+                    this.channelColumnExists = false;
+                    console.log('⚠️ notification_logs.channel column not found, using all notifications');
+                }
+            }
+            // Apply channel filter if column exists
+            if (this.channelColumnExists) {
+                query = query.replace('WHERE created_at', "WHERE channel = 'whatsapp' AND created_at");
+            }
+            const [rows] = await pool_1.databasePool.query(query);
+            const stats = rows[0];
+            if (!stats) {
+                return {
+                    total: 0,
+                    sent: 0,
+                    failed: 0,
+                    pending: 0,
+                    successRate: 0
+                };
+            }
+            const total = parseInt(stats.total || '0', 10);
+            const sent = parseInt(stats.sent || '0', 10);
+            const successRate = total > 0 ? (sent / total) * 100 : 0;
+            return {
+                total,
+                sent: parseInt(stats.sent || '0', 10),
+                failed: parseInt(stats.failed || '0', 10),
+                pending: parseInt(stats.pending || '0', 10),
+                successRate: Math.round(successRate * 100) / 100
+            };
+        }
+        catch (error) {
+            console.error('Failed to get notification stats:', error);
+            return {
+                total: 0,
+                sent: 0,
+                failed: 0,
+                pending: 0,
+                successRate: 0
+            };
+        }
+    }
+    /**
+     * Destroy WhatsApp client
+     */
+    static async destroy() {
+        if (this.client) {
+            await this.client.destroy();
+            this.client = null;
+            this.isInitialized = false;
+            this.isReady = false;
+            console.log('WhatsApp client destroyed');
+        }
+    }
+}
+exports.WhatsAppService = WhatsAppService;
+WhatsAppService.client = null;
+WhatsAppService.isInitialized = false;
+WhatsAppService.isInitializing = false;
+WhatsAppService.isReady = false;
+WhatsAppService.reconnectAttempts = 0;
+WhatsAppService.maxReconnectAttempts = 5;
+WhatsAppService.sessionPath = './whatsapp-session';
+WhatsAppService.currentQRCode = null;
+WhatsAppService.isAuthenticated = false;
+WhatsAppService.channelColumnExists = null; // Cache for channel column check
+//# sourceMappingURL=WhatsAppService.js.map

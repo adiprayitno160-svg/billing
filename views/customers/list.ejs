@@ -1,22 +1,27 @@
 ﻿<div class="space-y-6">
 	<!-- Header Section -->
-	<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+	<div
+		class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-modern-blue-900">Data Pelanggan</h1>
 				<p class="text-modern-blue-600 mt-1">Kelola data pelanggan sistem billing</p>
 			</div>
 			<div class="flex items-center gap-3">
-				<button id="exportExcelBtn" class="px-4 py-2 bg-gradient-to-r from-modern-green-500 to-modern-emerald-500 text-white rounded-lg hover:from-modern-green-600 hover:to-modern-emerald-600 transition-all duration-300 font-medium shadow-lg">
+				<button id="exportExcelBtn"
+					class="px-4 py-2 bg-gradient-to-r from-modern-green-500 to-modern-emerald-500 text-white rounded-lg hover:from-modern-green-600 hover:to-modern-emerald-600 transition-all duration-300 font-medium shadow-lg">
 					📊 Export Excel
 				</button>
-				<button id="showImportModalBtn" class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+				<button id="showImportModalBtn"
+					class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
 					📥 Import Excel
 				</button>
-				<a href="/customers/new-pppoe" class="px-4 py-2 bg-gradient-to-r from-modern-blue-500 to-modern-cyan-500 text-white rounded-lg hover:from-modern-blue-600 hover:to-modern-cyan-600 transition-all duration-300 font-medium shadow-lg">
+				<a href="/customers/new-pppoe"
+					class="px-4 py-2 bg-gradient-to-r from-modern-blue-500 to-modern-cyan-500 text-white rounded-lg hover:from-modern-blue-600 hover:to-modern-cyan-600 transition-all duration-300 font-medium shadow-lg">
 					+ Tambah Pelanggan PPPOE
 				</a>
-				<a href="/customers/new-static-ip" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
+				<a href="/customers/new-static-ip"
+					class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
 					+ Tambah IP Statis
 				</a>
 			</div>
@@ -25,43 +30,61 @@
 
 	<!-- Stats Cards -->
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-		<div class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-modern-green-50 to-modern-emerald-50 p-6 shadow-lg">
+		<div
+			class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-modern-green-50 to-modern-emerald-50 p-6 shadow-lg">
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-green-600">Total Pelanggan</div>
-					<div class="text-3xl font-bold text-modern-green-900"><%= typeof pagination !== 'undefined' && pagination ? pagination.total : (typeof stats !== 'undefined' && stats ? stats.total : (customers ? customers.length : 0)) %></div>
+					<div class="text-3xl font-bold text-modern-green-900">
+						<%= typeof pagination !=='undefined' && pagination ? pagination.total : (typeof stats
+							!=='undefined' && stats ? stats.total : (customers ? customers.length : 0)) %>
+					</div>
 				</div>
-				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-green-500 to-modern-emerald-500 flex items-center justify-center text-white shadow-lg">
+				<div
+					class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-green-500 to-modern-emerald-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-						<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+						<path
+							d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
 					</svg>
 				</div>
 			</div>
 		</div>
 
-		<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+		<div
+			class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-blue-600">Pelanggan Aktif</div>
-					<div class="text-3xl font-bold text-modern-blue-900"><%= typeof stats !== 'undefined' && stats ? stats.active : 0 %></div>
+					<div class="text-3xl font-bold text-modern-blue-900">
+						<%= typeof stats !=='undefined' && stats ? stats.active : 0 %>
+					</div>
 				</div>
-				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-blue-500 to-modern-cyan-500 flex items-center justify-center text-white shadow-lg">
+				<div
+					class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-blue-500 to-modern-cyan-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+						<path fill-rule="evenodd"
+							d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+							clip-rule="evenodd" />
 					</svg>
 				</div>
 			</div>
 		</div>
 
-		<div class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-modern-orange-50 to-modern-amber-50 p-6 shadow-lg">
+		<div
+			class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-modern-orange-50 to-modern-amber-50 p-6 shadow-lg">
 			<div class="flex items-center justify-between">
 				<div>
 					<div class="text-sm font-medium text-modern-orange-600">Pelanggan Nonaktif</div>
-					<div class="text-3xl font-bold text-modern-orange-900"><%= typeof stats !== 'undefined' && stats ? stats.inactive : 0 %></div>
+					<div class="text-3xl font-bold text-modern-orange-900">
+						<%= typeof stats !=='undefined' && stats ? stats.inactive : 0 %>
+					</div>
 				</div>
-				<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-orange-500 to-modern-amber-500 flex items-center justify-center text-white shadow-lg">
+				<div
+					class="h-12 w-12 rounded-xl bg-gradient-to-br from-modern-orange-500 to-modern-amber-500 flex items-center justify-center text-white shadow-lg">
 					<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+						<path fill-rule="evenodd"
+							d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+							clip-rule="evenodd" />
 					</svg>
 				</div>
 			</div>
@@ -69,49 +92,55 @@
 	</div>
 
 	<!-- Data Table -->
-	<div class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
+	<div
+		class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
 		<div class="flex items-center justify-between mb-6">
 			<h2 class="text-lg font-bold text-modern-purple-900">Daftar Pelanggan</h2>
 			<div class="flex items-center gap-3">
 				<form method="GET" action="/customers/list" class="flex items-center gap-3">
-					<input 
-						type="text" 
-						name="search" 
-						id="searchInput"
+					<input type="text" name="search" id="searchInput"
 						value="<%= typeof filters !== 'undefined' && filters && filters.search ? filters.search : '' %>"
-						placeholder="Cari pelanggan..." 
+						placeholder="Cari pelanggan..."
 						class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
-					<select 
-						name="status" 
-						id="statusFilter"
+					<select name="status" id="statusFilter"
 						class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
 						<option value="">Semua Status</option>
-						<option value="active" <%= typeof filters !== 'undefined' && filters && filters.status === 'active' ? 'selected' : '' %>>Aktif</option>
-						<option value="inactive" <%= typeof filters !== 'undefined' && filters && filters.status === 'inactive' ? 'selected' : '' %>>Nonaktif</option>
+						<option value="active" <%=typeof filters !=='undefined' && filters && filters.status==='active'
+							? 'selected' : '' %>>Aktif</option>
+						<option value="inactive" <%=typeof filters !=='undefined' && filters &&
+							filters.status==='inactive' ? 'selected' : '' %>>Nonaktif</option>
 					</select>
-					<button type="submit" class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+					<button type="submit"
+						class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
 						<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
 						</svg>
 						Cari
 					</button>
-					<% if (typeof filters !== 'undefined' && filters && (filters.search || filters.status)) { %>
-					<a href="/customers/list" class="px-4 py-2 border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300 font-medium">
-						Reset
-					</a>
-					<% } %>
+					<% if (typeof filters !=='undefined' && filters && (filters.search || filters.status)) { %>
+						<a href="/customers/list"
+							class="px-4 py-2 border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300 font-medium">
+							Reset
+						</a>
+						<% } %>
 				</form>
 			</div>
 		</div>
-		
+
 		<!-- Bulk Actions Bar (Hidden by default, shown when items selected) -->
-		<div id="bulkActionsBar" class="mb-4 overflow-hidden transition-all duration-300 ease-in-out" style="max-height: 0; opacity: 0;">
-			<div class="bg-gradient-to-r from-red-500 via-red-600 to-pink-600 rounded-xl shadow-xl p-4 flex items-center justify-between">
+		<div id="bulkActionsBar" class="mb-4 overflow-hidden transition-all duration-300 ease-in-out"
+			style="max-height: 0; opacity: 0;">
+			<div
+				class="bg-gradient-to-r from-red-500 via-red-600 to-pink-600 rounded-xl shadow-xl p-4 flex items-center justify-between">
 				<!-- Selected Info -->
 				<div class="flex items-center gap-3 text-white">
-					<div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center" style="background-color: rgba(255, 255, 255, 0.3) !important;">
+					<div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center"
+						style="background-color: rgba(255, 255, 255, 0.3) !important;">
 						<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+							<path fill-rule="evenodd"
+								d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+								clip-rule="evenodd" />
 						</svg>
 					</div>
 					<div>
@@ -119,25 +148,30 @@
 						<div class="text-xs text-white/80">Klik hapus untuk menghapus semua yang dipilih</div>
 					</div>
 				</div>
-				
+
 				<!-- Actions -->
 				<div class="flex items-center gap-3">
-					<button onclick="clearAllSelections()" class="px-5 py-2.5 bg-white hover:bg-white text-white rounded-lg transition-all duration-200 font-semibold" style="background-color: rgba(255, 255, 255, 0.3) !important;">
+					<button onclick="clearAllSelections()"
+						class="px-5 py-2.5 bg-white hover:bg-white text-white rounded-lg transition-all duration-200 font-semibold"
+						style="background-color: rgba(255, 255, 255, 0.3) !important;">
 						<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M6 18L18 6M6 6l12 12" />
 						</svg>
 						Batal
 					</button>
-					<button onclick="bulkDeleteSelected()" class="px-5 py-2.5 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-all duration-200 font-bold shadow-lg">
+					<button onclick="bulkDeleteSelected()"
+						class="px-5 py-2.5 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-all duration-200 font-bold shadow-lg">
 						<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
 						</svg>
 						Hapus Terpilih
 					</button>
 				</div>
 			</div>
 		</div>
-		
+
 		<div class="overflow-x-auto">
 			<table class="min-w-full">
 				<thead>
@@ -149,742 +183,771 @@
 						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Nama</th>
 						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Telepon</th>
 						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Koneksi</th>
-						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Sistem</th>
+
 						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Paket</th>
 						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Status</th>
 						<th class="text-left py-3 px-4 text-modern-purple-600 font-medium">Aksi</th>
 					</tr>
 				</thead>
 				<tbody>
-					<% if (customers && customers.length > 0) { %>
-						<% customers.forEach(customer => { %>
-						<tr class="border-b border-modern-purple-100">
-							<td class="py-4 px-4">
-							<input type="checkbox" class="rowCheckbox" value="<%= customer.id %>">
-							</td>
-							<td class="py-4 px-4 text-modern-purple-800 font-medium">
-								<% if (customer.id < 100) { %>
-									<% 
-										// Untuk ID < 100, tampilkan customer_code atau generate dari created_at
-										var displayCode = customer.customer_code;
-										if (!displayCode || displayCode === '-' || (displayCode && displayCode.length < 14)) {
-											// Generate dari created_at jika customer_code tidak valid
-											var createdDate = customer.created_at ? new Date(customer.created_at) : new Date();
-											var year = createdDate.getFullYear();
-											var month = String(createdDate.getMonth() + 1).padStart(2, '0');
-											var day = String(createdDate.getDate()).padStart(2, '0');
-											var hours = String(createdDate.getHours()).padStart(2, '0');
-											var minutes = String(createdDate.getMinutes()).padStart(2, '0');
-											var seconds = String(createdDate.getSeconds()).padStart(2, '0');
-											displayCode = year + month + day + hours + minutes + seconds;
-										}
-									%>
-									<div class="font-semibold"><%= displayCode %></div>
-								<% } else { %>
-									<div class="font-semibold"><%= customer.id %></div>
-									<% if (customer.customer_code) { %>
-										<div class="text-sm text-modern-purple-600"><%= customer.customer_code %></div>
-									<% } %>
-								<% } %>
-							</td>
-							<td class="py-4 px-4 text-modern-purple-800 font-medium">
-								<div class="font-semibold"><%= customer.name %></div>
-							</td>
-							<td class="py-4 px-4 text-modern-purple-700"><%= customer.phone || '-' %></td>
-							<td class="py-4 px-4 text-modern-purple-700">
-								<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
-									<%= customer.connection_type_display || 'PPPOE' %>
-								</span>
-							</td>
-							<td class="py-4 px-4 text-modern-purple-700">
-								<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= (customer.billing_mode || 'postpaid') === 'prepaid' ? 'bg-modern-purple-100 text-modern-purple-700' : 'bg-modern-orange-100 text-modern-orange-700' %>">
-									<%= (customer.billing_mode || 'postpaid') === 'prepaid' ? 'Prepaid' : 'Postpaid' %>
-								</span>
-								<% if ((customer.billing_mode || 'postpaid') === 'prepaid' && customer.portal_id) { %>
-									<div class="text-xs text-modern-gray-500 mt-1">ID: <%= customer.portal_id %></div>
-								<% } %>
-							</td>
-							<td class="py-4 px-4 text-modern-purple-700">
-								<% if (customer.package_name) { %>
-									<span class="inline-flex items-center rounded-full px-3 py-1 text-xs bg-modern-blue-100 text-modern-blue-700">
-										<%= customer.package_name %>
+					<% if (customers && customers.length> 0) { %>
+						<% customers.forEach(customer=> { %>
+							<tr class="border-b border-modern-purple-100">
+								<td class="py-4 px-4">
+									<input type="checkbox" class="rowCheckbox" value="<%= customer.id %>">
+								</td>
+								<td class="py-4 px-4 text-modern-purple-800 font-medium">
+									<% if (customer.id < 100) { %>
+										<% // Untuk ID < 100, tampilkan customer_code atau generate dari created_at var
+											displayCode=customer.customer_code; if (!displayCode || displayCode==='-' ||
+											(displayCode && displayCode.length < 14)) { // Generate dari created_at jika customer_code tidak valid
+											var createdDate=customer.created_at ? new
+											Date(customer.created_at) : new Date(); var year=createdDate.getFullYear();
+											var month=String(createdDate.getMonth() + 1).padStart(2, '0' ); var
+											day=String(createdDate.getDate()).padStart(2, '0' ); var
+											hours=String(createdDate.getHours()).padStart(2, '0' ); var
+											minutes=String(createdDate.getMinutes()).padStart(2, '0' ); var
+											seconds=String(createdDate.getSeconds()).padStart(2, '0' ); displayCode=year
+											+ month + day + hours + minutes + seconds; } %>
+											<div class="font-semibold">
+												<%= displayCode %>
+											</div>
+											<% } else { %>
+												<div class="font-semibold">
+													<%= customer.id %>
+												</div>
+												<% if (customer.customer_code) { %>
+													<div class="text-sm text-modern-purple-600">
+														<%= customer.customer_code %>
+													</div>
+													<% } %>
+														<% } %>
+								</td>
+								<td class="py-4 px-4 text-modern-purple-800 font-medium">
+									<div class="font-semibold">
+										<%= customer.name %>
+									</div>
+								</td>
+								<td class="py-4 px-4 text-modern-purple-700">
+									<%= customer.phone || '-' %>
+								</td>
+								<td class="py-4 px-4 text-modern-purple-700">
+									<span
+										class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
+										<%= customer.connection_type_display || 'PPPOE' %>
 									</span>
+								</td>
+
+								<td class="py-4 px-4 text-modern-purple-700">
+									<% if (customer.package_name) { %>
+										<span
+											class="inline-flex items-center rounded-full px-3 py-1 text-xs bg-modern-blue-100 text-modern-blue-700">
+											<%= customer.package_name %>
+										</span>
+										<% } else { %>
+											<span class="text-modern-gray-500">Belum ada paket</span>
+											<% } %>
+								</td>
+								<td class="py-4 px-4">
+									<span
+										class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.status === 'active' ? 'bg-modern-green-100 text-modern-green-700' : 'bg-modern-red-100 text-modern-red-700' %>">
+										<%= customer.status==='active' ? 'Aktif' : 'Tidak Aktif' %>
+									</span>
+								</td>
+								<td class="py-4 px-4">
+									<div class="flex items-center gap-2">
+										<a href="/customers/<%= customer.id %>"
+											class="text-modern-blue-600 hover:text-modern-blue-800 transition-colors duration-300"
+											title="Lihat Detail">
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+												<path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+												<path fill-rule="evenodd"
+													d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+													clip-rule="evenodd" />
+											</svg>
+										</a>
+										<a href="/customers/<%= customer.id %>/edit"
+											class="text-modern-green-600 hover:text-modern-green-800 transition-colors duration-300"
+											title="Edit">
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+												<path
+													d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+											</svg>
+										</a>
+
+
+
+										<button
+											class="deleteCustomerBtn text-modern-red-600 hover:text-modern-red-800 transition-colors duration-300"
+											data-id="<%= customer.id %>" data-name="<%= customer.name %>" title="Hapus">
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
+													clip-rule="evenodd" />
+												<path fill-rule="evenodd"
+													d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+													clip-rule="evenodd" />
+											</svg>
+										</button>
+									</div>
+								</td>
+							</tr>
+							<% }) %>
 								<% } else { %>
-									<span class="text-modern-gray-500">Belum ada paket</span>
-								<% } %>
-							</td>
-							<td class="py-4 px-4">
-								<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.status === 'active' ? 'bg-modern-green-100 text-modern-green-700' : 'bg-modern-red-100 text-modern-red-700' %>">
-									<%= customer.status === 'active' ? 'Aktif' : 'Tidak Aktif' %>
-								</span>
-							</td>
-							<td class="py-4 px-4">
-								<div class="flex items-center gap-2">
-									<a href="/customers/<%= customer.id %>" class="text-modern-blue-600 hover:text-modern-blue-800 transition-colors duration-300" title="Lihat Detail">
-										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-											<path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-											<path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-										</svg>
-									</a>
-									<a href="/customers/<%= customer.id %>/edit" class="text-modern-green-600 hover:text-modern-green-800 transition-colors duration-300" title="Edit">
-										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-											<path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-										</svg>
-									</a>
-									
-									<% if ((customer.billing_mode || 'postpaid') === 'postpaid') { %>
-										<!-- Tombol Migrasi ke Prepaid -->
-										<button class="migrateToPrepaidBtn text-modern-purple-600 hover:text-modern-purple-800 transition-colors duration-300" 
-											data-id="<%= customer.id %>" 
-											data-name="<%= customer.name %>"
-											title="Migrasi ke Prepaid">
-											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-												<path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
-												<path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
-											</svg>
-										</button>
-									<% } else { %>
-										<!-- Tombol Kembalikan ke Postpaid -->
-										<button class="migrateToPostpaidBtn text-modern-orange-600 hover:text-modern-orange-800 transition-colors duration-300" 
-											data-id="<%= customer.id %>" 
-											data-name="<%= customer.name %>"
-											title="Kembalikan ke Postpaid">
-											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-												<path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
-											</svg>
-										</button>
+									<tr class="border-b border-modern-purple-100">
+										<td class="py-4 px-4 text-modern-purple-800 font-medium">-</td>
+										<td class="py-4 px-4 text-modern-purple-800 font-medium">Belum ada data</td>
+										<td class="py-4 px-4 text-modern-purple-700">-</td>
+										<td class="py-4 px-4 text-modern-purple-700">-</td>
+										<td class="py-4 px-4 text-modern-purple-700">-</td>
+										<td class="py-4 px-4 text-modern-purple-700">-</td>
+										<td class="py-4 px-4">
+											<span
+												class="inline-flex items-center rounded-full bg-modern-gray-100 px-3 py-1 text-xs text-modern-gray-700">
+												Kosong
+											</span>
+										</td>
+										<td class="py-4 px-4">-</td>
+									</tr>
 									<% } %>
-									
-									<button class="deleteCustomerBtn text-modern-red-600 hover:text-modern-red-800 transition-colors duration-300" data-id="<%= customer.id %>" data-name="<%= customer.name %>" title="Hapus">
-										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-											<path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
-											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-										</svg>
-									</button>
-								</div>
-							</td>
-						</tr>
-						<% }) %>
-					<% } else { %>
-						<tr class="border-b border-modern-purple-100">
-							<td class="py-4 px-4 text-modern-purple-800 font-medium">-</td>
-							<td class="py-4 px-4 text-modern-purple-800 font-medium">Belum ada data</td>
-							<td class="py-4 px-4 text-modern-purple-700">-</td>
-							<td class="py-4 px-4 text-modern-purple-700">-</td>
-							<td class="py-4 px-4 text-modern-purple-700">-</td>
-							<td class="py-4 px-4 text-modern-purple-700">-</td>
-							<td class="py-4 px-4">
-								<span class="inline-flex items-center rounded-full bg-modern-gray-100 px-3 py-1 text-xs text-modern-gray-700">
-									Kosong
-								</span>
-							</td>
-							<td class="py-4 px-4">-</td>
-						</tr>
-					<% } %>
 				</tbody>
 			</table>
 		</div>
-		
+
 		<!-- Pagination -->
-		<% if (typeof pagination !== 'undefined' && pagination && pagination.pages > 1) { %>
-		<div class="mt-6 flex items-center justify-between border-t border-modern-purple-200 pt-4">
-			<div class="flex items-center gap-2">
-				<span class="text-sm text-modern-purple-600">
-					Menampilkan 
-					<span class="font-semibold"><%= ((pagination.page - 1) * pagination.limit) + 1 %></span>
-					sampai 
-					<span class="font-semibold"><%= Math.min(pagination.page * pagination.limit, pagination.total) %></span>
-					dari 
-					<span class="font-semibold"><%= pagination.total %></span> pelanggan
-				</span>
-			</div>
-			<div class="flex items-center gap-2">
-				<!-- Previous Button -->
-				<% if (pagination.page > 1) { %>
-					<a href="?page=<%= pagination.page - 1 %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
-					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-						</svg>
-					</a>
-				<% } else { %>
-					<span class="px-3 py-2 bg-gray-100 border border-gray-300 text-gray-400 rounded-lg cursor-not-allowed">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-						</svg>
-					</span>
-				<% } %>
-				
-				<!-- Page Numbers -->
-				<% 
-					const maxVisiblePages = 5;
-					let startPage = Math.max(1, pagination.page - Math.floor(maxVisiblePages / 2));
-					let endPage = Math.min(pagination.pages, startPage + maxVisiblePages - 1);
-					if (endPage - startPage < maxVisiblePages - 1) {
-						startPage = Math.max(1, endPage - maxVisiblePages + 1);
-					}
-				%>
-				
-				<% if (startPage > 1) { %>
-					<a href="?page=1<% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
-					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">1</a>
-					<% if (startPage > 2) { %>
-						<span class="px-2 text-modern-purple-400">...</span>
-					<% } %>
-				<% } %>
-				
-				<% for (let i = startPage; i <= endPage; i++) { %>
-					<% if (i === pagination.page) { %>
-						<span class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg font-semibold shadow-lg">
-							<%= i %>
+		<% if (typeof pagination !=='undefined' && pagination && pagination.pages> 1) { %>
+			<div class="mt-6 flex items-center justify-between border-t border-modern-purple-200 pt-4">
+				<div class="flex items-center gap-2">
+					<span class="text-sm text-modern-purple-600">
+						Menampilkan
+						<span class="font-semibold">
+							<%= ((pagination.page - 1) * pagination.limit) + 1 %>
 						</span>
-					<% } else { %>
-						<a href="?page=<%= i %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
-						   class="px-4 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
-							<%= i %>
-						</a>
-					<% } %>
-				<% } %>
-				
-				<% if (endPage < pagination.pages) { %>
-					<% if (endPage < pagination.pages - 1) { %>
-						<span class="px-2 text-modern-purple-400">...</span>
-					<% } %>
-					<a href="?page=<%= pagination.pages %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
-					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
-						<%= pagination.pages %>
-					</a>
-				<% } %>
-				
-				<!-- Next Button -->
-				<% if (pagination.page < pagination.pages) { %>
-					<a href="?page=<%= pagination.page + 1 %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>" 
-					   class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-						</svg>
-					</a>
-				<% } else { %>
-					<span class="px-3 py-2 bg-gray-100 border border-gray-300 text-gray-400 rounded-lg cursor-not-allowed">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-						</svg>
+						sampai
+						<span class="font-semibold">
+							<%= Math.min(pagination.page * pagination.limit, pagination.total) %>
+						</span>
+						dari
+						<span class="font-semibold">
+							<%= pagination.total %>
+						</span> pelanggan
 					</span>
-				<% } %>
+				</div>
+				<div class="flex items-center gap-2">
+					<!-- Previous Button -->
+					<% if (pagination.page> 1) { %>
+						<a href="?page=<%= pagination.page - 1 %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>"
+							class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M15 19l-7-7 7-7" />
+							</svg>
+						</a>
+						<% } else { %>
+							<span
+								class="px-3 py-2 bg-gray-100 border border-gray-300 text-gray-400 rounded-lg cursor-not-allowed">
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+										d="M15 19l-7-7 7-7" />
+								</svg>
+							</span>
+							<% } %>
+
+								<!-- Page Numbers -->
+								<% const maxVisiblePages=5; let startPage=Math.max(1, pagination.page -
+									Math.floor(maxVisiblePages / 2)); let endPage=Math.min(pagination.pages, startPage +
+									maxVisiblePages - 1); if (endPage - startPage < maxVisiblePages - 1) {
+									startPage=Math.max(1, endPage - maxVisiblePages + 1); } %>
+
+									<% if (startPage> 1) { %>
+										<a href="?page=1<% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>"
+											class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">1</a>
+										<% if (startPage> 2) { %>
+											<span class="px-2 text-modern-purple-400">...</span>
+											<% } %>
+												<% } %>
+
+													<% for (let i=startPage; i <=endPage; i++) { %>
+														<% if (i===pagination.page) { %>
+															<span
+																class="px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg font-semibold shadow-lg">
+																<%= i %>
+															</span>
+															<% } else { %>
+																<a href="?page=<%= i %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>"
+																	class="px-4 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+																	<%= i %>
+																</a>
+																<% } %>
+																	<% } %>
+
+																		<% if (endPage < pagination.pages) { %>
+																			<% if (endPage < pagination.pages - 1) { %>
+																				<span
+																					class="px-2 text-modern-purple-400">...</span>
+																				<% } %>
+																					<a href="?page=<%= pagination.pages %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>"
+																						class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+																						<%= pagination.pages %>
+																					</a>
+																					<% } %>
+
+																						<!-- Next Button -->
+																						<% if (pagination.page <
+																							pagination.pages) { %>
+																							<a href="?page=<%= pagination.page + 1 %><% if (filters.status) { %>&status=<%= filters.status %><% } %><% if (filters.search) { %>&search=<%= filters.search %><% } %>"
+																								class="px-3 py-2 bg-white border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300">
+																								<svg class="w-5 h-5"
+																									fill="none"
+																									stroke="currentColor"
+																									viewBox="0 0 24 24">
+																									<path
+																										stroke-linecap="round"
+																										stroke-linejoin="round"
+																										stroke-width="2"
+																										d="M9 5l7 7-7 7" />
+																								</svg>
+																							</a>
+																							<% } else { %>
+																								<span
+																									class="px-3 py-2 bg-gray-100 border border-gray-300 text-gray-400 rounded-lg cursor-not-allowed">
+																									<svg class="w-5 h-5"
+																										fill="none"
+																										stroke="currentColor"
+																										viewBox="0 0 24 24">
+																										<path
+																											stroke-linecap="round"
+																											stroke-linejoin="round"
+																											stroke-width="2"
+																											d="M9 5l7 7-7 7" />
+																									</svg>
+																								</span>
+																								<% } %>
+				</div>
 			</div>
-		</div>
-		<% } %>
+			<% } %>
 	</div>
 </div>
 
 <!-- Import Excel Modal -->
 <div id="importModal" class="fixed inset-0 bg-black  hidden z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-modern-blue-900">Import Data Excel</h3>
-                    <button id="closeImportModalIconBtn" class="text-modern-gray-400 hover:text-modern-gray-600">
-                        <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                        </svg>
-                    </button>
-                </div>
-                
-                <form id="importForm" enctype="multipart/form-data" onsubmit="handleImportClick(); return false;">
-                    
-                    <!-- TOMBOL DOWNLOAD TEMPLATE - PALING ATAS -->
-                    <div class="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <h4 class="text-sm font-bold text-green-800">📥 Belum Punya Template?</h4>
-                                <p class="text-xs text-green-700">Download template Excel di bawah ini</p>
-                            </div>
-                        </div>
-                        <a href="/customers/template" class="block w-full text-center px-5 py-3 bg-green-600 text-white text-base font-bold rounded-lg hover:bg-green-700 shadow-lg transition-all duration-200 transform hover:scale-105">
-                            📥 DOWNLOAD TEMPLATE EXCEL
-                        </a>
-                    </div>
-                    
-                    <!-- DIVIDER -->
-                    <div class="mb-4 text-center text-gray-400 text-sm">atau</div>
-                    
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-modern-gray-700 mb-2">Pilih File Excel</label>
-                        <input type="file" id="excelFileInput" name="excelFile" accept=".xlsx,.xls" class="w-full px-3 py-2 border border-modern-gray-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200" required>
-                        <p class="text-xs text-modern-gray-500 mt-1">Format yang didukung: .xlsx, .xls (Maksimal 10MB)</p>
-                    </div>
-                    
-                    <div class="mb-4 p-3 bg-modern-blue-50 rounded-lg">
-                        <h4 class="text-sm font-medium text-modern-blue-900 mb-2">📋 Format Excel SIMPLE (Hanya 3 Kolom):</h4>
-                        <ul class="text-xs text-modern-blue-700 space-y-1 mb-2">
-                            <li>✅ <strong>Nama</strong> (wajib)</li>
-                            <li>✅ <strong>Telepon</strong> (wajib)</li>
-                            <li>✅ <strong>Alamat</strong> (opsional)</li>
-                        </ul>
-                        <div class="text-xs bg-modern-red-50 border border-modern-red-200 rounded p-2 text-modern-red-800">
-                            ⚠️ <strong>PENTING:</strong> Header baris 1 harus PERSIS: <strong>Nama</strong>, <strong>Telepon</strong>, <strong>Alamat</strong>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-3">
-                        <button type="button" id="closeImportModalBtn" class="flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
-                            Batal
-                        </button>
-                        <button type="button" id="submitImportBtn" onclick="handleImportClick(); return false;" class="flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium">
-                            Import Data
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+	<div class="flex items-center justify-center min-h-screen p-4">
+		<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-bold text-modern-blue-900">Import Data Excel</h3>
+					<button id="closeImportModalIconBtn" class="text-modern-gray-400 hover:text-modern-gray-600">
+						<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd"
+								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+								clip-rule="evenodd" />
+						</svg>
+					</button>
+				</div>
+
+				<form id="importForm" enctype="multipart/form-data" onsubmit="handleImportClick(); return false;">
+
+					<!-- TOMBOL DOWNLOAD TEMPLATE - PALING ATAS -->
+					<div
+						class="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+						<div class="flex items-center justify-between mb-3">
+							<div>
+								<h4 class="text-sm font-bold text-green-800">📥 Belum Punya Template?</h4>
+								<p class="text-xs text-green-700">Download template Excel di bawah ini</p>
+							</div>
+						</div>
+						<a href="/customers/template"
+							class="block w-full text-center px-5 py-3 bg-green-600 text-white text-base font-bold rounded-lg hover:bg-green-700 shadow-lg transition-all duration-200 transform hover:scale-105">
+							📥 DOWNLOAD TEMPLATE EXCEL
+						</a>
+					</div>
+
+					<!-- DIVIDER -->
+					<div class="mb-4 text-center text-gray-400 text-sm">atau</div>
+
+					<div class="mb-4">
+						<label class="block text-sm font-medium text-modern-gray-700 mb-2">Pilih File Excel</label>
+						<input type="file" id="excelFileInput" name="excelFile" accept=".xlsx,.xls"
+							class="w-full px-3 py-2 border border-modern-gray-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200"
+							required>
+						<p class="text-xs text-modern-gray-500 mt-1">Format yang didukung: .xlsx, .xls (Maksimal 10MB)
+						</p>
+					</div>
+
+					<div class="mb-4 p-3 bg-modern-blue-50 rounded-lg">
+						<h4 class="text-sm font-medium text-modern-blue-900 mb-2">📋 Format Excel SIMPLE (Hanya 3
+							Kolom):</h4>
+						<ul class="text-xs text-modern-blue-700 space-y-1 mb-2">
+							<li>✅ <strong>Nama</strong> (wajib)</li>
+							<li>✅ <strong>Telepon</strong> (wajib)</li>
+							<li>✅ <strong>Alamat</strong> (opsional)</li>
+						</ul>
+						<div
+							class="text-xs bg-modern-red-50 border border-modern-red-200 rounded p-2 text-modern-red-800">
+							⚠️ <strong>PENTING:</strong> Header baris 1 harus PERSIS: <strong>Nama</strong>,
+							<strong>Telepon</strong>, <strong>Alamat</strong>
+						</div>
+					</div>
+
+					<div class="flex gap-3">
+						<button type="button" id="closeImportModalBtn"
+							class="flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
+							Batal
+						</button>
+						<button type="button" id="submitImportBtn" onclick="handleImportClick(); return false;"
+							class="flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium">
+							Import Data
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
 </div>
 
 <script>
-function deleteCustomer(id, name) {
-    if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
-        fetch(`/customers/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            credentials: 'same-origin'
-        })
-        .then(async response => {
-            const contentType = response.headers.get('content-type') || '';
-            if (!response.ok) {
-                let errorMessage = `HTTP ${response.status}`;
-                try {
-                    if (contentType.includes('application/json')) {
-                        const data = await response.json();
-                        errorMessage = data.error || JSON.stringify(data);
-                    } else {
-                        const text = await response.text();
-                        errorMessage = text?.slice(0, 500) || errorMessage;
-                    }
-                } catch (_) {}
-                throw new Error(errorMessage);
-            }
-            return contentType.includes('application/json') ? response.json() : { success: true };
-        })
-        .then(data => {
-            if (data.success) {
-                alert('Pelanggan berhasil dihapus!');
-                location.reload();
-            } else {
-                alert('Gagal menghapus pelanggan: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Terjadi kesalahan saat menghapus pelanggan: ' + (error?.message || error));
-        });
-    }
-}
+	function deleteCustomer(id, name) {
+		if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
+			fetch(`/customers/${id}`, {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json'
+				},
+				credentials: 'same-origin'
+			})
+				.then(async response => {
+					const contentType = response.headers.get('content-type') || '';
+					if (!response.ok) {
+						let errorMessage = `HTTP ${response.status}`;
+						try {
+							if (contentType.includes('application/json')) {
+								const data = await response.json();
+								errorMessage = data.error || JSON.stringify(data);
+							} else {
+								const text = await response.text();
+								errorMessage = text?.slice(0, 500) || errorMessage;
+							}
+						} catch (_) { }
+						throw new Error(errorMessage);
+					}
+					return contentType.includes('application/json') ? response.json() : { success: true };
+				})
+				.then(data => {
+					if (data.success) {
+						alert('Pelanggan berhasil dihapus!');
+						location.reload();
+					} else {
+						alert('Gagal menghapus pelanggan: ' + data.error);
+					}
+				})
+				.catch(error => {
+					console.error('Error:', error);
+					alert('Terjadi kesalahan saat menghapus pelanggan: ' + (error?.message || error));
+				});
+		}
+	}
 
-function getSelectedIds() {
-    return Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => parseInt(cb.value, 10));
-}
+	function getSelectedIds() {
+		return Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => parseInt(cb.value, 10));
+	}
 
-function toggleSelectAll(source) {
-    const checkboxes = document.querySelectorAll('.rowCheckbox');
-    checkboxes.forEach(cb => cb.checked = source.checked);
-    updateBulkState();
-}
+	function toggleSelectAll(source) {
+		const checkboxes = document.querySelectorAll('.rowCheckbox');
+		checkboxes.forEach(cb => cb.checked = source.checked);
+		updateBulkState();
+	}
 
-function updateBulkState() {
-    const ids = getSelectedIds();
-    const bulkBar = document.getElementById('bulkActionsBar');
-    const selectedCountSpan = document.getElementById('selectedCount');
-    
-    // Update counter
-    if (selectedCountSpan) {
-        selectedCountSpan.textContent = ids.length;
-    }
-    
-    // Show/hide bulk actions bar with smooth animation
-    if (bulkBar) {
-        if (ids.length > 0) {
-            // Show: expand height and fade in
-            bulkBar.style.maxHeight = '200px';
-            bulkBar.style.opacity = '1';
-        } else {
-            // Hide: collapse height and fade out
-            bulkBar.style.maxHeight = '0';
-            bulkBar.style.opacity = '0';
-        }
-    }
-}
+	function updateBulkState() {
+		const ids = getSelectedIds();
+		const bulkBar = document.getElementById('bulkActionsBar');
+		const selectedCountSpan = document.getElementById('selectedCount');
 
-function clearAllSelections() {
-    // Uncheck all checkboxes
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.rowCheckbox');
-    
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
-    }
-    
-    checkboxes.forEach(cb => cb.checked = false);
-    
-    // Hide floating bar
-    updateBulkState();
-}
+		// Update counter
+		if (selectedCountSpan) {
+			selectedCountSpan.textContent = ids.length;
+		}
 
-function bulkDeleteSelected() {
-    const ids = getSelectedIds();
-    if (ids.length === 0) return;
-    
-    // Show modern confirmation modal
-    showDeleteConfirmModal(ids.length);
-}
+		// Show/hide bulk actions bar with smooth animation
+		if (bulkBar) {
+			if (ids.length > 0) {
+				// Show: expand height and fade in
+				bulkBar.style.maxHeight = '200px';
+				bulkBar.style.opacity = '1';
+			} else {
+				// Hide: collapse height and fade out
+				bulkBar.style.maxHeight = '0';
+				bulkBar.style.opacity = '0';
+			}
+		}
+	}
 
-function showDeleteConfirmModal(count) {
-    const modal = document.getElementById('deleteConfirmModal');
-    const countSpan = document.getElementById('deleteCount');
-    countSpan.textContent = count;
-    modal.classList.remove('hidden');
-}
+	function clearAllSelections() {
+		// Uncheck all checkboxes
+		const selectAllCheckbox = document.getElementById('selectAll');
+		const checkboxes = document.querySelectorAll('.rowCheckbox');
 
-function closeDeleteModal() {
-    const modal = document.getElementById('deleteConfirmModal');
-    modal.classList.add('hidden');
-}
+		if (selectAllCheckbox) {
+			selectAllCheckbox.checked = false;
+			selectAllCheckbox.indeterminate = false;
+		}
 
-async function confirmBulkDelete() {
-    const ids = getSelectedIds();
-    if (ids.length === 0) return;
-    
-    // Close modal
-    closeDeleteModal();
-    
-    // Show loading
-    const btn = document.getElementById('bulkDeleteBtn');
-    if (btn) {
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '⏳ Menghapus...';
-        btn.disabled = true;
-    }
+		checkboxes.forEach(cb => cb.checked = false);
 
-    fetch('/customers/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ ids })
-    })
-    .then(async res => {
-        const contentType = res.headers.get('content-type') || '';
-        if (!res.ok) {
-            let errorMessage = `HTTP ${res.status}`;
-            try {
-                if (contentType.includes('application/json')) {
-                    const data = await res.json();
-                    errorMessage = data.error || JSON.stringify(data);
-                } else {
-                    const text = await res.text();
-                    errorMessage = text?.slice(0, 500) || errorMessage;
-                }
-            } catch (_) {}
-            throw new Error(errorMessage);
-        }
-        return contentType.includes('application/json') ? res.json() : { success: false, error: 'Respon tidak valid' };
-    })
-    .then(data => {
-        if (data.success) {
-            const skipped = data.results?.skipped?.length || 0;
-            const deleted = data.results?.deleted?.length || 0;
-            alert(`Hapus massal selesai. Dihapus: ${deleted}, Dilewati: ${skipped}`);
-            location.reload();
-        } else {
-            alert('Gagal melakukan hapus massal: ' + (data.error || 'Tidak diketahui'));
-        }
-    })
-    .catch(err => {
-        console.error('Bulk delete error:', err);
-        alert('Terjadi kesalahan saat hapus massal: ' + (err?.message || err));
-    });
-}
+		// Hide floating bar
+		updateBulkState();
+	}
 
-function exportToExcel() {
-    // Get current filter parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const exportUrl = `/customers/export?${urlParams.toString()}`;
-    
-    // Create a temporary link to download the file
-    const link = document.createElement('a');
-    link.href = exportUrl;
-    link.download = `data_pelanggan_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+	function bulkDeleteSelected() {
+		const ids = getSelectedIds();
+		if (ids.length === 0) return;
 
-function showImportModal() {
-    document.getElementById('importModal').classList.remove('hidden');
-}
+		// Show modern confirmation modal
+		showDeleteConfirmModal(ids.length);
+	}
 
-function closeImportModal() {
-    document.getElementById('importModal').classList.add('hidden');
-    document.getElementById('importForm').reset();
-}
+	function showDeleteConfirmModal(count) {
+		const modal = document.getElementById('deleteConfirmModal');
+		const countSpan = document.getElementById('deleteCount');
+		countSpan.textContent = count;
+		modal.classList.remove('hidden');
+	}
 
-function handleImportClick() {
-    const fileInput = document.getElementById('excelFileInput');
-    const submitBtn = document.getElementById('submitImportBtn');
-    
-    if (!fileInput) {
-        alert('❌ File input tidak ditemukan!');
-        return;
-    }
-    
-    if (!fileInput.files || fileInput.files.length === 0) {
-        alert('❌ Silakan pilih file Excel terlebih dahulu!');
-        return;
-    }
-    
-    const file = fileInput.files[0];
-    
-    // Validate file type
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        alert('❌ File harus berformat .xlsx atau .xls');
-        return;
-    }
-    
-    // Validate file size
-    if (file.size > 10 * 1024 * 1024) {
-        alert('❌ File terlalu besar! Maksimal 10 MB');
-        return;
-    }
-    
-    // Create FormData
-    const formData = new FormData();
-    formData.append('excelFile', file);
-    
-    // Disable button
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Mengimport...';
-    }
-    
-    // Send request
-    
-    fetch('/customers/import', {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
-    .then(async response => {
-        let data;
-        try {
-            const text = await response.text();
-            console.log('Raw response:', text);
-            data = JSON.parse(text);
-        } catch (e) {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Import Data';
-            }
-            alert('❌ ERROR: Response tidak valid!\n\nStatus: ' + response.status + '\n\nCoba lagi!');
-            return null;
-        }
-        
-        // Reset button ALWAYS
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Import Data';
-        }
-        
-        if (!response.ok) {
-            alert('❌ SERVER ERROR!\n\n' + (data.error || 'HTTP ' + response.status));
-            return null;
-        }
-        
-        return data;
-    })
-    .then(data => {
-        if (!data) {
-            console.error('No data received');
-            return;
-        }
-        
-        console.log('Import result:', data);
-        
-        if (data.success) {
-            let message = '✅ HASIL IMPORT\n\n';
-            message += 'Total: ' + (data.totalRows || 0) + '\n';
-            message += 'Berhasil: ' + (data.details.success || 0) + '\n';
-            message += 'Gagal: ' + (data.details.failed || 0) + '\n';
-            
-            // Show errors if any
-            if (data.details && data.details.errors && data.details.errors.length > 0) {
-                message += '\n❌ ERROR:\n';
-                const maxErrors = Math.min(3, data.details.errors.length);
-                for (let i = 0; i < maxErrors; i++) {
-                    message += '\n' + (i + 1) + '. ' + data.details.errors[i];
-                }
-                if (data.details.errors.length > 3) {
-                    message += '\n... +' + (data.details.errors.length - 3) + ' error lagi';
-                }
-            }
-            
-            alert(message);
-            
-            // Reload if successful
-            if (data.details.success > 0) {
-                closeImportModal();
-                location.reload();
-            }
-        } else {
-            alert('❌ IMPORT GAGAL!\n\n' + (data.error || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        console.error('Fetch error:', error);
-        
-        // Reset button
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Import Data';
-        }
-        
-        alert('❌ ERROR!\n\n' + error.message);
-    });
-}
+	function closeDeleteModal() {
+		const modal = document.getElementById('deleteConfirmModal');
+		modal.classList.add('hidden');
+	}
+
+	async function confirmBulkDelete() {
+		const ids = getSelectedIds();
+		if (ids.length === 0) return;
+
+		// Close modal
+		closeDeleteModal();
+
+		// Show loading
+		const btn = document.getElementById('bulkDeleteBtn');
+		if (btn) {
+			const originalHtml = btn.innerHTML;
+			btn.innerHTML = '⏳ Menghapus...';
+			btn.disabled = true;
+		}
+
+		fetch('/customers/bulk-delete', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify({ ids })
+		})
+			.then(async res => {
+				const contentType = res.headers.get('content-type') || '';
+				if (!res.ok) {
+					let errorMessage = `HTTP ${res.status}`;
+					try {
+						if (contentType.includes('application/json')) {
+							const data = await res.json();
+							errorMessage = data.error || JSON.stringify(data);
+						} else {
+							const text = await res.text();
+							errorMessage = text?.slice(0, 500) || errorMessage;
+						}
+					} catch (_) { }
+					throw new Error(errorMessage);
+				}
+				return contentType.includes('application/json') ? res.json() : { success: false, error: 'Respon tidak valid' };
+			})
+			.then(data => {
+				if (data.success) {
+					const skipped = data.results?.skipped?.length || 0;
+					const deleted = data.results?.deleted?.length || 0;
+					alert(`Hapus massal selesai. Dihapus: ${deleted}, Dilewati: ${skipped}`);
+					location.reload();
+				} else {
+					alert('Gagal melakukan hapus massal: ' + (data.error || 'Tidak diketahui'));
+				}
+			})
+			.catch(err => {
+				console.error('Bulk delete error:', err);
+				alert('Terjadi kesalahan saat hapus massal: ' + (err?.message || err));
+			});
+	}
+
+	function exportToExcel() {
+		// Get current filter parameters
+		const urlParams = new URLSearchParams(window.location.search);
+		const exportUrl = `/customers/export?${urlParams.toString()}`;
+
+		// Create a temporary link to download the file
+		const link = document.createElement('a');
+		link.href = exportUrl;
+		link.download = `data_pelanggan_${new Date().toISOString().split('T')[0]}.xlsx`;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+	}
+
+	function showImportModal() {
+		document.getElementById('importModal').classList.remove('hidden');
+	}
+
+	function closeImportModal() {
+		document.getElementById('importModal').classList.add('hidden');
+		document.getElementById('importForm').reset();
+	}
+
+	function handleImportClick() {
+		const fileInput = document.getElementById('excelFileInput');
+		const submitBtn = document.getElementById('submitImportBtn');
+
+		if (!fileInput) {
+			alert('❌ File input tidak ditemukan!');
+			return;
+		}
+
+		if (!fileInput.files || fileInput.files.length === 0) {
+			alert('❌ Silakan pilih file Excel terlebih dahulu!');
+			return;
+		}
+
+		const file = fileInput.files[0];
+
+		// Validate file type
+		if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+			alert('❌ File harus berformat .xlsx atau .xls');
+			return;
+		}
+
+		// Validate file size
+		if (file.size > 10 * 1024 * 1024) {
+			alert('❌ File terlalu besar! Maksimal 10 MB');
+			return;
+		}
+
+		// Create FormData
+		const formData = new FormData();
+		formData.append('excelFile', file);
+
+		// Disable button
+		if (submitBtn) {
+			submitBtn.disabled = true;
+			submitBtn.textContent = 'Mengimport...';
+		}
+
+		// Send request
+
+		fetch('/customers/import', {
+			method: 'POST',
+			body: formData,
+			credentials: 'same-origin'
+		})
+			.then(async response => {
+				let data;
+				try {
+					const text = await response.text();
+					console.log('Raw response:', text);
+					data = JSON.parse(text);
+				} catch (e) {
+					if (submitBtn) {
+						submitBtn.disabled = false;
+						submitBtn.textContent = 'Import Data';
+					}
+					alert('❌ ERROR: Response tidak valid!\n\nStatus: ' + response.status + '\n\nCoba lagi!');
+					return null;
+				}
+
+				// Reset button ALWAYS
+				if (submitBtn) {
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Import Data';
+				}
+
+				if (!response.ok) {
+					alert('❌ SERVER ERROR!\n\n' + (data.error || 'HTTP ' + response.status));
+					return null;
+				}
+
+				return data;
+			})
+			.then(data => {
+				if (!data) {
+					console.error('No data received');
+					return;
+				}
+
+				console.log('Import result:', data);
+
+				if (data.success) {
+					let message = '✅ HASIL IMPORT\n\n';
+					message += 'Total: ' + (data.totalRows || 0) + '\n';
+					message += 'Berhasil: ' + (data.details.success || 0) + '\n';
+					message += 'Gagal: ' + (data.details.failed || 0) + '\n';
+
+					// Show errors if any
+					if (data.details && data.details.errors && data.details.errors.length > 0) {
+						message += '\n❌ ERROR:\n';
+						const maxErrors = Math.min(3, data.details.errors.length);
+						for (let i = 0; i < maxErrors; i++) {
+							message += '\n' + (i + 1) + '. ' + data.details.errors[i];
+						}
+						if (data.details.errors.length > 3) {
+							message += '\n... +' + (data.details.errors.length - 3) + ' error lagi';
+						}
+					}
+
+					alert(message);
+
+					// Reload if successful
+					if (data.details.success > 0) {
+						closeImportModal();
+						location.reload();
+					}
+				} else {
+					alert('❌ IMPORT GAGAL!\n\n' + (data.error || 'Unknown error'));
+				}
+			})
+			.catch(error => {
+				console.error('Fetch error:', error);
+
+				// Reset button
+				if (submitBtn) {
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Import Data';
+				}
+
+				alert('❌ ERROR!\n\n' + error.message);
+			});
+	}
 
 </script>
 
 <script>
-// Initialize checkbox behaviors and bulk button state on page load
-document.addEventListener('DOMContentLoaded', function() {
-	const selectAllCheckbox = document.getElementById('selectAll');
-    const exportBtn = document.getElementById('exportExcelBtn');
-    const showImportBtn = document.getElementById('showImportModalBtn');
-    const closeImportBtn = document.getElementById('closeImportModalBtn');
-    const closeImportIconBtn = document.getElementById('closeImportModalIconBtn');
-    const importForm = document.getElementById('importForm');
+	// Initialize checkbox behaviors and bulk button state on page load
+	document.addEventListener('DOMContentLoaded', function () {
+		const selectAllCheckbox = document.getElementById('selectAll');
+		const exportBtn = document.getElementById('exportExcelBtn');
+		const showImportBtn = document.getElementById('showImportModalBtn');
+		const closeImportBtn = document.getElementById('closeImportModalBtn');
+		const closeImportIconBtn = document.getElementById('closeImportModalIconBtn');
+		const importForm = document.getElementById('importForm');
 
-	function refreshHeaderCheckboxState() {
-		const checkboxes = Array.from(document.querySelectorAll('.rowCheckbox'));
-		const checkedCount = checkboxes.filter(cb => cb.checked).length;
-		if (!selectAllCheckbox) return;
-		selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
-		selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
-	}
+		function refreshHeaderCheckboxState() {
+			const checkboxes = Array.from(document.querySelectorAll('.rowCheckbox'));
+			const checkedCount = checkboxes.filter(cb => cb.checked).length;
+			if (!selectAllCheckbox) return;
+			selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+			selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+		}
 
-	// Bind change event for header select-all checkbox (in addition to inline handler)
-	if (selectAllCheckbox) {
-		selectAllCheckbox.addEventListener('change', function() {
-			const checkboxes = document.querySelectorAll('.rowCheckbox');
-			checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
-			updateBulkState();
-			refreshHeaderCheckboxState();
+		// Bind change event for header select-all checkbox (in addition to inline handler)
+		if (selectAllCheckbox) {
+			selectAllCheckbox.addEventListener('change', function () {
+				const checkboxes = document.querySelectorAll('.rowCheckbox');
+				checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+				updateBulkState();
+				refreshHeaderCheckboxState();
+			});
+		}
+
+		// Bind change events for all row checkboxes to keep UI in sync
+		const rowCheckboxes = document.querySelectorAll('.rowCheckbox');
+		rowCheckboxes.forEach(cb => {
+			cb.addEventListener('change', function () {
+				updateBulkState();
+				refreshHeaderCheckboxState();
+			});
 		});
-	}
 
-	// Bind change events for all row checkboxes to keep UI in sync
-	const rowCheckboxes = document.querySelectorAll('.rowCheckbox');
-	rowCheckboxes.forEach(cb => {
-		cb.addEventListener('change', function() {
-			updateBulkState();
-			refreshHeaderCheckboxState();
+		// Initialize bulk state (bar is hidden by default via CSS)
+		updateBulkState();
+
+		// Export Excel
+		if (exportBtn) {
+			exportBtn.addEventListener('click', function () {
+				exportToExcel();
+			});
+		}
+
+		// Show import modal
+		if (showImportBtn) {
+			showImportBtn.addEventListener('click', function () {
+				const m = document.getElementById('importModal');
+				if (m) m.classList.remove('hidden');
+			});
+		}
+
+		// Close import modal buttons
+		function handleCloseImport() {
+			const m = document.getElementById('importModal');
+			if (m) m.classList.add('hidden');
+			const f = document.getElementById('importForm');
+			if (f && typeof f.reset === 'function') f.reset();
+		}
+		if (closeImportBtn) closeImportBtn.addEventListener('click', handleCloseImport);
+		if (closeImportIconBtn) closeImportIconBtn.addEventListener('click', handleCloseImport);
+
+		// Import form submit
+		const submitImportBtn = document.getElementById('submitImportBtn');
+		if (submitImportBtn) {
+			submitImportBtn.addEventListener('click', function (e) {
+				e.preventDefault();
+				e.stopPropagation();
+				handleImportClick();
+			});
+		}
+
+		// Also handle form submit
+		if (importForm) {
+			importForm.addEventListener('submit', function (e) {
+				e.preventDefault();
+				e.stopPropagation();
+				handleImportClick();
+			});
+		}
+
+
+		// Bind delete buttons per row
+		document.querySelectorAll('.deleteCustomerBtn').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				const id = this.getAttribute('data-id');
+				const name = this.getAttribute('data-name') || '';
+				if (id) deleteCustomer(parseInt(id, 10), name);
+			});
+		});
+
+		// Initial state
+		updateBulkState();
+		refreshHeaderCheckboxState();
+
+		// ===================
+		// MIGRATION HANDLERS
+		// ===================
+
+		// Migrate to Prepaid
+		document.querySelectorAll('.migrateToPrepaidBtn').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				const customerId = this.getAttribute('data-id');
+				const customerName = this.getAttribute('data-name');
+				showMigrationConfirmModal(customerId, customerName, 'prepaid');
+			});
+		});
+
+		// Migrate to Postpaid
+		document.querySelectorAll('.migrateToPostpaidBtn').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				const customerId = this.getAttribute('data-id');
+				const customerName = this.getAttribute('data-name');
+				showMigrationConfirmModal(customerId, customerName, 'postpaid');
+			});
 		});
 	});
 
-	// Initialize bulk state (bar is hidden by default via CSS)
-	updateBulkState();
+	// Migration functions
+	function showMigrationConfirmModal(customerId, customerName, toMode) {
+		const modal = document.getElementById('migrationConfirmModal');
+		const modalContent = document.getElementById('migrationModalContent');
 
-    // Export Excel
-    if (exportBtn) {
-        exportBtn.addEventListener('click', function() {
-            exportToExcel();
-        });
-    }
-
-    // Show import modal
-    if (showImportBtn) {
-        showImportBtn.addEventListener('click', function() {
-            const m = document.getElementById('importModal');
-            if (m) m.classList.remove('hidden');
-        });
-    }
-
-    // Close import modal buttons
-    function handleCloseImport() {
-        const m = document.getElementById('importModal');
-        if (m) m.classList.add('hidden');
-        const f = document.getElementById('importForm');
-        if (f && typeof f.reset === 'function') f.reset();
-    }
-    if (closeImportBtn) closeImportBtn.addEventListener('click', handleCloseImport);
-    if (closeImportIconBtn) closeImportIconBtn.addEventListener('click', handleCloseImport);
-
-    // Import form submit
-    const submitImportBtn = document.getElementById('submitImportBtn');
-    if (submitImportBtn) {
-        submitImportBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            handleImportClick();
-        });
-    }
-    
-    // Also handle form submit
-    if (importForm) {
-        importForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            handleImportClick();
-        });
-    }
-
-
-    // Bind delete buttons per row
-    document.querySelectorAll('.deleteCustomerBtn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            const name = this.getAttribute('data-name') || '';
-            if (id) deleteCustomer(parseInt(id, 10), name);
-        });
-    });
-
-	// Initial state
-	updateBulkState();
-	refreshHeaderCheckboxState();
-
-	// ===================
-	// MIGRATION HANDLERS
-	// ===================
-	
-	// Migrate to Prepaid
-	document.querySelectorAll('.migrateToPrepaidBtn').forEach(function(btn) {
-		btn.addEventListener('click', function() {
-			const customerId = this.getAttribute('data-id');
-			const customerName = this.getAttribute('data-name');
-			showMigrationConfirmModal(customerId, customerName, 'prepaid');
-		});
-	});
-	
-	// Migrate to Postpaid
-	document.querySelectorAll('.migrateToPostpaidBtn').forEach(function(btn) {
-		btn.addEventListener('click', function() {
-			const customerId = this.getAttribute('data-id');
-			const customerName = this.getAttribute('data-name');
-			showMigrationConfirmModal(customerId, customerName, 'postpaid');
-		});
-	});
-});
-
-// Migration functions
-function showMigrationConfirmModal(customerId, customerName, toMode) {
-	const modal = document.getElementById('migrationConfirmModal');
-	const modalContent = document.getElementById('migrationModalContent');
-	
-	let content = '';
-	if (toMode === 'prepaid') {
-		content = `
+		let content = '';
+		if (toMode === 'prepaid') {
+			content = `
 			<div class="p-6">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-lg font-bold text-modern-blue-900">⚠️ Migrasi ke Sistem Prepaid</h3>
@@ -930,8 +993,8 @@ function showMigrationConfirmModal(customerId, customerName, toMode) {
 				</div>
 			</div>
 		`;
-	} else {
-		content = `
+		} else {
+			content = `
 			<div class="p-6">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-lg font-bold text-modern-orange-900">🔙 Kembalikan ke Sistem Postpaid</h3>
@@ -967,96 +1030,96 @@ function showMigrationConfirmModal(customerId, customerName, toMode) {
 				</div>
 			</div>
 		`;
+		}
+
+		modalContent.innerHTML = content;
+		modal.classList.remove('hidden');
+
+		// Attach event listeners after modal content is added
+		attachModalEventListeners();
 	}
-	
-	modalContent.innerHTML = content;
-	modal.classList.remove('hidden');
-	
-	// Attach event listeners after modal content is added
-	attachModalEventListeners();
-}
 
-function closeMigrationModal() {
-	const modal = document.getElementById('migrationConfirmModal');
-	modal.classList.add('hidden');
-}
+	function closeMigrationModal() {
+		const modal = document.getElementById('migrationConfirmModal');
+		modal.classList.add('hidden');
+	}
 
-function attachModalEventListeners() {
-	// Close buttons
-	document.querySelectorAll('.closeMigrationBtn, .cancelMigrationBtn').forEach(btn => {
-		btn.addEventListener('click', closeMigrationModal);
-	});
-	
-	// Execute migration button
-	const executeBtn = document.querySelector('.executeMigrationBtn');
-	if (executeBtn) {
-		executeBtn.addEventListener('click', function() {
-			const customerId = this.getAttribute('data-customer-id');
-			const customerName = this.getAttribute('data-customer-name');
-			const mode = this.getAttribute('data-mode');
-			executeMigration(customerId, customerName, mode);
+	function attachModalEventListeners() {
+		// Close buttons
+		document.querySelectorAll('.closeMigrationBtn, .cancelMigrationBtn').forEach(btn => {
+			btn.addEventListener('click', closeMigrationModal);
 		});
-	}
-}
 
-function executeMigration(customerId, customerName, toMode) {
-	// Show loading
-	const modalContent = document.getElementById('migrationModalContent');
-	modalContent.innerHTML = `
+		// Execute migration button
+		const executeBtn = document.querySelector('.executeMigrationBtn');
+		if (executeBtn) {
+			executeBtn.addEventListener('click', function () {
+				const customerId = this.getAttribute('data-customer-id');
+				const customerName = this.getAttribute('data-customer-name');
+				const mode = this.getAttribute('data-mode');
+				executeMigration(customerId, customerName, mode);
+			});
+		}
+	}
+
+	function executeMigration(customerId, customerName, toMode) {
+		// Show loading
+		const modalContent = document.getElementById('migrationModalContent');
+		modalContent.innerHTML = `
 		<div class="p-6 text-center">
 			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-modern-blue-500 mx-auto mb-4"></div>
 			<p class="text-modern-gray-700">Memproses migrasi...</p>
 		</div>
 	`;
-	
-	const endpoint = toMode === 'prepaid' 
-		? `/customers/${customerId}/migrate-to-prepaid`
-		: `/customers/${customerId}/migrate-to-postpaid`;
-	
-	fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Accept': 'application/json'
-		},
-		credentials: 'same-origin'
-	})
-	.then(response => {
-		// Check if response is JSON
-		const contentType = response.headers.get('content-type');
-		if (contentType && contentType.includes('application/json')) {
-			return response.json();
-		} else {
-			// If not JSON, get text to see what the error is
-			return response.text().then(text => {
-				throw new Error('Server returned non-JSON response: ' + text.substring(0, 200));
-			});
-		}
-	})
-	.then(data => {
-		if (data.success) {
-			showMigrationResultModal(data, customerName, toMode);
-		} else {
-			showMigrationErrorModal(data.error || 'Terjadi kesalahan');
-		}
-	})
-	.catch(error => {
-		console.error('Migration error:', error);
-		const errorMsg = error.message || 'Terjadi kesalahan saat migrasi';
-		showMigrationErrorModal('Terjadi kesalahan saat migrasi: ' + errorMsg);
-	});
-}
 
-function showMigrationResultModal(data, customerName, toMode) {
-	const modalContent = document.getElementById('migrationModalContent');
-	
-	let content = '';
-	if (toMode === 'prepaid') {
-		const portalId = data.portal_id || 'EXISTING';
-		const portalPin = data.portal_pin || '(gunakan PIN yang ada)';
-		const portalUrl = window.location.origin + '/prepaid/portal/login';
-		
-		content = `
+		const endpoint = toMode === 'prepaid'
+			? `/customers/${customerId}/migrate-to-prepaid`
+			: `/customers/${customerId}/migrate-to-postpaid`;
+
+		fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			credentials: 'same-origin'
+		})
+			.then(response => {
+				// Check if response is JSON
+				const contentType = response.headers.get('content-type');
+				if (contentType && contentType.includes('application/json')) {
+					return response.json();
+				} else {
+					// If not JSON, get text to see what the error is
+					return response.text().then(text => {
+						throw new Error('Server returned non-JSON response: ' + text.substring(0, 200));
+					});
+				}
+			})
+			.then(data => {
+				if (data.success) {
+					showMigrationResultModal(data, customerName, toMode);
+				} else {
+					showMigrationErrorModal(data.error || 'Terjadi kesalahan');
+				}
+			})
+			.catch(error => {
+				console.error('Migration error:', error);
+				const errorMsg = error.message || 'Terjadi kesalahan saat migrasi';
+				showMigrationErrorModal('Terjadi kesalahan saat migrasi: ' + errorMsg);
+			});
+	}
+
+	function showMigrationResultModal(data, customerName, toMode) {
+		const modalContent = document.getElementById('migrationModalContent');
+
+		let content = '';
+		if (toMode === 'prepaid') {
+			const portalId = data.portal_id || 'EXISTING';
+			const portalPin = data.portal_pin || '(gunakan PIN yang ada)';
+			const portalUrl = window.location.origin + '/prepaid/portal/login';
+
+			content = `
 			<div class="p-6">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-lg font-bold text-modern-green-900">✅ Migrasi Berhasil!</h3>
@@ -1105,8 +1168,8 @@ function showMigrationResultModal(data, customerName, toMode) {
 				</button>
 			</div>
 		`;
-	} else {
-		content = `
+		} else {
+			content = `
 			<div class="p-6">
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-lg font-bold text-modern-green-900">✅ Kembalikan ke Postpaid Berhasil!</h3>
@@ -1132,15 +1195,15 @@ function showMigrationResultModal(data, customerName, toMode) {
 				</button>
 			</div>
 		`;
-	}
-	
-	modalContent.innerHTML = content;
-	attachResultEventListeners();
-}
+		}
 
-function showMigrationErrorModal(errorMessage) {
-	const modalContent = document.getElementById('migrationModalContent');
-	modalContent.innerHTML = `
+		modalContent.innerHTML = content;
+		attachResultEventListeners();
+	}
+
+	function showMigrationErrorModal(errorMessage) {
+		const modalContent = document.getElementById('migrationModalContent');
+		modalContent.innerHTML = `
 		<div class="p-6">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-lg font-bold text-modern-red-900">❌ Migrasi Gagal</h3>
@@ -1162,70 +1225,70 @@ function showMigrationErrorModal(errorMessage) {
 			</button>
 		</div>
 	`;
-	attachErrorEventListeners();
-}
+		attachErrorEventListeners();
+	}
 
-function closeMigrationModalAndReload() {
-	closeMigrationModal();
-	location.reload();
-}
+	function closeMigrationModalAndReload() {
+		closeMigrationModal();
+		location.reload();
+	}
 
-function attachResultEventListeners() {
-	// Close and OK buttons
-	document.querySelectorAll('.closeResultBtn, .okResultBtn').forEach(btn => {
-		btn.addEventListener('click', closeMigrationModalAndReload);
-	});
-	
-	// Copy info button
-	const copyBtn = document.querySelector('.copyInfoBtn');
-	if (copyBtn) {
-		copyBtn.addEventListener('click', function() {
-			const portalId = this.getAttribute('data-portal-id');
-			const portalPin = this.getAttribute('data-portal-pin');
-			const portalUrl = this.getAttribute('data-portal-url');
-			copyPortalInfo(portalId, portalPin, portalUrl);
+	function attachResultEventListeners() {
+		// Close and OK buttons
+		document.querySelectorAll('.closeResultBtn, .okResultBtn').forEach(btn => {
+			btn.addEventListener('click', closeMigrationModalAndReload);
+		});
+
+		// Copy info button
+		const copyBtn = document.querySelector('.copyInfoBtn');
+		if (copyBtn) {
+			copyBtn.addEventListener('click', function () {
+				const portalId = this.getAttribute('data-portal-id');
+				const portalPin = this.getAttribute('data-portal-pin');
+				const portalUrl = this.getAttribute('data-portal-url');
+				copyPortalInfo(portalId, portalPin, portalUrl);
+			});
+		}
+
+		// WhatsApp button
+		const waBtn = document.querySelector('.sendWhatsAppBtn');
+		if (waBtn) {
+			waBtn.addEventListener('click', function () {
+				const customerName = this.getAttribute('data-customer-name');
+				const portalId = this.getAttribute('data-portal-id');
+				const portalPin = this.getAttribute('data-portal-pin');
+				sendWhatsApp(customerName, portalId, portalPin);
+			});
+		}
+	}
+
+	function attachErrorEventListeners() {
+		// Close buttons for error modal
+		document.querySelectorAll('.closeErrorBtn, .closeErrorOkBtn').forEach(btn => {
+			btn.addEventListener('click', closeMigrationModal);
 		});
 	}
-	
-	// WhatsApp button
-	const waBtn = document.querySelector('.sendWhatsAppBtn');
-	if (waBtn) {
-		waBtn.addEventListener('click', function() {
-			const customerName = this.getAttribute('data-customer-name');
-			const portalId = this.getAttribute('data-portal-id');
-			const portalPin = this.getAttribute('data-portal-pin');
-			sendWhatsApp(customerName, portalId, portalPin);
-		});
-	}
-}
 
-function attachErrorEventListeners() {
-	// Close buttons for error modal
-	document.querySelectorAll('.closeErrorBtn, .closeErrorOkBtn').forEach(btn => {
-		btn.addEventListener('click', closeMigrationModal);
-	});
-}
-
-function copyPortalInfo(portalId, portalPin, portalUrl) {
-	const text = `🔐 INFO LOGIN PORTAL PREPAID
+	function copyPortalInfo(portalId, portalPin, portalUrl) {
+		const text = `🔐 INFO LOGIN PORTAL PREPAID
 
 Portal ID: ${portalId}
 Portal PIN: ${portalPin}
 URL: ${portalUrl}
 
 Silakan login di portal untuk membeli paket internet.`;
-	
-	navigator.clipboard.writeText(text).then(() => {
-		alert('✅ Info portal berhasil dicopy!');
-	}).catch(() => {
-		alert('❌ Gagal copy. Silakan copy manual.');
-	});
-}
 
-function sendWhatsApp(customerName, portalId, portalPin) {
-	const portalUrl = window.location.origin + '/prepaid/portal/login';
-	
-	const message = `Halo ${customerName},
+		navigator.clipboard.writeText(text).then(() => {
+			alert('✅ Info portal berhasil dicopy!');
+		}).catch(() => {
+			alert('❌ Gagal copy. Silakan copy manual.');
+		});
+	}
+
+	function sendWhatsApp(customerName, portalId, portalPin) {
+		const portalUrl = window.location.origin + '/prepaid/portal/login';
+
+		const message = `Halo ${customerName},
 
 Akun prepaid Anda sudah aktif! 🎉
 
@@ -1246,13 +1309,13 @@ Internet Anda akan aktif setelah pembelian paket.
 
 Terima kasih! 🙏`;
 
-	// Encode message for WhatsApp URL
-	const encodedMessage = encodeURIComponent(message);
-	const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-	
-	// Open WhatsApp in new tab
-	window.open(whatsappUrl, '_blank');
-}
+		// Encode message for WhatsApp URL
+		const encodedMessage = encodeURIComponent(message);
+		const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+
+		// Open WhatsApp in new tab
+		window.open(whatsappUrl, '_blank');
+	}
 </script>
 
 <!-- Delete Confirmation Modal -->
@@ -1263,29 +1326,34 @@ Terima kasih! 🙏`;
 			<div class="flex items-center justify-center mb-4">
 				<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
 					<svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+							d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
 					</svg>
 				</div>
 			</div>
-			
+
 			<!-- Title & Message -->
 			<h3 class="text-xl font-bold text-gray-900 text-center mb-2">Konfirmasi Hapus</h3>
 			<p class="text-gray-600 text-center mb-6">
-				Anda akan menghapus <span id="deleteCount" class="font-bold text-red-600">0</span> pelanggan terpilih.<br>
+				Anda akan menghapus <span id="deleteCount" class="font-bold text-red-600">0</span> pelanggan
+				terpilih.<br>
 				<span class="text-sm text-gray-500">Pelanggan dengan tagihan aktif akan dilewati.</span>
 			</p>
-			
+
 			<!-- Actions -->
 			<div class="flex gap-3">
-				<button onclick="closeDeleteModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
+				<button onclick="closeDeleteModal()"
+					class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
 					<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+							d="M6 18L18 6M6 6l12 12" />
 					</svg>
 					Batal
 				</button>
-				<button id="bulkDeleteBtn" onclick="confirmBulkDelete()" class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold shadow-lg">
+				<button id="bulkDeleteBtn" onclick="confirmBulkDelete()"
+					class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold shadow-lg">
 					<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 					</svg>
 					Ya, Hapus
 				</button>
@@ -1304,5 +1372,3 @@ Terima kasih! 🙏`;
 		</div>
 	</div>
 </div>
-
-

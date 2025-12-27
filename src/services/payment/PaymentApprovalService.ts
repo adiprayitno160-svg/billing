@@ -49,8 +49,7 @@ export class PaymentApprovalService {
         extractedData: ExtractedPaymentData,
         matchingResult: MatchingResult,
         expectedAmount?: number,
-        expectedBank?: string,
-        transactionType: 'invoice' | 'prepaid' = 'invoice'
+        expectedBank?: string
     ): Promise<ApprovalDecision & { verificationId?: number }> {
         try {
             console.log('🔍 Processing payment approval with Gemini AI...');
@@ -64,8 +63,7 @@ export class PaymentApprovalService {
                 geminiAnalysis = await GeminiService.analyzePaymentProof(
                     imageBuffer,
                     expectedAmount || extractedData.amount,
-                    expectedBank || extractedData.bank,
-                    transactionType
+                    expectedBank || extractedData.bank
                 );
 
                 const geminiDecision = await GeminiService.shouldAutoApprove(geminiAnalysis);
@@ -144,7 +142,7 @@ export class PaymentApprovalService {
             } else {
                 // Use traditional decision making
                 decision = this.makeDecision(confidenceScore, fraudScore, matchingResult);
-                
+
                 // Add Gemini insights if available
                 if (geminiAnalysis) {
                     if (!geminiAnalysis.isValid) {
@@ -341,7 +339,7 @@ export class PaymentApprovalService {
                 if (verification && verification.length > 0 && verification[0].payment_proof_url) {
                     // Try to get proof URL from verification record
                     const proofUrl = verification[0].payment_proof_url;
-                    
+
                     // Insert into payment_proofs table
                     try {
                         await connection.execute(`

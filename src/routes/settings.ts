@@ -24,7 +24,7 @@ router.get('/company/export', CompanyController.exportSettings);
 router.post('/company/import', upload.single('settings_file'), CompanyController.importSettings);
 router.post('/company/reset', CompanyController.resetToDefault);
 
-// Routes untuk System Settings (Prepaid Portal URL, etc)
+// Routes untuk System Settings
 router.get('/system', SystemSettingsController.index);
 router.post('/system', SystemSettingsController.updateSettings);
 
