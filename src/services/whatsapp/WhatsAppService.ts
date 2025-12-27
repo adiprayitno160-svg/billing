@@ -8,6 +8,17 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
+
+// Polyfill Web Crypto for Node.js < 19
+if (!globalThis.crypto) {
+    try {
+        // @ts-ignore
+        globalThis.crypto = crypto.webcrypto;
+    } catch (e) {
+        console.warn('⚠️ Failed to polyfill Web Crypto (Node version might be too old)');
+    }
+}
 
 export interface WhatsAppMessageOptions {
     customerId?: number;
