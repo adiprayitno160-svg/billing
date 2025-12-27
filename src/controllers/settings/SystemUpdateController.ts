@@ -124,6 +124,8 @@ export class SystemUpdateController {
             updateSteps.push(`[${currentStep}/6] Pulling latest changes from GitHub...`);
             console.log(updateSteps[currentStep - 1]);
 
+            // Ensure we are on main branch
+            await execAsync('git checkout main');
             const { stdout: pullOutput } = await execAsync('git pull origin main');
             console.log(pullOutput);
 
