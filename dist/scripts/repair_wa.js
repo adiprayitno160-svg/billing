@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-const BaileysWhatsAppService_1 = require("../services/whatsapp/BaileysWhatsAppService");
+const WhatsAppService_1 = require("../services/whatsapp/WhatsAppService");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const child_process_1 = require("child_process");
@@ -45,7 +45,7 @@ async function repairWhatsApp() {
         // 1. Destroy existing client
         console.log('Step 1: Destroying current client if any...');
         try {
-            await BaileysWhatsAppService_1.BaileysWhatsAppService.destroy();
+            await WhatsAppService_1.WhatsAppService.destroy();
         }
         catch (e) {
             console.log('Info: Client was not active or failed to destroy.');
@@ -86,7 +86,7 @@ async function repairWhatsApp() {
         }
         console.log('✨ Cleanup complete! Now re-initializing...');
         // 5. Re-initialize
-        await BaileysWhatsAppService_1.BaileysWhatsAppService.initialize();
+        await WhatsAppService_1.WhatsAppService.initialize();
         console.log('✅ WhatsApp initialization command sent.');
         console.log('📱 Please wait about 10-20 seconds, then check /settings/whatsapp for the NEW QR Code.');
         process.exit(0);

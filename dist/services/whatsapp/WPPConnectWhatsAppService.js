@@ -112,14 +112,13 @@ class WPPConnectWhatsAppService {
                 ],
                 headless: true,
                 devtools: false,
-                useChrome: false,
+                useChrome: false, // Use bundled chromium for better compatibility on server
                 debug: false,
-                logLevel: 'error',
-                autoClose: 60000,
+                autoClose: 0, // Disable auto close
                 createPathFileToken: true,
                 waitForLogin: true,
                 puppeteerOptions: {
-                    userDataDir: this.sessionPath,
+                    userDataDir: this.sessionPath, // Persist session properly
                     headless: true,
                     args: [
                         '--no-sandbox',

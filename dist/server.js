@@ -50,7 +50,7 @@ const index_1 = __importDefault(require("./routes/index"));
 const errorHandler_1 = require("./middlewares/errorHandler");
 const scheduler_1 = require("./services/scheduler");
 const invoiceSchedulerService_1 = require("./services/billing/invoiceSchedulerService");
-const WPPConnectWhatsAppService_1 = require("./services/whatsapp/WPPConnectWhatsAppService");
+const WhatsAppService_1 = require("./services/whatsapp/WhatsAppService");
 const http_1 = require("http");
 const authController_1 = require("./controllers/authController");
 const companyInfoMiddleware_1 = require("./middlewares/companyInfoMiddleware");
@@ -282,7 +282,7 @@ async function start() {
         console.log('Notification scheduler initialized');
         // Initialize WhatsApp Business service
         // Initialize WhatsApp Business service (non-blocking)
-        WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.initialize()
+        WhatsAppService_1.WhatsAppService.initialize()
             .then(() => console.log('WhatsApp Business service initialized'))
             .catch(error => {
             console.error('Failed to initialize WhatsApp service:', error);

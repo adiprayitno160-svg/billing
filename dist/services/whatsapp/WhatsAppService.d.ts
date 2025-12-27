@@ -14,17 +14,8 @@ export declare class WhatsAppService {
     private static currentQRCode;
     private static isAuthenticated;
     private static channelColumnExists;
-    /**
-     * Initialize WhatsApp client
-     */
     static initialize(): Promise<void>;
-    /**
-     * Check if WhatsApp client is ready
-     */
-    static isClientReady(): boolean;
-    /**
-     * Get client status
-     */
+    private static getConnectionState;
     static getStatus(): {
         ready: boolean;
         initialized: boolean;
@@ -32,43 +23,25 @@ export declare class WhatsAppService {
         authenticated: boolean;
         hasQRCode: boolean;
     };
-    /**
-     * Get current QR code
-     */
     static getQRCode(): string | null;
-    /**
-     * Regenerate QR code by destroying and reinitializing client
-     */
+    static isClientReady(): boolean;
+    static getNotificationHistory(limit?: number, customerId?: number, status?: string): Promise<any[]>;
     static regenerateQRCode(): Promise<void>;
-    /**
-     * Format phone number to WhatsApp format
-     */
+    static destroy(): Promise<void>;
     private static formatPhoneNumber;
-    /**
-     * Send WhatsApp message
-     */
     static sendMessage(phone: string, message: string, options?: WhatsAppMessageOptions): Promise<{
         success: boolean;
         messageId?: string;
         error?: string;
     }>;
-    /**
-     * Send WhatsApp message with media
-     */
-    static sendMessageWithMedia(phone: string, message: string, mediaPath: string, options?: WhatsAppMessageOptions): Promise<{
-        success: boolean;
-        messageId?: string;
-        error?: string;
-    }>;
-    /**
-     * Send bulk messages
-     */
     static sendBulkMessages(recipients: Array<{
         phone: string;
         message: string;
         customerId?: number;
+        template?: string;
     }>, delayMs?: number): Promise<{
-        success: number;
+        total: number;
+        sent: number;
         failed: number;
         results: Array<{
             phone: string;
@@ -76,17 +49,7 @@ export declare class WhatsAppService {
             error?: string;
         }>;
     }>;
-    /**
-     * Log notification to database
-     */
     private static logNotification;
-    /**
-     * Get notification history
-     */
-    static getNotificationHistory(limit?: number, customerId?: number, status?: string): Promise<any[]>;
-    /**
-     * Get notification statistics
-     */
     static getNotificationStats(): Promise<{
         total: number;
         sent: number;
@@ -94,9 +57,5 @@ export declare class WhatsAppService {
         pending: number;
         successRate: number;
     }>;
-    /**
-     * Destroy WhatsApp client
-     */
-    static destroy(): Promise<void>;
 }
 //# sourceMappingURL=WhatsAppService.d.ts.map

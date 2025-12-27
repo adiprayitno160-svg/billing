@@ -38,7 +38,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WhatsAppSettingsController = void 0;
-const WPPConnectWhatsAppService_1 = require("../../services/whatsapp/WPPConnectWhatsAppService");
+const WhatsAppService_1 = require("../../services/whatsapp/WhatsAppService");
 const pool_1 = require("../../db/pool");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -49,25 +49,25 @@ class WhatsAppSettingsController {
     static async showSettings(req, res) {
         try {
             // Get WhatsApp service status
-            let status = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getStatus();
+            let status = WhatsAppService_1.WhatsAppService.getStatus();
             // Force initialize if not initialized yet
             if (!status.initialized && !status.initializing) {
                 console.log('🔄 Force initializing WhatsApp service...');
                 try {
                     // Don't await - initialize in background
-                    WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.initialize()
+                    WhatsAppService_1.WhatsAppService.initialize()
                         .then(() => console.log('✅ WhatsApp service initialized successfully'))
                         .catch(err => console.error('❌ Failed to initialize WhatsApp:', err));
                     // Wait a bit for initialization to start
                     await new Promise(resolve => setTimeout(resolve, 1000));
-                    status = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getStatus();
+                    status = WhatsAppService_1.WhatsAppService.getStatus();
                 }
                 catch (initError) {
                     console.error('⚠️ Error during WhatsApp initialization:', initError);
                 }
             }
-            const stats = await WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getNotificationStats();
-            let qrCode = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getQRCode();
+            const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
+            let qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
             // Get recent failed notifications
             let failedNotifications = [];
             try {
@@ -145,9 +145,9 @@ class WhatsAppSettingsController {
      */
     static async getStatus(req, res) {
         try {
-            const status = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getStatus();
-            const stats = await WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getNotificationStats();
-            const qrCode = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getQRCode();
+            const status = WhatsAppService_1.WhatsAppService.getStatus();
+            const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
+            const qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
             const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
@@ -189,7 +189,7 @@ class WhatsAppSettingsController {
                 return;
             }
             // Check if WhatsApp is ready
-            const status = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getStatus();
+            const status = WhatsAppService_1.WhatsAppService.getStatus();
             console.log('📱 [Test WA] Current status before test send:', status);
             if (!status.ready) {
                 console.warn('⚠️ [Test WA] Test send rejected: WhatsApp is not ready');
@@ -201,7 +201,7 @@ class WhatsAppSettingsController {
             }
             // Send test message
             console.log(`📱 [Test WA] Attempting to send test message to ${phone}...`);
-            const result = await WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.sendMessage(phone.trim(), message.trim(), {
+            const result = await WhatsAppService_1.WhatsAppService.sendMessage(phone.trim(), message.trim(), {
                 template: 'test_message'
             });
             if (result.success) {
@@ -240,10 +240,10 @@ class WhatsAppSettingsController {
             const sessionPath = path.join(process.cwd(), 'baileys-session');
             // Destroy client first
             try {
-                const status = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getStatus();
+                const status = WhatsAppService_1.WhatsAppService.getStatus();
                 if (status.initialized) {
                     console.log('🗑️ Destroying existing client...');
-                    await WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.destroy();
+                    await WhatsAppService_1.WhatsAppService.destroy();
                     console.log('✅ Client destroyed');
                 }
             }
@@ -269,21 +269,21 @@ class WhatsAppSettingsController {
             await new Promise(resolve => setTimeout(resolve, 2000));
             // Regenerate QR code
             console.log('🔄 Regenerating QR code...');
-            await WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.regenerateQRCode();
+            await WhatsAppService_1.WhatsAppService.regenerateQRCode();
             // Wait for QR code to be generated (up to 15 seconds)
             console.log('⏳ Waiting for QR code generation...');
             let attempts = 0;
-            let qrCode = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getQRCode();
+            let qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
             const maxAttempts = 30; // 15 seconds
             while (!qrCode && attempts < maxAttempts) {
                 await new Promise(resolve => setTimeout(resolve, 500));
-                qrCode = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getQRCode();
+                qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
                 attempts++;
                 if (attempts % 5 === 0) {
                     console.log(`⏳ Still waiting for QR code... (${attempts}/${maxAttempts})`);
                 }
             }
-            const status = WPPConnectWhatsAppService_1.WPPConnectWhatsAppService.getStatus();
+            const status = WhatsAppService_1.WhatsAppService.getStatus();
             const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
