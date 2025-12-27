@@ -5,6 +5,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WhatsAppBotService = void 0;
+// import { Message, MessageMedia } from 'whatsapp-web.js'; // Removed to support multiple providers
 const WhatsAppService_1 = require("./WhatsAppService");
 const pool_1 = require("../../db/pool");
 const PaymentVerificationService_1 = require("./PaymentVerificationService");

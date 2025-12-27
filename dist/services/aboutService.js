@@ -73,7 +73,8 @@ async function getAppVersion() {
                 'Backup & Restore System',
                 'Multi-user Management',
                 'Kasir / POS System'
-            ]
+            ],
+            isUpdateAvailable: updateCheck.available
         };
     }
     catch (error) {
@@ -83,7 +84,8 @@ async function getAppVersion() {
             current: '1.0.0',
             latest: '1.0.0',
             releaseDate: new Date().toISOString(),
-            changelog: ['Initial version']
+            changelog: ['Initial version'],
+            isUpdateAvailable: false
         };
     }
 }

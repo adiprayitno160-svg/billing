@@ -2,7 +2,16 @@
  * WhatsApp Bot Service
  * Handles bot commands for package purchase and payment verification
  */
-import { Message } from 'whatsapp-web.js';
+export interface WhatsAppMessageInterface {
+    from: string;
+    body: string;
+    hasMedia: boolean;
+    downloadMedia(): Promise<{
+        mimetype: string;
+        data: string;
+        filename?: string;
+    }>;
+}
 export declare class WhatsAppBotService {
     private static readonly COMMAND_PREFIX;
     /**
@@ -17,7 +26,7 @@ export declare class WhatsAppBotService {
     /**
      * Handle incoming WhatsApp message
      */
-    static handleMessage(message: Message): Promise<void>;
+    static handleMessage(message: WhatsAppMessageInterface): Promise<void>;
     /**
      * Handle media message (bukti transfer)
      * AI akan analisa dan auto-approve jika valid

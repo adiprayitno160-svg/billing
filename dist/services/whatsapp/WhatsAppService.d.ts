@@ -1,21 +1,27 @@
+/**
+ * Modern WhatsApp Service using Baileys (Multi-Device)
+ * Replaces Puppeteer implementation for better stability
+ */
 export interface WhatsAppMessageOptions {
     customerId?: number;
     template?: string;
     priority?: 'low' | 'normal' | 'high';
 }
 export declare class WhatsAppService {
-    private static client;
+    private static sock;
     private static isInitialized;
     private static isInitializing;
-    private static isReady;
+    private static isConnected;
+    private static currentQRCode;
+    private static sessionPath;
     private static reconnectAttempts;
     private static maxReconnectAttempts;
-    private static sessionPath;
-    private static currentQRCode;
-    private static isAuthenticated;
     private static channelColumnExists;
+    /**
+     * Initialize Baileys WhatsApp client with dynamic import
+     */
     static initialize(): Promise<void>;
-    private static getConnectionState;
+    static isClientReady(): boolean;
     static getStatus(): {
         ready: boolean;
         initialized: boolean;
@@ -24,15 +30,21 @@ export declare class WhatsAppService {
         hasQRCode: boolean;
     };
     static getQRCode(): string | null;
-    static isClientReady(): boolean;
-    static getNotificationHistory(limit?: number, customerId?: number, status?: string): Promise<any[]>;
     static regenerateQRCode(): Promise<void>;
-    static destroy(): Promise<void>;
     private static formatPhoneNumber;
     static sendMessage(phone: string, message: string, options?: WhatsAppMessageOptions): Promise<{
         success: boolean;
         messageId?: string;
         error?: string;
+    }>;
+    private static logNotification;
+    static getNotificationHistory(limit?: number, customerId?: number, status?: string): Promise<any[]>;
+    static getNotificationStats(): Promise<{
+        total: number;
+        sent: number;
+        failed: number;
+        pending: number;
+        successRate: number;
     }>;
     static sendBulkMessages(recipients: Array<{
         phone: string;
@@ -49,13 +61,6 @@ export declare class WhatsAppService {
             error?: string;
         }>;
     }>;
-    private static logNotification;
-    static getNotificationStats(): Promise<{
-        total: number;
-        sent: number;
-        failed: number;
-        pending: number;
-        successRate: number;
-    }>;
+    static destroy(): Promise<void>;
 }
 //# sourceMappingURL=WhatsAppService.d.ts.map

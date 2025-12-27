@@ -585,17 +585,13 @@ class InvoiceController {
         try {
             await conn.beginTransaction();
             const { id } = req.params;
-            // Check if invoice has payments
-            const [payments] = await conn.query('SELECT COUNT(*) as count FROM payments WHERE invoice_id = ?', [id]);
-            if (payments[0] && payments[0].count > 0) {
-                res.status(400).json({
-                    success: false,
-                    message: 'Invoice tidak dapat dihapus karena sudah ada pembayaran'
-                });
-                await conn.rollback();
-                return;
-            }
-            // Delete invoice items first
+            // Delete associated payments
+            await conn.execute('DELETE FROM payments WHERE invoice_id = ?', [id]);
+            // Delete associated discounts
+            await conn.execute('DELETE FROM discounts WHERE invoice_id = ?', [id]);
+            // Delete associated debt tracking
+            await conn.execute('DELETE FROM debt_tracking WHERE invoice_id = ?', [id]);
+            // Delete invoice items
             await conn.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
             // Delete invoice
             await conn.execute('DELETE FROM invoices WHERE id = ?', [id]);

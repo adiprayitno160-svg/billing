@@ -15,7 +15,7 @@ export class SystemUpdateController {
     /**
      * Show update page
      */
-    static async showUpdatePage(req: Request, res: Response): Promise<void> {
+    static async showUpdatePage(req: Request, res: Response): Promise<any> {
         try {
             // Get current version from package.json
             const packageJson = JSON.parse(
@@ -65,7 +65,7 @@ export class SystemUpdateController {
     /**
      * Check for updates
      */
-    static async checkForUpdates(req: Request, res: Response): Promise<void> {
+    static async checkForUpdates(req: Request, res: Response): Promise<any> {
         try {
             console.log('🔍 Checking for updates...');
 
@@ -101,7 +101,7 @@ export class SystemUpdateController {
     /**
      * Perform system update
      */
-    static async performUpdate(req: Request, res: Response): Promise<void> {
+    static async performUpdate(req: Request, res: Response): Promise<any> {
         try {
             console.log('🚀 Starting system update...');
 
@@ -184,7 +184,7 @@ export class SystemUpdateController {
     /**
      * Get update log/history
      */
-    static async getUpdateHistory(req: Request, res: Response): Promise<void> {
+    static async getUpdateHistory(req: Request, res: Response): Promise<any> {
         try {
             const limit = parseInt(req.query.limit as string) || 10;
 
@@ -215,7 +215,7 @@ export class SystemUpdateController {
     /**
      * Rollback to previous version
      */
-    static async rollbackUpdate(req: Request, res: Response): Promise<void> {
+    static async rollbackUpdate(req: Request, res: Response): Promise<any> {
         try {
             const { commitHash } = req.body;
 

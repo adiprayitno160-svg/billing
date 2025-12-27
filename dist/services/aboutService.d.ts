@@ -7,6 +7,7 @@ export interface AppVersion {
     latest: string;
     releaseDate: string;
     changelog: string[];
+    isUpdateAvailable: boolean;
 }
 export interface AppFeature {
     name: string;
