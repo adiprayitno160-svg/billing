@@ -3,7 +3,7 @@
  * Handles bot commands for package purchase and payment verification
  */
 
-import { Message, MessageMedia } from 'whatsapp-web.js';
+// import { Message, MessageMedia } from 'whatsapp-web.js'; // Removed to support multiple providers
 import { WhatsAppService } from './WhatsAppService';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
@@ -11,6 +11,14 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { PaymentVerificationService } from './PaymentVerificationService';
 import { AIAnomalyDetectionService } from '../billing/AIAnomalyDetectionService';
 import { WiFiManagementService } from '../genieacs/WiFiManagementService';
+
+// Generic interface to support both Baileys and WhatsAppAuth based messages
+export interface WhatsAppMessageInterface {
+    from: string;
+    body: string;
+    hasMedia: boolean;
+    downloadMedia(): Promise<{ mimetype: string; data: string; filename?: string }>;
+}
 
 
 
@@ -51,7 +59,7 @@ export class WhatsAppBotService {
     /**
      * Handle incoming WhatsApp message
      */
-    static async handleMessage(message: Message): Promise<void> {
+    static async handleMessage(message: WhatsAppMessageInterface): Promise<void> {
         let phone = '';
         try {
             const from = message.from || '';
@@ -95,7 +103,7 @@ export class WhatsAppBotService {
      * Handle media message (bukti transfer)
      * AI akan analisa dan auto-approve jika valid
      */
-    private static async handleMediaMessage(message: Message, phone: string): Promise<void> {
+    private static async handleMediaMessage(message: WhatsAppMessageInterface, phone: string): Promise<void> {
         try {
             // Validate customer first
             const customer = await this.validateCustomer(phone);
@@ -145,7 +153,7 @@ export class WhatsAppBotService {
     /**
      * Handle command
      */
-    private static async handleCommand(message: Message, phone: string, command: string): Promise<void> {
+    private static async handleCommand(message: WhatsAppMessageInterface, phone: string, command: string): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
         if (cmd === '/start' || cmd === '/menu' || cmd === '/help') {
@@ -198,7 +206,7 @@ export class WhatsAppBotService {
     /**
      * Handle menu command
      */
-    private static async handleMenuCommand(message: Message, phone: string, command: string): Promise<void> {
+    private static async handleMenuCommand(message: WhatsAppMessageInterface, phone: string, command: string): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
         if (cmd === '1' || cmd === 'tagihan' || cmd === 'invoice') {

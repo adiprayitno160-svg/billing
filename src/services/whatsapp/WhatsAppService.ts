@@ -1,9 +1,13 @@
-import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
+/**
+ * Modern WhatsApp Service using Baileys (Multi-Device)
+ * Replaces Puppeteer implementation for better stability
+ */
+
 import * as qrcode from 'qrcode-terminal';
-import * as fs from 'fs';
-import * as path from 'path';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface WhatsAppMessageOptions {
     customerId?: number;
@@ -11,125 +15,220 @@ export interface WhatsAppMessageOptions {
     priority?: 'low' | 'normal' | 'high';
 }
 
+// Dynamic import wrapper for Baileys
+let baileysModule: any = null;
+
+async function loadBaileys() {
+    if (!baileysModule) {
+        baileysModule = await import('@whiskeysockets/baileys');
+    }
+    return baileysModule;
+}
+
 export class WhatsAppService {
-    private static client: Client | null = null;
+    private static sock: any = null;
     private static isInitialized = false;
     private static isInitializing = false;
-    private static isReady = false;
+    private static isConnected = false;
+    private static currentQRCode: string | null = null;
+    private static sessionPath = path.join(process.cwd(), 'baileys-session-new');
     private static reconnectAttempts = 0;
     private static maxReconnectAttempts = 5;
-    private static sessionPath = './whatsapp-session';
-    private static currentQRCode: string | null = null;
-    private static isAuthenticated = false;
     private static channelColumnExists: boolean | null = null;
 
+    /**
+     * Initialize Baileys WhatsApp client with dynamic import
+     */
     static async initialize(): Promise<void> {
         if (this.isInitialized) {
-            console.log('✅ WhatsApp service already initialized');
+            console.log('✅ Baileys WhatsApp service already initialized');
             return;
         }
 
         if (this.isInitializing) {
-            console.log('⏳ WhatsApp service is already initializing');
+            console.log('⏳ Baileys WhatsApp service is already initializing');
             return;
         }
 
         try {
             this.isInitializing = true;
-            console.log('📱 Initializing WhatsApp service (whatsapp-web.js)...');
+            console.log('📱 Initializing Baileys WhatsApp service...');
+            console.log(`   Session path: ${this.sessionPath}`);
 
-            // Force check puppeteer
-            try {
-                require('puppeteer');
-            } catch (e) {
-                console.warn('⚠️ Puppeteer not found, installing...');
-                // You might need to handle this manually or ensure it's in package.json
+            // Load Baileys module dynamically
+            const baileys = await loadBaileys();
+            const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion,
+                makeCacheableSignalKeyStore, DisconnectReason, Browsers, downloadMediaMessage } = baileys;
+
+            // Create Pino logger dynamically
+            const pino = await import('pino');
+            const logger = pino.default({
+                level: process.env.NODE_ENV === 'production' ? 'silent' : 'error'
+            });
+
+            // Create session directory if doesn't exist
+            if (!fs.existsSync(this.sessionPath)) {
+                fs.mkdirSync(this.sessionPath, { recursive: true });
+                console.log('✅ Session directory created');
             }
 
-            const absoluteSessionPath = path.join(process.cwd(), 'whatsapp-session');
-            console.log(`   Session path: ${absoluteSessionPath}`);
+            // Load auth state
+            const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
+            console.log('✅ Auth state loaded');
 
-            this.client = new Client({
-                authStrategy: new LocalAuth({
-                    dataPath: absoluteSessionPath
-                }),
-                puppeteer: {
-                    headless: true,
-                    args: [
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-accelerated-2d-canvas',
-                        '--no-first-run',
-                        '--no-zygote',
-                        '--disable-gpu'
-                    ]
+            // Get latest Baileys version
+            const { version, isLatest } = await fetchLatestBaileysVersion();
+            console.log(`📱 Using WA v${version.join('.')}, isLatest: ${isLatest}`);
+
+            // Create socket
+            this.sock = makeWASocket({
+                version,
+                logger: logger,
+                printQRInTerminal: false, // We handle QR display manually or via frontend
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(state.keys, logger)
+                },
+                browser: Browsers.ubuntu('Chrome'),
+                markOnlineOnConnect: true,
+                generateHighQualityLinkPreview: true,
+                syncFullHistory: false,
+                getMessage: async (key: any) => {
+                    return { conversation: '' };
                 }
             });
 
-            this.client.on('qr', (qr) => {
-                console.log('📱 QR Code received from WhatsApp');
-                this.currentQRCode = qr;
-                // qrcode.generate(qr, { small: true }); // Optional: terminal QR
-            });
+            console.log('✅ Baileys socket created');
 
-            this.client.on('ready', () => {
-                console.log('✅ WhatsApp Client is ready!');
-                this.isReady = true;
-                this.isInitialized = true;
-                this.getConnectionState();
-            });
+            // Handle credentials update
+            this.sock.ev.on('creds.update', saveCreds);
 
-            this.client.on('authenticated', () => {
-                console.log('✅ WhatsApp Client Authenticated');
-                this.isAuthenticated = true;
-                this.currentQRCode = null;
-            });
+            // Handle connection updates
+            this.sock.ev.on('connection.update', async (update: any) => {
+                const { connection, lastDisconnect, qr } = update;
 
-            this.client.on('auth_failure', (msg) => {
-                console.error('❌ WhatsApp Authentication Failure:', msg);
-                this.isAuthenticated = false;
-                this.isInitialized = false;
-                this.currentQRCode = null;
-            });
+                if (qr) {
+                    console.log('📱 QR Code generated');
+                    qrcode.generate(qr, { small: true });
+                    this.currentQRCode = qr;
+                    this.isConnected = false;
+                }
 
-            this.client.on('disconnected', (reason) => {
-                console.log('⚠️ WhatsApp Client Disconnected:', reason);
-                this.isReady = false;
-                this.isAuthenticated = false;
-                this.isInitialized = false;
-                this.currentQRCode = null;
+                if (connection === 'close') {
+                    const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
 
-                // Auto reconnect logic could go here
-                // if (reason !== 'LOGOUT') this.initialize(); 
-            });
+                    console.log('⚠️ Connection closed:', lastDisconnect?.error);
+                    console.log(`   Should reconnect: ${shouldReconnect}`);
 
-            this.client.on('message', async (message) => {
-                if (message.body === '!ping') {
-                    message.reply('pong');
+                    this.isConnected = false;
+                    this.isInitialized = false;
+                    this.isInitializing = false;
+
+                    if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+                        this.reconnectAttempts++;
+                        console.log(`🔄 Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                        await new Promise(resolve => setTimeout(resolve, 5000));
+                        // Re-initialize logic
+                        // Note: calling initialize() recursively might cause stack issues if loops rapidly, 
+                        // but with timeout it's fine.
+                        // However, standard Baileys usually handles reconnects if we just recreate the socket.
+                        await this.initialize();
+                    } else if (!shouldReconnect) {
+                        console.log('🚪 Logged out. Please scan QR code again.');
+                        this.currentQRCode = null;
+                        this.reconnectAttempts = 0;
+                    } else {
+                        console.error('❌ Max reconnection attempts reached');
+                        this.currentQRCode = null; // Clear QR code so user knows to click "regenerate"
+                    }
+                } else if (connection === 'open') {
+                    console.log('✅ WhatsApp connection opened successfully!');
+                    this.isConnected = true;
+                    this.isInitialized = true;
+                    this.isInitializing = false;
+                    this.currentQRCode = null;
+                    this.reconnectAttempts = 0;
+                } else if (connection === 'connecting') {
+                    console.log('⏳ Connecting to WhatsApp...');
                 }
             });
 
-            console.log('🚀 Starting WhatsApp Client...');
-            await this.client.initialize();
+            // Handle incoming messages
+            this.sock.ev.on('messages.upsert', async (m: any) => {
+                const message = m.messages[0];
+                if (!message.key.fromMe && m.type === 'notify') {
+                    console.log('📩 New message received');
+                    try {
+                        const { WhatsAppBotService } = await import('./WhatsAppBotService');
+
+                        // Construct Adapter for WhatsAppBotService
+                        const from = message.key.remoteJid;
+
+                        // Extract text body
+                        let body = '';
+                        if (message.message?.conversation) {
+                            body = message.message.conversation;
+                        } else if (message.message?.extendedTextMessage?.text) {
+                            body = message.message.extendedTextMessage.text;
+                        } else if (message.message?.imageMessage?.caption) {
+                            body = message.message.imageMessage.caption;
+                        }
+
+                        // Check for media
+                        const hasMedia = !!(message.message?.imageMessage ||
+                            message.message?.videoMessage ||
+                            message.message?.documentMessage);
+
+                        const adapter = {
+                            from: from,
+                            body: body,
+                            hasMedia: hasMedia,
+                            downloadMedia: async () => {
+                                const buffer = await downloadMediaMessage(
+                                    message,
+                                    'buffer',
+                                    {}
+                                );
+
+                                // Detect mime type
+                                let mimetype = 'application/octet-stream';
+                                if (message.message?.imageMessage) mimetype = message.message.imageMessage.mimetype;
+                                else if (message.message?.videoMessage) mimetype = message.message.videoMessage.mimetype;
+                                else if (message.message?.documentMessage) mimetype = message.message.documentMessage.mimetype;
+
+                                return {
+                                    mimetype,
+                                    data: buffer.toString('base64'),
+                                    filename: 'file'
+                                };
+                            }
+                        };
+
+                        console.log(`[Adapter] From: ${from}, Body: ${body}, Media: ${hasMedia}`);
+                        await WhatsAppBotService.handleMessage(adapter);
+
+                    } catch (error) {
+                        console.error('Error handling bot message:', error);
+                    }
+                }
+            });
+
+            this.isInitialized = true;
             this.isInitializing = false;
-            console.log('✅ WhatsApp initialization command sent');
+
+            console.log('✅ Baileys WhatsApp service initialized successfully');
 
         } catch (error: any) {
             this.isInitializing = false;
             this.isInitialized = false;
-            console.error('❌ Failed to initialize WhatsApp service:', error);
+            console.error('❌ Failed to initialize Baileys WhatsApp service:');
+            console.error('   Error:', error.message || error);
+            throw error;
         }
     }
 
-    private static async getConnectionState() {
-        if (!this.client) return;
-        try {
-            const state = await this.client.getState();
-            console.log('📱 Connection State:', state);
-        } catch (e) {
-            console.error('Error getting state:', e);
-        }
+    static isClientReady(): boolean {
+        return this.isConnected && this.sock !== null;
     }
 
     static getStatus(): {
@@ -140,10 +239,10 @@ export class WhatsAppService {
         hasQRCode: boolean
     } {
         return {
-            ready: this.isReady,
+            ready: this.isConnected,
             initialized: this.isInitialized,
             initializing: this.isInitializing,
-            authenticated: this.isAuthenticated,
+            authenticated: this.isConnected,
             hasQRCode: this.currentQRCode !== null
         };
     }
@@ -152,111 +251,75 @@ export class WhatsAppService {
         return this.currentQRCode;
     }
 
-    static isClientReady(): boolean {
-        return this.isReady;
-    }
-
-    static async getNotificationHistory(
-        limit: number = 50,
-        customerId?: number,
-        status?: string
-    ): Promise<any[]> {
-        try {
-            let query = `SELECT id, customer_id, channel, recipient, template, message, status, 
-                        error_message, sent_at, created_at
-                        FROM notification_logs WHERE 1=1`;
-            const params: any[] = [];
-
-            if (this.channelColumnExists === null) {
-                try {
-                    await databasePool.query<RowDataPacket[]>('SELECT channel FROM notification_logs LIMIT 1');
-                    this.channelColumnExists = true;
-                } catch {
-                    this.channelColumnExists = false;
-                }
-            }
-
-            if (this.channelColumnExists) {
-                query += " AND channel = 'whatsapp'";
-            }
-
-            if (customerId) {
-                query += ' AND customer_id = ?';
-                params.push(customerId);
-            }
-
-            if (status) {
-                query += ' AND status = ?';
-                params.push(status);
-            }
-
-            query += ' ORDER BY created_at DESC LIMIT ?';
-            params.push(limit);
-
-            const [rows] = await databasePool.query<RowDataPacket[]>(query, params);
-            return rows;
-        } catch (error) {
-            console.error('Failed to get notification history:', error);
-            return [];
-        }
-    }
-
     static async regenerateQRCode(): Promise<void> {
         try {
             console.log('🔄 Regenerating QR code...');
 
-            if (this.client) {
-                console.log('   Destroying existing client...');
-                await this.client.destroy();
-                this.client = null;
+            if (this.sock) {
+                await this.destroy();
             }
 
-            // Remove session directory
-            const sessionPath = path.join(process.cwd(), 'whatsapp-session');
-            if (fs.existsSync(sessionPath)) {
-                console.log('   Removing session files...');
-                fs.rmSync(sessionPath, { recursive: true, force: true });
+            if (fs.existsSync(this.sessionPath)) {
+                try {
+                    fs.rmSync(this.sessionPath, { recursive: true, force: true });
+                    console.log('✅ Session folder deleted');
+                } catch (err) {
+                    console.warn('⚠️ Error deleting session folder:', err);
+                }
             }
 
-            this.isInitialized = false;
-            this.isReady = false;
-            this.isAuthenticated = false;
             this.currentQRCode = null;
+            this.isConnected = false;
+            this.isInitialized = false;
+            this.reconnectAttempts = 0;
 
-            console.log('   Re-initializing...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
             await this.initialize();
-            console.log('✅ QR Reset Complete');
 
+            // Wait for QR
+            let attempts = 0;
+            const maxAttempts = 30; // 15s
+            while (!this.currentQRCode && attempts < maxAttempts && !this.isConnected) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+
+            if (this.currentQRCode) {
+                console.log('✅ QR code regenerated successfully');
+            } else if (this.isConnected) {
+                console.log('ℹ️ Client already connected, no QR code needed');
+            } else {
+                console.warn('⚠️ QR code not generated yet');
+            }
         } catch (error) {
             console.error('Failed to regenerate QR code:', error);
             throw error;
         }
     }
 
-    static async destroy(): Promise<void> {
-        if (this.client) {
-            try {
-                await this.client.destroy();
-            } catch (error) {
-                console.warn('Error destroying client:', error);
-            }
-            this.client = null;
-            this.isInitialized = false;
-            this.isReady = false;
-            this.isAuthenticated = false;
-            this.currentQRCode = null;
-        }
-    }
-
     private static formatPhoneNumber(phone: string): string {
+        if (!phone || typeof phone !== 'string') {
+            throw new Error('Invalid phone number: phone must be a non-empty string');
+        }
+
         let cleaned = phone.replace(/\D/g, '');
+
+        if (!cleaned || cleaned.length < 5) {
+            // throw new Error(`Invalid phone number: "${phone}"`);
+            // Be more lenient to avoid crashes on bad data
+            console.warn(`Invalid phone number: "${phone}", cleaner: ${cleaned}`);
+            if (!cleaned) return '';
+        }
+
         if (cleaned.startsWith('0')) {
             cleaned = '62' + cleaned.substring(1);
         }
+
         if (!cleaned.startsWith('62')) {
             cleaned = '62' + cleaned;
         }
-        return cleaned + '@c.us';
+
+        return cleaned + '@s.whatsapp.net';
     }
 
     static async sendMessage(
@@ -264,10 +327,9 @@ export class WhatsAppService {
         message: string,
         options: WhatsAppMessageOptions = {}
     ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-
-        if (!this.client || !this.isReady) {
-            const error = 'WhatsApp client not ready';
-            console.warn(`⚠️ Failed to send to ${phone}: ${error}`);
+        if (!this.isClientReady()) {
+            const error = 'WhatsApp client is not ready. Please scan QR code first.';
+            console.error('❌', error);
 
             await this.logNotification(
                 options.customerId,
@@ -277,13 +339,25 @@ export class WhatsAppService {
                 error,
                 options.template
             );
+
             return { success: false, error };
         }
 
         try {
-            const chatId = this.formatPhoneNumber(phone);
-            const msg = await this.client.sendMessage(chatId, message);
-            console.log(`✅ Message sent to ${phone}`);
+            const formattedPhone = this.formatPhoneNumber(phone);
+
+            // if invalid phone
+            if (!formattedPhone) {
+                return { success: false, error: 'Invalid phone number format' };
+            }
+
+            console.log(`📱 [Baileys] Sending message to ${formattedPhone}`);
+
+            const result = await this.sock!.sendMessage(formattedPhone, {
+                text: message
+            });
+
+            console.log(`✅ WhatsApp message sent to ${phone}`);
 
             await this.logNotification(
                 options.customerId,
@@ -294,70 +368,28 @@ export class WhatsAppService {
                 options.template
             );
 
-            return { success: true, messageId: msg.id.id };
+            return {
+                success: true,
+                messageId: result?.key?.id || 'unknown'
+            };
         } catch (error: any) {
-            console.error(`❌ Error sending message to ${phone}:`, error);
+            const errorMessage = error.message || 'Unknown error';
+            console.error(`❌ Failed to send message:`, errorMessage);
 
             await this.logNotification(
                 options.customerId,
                 phone,
                 message,
                 'failed',
-                error.message || 'Unknown error',
+                errorMessage,
                 options.template
             );
 
-            return { success: false, error: error.message };
+            return {
+                success: false,
+                error: errorMessage
+            };
         }
-    }
-
-    // Compatible method signature for bulk messages (although simpler implementation)
-    static async sendBulkMessages(
-        recipients: Array<{
-            phone: string;
-            message: string;
-            customerId?: number;
-            template?: string;
-        }>,
-        delayMs: number = 2000
-    ): Promise<{
-        total: number;
-        sent: number;
-        failed: number;
-        results: Array<{
-            phone: string;
-            success: boolean;
-            error?: string;
-        }>;
-    }> {
-        console.log(`📱 [Bulk] Sending ${recipients.length} messages (one-by-one)`);
-
-        const results = [];
-        let sent = 0;
-        let failed = 0;
-
-        for (const recipient of recipients) {
-            // Add delay
-            if (results.length > 0) {
-                await new Promise(r => setTimeout(r, delayMs));
-            }
-
-            const result = await this.sendMessage(recipient.phone, recipient.message, {
-                customerId: recipient.customerId,
-                template: recipient.template
-            });
-
-            if (result.success) sent++;
-            else failed++;
-
-            results.push({
-                phone: recipient.phone,
-                success: result.success,
-                error: result.error
-            });
-        }
-
-        return { total: recipients.length, sent, failed, results };
     }
 
     private static async logNotification(
@@ -403,6 +435,51 @@ export class WhatsAppService {
             await databasePool.query(query, params);
         } catch (error) {
             console.error('Failed to log notification:', error);
+        }
+    }
+
+    static async getNotificationHistory(
+        limit: number = 50,
+        customerId?: number,
+        status?: string
+    ): Promise<any[]> {
+        try {
+            let query = `SELECT id, customer_id, channel, recipient, template, message, status, 
+                        error_message, sent_at, created_at
+                        FROM notification_logs WHERE 1=1`;
+            const params: any[] = [];
+
+            if (this.channelColumnExists === null) {
+                try {
+                    await databasePool.query<RowDataPacket[]>('SELECT channel FROM notification_logs LIMIT 1');
+                    this.channelColumnExists = true;
+                } catch {
+                    this.channelColumnExists = false;
+                }
+            }
+
+            if (this.channelColumnExists) {
+                query += " AND channel = 'whatsapp'";
+            }
+
+            if (customerId) {
+                query += ' AND customer_id = ?';
+                params.push(customerId);
+            }
+
+            if (status) {
+                query += ' AND status = ?';
+                params.push(status);
+            }
+
+            query += ' ORDER BY created_at DESC LIMIT ?';
+            params.push(limit);
+
+            const [rows] = await databasePool.query<RowDataPacket[]>(query, params);
+            return rows;
+        } catch (error) {
+            console.error('Failed to get notification history:', error);
+            return [];
         }
     }
 
@@ -455,6 +532,84 @@ export class WhatsAppService {
         } catch (error) {
             console.error('Failed to get notification stats:', error);
             return { total: 0, sent: 0, failed: 0, pending: 0, successRate: 0 };
+        }
+    }
+
+    static async sendBulkMessages(
+        recipients: Array<{
+            phone: string;
+            message: string;
+            customerId?: number;
+            template?: string;
+        }>,
+        delayMs: number = 2000
+    ): Promise<{
+        total: number;
+        sent: number;
+        failed: number;
+        results: Array<{
+            phone: string;
+            success: boolean;
+            error?: string;
+        }>;
+    }> {
+        console.log(`📱 [Bulk] Sending ${recipients.length} messages with ${delayMs}ms delay`);
+
+        const results: Array<{ phone: string; success: boolean; error?: string }> = [];
+        let sent = 0;
+        let failed = 0;
+
+        for (let i = 0; i < recipients.length; i++) {
+            const recipient = recipients[i];
+            const result = await this.sendMessage(recipient.phone, recipient.message, {
+                customerId: recipient.customerId,
+                template: recipient.template
+            });
+
+            if (result.success) {
+                sent++;
+                results.push({ phone: recipient.phone, success: true });
+            } else {
+                failed++;
+                results.push({
+                    phone: recipient.phone,
+                    success: false,
+                    error: result.error
+                });
+            }
+
+            if (i < recipients.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+
+        return {
+            total: recipients.length,
+            sent,
+            failed,
+            results
+        };
+    }
+
+    static async destroy(): Promise<void> {
+        if (this.sock) {
+            try {
+                // Baileys socket doesn't have a direct 'destroy' or 'logout' that is always safe
+                // But end() or logout() usually works.
+                // sock.end is not always available depending on version, check types or documentation?
+                // Using socket reference `end` if available, or just logout.
+                if (this.sock.logout) await this.sock.logout();
+                else if (this.sock.end) this.sock.end();
+
+                console.log('✅ Baileys WhatsApp client logged out/ended');
+            } catch (error) {
+                console.warn('⚠️ Error during logout:', error);
+            }
+
+            this.sock = null;
+            this.isInitialized = false;
+            this.isConnected = false;
+            this.currentQRCode = null;
         }
     }
 }

@@ -34,6 +34,8 @@ desktop.ini
 
 # WhatsApp session
 whatsapp-session/
+baileys-session/
+baileys-session-new/
 .wwebjs_cache/
 *.wwebjs_cache
 
