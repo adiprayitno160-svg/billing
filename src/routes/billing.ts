@@ -28,28 +28,28 @@ router.get('/dashboard', async (req, res) => {
             const [totalInvoices] = await conn.query(
                 'SELECT COUNT(*) as count FROM invoices'
             ) as any;
-            
+
             const [paidInvoices] = await conn.query(
                 "SELECT COUNT(*) as count FROM invoices WHERE status = 'paid'"
             ) as any;
-            
+
             const [unpaidInvoices] = await conn.query(
                 "SELECT COUNT(*) as count FROM invoices WHERE status IN ('draft', 'sent', 'partial')"
             ) as any;
-            
+
             const [overdueInvoices] = await conn.query(
                 "SELECT COUNT(*) as count FROM invoices WHERE status = 'overdue' OR (status IN ('draft', 'sent', 'partial') AND due_date < NOW())"
             ) as any;
-            
+
             // Get revenue statistics
             const [totalRevenue] = await conn.query(
                 "SELECT COALESCE(SUM(paid_amount), 0) as total FROM invoices WHERE status = 'paid'"
             ) as any;
-            
+
             const [monthlyRevenue] = await conn.query(
                 "SELECT COALESCE(SUM(paid_amount), 0) as total FROM invoices WHERE status = 'paid' AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())"
             ) as any;
-            
+
             const stats = {
                 totalInvoices: totalInvoices[0].count || 0,
                 paidInvoices: paidInvoices[0].count || 0,
@@ -58,8 +58,8 @@ router.get('/dashboard', async (req, res) => {
                 totalRevenue: totalRevenue[0].total || 0,
                 monthlyRevenue: monthlyRevenue[0].total || 0
             };
-            
-            res.render('billing/dashboard', { 
+
+            res.render('billing/dashboard', {
                 title: 'Dashboard Billing',
                 stats
             });
@@ -98,7 +98,7 @@ router.post('/tagihan/generate-bulk', invoiceController.generateBulkInvoices.bin
 router.post('/tagihan/bulk-delete', async (req, res) => {
     try {
         const { invoiceIds } = req.body;
-        
+
         if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
             return res.status(400).json({ success: false, message: 'No invoices selected' });
         }
@@ -129,19 +129,19 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
         try {
             const { odc_id } = req.params;
             const { period, format } = req.query;
-            
+
             // Get ODC info
             const [odcResult] = await conn.query(
                 'SELECT * FROM ftth_odc WHERE id = ?',
                 [odc_id]
             ) as any;
-            
+
             if (odcResult.length === 0) {
                 return res.status(404).send('ODC not found');
             }
-            
+
             const odc = odcResult[0];
-            
+
             // Build query for invoices with status filter for pending only
             // Include discount information for proper invoice display
             let invoicesQuery = `
@@ -166,18 +166,18 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                 WHERE c.odc_id = ?
                 AND i.status IN ('sent', 'partial', 'overdue')
             `;
-            
+
             const queryParams: any[] = [odc_id];
-            
+
             if (period) {
                 invoicesQuery += ' AND i.period = ?';
                 queryParams.push(period);
             }
-            
+
             invoicesQuery += ' ORDER BY c.name ASC';
-            
+
             const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
-            
+
             // Get invoice items and discount details for each invoice
             for (const invoice of invoices) {
                 // Get invoice items
@@ -186,7 +186,7 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                     [invoice.id]
                 ) as any;
                 invoice.items = items || [];
-                
+
                 // Get discount information if exists
                 if (invoice.discount_amount && invoice.discount_amount > 0) {
                     // Try to get discount reason from discounts table
@@ -200,13 +200,13 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                     }
                 }
             }
-            
+
             // Default to thermal format (individual invoices) if not specified
             // Only use A4 format (list) if explicitly requested
             const viewName = format === 'a4' || format === 'list'
-                ? 'billing/tagihan-print-odc-a4' 
+                ? 'billing/tagihan-print-odc-a4'
                 : 'billing/tagihan-print-odc';
-            
+
             res.render(viewName, {
                 title: `Print Tagihan Area ${odc.name}`,
                 odc,
@@ -229,7 +229,7 @@ router.get('/tagihan/print-all', async (req, res) => {
         const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
         try {
             const { status, odc_id, search, period, format } = req.query;
-            
+
             // Build query - default to pending invoices
             let query = `
                 SELECT 
@@ -254,20 +254,20 @@ router.get('/tagihan/print-all', async (req, res) => {
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
                 WHERE i.status IN ('sent', 'partial', 'overdue')
             `;
-            
+
             const queryParams: any[] = [];
-            
+
             if (status) {
                 // Override default status filter if specified
                 query = query.replace("WHERE i.status IN ('sent', 'partial', 'overdue')", 'WHERE i.status = ?');
                 queryParams.push(status);
             }
-            
+
             if (odc_id) {
                 query += ' AND c.odc_id = ?';
                 queryParams.push(odc_id);
             }
-            
+
             if (search) {
                 query += ` AND (
                     c.name LIKE ? OR 
@@ -277,21 +277,21 @@ router.get('/tagihan/print-all', async (req, res) => {
                 const searchParam = `%${search}%`;
                 queryParams.push(searchParam, searchParam, searchParam);
             }
-            
+
             if (period) {
                 query += ' AND i.period = ?';
                 queryParams.push(period);
             }
-            
+
             query += ' ORDER BY o.name ASC, c.name ASC';
-            
+
             const [invoices] = await conn.query(query, queryParams) as any;
-            
+
             // Choose view based on format parameter
-            const viewName = format === 'thermal' 
-                ? 'billing/tagihan-print-all' 
+            const viewName = format === 'thermal'
+                ? 'billing/tagihan-print-all'
                 : 'billing/tagihan-print-all-a4';
-            
+
             res.render(viewName, {
                 title: 'Print Semua Tagihan',
                 invoices,
@@ -313,7 +313,7 @@ router.get('/tagihan/export/pdf', async (req, res) => {
         const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
         try {
             const { status, odc_id, search, period } = req.query;
-            
+
             // Build query
             let query = `
                 SELECT 
@@ -330,19 +330,19 @@ router.get('/tagihan/export/pdf', async (req, res) => {
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
                 WHERE 1=1
             `;
-            
+
             const queryParams: any[] = [];
-            
+
             if (status) {
                 query += ' AND i.status = ?';
                 queryParams.push(status);
             }
-            
+
             if (odc_id) {
                 query += ' AND c.odc_id = ?';
                 queryParams.push(odc_id);
             }
-            
+
             if (search) {
                 query += ` AND (
                     c.name LIKE ? OR 
@@ -352,16 +352,16 @@ router.get('/tagihan/export/pdf', async (req, res) => {
                 const searchParam = `%${search}%`;
                 queryParams.push(searchParam, searchParam, searchParam);
             }
-            
+
             if (period) {
                 query += ' AND i.period = ?';
                 queryParams.push(period);
             }
-            
+
             query += ' ORDER BY i.created_at DESC';
-            
+
             const [invoices] = await conn.query(query, queryParams) as any;
-            
+
             // Calculate statistics
             const stats = {
                 total: invoices.length,
@@ -372,7 +372,7 @@ router.get('/tagihan/export/pdf', async (req, res) => {
                 paidAmount: invoices.filter((inv: any) => inv.status === 'paid').reduce((sum: number, inv: any) => sum + parseFloat(inv.paid_amount || 0), 0),
                 unpaidAmount: invoices.filter((inv: any) => inv.status !== 'paid').reduce((sum: number, inv: any) => sum + parseFloat(inv.total_amount || 0) - parseFloat(inv.paid_amount || 0), 0)
             };
-            
+
             res.render('billing/tagihan-export-pdf', {
                 title: 'Export Tagihan ke PDF',
                 invoices,
@@ -411,19 +411,19 @@ router.get('/tagihan/:id/print', async (req, res) => {
                 WHERE i.id = ?`,
                 [req.params.id]
             ) as any;
-            
+
             if (invoices.length === 0) {
                 return res.status(404).send('Invoice not found');
             }
-            
+
             const invoice = invoices[0];
-            
+
             // Get invoice items
             const [items] = await conn.query(
                 'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
                 [req.params.id]
             ) as any;
-            
+
             res.render('billing/tagihan-print', {
                 title: `Print Invoice ${invoice.invoice_number}`,
                 invoice,
@@ -457,19 +457,19 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
                 WHERE i.id = ?`,
                 [req.params.id]
             ) as any;
-            
+
             if (invoices.length === 0) {
                 return res.status(404).send('Invoice not found');
             }
-            
+
             const invoice = invoices[0];
-            
+
             // Get invoice items
             const [items] = await conn.query(
                 'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
                 [req.params.id]
             ) as any;
-            
+
             res.render('billing/tagihan-print-thermal', {
                 title: `Print Thermal ${invoice.invoice_number}`,
                 invoice,
@@ -484,8 +484,8 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
     }
 });
 
-// Send invoice via WhatsApp - REMOVED
-// router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.bind(invoiceController));
+// Send invoice via WhatsApp
+router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.bind(invoiceController));
 
 // Invoice detail (harus di akhir karena :id catch-all)
 router.get('/tagihan/:id', invoiceController.getInvoiceDetail.bind(invoiceController));
@@ -501,13 +501,13 @@ router.delete('/tagihan/:id', invoiceController.deleteInvoice.bind(invoiceContro
 router.post('/customer/isolate', async (req, res) => {
     try {
         const { customerId, reason } = req.body;
-        
+
         if (!customerId) {
             return res.status(400).json({ success: false, message: 'Customer ID is required' });
         }
 
         const { IsolationService } = await import('../services/billing/isolationService');
-        
+
         const isolationData = {
             customer_id: parseInt(customerId),
             action: 'isolate' as const,
@@ -518,20 +518,20 @@ router.post('/customer/isolate', async (req, res) => {
         const success = await IsolationService.isolateCustomer(isolationData);
 
         if (success) {
-            res.json({ 
-                success: true, 
+            res.json({
+                success: true,
                 message: 'Pelanggan berhasil diisolir'
             });
         } else {
-            res.json({ 
-                success: false, 
+            res.json({
+                success: false,
                 message: 'Gagal mengisolir pelanggan. Periksa koneksi MikroTik.'
             });
         }
     } catch (error: any) {
         console.error('Error isolating customer:', error);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: error.message || 'Terjadi kesalahan saat mengisolir pelanggan'
         });
     }
@@ -541,13 +541,13 @@ router.post('/customer/isolate', async (req, res) => {
 router.post('/customer/restore', async (req, res) => {
     try {
         const { customerId, reason } = req.body;
-        
+
         if (!customerId) {
             return res.status(400).json({ success: false, message: 'Customer ID is required' });
         }
 
         const { IsolationService } = await import('../services/billing/isolationService');
-        
+
         const isolationData = {
             customer_id: parseInt(customerId),
             action: 'restore' as const,
@@ -558,20 +558,20 @@ router.post('/customer/restore', async (req, res) => {
         const success = await IsolationService.isolateCustomer(isolationData);
 
         if (success) {
-            res.json({ 
-                success: true, 
+            res.json({
+                success: true,
                 message: 'Pelanggan berhasil dipulihkan'
             });
         } else {
-            res.json({ 
-                success: false, 
+            res.json({
+                success: false,
                 message: 'Gagal memulihkan pelanggan. Periksa koneksi MikroTik.'
             });
         }
     } catch (error: any) {
         console.error('Error restoring customer:', error);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: error.message || 'Terjadi kesalahan saat memulihkan pelanggan'
         });
     }
@@ -603,22 +603,22 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
         try {
             console.log('[Payment Form] Fetching invoice data...');
             const [invoices] = await conn.query(
-                'SELECT i.*, c.id as customer_id, c.connection_type, c.custom_sla_target FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id WHERE i.id = ?', 
+                'SELECT i.*, c.id as customer_id, c.connection_type, c.custom_sla_target FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id WHERE i.id = ?',
                 [req.params.invoiceId]
             ) as any;
-            
+
             if (invoices.length === 0) {
                 console.log('[Payment Form] Invoice not found');
                 return res.status(404).send('Invoice not found');
             }
-            
+
             const invoice = invoices[0];
             console.log('[Payment Form] Invoice found:', invoice.id, 'for customer:', invoice.customer_id);
-            
+
             // Get SLA target from customer or package
             let slaTarget = 90.0; // Default fallback
             console.log('[Payment Form] Getting SLA target for customer:', invoice.customer_id);
-            
+
             // Priority 1: Custom SLA target for this customer
             if (invoice.custom_sla_target && invoice.custom_sla_target > 0) {
                 slaTarget = parseFloat(invoice.custom_sla_target);
@@ -626,7 +626,7 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
             } else {
                 // Priority 2: SLA target from customer's package
                 console.log('[Payment Form] Connection type:', invoice.connection_type);
-                
+
                 if (invoice.connection_type === 'pppoe') {
                     // Get package from subscriptions table
                     const [subscriptions] = await conn.query(`
@@ -635,7 +635,7 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                         WHERE customer_id = ? AND status = 'active'
                         LIMIT 1
                     `, [invoice.customer_id]) as any;
-                    
+
                     if (subscriptions.length > 0 && subscriptions[0].package_id) {
                         const [packages] = await conn.query(
                             'SELECT sla_target FROM pppoe_packages WHERE id = ? LIMIT 1',
@@ -654,7 +654,7 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                         WHERE customer_id = ?
                         LIMIT 1
                     `, [invoice.customer_id]) as any;
-                    
+
                     if (staticClients.length > 0 && staticClients[0].package_id) {
                         const [packages] = await conn.query(
                             'SELECT sla_target FROM static_ip_packages WHERE id = ? LIMIT 1',
@@ -666,20 +666,20 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                         }
                     }
                 }
-                
+
                 console.log('[Payment Form] Final SLA target:', slaTarget);
             }
-            
+
             // Get SLA record for this customer and period
             let slaDiscount = null;
             if (invoice.customer_id && invoice.period) {
                 const periodParts = invoice.period.split('-'); // Format: YYYY-MM
                 const year = parseInt(periodParts[0]);
                 const month = parseInt(periodParts[1]);
-                
+
                 // month_year format is first day of month (YYYY-MM-01)
                 const monthYearStr = `${year}-${month.toString().padStart(2, '0')}-01`;
-                
+
                 const [slaRecords] = await conn.query(`
                     SELECT 
                         sla_percentage,
@@ -692,33 +692,33 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                     AND month_year = ?
                     LIMIT 1
                 `, [invoice.customer_id, monthYearStr]) as any;
-                
+
                 if (slaRecords.length > 0) {
                     const slaRecord = slaRecords[0];
-                    
+
                     // NEW FORMULA: Kompensasi = selisih antara target dan aktual
                     const uptimePercentage = parseFloat(slaRecord.sla_percentage) || 100;
                     const actualTarget = slaTarget; // Use dynamic SLA target
-                    
+
                     let discountPercentage = 0;
                     let discountAmount = 0;
-                    
+
                     // Hitung kompensasi jika uptime di bawah target
                     if (uptimePercentage < actualTarget) {
                         // Selisih = target - aktual
                         discountPercentage = actualTarget - uptimePercentage;
-                        
+
                         // Cap maksimum 30%
                         if (discountPercentage > 30.0) {
                             discountPercentage = 30.0;
                         }
-                        
+
                         // Calculate discount amount
-                        discountAmount = slaRecord.discount_amount > 0 
+                        discountAmount = slaRecord.discount_amount > 0
                             ? parseFloat(slaRecord.discount_amount)
                             : (parseFloat(invoice.total_amount) * discountPercentage / 100);
                     }
-                    
+
                     slaDiscount = {
                         uptime_percentage: uptimePercentage,
                         sla_target: actualTarget,
@@ -731,9 +731,9 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                     };
                 }
             }
-            
+
             console.log('[Payment Form] Rendering view with SLA discount:', slaDiscount);
-            res.render('billing/payment-form', { 
+            res.render('billing/payment-form', {
                 title: 'Form Pembayaran',
                 invoice,
                 slaDiscount,
@@ -791,15 +791,15 @@ router.post('/debts/:id/resolve', paymentController.resolveDebt.bind(paymentCont
 router.post('/gateway/create-payment', gatewayController.createInvoicePayment.bind(gatewayController));
 
 // Get invoice with payment options
-router.get('/gateway/invoice/:invoiceId/customer/:customerId/options', 
+router.get('/gateway/invoice/:invoiceId/customer/:customerId/options',
     gatewayController.getInvoiceWithPaymentOptions.bind(gatewayController));
 
 // Get available payment methods for customer
-router.get('/gateway/customer/:customerId/payment-methods', 
+router.get('/gateway/customer/:customerId/payment-methods',
     gatewayController.getAvailablePaymentMethods.bind(gatewayController));
 
 // Create payment link
-router.post('/gateway/invoice/:invoiceId/customer/:customerId/payment-link', 
+router.post('/gateway/invoice/:invoiceId/customer/:customerId/payment-link',
     gatewayController.createPaymentLink.bind(gatewayController));
 
 // Payment gateway callback (webhook)
@@ -810,11 +810,11 @@ router.post('/gateway/callback/:gateway', async (req, res) => {
 });
 
 // Get customer payment history via gateway
-router.get('/gateway/customer/:customerId/history', 
+router.get('/gateway/customer/:customerId/history',
     gatewayController.getCustomerPaymentHistory.bind(gatewayController));
 
 // Get payment statistics
-router.get('/gateway/statistics', 
+router.get('/gateway/statistics',
     gatewayController.getPaymentStatistics.bind(gatewayController));
 
 // ========================================
@@ -827,7 +827,7 @@ router.get('/subscriptions', async (req, res) => {
         const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
         try {
             const { status, search } = req.query;
-            
+
             // Build query
             let query = `
                 SELECT 
@@ -854,9 +854,9 @@ router.get('/subscriptions', async (req, res) => {
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
                 WHERE 1=1
             `;
-            
+
             const queryParams: any[] = [];
-            
+
             // Filter by status
             if (status && status !== '') {
                 query += ' AND s.status = ?';
@@ -866,18 +866,18 @@ router.get('/subscriptions', async (req, res) => {
                 query += ' AND s.status = ?';
                 queryParams.push('active');
             }
-            
+
             // Search filter
             if (search) {
                 query += ' AND (c.name LIKE ? OR c.customer_code LIKE ? OR c.phone LIKE ? OR s.package_name LIKE ?)';
                 const searchPattern = `%${search}%`;
                 queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
             }
-            
+
             query += ' ORDER BY s.created_at DESC';
-            
+
             const [subscriptions] = await conn.query(query, queryParams) as any;
-            
+
             // Get statistics
             const [statsResult] = await conn.query(`
                 SELECT 
@@ -887,9 +887,9 @@ router.get('/subscriptions', async (req, res) => {
                     SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_count
                 FROM subscriptions
             `) as any;
-            
+
             const stats = statsResult[0] || { total: 0, active_count: 0, inactive_count: 0, suspended_count: 0 };
-            
+
             res.render('billing/subscriptions', {
                 title: 'Daftar Langganan',
                 subscriptions,
@@ -942,13 +942,13 @@ router.get('/scheduler/settings', async (req, res) => {
             if (result && result.length > 0) {
                 const row = result[0];
                 const config = typeof row.config === 'string' ? JSON.parse(row.config) : row.config;
-                
+
                 // Parse cron to get generation date and time
                 const cronParts = (row.cron_schedule || '0 1 1 * *').split(' ');
                 const generationDate = parseInt(cronParts[2]) || 1;
                 const generationHour = (cronParts[1] || '1').padStart(2, '0');
                 const generationMinute = (cronParts[0] || '0').padStart(2, '0');
-                
+
                 settings = {
                     auto_generate_enabled: row.is_enabled === 1,
                     generation_date: generationDate,
@@ -964,7 +964,7 @@ router.get('/scheduler/settings', async (req, res) => {
                 };
             }
 
-            res.render('billing/scheduler-settings', { 
+            res.render('billing/scheduler-settings', {
                 title: 'Pengaturan Scheduler & Otomasi',
                 settings
             });
@@ -974,7 +974,7 @@ router.get('/scheduler/settings', async (req, res) => {
     } catch (error) {
         console.error('Error loading scheduler settings:', error);
         // Render with default settings on error
-        res.render('billing/scheduler-settings', { 
+        res.render('billing/scheduler-settings', {
             title: 'Pengaturan Scheduler & Otomasi',
             settings: {
                 auto_generate_enabled: true,
@@ -997,14 +997,14 @@ router.get('/scheduler/settings', async (req, res) => {
 router.post('/scheduler/settings', async (req, res) => {
     try {
         const { auto_generate_enabled, cron_schedule, due_date_offset, enable_due_date } = req.body;
-        
+
         await InvoiceSchedulerService.updateSchedulerSettings({
             auto_generate_enabled: auto_generate_enabled === 'true' || auto_generate_enabled === true,
             cron_schedule,
             due_date_offset: parseInt(due_date_offset),
             enable_due_date: enable_due_date === 'true' || enable_due_date === true
         });
-        
+
         res.json({ success: true, message: 'Pengaturan tagihan berhasil disimpan' });
     } catch (error: any) {
         console.error('Error updating scheduler settings:', error);
@@ -1021,21 +1021,21 @@ router.post('/scheduler/settings', async (req, res) => {
 router.post('/scheduler/isolir-settings', async (req, res) => {
     try {
         const { auto_isolir_enabled, isolir_mode, isolir_date, isolir_execution_time } = req.body;
-        
+
         const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
         try {
             // Get current config
             const [result] = await conn.query(`
                 SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation'
             `) as any;
-            
+
             let currentConfig = {};
             if (result && result.length > 0) {
-                currentConfig = typeof result[0].config === 'string' 
-                    ? JSON.parse(result[0].config) 
+                currentConfig = typeof result[0].config === 'string'
+                    ? JSON.parse(result[0].config)
                     : result[0].config || {};
             }
-            
+
             // Update isolir settings
             const newConfig = {
                 ...currentConfig,
@@ -1044,13 +1044,13 @@ router.post('/scheduler/isolir-settings', async (req, res) => {
                 isolir_date: parseInt(isolir_date),
                 isolir_execution_time: isolir_execution_time || '01:00'
             };
-            
+
             await conn.execute(`
                 UPDATE scheduler_settings 
                 SET config = ?, updated_at = NOW()
                 WHERE task_name = 'invoice_generation'
             `, [JSON.stringify(newConfig)]);
-            
+
             res.json({ success: true, message: 'Pengaturan auto isolir berhasil disimpan' });
         } finally {
             conn.release();

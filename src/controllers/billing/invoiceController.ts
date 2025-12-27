@@ -576,6 +576,71 @@ export class InvoiceController {
     }
 
     /**
+     * Send invoice detail via WhatsApp
+     */
+    async sendInvoiceWhatsApp(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+
+            // Get invoice data
+            const [rows] = await databasePool.query<RowDataPacket[]>(`
+                SELECT i.*, 
+                       c.name as customer_name, 
+                       c.phone as customer_phone,
+                       c.id as customer_id 
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.id = ?
+            `, [id]);
+
+            if (rows.length === 0) {
+                res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan' });
+                return;
+            }
+
+            const invoice = rows[0] as RowDataPacket;
+
+            if (!invoice.customer_phone) {
+                res.status(400).json({ success: false, message: 'Customer tidak memiliki nomor telepon' });
+                return;
+            }
+
+            // Construct message
+            const message = `Halo ${invoice.customer_name},\n\n` +
+                `Berikut adalah detail tagihan internet Anda:\n` +
+                `Nomor Tagihan: *${invoice.invoice_number}*\n` +
+                `Periode: ${invoice.period}\n` +
+                `Total: *Rp ${parseInt(invoice.total_amount).toLocaleString('id-ID')}*\n` +
+                `Status: ${invoice.status.toUpperCase()}\n` +
+                `Jatuh Tempo: ${new Date(invoice.due_date).toLocaleDateString('id-ID')}\n\n` +
+                `Silakan melakukan pembayaran sebelum jatuh tempo. Terima kasih.`;
+
+            // Import dynamically to avoid circular dependency issues if any
+            const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
+
+            const result = await WhatsAppService.sendMessage(
+                invoice.customer_phone,
+                message,
+                { customerId: invoice.customer_id }
+            );
+
+            if (result.success) {
+                // Optional: Update invoice status if it was draft
+                if (invoice.status === 'draft') {
+                    await databasePool.query('UPDATE invoices SET status = "sent" WHERE id = ?', [id]);
+                }
+
+                res.json({ success: true, message: 'Pesan WhatsApp berhasil dikirim' });
+            } else {
+                res.status(500).json({ success: false, message: 'Gagal mengirim WhatsApp: ' + result.error });
+            }
+        } catch (error: any) {
+            console.error('Error sending WhatsApp invoice:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
      * Delete invoice
      */
     async deleteInvoice(req: Request, res: Response): Promise<void> {
