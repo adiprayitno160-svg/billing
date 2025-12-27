@@ -200,8 +200,8 @@
 									<% if (customer.id < 100) { %>
 										<% // Untuk ID < 100, tampilkan customer_code atau generate dari created_at var
 											displayCode=customer.customer_code; if (!displayCode || displayCode==='-' ||
-											(displayCode && displayCode.length < 14)) { // Generate dari created_at jika customer_code tidak valid
-											var createdDate=customer.created_at ? new
+											(displayCode && displayCode.length < 14)) { // Generate dari created_at jika
+											customer_code tidak valid var createdDate=customer.created_at ? new
 											Date(customer.created_at) : new Date(); var year=createdDate.getFullYear();
 											var month=String(createdDate.getMonth() + 1).padStart(2, '0' ); var
 											day=String(createdDate.getDate()).padStart(2, '0' ); var
@@ -234,7 +234,9 @@
 								<td class="py-4 px-4 text-modern-purple-700">
 									<span
 										class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
-										<%= customer.connection_type_display || 'PPPOE' %>
+										<%= customer.connection_type==='static_ip' ? 'IP Static' :
+											(customer.connection_type==='pppoe' ? 'PPPoE' :
+											(customer.connection_type_display || 'PPPoE' )) %>
 									</span>
 								</td>
 
