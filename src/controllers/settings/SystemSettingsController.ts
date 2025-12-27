@@ -241,25 +241,45 @@ export class SystemSettingsController {
       const { stdout: status } = await execPromise('git status -uno');
 
       const hasUpdate = status.includes('Your branch is behind');
+      const currentVersion = process.env.npm_package_version || require('../../../package.json').version || 'Unknown';
 
       // 3. Get latest commit info
       const { stdout: lastCommit } = await execPromise('git log -1 --format="%h - %s (%cd)"');
 
-      // 4. Get remote version info if behind
+      // 4. Get remote version info to determine if it's a Major update
+      let remoteVersion = currentVersion;
+      let isMajor = false;
       let remoteInfo = '';
+
       if (hasUpdate) {
         try {
+          // Get remote package.json content
+          const { stdout: remotePkg } = await execPromise('git show origin/main:package.json');
+          const pkg = JSON.parse(remotePkg);
+          remoteVersion = pkg.version;
+
+          // Compare versions (simple string comparison for equality)
+          if (remoteVersion !== currentVersion && remoteVersion !== 'Unknown') {
+            isMajor = true;
+          }
+
+          // Get commit logs
           const { stdout: diff } = await execPromise('git log HEAD..origin/main --oneline -n 5');
           remoteInfo = diff;
-        } catch (e) { remoteInfo = ''; }
+        } catch (e) {
+          console.warn('Failed to inspect remote version:', e);
+          remoteInfo = '';
+        }
       }
 
       res.json({
         success: true,
         hasUpdate,
-        currentVersion: process.env.npm_package_version || require('../../../package.json').version || 'Unknown',
+        isMajor, // Flag to tell frontend if this is a major version update
+        currentVersion,
+        remoteVersion,
         lastCommit: lastCommit.trim(),
-        message: hasUpdate ? 'Pembaruan tersedia!' : 'Aplikasi sudah versi terbaru.',
+        message: hasUpdate ? (isMajor ? 'Versi Baru Tersedia!' : 'Update Tersedia') : 'Aplikasi sudah versi terbaru.',
         remoteDetails: remoteInfo
       });
 

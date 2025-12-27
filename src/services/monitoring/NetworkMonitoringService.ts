@@ -425,7 +425,50 @@ export class NetworkMonitoringService {
      * Get network topology data
      */
     static async getNetworkTopology(): Promise<TopologyData> {
-        const devices = await this.getAllDevices();
+        let devices = await this.getAllDevices();
+
+        // Inject ODC Port Info
+        try {
+            const [odcDetails] = await databasePool.query<RowDataPacket[]>(`
+                SELECT 
+                    o.id, 
+                    o.total_ports,
+                    (SELECT COUNT(*) FROM ftth_odp WHERE odc_id = o.id) as used_ports 
+                FROM ftth_odc o
+            `);
+
+            // Creates a map for faster lookup: odc_id -> { total_ports, used_ports }
+            const odcPortMap = new Map<number, { total: number, used: number }>();
+            (odcDetails as any[]).forEach(odc => {
+                odcPortMap.set(odc.id, { total: odc.total_ports, used: odc.used_ports });
+            });
+
+            // Update ODC devices metadata
+            devices = devices.map(device => {
+                if (device.device_type === 'odc' && device.odc_id) {
+                    const ports = odcPortMap.get(device.odc_id);
+                    if (ports) {
+                        // Ensure metadata is object (getAllDevices parses it)
+                        const metadata = device.metadata && typeof device.metadata === 'object' ? device.metadata : {};
+
+                        return {
+                            ...device,
+                            metadata: {
+                                ...metadata,
+                                port_info: {
+                                    total: ports.total,
+                                    used: ports.used,
+                                    free: ports.total - ports.used
+                                }
+                            }
+                        };
+                    }
+                }
+                return device;
+            });
+        } catch (e) {
+            console.error('Error injecting ODC port info:', e);
+        }
 
         const [links] = await databasePool.query<RowDataPacket[]>(
             'SELECT * FROM network_links'
