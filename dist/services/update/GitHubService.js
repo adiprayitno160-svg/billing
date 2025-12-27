@@ -73,10 +73,11 @@ class GitHubService {
     static async getRepoInfo() {
         const owner = await this.getSetting('github_repo_owner');
         const repo = await this.getSetting('github_repo_name');
-        if (!owner || !repo) {
-            throw new Error('GitHub repository not configured');
-        }
-        return { owner, repo };
+        // Provide defaults if not configured in database
+        return {
+            owner: owner || 'adiprayitno160-svg',
+            repo: repo || 'billing'
+        };
     }
     /**
      * Fetch latest release from GitHub
