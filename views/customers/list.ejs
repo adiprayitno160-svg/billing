@@ -253,10 +253,14 @@
 											<% } %>
 								</td>
 								<td class="py-4 px-4">
-									<span
-										class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.status === 'active' ? 'bg-modern-green-100 text-modern-green-700' : 'bg-modern-red-100 text-modern-red-700' %>">
-										<%= customer.status==='active' ? 'Aktif' : 'Tidak Aktif' %>
-									</span>
+									<% let statusLabel='Tidak Aktif' ; let
+										statusClass='bg-modern-red-100 text-modern-red-700' ; if
+										(customer.status==='active' ) { statusLabel='Aktif' ;
+										statusClass='bg-modern-green-100 text-modern-green-700' ; } %>
+										<span
+											class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= statusClass %>">
+											<%= statusLabel %>
+										</span>
 								</td>
 								<td class="py-4 px-4">
 									<div class="flex items-center gap-2">
