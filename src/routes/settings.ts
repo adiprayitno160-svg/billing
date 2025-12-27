@@ -27,6 +27,8 @@ router.post('/company/reset', CompanyController.resetToDefault);
 // Routes untuk System Settings
 router.get('/system', SystemSettingsController.index);
 router.post('/system', SystemSettingsController.updateSettings);
+router.post('/system/check-update', SystemSettingsController.checkUpdate);
+router.post('/system/perform-update', SystemSettingsController.performUpdate);
 
 // Routes untuk AI Settings (Gemini API)
 router.get('/ai', AISettingsController.index);

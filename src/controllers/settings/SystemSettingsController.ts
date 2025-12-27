@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { exec } from 'child_process';
+import util from 'util';
+import path from 'path';
+import fs from 'fs';
+
+const execPromise = util.promisify(exec);
 
 /**
  * Controller untuk System Settings
@@ -219,6 +225,111 @@ export class SystemSettingsController {
     } catch (error) {
       console.error('Error getting active URL:', error);
       return 'http://localhost:3000';
+    }
+  }
+
+  /**
+   * Check for application updates via Git
+   */
+  static async checkUpdate(req: Request, res: Response) {
+    try {
+      // 1. Fetch latest data from remote
+      // Use timeout to prevent hanging
+      await execPromise('git fetch origin', { timeout: 15000 }).catch(e => console.warn('Git fetch warning:', e.message));
+
+      // 2. Check local vs remote status
+      const { stdout: status } = await execPromise('git status -uno');
+
+      const hasUpdate = status.includes('Your branch is behind');
+
+      // 3. Get latest commit info
+      const { stdout: lastCommit } = await execPromise('git log -1 --format="%h - %s (%cd)"');
+
+      // 4. Get remote version info if behind
+      let remoteInfo = '';
+      if (hasUpdate) {
+        try {
+          const { stdout: diff } = await execPromise('git log HEAD..origin/main --oneline -n 5');
+          remoteInfo = diff;
+        } catch (e) { remoteInfo = ''; }
+      }
+
+      res.json({
+        success: true,
+        hasUpdate,
+        currentVersion: process.env.npm_package_version || require('../../../package.json').version || 'Unknown',
+        lastCommit: lastCommit.trim(),
+        message: hasUpdate ? 'Pembaruan tersedia!' : 'Aplikasi sudah versi terbaru.',
+        remoteDetails: remoteInfo
+      });
+
+    } catch (error: any) {
+      console.error('Check update error:', error);
+      res.json({
+        success: false,
+        error: 'Gagal mengecek update. Pastikan git terinstall dan dikonfigurasi. ' + (error.message || '')
+      });
+    }
+  }
+
+  /**
+   * Perform application update
+   */
+  static async performUpdate(req: Request, res: Response) {
+    try {
+      console.log('Starting update process...');
+
+      // 1. Pull changes
+      await execPromise('git pull origin main');
+
+      // 2. Build (if typescript)
+      const hasTsConfig = fs.existsSync(path.join(process.cwd(), 'tsconfig.json'));
+      if (hasTsConfig) {
+        console.log('Building TypeScript...');
+        // Use npx tsc to be safe or npm run build if defined
+        try {
+          // Try npm run build first
+          await execPromise('npm run build');
+        } catch (e) {
+          console.warn('npm run build failed, trying npx tsc directly...');
+          await execPromise('npx tsc');
+        }
+      }
+
+      // 3. Restart Application
+      // Send response first because restart will kill the connection
+      res.json({
+        success: true,
+        message: 'Update berhasil. Aplikasi sedang direstart, mohon tunggu beberapa saat...'
+      });
+
+      // Restart mechanism
+      setTimeout(() => {
+        console.log('Triggering restart...');
+        // Detect if running under PM2
+        if (process.env.pm_id || process.env.PM2_HOME) {
+          // Try to reload "billing-app" or current process id
+          exec('pm2 reload billing-app', (err) => {
+            if (err) {
+              console.error('PM2 reload billing-app failed:', err);
+              // Fallback to updating by id if name fails
+              if (process.env.pm_id) {
+                exec(`pm2 reload ${process.env.pm_id}`);
+              }
+            }
+          });
+        } else {
+          // Fallback: Just exit and hope a supervisor restarts it, or dev mode behavior
+          console.log('Not running under PM2, exiting process...');
+          process.exit(0);
+        }
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Update failed:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: 'Update gagal: ' + error.message });
+      }
     }
   }
 
