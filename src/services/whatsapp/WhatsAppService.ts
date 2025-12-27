@@ -18,9 +18,12 @@ export interface WhatsAppMessageOptions {
 // Dynamic import wrapper for Baileys
 let baileysModule: any = null;
 
+// Helper to force native dynamic import (bypassing TS transpilation to require)
+const dynamicImport = new Function('specifier', 'return import(specifier)');
+
 async function loadBaileys() {
     if (!baileysModule) {
-        baileysModule = await import('@whiskeysockets/baileys');
+        baileysModule = await dynamicImport('@whiskeysockets/baileys');
     }
     return baileysModule;
 }
@@ -61,7 +64,7 @@ export class WhatsAppService {
                 makeCacheableSignalKeyStore, DisconnectReason, Browsers, downloadMediaMessage } = baileys;
 
             // Create Pino logger dynamically
-            const pino = await import('pino');
+            const pino = await dynamicImport('pino');
             const logger = pino.default({
                 level: process.env.NODE_ENV === 'production' ? 'silent' : 'error'
             });
