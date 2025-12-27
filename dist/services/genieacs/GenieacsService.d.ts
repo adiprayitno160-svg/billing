@@ -74,7 +74,7 @@ export declare class GenieacsService {
     getSignalInfo(device: any): any;
     getDeviceParameter(device: any, path: string): any;
     /**
-     * Status Online Threshold: 70 Menit
+     * Status Online Threshold: 10 Menit (lebih responsif)
      */
     extractDeviceInfo(device: GenieacsDevice): {
         serialNumber: string;
@@ -82,8 +82,10 @@ export declare class GenieacsService {
         productClass: string;
         model: string;
         softwareVersion: string;
+        ipAddress: any;
         lastInform: Date | null;
         isOnline: boolean;
+        signal: any;
     };
 }
 export default GenieacsService;

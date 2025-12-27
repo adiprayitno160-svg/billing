@@ -49,6 +49,7 @@ const getCustomerList = async (req, res) => {
         // Get search and filter parameters
         const search = req.query.search || '';
         const status = req.query.status || '';
+        const connection_type = req.query.connection_type || '';
         const page = parseInt(req.query.page) || 1;
         const limit = 50; // Items per page
         const offset = (page - 1) * limit;
@@ -63,6 +64,10 @@ const getCustomerList = async (req, res) => {
         if (status) {
             whereConditions.push('c.status = ?');
             queryParams.push(status);
+        }
+        if (connection_type) {
+            whereConditions.push('c.connection_type = ?');
+            queryParams.push(connection_type);
         }
         const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
         // Query all customers with their subscriptions and packages
@@ -109,7 +114,8 @@ const getCustomerList = async (req, res) => {
             },
             filters: {
                 search: search,
-                status: status
+                status: status,
+                connection_type: connection_type
             },
             success: req.query.success || null,
             error: req.query.error || null,

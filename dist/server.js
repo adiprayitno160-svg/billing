@@ -113,7 +113,7 @@ app.use((0, express_session_1.default)({
     saveUninitialized: false,
     cookie: {
         secure: false,
-        maxAge: 10 * 60 * 1000 // 10 minutes in milliseconds
+        maxAge: 5 * 60 * 1000 // 5 minutes in milliseconds
     },
     rolling: true // Reset expiry time on each request
 }));

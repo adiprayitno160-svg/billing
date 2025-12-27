@@ -55,7 +55,7 @@ export class GitHubService {
       const packagePath = path.join(__dirname, '../../../package.json');
       const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
       const pkgVersion = packageJson.version || '1.0.0';
-      
+
       // Extract major.minor.patch from package.json version (e.g., 2.1.23 → 2.1.23)
       const majorMatch = pkgVersion.match(/^(\d+\.\d+\.\d+)/);
       if (majorMatch) {
@@ -94,12 +94,12 @@ export class GitHubService {
   static async getRepoInfo(): Promise<{ owner: string; repo: string }> {
     const owner = await this.getSetting('github_repo_owner');
     const repo = await this.getSetting('github_repo_name');
-    
-    if (!owner || !repo) {
-      throw new Error('GitHub repository not configured');
-    }
 
-    return { owner, repo };
+    // Provide defaults if not configured in database
+    return {
+      owner: owner || 'adiprayitno160-svg',
+      repo: repo || 'billing'
+    };
   }
 
   /**
@@ -122,7 +122,7 @@ export class GitHubService {
 
       // Filter based on channel
       let filteredReleases = releases.filter(release => !release.draft);
-      
+
       if (channel === 'stable') {
         // Stable: only non-prerelease
         filteredReleases = filteredReleases.filter(release => !release.prerelease);

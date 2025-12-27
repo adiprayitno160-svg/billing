@@ -142,11 +142,20 @@ class WhatsAppBotService {
                     'Contoh: /wifi_both MyWiFi|password123');
             }
         }
+        else if (cmd.startsWith('/lapor')) {
+            const description = command.substring(6).trim();
+            await this.handleReportCommand(phone, description);
+        }
+        else if (cmd.startsWith('/selesai')) {
+            await this.handleResolveCommand(phone);
+        }
         else {
             await this.sendMessage(phone, '❌ *Command tidak dikenal*\n\n' +
                 'Gunakan salah satu command berikut:\n' +
                 '*/menu* - Tampilkan menu utama\n' +
                 '*/tagihan* - Lihat tagihan\n' +
+                '*/lapor* - Lapor gangguan (Start SLA)\n' +
+                '*/selesai* - Laporan selesai (Stop SLA)\n' +
                 '*/wifi* - Ubah WiFi\n' +
                 '*/reboot* - Restart Perangkat');
         }
@@ -385,6 +394,69 @@ Ketik /menu untuk kembali ke menu utama.`;
             await this.sendMessage(phone, `❌ *Gagal Reboot*\n\n` +
                 `Error: ${result.message}\n\n` +
                 `Silakan coba lagi atau hubungi customer service.`);
+        }
+    }
+    /**
+     * Handle Report Command (SLA Start)
+     */
+    static async handleReportCommand(phone, description) {
+        const customer = await this.validateCustomer(phone);
+        if (!customer)
+            return;
+        try {
+            // Check for existing open ticket
+            const [existing] = await pool_1.databasePool.query("SELECT id, ticket_number FROM tickets WHERE customer_id = ? AND status = 'open'", [customer.id]);
+            if (existing.length > 0) {
+                await this.sendMessage(phone, `⚠️ *Laporan Sudah Ada*\n\n` +
+                    `Anda masih memiliki tiket terbuka *#${existing[0].ticket_number}*.\n` +
+                    `Mohon tunggu penyelesaian atau ketik */selesai* jika layanan sudah normal kembali.`);
+                return;
+            }
+            const ticketNumber = `T${Date.now().toString().slice(-6)}`;
+            const subject = description ? `Laporan: ${description}` : 'Gangguan Internet (Via WA)';
+            await pool_1.databasePool.query("INSERT INTO tickets (customer_id, ticket_number, subject, description, status, reported_at) VALUES (?, ?, ?, ?, 'open', NOW())", [customer.id, ticketNumber, subject, description || 'Tidak ada deskripsi']);
+            await this.sendMessage(phone, `✅ *Laporan Diterima*\n\n` +
+                `Tiket: *#${ticketNumber}*\n` +
+                `Waktu: ${new Date().toLocaleTimeString('id-ID')}\n\n` +
+                `⏳ Waktu downtime mulai dihitung untuk perhitungan diskon SLA.\n\n` +
+                `Ketik */selesai* jika layanan sudah kembali normal.`);
+        }
+        catch (error) {
+            console.error('Error creating ticket:', error);
+            await this.sendMessage(phone, '❌ Gagal membuat laporan. Silakan coba lagi.');
+        }
+    }
+    /**
+     * Handle Resolve Command (SLA Stop)
+     */
+    static async handleResolveCommand(phone) {
+        const customer = await this.validateCustomer(phone);
+        if (!customer)
+            return;
+        try {
+            const [tickets] = await pool_1.databasePool.query("SELECT id, ticket_number, reported_at FROM tickets WHERE customer_id = ? AND status = 'open'", [customer.id]);
+            if (tickets.length === 0 || !tickets[0]) {
+                await this.sendMessage(phone, `ℹ️ Anda tidak memiliki laporan gangguan yang sedang aktif.`);
+                return;
+            }
+            const ticket = tickets[0];
+            await pool_1.databasePool.query("UPDATE tickets SET status = 'closed', resolved_at = NOW() WHERE id = ?", [ticket.id]);
+            // Calculate duration for info
+            const reportedAt = new Date(ticket.reported_at);
+            const resolvedAt = new Date();
+            const durationMs = resolvedAt.getTime() - reportedAt.getTime();
+            const hours = Math.floor(durationMs / 3600000);
+            const minutes = Math.floor((durationMs % 3600000) / 60000);
+            const durationStr = hours > 0 ? `${hours} jam ${minutes} menit` : `${minutes} menit`;
+            await this.sendMessage(phone, `✅ *Laporan Ditutup*\n\n` +
+                `Tiket: *#${ticket.ticket_number}*\n` +
+                `Durasi Gangguan: *${durationStr}*\n\n` +
+                `Status SLA dan diskon akan dihitung otomatis pada tagihan bulan berikutnya.\n` +
+                `Terima kasih.`);
+        }
+        catch (error) {
+            console.error('Error closing ticket:', error);
+            await this.sendMessage(phone, '❌ Gagal menutup laporan.');
         }
     }
     /**

@@ -21,6 +21,10 @@ export declare class InvoiceController {
      */
     updateInvoiceStatus(req: Request, res: Response): Promise<void>;
     /**
+     * Send invoice detail via WhatsApp
+     */
+    sendInvoiceWhatsApp(req: Request, res: Response): Promise<void>;
+    /**
      * Delete invoice
      */
     deleteInvoice(req: Request, res: Response): Promise<void>;

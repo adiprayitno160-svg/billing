@@ -9,7 +9,7 @@ const pool_1 = require("../db/pool");
 class MonitoringDaemon {
     constructor() {
         this.isRunning = false;
-        this.checkInterval = 30000; // 30 seconds
+        this.checkInterval = 20000; // 20 seconds (base interval)
     }
     async start() {
         console.log('🔍 Network Monitoring Daemon started');
@@ -22,6 +22,24 @@ class MonitoringDaemon {
                 await this.checkAllDevices();
             }
         }, this.checkInterval);
+        // Schedule periodic sync (every hour)
+        setInterval(async () => {
+            if (this.isRunning) {
+                await this.runSyncTasks();
+            }
+        }, 60 * 60 * 1000); // 1 hour
+    }
+    async runSyncTasks() {
+        console.log('🔄 Running periodic network sync...');
+        try {
+            await NetworkMonitoringService_1.NetworkMonitoringService.syncCustomerDevices();
+            await NetworkMonitoringService_1.NetworkMonitoringService.syncFTTHInfrastructure();
+            await NetworkMonitoringService_1.NetworkMonitoringService.autoCreateLinks();
+            console.log('✅ Periodic sync completed.');
+        }
+        catch (error) {
+            console.error('❌ Error in periodic sync:', error);
+        }
     }
     async stop() {
         console.log('⏹️  Network Monitoring Daemon stopped');
@@ -29,13 +47,30 @@ class MonitoringDaemon {
     }
     async checkAllDevices() {
         try {
-            console.log(`[${new Date().toISOString()}] Checking all devices...`);
-            // Get all devices with IP addresses
-            const [devices] = await pool_1.databasePool.query('SELECT id, name, ip_address, status, device_type FROM network_devices WHERE ip_address IS NOT NULL');
+            // console.log(`[${new Date().toISOString()}] Monitoring cycle...`);
+            // Get all devices with IP addresses, including last_check
+            const [devices] = await pool_1.databasePool.query('SELECT id, name, ip_address, status, device_type, last_check FROM network_devices WHERE ip_address IS NOT NULL');
             let checked = 0;
             let statusChanged = 0;
+            let skipped = 0;
+            const NOW = new Date();
             for (const device of devices) {
                 try {
+                    // Logic: 
+                    // - If Offline/Warning: Check every cycle (20s)
+                    // - If Online: Check every 10 minutes
+                    let shouldCheck = true;
+                    if (device.status === 'online' && device.last_check) {
+                        const lastCheckTime = new Date(device.last_check).getTime();
+                        const timeDiff = NOW.getTime() - lastCheckTime;
+                        const TEN_MINUTES_MS = 10 * 60 * 1000;
+                        if (timeDiff < TEN_MINUTES_MS) {
+                            shouldCheck = false;
+                            skipped++;
+                        }
+                    }
+                    if (!shouldCheck)
+                        continue;
                     const oldStatus = device.status;
                     const newStatus = await NetworkMonitoringService_1.NetworkMonitoringService.checkDeviceStatus(device.id);
                     await NetworkMonitoringService_1.NetworkMonitoringService.updateDeviceStatus(device.id, newStatus);

@@ -22,6 +22,14 @@ export declare class SystemSettingsController {
      */
     static getActiveUrl(): Promise<string>;
     /**
+     * Check for application updates via Git
+     */
+    static checkUpdate(req: Request, res: Response): Promise<void>;
+    /**
+     * Perform application update
+     */
+    static performUpdate(req: Request, res: Response): Promise<void>;
+    /**
      * Ensure system_settings table exists
      */
     private static ensureSystemSettingsTable;

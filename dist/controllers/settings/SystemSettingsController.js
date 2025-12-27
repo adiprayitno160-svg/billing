@@ -38,6 +38,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SystemSettingsController = void 0;
 const pool_1 = __importDefault(require("../../db/pool"));
+const child_process_1 = require("child_process");
+const util_1 = __importDefault(require("util"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const execPromise = util_1.default.promisify(child_process_1.exec);
 /**
  * Controller untuk System Settings
  * Manage konfigurasi sistem
@@ -231,6 +236,120 @@ class SystemSettingsController {
         catch (error) {
             console.error('Error getting active URL:', error);
             return 'http://localhost:3000';
+        }
+    }
+    /**
+     * Check for application updates via Git
+     */
+    static async checkUpdate(req, res) {
+        try {
+            // 1. Fetch latest data from remote
+            // Use timeout to prevent hanging
+            await execPromise('git fetch origin', { timeout: 15000 }).catch(e => console.warn('Git fetch warning:', e.message));
+            // 2. Check local vs remote status
+            const { stdout: status } = await execPromise('git status -uno');
+            const hasUpdate = status.includes('Your branch is behind');
+            const currentVersion = process.env.npm_package_version || require('../../../package.json').version || 'Unknown';
+            // 3. Get latest commit info
+            const { stdout: lastCommit } = await execPromise('git log -1 --format="%h - %s (%cd)"');
+            // 4. Get remote version info to determine if it's a Major update
+            let remoteVersion = currentVersion;
+            let isMajor = false;
+            let remoteInfo = '';
+            if (hasUpdate) {
+                try {
+                    // Get remote package.json content
+                    const { stdout: remotePkg } = await execPromise('git show origin/main:package.json');
+                    const pkg = JSON.parse(remotePkg);
+                    remoteVersion = pkg.version;
+                    // Compare versions (simple string comparison for equality)
+                    if (remoteVersion !== currentVersion && remoteVersion !== 'Unknown') {
+                        isMajor = true;
+                    }
+                    // Get commit logs
+                    const { stdout: diff } = await execPromise('git log HEAD..origin/main --oneline -n 5');
+                    remoteInfo = diff;
+                }
+                catch (e) {
+                    console.warn('Failed to inspect remote version:', e);
+                    remoteInfo = '';
+                }
+            }
+            res.json({
+                success: true,
+                hasUpdate,
+                isMajor, // Flag to tell frontend if this is a major version update
+                currentVersion,
+                remoteVersion,
+                lastCommit: lastCommit.trim(),
+                message: hasUpdate ? (isMajor ? 'Versi Baru Tersedia!' : 'Update Tersedia') : 'Aplikasi sudah versi terbaru.',
+                remoteDetails: remoteInfo
+            });
+        }
+        catch (error) {
+            console.error('Check update error:', error);
+            res.json({
+                success: false,
+                error: 'Gagal mengecek update. Pastikan git terinstall dan dikonfigurasi. ' + (error.message || '')
+            });
+        }
+    }
+    /**
+     * Perform application update
+     */
+    static async performUpdate(req, res) {
+        try {
+            console.log('Starting update process...');
+            // 1. Pull changes
+            await execPromise('git pull origin main');
+            // 2. Build (if typescript)
+            const hasTsConfig = fs_1.default.existsSync(path_1.default.join(process.cwd(), 'tsconfig.json'));
+            if (hasTsConfig) {
+                console.log('Building TypeScript...');
+                // Use npx tsc to be safe or npm run build if defined
+                try {
+                    // Try npm run build first
+                    await execPromise('npm run build');
+                }
+                catch (e) {
+                    console.warn('npm run build failed, trying npx tsc directly...');
+                    await execPromise('npx tsc');
+                }
+            }
+            // 3. Restart Application
+            // Send response first because restart will kill the connection
+            res.json({
+                success: true,
+                message: 'Update berhasil. Aplikasi sedang direstart, mohon tunggu beberapa saat...'
+            });
+            // Restart mechanism
+            setTimeout(() => {
+                console.log('Triggering restart...');
+                // Detect if running under PM2
+                if (process.env.pm_id || process.env.PM2_HOME) {
+                    // Try to reload "billing-app" or current process id
+                    (0, child_process_1.exec)('pm2 reload billing-app', (err) => {
+                        if (err) {
+                            console.error('PM2 reload billing-app failed:', err);
+                            // Fallback to updating by id if name fails
+                            if (process.env.pm_id) {
+                                (0, child_process_1.exec)(`pm2 reload ${process.env.pm_id}`);
+                            }
+                        }
+                    });
+                }
+                else {
+                    // Fallback: Just exit and hope a supervisor restarts it, or dev mode behavior
+                    console.log('Not running under PM2, exiting process...');
+                    process.exit(0);
+                }
+            }, 1000);
+        }
+        catch (error) {
+            console.error('Update failed:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ success: false, error: 'Update gagal: ' + error.message });
+            }
         }
     }
     /**

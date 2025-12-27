@@ -43,7 +43,9 @@ class NetworkMonitoringService {
                         manufacturer: deviceInfo.manufacturer,
                         model: deviceInfo.model,
                         software_version: deviceInfo.softwareVersion,
-                        product_class: deviceInfo.productClass
+                        product_class: deviceInfo.productClass,
+                        ip_address: deviceInfo.ipAddress,
+                        signal: deviceInfo.signal
                     })
                 };
                 if (existing.length > 0) {
@@ -275,8 +277,64 @@ class NetworkMonitoringService {
      * Get network topology data
      */
     static async getNetworkTopology() {
-        const devices = await this.getAllDevices();
+        let devices = await this.getAllDevices();
+        // Inject ODC Port Info
+        try {
+            const [odcDetails] = await pool_1.databasePool.query(`
+                SELECT 
+                    o.id, 
+                    o.total_ports,
+                    (SELECT COUNT(*) FROM ftth_odp WHERE odc_id = o.id) as used_ports 
+                FROM ftth_odc o
+            `);
+            // Creates a map for faster lookup: odc_id -> { total_ports, used_ports }
+            const odcPortMap = new Map();
+            odcDetails.forEach(odc => {
+                odcPortMap.set(odc.id, { total: odc.total_ports, used: odc.used_ports });
+            });
+            // Update ODC devices metadata
+            devices = devices.map(device => {
+                if (device.device_type === 'odc' && device.odc_id) {
+                    const ports = odcPortMap.get(device.odc_id);
+                    if (ports) {
+                        // Ensure metadata is object (getAllDevices parses it)
+                        const metadata = device.metadata && typeof device.metadata === 'object' ? device.metadata : {};
+                        return {
+                            ...device,
+                            metadata: {
+                                ...metadata,
+                                port_info: {
+                                    total: ports.total,
+                                    used: ports.used,
+                                    free: ports.total - ports.used
+                                }
+                            }
+                        };
+                    }
+                }
+                return device;
+            });
+        }
+        catch (e) {
+            console.error('Error injecting ODC port info:', e);
+        }
         const [links] = await pool_1.databasePool.query('SELECT * FROM network_links');
+        // Auto-sync checks:
+        // 1. Check if we display any customers. If 0, and we have customers with lat/long, sync them!
+        const [customerCountResult] = await pool_1.databasePool.query("SELECT COUNT(*) as count FROM network_devices WHERE device_type = 'customer'");
+        const existingCustomerCount = customerCountResult[0]?.count || 0;
+        // If we have very few customers, it might be an indication of missing sync
+        if (existingCustomerCount === 0) {
+            // Check if we DO have customers with coordinates
+            const [potentialCustomers] = await pool_1.databasePool.query("SELECT COUNT(*) as count FROM customers WHERE latitude IS NOT NULL AND longitude IS NOT NULL");
+            const potentialCount = potentialCustomers[0]?.count || 0;
+            if (potentialCount > 0) {
+                console.log('Topology request detected missing customers. Triggering auto-sync...');
+                await this.syncCustomerDevices();
+                // Re-fetch devices after sync
+                devices = await this.getAllDevices();
+            }
+        }
         const [stats] = await pool_1.databasePool.query(`SELECT 
                 COUNT(*) as total_devices,
                 SUM(CASE WHEN status = 'online' THEN 1 ELSE 0 END) as online_devices,
@@ -433,6 +491,7 @@ class NetworkMonitoringService {
             const hasConnectionLogs = tableNames.includes('connection_logs');
             const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
             const hasSlaIncidents = tableNames.includes('sla_incidents');
+            const hasTickets = tableNames.includes('tickets');
             // Check if is_isolated column exists in customers table
             let hasIsolated = false;
             try {
@@ -526,7 +585,6 @@ class NetworkMonitoringService {
                         )
                 `);
             }
-            // 4. Customers with ongoing SLA incidents
             if (hasSlaIncidents) {
                 queries.push(`
                     SELECT DISTINCT
@@ -540,6 +598,21 @@ class NetworkMonitoringService {
                     INNER JOIN sla_incidents si ON c.id = si.customer_id
                     WHERE si.status = 'ongoing'
                         AND c.status IN ('active', 'suspended')
+                `);
+            }
+            // 5. Customers with Open Tickets
+            if (hasTickets) {
+                queries.push(`
+                    SELECT DISTINCT
+                        c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+                        c.odc_id, c.odp_id, c.address, c.phone,
+                        NULL as maintenance_status,
+                        CONCAT('Ticket: ', t.subject) as issue_type,
+                        t.reported_at as trouble_since,
+                        'ticket' as trouble_type
+                    FROM customers c
+                    INNER JOIN tickets t ON c.id = t.customer_id
+                    WHERE t.status = 'open'
                 `);
             }
             if (queries.length === 0) {
@@ -560,14 +633,16 @@ class NetworkMonitoringService {
                         MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.issue_type END),
                         MAX(CASE WHEN trouble.trouble_type = 'offline' THEN trouble.issue_type END),
                         MAX(CASE WHEN trouble.trouble_type = 'sla_incident' THEN trouble.issue_type END),
+                        MAX(CASE WHEN trouble.trouble_type = 'ticket' THEN trouble.issue_type END),
                         MAX(trouble.issue_type)
                     ) as issue_type,
                     MAX(trouble.trouble_since) as trouble_since,
                     MIN(CASE trouble.trouble_type
                         WHEN 'maintenance' THEN 1
                         WHEN 'offline' THEN 2
-                        WHEN 'sla_incident' THEN 3
-                        ELSE 4
+                        WHEN 'ticket' THEN 3
+                        WHEN 'sla_incident' THEN 4
+                        ELSE 5
                     END) as priority_type
                 FROM (
                     ${queries.join(' UNION ALL ')}

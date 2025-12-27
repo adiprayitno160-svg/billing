@@ -53,6 +53,14 @@ export declare class WhatsAppBotService {
      */
     private static rebootOnt;
     /**
+     * Handle Report Command (SLA Start)
+     */
+    private static handleReportCommand;
+    /**
+     * Handle Resolve Command (SLA Stop)
+     */
+    private static handleResolveCommand;
+    /**
      * Change WiFi SSID only
      */
     private static changeWiFiSSID;
