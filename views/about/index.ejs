@@ -95,19 +95,30 @@
                                         </p>
                                     </div>
                                     <div class="bg-white p-3 rounded-lg shadow-sm">
-                                        <label class="block text-sm font-medium text-slate-600 mb-1">Versi
-                                            Terbaru</label>
-                                        <p class="text-2xl font-bold text-green-600">
-                                            <%= version.latest %>
-                                        </p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1">Status
+                                            Sistem</label>
                                         <% if (version.isUpdateAvailable) { %>
-                                            <span
-                                                class="inline-block mt-1 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Update
-                                                tersedia!</span>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-sm font-bold text-slate-800">New: <%= version.latest
+                                                        %></span>
+                                                <button onclick="checkForUpdates()"
+                                                    class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Update
+                                                    Sekarang</button>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-2.5 mt-2">
+                                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 50%"></div>
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-1">Update tersedia untuk diunduh</p>
                                             <% } else { %>
-                                                <span
-                                                    class="inline-block mt-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Versi
-                                                    terbaru</span>
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <span class="text-sm font-bold text-green-600">Sistem Terbaru</span>
+                                                    <span class="text-xs font-bold text-slate-500">100%</span>
+                                                </div>
+                                                <div class="w-full bg-slate-200 rounded-full h-2.5">
+                                                    <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%">
+                                                    </div>
+                                                </div>
+                                                <p class="text-xs text-slate-500 mt-1">Sistem sudah versi terbaru</p>
                                                 <% } %>
                                     </div>
                                     <div class="bg-white p-3 rounded-lg shadow-sm">
@@ -121,49 +132,8 @@
                                 </div>
                             </div>
 
-                            <!-- Update Settings -->
-                            <div class="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    Pengaturan Update
-                                </h3>
-                                <form method="post" action="/about/update-settings" class="space-y-4">
-                                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                                        <label class="flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" name="autoUpdate" <%=updateSettings.autoUpdate
-                                                ? 'checked' : '' %> class="rounded border-gray-300 text-blue-600
-                                            focus:ring-blue-500">
-                                            <span class="text-sm font-medium text-slate-700">Auto Update</span>
-                                        </label>
-                                        <div class="flex items-center gap-2">
-                                            <label class="text-sm font-medium text-slate-700">Channel:</label>
-                                            <select name="updateChannel"
-                                                class="px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <option value="stable" <%=updateSettings.updateChannel==='stable'
-                                                    ? 'selected' : '' %>>Stable</option>
-                                                <option value="beta" <%=updateSettings.updateChannel==='beta'
-                                                    ? 'selected' : '' %>>Beta</option>
-                                                <option value="dev" <%=updateSettings.updateChannel==='dev' ? 'selected'
-                                                    : '' %>>Development</option>
-                                            </select>
-                                        </div>
-                                        <button type="submit"
-                                            class="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium">
-                                            Simpan Pengaturan
-                                        </button>
-                                    </div>
-                                    <p class="text-xs text-slate-600">
-                                        <strong>Stable:</strong> Update stabil yang sudah ditest.
-                                        <strong>Beta:</strong> Update pre-release dengan fitur baru.
-                                        <strong>Dev:</strong> Update development (tidak disarankan untuk production).
-                                    </p>
-                                </form>
-                            </div>
+
+
 
                             <!-- Features -->
                             <div class="mb-8">
@@ -262,7 +232,7 @@
                                                         <div class="flex items-center justify-between mb-2">
                                                             <span class="font-bold text-purple-700">v<%=
                                                                     latest.version_to || latest.version || 'N/A' %>
-                                                                    </span>
+                                                            </span>
                                                             <span class="text-xs text-slate-600">
                                                                 <%= dateText %>
                                                             </span>
