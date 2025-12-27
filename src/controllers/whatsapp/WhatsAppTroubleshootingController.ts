@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export class WhatsAppTroubleshootingController {
-    
+
     /**
      * Show troubleshooting page
      */
@@ -19,15 +19,36 @@ export class WhatsAppTroubleshootingController {
         try {
             const status = WhatsAppService.getStatus();
             const stats = await WhatsAppService.getNotificationStats();
-            
+
             // Get recent failed notifications
-            const [failedNotifications] = await databasePool.query<RowDataPacket[]>(
-                `SELECT * FROM notification_logs 
-                 WHERE channel = 'whatsapp' AND status = 'failed'
-                 ORDER BY created_at DESC 
-                 LIMIT 20`
-            );
-            
+            let failedNotifications: RowDataPacket[] = [];
+            try {
+                // Check if channel column exists in notification_logs
+                const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+                const columnNames = (columns as any[]).map((col: any) => col.Field);
+
+                let query: string;
+                if (columnNames.includes('channel')) {
+                    query = `SELECT * FROM notification_logs 
+                             WHERE channel = 'whatsapp' AND status = 'failed'
+                             ORDER BY created_at DESC LIMIT 20`;
+                } else if (columnNames.includes('notification_type')) {
+                    query = `SELECT * FROM notification_logs 
+                             WHERE notification_type = 'whatsapp' AND status = 'failed'
+                             ORDER BY created_at DESC LIMIT 20`;
+                } else {
+                    query = `SELECT * FROM notification_logs 
+                             WHERE status = 'failed'
+                             ORDER BY created_at DESC LIMIT 20`;
+                }
+
+                const [rows] = await databasePool.query<RowDataPacket[]>(query);
+                failedNotifications = rows;
+            } catch (queryError) {
+                console.error('Error querying failed notifications:', queryError);
+                // Keep empty array
+            }
+
             // Get pending notifications
             const [pendingNotifications] = await databasePool.query<RowDataPacket[]>(
                 `SELECT * FROM unified_notifications_queue 
@@ -35,13 +56,13 @@ export class WhatsAppTroubleshootingController {
                  ORDER BY created_at DESC 
                  LIMIT 20`
             );
-            
+
             // Check session folder
             const sessionPath = path.join(process.cwd(), 'whatsapp-session');
             const sessionExists = fs.existsSync(sessionPath);
             let sessionSize = 0;
             let sessionFiles: string[] = [];
-            
+
             if (sessionExists) {
                 try {
                     const files = fs.readdirSync(sessionPath);
@@ -59,7 +80,7 @@ export class WhatsAppTroubleshootingController {
                     console.error('Error reading session folder:', err);
                 }
             }
-            
+
             // Get system info
             const systemInfo = {
                 nodeVersion: process.version,
@@ -70,7 +91,7 @@ export class WhatsAppTroubleshootingController {
                 sessionSize: (sessionSize / 1024 / 1024).toFixed(2) + ' MB',
                 sessionFilesCount: sessionFiles.length
             };
-            
+
             res.render('whatsapp/troubleshooting', {
                 title: 'Troubleshooting WhatsApp',
                 currentPath: '/whatsapp/troubleshooting',
@@ -81,7 +102,7 @@ export class WhatsAppTroubleshootingController {
                 systemInfo,
                 user: (req.session as any).user
             });
-            
+
         } catch (error) {
             console.error('Error loading troubleshooting page:', error);
             res.status(500).render('error', {
@@ -90,7 +111,7 @@ export class WhatsAppTroubleshootingController {
             });
         }
     }
-    
+
     /**
      * Get diagnostic information
      */
@@ -98,19 +119,38 @@ export class WhatsAppTroubleshootingController {
         try {
             const status = WhatsAppService.getStatus();
             const stats = await WhatsAppService.getNotificationStats();
-            
+
             // Check session folder
             const sessionPath = path.join(process.cwd(), 'whatsapp-session');
             const sessionExists = fs.existsSync(sessionPath);
-            
+
             // Get recent errors
-            const [recentErrors] = await databasePool.query<RowDataPacket[]>(
-                `SELECT * FROM notification_logs 
-                 WHERE channel = 'whatsapp' AND status = 'failed'
-                 ORDER BY created_at DESC 
-                 LIMIT 10`
-            );
-            
+            let recentErrors: RowDataPacket[] = [];
+            try {
+                const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+                const columnNames = (columns as any[]).map((col: any) => col.Field);
+
+                let query: string;
+                if (columnNames.includes('channel')) {
+                    query = `SELECT * FROM notification_logs 
+                             WHERE channel = 'whatsapp' AND status = 'failed'
+                             ORDER BY created_at DESC LIMIT 10`;
+                } else if (columnNames.includes('notification_type')) {
+                    query = `SELECT * FROM notification_logs 
+                             WHERE notification_type = 'whatsapp' AND status = 'failed'
+                             ORDER BY created_at DESC LIMIT 10`;
+                } else {
+                    query = `SELECT * FROM notification_logs 
+                             WHERE status = 'failed'
+                             ORDER BY created_at DESC LIMIT 10`;
+                }
+
+                const [rows] = await databasePool.query<RowDataPacket[]>(query);
+                recentErrors = rows;
+            } catch (err) {
+                console.error('Error getting recent errors for diagnostics:', err);
+            }
+
             // Get queue status
             const [queueStats] = await databasePool.query<RowDataPacket[]>(
                 `SELECT 
@@ -120,7 +160,7 @@ export class WhatsAppTroubleshootingController {
                  WHERE channel = 'whatsapp'
                  GROUP BY status`
             );
-            
+
             res.json({
                 success: true,
                 data: {
@@ -139,18 +179,26 @@ export class WhatsAppTroubleshootingController {
             });
         }
     }
-    
+
     /**
      * Clear failed notifications
      */
     static async clearFailedNotifications(req: Request, res: Response): Promise<void> {
         try {
-            await databasePool.query(
-                `UPDATE notification_logs 
-                 SET status = 'cancelled' 
-                 WHERE channel = 'whatsapp' AND status = 'failed'`
-            );
-            
+            const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+            const columnNames = (columns as any[]).map((col: any) => col.Field);
+
+            let query: string;
+            if (columnNames.includes('channel')) {
+                query = `UPDATE notification_logs SET status = 'cancelled' WHERE channel = 'whatsapp' AND status = 'failed'`;
+            } else if (columnNames.includes('notification_type')) {
+                query = `UPDATE notification_logs SET status = 'cancelled' WHERE notification_type = 'whatsapp' AND status = 'failed'`;
+            } else {
+                query = `UPDATE notification_logs SET status = 'cancelled' WHERE status = 'failed'`;
+            }
+
+            await databasePool.query(query);
+
             res.json({
                 success: true,
                 message: 'Failed notifications cleared'
@@ -162,14 +210,14 @@ export class WhatsAppTroubleshootingController {
             });
         }
     }
-    
+
     /**
      * Retry failed notifications
      */
     static async retryFailedNotifications(req: Request, res: Response): Promise<void> {
         try {
             const { limit = 10 } = req.body;
-            
+
             // Get failed notifications
             const [failed] = await databasePool.query<RowDataPacket[]>(
                 `SELECT * FROM unified_notifications_queue 
@@ -178,10 +226,10 @@ export class WhatsAppTroubleshootingController {
                  LIMIT ?`,
                 [limit]
             );
-            
+
             let retried = 0;
             let errors = 0;
-            
+
             for (const notif of failed) {
                 try {
                     // Reset to pending
@@ -197,7 +245,7 @@ export class WhatsAppTroubleshootingController {
                     console.error(`Error retrying notification ${notif.id}:`, err);
                 }
             }
-            
+
             res.json({
                 success: true,
                 message: `Retried ${retried} notifications`,
@@ -213,14 +261,14 @@ export class WhatsAppTroubleshootingController {
             });
         }
     }
-    
+
     /**
      * Test WhatsApp connection
      */
     static async testConnection(req: Request, res: Response): Promise<void> {
         try {
             const status = WhatsAppService.getStatus();
-            
+
             if (!status.ready) {
                 res.json({
                     success: false,
@@ -228,7 +276,7 @@ export class WhatsAppTroubleshootingController {
                 });
                 return;
             }
-            
+
             // Try to get client info
             const diagnostics = {
                 ready: status.ready,
@@ -237,7 +285,7 @@ export class WhatsAppTroubleshootingController {
                 hasQRCode: status.hasQRCode,
                 timestamp: new Date().toISOString()
             };
-            
+
             res.json({
                 success: true,
                 message: 'Koneksi WhatsApp aktif',
@@ -250,57 +298,59 @@ export class WhatsAppTroubleshootingController {
             });
         }
     }
-    
+
     /**
      * Get notification logs with filters
      */
     static async getNotificationLogs(req: Request, res: Response): Promise<void> {
         try {
-            const { 
-                limit = 50, 
-                status, 
+            const {
+                limit = 50,
+                status,
                 customerId,
                 startDate,
                 endDate
             } = req.query;
-            
-            let query = `
-                SELECT 
-                    nl.*,
-                    c.name as customer_name,
-                    c.phone as customer_phone
-                FROM notification_logs nl
-                LEFT JOIN customers c ON nl.customer_id = c.id
-                WHERE nl.channel = 'whatsapp'
-            `;
-            
+
+            let query = 'SELECT nl.*, c.name as customer_name, c.phone as customer_phone FROM notification_logs nl LEFT JOIN customers c ON nl.customer_id = c.id WHERE 1=1';
+
             const params: any[] = [];
-            
+
+            // Check columns for dynamic filtering
+            const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+            const columnNames = (columns as any[]).map((col: any) => col.Field);
+
+            if (columnNames.includes('channel')) {
+                query += ' AND nl.channel = "whatsapp"';
+            } else if (columnNames.includes('notification_type')) {
+                query += ' AND nl.notification_type = "whatsapp"';
+            }
+
             if (status) {
                 query += ' AND nl.status = ?';
                 params.push(status);
             }
-            
+
             if (customerId) {
                 query += ' AND nl.customer_id = ?';
                 params.push(parseInt(customerId as string));
             }
-            
+
             if (startDate) {
                 query += ' AND nl.created_at >= ?';
                 params.push(startDate);
             }
-            
+
             if (endDate) {
                 query += ' AND nl.created_at <= ?';
                 params.push(endDate);
             }
-            
+
             query += ' ORDER BY nl.created_at DESC LIMIT ?';
             params.push(parseInt(limit as string));
-            
+
             const [logs] = await databasePool.query<RowDataPacket[]>(query, params);
-            
+
             res.json({
                 success: true,
                 data: logs
@@ -312,24 +362,38 @@ export class WhatsAppTroubleshootingController {
             });
         }
     }
-    
+
     /**
      * Delete old notification logs
      */
     static async cleanupLogs(req: Request, res: Response): Promise<void> {
         try {
             const { days = 30 } = req.body;
-            
-            const [result] = await databasePool.query(
-                `DELETE FROM notification_logs 
-                 WHERE channel = 'whatsapp' 
-                   AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-                   AND status IN ('sent', 'failed', 'cancelled')`,
-                [days]
-            );
-            
+
+            const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+            const columnNames = (columns as any[]).map((col: any) => col.Field);
+
+            let query: string;
+            if (columnNames.includes('channel')) {
+                query = `DELETE FROM notification_logs 
+                         WHERE channel = 'whatsapp' 
+                           AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+                           AND status IN ('sent', 'failed', 'cancelled')`;
+            } else if (columnNames.includes('notification_type')) {
+                query = `DELETE FROM notification_logs 
+                         WHERE notification_type = 'whatsapp' 
+                           AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+                           AND status IN ('sent', 'failed', 'cancelled')`;
+            } else {
+                query = `DELETE FROM notification_logs 
+                         WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+                           AND status IN ('sent', 'failed', 'cancelled')`;
+            }
+
+            const [result] = await databasePool.query(query, [days]);
+
             const deleted = (result as any).affectedRows || 0;
-            
+
             res.json({
                 success: true,
                 message: `Deleted ${deleted} old notification logs`,
