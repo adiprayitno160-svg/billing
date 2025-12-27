@@ -145,37 +145,32 @@ export class SystemUpdateController {
             const { stdout: buildOutput } = await execAsync('npm run build');
             console.log(buildOutput);
 
-            // Step 5: Restart PM2  
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Restarting application...`);
-            console.log(updateSteps[currentStep - 1]);
-
-            try {
-                const { stdout: pm2Output } = await execAsync('npm run pm2:restart');
-                console.log(pm2Output);
-            } catch (error) {
-                console.log('PM2 restart command not available or failed');
-            }
-
-            // Step 6: Complete
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Update complete!`);
-            console.log(updateSteps[currentStep - 1]);
-
-            // Get new version
+            // Step 5: Read new version
             const packageJson = JSON.parse(
                 fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')
             );
             const newVersion = packageJson.version;
 
+            // Step 6: Send Success Response FIRST
+            currentStep++;
+            updateSteps.push(`[${currentStep}/6] Update complete! Restarting server...`);
+
             res.json({
                 success: true,
-                message: 'System updated successfully',
+                message: 'System updated successfully. Server is restarting...',
                 newVersion,
                 steps: updateSteps
             });
 
-            console.log('✅ System update completed successfully');
+            console.log('✅ Update finished. Scheduling restart...');
+
+            // Step 7: Restart Server (Async)
+            // We use process.exit(0) because PM2 will automatically restart the service
+            // This is more reliable than calling 'pm2 restart' from within the process
+            setTimeout(() => {
+                console.log('🔄 Triggering restart (process.exit)...');
+                process.exit(0);
+            }, 1000);
         } catch (error: any) {
             console.error('❌ Error performing update:', error);
             res.status(500).json({
