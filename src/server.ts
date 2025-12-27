@@ -166,6 +166,10 @@ app.use(errorLoggingMiddleware);
 import paymentRoutes from './routes/payment';
 app.use('/payment', paymentRoutes);
 
+// General API routes
+import apiRoutes from './routes/api';
+app.use('/api', apiRoutes);
+
 // 404 handler
 app.use((req, res, next) => {
 	// Check if this is an API request (JSON expected)

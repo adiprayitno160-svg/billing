@@ -14,7 +14,7 @@ export declare class MonitoringScheduler {
      */
     stop(): void;
     /**
-     * 1. Static IP Ping Monitoring - Every 1 minute
+     * 1. Static IP Ping Monitoring - Every 10 minutes
      */
     private startPingMonitoring;
     /**

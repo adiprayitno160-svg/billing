@@ -7,6 +7,7 @@ export interface InvoiceData {
     discount_amount?: number;
     total_amount: number;
     notes?: string;
+    status?: string;
 }
 export interface InvoiceItem {
     description: string;

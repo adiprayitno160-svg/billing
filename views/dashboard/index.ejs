@@ -362,8 +362,11 @@
 												let previousData = { rx: 0, tx: 0 };
 												let lastTime = Date.now();
 
-												// Determine max interface speed for scaling (optional, static 1Gbps for now or dynamic)
-												// For now, let Chart.js auto-scale
+												// Smoothing variables (Exponential Moving Average)
+												const EMA_ALPHA = 0.3; // Smoothing factor (0.1 = very smooth, 0.5 = responsive)
+												let smoothedRx = 0;
+												let smoothedTx = 0;
+												let isFirstReading = true;
 
 												function formatSpeed(bits) {
 													if (bits >= 1000000000) return (bits / 1000000000).toFixed(2) + ' Gbps';
@@ -404,7 +407,10 @@
 														options: {
 															responsive: true,
 															maintainAspectRatio: false,
-															animation: { duration: 0 }, // Disable animation for realtime feel
+															animation: {
+																duration: 750, // Smooth animation
+																easing: 'easeOutQuart'
+															},
 															interaction: {
 																mode: 'index',
 																intersect: false,
@@ -462,19 +468,30 @@
 														// Calculate speed (bits per second)
 														// (Current Bytes - Previous Bytes) * 8 / Time Difference
 														// Handle counter wrap or initial run where pervious is 0
-														let rxSpeed = 0;
-														let txSpeed = 0;
+														let rawRxSpeed = 0;
+														let rawTxSpeed = 0;
 
 														if (previousData.rx > 0 && currentRx >= previousData.rx) {
-															rxSpeed = ((currentRx - previousData.rx) * 8) / timeDiff;
+															rawRxSpeed = ((currentRx - previousData.rx) * 8) / timeDiff;
 														}
 														if (previousData.tx > 0 && currentTx >= previousData.tx) {
-															txSpeed = ((currentTx - previousData.tx) * 8) / timeDiff;
+															rawTxSpeed = ((currentTx - previousData.tx) * 8) / timeDiff;
 														}
 
-														// Update Display
-														rxDisplay.textContent = formatSpeed(rxSpeed);
-														txDisplay.textContent = formatSpeed(txSpeed);
+														// Apply Exponential Moving Average for smoothing
+														if (isFirstReading && (rawRxSpeed > 0 || rawTxSpeed > 0)) {
+															smoothedRx = rawRxSpeed;
+															smoothedTx = rawTxSpeed;
+															isFirstReading = false;
+														} else {
+															// EMA formula: smoothed = alpha * current + (1 - alpha) * previous
+															smoothedRx = EMA_ALPHA * rawRxSpeed + (1 - EMA_ALPHA) * smoothedRx;
+															smoothedTx = EMA_ALPHA * rawTxSpeed + (1 - EMA_ALPHA) * smoothedTx;
+														}
+
+														// Update Display with smoothed values
+														rxDisplay.textContent = formatSpeed(smoothedRx);
+														txDisplay.textContent = formatSpeed(smoothedTx);
 
 														// Update Chart
 														if (chart) {
@@ -483,12 +500,12 @@
 															chart.data.labels.push('');
 
 															chart.data.datasets[0].data.shift();
-															chart.data.datasets[0].data.push(rxSpeed);
+															chart.data.datasets[0].data.push(smoothedRx);
 
 															chart.data.datasets[1].data.shift();
-															chart.data.datasets[1].data.push(txSpeed);
+															chart.data.datasets[1].data.push(smoothedTx);
 
-															chart.update('none'); // Update mode 'none' for performance
+															chart.update(); // Use default animation
 														}
 
 														// Store current as previous
@@ -519,6 +536,9 @@
 												select.addEventListener('change', function () {
 													if (loading) loading.style.display = 'flex';
 													previousData = { rx: 0, tx: 0 }; // Reset counter baseline
+													smoothedRx = 0;
+													smoothedTx = 0;
+													isFirstReading = true;
 													if (chart) {
 														chart.data.datasets[0].data = Array(20).fill(0);
 														chart.data.datasets[1].data = Array(20).fill(0);

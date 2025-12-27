@@ -27,7 +27,7 @@ class MonitoringScheduler {
             return;
         }
         console.log('[MonitoringScheduler] Starting all schedulers...');
-        // 1. Static IP Ping Monitoring - Every 1 minute
+        // 1. Static IP Ping Monitoring - Every 10 minutes
         this.startPingMonitoring();
         // 2. PPPoE Bandwidth Collection - Every 5 minutes
         this.startBandwidthCollection();
@@ -54,10 +54,10 @@ class MonitoringScheduler {
         console.log('[MonitoringScheduler] All schedulers stopped');
     }
     /**
-     * 1. Static IP Ping Monitoring - Every 1 minute
+     * 1. Static IP Ping Monitoring - Every 10 minutes
      */
     startPingMonitoring() {
-        const job = node_cron_1.default.schedule('*/1 * * * *', async () => {
+        const job = node_cron_1.default.schedule('*/10 * * * *', async () => {
             try {
                 console.log('[PingMonitoring] Starting ping check...');
                 await pingService_1.default.monitorAllStaticIPs();
@@ -67,7 +67,7 @@ class MonitoringScheduler {
             }
         });
         this.jobs.set('ping-monitoring', job);
-        console.log('[MonitoringScheduler] ✓ Ping Monitoring scheduled (every 1 minute)');
+        console.log('[MonitoringScheduler] ✓ Ping Monitoring scheduled (every 10 minutes)');
     }
     /**
      * 2. PPPoE Bandwidth Collection - Every 5 minutes

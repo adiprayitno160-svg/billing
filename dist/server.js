@@ -180,6 +180,9 @@ app.use(loggingMiddleware_1.errorLoggingMiddleware);
 // Payment routes
 const payment_1 = __importDefault(require("./routes/payment"));
 app.use('/payment', payment_1.default);
+// General API routes
+const api_1 = __importDefault(require("./routes/api"));
+app.use('/api', api_1.default);
 // 404 handler
 app.use((req, res, next) => {
     // Check if this is an API request (JSON expected)

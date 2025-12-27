@@ -55,20 +55,20 @@ class PingService {
     }
     /**
      * Get all Static IP customers for monitoring
-     * FIXED: Get from static_ip_clients table, not subscriptions
+     * FIXED: Get from static_ip_clients table ONLY (using INNER JOIN with customers)
+     * This ensures only customers who are registered in static_ip_clients table will appear
      */
     async getStaticIPCustomers() {
         const query = `
             SELECT 
-                c.id AS customer_id,
-                c.name AS customer_name,
+                sic.customer_id,
+                sic.client_name AS customer_name,
                 sic.ip_address,
                 sip.status AS current_status
-            FROM customers c
-            JOIN static_ip_clients sic ON c.id = sic.customer_id
-            LEFT JOIN static_ip_ping_status sip ON c.id = sip.customer_id
-            WHERE c.connection_type = 'static_ip'
-                AND sic.status = 'active'
+            FROM static_ip_clients sic
+            INNER JOIN customers c ON sic.customer_id = c.id
+            LEFT JOIN static_ip_ping_status sip ON sic.customer_id = sip.customer_id
+            WHERE sic.status = 'active'
                 AND sic.ip_address IS NOT NULL
                 AND sic.ip_address != ''
         `;

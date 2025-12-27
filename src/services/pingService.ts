@@ -35,7 +35,7 @@ export class PingService {
     private readonly PING_TIMEOUT = 5; // seconds
     private readonly MAX_CONSECUTIVE_FAILURES = 3;
     private readonly DEGRADED_THRESHOLD_MS = 200; // Response time threshold for degraded status
-    
+
     /**
      * Ping a single IP address
      */
@@ -45,7 +45,7 @@ export class PingService {
                 timeout: this.PING_TIMEOUT,
                 extra: ['-n', '4'], // Windows: 4 packets
             });
-            
+
             return {
                 host: result.host,
                 alive: result.alive,
@@ -62,7 +62,7 @@ export class PingService {
             };
         }
     }
-    
+
     /**
      * Calculate peer IP (router client IP) from CIDR
      * IMPORTANT: Ping router IP (192.168.1.2), NOT MikroTik gateway IP (192.168.1.1)
@@ -73,31 +73,31 @@ export class PingService {
         // Use utility function for consistency across the system
         return calculateCustomerIP(cidrAddress);
     }
-    
+
     /**
      * Get all Static IP customers for monitoring
-     * FIXED: Get from static_ip_clients table, not subscriptions
+     * FIXED: Get from static_ip_clients table ONLY (using INNER JOIN with customers)
+     * This ensures only customers who are registered in static_ip_clients table will appear
      */
     async getStaticIPCustomers(): Promise<StaticIPCustomer[]> {
         const query = `
             SELECT 
-                c.id AS customer_id,
-                c.name AS customer_name,
+                sic.customer_id,
+                sic.client_name AS customer_name,
                 sic.ip_address,
                 sip.status AS current_status
-            FROM customers c
-            JOIN static_ip_clients sic ON c.id = sic.customer_id
-            LEFT JOIN static_ip_ping_status sip ON c.id = sip.customer_id
-            WHERE c.connection_type = 'static_ip'
-                AND sic.status = 'active'
+            FROM static_ip_clients sic
+            INNER JOIN customers c ON sic.customer_id = c.id
+            LEFT JOIN static_ip_ping_status sip ON sic.customer_id = sip.customer_id
+            WHERE sic.status = 'active'
                 AND sic.ip_address IS NOT NULL
                 AND sic.ip_address != ''
         `;
-        
+
         const [rows] = await pool.query<RowDataPacket[]>(query);
         return rows as StaticIPCustomer[];
     }
-    
+
     /**
      * Update ping status in database
      */
@@ -123,7 +123,7 @@ export class PingService {
                 last_online_at = IF(VALUES(status) = 'online', NOW(), last_online_at),
                 last_offline_at = IF(VALUES(status) = 'offline', NOW(), last_offline_at)
         `;
-        
+
         await pool.query(query, [
             status.customer_id,
             status.ip_address,
@@ -135,7 +135,7 @@ export class PingService {
             status.status === 'offline' ? new Date() : null
         ]);
     }
-    
+
     /**
      * Log ping result to connection_logs
      */
@@ -157,7 +157,7 @@ export class PingService {
                 packet_loss_percent
             ) VALUES (?, 'static_ip', ?, NOW(), ?, ?, ?)
         `;
-        
+
         await pool.query(query, [
             customerId,
             ipAddress,
@@ -166,7 +166,7 @@ export class PingService {
             packetLoss
         ]);
     }
-    
+
     /**
      * Calculate 24h uptime percentage
      */
@@ -180,48 +180,48 @@ export class PingService {
                 AND service_type = 'static_ip'
                 AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
         `;
-        
+
         const [rows] = await pool.query<RowDataPacket[]>(query, [customerId]);
         const result = rows[0];
-        
+
         if (result.total_checks === 0) return 100;
-        
+
         return (result.online_checks / result.total_checks) * 100;
     }
-    
+
     /**
      * Update 24h uptime in status table
      */
     async update24hUptime(customerId: number): Promise<void> {
         const uptime = await this.calculate24hUptime(customerId);
-        
+
         await pool.query(
             'UPDATE static_ip_ping_status SET uptime_percent_24h = ? WHERE customer_id = ?',
             [uptime, customerId]
         );
     }
-    
+
     /**
      * Monitor all Static IP customers (Main function called by scheduler)
      */
     async monitorAllStaticIPs(): Promise<void> {
         console.log('[PingService] Starting Static IP monitoring...');
-        
+
         try {
             const customers = await this.getStaticIPCustomers();
             console.log(`[PingService] Monitoring ${customers.length} Static IP customers`);
-            
+
             for (const customer of customers) {
                 await this.monitorSingleCustomer(customer);
             }
-            
+
             console.log('[PingService] Static IP monitoring completed');
         } catch (error) {
             console.error('[PingService] Error in monitorAllStaticIPs:', error);
             throw error;
         }
     }
-    
+
     /**
      * Monitor single customer
      * IMPORTANT: Ping router IP (192.168.1.2), NOT MikroTik gateway IP (192.168.1.1)
@@ -233,26 +233,26 @@ export class PingService {
             // If stored IP is MikroTik gateway (192.168.1.1), this returns router IP (192.168.1.2)
             const peerIP = this.calculatePeerIP(customer.ip_address);
             console.log(`[PingService] Monitoring customer ${customer.customer_id} (${customer.customer_name}): Stored IP=${customer.ip_address}, Router IP to Ping=${peerIP}`);
-            
+
             // Ping the router IP (client router), NOT the MikroTik gateway IP
             const pingResult = await this.pingHost(peerIP);
-            
+
             // Parse packet loss
             const packetLoss = parseFloat(pingResult.packetLoss.replace('%', '')) || 0;
             const responseTime = typeof pingResult.time === 'number' ? pingResult.time : 0;
-            
+
             // Get current status from database
             const [statusRows] = await pool.query<RowDataPacket[]>(
                 'SELECT consecutive_failures FROM static_ip_ping_status WHERE customer_id = ?',
                 [customer.customer_id]
             );
-            
+
             const currentConsecutiveFailures = statusRows.length > 0 ? statusRows[0].consecutive_failures : 0;
-            
+
             // Determine status
             let status: 'online' | 'offline' | 'degraded';
             let consecutiveFailures = 0;
-            
+
             if (pingResult.alive) {
                 if (responseTime > this.DEGRADED_THRESHOLD_MS) {
                     status = 'degraded';
@@ -264,7 +264,7 @@ export class PingService {
                 consecutiveFailures = currentConsecutiveFailures + 1;
                 status = 'offline';
             }
-            
+
             // Update ping status - store peer IP in ip_address field for reference
             await this.updatePingStatus({
                 customer_id: customer.customer_id,
@@ -274,7 +274,7 @@ export class PingService {
                 packet_loss_percent: packetLoss,
                 consecutive_failures: consecutiveFailures
             });
-            
+
             // Log to connection_logs - log both MikroTik IP and peer IP for clarity
             await this.logConnectionStatus(
                 customer.customer_id,
@@ -283,17 +283,17 @@ export class PingService {
                 pingResult.alive ? responseTime : null,
                 packetLoss
             );
-            
+
             // Update 24h uptime (every 10th check to reduce overhead)
             if (Math.random() < 0.1) {
                 await this.update24hUptime(customer.customer_id);
             }
-            
+
         } catch (error) {
             console.error(`[PingService] Error monitoring customer ${customer.customer_id}:`, error);
         }
     }
-    
+
     /**
      * Get current status for a customer
      */
@@ -313,11 +313,11 @@ export class PingService {
             FROM static_ip_ping_status
             WHERE customer_id = ?
         `;
-        
+
         const [rows] = await pool.query<RowDataPacket[]>(query, [customerId]);
-        
+
         if (rows.length === 0) return null;
-        
+
         return rows[0] as PingStatus;
     }
 }

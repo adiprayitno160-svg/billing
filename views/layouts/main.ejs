@@ -597,10 +597,32 @@
 		</script>
 
 		<!-- Real-time Clock Update -->
+		<!-- Real-time Clock Update (Server Synced) -->
 		<script>
 			(function () {
+				let timeOffset = 0;
+
+				// Sync with server time
+				function syncTime() {
+					fetch('/api/server-time')
+						.then(response => response.json())
+						.then(data => {
+							if (data.success && data.timestamp) {
+								const serverTime = data.timestamp;
+								const clientTime = Date.now();
+								timeOffset = serverTime - clientTime;
+								console.log('Server time synced. Offset:', timeOffset, 'ms');
+
+								// Update clock immediately after sync
+								updateClock();
+							}
+						})
+						.catch(err => console.error('Failed to sync time:', err));
+				}
+
 				function updateClock() {
-					const now = new Date();
+					// Use offset to get server time
+					const now = new Date(Date.now() + timeOffset);
 
 					// Format time: HH:MM:SS
 					const hours = String(now.getHours()).padStart(2, '0');
@@ -625,10 +647,13 @@
 					if (dateElement) dateElement.textContent = dateString;
 				}
 
-				// Update immediately on page load
-				updateClock();
+				// Initial sync
+				syncTime();
 
-				// Update every second
+				// Re-sync every 5 minutes to prevent drift
+				setInterval(syncTime, 5 * 60 * 1000);
+
+				// Update UI every second
 				setInterval(updateClock, 1000);
 			})();
 		</script>

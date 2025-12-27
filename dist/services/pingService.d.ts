@@ -39,7 +39,8 @@ export declare class PingService {
     private calculatePeerIP;
     /**
      * Get all Static IP customers for monitoring
-     * FIXED: Get from static_ip_clients table, not subscriptions
+     * FIXED: Get from static_ip_clients table ONLY (using INNER JOIN with customers)
+     * This ensures only customers who are registered in static_ip_clients table will appear
      */
     getStaticIPCustomers(): Promise<StaticIPCustomer[]>;
     /**
