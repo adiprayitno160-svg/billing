@@ -112,7 +112,9 @@ export class NetworkMonitoringService {
                         manufacturer: deviceInfo.manufacturer,
                         model: deviceInfo.model,
                         software_version: deviceInfo.softwareVersion,
-                        product_class: deviceInfo.productClass
+                        product_class: deviceInfo.productClass,
+                        ip_address: deviceInfo.ipAddress,
+                        signal: deviceInfo.signal
                     })
                 };
 

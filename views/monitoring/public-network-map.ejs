@@ -1106,7 +1106,16 @@
         // Create device popup content
         function createDevicePopup(device) {
             const statusClass = `status-${device.status}`;
-            const metadata = device.metadata || {};
+            let metadata = device.metadata || {};
+            // Parse metadata if user-provided as string
+            if (typeof metadata === 'string') {
+                try {
+                    metadata = JSON.parse(metadata);
+                } catch (e) {
+                    console.error('Error parsing metadata', e);
+                    metadata = {};
+                }
+            }
 
             let content = `
                 <div class="device-popup">
@@ -1122,11 +1131,86 @@
                         </div>
             `;
 
-            if (device.ip_address) {
+            // Signal Info (Redaman)
+            if (metadata.signal) {
+                const sig = metadata.signal;
+                if (sig.rxPower) {
+                    let rxColor = '#1e293b'; // default
+                    // Parse Rx Power logic for coloring (e.g. < -27 bad)
+                    const rxVal = parseFloat(sig.rxPower);
+                    if (!isNaN(rxVal)) {
+                        if (rxVal < -27) rxColor = '#ef4444'; // Red (Bad)
+                        else if (rxVal < -24) rxColor = '#f59e0b'; // Warning
+                        else rxColor = '#10b981'; // Good
+                    }
+
+                    content += `
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Rx Power:</span>
+                            <span class="device-popup-value" style="color: ${rxColor}; font-weight: bold;">${sig.rxPower}</span>
+                        </div>
+                    `;
+                }
+                if (sig.txPower) {
+                    content += `
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Tx Power:</span>
+                            <span class="device-popup-value">${sig.txPower}</span>
+                        </div>
+                    `;
+                }
+                if (sig.temperature) {
+                    content += `
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Temp:</span>
+                            <span class="device-popup-value">${sig.temperature}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            // Calculate Distance to ODP (if customer)
+            if (device.device_type === 'customer' || device.device_type === 'ont') {
+                // Cari link ke ODP
+                const deviceId = device.id;
+                const link = currentLinks.find(l => (l.source_device_id === deviceId && deviceMap[l.target_device_id]?.device_type === 'odp') ||
+                    (l.target_device_id === deviceId && deviceMap[l.source_device_id]?.device_type === 'odp'));
+
+                if (link) {
+                    const otherId = link.source_device_id === deviceId ? link.target_device_id : link.source_device_id;
+                    const odpDevice = deviceMap[otherId];
+
+                    if (odpDevice) {
+                        const lat1 = parseFloat(device.latitude);
+                        const lng1 = parseFloat(device.longitude);
+                        const lat2 = parseFloat(odpDevice.latitude);
+                        const lng2 = parseFloat(odpDevice.longitude);
+
+                        if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
+                            const dist = map.distance([lat1, lng1], [lat2, lng2]); // in meters
+                            const distText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
+
+                            content += `
+                                <div class="device-popup-row">
+                                    <span class="device-popup-label">ODP Source:</span>
+                                    <span class="device-popup-value">${odpDevice.name}</span>
+                                </div>
+                                <div class="device-popup-row">
+                                    <span class="device-popup-label">Jarak ke ODP:</span>
+                                    <span class="device-popup-value" style="color: #3b82f6;">${distText}</span>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+            }
+
+
+            if (device.ip_address || (metadata.ip_address)) {
                 content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">IP:</span>
-                        <span class="device-popup-value">${device.ip_address}</span>
+                        <span class="device-popup-value">${device.ip_address || metadata.ip_address}</span>
                     </div>
                 `;
             }

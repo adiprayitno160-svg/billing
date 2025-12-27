@@ -234,11 +234,18 @@ export class GenieacsService {
     }
 
     /**
-     * Status Online Threshold: 70 Menit
+     * Status Online Threshold: 10 Menit (lebih responsif)
      */
     extractDeviceInfo(device: GenieacsDevice) {
         const lastInform = device._lastInform ? new Date(device._lastInform) : null;
-        const isOnline = lastInform ? (Date.now() - lastInform.getTime()) < 70 * 60 * 1000 : false;
+        // Threshold 10 menit (600000 ms). Jika last inform > 10 menit lalu, anggap offline
+        const isOnline = lastInform ? (Date.now() - lastInform.getTime()) < 10 * 60 * 1000 : false;
+
+        const signalInfo = this.getSignalInfo(device);
+
+        // Get IP Addr
+        const ip = this.getDeviceParameter(device, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress') ||
+            this.getDeviceParameter(device, 'Device.IP.Interface.1.IPv4Address.1.IPAddress');
 
         return {
             serialNumber: device._deviceId?._SerialNumber || 'Unknown',
@@ -246,8 +253,10 @@ export class GenieacsService {
             productClass: device._deviceId?._ProductClass || 'Unknown',
             model: device._deviceId?._ProductClass || 'Unknown',
             softwareVersion: 'Unknown',
+            ipAddress: ip,
             lastInform,
-            isOnline
+            isOnline,
+            signal: signalInfo
         };
     }
 }
