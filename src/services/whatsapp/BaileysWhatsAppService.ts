@@ -1,20 +1,9 @@
 /**
  * Modern WhatsApp Service using Baileys (Multi-Device)
- * More stable and reliable than whatsapp-web.js
+ * Fixed with dynamic import for CommonJS compatibility
  */
 
-import makeWASocket, {
-    DisconnectReason,
-    useMultiFileAuthState,
-    fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore,
-    WASocket,
-    proto,
-    Browsers
-} from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
 import * as qrcode from 'qrcode-terminal';
-import P from 'pino';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import * as fs from 'fs';
@@ -26,8 +15,18 @@ export interface WhatsAppMessageOptions {
     priority?: 'low' | 'normal' | 'high';
 }
 
+// Dynamic import wrapper for Baileys
+let baileysModule: any = null;
+
+async function loadBaileys() {
+    if (!baileysModule) {
+        baileysModule = await import('@whiskeysockets/baileys');
+    }
+    return baileysModule;
+}
+
 export class BaileysWhatsAppService {
-    private static sock: WASocket | null = null;
+    private static sock: any = null;
     private static isInitialized = false;
     private static isInitializing = false;
     private static isConnected = false;
@@ -37,13 +36,8 @@ export class BaileysWhatsAppService {
     private static maxReconnectAttempts = 5;
     private static channelColumnExists: boolean | null = null;
 
-    // Pino logger with minimal output
-    private static logger = P({
-        level: process.env.NODE_ENV === 'production' ? 'silent' : 'error'
-    });
-
     /**
-     * Initialize Baileys WhatsApp client
+     * Initialize Baileys WhatsApp client with dynamic import
      */
     static async initialize(): Promise<void> {
         if (this.isInitialized) {
@@ -60,6 +54,17 @@ export class BaileysWhatsAppService {
             this.isInitializing = true;
             console.log('📱 Initializing Baileys WhatsApp service...');
             console.log(`   Session path: ${this.sessionPath}`);
+
+            // Load Baileys module dynamically
+            const baileys = await loadBaileys();
+            const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion,
+                makeCacheableSignalKeyStore, DisconnectReason, Browsers } = baileys;
+
+            // Create Pino logger dynamically
+            const pino = await import('pino');
+            const logger = pino.default({
+                level: process.env.NODE_ENV === 'production' ? 'silent' : 'error'
+            });
 
             // Create session directory if doesn't exist
             if (!fs.existsSync(this.sessionPath)) {
@@ -78,32 +83,33 @@ export class BaileysWhatsAppService {
             // Create socket
             this.sock = makeWASocket({
                 version,
-                logger: this.logger,
-                printQRInTerminal: false, // We'll handle QR manually
+                logger: logger,
+                printQRInTerminal: false,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, this.logger)
+                    keys: makeCacheableSignalKeyStore(state.keys, logger)
                 },
-                browser: Browsers.ubuntu('Chrome'), // Identify as desktop browser
+                browser: Browsers.ubuntu('Chrome'),
                 markOnlineOnConnect: true,
                 generateHighQualityLinkPreview: true,
                 syncFullHistory: false,
-                getMessage: async (key) => {
-                    // Message history handler (optional)
+                getMessage: async (key: any) => {
                     return { conversation: '' };
                 }
             });
 
             console.log('✅ Baileys socket created');
 
-            // Handle credentials update (save to session)
+            // Handle credentials update
             this.sock.ev.on('creds.update', saveCreds);
 
+            // Load Boom for error handling
+            const Boom = (await import('@hapi/boom')).Boom;
+
             // Handle connection updates
-            this.sock.ev.on('connection.update', async (update) => {
+            this.sock.ev.on('connection.update', async (update: any) => {
                 const { connection, lastDisconnect, qr } = update;
 
-                // Handle QR code
                 if (qr) {
                     console.log('📱 QR Code generated');
                     qrcode.generate(qr, { small: true });
@@ -111,9 +117,8 @@ export class BaileysWhatsAppService {
                     this.isConnected = false;
                 }
 
-                // Handle connection status
                 if (connection === 'close') {
-                    const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+                    const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
 
                     console.log('⚠️ Connection closed:', lastDisconnect?.error);
                     console.log(`   Should reconnect: ${shouldReconnect}`);
@@ -125,8 +130,6 @@ export class BaileysWhatsAppService {
                     if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
                         this.reconnectAttempts++;
                         console.log(`🔄 Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-
-                        // Wait before reconnecting
                         await new Promise(resolve => setTimeout(resolve, 5000));
                         await this.initialize();
                     } else if (!shouldReconnect) {
@@ -140,7 +143,7 @@ export class BaileysWhatsAppService {
                     this.isConnected = true;
                     this.isInitialized = true;
                     this.isInitializing = false;
-                    this.currentQRCode = null; // Clear QR after connection
+                    this.currentQRCode = null;
                     this.reconnectAttempts = 0;
                 } else if (connection === 'connecting') {
                     console.log('⏳ Connecting to WhatsApp...');
@@ -148,15 +151,13 @@ export class BaileysWhatsAppService {
             });
 
             // Handle incoming messages
-            this.sock.ev.on('messages.upsert', async (m) => {
+            this.sock.ev.on('messages.upsert', async (m: any) => {
                 const message = m.messages[0];
                 if (!message.key.fromMe && m.type === 'notify') {
-                    console.log('📩 New message received:', message);
-                    // Handle bot messages here if needed
+                    console.log('📩 New message received');
                     try {
                         const { WhatsAppBotService } = await import('./WhatsAppBotService');
-                        // Convert Baileys message to compatible format if needed
-                        // await WhatsAppBotService.handleBaileysMessage(message);
+                        // Handle bot messages if needed
                     } catch (error) {
                         console.error('Error handling bot message:', error);
                     }
@@ -179,16 +180,10 @@ export class BaileysWhatsAppService {
         }
     }
 
-    /**
-     * Check if WhatsApp is ready
-     */
     static isClientReady(): boolean {
         return this.isConnected && this.sock !== null;
     }
 
-    /**
-     * Get connection status
-     */
     static getStatus(): {
         ready: boolean;
         initialized: boolean;
@@ -205,26 +200,18 @@ export class BaileysWhatsAppService {
         };
     }
 
-    /**
-     * Get current QR code
-     */
     static getQRCode(): string | null {
         return this.currentQRCode;
     }
 
-    /**
-     * Regenerate QR code
-     */
     static async regenerateQRCode(): Promise<void> {
         try {
             console.log('🔄 Regenerating QR code...');
 
-            // Destroy existing connection
             if (this.sock) {
                 await this.destroy();
             }
 
-            // Delete session folder
             if (fs.existsSync(this.sessionPath)) {
                 try {
                     fs.rmSync(this.sessionPath, { recursive: true, force: true });
@@ -234,19 +221,14 @@ export class BaileysWhatsAppService {
                 }
             }
 
-            // Reset state
             this.currentQRCode = null;
             this.isConnected = false;
             this.isInitialized = false;
             this.reconnectAttempts = 0;
 
-            // Wait before reinitializing
             await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Reinitialize
             await this.initialize();
 
-            // Wait for QR code
             let attempts = 0;
             const maxAttempts = 30;
             while (!this.currentQRCode && attempts < maxAttempts && !this.isConnected) {
@@ -267,22 +249,17 @@ export class BaileysWhatsAppService {
         }
     }
 
-    /**
-     * Format phone number to WhatsApp format
-     */
     private static formatPhoneNumber(phone: string): string {
         if (!phone || typeof phone !== 'string') {
             throw new Error('Invalid phone number: phone must be a non-empty string');
         }
 
-        // Remove all non-digit characters
         let cleaned = phone.replace(/\D/g, '');
 
         if (!cleaned || cleaned.length < 8) {
             throw new Error(`Invalid phone number: "${phone}" does not contain enough digits`);
         }
 
-        // Handle Indonesian numbers
         if (cleaned.startsWith('0')) {
             cleaned = '62' + cleaned.substring(1);
         }
@@ -298,9 +275,6 @@ export class BaileysWhatsAppService {
         return cleaned + '@s.whatsapp.net';
     }
 
-    /**
-     * Send WhatsApp message
-     */
     static async sendMessage(
         phone: string,
         message: string,
@@ -326,17 +300,14 @@ export class BaileysWhatsAppService {
             const formattedPhone = this.formatPhoneNumber(phone);
 
             console.log(`📱 [Baileys] Sending message:`);
-            console.log(`   Original phone: ${phone}`);
-            console.log(`   Formatted phone: ${formattedPhone}`);
-            console.log(`   Message length: ${message.length} chars`);
+            console.log(`   Phone: ${formattedPhone}`);
+            console.log(`   Length: ${message.length} chars`);
 
-            // Send message using Baileys
             const result = await this.sock!.sendMessage(formattedPhone, {
                 text: message
             });
 
             console.log(`✅ WhatsApp message sent to ${phone}`);
-            console.log(`   Message ID: ${result?.key?.id}`);
 
             await this.logNotification(
                 options.customerId,
@@ -353,7 +324,7 @@ export class BaileysWhatsAppService {
             };
         } catch (error: any) {
             const errorMessage = error.message || 'Unknown error';
-            console.error(`❌ Failed to send WhatsApp message to ${phone}:`, errorMessage);
+            console.error(`❌ Failed to send message:`, errorMessage);
 
             await this.logNotification(
                 options.customerId,
@@ -371,124 +342,6 @@ export class BaileysWhatsAppService {
         }
     }
 
-    /**
-     * Send WhatsApp message with media
-     */
-    static async sendMessageWithMedia(
-        phone: string,
-        message: string,
-        mediaPath: string,
-        options: WhatsAppMessageOptions = {}
-    ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-        if (!this.isClientReady()) {
-            const error = 'WhatsApp client is not ready. Please scan QR code first.';
-            console.error('❌', error);
-            return { success: false, error };
-        }
-
-        try {
-            const formattedPhone = this.formatPhoneNumber(phone);
-
-            // Read media file
-            const mediaBuffer = fs.readFileSync(mediaPath);
-            const mimeType = this.getMimeType(mediaPath);
-
-            const result = await this.sock!.sendMessage(formattedPhone, {
-                image: mediaBuffer,
-                caption: message,
-                mimetype: mimeType
-            });
-
-            console.log(`✅ WhatsApp message with media sent to ${phone}`);
-
-            await this.logNotification(
-                options.customerId,
-                phone,
-                message,
-                'sent',
-                undefined,
-                options.template
-            );
-
-            return {
-                success: true,
-                messageId: result?.key?.id || 'unknown'
-            };
-        } catch (error: any) {
-            const errorMessage = error.message || 'Unknown error';
-            console.error(`❌ Failed to send WhatsApp message with media:`, errorMessage);
-            return {
-                success: false,
-                error: errorMessage
-            };
-        }
-    }
-
-    /**
-     * Get MIME type from file path
-     */
-    private static getMimeType(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-        const mimeTypes: { [key: string]: string } = {
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.pdf': 'application/pdf',
-            '.mp4': 'video/mp4',
-            '.mp3': 'audio/mpeg'
-        };
-        return mimeTypes[ext] || 'application/octet-stream';
-    }
-
-    /**
-     * Send bulk messages
-     */
-    static async sendBulkMessages(
-        recipients: Array<{ phone: string; message: string; customerId?: number }>,
-        delayMs: number = 2000
-    ): Promise<{
-        success: number;
-        failed: number;
-        results: Array<{ phone: string; success: boolean; error?: string }>
-    }> {
-        const results: Array<{ phone: string; success: boolean; error?: string }> = [];
-        let successCount = 0;
-        let failedCount = 0;
-
-        for (const recipient of recipients) {
-            const result = await this.sendMessage(recipient.phone, recipient.message, {
-                customerId: recipient.customerId
-            });
-
-            results.push({
-                phone: recipient.phone,
-                success: result.success,
-                error: result.error
-            });
-
-            if (result.success) {
-                successCount++;
-            } else {
-                failedCount++;
-            }
-
-            // Delay between messages
-            if (delayMs > 0) {
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-            }
-        }
-
-        return {
-            success: successCount,
-            failed: failedCount,
-            results
-        };
-    }
-
-    /**
-     * Log notification to database
-     */
     private static async logNotification(
         customerId: number | undefined,
         recipient: string,
@@ -498,47 +351,29 @@ export class BaileysWhatsAppService {
         template: string | undefined
     ): Promise<void> {
         try {
+            const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+            const columnNames = (columns as any[]).map((col: any) => col.Field);
+
             let query: string;
             let params: any[];
 
-            try {
-                const [columns] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
-                const columnNames = (columns as any[]).map((col: any) => col.Field);
-
-                if (columnNames.includes('channel')) {
-                    query = `
-                        INSERT INTO notification_logs 
-                        (customer_id, channel, recipient, template, message, status, error_message, sent_at, created_at)
-                        VALUES (?, 'whatsapp', ?, ?, ?, ?, ?, ?, NOW())
-                    `;
-                    params = [
-                        customerId || null,
-                        recipient,
-                        template || null,
-                        message,
-                        status,
-                        errorMessage || null,
-                        status === 'sent' ? new Date() : null
-                    ];
-                } else {
-                    query = `
-                        INSERT INTO notification_logs 
-                        (customer_id, message, status, sent_at, created_at)
-                        VALUES (?, ?, ?, ?, NOW())
-                    `;
-                    params = [
-                        customerId || null,
-                        message,
-                        status,
-                        status === 'sent' ? new Date() : null
-                    ];
-                }
-            } catch (checkError) {
-                query = `
-                    INSERT INTO notification_logs 
+            if (columnNames.includes('channel')) {
+                query = `INSERT INTO notification_logs 
+                    (customer_id, channel, recipient, template, message, status, error_message, sent_at, created_at)
+                    VALUES (?, 'whatsapp', ?, ?, ?, ?, ?, ?, NOW())`;
+                params = [
+                    customerId || null,
+                    recipient,
+                    template || null,
+                    message,
+                    status,
+                    errorMessage || null,
+                    status === 'sent' ? new Date() : null
+                ];
+            } else {
+                query = `INSERT INTO notification_logs 
                     (customer_id, message, status, sent_at, created_at)
-                    VALUES (?, ?, ?, ?, NOW())
-                `;
+                    VALUES (?, ?, ?, ?, NOW())`;
                 params = [
                     customerId || null,
                     message,
@@ -549,44 +384,26 @@ export class BaileysWhatsAppService {
 
             await databasePool.query(query, params);
         } catch (error) {
-            console.error('Failed to log notification to database:', error);
+            console.error('Failed to log notification:', error);
         }
     }
 
-    /**
-     * Get notification history
-     */
     static async getNotificationHistory(
         limit: number = 50,
         customerId?: number,
         status?: string
     ): Promise<any[]> {
         try {
-            let query = `
-                SELECT 
-                    id,
-                    customer_id,
-                    channel,
-                    recipient,
-                    template,
-                    message,
-                    status,
-                    error_message,
-                    sent_at,
-                    created_at
-                FROM notification_logs
-                WHERE 1=1
-            `;
+            let query = `SELECT id, customer_id, channel, recipient, template, message, status, 
+                        error_message, sent_at, created_at
+                        FROM notification_logs WHERE 1=1`;
             const params: any[] = [];
 
-            // Check if channel column exists
             if (this.channelColumnExists === null) {
                 try {
-                    const [testRows] = await databasePool.query<RowDataPacket[]>(
-                        'SELECT channel FROM notification_logs LIMIT 1'
-                    );
+                    await databasePool.query<RowDataPacket[]>('SELECT channel FROM notification_logs LIMIT 1');
                     this.channelColumnExists = true;
-                } catch (err) {
+                } catch {
                     this.channelColumnExists = false;
                 }
             }
@@ -616,9 +433,6 @@ export class BaileysWhatsAppService {
         }
     }
 
-    /**
-     * Get notification statistics
-     */
     static async getNotificationStats(): Promise<{
         total: number;
         sent: number;
@@ -627,23 +441,18 @@ export class BaileysWhatsAppService {
         successRate: number;
     }> {
         try {
-            let query = `
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
-                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
-                FROM notification_logs
-                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-            `;
+            let query = `SELECT COUNT(*) as total,
+                        SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+                        FROM notification_logs
+                        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`;
 
             if (this.channelColumnExists === null) {
                 try {
-                    const [testRows] = await databasePool.query<RowDataPacket[]>(
-                        'SELECT channel FROM notification_logs LIMIT 1'
-                    );
-                    this.channelColumnExists = testRows.length > 0;
-                } catch (err) {
+                    await databasePool.query<RowDataPacket[]>('SELECT channel FROM notification_logs LIMIT 1');
+                    this.channelColumnExists = true;
+                } catch {
                     this.channelColumnExists = false;
                 }
             }
@@ -676,9 +485,6 @@ export class BaileysWhatsAppService {
         }
     }
 
-    /**
-     * Destroy WhatsApp client
-     */
     static async destroy(): Promise<void> {
         if (this.sock) {
             try {
