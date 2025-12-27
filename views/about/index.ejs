@@ -2,293 +2,388 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-slate-800">Tentang Aplikasi</h2>
         <div class="flex gap-2">
-            <button onclick="checkForHotfix()" class="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 flex items-center gap-2 transition-colors">
+            <button onclick="checkForHotfix()"
+                class="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 flex items-center gap-2 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 Cek Hotfix
             </button>
-            <button onclick="checkForUpdates()" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 transition-colors">
+            <button onclick="checkForUpdates()"
+                class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Cek Update
             </button>
         </div>
     </div>
 
-    <% if (Array.isArray(updateHistory) && updateHistory.length > 0) { 
-         const latest = updateHistory[0];
-    %>
-    <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <div class="flex items-center justify-between">
-            <div>
-                <div class="text-sm text-blue-700 font-semibold">Update Terbaru</div>
-                <div class="mt-0.5 text-slate-800 font-bold">
-                    v<%= latest.version_to || latest.version || '-' %>
-                    <span class="ml-2 text-xs font-medium text-blue-700/80">selesai: <%= latest.completed_at ? new Date(latest.completed_at).toLocaleString('id-ID') : '-' %></span>
+    <% if (Array.isArray(updateHistory) && updateHistory.length> 0) {
+        const latest = updateHistory[0];
+        %>
+        <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-sm text-blue-700 font-semibold">Update Terbaru</div>
+                    <div class="mt-0.5 text-slate-800 font-bold">
+                        v<%= latest.version_to || latest.version || '-' %>
+                            <span class="ml-2 text-xs font-medium text-blue-700/80">selesai: <%= latest.completed_at ?
+                                    new Date(latest.completed_at).toLocaleString('id-ID') : '-' %></span>
+                    </div>
                 </div>
+                <span class="px-2 py-1 text-xs rounded bg-white text-blue-700 border border-blue-200">
+                    <%= latest.status %>
+                </span>
             </div>
-            <span class="px-2 py-1 text-xs rounded bg-white text-blue-700 border border-blue-200"><%= latest.status %></span>
-        </div>
-        <% if (latest.changelog) { %>
-        <div class="mt-3 text-sm text-slate-700 whitespace-pre-line"><%= latest.changelog %></div>
-        <% } %>
-    </div>
-    <% } %>
-
-    <% if (success && success.length > 0) { %>
-    <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded flex items-start gap-2">
-        <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>
-        <span><%= success[0] %></span>
-    </div>
-    <% } %>
-
-    <% if (error && error.length > 0) { %>
-    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded flex items-start gap-2">
-        <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-        </svg>
-        <span><%= error[0] %></span>
-    </div>
-    <% } %>
-
-    <!-- Version Info -->
-    <div class="mb-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-        <h3 class="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Informasi Versi
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white p-3 rounded-lg shadow-sm">
-                <label class="block text-sm font-medium text-slate-600 mb-1">Versi Saat Ini</label>
-                <p class="text-2xl font-bold text-blue-600"><%= version.current %></p>
-            </div>
-            <div class="bg-white p-3 rounded-lg shadow-sm">
-                <label class="block text-sm font-medium text-slate-600 mb-1">Versi Terbaru</label>
-                <p class="text-2xl font-bold text-green-600"><%= version.latest %></p>
-                <% if (version.current !== version.latest) { %>
-                <span class="inline-block mt-1 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Update tersedia!</span>
-                <% } else { %>
-                <span class="inline-block mt-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Versi terbaru</span>
+            <% if (latest.changelog) { %>
+                <div class="mt-3 text-sm text-slate-700 whitespace-pre-line">
+                    <%= latest.changelog %>
+                </div>
                 <% } %>
-            </div>
-            <div class="bg-white p-3 rounded-lg shadow-sm">
-                <label class="block text-sm font-medium text-slate-600 mb-1">Tanggal Release</label>
-                <p class="text-sm text-slate-700 font-medium"><%= new Date(version.releaseDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) %></p>
-            </div>
         </div>
-    </div>
+        <% } %>
 
-    <!-- Update Settings -->
-    <div class="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-        <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Pengaturan Update
-        </h3>
-        <form method="post" action="/about/update-settings" class="space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="autoUpdate" <%= updateSettings.autoUpdate ? 'checked' : '' %> class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <span class="text-sm font-medium text-slate-700">Auto Update</span>
-                </label>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm font-medium text-slate-700">Channel:</label>
-                    <select name="updateChannel" class="px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="stable" <%= updateSettings.updateChannel === 'stable' ? 'selected' : '' %>>Stable</option>
-                        <option value="beta" <%= updateSettings.updateChannel === 'beta' ? 'selected' : '' %>>Beta</option>
-                        <option value="dev" <%= updateSettings.updateChannel === 'dev' ? 'selected' : '' %>>Development</option>
-                    </select>
-                </div>
-                <button type="submit" class="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium">
-                    Simpan Pengaturan
-                </button>
-            </div>
-            <p class="text-xs text-slate-600">
-                <strong>Stable:</strong> Update stabil yang sudah ditest. 
-                <strong>Beta:</strong> Update pre-release dengan fitur baru. 
-                <strong>Dev:</strong> Update development (tidak disarankan untuk production).
-            </p>
-        </form>
-    </div>
-
-    <!-- Features -->
-    <div class="mb-8">
-        <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Fitur Aplikasi
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <% features.forEach(function(feature) { %>
-            <div class="p-4 border border-slate-200 rounded-lg hover:shadow-md transition-shadow bg-white">
-                <div class="flex items-start justify-between mb-2">
-                    <h4 class="font-semibold text-slate-800 flex-1"><%= feature.name %></h4>
-                    <span class="px-2 py-1 text-xs rounded flex-shrink-0 ml-2 <%= feature.status === 'active' ? 'bg-green-100 text-green-700' : feature.status === 'beta' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700' %>">
-                        <%= feature.status === 'active' ? 'Aktif' : feature.status === 'beta' ? 'Beta' : 'Deprecated' %>
+            <% if (success && success.length> 0) { %>
+                <div
+                    class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded flex items-start gap-2">
+                    <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    <span>
+                        <%= success[0] %>
                     </span>
                 </div>
-                <p class="text-sm text-slate-600 mb-3"><%= feature.description %></p>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs text-slate-500">v<%= feature.version %></span>
-                    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">
-                        <%= feature.category === 'billing' ? '💰 Billing' : feature.category === 'network' ? '🌐 Network' : feature.category === 'monitoring' ? '📊 Monitoring' : '⚙️ System' %>
-                    </span>
-                </div>
-            </div>
-            <% }) %>
-        </div>
-    </div>
+                <% } %>
 
-    <!-- Changelog & Update Terbaru -->
-    <div class="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Changelog (2 kolom) -->
-        <div class="lg:col-span-2">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Changelog
-            </h3>
-            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                <ul class="space-y-2">
-                    <% version.changelog.forEach(function(change) { %>
-                    <li class="text-sm text-slate-700 flex items-start gap-2">
-                        <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
-                        </svg>
-                        <span><%= change %></span>
-                    </li>
-                    <% }) %>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Update Terbaru (1 kolom) - Auto from Database -->
-        <div class="lg:col-span-1">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-                Update Terbaru
-            </h3>
-            <% if (updateHistory && updateHistory.length > 0) { 
-                const latest = updateHistory[0];
-                const updateDate = new Date(latest.created_at || latest.updated_at);
-                const daysAgo = Math.floor((Date.now() - updateDate.getTime()) / (1000 * 60 * 60 * 24));
-                let dateText = '';
-                if (daysAgo === 0) dateText = 'Hari ini';
-                else if (daysAgo === 1) dateText = 'Kemarin';
-                else if (daysAgo < 7) dateText = daysAgo + ' hari lalu';
-                else dateText = updateDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            %>
-            <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-                <div class="space-y-3">
-                    <div class="text-sm">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="font-bold text-purple-700">v<%= latest.version_to || latest.version || 'N/A' %></span>
-                            <span class="text-xs text-slate-600"><%= dateText %></span>
-                        </div>
-                        <% if (latest.changelog) { 
-                            const changelogLines = latest.changelog.split('\n').filter(line => line.trim());
-                        %>
-                        <ul class="text-xs space-y-1.5 text-slate-700">
-                            <% changelogLines.slice(0, 5).forEach(function(line) { %>
-                            <li class="flex items-start gap-1.5">
-                                <span class="text-green-500 mt-0.5">✓</span>
-                                <span><%= line.replace(/^[-*]\s*/, '').trim() %></span>
-                            </li>
-                            <% }); %>
-                        </ul>
-                        <% } else { %>
-                        <p class="text-xs text-slate-600 italic">Update berhasil diterapkan</p>
-                        <% } %>
-                    </div>
-                    <div class="pt-3 border-t border-purple-200">
-                        <p class="text-xs text-slate-600 italic">
-                            💡 Update terbaru otomatis dari database
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <% } else { %>
-            <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-                <p class="text-xs text-slate-600 italic text-center py-4">Belum ada update terbaru</p>
-            </div>
-            <% } %>
-        </div>
-    </div>
-
-    <!-- Update History -->
-    <% if (updateHistory && updateHistory.length > 0) { %>
-    <div class="mb-8">
-        <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Riwayat Update
-        </h3>
-        <div class="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
-            <table class="w-full">
-                <thead class="bg-slate-100">
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Dari</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Ke</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Status</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Tanggal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% updateHistory.forEach(function(history, index) { %>
-                    <tr class="<%= index % 2 === 0 ? 'bg-white' : 'bg-slate-50' %>">
-                        <td class="px-4 py-2 text-sm text-slate-700"><%= history.version_from %></td>
-                        <td class="px-4 py-2 text-sm text-slate-700 font-medium"><%= history.version_to %></td>
-                        <td class="px-4 py-2">
-                            <span class="px-2 py-1 text-xs rounded <%= history.status === 'success' ? 'bg-green-100 text-green-700' : history.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' %>">
-                                <%= history.status === 'success' ? '✓ Berhasil' : history.status === 'failed' ? '✗ Gagal' : '⟳ ' + history.status %>
+                    <% if (error && error.length> 0) { %>
+                        <div
+                            class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded flex items-start gap-2">
+                            <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span>
+                                <%= error[0] %>
                             </span>
-                        </td>
-                        <td class="px-4 py-2 text-sm text-slate-600">
-                            <%= new Date(history.completed_at || history.started_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
-                        </td>
-                    </tr>
-                    <% }) %>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <% } %>
+                        </div>
+                        <% } %>
 
-    <!-- System Info -->
-    <div class="text-xs text-slate-500 border-t border-slate-200 pt-4 mt-4">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-                <div class="font-semibold text-slate-600">Repository</div>
-                <div>adiprayitno160-svg/billing</div>
-            </div>
-            <div>
-                <div class="font-semibold text-slate-600">Platform</div>
-                <div>Node.js + TypeScript</div>
-            </div>
-            <div>
-                <div class="font-semibold text-slate-600">Database</div>
-                <div>MySQL/MariaDB</div>
-            </div>
-            <div>
-                <div class="font-semibold text-slate-600">Update Method</div>
-                <div>Git Pull (GitHub)</div>
-            </div>
-        </div>
-    </div>
+                            <!-- Version Info -->
+                            <div
+                                class="mb-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    Informasi Versi
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="bg-white p-3 rounded-lg shadow-sm">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1">Versi Saat
+                                            Ini</label>
+                                        <p class="text-2xl font-bold text-blue-600">
+                                            <%= version.current %>
+                                        </p>
+                                    </div>
+                                    <div class="bg-white p-3 rounded-lg shadow-sm">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1">Versi
+                                            Terbaru</label>
+                                        <p class="text-2xl font-bold text-green-600">
+                                            <%= version.latest %>
+                                        </p>
+                                        <% if (version.isUpdateAvailable) { %>
+                                            <span
+                                                class="inline-block mt-1 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Update
+                                                tersedia!</span>
+                                            <% } else { %>
+                                                <span
+                                                    class="inline-block mt-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Versi
+                                                    terbaru</span>
+                                                <% } %>
+                                    </div>
+                                    <div class="bg-white p-3 rounded-lg shadow-sm">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1">Tanggal
+                                            Release</label>
+                                        <p class="text-sm text-slate-700 font-medium">
+                                            <%= new Date(version.releaseDate).toLocaleDateString('id-ID', {
+                                                day: 'numeric' , month: 'long' , year: 'numeric' }) %>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Update Settings -->
+                            <div class="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    Pengaturan Update
+                                </h3>
+                                <form method="post" action="/about/update-settings" class="space-y-4">
+                                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" name="autoUpdate" <%=updateSettings.autoUpdate
+                                                ? 'checked' : '' %> class="rounded border-gray-300 text-blue-600
+                                            focus:ring-blue-500">
+                                            <span class="text-sm font-medium text-slate-700">Auto Update</span>
+                                        </label>
+                                        <div class="flex items-center gap-2">
+                                            <label class="text-sm font-medium text-slate-700">Channel:</label>
+                                            <select name="updateChannel"
+                                                class="px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="stable" <%=updateSettings.updateChannel==='stable'
+                                                    ? 'selected' : '' %>>Stable</option>
+                                                <option value="beta" <%=updateSettings.updateChannel==='beta'
+                                                    ? 'selected' : '' %>>Beta</option>
+                                                <option value="dev" <%=updateSettings.updateChannel==='dev' ? 'selected'
+                                                    : '' %>>Development</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit"
+                                            class="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium">
+                                            Simpan Pengaturan
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-slate-600">
+                                        <strong>Stable:</strong> Update stabil yang sudah ditest.
+                                        <strong>Beta:</strong> Update pre-release dengan fitur baru.
+                                        <strong>Dev:</strong> Update development (tidak disarankan untuk production).
+                                    </p>
+                                </form>
+                            </div>
+
+                            <!-- Features -->
+                            <div class="mb-8">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Fitur Aplikasi
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <% features.forEach(function(feature) { %>
+                                        <div
+                                            class="p-4 border border-slate-200 rounded-lg hover:shadow-md transition-shadow bg-white">
+                                            <div class="flex items-start justify-between mb-2">
+                                                <h4 class="font-semibold text-slate-800 flex-1">
+                                                    <%= feature.name %>
+                                                </h4>
+                                                <span
+                                                    class="px-2 py-1 text-xs rounded flex-shrink-0 ml-2 <%= feature.status === 'active' ? 'bg-green-100 text-green-700' : feature.status === 'beta' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700' %>">
+                                                    <%= feature.status==='active' ? 'Aktif' : feature.status==='beta'
+                                                        ? 'Beta' : 'Deprecated' %>
+                                                </span>
+                                            </div>
+                                            <p class="text-sm text-slate-600 mb-3">
+                                                <%= feature.description %>
+                                            </p>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-slate-500">v<%= feature.version %></span>
+                                                <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">
+                                                    <%= feature.category==='billing' ? '💰 Billing' :
+                                                        feature.category==='network' ? '🌐 Network' :
+                                                        feature.category==='monitoring' ? '📊 Monitoring' : '⚙️ System'
+                                                        %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <% }) %>
+                                </div>
+                            </div>
+
+                            <!-- Changelog & Update Terbaru -->
+                            <div class="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <!-- Changelog (2 kolom) -->
+                                <div class="lg:col-span-2">
+                                    <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Changelog
+                                    </h3>
+                                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                                        <ul class="space-y-2">
+                                            <% version.changelog.forEach(function(change) { %>
+                                                <li class="text-sm text-slate-700 flex items-start gap-2">
+                                                    <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"
+                                                        fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd"
+                                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z"
+                                                            clip-rule="evenodd" />
+                                                    </svg>
+                                                    <span>
+                                                        <%= change %>
+                                                    </span>
+                                                </li>
+                                                <% }) %>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Update Terbaru (1 kolom) - Auto from Database -->
+                                <div class="lg:col-span-1">
+                                    <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        Update Terbaru
+                                    </h3>
+                                    <% if (updateHistory && updateHistory.length> 0) {
+                                        const latest = updateHistory[0];
+                                        const updateDate = new Date(latest.created_at || latest.updated_at);
+                                        const daysAgo = Math.floor((Date.now() - updateDate.getTime()) / (1000 * 60 * 60
+                                        * 24));
+                                        let dateText = '';
+                                        if (daysAgo === 0) dateText = 'Hari ini';
+                                        else if (daysAgo === 1) dateText = 'Kemarin';
+                                        else if (daysAgo < 7) dateText=daysAgo + ' hari lalu' ; else
+                                            dateText=updateDate.toLocaleDateString('id-ID', { day: 'numeric' ,
+                                            month: 'long' , year: 'numeric' }); %>
+                                            <div
+                                                class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                                                <div class="space-y-3">
+                                                    <div class="text-sm">
+                                                        <div class="flex items-center justify-between mb-2">
+                                                            <span class="font-bold text-purple-700">v<%=
+                                                                    latest.version_to || latest.version || 'N/A' %>
+                                                                    </span>
+                                                            <span class="text-xs text-slate-600">
+                                                                <%= dateText %>
+                                                            </span>
+                                                        </div>
+                                                        <% if (latest.changelog) { const
+                                                            changelogLines=latest.changelog.split('\n').filter(line=>
+                                                            line.trim());
+                                                            %>
+                                                            <ul class="text-xs space-y-1.5 text-slate-700">
+                                                                <% changelogLines.slice(0, 5).forEach(function(line) {
+                                                                    %>
+                                                                    <li class="flex items-start gap-1.5">
+                                                                        <span class="text-green-500 mt-0.5">✓</span>
+                                                                        <span>
+                                                                            <%= line.replace(/^[-*]\s*/, '' ).trim() %>
+                                                                        </span>
+                                                                    </li>
+                                                                    <% }); %>
+                                                            </ul>
+                                                            <% } else { %>
+                                                                <p class="text-xs text-slate-600 italic">Update berhasil
+                                                                    diterapkan</p>
+                                                                <% } %>
+                                                    </div>
+                                                    <div class="pt-3 border-t border-purple-200">
+                                                        <p class="text-xs text-slate-600 italic">
+                                                            💡 Update terbaru otomatis dari database
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% } else { %>
+                                                <div
+                                                    class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                                                    <p class="text-xs text-slate-600 italic text-center py-4">Belum ada
+                                                        update terbaru</p>
+                                                </div>
+                                                <% } %>
+                                </div>
+                            </div>
+
+                            <!-- Update History -->
+                            <% if (updateHistory && updateHistory.length> 0) { %>
+                                <div class="mb-8">
+                                    <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Riwayat Update
+                                    </h3>
+                                    <div class="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                                        <table class="w-full">
+                                            <thead class="bg-slate-100">
+                                                <tr>
+                                                    <th
+                                                        class="px-4 py-2 text-left text-xs font-semibold text-slate-600">
+                                                        Dari</th>
+                                                    <th
+                                                        class="px-4 py-2 text-left text-xs font-semibold text-slate-600">
+                                                        Ke</th>
+                                                    <th
+                                                        class="px-4 py-2 text-left text-xs font-semibold text-slate-600">
+                                                        Status</th>
+                                                    <th
+                                                        class="px-4 py-2 text-left text-xs font-semibold text-slate-600">
+                                                        Tanggal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% updateHistory.forEach(function(history, index) { %>
+                                                    <tr class="<%= index % 2 === 0 ? 'bg-white' : 'bg-slate-50' %>">
+                                                        <td class="px-4 py-2 text-sm text-slate-700">
+                                                            <%= history.version_from %>
+                                                        </td>
+                                                        <td class="px-4 py-2 text-sm text-slate-700 font-medium">
+                                                            <%= history.version_to %>
+                                                        </td>
+                                                        <td class="px-4 py-2">
+                                                            <span
+                                                                class="px-2 py-1 text-xs rounded <%= history.status === 'success' ? 'bg-green-100 text-green-700' : history.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' %>">
+                                                                <%= history.status==='success' ? '✓ Berhasil' :
+                                                                    history.status==='failed' ? '✗ Gagal' : '⟳ ' +
+                                                                    history.status %>
+                                                            </span>
+                                                        </td>
+                                                        <td class="px-4 py-2 text-sm text-slate-600">
+                                                            <%= new Date(history.completed_at ||
+                                                                history.started_at).toLocaleDateString('id-ID', {
+                                                                day: 'numeric' , month: 'short' , year: 'numeric' ,
+                                                                hour: '2-digit' , minute: '2-digit' }) %>
+                                                        </td>
+                                                    </tr>
+                                                    <% }) %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <% } %>
+
+                                    <!-- System Info -->
+                                    <div class="text-xs text-slate-500 border-t border-slate-200 pt-4 mt-4">
+                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div>
+                                                <div class="font-semibold text-slate-600">Repository</div>
+                                                <div>adiprayitno160-svg/billing</div>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-slate-600">Platform</div>
+                                                <div>Node.js + TypeScript</div>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-slate-600">Database</div>
+                                                <div>MySQL/MariaDB</div>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-slate-600">Update Method</div>
+                                                <div>Git Pull (GitHub)</div>
+                                            </div>
+                                        </div>
+                                    </div>
 </div>
 
 <!-- Update Modal -->
@@ -299,10 +394,13 @@
             <!-- Content will be populated by JavaScript -->
         </div>
         <div class="flex gap-2 mt-4">
-            <button onclick="closeUpdateModal()" class="flex-1 px-4 py-2 border border-slate-300 rounded text-slate-700 hover:bg-slate-50">
+            <button onclick="closeUpdateModal()"
+                class="flex-1 px-4 py-2 border border-slate-300 rounded text-slate-700 hover:bg-slate-50">
                 Tutup
             </button>
-            <button id="updateNowBtn" onclick="applyUpdate()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style="display:none;">
+            <button id="updateNowBtn" onclick="applyUpdate()"
+                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style="display:none;">
                 Update Sekarang
             </button>
         </div>
@@ -310,58 +408,58 @@
 </div>
 
 <script>
-let latestVersion = null;
+    let latestVersion = null;
 
-async function checkForUpdates() {
-    try {
-        const button = event.target.closest('button');
-        const originalContent = button.innerHTML;
-        button.disabled = true;
-        button.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mengecek...';
+    async function checkForUpdates() {
+        try {
+            const button = event.target.closest('button');
+            const originalContent = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mengecek...';
 
-        const response = await fetch('/about/check-updates');
-        const data = await response.json();
-        
-        console.log('📦 Update check response:', data);
-        
-        button.disabled = false;
-        button.innerHTML = originalContent;
-        
-        if (data.available) {
-            latestVersion = data.version;
-            console.log('✅ Update available! Version:', latestVersion);
-            showUpdateModal(data, true);
-        } else {
-            latestVersion = null;
-            console.log('ℹ️ No update available. Current version:', data.version || 'Unknown');
-            showUpdateModal(data, false);
+            const response = await fetch('/about/check-updates');
+            const data = await response.json();
+
+            console.log('📦 Update check response:', data);
+
+            button.disabled = false;
+            button.innerHTML = originalContent;
+
+            if (data.available) {
+                latestVersion = data.version;
+                console.log('✅ Update available! Version:', latestVersion);
+                showUpdateModal(data, true);
+            } else {
+                latestVersion = null;
+                console.log('ℹ️ No update available. Current version:', data.version || 'Unknown');
+                showUpdateModal(data, false);
+            }
+        } catch (error) {
+            console.error('Error checking updates:', error);
+            alert('Gagal mengecek update: ' + error.message);
+            button.disabled = false;
+            button.innerHTML = originalContent;
         }
-    } catch (error) {
-        console.error('Error checking updates:', error);
-        alert('Gagal mengecek update: ' + error.message);
-        button.disabled = false;
-        button.innerHTML = originalContent;
     }
-}
 
-function showUpdateModal(data, hasUpdate) {
-    const modal = document.getElementById('updateModal');
-    const content = document.getElementById('updateModalContent');
-    const updateBtn = document.getElementById('updateNowBtn');
-    const modalTitle = document.getElementById('updateModalTitle');
-    
-    if (hasUpdate) {
-        // Ada update tersedia
-        console.log('✅ Update available:', data);
-        modalTitle.textContent = 'Update Tersedia';
-        updateBtn.style.display = 'block';
-        updateBtn.disabled = false; // Explicitly enable button
-        
-        const changelogHtml = data.changelog && data.changelog.length > 0
-            ? data.changelog.map(line => `<li class="text-sm text-slate-600">• ${line}</li>`).join('')
-            : '<li class="text-sm text-slate-600">Tidak ada changelog</li>';
-        
-        content.innerHTML = `
+    function showUpdateModal(data, hasUpdate) {
+        const modal = document.getElementById('updateModal');
+        const content = document.getElementById('updateModalContent');
+        const updateBtn = document.getElementById('updateNowBtn');
+        const modalTitle = document.getElementById('updateModalTitle');
+
+        if (hasUpdate) {
+            // Ada update tersedia
+            console.log('✅ Update available:', data);
+            modalTitle.textContent = 'Update Tersedia';
+            updateBtn.style.display = 'block';
+            updateBtn.disabled = false; // Explicitly enable button
+
+            const changelogHtml = data.changelog && data.changelog.length > 0
+                ? data.changelog.map(line => `<li class="text-sm text-slate-600">• ${line}</li>`).join('')
+                : '<li class="text-sm text-slate-600">Tidak ada changelog</li>';
+
+            content.innerHTML = `
             <div class="mb-4">
                 <p class="text-sm text-slate-700 mb-2">
                     Versi baru tersedia: <strong class="text-blue-600">${data.version}</strong>
@@ -380,12 +478,12 @@ function showUpdateModal(data, hasUpdate) {
                 <strong>⚠️ Peringatan:</strong> Aplikasi akan restart setelah update. Proses ini memakan waktu 1-2 menit.
             </div>
         `;
-    } else {
-        // Sudah versi terbaru
-        modalTitle.textContent = 'Sistem Up-to-Date';
-        updateBtn.style.display = 'none';
-        
-        content.innerHTML = `
+        } else {
+            // Sudah versi terbaru
+            modalTitle.textContent = 'Sistem Up-to-Date';
+            updateBtn.style.display = 'none';
+
+            content.innerHTML = `
             <div class="text-center py-6">
                 <svg class="w-16 h-16 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -399,100 +497,100 @@ function showUpdateModal(data, hasUpdate) {
                 </p>
             </div>
         `;
-    }
-    
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
+        }
 
-// Show latest update details automatically after restart (once per version)
-document.addEventListener('DOMContentLoaded', function(){
-    try {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    // Show latest update details automatically after restart (once per version)
+    document.addEventListener('DOMContentLoaded', function () {
+        try {
         // Get latest version from server-provided updateHistory
         <% if (Array.isArray(updateHistory) && updateHistory.length > 0) { %>
-        latestVersion = '<%= (updateHistory[0].version_to || updateHistory[0].version || '') %>';
+                latestVersion = '<%= (updateHistory[0].version_to || updateHistory[0].version || '') %>';
         <% } %>
 
         if (!latestVersion) return;
 
-        function getCookie(name){
-            const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-            return m ? m.pop() : '';
-        }
-        function setCookie(name, value, days){
-            const d = new Date();
-            d.setTime(d.getTime() + (days*24*60*60*1000));
-            document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/';
-        }
-
-        const seen = getCookie('sawUpdateVersion');
-        if (seen !== latestVersion) {
-            const modal = document.getElementById('updateModal');
-            const modalTitle = document.getElementById('updateModalTitle');
-            const modalContent = document.getElementById('updateModalContent');
-            const updateBtn = document.getElementById('updateNowBtn');
-            if (modal && modalTitle && modalContent) {
-                modalTitle.textContent = `Update Terbaru v${latestVersion}`;
-                updateBtn.style.display = 'none';
-                <% if (Array.isArray(updateHistory) && updateHistory.length > 0) { %>
-                modalContent.innerHTML = `<div class=\"text-sm text-slate-700 whitespace-pre-line\">`+
-                    `<%= (updateHistory[0].changelog || '').replace(/` + "`" + `/g,'\\`') %>`+
-                    `</div>`;
-                <% } else { %>
-                modalContent.textContent = 'Aplikasi telah diperbarui.';
-                <% } %>
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                setCookie('sawUpdateVersion', latestVersion, 7);
+            function getCookie(name) {
+                const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+                return m ? m.pop() : '';
             }
+            function setCookie(name, value, days) {
+                const d = new Date();
+                d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+                document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/';
+            }
+
+            const seen = getCookie('sawUpdateVersion');
+            if (seen !== latestVersion) {
+                const modal = document.getElementById('updateModal');
+                const modalTitle = document.getElementById('updateModalTitle');
+                const modalContent = document.getElementById('updateModalContent');
+                const updateBtn = document.getElementById('updateNowBtn');
+                if (modal && modalTitle && modalContent) {
+                    modalTitle.textContent = `Update Terbaru v${latestVersion}`;
+                    updateBtn.style.display = 'none';
+                <% if (Array.isArray(updateHistory) && updateHistory.length > 0) { %>
+                        modalContent.innerHTML = `<div class=\"text-sm text-slate-700 whitespace-pre-line\">` +
+                            `<%= (updateHistory[0].changelog || '').replace(/` + "`" + `/g,'\\`') %>`+
+                                `</div>`;
+                <% } else { %>
+                        modalContent.textContent = 'Aplikasi telah diperbarui.';
+                <% } %>
+                        modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                    setCookie('sawUpdateVersion', latestVersion, 7);
+                }
+            }
+        } catch (e) {
+            console.warn('Auto update notice error:', e);
         }
-    } catch (e) {
-        console.warn('Auto update notice error:', e);
-    }
-});
+    });
 
-function closeUpdateModal() {
-    const modal = document.getElementById('updateModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-function applyUpdate() {
-    console.log('🔧 applyUpdate() called');
-    console.log('📦 latestVersion:', latestVersion);
-    
-    if (!latestVersion) {
-        console.error('❌ No latestVersion set!');
-        alert('Versi update tidak ditemukan. Silakan cek update terlebih dahulu.');
-        return;
+    function closeUpdateModal() {
+        const modal = document.getElementById('updateModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     }
 
-    console.log('✅ Proceeding with update directly (no confirmation needed)');
-    
-    // Close update modal first
-    closeUpdateModal();
-    
-    // Create and submit form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/about/update';
-    
-    const versionInput = document.createElement('input');
-    versionInput.type = 'hidden';
-    versionInput.name = 'version';
-    versionInput.value = latestVersion;
-    
-    form.appendChild(versionInput);
-    document.body.appendChild(form);
-    
-    console.log('📝 Form created and appended to body');
-    console.log('📤 Submitting form to:', form.action);
-    
-    // Show loading indicator
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'updateLoadingIndicator';
-    loadingDiv.className = 'fixed inset-0 bg-black  flex items-center justify-center z-50';
-    loadingDiv.innerHTML = `
+    function applyUpdate() {
+        console.log('🔧 applyUpdate() called');
+        console.log('📦 latestVersion:', latestVersion);
+
+        if (!latestVersion) {
+            console.error('❌ No latestVersion set!');
+            alert('Versi update tidak ditemukan. Silakan cek update terlebih dahulu.');
+            return;
+        }
+
+        console.log('✅ Proceeding with update directly (no confirmation needed)');
+
+        // Close update modal first
+        closeUpdateModal();
+
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/about/update';
+
+        const versionInput = document.createElement('input');
+        versionInput.type = 'hidden';
+        versionInput.name = 'version';
+        versionInput.value = latestVersion;
+
+        form.appendChild(versionInput);
+        document.body.appendChild(form);
+
+        console.log('📝 Form created and appended to body');
+        console.log('📤 Submitting form to:', form.action);
+
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'updateLoadingIndicator';
+        loadingDiv.className = 'fixed inset-0 bg-black  flex items-center justify-center z-50';
+        loadingDiv.innerHTML = `
         <div class="bg-white rounded-lg p-8 text-center max-w-md">
             <svg class="animate-spin w-16 h-16 mx-auto mb-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -519,146 +617,146 @@ function applyUpdate() {
             </div>
         </div>
     `;
-    document.body.appendChild(loadingDiv);
-    
-    console.log('🚀 Submitting form now...');
-    
-    // Small delay to ensure loading shows
-    setTimeout(() => {
-        form.submit();
-        console.log('✅ Form submitted!');
-        
-        // Auto-reconnect after server restart (wait 45 seconds then start checking)
+        document.body.appendChild(loadingDiv);
+
+        console.log('🚀 Submitting form now...');
+
+        // Small delay to ensure loading shows
         setTimeout(() => {
-            checkServerAndRedirect();
-        }, 45000);
-    }, 300);
-}
+            form.submit();
+            console.log('✅ Form submitted!');
 
-// Function to check if server is back online and redirect to About page
-function checkServerAndRedirect() {
-    let attempts = 0;
-    const maxAttempts = 30; // Try for 30 times (30 seconds)
-    
-    // Update status message
-    const statusEl = document.getElementById('updateStatus');
-    if (statusEl) {
-        statusEl.innerHTML = 'Menunggu server restart... <span class="text-blue-600">Jangan tutup halaman!</span>';
+            // Auto-reconnect after server restart (wait 45 seconds then start checking)
+            setTimeout(() => {
+                checkServerAndRedirect();
+            }, 45000);
+        }, 300);
     }
-    
-    // Mark steps as complete
-    const markStepComplete = (stepId) => {
-        const step = document.getElementById(stepId);
-        if (step) step.innerHTML = step.innerHTML.replace('⏳', '✅');
-    };
-    
-    // Simulate step completion for visual feedback
-    setTimeout(() => markStepComplete('step1'), 10000);  // 10s
-    setTimeout(() => markStepComplete('step2'), 25000);  // 25s
-    setTimeout(() => markStepComplete('step3'), 35000);  // 35s
-    setTimeout(() => markStepComplete('step4'), 45000);  // 45s
-    
-    const checkInterval = setInterval(async () => {
-        attempts++;
-        console.log(`🔄 Checking server status... Attempt ${attempts}/${maxAttempts}`);
-        
-        try {
-            const response = await fetch('/about', { 
-                method: 'HEAD',
-                cache: 'no-cache',
-                headers: { 'Cache-Control': 'no-cache' }
-            });
-            
-            if (response.ok) {
-                console.log('✅ Server is back online!');
-                clearInterval(checkInterval);
-                
-                // Mark all steps complete
-                markStepComplete('step1');
-                markStepComplete('step2');
-                markStepComplete('step3');
-                markStepComplete('step4');
-                markStepComplete('step5');
-                
-                // Update status
-                if (statusEl) {
-                    statusEl.innerHTML = '✅ <strong class="text-green-600">Update berhasil!</strong> Redirect ke halaman About...';
-                }
-                
-                // Short delay before redirect to show success message
-                setTimeout(() => {
-                    window.location.href = '/about?updated=success';
-                }, 1500);
-            }
-        } catch (error) {
-            console.log(`⏳ Server not ready yet... (${error.message})`);
-            
-            // Update status with attempt count
-            if (statusEl && attempts > 5) {
-                statusEl.innerHTML = `Menunggu server siap... <span class="text-blue-600">(${attempts}/${maxAttempts})</span>`;
-            }
-            
-            if (attempts >= maxAttempts) {
-                console.log('⚠️ Max attempts reached, redirecting anyway...');
-                clearInterval(checkInterval);
-                
-                // Update status
-                if (statusEl) {
-                    statusEl.innerHTML = '⚠️ Server membutuhkan waktu lebih lama. Mencoba redirect...';
-                }
-                
-                // Try redirect anyway
-                setTimeout(() => {
-                    window.location.href = '/about?updated=timeout';
-                }, 2000);
-            }
+
+    // Function to check if server is back online and redirect to About page
+    function checkServerAndRedirect() {
+        let attempts = 0;
+        const maxAttempts = 30; // Try for 30 times (30 seconds)
+
+        // Update status message
+        const statusEl = document.getElementById('updateStatus');
+        if (statusEl) {
+            statusEl.innerHTML = 'Menunggu server restart... <span class="text-blue-600">Jangan tutup halaman!</span>';
         }
-    }, 1000); // Check every 1 second
-}
 
-// Close modal on background click
-document.getElementById('updateModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeUpdateModal();
+        // Mark steps as complete
+        const markStepComplete = (stepId) => {
+            const step = document.getElementById(stepId);
+            if (step) step.innerHTML = step.innerHTML.replace('⏳', '✅');
+        };
+
+        // Simulate step completion for visual feedback
+        setTimeout(() => markStepComplete('step1'), 10000);  // 10s
+        setTimeout(() => markStepComplete('step2'), 25000);  // 25s
+        setTimeout(() => markStepComplete('step3'), 35000);  // 35s
+        setTimeout(() => markStepComplete('step4'), 45000);  // 45s
+
+        const checkInterval = setInterval(async () => {
+            attempts++;
+            console.log(`🔄 Checking server status... Attempt ${attempts}/${maxAttempts}`);
+
+            try {
+                const response = await fetch('/about', {
+                    method: 'HEAD',
+                    cache: 'no-cache',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+
+                if (response.ok) {
+                    console.log('✅ Server is back online!');
+                    clearInterval(checkInterval);
+
+                    // Mark all steps complete
+                    markStepComplete('step1');
+                    markStepComplete('step2');
+                    markStepComplete('step3');
+                    markStepComplete('step4');
+                    markStepComplete('step5');
+
+                    // Update status
+                    if (statusEl) {
+                        statusEl.innerHTML = '✅ <strong class="text-green-600">Update berhasil!</strong> Redirect ke halaman About...';
+                    }
+
+                    // Short delay before redirect to show success message
+                    setTimeout(() => {
+                        window.location.href = '/about?updated=success';
+                    }, 1500);
+                }
+            } catch (error) {
+                console.log(`⏳ Server not ready yet... (${error.message})`);
+
+                // Update status with attempt count
+                if (statusEl && attempts > 5) {
+                    statusEl.innerHTML = `Menunggu server siap... <span class="text-blue-600">(${attempts}/${maxAttempts})</span>`;
+                }
+
+                if (attempts >= maxAttempts) {
+                    console.log('⚠️ Max attempts reached, redirecting anyway...');
+                    clearInterval(checkInterval);
+
+                    // Update status
+                    if (statusEl) {
+                        statusEl.innerHTML = '⚠️ Server membutuhkan waktu lebih lama. Mencoba redirect...';
+                    }
+
+                    // Try redirect anyway
+                    setTimeout(() => {
+                        window.location.href = '/about?updated=timeout';
+                    }, 2000);
+                }
+            }
+        }, 1000); // Check every 1 second
     }
-});
 
-// Ensure update button is clickable - Add explicit event listener
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 Page loaded, setting up update button...');
-    
-    const updateBtn = document.getElementById('updateNowBtn');
-    if (updateBtn) {
-        console.log('✅ Update button found:', updateBtn);
-        
-        // Remove any existing onclick and add fresh one
-        updateBtn.onclick = null;
-        updateBtn.addEventListener('click', function(e) {
-            console.log('🖱️ Update button clicked!');
-            e.preventDefault();
-            e.stopPropagation();
+    // Close modal on background click
+    document.getElementById('updateModal').addEventListener('click', function (e) {
+        if (e.target === this) {
+            closeUpdateModal();
+        }
+    });
+
+    // Ensure update button is clickable - Add explicit event listener
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('🎯 Page loaded, setting up update button...');
+
+        const updateBtn = document.getElementById('updateNowBtn');
+        if (updateBtn) {
+            console.log('✅ Update button found:', updateBtn);
+
+            // Remove any existing onclick and add fresh one
+            updateBtn.onclick = null;
+            updateBtn.addEventListener('click', function (e) {
+                console.log('🖱️ Update button clicked!');
+                e.preventDefault();
+                e.stopPropagation();
+                applyUpdate();
+            });
+
+            console.log('✅ Update button event listener attached');
+        } else {
+            console.error('❌ Update button not found!');
+        }
+
+        // Test function - call this from console to test: testUpdate()
+        window.testUpdate = function () {
+            console.log('🧪 Testing update button...');
+            console.log('latestVersion:', latestVersion);
             applyUpdate();
-        });
-        
-        console.log('✅ Update button event listener attached');
-    } else {
-        console.error('❌ Update button not found!');
-    }
-    
-    // Test function - call this from console to test: testUpdate()
-    window.testUpdate = function() {
-        console.log('🧪 Testing update button...');
-        console.log('latestVersion:', latestVersion);
-        applyUpdate();
-    };
-    
-    // Check if redirected after update and show success message
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('updated') === 'success') {
-        // Show success notification
-        const successDiv = document.createElement('div');
-        successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50 animate-bounce';
-        successDiv.innerHTML = `
+        };
+
+        // Check if redirected after update and show success message
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('updated') === 'success') {
+            // Show success notification
+            const successDiv = document.createElement('div');
+            successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50 animate-bounce';
+            successDiv.innerHTML = `
             <div class="flex items-center gap-3">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -669,22 +767,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        document.body.appendChild(successDiv);
-        
-        // Remove notification after 5 seconds
-        setTimeout(() => {
-            successDiv.style.transition = 'opacity 0.5s';
-            successDiv.style.opacity = '0';
-            setTimeout(() => successDiv.remove(), 500);
-        }, 5000);
-        
-        // Clean URL
-        window.history.replaceState({}, document.title, '/about');
-    } else if (urlParams.get('updated') === 'timeout') {
-        // Show warning for timeout
-        const warningDiv = document.createElement('div');
-        warningDiv.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50';
-        warningDiv.innerHTML = `
+            document.body.appendChild(successDiv);
+
+            // Remove notification after 5 seconds
+            setTimeout(() => {
+                successDiv.style.transition = 'opacity 0.5s';
+                successDiv.style.opacity = '0';
+                setTimeout(() => successDiv.remove(), 500);
+            }, 5000);
+
+            // Clean URL
+            window.history.replaceState({}, document.title, '/about');
+        } else if (urlParams.get('updated') === 'timeout') {
+            // Show warning for timeout
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50';
+            warningDiv.innerHTML = `
             <div class="flex items-center gap-3">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -695,89 +793,89 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        document.body.appendChild(warningDiv);
-        
-        // Remove notification after 8 seconds
-        setTimeout(() => {
-            warningDiv.style.transition = 'opacity 0.5s';
-            warningDiv.style.opacity = '0';
-            setTimeout(() => warningDiv.remove(), 500);
-        }, 8000);
-        
-        // Clean URL
-        window.history.replaceState({}, document.title, '/about');
+            document.body.appendChild(warningDiv);
+
+            // Remove notification after 8 seconds
+            setTimeout(() => {
+                warningDiv.style.transition = 'opacity 0.5s';
+                warningDiv.style.opacity = '0';
+                setTimeout(() => warningDiv.remove(), 500);
+            }, 8000);
+
+            // Clean URL
+            window.history.replaceState({}, document.title, '/about');
+        }
+    });
+
+    // Hotfix Check Function
+    async function checkForHotfix() {
+        const button = event.target.closest('button');
+        const originalContent = button.innerHTML;
+
+        try {
+            button.disabled = true;
+            button.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mengecek...';
+
+            const response = await fetch('/about/check-hotfix');
+
+            // Check if response is ok
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            // Check content type
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Non-JSON response:', text);
+                throw new Error('Server mengembalikan respon yang tidak valid');
+            }
+
+            const data = await response.json();
+            console.log('🔧 Hotfix check response:', data);
+
+            button.disabled = false;
+            button.innerHTML = originalContent;
+
+            // Handle error in data
+            if (data.error) {
+                alert(data.message || data.error);
+                return;
+            }
+
+            if (data.available) {
+                showHotfixModal(data, true);
+            } else {
+                showHotfixModal(data, false);
+            }
+        } catch (error) {
+            console.error('Error checking hotfix:', error);
+            button.disabled = false;
+            button.innerHTML = originalContent;
+            alert('Gagal mengecek hotfix: ' + error.message);
+        }
     }
-});
 
-// Hotfix Check Function
-async function checkForHotfix() {
-    const button = event.target.closest('button');
-    const originalContent = button.innerHTML;
-    
-    try {
-        button.disabled = true;
-        button.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mengecek...';
+    function showHotfixModal(data, hasHotfix) {
+        const modal = document.getElementById('updateModal');
+        const content = document.getElementById('updateModalContent');
+        const updateBtn = document.getElementById('updateNowBtn');
+        const modalTitle = document.getElementById('updateModalTitle');
 
-        const response = await fetch('/about/check-hotfix');
-        
-        // Check if response is ok
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        // Check content type
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Non-JSON response:', text);
-            throw new Error('Server mengembalikan respon yang tidak valid');
-        }
-        
-        const data = await response.json();
-        console.log('🔧 Hotfix check response:', data);
-        
-        button.disabled = false;
-        button.innerHTML = originalContent;
-        
-        // Handle error in data
-        if (data.error) {
-            alert(data.message || data.error);
-            return;
-        }
-        
-        if (data.available) {
-            showHotfixModal(data, true);
-        } else {
-            showHotfixModal(data, false);
-        }
-    } catch (error) {
-        console.error('Error checking hotfix:', error);
-        button.disabled = false;
-        button.innerHTML = originalContent;
-        alert('Gagal mengecek hotfix: ' + error.message);
-    }
-}
+        if (hasHotfix) {
+            // Ada hotfix tersedia
+            console.log('🔧 Hotfix available:', data);
+            modalTitle.textContent = '🔧 Hotfix Tersedia';
+            updateBtn.style.display = 'block';
+            updateBtn.disabled = false;
+            updateBtn.textContent = 'Apply Hotfix';
+            updateBtn.onclick = function () { applyHotfix(data.version); };
 
-function showHotfixModal(data, hasHotfix) {
-    const modal = document.getElementById('updateModal');
-    const content = document.getElementById('updateModalContent');
-    const updateBtn = document.getElementById('updateNowBtn');
-    const modalTitle = document.getElementById('updateModalTitle');
-    
-    if (hasHotfix) {
-        // Ada hotfix tersedia
-        console.log('🔧 Hotfix available:', data);
-        modalTitle.textContent = '🔧 Hotfix Tersedia';
-        updateBtn.style.display = 'block';
-        updateBtn.disabled = false;
-        updateBtn.textContent = 'Apply Hotfix';
-        updateBtn.onclick = function() { applyHotfix(data.version); };
-        
-        const fixesHtml = data.fixes && data.fixes.length > 0
-            ? data.fixes.map(line => `<li class="text-sm text-slate-600">• ${line}</li>`).join('')
-            : '<li class="text-sm text-slate-600">Bug fixes and improvements</li>';
-        
-        content.innerHTML = `
+            const fixesHtml = data.fixes && data.fixes.length > 0
+                ? data.fixes.map(line => `<li class="text-sm text-slate-600">• ${line}</li>`).join('')
+                : '<li class="text-sm text-slate-600">Bug fixes and improvements</li>';
+
+            content.innerHTML = `
             <div class="mb-4 bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
                 <div class="flex items-center gap-2 mb-2">
                     <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -815,12 +913,12 @@ function showHotfixModal(data, hasHotfix) {
                 <strong>ℹ️ Info:</strong> Hotfix tidak mengubah versi major. Aplikasi akan restart sebentar (~30 detik).
             </div>
         `;
-    } else {
-        // Sudah versi terbaru
-        modalTitle.textContent = '✅ No Hotfix Needed';
-        updateBtn.style.display = 'none';
-        
-        content.innerHTML = `
+        } else {
+            // Sudah versi terbaru
+            modalTitle.textContent = '✅ No Hotfix Needed';
+            updateBtn.style.display = 'none';
+
+            content.innerHTML = `
             <div class="text-center py-6">
                 <svg class="w-16 h-16 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -834,40 +932,40 @@ function showHotfixModal(data, hasHotfix) {
                 </p>
             </div>
         `;
-    }
-    
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
+        }
 
-function applyHotfix(version) {
-    console.log('🔧 Applying hotfix:', version);
-    
-    if (!version) {
-        alert('Versi hotfix tidak ditemukan. Silakan cek hotfix terlebih dahulu.');
-        return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
-    
-    // Close modal
-    closeUpdateModal();
-    
-    // Create and submit form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/about/apply-hotfix';
-    
-    const versionInput = document.createElement('input');
-    versionInput.type = 'hidden';
-    versionInput.name = 'version';
-    versionInput.value = version;
-    
-    form.appendChild(versionInput);
-    document.body.appendChild(form);
-    
-    // Show loading indicator
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'fixed inset-0 bg-black  flex items-center justify-center z-50';
-    loadingDiv.innerHTML = `
+
+    function applyHotfix(version) {
+        console.log('🔧 Applying hotfix:', version);
+
+        if (!version) {
+            alert('Versi hotfix tidak ditemukan. Silakan cek hotfix terlebih dahulu.');
+            return;
+        }
+
+        // Close modal
+        closeUpdateModal();
+
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/about/apply-hotfix';
+
+        const versionInput = document.createElement('input');
+        versionInput.type = 'hidden';
+        versionInput.name = 'version';
+        versionInput.value = version;
+
+        form.appendChild(versionInput);
+        document.body.appendChild(form);
+
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'fixed inset-0 bg-black  flex items-center justify-center z-50';
+        loadingDiv.innerHTML = `
         <div class="bg-white rounded-lg p-8 text-center max-w-md">
             <svg class="animate-spin w-16 h-16 mx-auto mb-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -887,11 +985,11 @@ function applyHotfix(version) {
             <p class="text-xs text-slate-400 mt-2">Halaman akan refresh otomatis setelah selesai</p>
         </div>
     `;
-    document.body.appendChild(loadingDiv);
-    
-    // Submit form
-    setTimeout(() => {
-        form.submit();
-    }, 300);
-}
+        document.body.appendChild(loadingDiv);
+
+        // Submit form
+        setTimeout(() => {
+            form.submit();
+        }, 300);
+    }
 </script>

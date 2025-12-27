@@ -13,6 +13,7 @@ export interface AppVersion {
     latest: string;
     releaseDate: string;
     changelog: string[];
+    isUpdateAvailable: boolean;
 }
 
 export interface AppFeature {
@@ -105,7 +106,8 @@ export async function getAppVersion(): Promise<AppVersion> {
                 'Backup & Restore System',
                 'Multi-user Management',
                 'Kasir / POS System'
-            ]
+            ],
+            isUpdateAvailable: updateCheck.available
         };
     } catch (error) {
         console.error('Error getting app version:', error);
@@ -114,7 +116,8 @@ export async function getAppVersion(): Promise<AppVersion> {
             current: '1.0.0',
             latest: '1.0.0',
             releaseDate: new Date().toISOString(),
-            changelog: ['Initial version']
+            changelog: ['Initial version'],
+            isUpdateAvailable: false
         };
     }
 }
