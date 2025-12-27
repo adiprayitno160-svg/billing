@@ -50,12 +50,28 @@ export class WhatsAppTroubleshootingController {
             }
 
             // Get pending notifications
-            const [pendingNotifications] = await databasePool.query<RowDataPacket[]>(
-                `SELECT * FROM unified_notifications_queue 
-                 WHERE channel = 'whatsapp' AND status = 'pending'
-                 ORDER BY created_at DESC 
-                 LIMIT 20`
-            );
+            let pendingNotifications: RowDataPacket[] = [];
+            try {
+                // Check if channel column exists in unified_notifications_queue
+                const [cols] = await databasePool.query('SHOW COLUMNS FROM unified_notifications_queue');
+                const colNames = (cols as any[]).map((col: any) => col.Field);
+
+                let q: string;
+                if (colNames.includes('channel')) {
+                    q = `SELECT * FROM unified_notifications_queue 
+                         WHERE channel = 'whatsapp' AND status = 'pending'
+                         ORDER BY created_at DESC LIMIT 20`;
+                } else {
+                    q = `SELECT * FROM unified_notifications_queue 
+                         WHERE status = 'pending'
+                         ORDER BY created_at DESC LIMIT 20`;
+                }
+
+                const [r] = await databasePool.query<RowDataPacket[]>(q);
+                pendingNotifications = r;
+            } catch (err) {
+                console.error('Error querying pending notifications:', err);
+            }
 
             // Check session folder
             const sessionPath = path.join(process.cwd(), 'whatsapp-session');
@@ -70,8 +86,11 @@ export class WhatsAppTroubleshootingController {
                     sessionSize = files.reduce((total, file) => {
                         const filePath = path.join(sessionPath, file);
                         try {
-                            const stats = fs.statSync(filePath);
-                            return total + (stats.isFile() ? stats.size : 0);
+                            if (fs.existsSync(filePath)) {
+                                const stats = fs.statSync(filePath);
+                                return total + (stats.isFile() ? stats.size : 0);
+                            }
+                            return total;
                         } catch {
                             return total;
                         }
@@ -103,10 +122,12 @@ export class WhatsAppTroubleshootingController {
                 user: (req.session as any).user
             });
 
-        } catch (error) {
-            console.error('Error loading troubleshooting page:', error);
+        } catch (error: any) {
+            console.error('❌ CRITICAL ERROR loading WhatsApp troubleshooting page:', error);
             res.status(500).render('error', {
-                error: 'Failed to load troubleshooting page',
+                title: 'Error WhatsApp Troubleshooting',
+                message: error.message || 'Gagal memuat halaman troubleshooting WhatsApp',
+                error: process.env.NODE_ENV === 'development' ? error : {},
                 user: (req.session as any).user
             });
         }
