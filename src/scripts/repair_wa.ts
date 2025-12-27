@@ -1,5 +1,5 @@
 
-import { WhatsAppService } from '../services/whatsapp/WhatsAppService';
+import { BaileysWhatsAppService as WhatsAppService } from '../services/whatsapp/BaileysWhatsAppService';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -36,8 +36,8 @@ async function repairWhatsApp() {
         }
 
         // 3. Wipe session folder
-        console.log('Step 3: Wiping whatsapp-session folder...');
-        const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+        console.log('Step 3: Wiping baileys-session folder...');
+        const sessionPath = path.join(process.cwd(), 'baileys-session');
         if (fs.existsSync(sessionPath)) {
             fs.rmSync(sessionPath, { recursive: true, force: true });
             console.log('✅ Session folder deleted.');

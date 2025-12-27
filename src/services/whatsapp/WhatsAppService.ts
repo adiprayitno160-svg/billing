@@ -50,11 +50,18 @@ export class WhatsAppService {
                 throw new Error('Puppeteer is required for WhatsApp service');
             }
 
-            console.log('⏳ Creating WhatsApp client...');
+            const path = require('path');
+            const absoluteSessionPath = path.join(process.cwd(), 'whatsapp-session');
+            console.log(`   Session path: ${absoluteSessionPath}`);
+
             this.client = new Client({
                 authStrategy: new LocalAuth({
-                    dataPath: this.sessionPath
+                    dataPath: absoluteSessionPath
                 }),
+                webVersionCache: {
+                    type: 'remote',
+                    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
+                },
                 puppeteer: {
                     headless: true,
                     args: [
@@ -64,7 +71,28 @@ export class WhatsAppService {
                         '--disable-accelerated-2d-canvas',
                         '--no-first-run',
                         '--no-zygote',
-                        '--disable-gpu'
+                        '--disable-gpu',
+                        '--hide-scrollbars',
+                        '--disable-notifications',
+                        '--disable-background-timer-throttling',
+                        '--disable-backgrounding-occluded-windows',
+                        '--disable-breakpad',
+                        '--disable-component-update',
+                        '--disable-domain-reliability',
+                        '--disable-extensions',
+                        '--disable-features=AudioServiceOutOfProcess',
+                        '--disable-hang-monitor',
+                        '--disable-ipc-flooding-protection',
+                        '--disable-print-preview',
+                        '--disable-prompt-on-repost',
+                        '--disable-renderer-backgrounding',
+                        '--disable-sync',
+                        '--force-color-profile=srgb',
+                        '--metrics-recording-only',
+                        '--safebrowsing-disable-auto-update',
+                        '--enable-automation',
+                        '--password-store=basic',
+                        '--use-mock-keychain'
                     ]
                 }
             });

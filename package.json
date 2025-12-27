@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.1.31",
+  "version": "2.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -32,10 +32,12 @@
   "type": "commonjs",
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@hapi/boom": "^10.0.1",
     "@types/bcrypt": "^6.0.0",
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.2",
     "@types/ws": "^8.18.1",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cheerio": "^1.1.2",
@@ -60,6 +62,8 @@
     "nodemailer": "^7.0.9",
     "pdfkit": "^0.15.0",
     "ping": "^1.0.0",
+    "pino": "^10.1.0",
+    "puppeteer": "^24.26.0",
     "qrcode": "^1.5.3",
     "qrcode-terminal": "^0.12.0",
     "routeros-api": "^1.0.2",
@@ -68,7 +72,6 @@
     "ssh2": "^1.11.0",
     "tesseract.js": "^6.0.1",
     "tripay-nodejs": "^1.0.0",
-    "puppeteer": "^24.26.0",
     "whatsapp-web.js": "^1.23.0",
     "ws": "^8.18.3",
     "xendit-node": "^3.0.0",

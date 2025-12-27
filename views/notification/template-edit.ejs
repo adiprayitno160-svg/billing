@@ -1,332 +1,270 @@
-<!DOCTYPE html>
-<html lang="id">
+<!-- Edit Notification Template Page -->
+<div class="animate-content-fade-in max-w-5xl mx-auto py-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-5">
+            <a href="/notification/templates"
+                class="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-gray-400 hover:text-blue-600 hover:shadow-lg transition-all active:scale-95 shadow-sm">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tighter">Modifikasi Template</h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span
+                        class="text-[10px] font-black text-blue-500 uppercase tracking-widest px-2 py-0.5 bg-blue-50 rounded italic">EXISTING_ENTRY</span>
+                    <span
+                        class="text-[10px] font-black text-gray-400 font-mono tracking-tighter bg-gray-50 border border-gray-100 px-2 rounded">
+                        <%= template.template_code %>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="hidden md:flex flex-col items-end">
+            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Modified</span>
+            <span class="text-xs font-bold text-gray-600">
+                <%= new Date(template.updated_at || Date.now()).toLocaleDateString('id-ID', { day: '2-digit' ,
+                    month: 'short' , year: 'numeric' }) %>
+            </span>
+        </div>
+    </div>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Template Notifikasi - Billing System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
+    <!-- Main Container -->
+    <form id="editTemplateForm" class="space-y-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-<body class="bg-gray-50">
-    <%- include('../partials/navbar') %>
-
-        <div class="flex">
-            <%- include('../partials/sidebar') %>
-
-                <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
-                    <div class="space-y-6">
-                        <!-- Header -->
-                        <div class="mb-6">
-                            <div class="flex items-center gap-3 mb-2">
-                                <a href="/notification/templates"
-                                    class="text-gray-500 hover:text-gray-700 transition-colors">
-                                    <i class="fas fa-arrow-left"></i>
-                                </a>
-                                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                    <i class="fas fa-edit text-blue-500"></i>
-                                    Edit Template Notifikasi
-                                </h1>
-                            </div>
-                            <div class="ml-8 text-gray-600 flex items-center gap-2">
-                                <span>Mengedit template:</span>
-                                <code
-                                    class="bg-gray-100 px-2 py-0.5 rounded text-sm font-mono text-gray-800 border border-gray-200"><%= template.template_code %></code>
+            <!-- Left Side: Basic Config (Width: 5) -->
+            <div class="lg:col-span-5 space-y-8">
+                <div
+                    class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                    <div class="p-8 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                            <i class="fas fa-sliders-h"></i>
+                        </div>
+                        <h3 class="text-sm font-black text-gray-900 uppercase tracking-tighter">Core Adjustment</h3>
+                    </div>
+                    <div class="p-8 space-y-6">
+                        <div class="space-y-2 opacity-60">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Template
+                                Identifier (Locked)</label>
+                            <input type="text" value="<%= template.template_code %>" disabled
+                                class="w-full px-5 py-4 bg-gray-100 border-2 border-transparent rounded-2xl font-bold text-gray-400 cursor-not-allowed italic">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Friendly
+                                Name <span class="text-red-500">*</span></label>
+                            <input type="text" name="template_name" value="<%= template.template_name %>" required
+                                placeholder="Display name for system"
+                                class="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-bold text-gray-700 shadow-inner">
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <label
+                                class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-3">Transmission
+                                Channel</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="cursor-pointer group">
+                                    <input type="radio" name="channel" value="whatsapp" class="peer sr-only"
+                                        <%=template.channel==='whatsapp' ? 'checked' : '' %>>
+                                    <div
+                                        class="py-4 border-2 border-gray-100 rounded-2xl group-hover:bg-gray-50 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 text-center transition-all flex flex-col items-center gap-1.5">
+                                        <i class="fab fa-whatsapp text-xl"></i>
+                                        <span class="text-[10px] font-black uppercase tracking-tighter">WhatsApp</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer group">
+                                    <input type="radio" name="channel" value="email" class="peer sr-only"
+                                        <%=template.channel==='email' ? 'checked' : '' %>>
+                                    <div
+                                        class="py-4 border-2 border-gray-100 rounded-2xl group-hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-center transition-all flex flex-col items-center gap-1.5">
+                                        <i class="fab fa-google text-xl"></i>
+                                        <span class="text-[10px] font-black uppercase tracking-tighter">Email</span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
-
-                        <!-- Form -->
-                        <form id="editTemplateForm" class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-                            <div class="space-y-8">
-                                <!-- Basic Info -->
-                                <div>
-                                    <h3
-                                        class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
-                                        <i class="fas fa-info-circle text-blue-500"></i> Informasi Dasar
-                                    </h3>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Kode
-                                                Template</label>
-                                            <input type="text" value="<%= template.template_code %>" disabled
-                                                class="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
-                                            <p class="text-xs text-gray-400 mt-1.5 flex items-center gap-1"><i
-                                                    class="fas fa-lock"></i> Kode unik tidak dapat diubah</p>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Nama Template
-                                                <span class="text-red-500">*</span></label>
-                                            <input type="text" name="template_name"
-                                                value="<%= template.template_name %>" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Notifikasi
-                                                <span class="text-red-500">*</span></label>
-                                            <div class="relative">
-                                                <select name="notification_type" required
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow appearance-none">
-                                                    <option value="invoice_created"
-                                                        <%=template.notification_type==='invoice_created' ? 'selected'
-                                                        : '' %>>Invoice Dibuat</option>
-                                                    <option value="invoice_overdue"
-                                                        <%=template.notification_type==='invoice_overdue' ? 'selected'
-                                                        : '' %>>Invoice Terlambat</option>
-                                                    <option value="payment_received"
-                                                        <%=template.notification_type==='payment_received' ? 'selected'
-                                                        : '' %>>Pembayaran Diterima</option>
-                                                    <option value="payment_partial"
-                                                        <%=template.notification_type==='payment_partial' ? 'selected'
-                                                        : '' %>>Pembayaran Sebagian</option>
-                                                    <option value="package_expiring"
-                                                        <%=template.notification_type==='package_expiring' ? 'selected'
-                                                        : '' %>>Paket Akan Berakhir</option>
-                                                    <option value="package_expired"
-                                                        <%=template.notification_type==='package_expired' ? 'selected'
-                                                        : '' %>>Paket Berakhir</option>
-                                                    <option value="package_activated"
-                                                        <%=template.notification_type==='package_activated' ? 'selected'
-                                                        : '' %>>Paket Diaktifkan</option>
-                                                    <option value="quota_warning"
-                                                        <%=template.notification_type==='quota_warning' ? 'selected'
-                                                        : '' %>>Peringatan Kuota</option>
-                                                    <option value="quota_depleted"
-                                                        <%=template.notification_type==='quota_depleted' ? 'selected'
-                                                        : '' %>>Kuota Habis</option>
-                                                    <option value="auto_renew_success"
-                                                        <%=template.notification_type==='auto_renew_success'
-                                                        ? 'selected' : '' %>>Perpanjangan Otomatis Berhasil</option>
-                                                    <option value="auto_renew_failed"
-                                                        <%=template.notification_type==='auto_renew_failed' ? 'selected'
-                                                        : '' %>>Perpanjangan Otomatis Gagal</option>
-                                                    <option value="customer_created"
-                                                        <%=template.notification_type==='customer_created' ? 'selected'
-                                                        : '' %>>Pelanggan Baru</option>
-                                                    <option value="service_blocked"
-                                                        <%=template.notification_type==='service_blocked' ? 'selected'
-                                                        : '' %>>Layanan Diblokir</option>
-                                                    <option value="service_unblocked"
-                                                        <%=template.notification_type==='service_unblocked' ? 'selected'
-                                                        : '' %>>Layanan Diaktifkan Kembali</option>
-                                                </select>
-                                                <div
-                                                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                                    <i class="fas fa-chevron-down text-xs"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Channel <span
-                                                    class="text-red-500">*</span></label>
-                                            <div class="grid grid-cols-2 gap-3">
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="whatsapp"
-                                                        <%=template.channel==='whatsapp' ? 'checked' : '' %> class="peer
-                                                    sr-only" required>
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 text-center transition-all">
-                                                        <i class="fab fa-whatsapp text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">WhatsApp</span>
-                                                    </div>
-                                                </label>
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="email"
-                                                        <%=template.channel==='email' ? 'checked' : '' %> class="peer
-                                                    sr-only">
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-center transition-all">
-                                                        <i class="fab fa-google text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">Email</span>
-                                                    </div>
-                                                </label>
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="sms"
-                                                        <%=template.channel==='sms' ? 'checked' : '' %> class="peer
-                                                    sr-only">
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-yellow-500 peer-checked:bg-yellow-50 peer-checked:text-yellow-700 text-center transition-all">
-                                                        <i class="fas fa-sms text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">SMS</span>
-                                                    </div>
-                                                </label>
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="push"
-                                                        <%=template.channel==='push' ? 'checked' : '' %> class="peer
-                                                    sr-only">
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 text-center transition-all">
-                                                        <i class="fas fa-bell text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">Push</span>
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                                            <select name="priority"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                                                <option value="low" <%=template.priority==='low' ? 'selected' : '' %>
-                                                    >Low</option>
-                                                <option value="normal" <%=template.priority==='normal' ? 'selected' : ''
-                                                    %>>Normal</option>
-                                                <option value="high" <%=template.priority==='high' ? 'selected' : '' %>
-                                                    >High</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                                            <div class="flex items-center gap-4 mt-2">
-                                                <label class="inline-flex items-center">
-                                                    <input type="radio" name="is_active" value="true"
-                                                        <%=template.is_active ? 'checked' : '' %> class="form-radio
-                                                    text-blue-600 h-4 w-4">
-                                                    <span class="ml-2 text-sm text-gray-700">Aktif</span>
-                                                </label>
-                                                <label class="inline-flex items-center">
-                                                    <input type="radio" name="is_active" value="false"
-                                                        <%=!template.is_active ? 'checked' : '' %> class="form-radio
-                                                    text-gray-600 h-4 w-4">
-                                                    <span class="ml-2 text-sm text-gray-700">Tidak Aktif</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Templates -->
-                                <div>
-                                    <h3
-                                        class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
-                                        <i class="fas fa-comment-dots text-blue-500"></i> Konten Pesan
-                                    </h3>
-                                    <div class="space-y-6">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Judul / Subject
-                                                <span class="text-red-500">*</span></label>
-                                            <input type="text" name="title_template"
-                                                value="<%= template.title_template %>" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                placeholder="Contoh: Invoice Baru - {invoice_number}">
-                                            <p class="text-xs text-gray-500 mt-1.5"><i class="fas fa-magic mr-1"></i>
-                                                Mendukung variabel dinamis</p>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Isi Pesan <span
-                                                    class="text-red-500">*</span></label>
-                                            <textarea name="message_template" rows="8" required
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow font-sans text-sm leading-relaxed"
-                                                placeholder="Contoh: Halo {customer_name}, Invoice baru telah dibuat..."><%= template.message_template %></textarea>
-                                            <p class="text-xs text-gray-500 mt-1.5"><i class="fas fa-smile mr-1"></i>
-                                                Emoji didukung. Tekan Enter untuk baris baru.</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Variables Info -->
-                                <div
-                                    class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
-                                    <h4 class="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                                        <i class="fas fa-code"></i> Variabel Dinamis
-                                    </h4>
-                                    <div class="text-sm text-blue-800 space-y-2">
-                                        <p>Gunakan variabel berikut untuk menyisipkan data pelanggan secara otomatis:
-                                        </p>
-                                        <div class="flex flex-wrap gap-2 mt-2">
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{customer_name}')">{customer_name}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{customer_phone}')">{customer_phone}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{customer_email}')">{customer_email}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{invoice_number}')">{invoice_number}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{invoice_amount}')">{invoice_amount}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{due_date}')">{due_date}</code>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Actions -->
-                                <div class="flex gap-4 pt-4 border-t border-gray-100">
-                                    <button type="submit"
-                                        class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm font-medium flex items-center gap-2">
-                                        <i class="fas fa-save"></i> Simpan Perubahan
-                                    </button>
-                                    <a href="/notification/templates"
-                                        class="px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2">
-                                        <i class="fas fa-times"></i> Batal
-                                    </a>
-                                </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div class="space-y-2">
+                                <label
+                                    class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Priority</label>
+                                <select name="priority"
+                                    class="w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 transition-all font-bold text-gray-700 outline-none appearance-none">
+                                    <option value="low" <%=template.priority==='low' ? 'selected' : '' %>>LOW</option>
+                                    <option value="normal" <%=template.priority==='normal' || !template.priority
+                                        ? 'selected' : '' %>>NORMAL</option>
+                                    <option value="high" <%=template.priority==='high' ? 'selected' : '' %>>HIGH /
+                                        URGENT</option>
+                                </select>
                             </div>
-                        </form>
+                            <div class="space-y-2">
+                                <label
+                                    class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
+                                <select name="is_active"
+                                    class="w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 transition-all font-bold text-gray-700 outline-none appearance-none">
+                                    <option value="true" <%=template.is_active ? 'selected' : '' %>>AKTIF</option>
+                                    <option value="false" <%=!template.is_active ? 'selected' : '' %>>STANDBY</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                </main>
+                </div>
+
+                <!-- Dynamic Variables Quick Tools -->
+                <div
+                    class="p-6 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] shadow-xl shadow-blue-200 text-white relative overflow-hidden group">
+                    <i
+                        class="fas fa-magic absolute -right-4 -bottom-4 text-8xl text-white/10 group-hover:rotate-12 transition-transform duration-700"></i>
+                    <h4 class="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2 italic">
+                        <i class="fas fa-code"></i> Dynamic Library
+                    </h4>
+                    <p class="text-[11px] font-medium opacity-80 leading-relaxed mb-6">Sematkan variabel dinamis ke
+                        dalam konten pesan untuk personalisasi otomatis.</p>
+                    <div class="flex flex-wrap gap-2 relative z-10">
+                        <% ['customer_name', 'customer_code' , 'invoice_number' , 'invoice_amount' , 'due_date'
+                            , 'package_info' ].forEach(v=> { %>
+                            <button type="button" onclick="insertVariable('{<%= v %>}')"
+                                class="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-[10px] font-black font-mono transition-all">
+                                {<%= v %>}
+                            </button>
+                            <% }) %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Content (Width: 7) -->
+            <div class="lg:col-span-7 space-y-8">
+                <div
+                    class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden min-h-[500px]">
+                    <div class="p-8 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-100">
+                                <i class="fas fa-pen-fancy"></i>
+                            </div>
+                            <h3 class="text-sm font-black text-gray-900 uppercase tracking-tighter">Payload Design</h3>
+                        </div>
+                        <select name="notification_type" required
+                            class="px-4 py-2 border-2 border-orange-100 rounded-xl font-black text-[10px] uppercase tracking-tighter text-orange-600 appearance-none bg-orange-50 outline-none hover:bg-orange-100 transition-colors cursor-pointer">
+                            <option value="invoice_created" <%=template.notification_type==='invoice_created'
+                                ? 'selected' : '' %>>Invoice Dibuat</option>
+                            <option value="invoice_overdue" <%=template.notification_type==='invoice_overdue'
+                                ? 'selected' : '' %>>Invoice Terlambat</option>
+                            <option value="payment_received" <%=template.notification_type==='payment_received'
+                                ? 'selected' : '' %>>Pembayaran Diterima</option>
+                            <option value="service_blocked" <%=template.notification_type==='service_blocked'
+                                ? 'selected' : '' %>>Layanan Diblokir</option>
+                            <option value="service_unblocked" <%=template.notification_type==='service_unblocked'
+                                ? 'selected' : '' %>>Layanan Aktif Kembali</option>
+                        </select>
+                    </div>
+                    <div class="p-8 space-y-8">
+                        <div class="space-y-3">
+                            <label
+                                class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Identifier
+                                Header (Title)</label>
+                            <input type="text" name="title_template" value="<%= template.title_template %>" required
+                                placeholder="Subjek notifikasi..."
+                                class="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-black text-gray-800 shadow-inner italic">
+                        </div>
+                        <div class="space-y-3">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Creative
+                                Script (Message Body)</label>
+                            <textarea id="message_template" name="message_template" rows="12" required
+                                placeholder="Tulis isi pesan..."
+                                class="w-full px-6 py-6 bg-gray-50 border-2 border-transparent rounded-[2rem] focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-medium text-gray-700 shadow-inner resize-none leading-relaxed"><%= template.message_template %></textarea>
+                        </div>
+
+                        <div class="pt-4 flex flex-col md:flex-row gap-4">
+                            <button type="submit" id="submitBtn"
+                                class="flex-1 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-lg tracking-tighter transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-200 hover:-translate-y-1 active:scale-95 disabled:opacity-50 group">
+                                <i
+                                    class="fas fa-sync-alt text-xl group-hover:rotate-180 transition-transform duration-700"></i>
+                                UPDATE PAYLOAD
+                            </button>
+                            <a href="/notification/templates"
+                                class="px-10 py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-[1.5rem] font-black text-xs tracking-widest transition-all flex items-center justify-center uppercase">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </form>
+</div>
 
-        <script>
-            function copyToClipboard(text) {
-                navigator.clipboard.writeText(text).then(() => {
-                    console.log('Copied: ' + text);
-                });
-            }
+<style>
+    @keyframes content-fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
 
-            document.getElementById('editTemplateForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                const originalBtnContent = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+    .animate-content-fade-in {
+        animation: content-fade-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
 
-                const formData = new FormData(e.target);
-                const data = {
-                    template_name: formData.get('template_name'),
-                    notification_type: formData.get('notification_type'),
-                    channel: formData.get('channel'),
-                    title_template: formData.get('title_template'),
-                    message_template: formData.get('message_template'),
-                    priority: formData.get('priority'),
-                    is_active: formData.get('is_active') === 'true'
-                };
+    .font-black {
+        font-weight: 900;
+    }
+</style>
 
-                try {
-                    const response = await fetch(`/api/notification/templates/<%= template.template_code %>`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
+<script>
+    function insertVariable(variable) {
+        const textarea = document.getElementById('message_template');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const before = text.substring(0, start);
+        const after = text.substring(end, text.length);
+        textarea.value = before + variable + after;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    }
 
-                    const result = await response.json();
-                    if (result.success) {
-                        // alert('Template berhasil diperbarui!');
-                        window.location.href = '/notification/templates';
-                    } else {
-                        alert('Error: ' + result.message);
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnContent;
-                    }
-                } catch (error) {
-                    alert('Error: ' + error.message);
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnContent;
-                }
+    document.getElementById('editTemplateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalBtnContent = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> SYNCING CHANGES...';
+
+        const formData = new FormData(e.target);
+        const data = {
+            template_name: formData.get('template_name'),
+            notification_type: formData.get('notification_type'),
+            channel: formData.get('channel'),
+            title_template: formData.get('title_template'),
+            message_template: formData.get('message_template'),
+            priority: formData.get('priority'),
+            is_active: formData.get('is_active') === 'true'
+        };
+
+        try {
+            const response = await fetch(`/api/notification/templates/<%= template.template_code %>`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
-        </script>
-</body>
 
-</html>
+            const result = await response.json();
+            if (result.success) {
+                window.location.href = '/notification/templates';
+            } else {
+                alert('UPDATE FAILED: ' + result.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnContent;
+            }
+        } catch (error) {
+            alert('SYSTEM ERROR: Remote host unreachable.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnContent;
+        }
+    });
+</script>

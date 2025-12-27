@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { WhatsAppService } from '../services/whatsapp/WhatsAppService';
+import { BaileysWhatsAppService as WhatsAppService } from '../services/whatsapp/BaileysWhatsAppService';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import QRCode from 'qrcode';
-import { WhatsAppTroubleshootingController } from '../controllers/whatsapp/WhatsAppTroubleshootingController';
 import { isAuthenticated } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -11,20 +10,14 @@ const router = Router();
 // Apply auth middleware to page routes (not API routes)
 router.use((req, res, next) => {
     // Skip auth for API endpoints only
-    if (req.path.startsWith('/status') || 
-        req.path.startsWith('/qr') || 
+    if (req.path.startsWith('/status') ||
+        req.path.startsWith('/qr') ||
         req.path.startsWith('/send') ||
         req.path.startsWith('/history') ||
-        req.path.startsWith('/stats') ||
-        req.path.startsWith('/troubleshooting/diagnostics') ||
-        req.path.startsWith('/troubleshooting/test-connection') ||
-        req.path.startsWith('/troubleshooting/retry-failed') ||
-        req.path.startsWith('/troubleshooting/clear-failed') ||
-        req.path.startsWith('/troubleshooting/logs') ||
-        req.path.startsWith('/troubleshooting/cleanup-logs')) {
+        req.path.startsWith('/stats')) {
         return next();
     }
-    // Apply auth for page routes (including /troubleshooting)
+    // Apply auth for page routes
     return isAuthenticated(req, res, next);
 });
 
@@ -37,7 +30,7 @@ router.get('/status', async (req: Request, res: Response) => {
         const status = WhatsAppService.getStatus();
         const stats = await WhatsAppService.getNotificationStats();
         const qrCode = WhatsAppService.getQRCode();
-        
+
         res.json({
             success: true,
             data: {
@@ -63,7 +56,7 @@ router.get('/qr', async (req: Request, res: Response) => {
     try {
         const qrCode = WhatsAppService.getQRCode();
         const status = WhatsAppService.getStatus();
-        
+
         if (!qrCode) {
             return res.json({
                 success: false,
@@ -71,7 +64,7 @@ router.get('/qr', async (req: Request, res: Response) => {
                 status
             });
         }
-        
+
         res.json({
             success: true,
             data: {
@@ -95,14 +88,14 @@ router.get('/qr', async (req: Request, res: Response) => {
 router.get('/qr-image', async (req: Request, res: Response) => {
     try {
         const qrCode = WhatsAppService.getQRCode();
-        
+
         if (!qrCode) {
             return res.status(404).json({
                 success: false,
                 error: 'QR code tidak tersedia'
             });
         }
-        
+
         // Generate QR code as PNG buffer
         const qrCodeBuffer = await QRCode.toBuffer(qrCode, {
             type: 'png',
@@ -114,18 +107,18 @@ router.get('/qr-image', async (req: Request, res: Response) => {
             },
             errorCorrectionLevel: 'M'
         });
-        
+
         // Set headers to prevent caching
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        
+
         // Add timestamp to prevent browser caching
         const timestamp = Date.now();
         res.setHeader('Last-Modified', new Date(timestamp).toUTCString());
-        
+
         res.send(qrCodeBuffer);
     } catch (error: any) {
         console.error('Error generating QR code image:', error);
@@ -143,25 +136,25 @@ router.get('/qr-image', async (req: Request, res: Response) => {
 router.post('/clear-session', async (req: Request, res: Response) => {
     try {
         console.log('🗑️ Clearing WhatsApp session...');
-        
+
         // Destroy client if exists
         if (WhatsAppService.isClientReady() || WhatsAppService.getStatus().initialized) {
             await WhatsAppService.destroy();
         }
-        
+
         // Delete session folder
         const fs = require('fs');
         const path = require('path');
-        const sessionPath = path.join(process.cwd(), 'whatsapp-session');
-        
+        const sessionPath = path.join(process.cwd(), 'baileys-session');
+
         if (fs.existsSync(sessionPath)) {
             fs.rmSync(sessionPath, { recursive: true, force: true });
             console.log('✅ Session folder deleted');
         }
-        
+
         // Reset state
         const status = WhatsAppService.getStatus();
-        
+
         res.json({
             success: true,
             message: 'Session berhasil dihapus. Silakan regenerate QR code.',
@@ -186,7 +179,7 @@ router.post('/regenerate-qr', async (req: Request, res: Response) => {
     try {
         console.log('🔄 Regenerating QR code...');
         await WhatsAppService.regenerateQRCode();
-        
+
         // Wait longer for QR code to be generated (up to 10 seconds)
         let attempts = 0;
         let qrCode = WhatsAppService.getQRCode();
@@ -195,13 +188,13 @@ router.post('/regenerate-qr', async (req: Request, res: Response) => {
             qrCode = WhatsAppService.getQRCode();
             attempts++;
         }
-        
+
         const status = WhatsAppService.getStatus();
-        
+
         res.json({
             success: true,
-            message: qrCode 
-                ? 'QR code berhasil di-generate. Silakan scan dengan WhatsApp Anda.' 
+            message: qrCode
+                ? 'QR code berhasil di-generate. Silakan scan dengan WhatsApp Anda.'
                 : 'QR code sedang di-generate. Silakan refresh halaman dalam beberapa detik.',
             data: {
                 qrCode: qrCode || null,
@@ -444,8 +437,8 @@ router.post('/send-payment-notification', async (req: Request, res: Response) =>
         // Format message
         const { getBillingMonth } = await import('../utils/periodHelper');
         const paymentDate = new Date();
-        const billingMonth = invoice.period ? 
-            getBillingMonth(invoice.period, paymentDate, invoice.due_date || null) : 
+        const billingMonth = invoice.period ?
+            getBillingMonth(invoice.period, paymentDate, invoice.due_date || null) :
             (invoice.period || '-');
 
         let message = '';
@@ -531,10 +524,10 @@ router.get('/', async (req: Request, res: Response) => {
         const stats = await WhatsAppService.getNotificationStats();
         const qrCode = WhatsAppService.getQRCode();
         const qrCodeUrl = qrCode ? `/whatsapp/qr-image` : null;
-        
+
         // Get recent notifications
         const history = await WhatsAppService.getNotificationHistory(50);
-        
+
         res.render('whatsapp/index', {
             title: 'WhatsApp Notifikasi',
             currentPath: '/whatsapp',
@@ -556,48 +549,6 @@ router.get('/', async (req: Request, res: Response) => {
         });
     }
 });
-
-/**
- * GET /whatsapp/troubleshooting
- * Show troubleshooting page
- */
-router.get('/troubleshooting', (req, res) => WhatsAppTroubleshootingController.showTroubleshooting(req, res));
-
-/**
- * GET /whatsapp/troubleshooting/diagnostics
- * Get diagnostic information
- */
-router.get('/troubleshooting/diagnostics', (req, res) => WhatsAppTroubleshootingController.getDiagnostics(req, res));
-
-/**
- * POST /whatsapp/troubleshooting/test-connection
- * Test WhatsApp connection
- */
-router.post('/troubleshooting/test-connection', (req, res) => WhatsAppTroubleshootingController.testConnection(req, res));
-
-/**
- * POST /whatsapp/troubleshooting/retry-failed
- * Retry failed notifications
- */
-router.post('/troubleshooting/retry-failed', (req, res) => WhatsAppTroubleshootingController.retryFailedNotifications(req, res));
-
-/**
- * POST /whatsapp/troubleshooting/clear-failed
- * Clear failed notifications
- */
-router.post('/troubleshooting/clear-failed', (req, res) => WhatsAppTroubleshootingController.clearFailedNotifications(req, res));
-
-/**
- * GET /whatsapp/troubleshooting/logs
- * Get notification logs
- */
-router.get('/troubleshooting/logs', (req, res) => WhatsAppTroubleshootingController.getNotificationLogs(req, res));
-
-/**
- * POST /whatsapp/troubleshooting/cleanup-logs
- * Cleanup old logs
- */
-router.post('/troubleshooting/cleanup-logs', (req, res) => WhatsAppTroubleshootingController.cleanupLogs(req, res));
 
 export default router;
 

@@ -4,7 +4,8 @@
  */
 
 import { Request, Response } from 'express';
-import { WhatsAppService } from '../../services/whatsapp/WhatsAppService';
+import { BaileysWhatsAppService as WhatsAppService } from '../../services/whatsapp/BaileysWhatsAppService';
+import { databasePool } from '../../db/pool';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -38,16 +39,52 @@ export class WhatsAppSettingsController {
             const stats = await WhatsAppService.getNotificationStats();
             let qrCode = WhatsAppService.getQRCode();
 
-            // If not ready and no QR code, try to initialize or regenerate
-            // Note: QR code generation is async and happens via event, so we check status
-            if (!status.ready && !qrCode) {
-                if (!status.initialized) {
-                    // Service not initialized yet, will be initialized on server start
-                    console.log('⚠️ WhatsApp service not initialized yet');
+            // Get recent failed notifications
+            let failedNotifications: any[] = [];
+            try {
+                const [cols] = await databasePool.query('SHOW COLUMNS FROM notification_logs');
+                const colNames = (cols as any[]).map((col: any) => col.Field);
+
+                let q: string;
+                if (colNames.includes('channel')) {
+                    q = `SELECT nl.*, c.name as customer_name FROM notification_logs nl 
+                         LEFT JOIN customers c ON nl.customer_id = c.id
+                         WHERE nl.channel = 'whatsapp' AND nl.status = 'failed'
+                         ORDER BY nl.created_at DESC LIMIT 5`;
                 } else {
-                    // Service initialized but no QR code - might be waiting for QR event
-                    console.log('⚠️ WhatsApp initialized but QR code not available yet. It will appear automatically when ready.');
+                    q = `SELECT nl.*, c.name as customer_name FROM notification_logs nl 
+                         LEFT JOIN customers c ON nl.customer_id = c.id
+                         WHERE nl.status = 'failed'
+                         ORDER BY nl.created_at DESC LIMIT 5`;
                 }
+                const [rows] = await databasePool.query<any[]>(q);
+                failedNotifications = rows;
+            } catch (err) {
+                console.error('Error fetching failed notifications for settings:', err);
+            }
+
+            // Get pending notifications
+            let pendingNotifications: any[] = [];
+            try {
+                const [cols] = await databasePool.query<any[]>('SHOW COLUMNS FROM unified_notifications_queue');
+                const colNames = (cols as any[]).map((col: any) => col.Field);
+
+                let q: string;
+                if (colNames.includes('channel')) {
+                    q = `SELECT unq.*, c.name as customer_name FROM unified_notifications_queue unq
+                         LEFT JOIN customers c ON unq.customer_id = c.id
+                         WHERE unq.channel = 'whatsapp' AND unq.status = 'pending'
+                         ORDER BY unq.created_at DESC LIMIT 5`;
+                } else {
+                    q = `SELECT unq.*, c.name as customer_name FROM unified_notifications_queue unq
+                         LEFT JOIN customers c ON unq.customer_id = c.id
+                         WHERE unq.status = 'pending'
+                         ORDER BY unq.created_at DESC LIMIT 5`;
+                }
+                const [rows] = await databasePool.query<any[]>(q);
+                pendingNotifications = rows;
+            } catch (err) {
+                console.error('Error fetching pending notifications for settings:', err);
             }
 
             // Get QR code URL if available (using local endpoint)
@@ -62,6 +99,8 @@ export class WhatsAppSettingsController {
                 stats,
                 qrCode,
                 qrCodeUrl,
+                failedNotifications,
+                pendingNotifications,
                 user: (req.session as any).user
             });
 
@@ -179,7 +218,7 @@ export class WhatsAppSettingsController {
             console.log('🔄 Starting QR code regeneration...');
 
             // First clear session if exists
-            const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+            const sessionPath = path.join(process.cwd(), 'baileys-session');
 
             // Destroy client first
             try {

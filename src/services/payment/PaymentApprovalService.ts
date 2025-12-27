@@ -58,6 +58,7 @@ export class PaymentApprovalService {
             let geminiAnalysis = null;
             let geminiAutoApprove = false;
             let geminiConfidence = 0;
+            let geminiDecisionReasons: string[] = [];
 
             try {
                 geminiAnalysis = await GeminiService.analyzePaymentProof(
@@ -69,6 +70,7 @@ export class PaymentApprovalService {
                 const geminiDecision = await GeminiService.shouldAutoApprove(geminiAnalysis);
                 geminiAutoApprove = geminiDecision.shouldApprove;
                 geminiConfidence = geminiDecision.confidence;
+                geminiDecisionReasons = geminiDecision.reasons;
 
                 console.log(`🤖 Gemini Analysis: Valid=${geminiAnalysis.isValid}, Risk=${geminiAnalysis.validation.riskLevel}, AutoApprove=${geminiAutoApprove}`);
 
@@ -134,7 +136,7 @@ export class PaymentApprovalService {
                     reasons: [
                         'Gemini AI: Bukti transfer valid',
                         `Tingkat risiko: ${geminiAnalysis.validation.riskLevel}`,
-                        ...geminiDecision.reasons
+                        ...geminiDecisionReasons
                     ],
                     invoiceId: matchingResult.bestMatch?.invoice_id,
                     amount: geminiAnalysis.extractedData.amount || extractedData.amount

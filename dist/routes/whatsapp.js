@@ -37,10 +37,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const WhatsAppService_1 = require("../services/whatsapp/WhatsAppService");
+const BaileysWhatsAppService_1 = require("../services/whatsapp/BaileysWhatsAppService");
 const pool_1 = require("../db/pool");
 const qrcode_1 = __importDefault(require("qrcode"));
-const WhatsAppTroubleshootingController_1 = require("../controllers/whatsapp/WhatsAppTroubleshootingController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const router = (0, express_1.Router)();
 // Apply auth middleware to page routes (not API routes)
@@ -50,16 +49,10 @@ router.use((req, res, next) => {
         req.path.startsWith('/qr') ||
         req.path.startsWith('/send') ||
         req.path.startsWith('/history') ||
-        req.path.startsWith('/stats') ||
-        req.path.startsWith('/troubleshooting/diagnostics') ||
-        req.path.startsWith('/troubleshooting/test-connection') ||
-        req.path.startsWith('/troubleshooting/retry-failed') ||
-        req.path.startsWith('/troubleshooting/clear-failed') ||
-        req.path.startsWith('/troubleshooting/logs') ||
-        req.path.startsWith('/troubleshooting/cleanup-logs')) {
+        req.path.startsWith('/stats')) {
         return next();
     }
-    // Apply auth for page routes (including /troubleshooting)
+    // Apply auth for page routes
     return (0, authMiddleware_1.isAuthenticated)(req, res, next);
 });
 /**
@@ -68,9 +61,9 @@ router.use((req, res, next) => {
  */
 router.get('/status', async (req, res) => {
     try {
-        const status = WhatsAppService_1.WhatsAppService.getStatus();
-        const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
-        const qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+        const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
+        const stats = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationStats();
+        const qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
         res.json({
             success: true,
             data: {
@@ -94,8 +87,8 @@ router.get('/status', async (req, res) => {
  */
 router.get('/qr', async (req, res) => {
     try {
-        const qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
-        const status = WhatsAppService_1.WhatsAppService.getStatus();
+        const qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
+        const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
         if (!qrCode) {
             return res.json({
                 success: false,
@@ -125,7 +118,7 @@ router.get('/qr', async (req, res) => {
  */
 router.get('/qr-image', async (req, res) => {
     try {
-        const qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+        const qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
         if (!qrCode) {
             return res.status(404).json({
                 success: false,
@@ -170,19 +163,19 @@ router.post('/clear-session', async (req, res) => {
     try {
         console.log('🗑️ Clearing WhatsApp session...');
         // Destroy client if exists
-        if (WhatsAppService_1.WhatsAppService.isClientReady() || WhatsAppService_1.WhatsAppService.getStatus().initialized) {
-            await WhatsAppService_1.WhatsAppService.destroy();
+        if (BaileysWhatsAppService_1.BaileysWhatsAppService.isClientReady() || BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus().initialized) {
+            await BaileysWhatsAppService_1.BaileysWhatsAppService.destroy();
         }
         // Delete session folder
         const fs = require('fs');
         const path = require('path');
-        const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+        const sessionPath = path.join(process.cwd(), 'baileys-session');
         if (fs.existsSync(sessionPath)) {
             fs.rmSync(sessionPath, { recursive: true, force: true });
             console.log('✅ Session folder deleted');
         }
         // Reset state
-        const status = WhatsAppService_1.WhatsAppService.getStatus();
+        const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
         res.json({
             success: true,
             message: 'Session berhasil dihapus. Silakan regenerate QR code.',
@@ -206,16 +199,16 @@ router.post('/clear-session', async (req, res) => {
 router.post('/regenerate-qr', async (req, res) => {
     try {
         console.log('🔄 Regenerating QR code...');
-        await WhatsAppService_1.WhatsAppService.regenerateQRCode();
+        await BaileysWhatsAppService_1.BaileysWhatsAppService.regenerateQRCode();
         // Wait longer for QR code to be generated (up to 10 seconds)
         let attempts = 0;
-        let qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+        let qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
         while (!qrCode && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 500));
-            qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+            qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
             attempts++;
         }
-        const status = WhatsAppService_1.WhatsAppService.getStatus();
+        const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
         res.json({
             success: true,
             message: qrCode
@@ -249,7 +242,7 @@ router.post('/send', async (req, res) => {
                 error: 'Phone and message are required'
             });
         }
-        const result = await WhatsAppService_1.WhatsAppService.sendMessage(phone, message, {
+        const result = await BaileysWhatsAppService_1.BaileysWhatsAppService.sendMessage(phone, message, {
             customerId,
             template
         });
@@ -286,7 +279,7 @@ router.post('/send-bulk', async (req, res) => {
                 error: 'Recipients array is required'
             });
         }
-        const result = await WhatsAppService_1.WhatsAppService.sendBulkMessages(recipients, delayMs || 2000);
+        const result = await BaileysWhatsAppService_1.BaileysWhatsAppService.sendBulkMessages(recipients, delayMs || 2000);
         res.json({
             success: true,
             data: result
@@ -327,7 +320,7 @@ router.post('/send-to-customer', async (req, res) => {
                 error: 'Customer phone number not found'
             });
         }
-        const result = await WhatsAppService_1.WhatsAppService.sendMessage(customer.phone, message, {
+        const result = await BaileysWhatsAppService_1.BaileysWhatsAppService.sendMessage(customer.phone, message, {
             customerId,
             template
         });
@@ -360,7 +353,7 @@ router.get('/history', async (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
         const customerId = req.query.customerId ? parseInt(req.query.customerId) : undefined;
         const status = req.query.status;
-        const history = await WhatsAppService_1.WhatsAppService.getNotificationHistory(limit, customerId, status);
+        const history = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationHistory(limit, customerId, status);
         res.json({
             success: true,
             data: history
@@ -379,7 +372,7 @@ router.get('/history', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
     try {
-        const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
+        const stats = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationStats();
         res.json({
             success: true,
             data: stats
@@ -482,7 +475,7 @@ Terima kasih atas pembayaran Anda! 🙏
 Status layanan Anda telah ${statusText}.
             `.trim();
         }
-        const result = await WhatsAppService_1.WhatsAppService.sendMessage(customer.phone, message, {
+        const result = await BaileysWhatsAppService_1.BaileysWhatsAppService.sendMessage(customer.phone, message, {
             customerId,
             template: 'payment_notification'
         });
@@ -512,12 +505,12 @@ Status layanan Anda telah ${statusText}.
  */
 router.get('/', async (req, res) => {
     try {
-        const status = WhatsAppService_1.WhatsAppService.getStatus();
-        const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
-        const qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+        const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
+        const stats = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationStats();
+        const qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
         const qrCodeUrl = qrCode ? `/whatsapp/qr-image` : null;
         // Get recent notifications
-        const history = await WhatsAppService_1.WhatsAppService.getNotificationHistory(50);
+        const history = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationHistory(50);
         res.render('whatsapp/index', {
             title: 'WhatsApp Notifikasi',
             currentPath: '/whatsapp',
@@ -540,40 +533,5 @@ router.get('/', async (req, res) => {
         });
     }
 });
-/**
- * GET /whatsapp/troubleshooting
- * Show troubleshooting page
- */
-router.get('/troubleshooting', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.showTroubleshooting(req, res));
-/**
- * GET /whatsapp/troubleshooting/diagnostics
- * Get diagnostic information
- */
-router.get('/troubleshooting/diagnostics', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.getDiagnostics(req, res));
-/**
- * POST /whatsapp/troubleshooting/test-connection
- * Test WhatsApp connection
- */
-router.post('/troubleshooting/test-connection', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.testConnection(req, res));
-/**
- * POST /whatsapp/troubleshooting/retry-failed
- * Retry failed notifications
- */
-router.post('/troubleshooting/retry-failed', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.retryFailedNotifications(req, res));
-/**
- * POST /whatsapp/troubleshooting/clear-failed
- * Clear failed notifications
- */
-router.post('/troubleshooting/clear-failed', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.clearFailedNotifications(req, res));
-/**
- * GET /whatsapp/troubleshooting/logs
- * Get notification logs
- */
-router.get('/troubleshooting/logs', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.getNotificationLogs(req, res));
-/**
- * POST /whatsapp/troubleshooting/cleanup-logs
- * Cleanup old logs
- */
-router.post('/troubleshooting/cleanup-logs', (req, res) => WhatsAppTroubleshootingController_1.WhatsAppTroubleshootingController.cleanupLogs(req, res));
 exports.default = router;
 //# sourceMappingURL=whatsapp.js.map

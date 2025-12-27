@@ -38,7 +38,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WhatsAppSettingsController = void 0;
-const WhatsAppService_1 = require("../../services/whatsapp/WhatsAppService");
+const BaileysWhatsAppService_1 = require("../../services/whatsapp/BaileysWhatsAppService");
+const pool_1 = require("../../db/pool");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 class WhatsAppSettingsController {
@@ -48,36 +49,72 @@ class WhatsAppSettingsController {
     static async showSettings(req, res) {
         try {
             // Get WhatsApp service status
-            let status = WhatsAppService_1.WhatsAppService.getStatus();
+            let status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
             // Force initialize if not initialized yet
             if (!status.initialized && !status.initializing) {
                 console.log('🔄 Force initializing WhatsApp service...');
                 try {
                     // Don't await - initialize in background
-                    WhatsAppService_1.WhatsAppService.initialize()
+                    BaileysWhatsAppService_1.BaileysWhatsAppService.initialize()
                         .then(() => console.log('✅ WhatsApp service initialized successfully'))
                         .catch(err => console.error('❌ Failed to initialize WhatsApp:', err));
                     // Wait a bit for initialization to start
                     await new Promise(resolve => setTimeout(resolve, 1000));
-                    status = WhatsAppService_1.WhatsAppService.getStatus();
+                    status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
                 }
                 catch (initError) {
                     console.error('⚠️ Error during WhatsApp initialization:', initError);
                 }
             }
-            const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
-            let qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
-            // If not ready and no QR code, try to initialize or regenerate
-            // Note: QR code generation is async and happens via event, so we check status
-            if (!status.ready && !qrCode) {
-                if (!status.initialized) {
-                    // Service not initialized yet, will be initialized on server start
-                    console.log('⚠️ WhatsApp service not initialized yet');
+            const stats = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationStats();
+            let qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
+            // Get recent failed notifications
+            let failedNotifications = [];
+            try {
+                const [cols] = await pool_1.databasePool.query('SHOW COLUMNS FROM notification_logs');
+                const colNames = cols.map((col) => col.Field);
+                let q;
+                if (colNames.includes('channel')) {
+                    q = `SELECT nl.*, c.name as customer_name FROM notification_logs nl 
+                         LEFT JOIN customers c ON nl.customer_id = c.id
+                         WHERE nl.channel = 'whatsapp' AND nl.status = 'failed'
+                         ORDER BY nl.created_at DESC LIMIT 5`;
                 }
                 else {
-                    // Service initialized but no QR code - might be waiting for QR event
-                    console.log('⚠️ WhatsApp initialized but QR code not available yet. It will appear automatically when ready.');
+                    q = `SELECT nl.*, c.name as customer_name FROM notification_logs nl 
+                         LEFT JOIN customers c ON nl.customer_id = c.id
+                         WHERE nl.status = 'failed'
+                         ORDER BY nl.created_at DESC LIMIT 5`;
                 }
+                const [rows] = await pool_1.databasePool.query(q);
+                failedNotifications = rows;
+            }
+            catch (err) {
+                console.error('Error fetching failed notifications for settings:', err);
+            }
+            // Get pending notifications
+            let pendingNotifications = [];
+            try {
+                const [cols] = await pool_1.databasePool.query('SHOW COLUMNS FROM unified_notifications_queue');
+                const colNames = cols.map((col) => col.Field);
+                let q;
+                if (colNames.includes('channel')) {
+                    q = `SELECT unq.*, c.name as customer_name FROM unified_notifications_queue unq
+                         LEFT JOIN customers c ON unq.customer_id = c.id
+                         WHERE unq.channel = 'whatsapp' AND unq.status = 'pending'
+                         ORDER BY unq.created_at DESC LIMIT 5`;
+                }
+                else {
+                    q = `SELECT unq.*, c.name as customer_name FROM unified_notifications_queue unq
+                         LEFT JOIN customers c ON unq.customer_id = c.id
+                         WHERE unq.status = 'pending'
+                         ORDER BY unq.created_at DESC LIMIT 5`;
+                }
+                const [rows] = await pool_1.databasePool.query(q);
+                pendingNotifications = rows;
+            }
+            catch (err) {
+                console.error('Error fetching pending notifications for settings:', err);
             }
             // Get QR code URL if available (using local endpoint)
             const qrCodeUrl = qrCode
@@ -90,6 +127,8 @@ class WhatsAppSettingsController {
                 stats,
                 qrCode,
                 qrCodeUrl,
+                failedNotifications,
+                pendingNotifications,
                 user: req.session.user
             });
         }
@@ -106,9 +145,9 @@ class WhatsAppSettingsController {
      */
     static async getStatus(req, res) {
         try {
-            const status = WhatsAppService_1.WhatsAppService.getStatus();
-            const stats = await WhatsAppService_1.WhatsAppService.getNotificationStats();
-            const qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+            const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
+            const stats = await BaileysWhatsAppService_1.BaileysWhatsAppService.getNotificationStats();
+            const qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
             const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
@@ -150,19 +189,23 @@ class WhatsAppSettingsController {
                 return;
             }
             // Check if WhatsApp is ready
-            const status = WhatsAppService_1.WhatsAppService.getStatus();
+            const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
+            console.log('📱 [Test WA] Current status before test send:', status);
             if (!status.ready) {
+                console.warn('⚠️ [Test WA] Test send rejected: WhatsApp is not ready');
                 res.json({
                     success: false,
-                    error: 'WhatsApp belum terhubung. Silakan scan QR code terlebih dahulu.'
+                    error: `WhatsApp belum terhubung (Status: ${JSON.stringify(status)}). Silakan scan QR code terlebih dahulu.`
                 });
                 return;
             }
             // Send test message
-            const result = await WhatsAppService_1.WhatsAppService.sendMessage(phone.trim(), message.trim(), {
+            console.log(`📱 [Test WA] Attempting to send test message to ${phone}...`);
+            const result = await BaileysWhatsAppService_1.BaileysWhatsAppService.sendMessage(phone.trim(), message.trim(), {
                 template: 'test_message'
             });
             if (result.success) {
+                console.log('✅ [Test WA] Test message sent successfully');
                 res.json({
                     success: true,
                     message: 'Pesan test berhasil dikirim!',
@@ -172,6 +215,7 @@ class WhatsAppSettingsController {
                 });
             }
             else {
+                console.error('❌ [Test WA] Failed to send test message:', result.error);
                 res.json({
                     success: false,
                     error: result.error || 'Gagal mengirim pesan test'
@@ -193,13 +237,13 @@ class WhatsAppSettingsController {
         try {
             console.log('🔄 Starting QR code regeneration...');
             // First clear session if exists
-            const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+            const sessionPath = path.join(process.cwd(), 'baileys-session');
             // Destroy client first
             try {
-                const status = WhatsAppService_1.WhatsAppService.getStatus();
+                const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
                 if (status.initialized) {
                     console.log('🗑️ Destroying existing client...');
-                    await WhatsAppService_1.WhatsAppService.destroy();
+                    await BaileysWhatsAppService_1.BaileysWhatsAppService.destroy();
                     console.log('✅ Client destroyed');
                 }
             }
@@ -225,21 +269,21 @@ class WhatsAppSettingsController {
             await new Promise(resolve => setTimeout(resolve, 2000));
             // Regenerate QR code
             console.log('🔄 Regenerating QR code...');
-            await WhatsAppService_1.WhatsAppService.regenerateQRCode();
+            await BaileysWhatsAppService_1.BaileysWhatsAppService.regenerateQRCode();
             // Wait for QR code to be generated (up to 15 seconds)
             console.log('⏳ Waiting for QR code generation...');
             let attempts = 0;
-            let qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+            let qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
             const maxAttempts = 30; // 15 seconds
             while (!qrCode && attempts < maxAttempts) {
                 await new Promise(resolve => setTimeout(resolve, 500));
-                qrCode = WhatsAppService_1.WhatsAppService.getQRCode();
+                qrCode = BaileysWhatsAppService_1.BaileysWhatsAppService.getQRCode();
                 attempts++;
                 if (attempts % 5 === 0) {
                     console.log(`⏳ Still waiting for QR code... (${attempts}/${maxAttempts})`);
                 }
             }
-            const status = WhatsAppService_1.WhatsAppService.getStatus();
+            const status = BaileysWhatsAppService_1.BaileysWhatsAppService.getStatus();
             const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;

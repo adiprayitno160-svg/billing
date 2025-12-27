@@ -228,7 +228,7 @@ export class GeminiService {
                     amountMatches: parsed.validation?.amountMatches === true,
                     bankMatches: parsed.validation?.bankMatches === true,
                     riskLevel: ['low', 'medium', 'high', 'critical'].includes(riskLevel)
-                        ? riskLevel as 'low' | 'medium' | 'high' | 'critical'
+                        ? riskLevel as 'low' | 'medium' | 'high'
                         : 'high',
                     riskReasons: Array.isArray(parsed.validation?.riskReasons)
                         ? parsed.validation.riskReasons

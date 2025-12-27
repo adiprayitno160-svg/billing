@@ -1,300 +1,252 @@
-<!DOCTYPE html>
-<html lang="id">
+<!-- Create Notification Template Page -->
+<div class="animate-content-fade-in max-w-5xl mx-auto py-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-5">
+            <a href="/notification/templates"
+                class="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-gray-400 hover:text-blue-600 hover:shadow-lg transition-all active:scale-95 shadow-sm">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tighter">Tambah Template</h1>
+                <p
+                    class="text-xs font-black text-blue-500 uppercase tracking-widest mt-0.5 shadow-sm inline-block px-2 py-0.5 bg-blue-50 rounded italic">
+                    NEW_NOTIFICATION_ENTRY</p>
+            </div>
+        </div>
+        <div class="hidden md:flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sistem Siap</span>
+        </div>
+    </div>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buat Template Notifikasi - Billing System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
+    <!-- Main Container -->
+    <form id="createTemplateForm" class="space-y-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-<body class="bg-gray-50">
-    <%- include('../partials/navbar') %>
-
-        <div class="flex">
-            <%- include('../partials/sidebar') %>
-
-                <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
-                    <div class="space-y-6">
-                        <!-- Header -->
-                        <div class="mb-6">
-                            <div class="flex items-center gap-3 mb-2">
-                                <a href="/notification/templates"
-                                    class="text-gray-500 hover:text-gray-700 transition-colors">
-                                    <i class="fas fa-arrow-left"></i>
-                                </a>
-                                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                    <i class="fas fa-plus-circle text-blue-500"></i>
-                                    Buat Template Baru
-                                </h1>
+            <!-- Left Side: Basic Config (Width: 5) -->
+            <div class="lg:col-span-5 space-y-8">
+                <div
+                    class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                    <div class="p-8 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-100">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <h3 class="text-sm font-black text-gray-900 uppercase tracking-tighter">Konfigurasi Dasar</h3>
+                    </div>
+                    <div class="p-8 space-y-6">
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Template
+                                Code <span class="text-red-500">*</span></label>
+                            <input type="text" name="template_code" required placeholder="e.g. invoice_warning"
+                                class="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-bold text-gray-700 shadow-inner">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Template
+                                Name <span class="text-red-500">*</span></label>
+                            <input type="text" name="template_name" required placeholder="Display name for system"
+                                class="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-bold text-gray-700 shadow-inner">
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <label
+                                class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-3">Target
+                                Channel & Priority</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="cursor-pointer group">
+                                    <input type="radio" name="channel" value="whatsapp" class="peer sr-only" required
+                                        checked>
+                                    <div
+                                        class="py-4 border-2 border-gray-100 rounded-2xl group-hover:bg-gray-50 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 text-center transition-all flex flex-col items-center gap-1.5">
+                                        <i class="fab fa-whatsapp text-xl"></i>
+                                        <span class="text-[10px] font-black uppercase tracking-tighter">WhatsApp</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer group">
+                                    <input type="radio" name="channel" value="email" class="peer sr-only">
+                                    <div
+                                        class="py-4 border-2 border-gray-100 rounded-2xl group-hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-center transition-all flex flex-col items-center gap-1.5">
+                                        <i class="fab fa-google text-xl"></i>
+                                        <span class="text-[10px] font-black uppercase tracking-tighter">Email</span>
+                                    </div>
+                                </label>
                             </div>
-                            <p class="text-gray-600 ml-8">Buat template notifikasi baru yang dapat dikustomisasi untuk
-                                berbagai keperluan.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div class="space-y-2">
+                                <label
+                                    class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Priority</label>
+                                <select name="priority"
+                                    class="w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 transition-all font-bold text-gray-700 outline-none appearance-none">
+                                    <option value="low">LOW</option>
+                                    <option value="normal" selected>NORMAL</option>
+                                    <option value="high">HIGH / URGENT</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Init
+                                    Status</label>
+                                <select name="is_active"
+                                    class="w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 transition-all font-bold text-gray-700 outline-none appearance-none">
+                                    <option value="true" selected>AKTIF</option>
+                                    <option value="false">DRAFT / STANDBY</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="p-6 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] shadow-xl shadow-blue-200 text-white relative overflow-hidden group">
+                    <i
+                        class="fas fa-magic absolute -right-4 -bottom-4 text-8xl text-white/10 group-hover:rotate-12 transition-transform duration-700"></i>
+                    <h4 class="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2 italic">
+                        <i class="fas fa-code"></i> Dynamic Library
+                    </h4>
+                    <p class="text-[11px] font-medium opacity-80 leading-relaxed mb-6">Klik variabel di bawah untuk
+                        menyisipkan ke dalam isi pesan Anda secara otomatis.</p>
+                    <div class="flex flex-wrap gap-2 relative z-10">
+                        <% ['customer_name', 'customer_code' , 'invoice_number' , 'invoice_amount' , 'due_date'
+                            , 'package_info' ].forEach(v=> { %>
+                            <button type="button" onclick="insertVariable('{<%= v %>}')"
+                                class="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-[10px] font-black font-mono transition-all">
+                                {<%= v %>}
+                            </button>
+                            <% }) %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Content (Width: 7) -->
+            <div class="lg:col-span-7 space-y-8">
+                <div
+                    class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden min-h-[500px]">
+                    <div class="p-8 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-100">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
+                            <h3 class="text-sm font-black text-gray-900 uppercase tracking-tighter">Event & Content</h3>
+                        </div>
+                        <select name="notification_type" required
+                            class="px-4 py-2 border-2 border-orange-100 rounded-xl font-black text-[10px] uppercase tracking-tighter text-orange-600 appearance-none bg-orange-50 outline-none hover:bg-orange-100 transition-colors">
+                            <option value="">-- PILIH TIPE EVENT --</option>
+                            <option value="invoice_created">Invoice Dibuat</option>
+                            <option value="invoice_overdue">Invoice Terlambat</option>
+                            <option value="payment_received">Pembayaran Diterima</option>
+                            <option value="service_blocked">Layanan Diblokir</option>
+                            <option value="service_unblocked">Layanan Aktif Kembali</option>
+                        </select>
+                    </div>
+                    <div class="p-8 space-y-8">
+                        <div class="space-y-3">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Payload
+                                Title / Subject (Header)</label>
+                            <input type="text" name="title_template" required placeholder="Subject notifikasi..."
+                                class="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-black text-gray-800 shadow-inner italic">
+                        </div>
+                        <div class="space-y-3">
+                            <label class="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Message
+                                Body (WhatsApp / Email Content)</label>
+                            <textarea id="message_template" name="message_template" rows="12" required
+                                placeholder="Tulis isi pesan di sini..."
+                                class="w-full px-6 py-6 bg-gray-50 border-2 border-transparent rounded-[2rem] focus:border-blue-500 focus:bg-white focus:ring-[6px] focus:ring-blue-100 transition-all outline-none font-medium text-gray-700 shadow-inner resize-none leading-relaxed"></textarea>
                         </div>
 
-                        <!-- Form -->
-                        <form id="createTemplateForm" class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-                            <div class="space-y-8">
-                                <!-- Basic Info -->
-                                <div>
-                                    <h3
-                                        class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
-                                        <i class="fas fa-info-circle text-blue-500"></i> Informasi Dasar
-                                    </h3>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Kode Template
-                                                <span class="text-red-500">*</span></label>
-                                            <input type="text" name="template_code" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                placeholder="contoh: invoice_overdue_warning">
-                                            <p class="text-xs text-gray-500 mt-1.5 flex items-center gap-1"><i
-                                                    class="fas fa-exclamation-circle"></i> Kode unik (huruf kecil,
-                                                underscore)</p>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Nama Template
-                                                <span class="text-red-500">*</span></label>
-                                            <input type="text" name="template_name" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                placeholder="Contoh: Peringatan Jatuh Tempo Invoice">
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipe Notifikasi
-                                                <span class="text-red-500">*</span></label>
-                                            <div class="relative">
-                                                <select name="notification_type" required
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow appearance-none">
-                                                    <option value="">Pilih Tipe...</option>
-                                                    <option value="invoice_created">Invoice Dibuat</option>
-                                                    <option value="invoice_overdue">Invoice Terlambat</option>
-                                                    <option value="payment_received">Pembayaran Diterima</option>
-                                                    <option value="payment_partial">Pembayaran Sebagian</option>
-                                                    <option value="customer_created">Pelanggan Baru</option>
-                                                    <option value="customer_deleted">Pelanggan Dihapus</option>
-                                                    <option value="customer_migrated_to_postpaid">Migrasi ke Postpaid
-                                                    </option>
-                                                    <option value="payment_debt">Pembayaran Ditunda/Hutang</option>
-                                                    <option value="payment_shortage_warning">Peringatan Pembayaran
-                                                        Kurang</option>
-                                                    <option value="isolation_warning">Peringatan Sebelum Isolir</option>
-                                                    <option value="service_blocked">Layanan Diblokir</option>
-                                                    <option value="service_unblocked">Layanan Diaktifkan Kembali
-                                                    </option>
-                                                </select>
-                                                <div
-                                                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                                    <i class="fas fa-chevron-down text-xs"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Channel <span
-                                                    class="text-red-500">*</span></label>
-                                            <div class="grid grid-cols-2 gap-3">
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="whatsapp"
-                                                        class="peer sr-only" required>
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 text-center transition-all">
-                                                        <i class="fab fa-whatsapp text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">WhatsApp</span>
-                                                    </div>
-                                                </label>
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="email"
-                                                        class="peer sr-only">
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-center transition-all">
-                                                        <i class="fab fa-google text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">Email</span>
-                                                    </div>
-                                                </label>
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="sms" class="peer sr-only">
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-yellow-500 peer-checked:bg-yellow-50 peer-checked:text-yellow-700 text-center transition-all">
-                                                        <i class="fas fa-sms text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">SMS</span>
-                                                    </div>
-                                                </label>
-                                                <label class="cursor-pointer">
-                                                    <input type="radio" name="channel" value="push"
-                                                        class="peer sr-only">
-                                                    <div
-                                                        class="rounded-lg border border-gray-300 p-3 hover:bg-gray-50 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 text-center transition-all">
-                                                        <i class="fas fa-bell text-lg mb-1 block"></i>
-                                                        <span class="text-sm font-medium">Push</span>
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                                            <select name="priority"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                                                <option value="low">Low</option>
-                                                <option value="normal" selected>Normal</option>
-                                                <option value="high">High</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Status
-                                                Awal</label>
-                                            <div class="flex items-center gap-4 mt-2">
-                                                <label class="inline-flex items-center">
-                                                    <input type="radio" name="is_active" value="true" checked
-                                                        class="form-radio text-blue-600 h-4 w-4">
-                                                    <span class="ml-2 text-sm text-gray-700">Aktif</span>
-                                                </label>
-                                                <label class="inline-flex items-center">
-                                                    <input type="radio" name="is_active" value="false"
-                                                        class="form-radio text-gray-600 h-4 w-4">
-                                                    <span class="ml-2 text-sm text-gray-700">Tidak Aktif</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Templates -->
-                                <div>
-                                    <h3
-                                        class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
-                                        <i class="fas fa-comment-dots text-blue-500"></i> Konten Pesan
-                                    </h3>
-                                    <div class="space-y-6">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Judul / Subject
-                                                <span class="text-red-500">*</span></label>
-                                            <input type="text" name="title_template" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                                                placeholder="Contoh: Invoice Baru #{invoice_number} - {customer_name}">
-                                            <p class="text-xs text-gray-500 mt-1.5"><i class="fas fa-magic mr-1"></i>
-                                                Mendukung variabel dinamis</p>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Isi Pesan <span
-                                                    class="text-red-500">*</span></label>
-                                            <textarea name="message_template" rows="8" required
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow font-sans text-sm leading-relaxed"
-                                                placeholder="Halo {customer_name},&#10;&#10;Kami ingin menginformasikan bahwa invoice Anda #{invoice_number} telah terbit..."></textarea>
-                                            <p class="text-xs text-gray-500 mt-1.5"><i class="fas fa-smile mr-1"></i>
-                                                Emoji didukung. Tekan Enter untuk baris baru.</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Variables Info -->
-                                <div
-                                    class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
-                                    <h4 class="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                                        <i class="fas fa-code"></i> Variabel Dinamis
-                                    </h4>
-                                    <div class="text-sm text-blue-800 space-y-2">
-                                        <p>Gunakan variabel berikut untuk menyisipkan data pelanggan secara otomatis:
-                                        </p>
-                                        <div class="flex flex-wrap gap-2 mt-2">
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{customer_name}')">{customer_name}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{customer_phone}')">{customer_phone}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{customer_email}')">{customer_email}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{invoice_number}')">{invoice_number}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{invoice_amount}')">{invoice_amount}</code>
-                                            <code
-                                                class="bg-white px-2 py-1 rounded border border-blue-200 text-blue-700 font-mono text-xs select-all cursor-pointer hover:bg-blue-50"
-                                                title="Klik untuk menyalin"
-                                                onclick="copyToClipboard('{due_date}')">{due_date}</code>
-                                        </div>
-                                        <p class="text-xs text-blue-600 mt-2 italic">* Variabel yang tersedia bergantung
-                                            pada Tipe Notifikasi yang dipilih.</p>
-                                    </div>
-                                </div>
-
-                                <!-- Actions -->
-                                <div class="flex gap-4 pt-4 border-t border-gray-100">
-                                    <button type="submit"
-                                        class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm font-medium flex items-center gap-2">
-                                        <i class="fas fa-save"></i> Simpan Template
-                                    </button>
-                                    <a href="/notification/templates"
-                                        class="px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2">
-                                        <i class="fas fa-times"></i> Batal
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
+                        <div class="pt-4 flex flex-col md:flex-row gap-4">
+                            <button type="submit" id="submitBtn"
+                                class="flex-1 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.5rem] font-black text-lg tracking-tighter transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-200 hover:-translate-y-1 active:scale-95 disabled:opacity-50 group">
+                                <i class="fas fa-save text-xl group-hover:scale-110 transition-transform"></i>
+                                PUBLISH TEMPLATE
+                            </button>
+                            <a href="/notification/templates"
+                                class="px-10 py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-[1.5rem] font-black text-xs tracking-widest transition-all flex items-center justify-center uppercase">
+                                Cancel
+                            </a>
+                        </div>
                     </div>
-                </main>
+                </div>
+            </div>
         </div>
+    </form>
+</div>
 
-        <script>
-            function copyToClipboard(text) {
-                navigator.clipboard.writeText(text).then(() => {
-                    // Optional: Show a tiny feedback toast
-                    console.log('Copied: ' + text);
-                });
-            }
+<style>
+    @keyframes content-fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
 
-            document.getElementById('createTemplateForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                const originalBtnContent = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+    .animate-content-fade-in {
+        animation: content-fade-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
 
-                const formData = new FormData(e.target);
-                const data = {
-                    template_code: formData.get('template_code'),
-                    template_name: formData.get('template_name'),
-                    notification_type: formData.get('notification_type'),
-                    channel: formData.get('channel'),
-                    title_template: formData.get('title_template'),
-                    message_template: formData.get('message_template'),
-                    priority: formData.get('priority'),
-                    is_active: formData.get('is_active') === 'true',
-                    variables: [] // Variables will be parsed or handled by backend typically, or we can Regex them here if needed.
-                };
+    .font-black {
+        font-weight: 900;
+    }
+</style>
 
-                try {
-                    const response = await fetch('/api/notification/templates', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
+<script>
+    function insertVariable(variable) {
+        const textarea = document.getElementById('message_template');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const before = text.substring(0, start);
+        const after = text.substring(end, text.length);
+        textarea.value = before + variable + after;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    }
 
-                    const result = await response.json();
-                    if (result.success) {
-                        // alert('Template berhasil dibuat!');
-                        window.location.href = '/notification/templates';
-                    } else {
-                        alert('Error: ' + result.message);
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnContent;
-                    }
-                } catch (error) {
-                    alert('Error: ' + error.message);
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnContent;
-                }
+    document.getElementById('createTemplateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalBtnContent = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> OPTIMIZING PAYLOAD...';
+
+        const formData = new FormData(e.target);
+        const data = {
+            template_code: formData.get('template_code'),
+            template_name: formData.get('template_name'),
+            notification_type: formData.get('notification_type'),
+            channel: formData.get('channel'),
+            title_template: formData.get('title_template'),
+            message_template: formData.get('message_template'),
+            priority: formData.get('priority'),
+            is_active: formData.get('is_active') === 'true',
+            variables: [] // Backend handles extraction usually
+        };
+
+        try {
+            const response = await fetch('/api/notification/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
-        </script>
-</body>
 
-</html>
+            const result = await response.json();
+            if (result.success) {
+                window.location.href = '/notification/templates';
+            } else {
+                alert('CRITICAL ERROR: ' + result.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnContent;
+            }
+        } catch (error) {
+            alert('SYSTEM FAILURE: Connection lost.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnContent;
+        }
+    });
+</script>

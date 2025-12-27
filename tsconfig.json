@@ -9,7 +9,9 @@
     "scripts/**/*",
     "src/controllers/ftth/**/*",
     "src/services/mikrotik/**/*",
-    "src/controllers/excelController.ts"
+    "src/controllers/excelController.ts",
+    "check_*.ts",
+    "*.ts"
   ],
   "compilerOptions": {
     // File Layout

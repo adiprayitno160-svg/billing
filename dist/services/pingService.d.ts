@@ -5,7 +5,7 @@
 interface PingResult {
     host: string;
     alive: boolean;
-    time: number | string;
+    time: number;
     packetLoss: string;
 }
 interface StaticIPCustomer {

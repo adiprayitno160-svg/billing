@@ -11,7 +11,7 @@ import { calculateCustomerIP } from '../utils/ipHelper';
 interface PingResult {
     host: string;
     alive: boolean;
-    time: number | string;
+    time: number;
     packetLoss: string;
 }
 
@@ -49,8 +49,8 @@ export class PingService {
             return {
                 host: result.host,
                 alive: result.alive,
-                time: result.time === 'unknown' ? 0 : result.time,
-                packetLoss: result.packetLoss || '0%'
+                time: typeof result.time === 'number' ? result.time : (result.time === 'unknown' ? 0 : parseFloat(String(result.time)) || 0),
+                packetLoss: String(result.packetLoss || '0%')
             };
         } catch (error) {
             console.error(`Ping error for ${ipAddress}:`, error);
