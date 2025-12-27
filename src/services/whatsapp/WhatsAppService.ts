@@ -113,11 +113,14 @@ export class WhatsAppService {
                 console.log('⚠️ WhatsApp client disconnected:', reason);
                 this.isReady = false;
                 this.isAuthenticated = false;
+                this.isInitialized = false; // Reset initialized state to allow re-initialization
+                this.isInitializing = false;
                 this.currentQRCode = null;
 
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     console.log(`🔄 Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                    // Delay before reconnecting
                     setTimeout(() => {
                         this.initialize().catch(err => {
                             console.error('Failed to reconnect WhatsApp:', err);

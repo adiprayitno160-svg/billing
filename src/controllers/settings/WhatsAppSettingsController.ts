@@ -129,20 +129,25 @@ export class WhatsAppSettingsController {
 
             // Check if WhatsApp is ready
             const status = WhatsAppService.getStatus();
+            console.log('📱 [Test WA] Current status before test send:', status);
+
             if (!status.ready) {
+                console.warn('⚠️ [Test WA] Test send rejected: WhatsApp is not ready');
                 res.json({
                     success: false,
-                    error: 'WhatsApp belum terhubung. Silakan scan QR code terlebih dahulu.'
+                    error: `WhatsApp belum terhubung (Status: ${JSON.stringify(status)}). Silakan scan QR code terlebih dahulu.`
                 });
                 return;
             }
 
             // Send test message
+            console.log(`📱 [Test WA] Attempting to send test message to ${phone}...`);
             const result = await WhatsAppService.sendMessage(phone.trim(), message.trim(), {
                 template: 'test_message'
             });
 
             if (result.success) {
+                console.log('✅ [Test WA] Test message sent successfully');
                 res.json({
                     success: true,
                     message: 'Pesan test berhasil dikirim!',
@@ -151,6 +156,7 @@ export class WhatsAppSettingsController {
                     }
                 });
             } else {
+                console.error('❌ [Test WA] Failed to send test message:', result.error);
                 res.json({
                     success: false,
                     error: result.error || 'Gagal mengirim pesan test'
