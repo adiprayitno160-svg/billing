@@ -30,7 +30,7 @@ export declare const autoCreateLinks: (req: Request, res: Response) => Promise<v
 /**
  * Check device status
  */
-export declare const checkDeviceStatus: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const checkDeviceStatus: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
 /**
  * Render public network map page (no login required)
  */

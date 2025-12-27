@@ -27,7 +27,7 @@ export declare class WiFiAdminController {
     /**
      * API: Get customer by ID (for AJAX)
      */
-    static apiGetCustomer(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static apiGetCustomer(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     /**
      * API: Get WiFi config from device
      */

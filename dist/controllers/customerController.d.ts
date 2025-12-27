@@ -6,7 +6,7 @@ export declare const getCustomerList: (req: Request, res: Response) => Promise<v
 /**
  * Test Mikrotik connection and list all address lists
  */
-export declare const testMikrotikAddressLists: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const testMikrotikAddressLists: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
 /**
  * Get customer detail page
  */
@@ -18,13 +18,13 @@ export declare const getCustomerEdit: (req: Request, res: Response) => Promise<v
 /**
  * Update customer
  */
-export declare const updateCustomer: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const updateCustomer: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
 /**
  * Delete customer
  */
-export declare const deleteCustomer: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const deleteCustomer: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
 /**
  * Bulk delete customers
  */
-export declare const bulkDeleteCustomers: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const bulkDeleteCustomers: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
 //# sourceMappingURL=customerController.d.ts.map

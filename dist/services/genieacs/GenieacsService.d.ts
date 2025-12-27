@@ -83,7 +83,7 @@ export declare class GenieacsService {
         model: string;
         softwareVersion: string;
         ipAddress: any;
-        lastInform: Date | null;
+        lastInform: Date;
         isOnline: boolean;
         signal: any;
     };

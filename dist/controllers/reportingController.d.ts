@@ -8,6 +8,6 @@ export declare class ReportingController {
     getBillingAnalyticsReport: (req: Request, res: Response) => Promise<void>;
     getPONUtilizationReport: (req: Request, res: Response) => Promise<void>;
     getCustomerAnalyticsReport: (req: Request, res: Response) => Promise<void>;
-    exportReport: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+    exportReport: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
 }
 //# sourceMappingURL=reportingController.d.ts.map
