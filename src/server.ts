@@ -13,7 +13,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
 
-import { BaileysWhatsAppService as WhatsAppService } from './services/whatsapp/BaileysWhatsAppService';
+import { WPPConnectWhatsAppService as WhatsAppService } from './services/whatsapp/WPPConnectWhatsAppService';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';

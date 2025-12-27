@@ -1,5 +1,6 @@
 import { RouterOSAPI } from 'routeros-api';
 import { PppoeSecret, PppoeActiveConnection, PppProfile } from '../mikrotikService';
+import { getMikrotikConfig } from '../../utils/mikrotikConfigHelper';
 
 export interface MikrotikConfig {
   host: string;
@@ -33,10 +34,32 @@ export interface MikrotikProfile {
 }
 
 export class MikrotikService {
+  private static instance: MikrotikService | null = null;
   private config: MikrotikConfig;
 
   constructor(config: MikrotikConfig) {
     this.config = config;
+  }
+
+  /**
+   * Get singleton instance of MikrotikService
+   * Loads config from database automatically
+   */
+  static async getInstance(): Promise<MikrotikService> {
+    const config = await getMikrotikConfig();
+
+    if (!config) {
+      throw new Error('MikroTik configuration not found. Please configure in Settings > MikroTik.');
+    }
+
+    // Create new instance each time to always use fresh config
+    // (alternatively, we could cache the instance and refresh it periodically)
+    return new MikrotikService({
+      host: config.host,
+      username: config.username,
+      password: config.password,
+      port: config.port || config.api_port || 8728
+    });
   }
 
   /**

@@ -2,9 +2,28 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MikrotikService = void 0;
 const routeros_api_1 = require("routeros-api");
+const mikrotikConfigHelper_1 = require("../../utils/mikrotikConfigHelper");
 class MikrotikService {
     constructor(config) {
         this.config = config;
+    }
+    /**
+     * Get singleton instance of MikrotikService
+     * Loads config from database automatically
+     */
+    static async getInstance() {
+        const config = await (0, mikrotikConfigHelper_1.getMikrotikConfig)();
+        if (!config) {
+            throw new Error('MikroTik configuration not found. Please configure in Settings > MikroTik.');
+        }
+        // Create new instance each time to always use fresh config
+        // (alternatively, we could cache the instance and refresh it periodically)
+        return new MikrotikService({
+            host: config.host,
+            username: config.username,
+            password: config.password,
+            port: config.port || config.api_port || 8728
+        });
     }
     /**
      * Test koneksi ke Mikrotik
@@ -513,4 +532,5 @@ class MikrotikService {
     }
 }
 exports.MikrotikService = MikrotikService;
+MikrotikService.instance = null;
 //# sourceMappingURL=MikrotikService.js.map

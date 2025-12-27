@@ -782,8 +782,8 @@ class MonitoringController {
             if (!id) {
                 return res.status(400).json({ success: false, error: 'id is required' });
             }
-            const customerId = parseInt(id);
-            if (!incidentId) {
+            const incidentId = parseInt(id);
+            if (isNaN(incidentId)) {
                 res.status(400).json({
                     success: false,
                     message: 'Invalid incident ID'

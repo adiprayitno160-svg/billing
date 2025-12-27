@@ -1,13 +1,29 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AddressListMikrotikService = void 0;
-const MikrotikService_1 = require("./MikrotikService");
 const addressListService_1 = require("../addressListService");
+const pppoeService_1 = require("../pppoeService");
+const routeros_api_1 = require("routeros-api");
 class AddressListMikrotikService {
-    static async getMikrotikConnection() {
-        const mikrotikService = new MikrotikService_1.MikrotikService();
-        await mikrotikService.connect();
-        return mikrotikService;
+    static async executeWithConnection(operation) {
+        const config = await (0, pppoeService_1.getMikrotikConfig)();
+        if (!config) {
+            throw new Error('MikroTik configuration not found');
+        }
+        const api = new routeros_api_1.RouterOSAPI({
+            host: config.host,
+            port: config.port || 8728,
+            user: config.username,
+            password: config.password,
+            timeout: 10000
+        });
+        try {
+            await api.connect();
+            return await operation(api);
+        }
+        finally {
+            api.close();
+        }
     }
     // Sync address list to MikroTik
     static async syncAddressListToMikrotik(addressListId) {
@@ -16,31 +32,31 @@ class AddressListMikrotikService {
             if (!addressList) {
                 throw new Error('Address list not found');
             }
-            const mikrotik = await this.getMikrotikConnection();
-            // Get existing address list from MikroTik
-            const existingAddresses = await mikrotik.getConnection().write('/ip/firewall/address-list/print', [
-                '=.proplist=.id,list,address,comment,disabled',
-                '?list=' + addressList.name
-            ]);
-            // Delete existing addresses for this list
-            for (const existing of existingAddresses) {
-                await mikrotik.getConnection().write('/ip/firewall/address-list/remove', [
-                    '=.id=' + existing['.id']
+            return await this.executeWithConnection(async (api) => {
+                // Get existing address list from MikroTik
+                const existingAddresses = await api.write('/ip/firewall/address-list/print', [
+                    '=.proplist=.id,list,address,comment,disabled',
+                    '?list=' + addressList.name
                 ]);
-            }
-            // Add new addresses
-            for (const item of addressList.items) {
-                if (!item.disabled) {
-                    await mikrotik.getConnection().write('/ip/firewall/address-list/add', [
-                        '=list=' + addressList.name,
-                        '=address=' + item.address,
-                        '=comment=' + (item.comment || ''),
-                        '=disabled=' + (item.disabled ? 'yes' : 'no')
+                // Delete existing addresses for this list
+                for (const existing of existingAddresses) {
+                    await api.write('/ip/firewall/address-list/remove', [
+                        '=.id=' + existing['.id']
                     ]);
                 }
-            }
-            await mikrotik.disconnect();
-            return true;
+                // Add new addresses
+                for (const item of addressList.items) {
+                    if (!item.disabled) {
+                        await api.write('/ip/firewall/address-list/add', [
+                            '=list=' + addressList.name,
+                            '=address=' + item.address,
+                            '=comment=' + (item.comment || ''),
+                            '=disabled=' + (item.disabled ? 'yes' : 'no')
+                        ]);
+                    }
+                }
+                return true;
+            });
         }
         catch (error) {
             console.error('Error syncing address list to MikroTik:', error);
@@ -50,13 +66,13 @@ class AddressListMikrotikService {
     // Get address list from MikroTik
     static async getAddressListFromMikrotik(listName) {
         try {
-            const mikrotik = await this.getMikrotikConnection();
-            const addresses = await mikrotik.getConnection().write('/ip/firewall/address-list/print', [
-                '=.proplist=.id,list,address,comment,disabled',
-                '?list=' + listName
-            ]);
-            await mikrotik.disconnect();
-            return addresses;
+            return await this.executeWithConnection(async (api) => {
+                const addresses = await api.write('/ip/firewall/address-list/print', [
+                    '=.proplist=.id,list,address,comment,disabled',
+                    '?list=' + listName
+                ]);
+                return addresses;
+            });
         }
         catch (error) {
             console.error('Error getting address list from MikroTik:', error);
@@ -84,20 +100,20 @@ class AddressListMikrotikService {
     // Remove address list from MikroTik
     static async removeAddressListFromMikrotik(listName) {
         try {
-            const mikrotik = await this.getMikrotikConnection();
-            // Get all addresses for this list
-            const addresses = await mikrotik.getConnection().write('/ip/firewall/address-list/print', [
-                '=.proplist=.id',
-                '?list=' + listName
-            ]);
-            // Remove all addresses
-            for (const address of addresses) {
-                await mikrotik.getConnection().write('/ip/firewall/address-list/remove', [
-                    '=.id=' + address['.id']
+            return await this.executeWithConnection(async (api) => {
+                // Get all addresses for this list
+                const addresses = await api.write('/ip/firewall/address-list/print', [
+                    '=.proplist=.id',
+                    '?list=' + listName
                 ]);
-            }
-            await mikrotik.disconnect();
-            return true;
+                // Remove all addresses
+                for (const address of addresses) {
+                    await api.write('/ip/firewall/address-list/remove', [
+                        '=.id=' + address['.id']
+                    ]);
+                }
+                return true;
+            });
         }
         catch (error) {
             console.error('Error removing address list from MikroTik:', error);
@@ -107,15 +123,15 @@ class AddressListMikrotikService {
     // Add single address to MikroTik
     static async addAddressToMikrotik(listName, address, comment) {
         try {
-            const mikrotik = await this.getMikrotikConnection();
-            await mikrotik.getConnection().write('/ip/firewall/address-list/add', [
-                '=list=' + listName,
-                '=address=' + address,
-                '=comment=' + (comment || ''),
-                '=disabled=no'
-            ]);
-            await mikrotik.disconnect();
-            return true;
+            return await this.executeWithConnection(async (api) => {
+                await api.write('/ip/firewall/address-list/add', [
+                    '=list=' + listName,
+                    '=address=' + address,
+                    '=comment=' + (comment || ''),
+                    '=disabled=no'
+                ]);
+                return true;
+            });
         }
         catch (error) {
             console.error('Error adding address to MikroTik:', error);
@@ -125,21 +141,21 @@ class AddressListMikrotikService {
     // Remove single address from MikroTik
     static async removeAddressFromMikrotik(listName, address) {
         try {
-            const mikrotik = await this.getMikrotikConnection();
-            // Find the address
-            const addresses = await mikrotik.getConnection().write('/ip/firewall/address-list/print', [
-                '=.proplist=.id',
-                '?list=' + listName,
-                '?address=' + address
-            ]);
-            // Remove if found
-            if (addresses.length > 0) {
-                await mikrotik.getConnection().write('/ip/firewall/address-list/remove', [
-                    '=.id=' + addresses[0]['.id']
+            return await this.executeWithConnection(async (api) => {
+                // Find the address
+                const addresses = await api.write('/ip/firewall/address-list/print', [
+                    '=.proplist=.id',
+                    '?list=' + listName,
+                    '?address=' + address
                 ]);
-            }
-            await mikrotik.disconnect();
-            return true;
+                // Remove if found
+                if (addresses.length > 0) {
+                    await api.write('/ip/firewall/address-list/remove', [
+                        '=.id=' + addresses[0]['.id']
+                    ]);
+                }
+                return true;
+            });
         }
         catch (error) {
             console.error('Error removing address from MikroTik:', error);
@@ -149,24 +165,24 @@ class AddressListMikrotikService {
     // Update address in MikroTik
     static async updateAddressInMikrotik(listName, oldAddress, newAddress, comment, disabled) {
         try {
-            const mikrotik = await this.getMikrotikConnection();
-            // Find the address
-            const addresses = await mikrotik.getConnection().write('/ip/firewall/address-list/print', [
-                '=.proplist=.id',
-                '?list=' + listName,
-                '?address=' + oldAddress
-            ]);
-            // Update if found
-            if (addresses.length > 0) {
-                await mikrotik.getConnection().write('/ip/firewall/address-list/set', [
-                    '=.id=' + addresses[0]['.id'],
-                    '=address=' + newAddress,
-                    '=comment=' + (comment || ''),
-                    '=disabled=' + (disabled ? 'yes' : 'no')
+            return await this.executeWithConnection(async (api) => {
+                // Find the address
+                const addresses = await api.write('/ip/firewall/address-list/print', [
+                    '=.proplist=.id',
+                    '?list=' + listName,
+                    '?address=' + oldAddress
                 ]);
-            }
-            await mikrotik.disconnect();
-            return true;
+                // Update if found
+                if (addresses.length > 0) {
+                    await api.write('/ip/firewall/address-list/set', [
+                        '=.id=' + addresses[0]['.id'],
+                        '=address=' + newAddress,
+                        '=comment=' + (comment || ''),
+                        '=disabled=' + (disabled ? 'yes' : 'no')
+                    ]);
+                }
+                return true;
+            });
         }
         catch (error) {
             console.error('Error updating address in MikroTik:', error);
@@ -176,14 +192,14 @@ class AddressListMikrotikService {
     // Get all address lists from MikroTik
     static async getAllAddressListsFromMikrotik() {
         try {
-            const mikrotik = await this.getMikrotikConnection();
-            const addresses = await mikrotik.getConnection().write('/ip/firewall/address-list/print', [
-                '=.proplist=list'
-            ]);
-            // Get unique list names
-            const uniqueLists = [...new Set(addresses.map((addr) => addr.list))];
-            await mikrotik.disconnect();
-            return uniqueLists;
+            return await this.executeWithConnection(async (api) => {
+                const addresses = await api.write('/ip/firewall/address-list/print', [
+                    '=.proplist=list'
+                ]);
+                // Get unique list names
+                const uniqueLists = [...new Set(addresses.map((addr) => addr.list))];
+                return uniqueLists;
+            });
         }
         catch (error) {
             console.error('Error getting all address lists from MikroTik:', error);

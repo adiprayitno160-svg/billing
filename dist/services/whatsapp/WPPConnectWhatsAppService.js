@@ -1,7 +1,7 @@
 "use strict";
 /**
- * Modern WhatsApp Service using Baileys (Multi-Device)
- * Fixed with dynamic import for CommonJS compatibility
+ * Modern WhatsApp Service using WPPConnect
+ * Stable, CommonJS compatible, and feature-rich
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -37,149 +37,150 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BaileysWhatsAppService = void 0;
-const qrcode = __importStar(require("qrcode-terminal"));
+exports.WPPConnectWhatsAppService = void 0;
+const wppconnect = __importStar(require("@wppconnect-team/wppconnect"));
 const pool_1 = require("../../db/pool");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-// Dynamic import wrapper for Baileys
-let baileysModule = null;
-async function loadBaileys() {
-    if (!baileysModule) {
-        baileysModule = await Promise.resolve().then(() => __importStar(require('@whiskeysockets/baileys')));
-    }
-    return baileysModule;
-}
-class BaileysWhatsAppService {
+class WPPConnectWhatsAppService {
     /**
-     * Initialize Baileys WhatsApp client with dynamic import
+     * Initialize WPPConnect WhatsApp client
      */
     static async initialize() {
         if (this.isInitialized) {
-            console.log('✅ Baileys WhatsApp service already initialized');
+            console.log('✅ WPPConnect WhatsApp service already initialized');
             return;
         }
         if (this.isInitializing) {
-            console.log('⏳ Baileys WhatsApp service is already initializing');
+            console.log('⏳ WPPConnect WhatsApp service is already initializing');
             return;
         }
         try {
             this.isInitializing = true;
-            console.log('📱 Initializing Baileys WhatsApp service...');
+            console.log('📱 Initializing WPPConnect WhatsApp service...');
             console.log(`   Session path: ${this.sessionPath}`);
-            // Load Baileys module dynamically
-            const baileys = await loadBaileys();
-            const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, DisconnectReason, Browsers } = baileys;
-            // Create Pino logger dynamically
-            const pino = await Promise.resolve().then(() => __importStar(require('pino')));
-            const logger = pino.default({
-                level: process.env.NODE_ENV === 'production' ? 'silent' : 'error'
-            });
             // Create session directory if doesn't exist
             if (!fs.existsSync(this.sessionPath)) {
                 fs.mkdirSync(this.sessionPath, { recursive: true });
                 console.log('✅ Session directory created');
             }
-            // Load auth state
-            const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
-            console.log('✅ Auth state loaded');
-            // Get latest Baileys version
-            const { version, isLatest } = await fetchLatestBaileysVersion();
-            console.log(`📱 Using WA v${version.join('.')}, isLatest: ${isLatest}`);
-            // Create socket
-            this.sock = makeWASocket({
-                version,
-                logger: logger,
-                printQRInTerminal: false,
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, logger)
+            // Create WPPConnect client
+            this.client = await wppconnect.create({
+                session: 'billing-session',
+                catchQR: (base64Qr, asciiQR, attempts) => {
+                    console.log('📱 QR Code generated (attempt', attempts, ')');
+                    console.log(asciiQR);
+                    this.currentQRCode = base64Qr;
                 },
-                browser: Browsers.ubuntu('Chrome'),
-                markOnlineOnConnect: true,
-                generateHighQualityLinkPreview: true,
-                syncFullHistory: false,
-                getMessage: async (key) => {
-                    return { conversation: '' };
-                }
-            });
-            console.log('✅ Baileys socket created');
-            // Handle credentials update
-            this.sock.ev.on('creds.update', saveCreds);
-            // Load Boom for error handling
-            const Boom = (await Promise.resolve().then(() => __importStar(require('@hapi/boom')))).Boom;
-            // Handle connection updates
-            this.sock.ev.on('connection.update', async (update) => {
-                const { connection, lastDisconnect, qr } = update;
-                if (qr) {
-                    console.log('📱 QR Code generated');
-                    qrcode.generate(qr, { small: true });
-                    this.currentQRCode = qr;
-                    this.isConnected = false;
-                }
-                if (connection === 'close') {
-                    const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-                    console.log('⚠️ Connection closed:', lastDisconnect?.error);
-                    console.log(`   Should reconnect: ${shouldReconnect}`);
-                    this.isConnected = false;
-                    this.isInitialized = false;
-                    this.isInitializing = false;
-                    if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-                        this.reconnectAttempts++;
-                        console.log(`🔄 Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-                        await new Promise(resolve => setTimeout(resolve, 5000));
-                        await this.initialize();
-                    }
-                    else if (!shouldReconnect) {
-                        console.log('🚪 Logged out. Please scan QR code again.');
+                statusFind: (statusSession, session) => {
+                    console.log('📱 Status Session:', statusSession);
+                    if (statusSession === 'qrReadSuccess') {
+                        console.log('✅ QR Code scanned successfully!');
+                        this.isConnected = true;
+                        this.isInitialized = true;
                         this.currentQRCode = null;
                     }
-                    else {
-                        console.error('❌ Max reconnection attempts reached');
+                    else if (statusSession === 'isLogged') {
+                        console.log('✅ Already logged in!');
+                        this.isConnected = true;
+                        this.isInitialized = true;
+                        this.currentQRCode = null;
                     }
+                    else if (statusSession === 'notLogged') {
+                        console.log('⏳ Waiting for QR code scan...');
+                        this.isConnected = false;
+                    }
+                    else if (statusSession === 'autocloseCalled') {
+                        console.log('⚠️ Session auto-closed');
+                        this.isConnected = false;
+                        this.isInitialized = false;
+                    }
+                    else if (statusSession === 'desconnectedMobile') {
+                        console.log('⚠️ Disconnected from mobile');
+                        this.isConnected = false;
+                    }
+                },
+                logQR: false,
+                browserArgs: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu'
+                ],
+                headless: true,
+                devtools: false,
+                useChrome: false,
+                debug: false,
+                logLevel: 'error',
+                autoClose: 60000,
+                createPathFileToken: true,
+                waitForLogin: true,
+                puppeteerOptions: {
+                    userDataDir: this.sessionPath,
+                    headless: true,
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--disable-gpu'
+                    ]
                 }
-                else if (connection === 'open') {
-                    console.log('✅ WhatsApp connection opened successfully!');
+            });
+            console.log('✅ WPPConnect client created');
+            // Handle connection events
+            this.client.onStateChange((state) => {
+                console.log('📱 State changed:', state);
+                if (state === 'CONNECTED') {
                     this.isConnected = true;
                     this.isInitialized = true;
-                    this.isInitializing = false;
-                    this.currentQRCode = null;
                     this.reconnectAttempts = 0;
                 }
-                else if (connection === 'connecting') {
-                    console.log('⏳ Connecting to WhatsApp...');
+                else if (state === 'DISCONNECTED' || state === 'TIMEOUT') {
+                    this.isConnected = false;
+                    this.handleReconnect();
                 }
             });
             // Handle incoming messages
-            this.sock.ev.on('messages.upsert', async (m) => {
-                const message = m.messages[0];
-                if (!message.key.fromMe && m.type === 'notify') {
-                    console.log('📩 New message received');
-                    try {
-                        const { WhatsAppBotService } = await Promise.resolve().then(() => __importStar(require('./WhatsAppBotService')));
-                        // Handle bot messages if needed
-                    }
-                    catch (error) {
-                        console.error('Error handling bot message:', error);
-                    }
+            this.client.onMessage(async (message) => {
+                if (!message.isGroupMsg && !message.fromMe) {
+                    console.log('📩 New message received from:', message.from);
+                    // Handle bot messages if needed
                 }
             });
             this.isInitialized = true;
             this.isInitializing = false;
-            console.log('✅ Baileys WhatsApp service initialized successfully');
-            console.log('   Waiting for connection or QR code...');
+            console.log('✅ WPPConnect WhatsApp service initialized successfully');
         }
         catch (error) {
             this.isInitializing = false;
             this.isInitialized = false;
-            console.error('❌ Failed to initialize Baileys WhatsApp service:');
+            console.error('❌ Failed to initialize WPPConnect WhatsApp service:');
             console.error('   Error:', error.message || error);
-            console.error('   Stack:', error.stack);
             throw error;
         }
     }
+    static async handleReconnect() {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            console.log(`🔄 Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            try {
+                await this.initialize();
+            }
+            catch (error) {
+                console.error('❌ Reconnection failed:', error);
+            }
+        }
+        else {
+            console.error('❌ Max reconnection attempts reached');
+        }
+    }
     static isClientReady() {
-        return this.isConnected && this.sock !== null;
+        return this.isConnected && this.client !== null;
     }
     static getStatus() {
         return {
@@ -196,39 +197,29 @@ class BaileysWhatsAppService {
     static async regenerateQRCode() {
         try {
             console.log('🔄 Regenerating QR code...');
-            if (this.sock) {
-                await this.destroy();
-            }
-            if (fs.existsSync(this.sessionPath)) {
+            if (this.client) {
                 try {
-                    fs.rmSync(this.sessionPath, { recursive: true, force: true });
-                    console.log('✅ Session folder deleted');
+                    await this.client.close();
                 }
                 catch (err) {
-                    console.warn('⚠️ Error deleting session folder:', err);
+                    console.warn('⚠️ Error closing client:', err);
                 }
+            }
+            // Delete session tokens
+            const tokenPath = path.join(this.sessionPath, 'billing-session.data.json');
+            if (fs.existsSync(tokenPath)) {
+                fs.unlinkSync(tokenPath);
+                console.log('✅ Session token deleted');
             }
             this.currentQRCode = null;
             this.isConnected = false;
             this.isInitialized = false;
+            this.isInitializing = false;
+            this.client = null;
             this.reconnectAttempts = 0;
             await new Promise(resolve => setTimeout(resolve, 2000));
             await this.initialize();
-            let attempts = 0;
-            const maxAttempts = 30;
-            while (!this.currentQRCode && attempts < maxAttempts && !this.isConnected) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                attempts++;
-            }
-            if (this.currentQRCode) {
-                console.log('✅ QR code regenerated successfully');
-            }
-            else if (this.isConnected) {
-                console.log('ℹ️ Client already connected, no QR code needed');
-            }
-            else {
-                console.warn('⚠️ QR code not generated yet');
-            }
+            console.log('✅ QR code regeneration initiated');
         }
         catch (error) {
             console.error('Failed to regenerate QR code:', error);
@@ -252,7 +243,7 @@ class BaileysWhatsAppService {
         if (cleaned.length < 10) {
             throw new Error(`Invalid phone number: "${phone}" results in invalid format`);
         }
-        return cleaned + '@s.whatsapp.net';
+        return cleaned + '@c.us';
     }
     static async sendMessage(phone, message, options = {}) {
         if (!this.isClientReady()) {
@@ -263,17 +254,15 @@ class BaileysWhatsAppService {
         }
         try {
             const formattedPhone = this.formatPhoneNumber(phone);
-            console.log(`📱 [Baileys] Sending message:`);
+            console.log(`📱 [WPPConnect] Sending message:`);
             console.log(`   Phone: ${formattedPhone}`);
             console.log(`   Length: ${message.length} chars`);
-            const result = await this.sock.sendMessage(formattedPhone, {
-                text: message
-            });
+            const result = await this.client.sendText(formattedPhone, message);
             console.log(`✅ WhatsApp message sent to ${phone}`);
             await this.logNotification(options.customerId, phone, message, 'sent', undefined, options.template);
             return {
                 success: true,
-                messageId: result?.key?.id || 'unknown'
+                messageId: result?.id || 'unknown'
             };
         }
         catch (error) {
@@ -285,6 +274,45 @@ class BaileysWhatsAppService {
                 error: errorMessage
             };
         }
+    }
+    /**
+     * Send bulk messages with delay between each message
+     */
+    static async sendBulkMessages(recipients, delayMs = 2000) {
+        console.log(`📱 [Bulk] Sending ${recipients.length} messages with ${delayMs}ms delay`);
+        const results = [];
+        let sent = 0;
+        let failed = 0;
+        for (let i = 0; i < recipients.length; i++) {
+            const recipient = recipients[i];
+            console.log(`📱 [Bulk] Sending ${i + 1}/${recipients.length} to ${recipient.phone}`);
+            const result = await this.sendMessage(recipient.phone, recipient.message, {
+                customerId: recipient.customerId,
+                template: recipient.template
+            });
+            if (result.success) {
+                sent++;
+                results.push({ phone: recipient.phone, success: true });
+            }
+            else {
+                failed++;
+                results.push({
+                    phone: recipient.phone,
+                    success: false,
+                    error: result.error
+                });
+            }
+            if (i < recipients.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+        console.log(`✅ [Bulk] Complete: ${sent} sent, ${failed} failed`);
+        return {
+            total: recipients.length,
+            sent,
+            failed,
+            results
+        };
     }
     static async logNotification(customerId, recipient, message, status, errorMessage, template) {
         try {
@@ -400,74 +428,31 @@ class BaileysWhatsAppService {
             return { total: 0, sent: 0, failed: 0, pending: 0, successRate: 0 };
         }
     }
-    /**
-     * Send bulk messages with delay between each message
-     * @param recipients Array of {phone: string, message: string, customerId?: number, template?: string}
-     * @param delayMs Delay in milliseconds between messages (default 2000ms)
-     * @returns Object with success and failure counts
-     */
-    static async sendBulkMessages(recipients, delayMs = 2000) {
-        console.log(`📱 [Bulk] Sending ${recipients.length} messages with ${delayMs}ms delay`);
-        const results = [];
-        let sent = 0;
-        let failed = 0;
-        for (let i = 0; i < recipients.length; i++) {
-            const recipient = recipients[i];
-            console.log(`📱 [Bulk] Sending ${i + 1}/${recipients.length} to ${recipient.phone}`);
-            const result = await this.sendMessage(recipient.phone, recipient.message, {
-                customerId: recipient.customerId,
-                template: recipient.template
-            });
-            if (result.success) {
-                sent++;
-                results.push({ phone: recipient.phone, success: true });
-            }
-            else {
-                failed++;
-                results.push({
-                    phone: recipient.phone,
-                    success: false,
-                    error: result.error
-                });
-            }
-            // Add delay between messages (except after the last one)
-            if (i < recipients.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-            }
-        }
-        console.log(`✅ [Bulk] Complete: ${sent} sent, ${failed} failed`);
-        return {
-            total: recipients.length,
-            sent,
-            failed,
-            results
-        };
-    }
     static async destroy() {
-        if (this.sock) {
+        if (this.client) {
             try {
-                await this.sock.logout();
-                console.log('✅ Baileys WhatsApp client logged out');
+                await this.client.close();
+                console.log('✅ WPPConnect WhatsApp client closed');
             }
             catch (error) {
-                console.warn('⚠️ Error during logout:', error);
+                console.warn('⚠️ Error during close:', error);
             }
-            this.sock = null;
+            this.client = null;
             this.isInitialized = false;
             this.isConnected = false;
             this.currentQRCode = null;
-            console.log('✅ Baileys WhatsApp client destroyed');
+            console.log('✅ WPPConnect WhatsApp client destroyed');
         }
     }
 }
-exports.BaileysWhatsAppService = BaileysWhatsAppService;
-BaileysWhatsAppService.sock = null;
-BaileysWhatsAppService.isInitialized = false;
-BaileysWhatsAppService.isInitializing = false;
-BaileysWhatsAppService.isConnected = false;
-BaileysWhatsAppService.currentQRCode = null;
-BaileysWhatsAppService.sessionPath = path.join(process.cwd(), 'baileys-session');
-BaileysWhatsAppService.reconnectAttempts = 0;
-BaileysWhatsAppService.maxReconnectAttempts = 5;
-BaileysWhatsAppService.channelColumnExists = null;
-//# sourceMappingURL=BaileysWhatsAppService.js.map
+exports.WPPConnectWhatsAppService = WPPConnectWhatsAppService;
+WPPConnectWhatsAppService.client = null;
+WPPConnectWhatsAppService.isInitialized = false;
+WPPConnectWhatsAppService.isInitializing = false;
+WPPConnectWhatsAppService.isConnected = false;
+WPPConnectWhatsAppService.currentQRCode = null;
+WPPConnectWhatsAppService.sessionPath = path.join(process.cwd(), 'wppconnect-session');
+WPPConnectWhatsAppService.reconnectAttempts = 0;
+WPPConnectWhatsAppService.maxReconnectAttempts = 5;
+WPPConnectWhatsAppService.channelColumnExists = null;
+//# sourceMappingURL=WPPConnectWhatsAppService.js.map

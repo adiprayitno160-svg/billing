@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { CompanyController } from '../controllers/settings/companyController';
 import { SystemSettingsController } from '../controllers/settings/SystemSettingsController';
+import { SystemUpdateController } from '../controllers/settings/SystemUpdateController';
 import { AISettingsController } from '../controllers/settings/AISettingsController';
 import { WhatsAppSettingsController } from '../controllers/settings/WhatsAppSettingsController';
 import multer from 'multer';
@@ -29,6 +30,13 @@ router.get('/system', SystemSettingsController.index);
 router.post('/system', SystemSettingsController.updateSettings);
 router.post('/system/check-update', SystemSettingsController.checkUpdate);
 router.post('/system/perform-update', SystemSettingsController.performUpdate);
+
+// Routes untuk System Update (Git-based)
+router.get('/system-update', SystemUpdateController.showUpdatePage);
+router.get('/system-update/check', SystemUpdateController.checkForUpdates);
+router.post('/system-update/perform', SystemUpdateController.performUpdate);
+router.get('/system-update/history', SystemUpdateController.getUpdateHistory);
+router.post('/system-update/rollback', SystemUpdateController.rollbackUpdate);
 
 // Routes untuk AI Settings (Gemini API)
 router.get('/ai', AISettingsController.index);

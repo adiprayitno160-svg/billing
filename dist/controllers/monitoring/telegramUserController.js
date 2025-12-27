@@ -123,7 +123,7 @@ class TelegramUserController {
             if (!id) {
                 return res.status(400).json({ success: false, error: 'id is required' });
             }
-            const customerId = parseInt(id);
+            const userId = parseInt(id);
             await pool_1.default.query(`
                 UPDATE telegram_users
                 SET is_active = 0
@@ -153,7 +153,7 @@ class TelegramUserController {
             if (!id) {
                 return res.status(400).json({ success: false, error: 'id is required' });
             }
-            const customerId = parseInt(id);
+            const userId = parseInt(id);
             await pool_1.default.query(`
                 UPDATE telegram_users
                 SET is_active = 1
@@ -183,7 +183,7 @@ class TelegramUserController {
             if (!id) {
                 return res.status(400).json({ success: false, error: 'id is required' });
             }
-            const customerId = parseInt(id);
+            const userId = parseInt(id);
             await pool_1.default.query(`
                 DELETE FROM telegram_users
                 WHERE id = ?

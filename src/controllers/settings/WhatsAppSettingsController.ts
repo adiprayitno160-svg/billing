@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { BaileysWhatsAppService as WhatsAppService } from '../../services/whatsapp/BaileysWhatsAppService';
+import { WPPConnectWhatsAppService as WhatsAppService } from '../../services/whatsapp/WPPConnectWhatsAppService';
 import { databasePool } from '../../db/pool';
 import * as fs from 'fs';
 import * as path from 'path';

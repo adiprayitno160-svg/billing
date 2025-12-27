@@ -6,7 +6,7 @@ export interface MikrotikAddressList {
     disabled: string;
 }
 export declare class AddressListMikrotikService {
-    private static getMikrotikConnection;
+    private static executeWithConnection;
     static syncAddressListToMikrotik(addressListId: number): Promise<boolean>;
     static getAddressListFromMikrotik(listName: string): Promise<MikrotikAddressList[]>;
     static syncAllAddressListsToMikrotik(): Promise<{

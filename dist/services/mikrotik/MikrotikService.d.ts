@@ -27,8 +27,14 @@ export interface MikrotikProfile {
     comment?: string;
 }
 export declare class MikrotikService {
+    private static instance;
     private config;
     constructor(config: MikrotikConfig);
+    /**
+     * Get singleton instance of MikrotikService
+     * Loads config from database automatically
+     */
+    static getInstance(): Promise<MikrotikService>;
     /**
      * Test koneksi ke Mikrotik
      */

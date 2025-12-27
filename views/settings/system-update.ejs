@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> - Billing System
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="bg-gray-50">
+    <%- include('../partials/navbar') %>
+
+        <div class="flex">
+            <%- include('../partials/sidebar') %>
+
+                <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
+                    <!-- Page Header -->
+                    <div class="mb-8">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-sync-alt mr-3 text-blue-600"></i>
+                            System Update
+                        </h1>
+                        <p class="text-gray-600">Manage system updates from GitHub repository</p>
+                    </div>
+
+                    <%- include('../partials/flash') %>
+
+                        <!-- Current Version Card -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white rounded-xl shadow-sm border p-6">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                    <i class="fas fa-code-branch text-blue-600 mr-2"></i>
+                                    Current Version
+                                </h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Version:</span>
+                                        <span class="font-mono font-bold text-blue-600">
+                                            <%= currentVersion %>
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Branch:</span>
+                                        <span class="font-mono">
+                                            <%= gitBranch %>
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Commit:</span>
+                                        <span class="font-mono">
+                                            <%= gitCommit %>
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Status:</span>
+                                        <% if (hasUpdates) { %>
+                                            <span
+                                                class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                                <%= gitStatus %>
+                                            </span>
+                                            <% } else { %>
+                                                <span
+                                                    class="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                                                    <i class="fas fa-check-circle mr-1"></i>
+                                                    <%= gitStatus %>
+                                                </span>
+                                                <% } %>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-sm p-6 text-white">
+                                <h3 class="text-lg font-semibold mb-4">
+                                    <i class="fas fa-download mr-2"></i>
+                                    Update Actions
+                                </h3>
+                                <div class="space-y-3">
+                                    <button onclick="checkForUpdates()"
+                                        class="w-full bg-white text-blue-600 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                                        <i class="fas fa-search mr-2"></i>
+                                        Check for Updates
+                                    </button>
+                                    <button onclick="performUpdate()" id="updateBtn"
+                                        class="w-full bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-sync-alt mr-2"></i>
+                                        Update System
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Update Status -->
+                        <div id="updateStatus" class="hidden bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+                            <div class="flex items-center">
+                                <i class="fas fa-spinner fa-spin text-blue-500 text-xl mr-3"></i>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-blue-800">Updating System...</p>
+                                    <p id="updateProgress" class="text-sm text-blue-600 mt-1">Please wait...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Update History -->
+                        <div class="bg-white rounded-xl shadow-sm border">
+                            <div class="p-6 border-b">
+                                <h3 class="text-lg font-semibold text-gray-800">
+                                    <i class="fas fa-history text-gray-600 mr-2"></i>
+                                    Update History
+                                </h3>
+                            </div>
+                            <div class="p-6">
+                                <div id="updateHistory" class="space-y-4">
+                                    <div class="text-center text-gray-500 py-8">
+                                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                        <p>Loading history...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                            <h4 class="font-semibold text-yellow-800 mb-2">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Important Notes
+                            </h4>
+                            <ul class="text-sm text-yellow-700 space-y-1 ml-4">
+                                <li>• Updates are pulled from the main branch of GitHub repository</li>
+                                <li>• System will automatically restart after update</li>
+                                <li>• Always backup your data before updating</li>
+                                <li>• Update process may take 1-3 minutes</li>
+                            </ul>
+                        </div>
+                </main>
+        </div>
+
+        <script>
+            // Check for updates
+            async function checkForUpdates() {
+                const btn = event.target;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Checking...';
+                btn.disabled = true;
+
+                try {
+                    const response = await fetch('/settings/system-update/check');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        if (data.hasUpdates) {
+                            showAlert('success', `Found ${data.commitsBehind} new update(s): ${data.latestCommit}`);
+                            document.getElementById('updateBtn').disabled = false;
+                        } else {
+                            showAlert('info', data.message);
+                            document.getElementById('updateBtn').disabled = true;
+                        }
+                    } else {
+                        showAlert('error', data.error || 'Failed to check for updates');
+                    }
+                } catch (error) {
+                    showAlert('error', 'Network error: ' + error.message);
+                } finally {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            }
+
+            // Perform update
+            async function performUpdate() {
+                if (!confirm('Are you sure you want to update the system? This will restart the application.')) {
+                    return;
+                }
+
+                const statusDiv = document.getElementById('updateStatus');
+                const progressDiv = document.getElementById('updateProgress');
+                const btn = document.getElementById('updateBtn');
+
+                statusDiv.classList.remove('hidden');
+                btn.disabled = true;
+
+                try {
+                    const response = await fetch('/settings/system-update/perform', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        statusDiv.classList.add('hidden');
+                        showAlert('success', `System updated to v${data.newVersion}! Page will reload in 3 seconds...`);
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        statusDiv.classList.add('hidden');
+                        showAlert('error', data.error || 'Update failed');
+                        btn.disabled = false;
+                    }
+                } catch (error) {
+                    statusDiv.classList.add('hidden');
+                    showAlert('error', 'Network error: ' + error.message);
+                    btn.disabled = false;
+                }
+            }
+
+            // Load update history
+            async function loadUpdateHistory() {
+                try {
+                    const response = await fetch('/settings/system-update/history?limit=10');
+                    const data = await response.json();
+
+                    const historyDiv = document.getElementById('updateHistory');
+
+                    if (data.success && data.commits.length > 0) {
+                        historyDiv.innerHTML = data.commits.map(commit => `
+                        <div class="flex items-start border-l-2 border-gray-300 pl-4 py-2">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <code class="text-xs bg-gray-100 px-2 py-1 rounded">${commit.hash}</code>
+                                    <span class="text-xs text-gray-500">${commit.date}</span>
+                                </div>
+                                <p class="text-sm text-gray-800">${commit.message}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-user mr-1"></i>${commit.author}
+                                </p>
+                            </div>
+                        </div>
+                    `).join('');
+                    } else {
+                        historyDiv.innerHTML = '<p class="text-center text-gray-500 py-4">No history available</p>';
+                    }
+                } catch (error) {
+                    document.getElementById('updateHistory').innerHTML =
+                        '<p class="text-center text-red-500 py-4">Failed to load history</p>';
+                }
+            }
+
+            // Show alert
+            function showAlert(type, message) {
+                const colors = {
+                    success: 'green',
+                    error: 'red',
+                    info: 'blue',
+                    warning: 'yellow'
+                };
+                const color = colors[type] || 'blue';
+
+                const alert = document.createElement('div');
+                alert.className = `fixed top-4 right-4 bg-${color}-100 border-l-4 border-${color}-500 text-${color}-700 p-4 rounded shadow-lg z-50 max-w-md`;
+                alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'} mr-3"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+                document.body.appendChild(alert);
+
+                setTimeout(() => alert.remove(), 5000);
+            }
+
+            // Load history on page load
+            loadUpdateHistory();
+
+            // Check for updates every 5 minutes
+            setInterval(checkForUpdates, 300000);
+        </script>
+</body>
+
+</html>

@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -38,6 +38,7 @@
     "@types/nodemailer": "^7.0.2",
     "@types/ws": "^8.18.1",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "@wppconnect-team/wppconnect": "^1.37.8",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cheerio": "^1.1.2",

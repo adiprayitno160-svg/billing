@@ -47,7 +47,7 @@ async function pppoeStatsMiddleware(req, res, next) {
             online: 0
         };
         // Get MikroTik service instance
-        const mikrotikService = MikrotikService_1.MikrotikService.getInstance();
+        const mikrotikService = await MikrotikService_1.MikrotikService.getInstance();
         // Check if connected
         const isConnected = await mikrotikService.testConnection();
         if (isConnected) {

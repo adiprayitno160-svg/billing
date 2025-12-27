@@ -5364,16 +5364,16 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
 
 // Monitoring & Management Billing
 
-// Billing Dashboard Routes
-router.get('/billing/dashboard', (req, res) => BillingDashboardController.getBillingDashboard(req, res));
-router.get('/billing/dashboard/stats', (req, res) => BillingDashboardController.getBillingStats(req, res));
-router.post('/billing/dashboard/toggle-auto-isolate', (req, res) => BillingDashboardController.toggleAutoIsolate(req, res));
-router.post('/billing/dashboard/toggle-auto-restore', (req, res) => BillingDashboardController.toggleAutoRestore(req, res));
-router.post('/billing/dashboard/bulk-isolate', (req, res) => BillingDashboardController.bulkIsolate(req, res));
-router.post('/billing/dashboard/bulk-restore', (req, res) => BillingDashboardController.bulkRestore(req, res));
-router.post('/billing/dashboard/process-payment', (req, res) => BillingDashboardController.processPayment(req, res));
-router.get('/billing/dashboard/search-customers', (req, res) => BillingDashboardController.searchCustomers(req, res));
-router.post('/billing/dashboard/send-notifications', (req, res) => BillingDashboardController.sendBulkNotifications(req, res));
+// Billing Dashboard Routes - COMMENTED OUT (controller not available)
+// router.get('/billing/dashboard', (req, res) => BillingDashboardController.getBillingDashboard(req, res));
+// router.get('/billing/dashboard/stats', (req, res) => BillingDashboardController.getBillingStats(req, res));
+// router.post('/billing/dashboard/toggle-auto-isolate', (req, res) => BillingDashboardController.toggleAutoIsolate(req, res));
+// router.post('/billing/dashboard/toggle-auto-restore', (req, res) => BillingDashboardController.toggleAutoRestore(req, res));
+// router.post('/billing/dashboard/bulk-isolate', (req, res) => BillingDashboardController.bulkIsolate(req, res));
+// router.post('/billing/dashboard/bulk-restore', (req, res) => BillingDashboardController.bulkRestore(req, res));
+// router.post('/billing/dashboard/process-payment', (req, res) => BillingDashboardController.processPayment(req, res));
+// router.get('/billing/dashboard/search-customers', (req, res) => BillingDashboardController.searchCustomers(req, res));
+// router.post('/billing/dashboard/send-notifications', (req, res) => BillingDashboardController.sendBulkNotifications(req, res));
 
 // Legacy billing routes (keeping for compatibility)
 // router.get('/billing/management', (req, res) => res.render('billing/management', { title: 'Management Billing' })); // OLD - replaced with billing domain dashboard
