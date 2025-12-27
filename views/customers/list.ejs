@@ -102,6 +102,16 @@
 						value="<%= typeof filters !== 'undefined' && filters && filters.search ? filters.search : '' %>"
 						placeholder="Cari pelanggan..."
 						class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+
+					<select name="connection_type" id="connectionTypeFilter"
+						class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+						<option value="">Semua Koneksi</option>
+						<option value="pppoe" <%=filters && filters.connection_type==='pppoe' ? 'selected' : '' %>>PPPoE
+						</option>
+						<option value="static_ip" <%=filters && filters.connection_type==='static_ip' ? 'selected' : ''
+							%>>IP Static</option>
+					</select>
+
 					<select name="status" id="statusFilter"
 						class="px-4 py-2 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
 						<option value="">Semua Status</option>
@@ -118,7 +128,8 @@
 						</svg>
 						Cari
 					</button>
-					<% if (typeof filters !=='undefined' && filters && (filters.search || filters.status)) { %>
+					<% if (typeof filters !=='undefined' && filters && (filters.search || filters.status ||
+						filters.connection_type)) { %>
 						<a href="/customers/list"
 							class="px-4 py-2 border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300 font-medium">
 							Reset

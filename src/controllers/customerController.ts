@@ -16,6 +16,7 @@ export const getCustomerList = async (req: Request, res: Response) => {
         // Get search and filter parameters
         const search = req.query.search as string || '';
         const status = req.query.status as string || '';
+        const connection_type = req.query.connection_type as string || '';
         const page = parseInt(req.query.page as string) || 1;
         const limit = 50; // Items per page
         const offset = (page - 1) * limit;
@@ -33,6 +34,11 @@ export const getCustomerList = async (req: Request, res: Response) => {
         if (status) {
             whereConditions.push('c.status = ?');
             queryParams.push(status);
+        }
+
+        if (connection_type) {
+            whereConditions.push('c.connection_type = ?');
+            queryParams.push(connection_type);
         }
 
         const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -92,7 +98,8 @@ export const getCustomerList = async (req: Request, res: Response) => {
             },
             filters: {
                 search: search,
-                status: status
+                status: status,
+                connection_type: connection_type
             },
             success: req.query.success || null,
             error: req.query.error || null,
