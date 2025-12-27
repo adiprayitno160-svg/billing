@@ -5,6 +5,7 @@ module.exports = {
 		'./public/**/*.html'
 	],
 	safelist: [
+		// Modern colors
 		'modern-blue-50', 'modern-blue-100', 'modern-blue-200', 'modern-blue-300', 'modern-blue-400', 'modern-blue-500', 'modern-blue-600', 'modern-blue-700', 'modern-blue-800', 'modern-blue-900',
 		'modern-purple-50', 'modern-purple-100', 'modern-purple-200', 'modern-purple-300', 'modern-purple-400', 'modern-purple-500', 'modern-purple-600', 'modern-purple-700', 'modern-purple-800', 'modern-purple-900',
 		'modern-pink-50', 'modern-pink-100', 'modern-pink-200', 'modern-pink-300', 'modern-pink-400', 'modern-pink-500', 'modern-pink-600', 'modern-pink-700', 'modern-pink-800', 'modern-pink-900',
@@ -14,7 +15,15 @@ module.exports = {
 		'modern-indigo-50', 'modern-indigo-100', 'modern-indigo-200', 'modern-indigo-300', 'modern-indigo-400', 'modern-indigo-500', 'modern-indigo-600', 'modern-indigo-700', 'modern-indigo-800', 'modern-indigo-900',
 		'modern-emerald-50', 'modern-emerald-100', 'modern-emerald-200', 'modern-emerald-300', 'modern-emerald-400', 'modern-emerald-500', 'modern-emerald-600', 'modern-emerald-700', 'modern-emerald-800', 'modern-emerald-900',
 		'modern-rose-50', 'modern-rose-100', 'modern-rose-200', 'modern-rose-300', 'modern-rose-400', 'modern-rose-500', 'modern-rose-600', 'modern-rose-700', 'modern-rose-800', 'modern-rose-900',
-		'modern-amber-50', 'modern-amber-100', 'modern-amber-200', 'modern-amber-300', 'modern-amber-400', 'modern-amber-500', 'modern-amber-600', 'modern-amber-700', 'modern-amber-800', 'modern-amber-900'
+		'modern-amber-50', 'modern-amber-100', 'modern-amber-200', 'modern-amber-300', 'modern-amber-400', 'modern-amber-500', 'modern-amber-600', 'modern-amber-700', 'modern-amber-800', 'modern-amber-900',
+		// Sidebar gradient classes - from
+		'from-blue-400', 'from-cyan-400', 'from-green-400', 'from-emerald-400', 'from-teal-400', 'from-purple-400', 'from-fuchsia-400', 'from-pink-400', 'from-rose-400', 'from-red-400',
+		'from-orange-400', 'from-amber-400', 'from-yellow-400', 'from-lime-400', 'from-sky-400', 'from-indigo-400', 'from-violet-400',
+		// Sidebar gradient classes - to
+		'to-cyan-500', 'to-blue-500', 'to-indigo-500', 'to-emerald-500', 'to-teal-500', 'to-pink-500', 'to-purple-500', 'to-rose-500', 'to-red-500',
+		'to-orange-500', 'to-amber-500', 'to-yellow-500', 'to-green-500', 'to-sky-500', 'to-violet-500', 'to-fuchsia-500', 'to-cyan-600', 'to-red-600',
+		// Background gradients
+		'bg-gradient-to-br', 'bg-gradient-to-r'
 	],
 	theme: {
 		extend: {
