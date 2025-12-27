@@ -9,7 +9,8 @@ import { RowDataPacket } from 'mysql2';
 
 class MonitoringDaemon {
     private isRunning = false;
-    private checkInterval = 30000; // 30 seconds
+    private checkInterval = 20000; // 20 seconds (base interval)
+
 
     async start() {
         console.log('🔍 Network Monitoring Daemon started');
@@ -24,6 +25,25 @@ class MonitoringDaemon {
                 await this.checkAllDevices();
             }
         }, this.checkInterval);
+
+        // Schedule periodic sync (every hour)
+        setInterval(async () => {
+            if (this.isRunning) {
+                await this.runSyncTasks();
+            }
+        }, 60 * 60 * 1000); // 1 hour
+    }
+
+    private async runSyncTasks() {
+        console.log('🔄 Running periodic network sync...');
+        try {
+            await NetworkMonitoringService.syncCustomerDevices();
+            await NetworkMonitoringService.syncFTTHInfrastructure();
+            await NetworkMonitoringService.autoCreateLinks();
+            console.log('✅ Periodic sync completed.');
+        } catch (error) {
+            console.error('❌ Error in periodic sync:', error);
+        }
     }
 
     async stop() {
@@ -33,18 +53,39 @@ class MonitoringDaemon {
 
     private async checkAllDevices() {
         try {
-            console.log(`[${new Date().toISOString()}] Checking all devices...`);
+            // console.log(`[${new Date().toISOString()}] Monitoring cycle...`);
 
-            // Get all devices with IP addresses
+            // Get all devices with IP addresses, including last_check
             const [devices] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, ip_address, status, device_type FROM network_devices WHERE ip_address IS NOT NULL'
+                'SELECT id, name, ip_address, status, device_type, last_check FROM network_devices WHERE ip_address IS NOT NULL'
             );
 
             let checked = 0;
             let statusChanged = 0;
+            let skipped = 0;
+
+            const NOW = new Date();
 
             for (const device of devices) {
                 try {
+                    // Logic: 
+                    // - If Offline/Warning: Check every cycle (20s)
+                    // - If Online: Check every 10 minutes
+                    let shouldCheck = true;
+
+                    if (device.status === 'online' && device.last_check) {
+                        const lastCheckTime = new Date(device.last_check).getTime();
+                        const timeDiff = NOW.getTime() - lastCheckTime;
+                        const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+                        if (timeDiff < TEN_MINUTES_MS) {
+                            shouldCheck = false;
+                            skipped++;
+                        }
+                    }
+
+                    if (!shouldCheck) continue;
+
                     const oldStatus = device.status;
                     const newStatus = await NetworkMonitoringService.checkDeviceStatus(device.id);
 

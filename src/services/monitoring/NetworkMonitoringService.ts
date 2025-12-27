@@ -474,6 +474,29 @@ export class NetworkMonitoringService {
             'SELECT * FROM network_links'
         );
 
+        // Auto-sync checks:
+        // 1. Check if we display any customers. If 0, and we have customers with lat/long, sync them!
+        const [customerCountResult] = await databasePool.query<RowDataPacket[]>(
+            "SELECT COUNT(*) as count FROM network_devices WHERE device_type = 'customer'"
+        );
+        const existingCustomerCount = (customerCountResult as any)[0]?.count || 0;
+
+        // If we have very few customers, it might be an indication of missing sync
+        if (existingCustomerCount === 0) {
+            // Check if we DO have customers with coordinates
+            const [potentialCustomers] = await databasePool.query<RowDataPacket[]>(
+                "SELECT COUNT(*) as count FROM customers WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
+            );
+            const potentialCount = (potentialCustomers as any)[0]?.count || 0;
+
+            if (potentialCount > 0) {
+                console.log('Topology request detected missing customers. Triggering auto-sync...');
+                await this.syncCustomerDevices();
+                // Re-fetch devices after sync
+                devices = await this.getAllDevices();
+            }
+        }
+
         const [stats] = await databasePool.query<RowDataPacket[]>(
             `SELECT 
                 COUNT(*) as total_devices,
@@ -693,6 +716,7 @@ export class NetworkMonitoringService {
             const hasConnectionLogs = tableNames.includes('connection_logs');
             const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
             const hasSlaIncidents = tableNames.includes('sla_incidents');
+            const hasTickets = tableNames.includes('tickets');
 
             // Check if is_isolated column exists in customers table
             let hasIsolated = false;
@@ -795,7 +819,6 @@ export class NetworkMonitoringService {
                 `);
             }
 
-            // 4. Customers with ongoing SLA incidents
             if (hasSlaIncidents) {
                 queries.push(`
                     SELECT DISTINCT
@@ -809,6 +832,22 @@ export class NetworkMonitoringService {
                     INNER JOIN sla_incidents si ON c.id = si.customer_id
                     WHERE si.status = 'ongoing'
                         AND c.status IN ('active', 'suspended')
+                `);
+            }
+
+            // 5. Customers with Open Tickets
+            if (hasTickets) {
+                queries.push(`
+                    SELECT DISTINCT
+                        c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+                        c.odc_id, c.odp_id, c.address, c.phone,
+                        NULL as maintenance_status,
+                        CONCAT('Ticket: ', t.subject) as issue_type,
+                        t.reported_at as trouble_since,
+                        'ticket' as trouble_type
+                    FROM customers c
+                    INNER JOIN tickets t ON c.id = t.customer_id
+                    WHERE t.status = 'open'
                 `);
             }
 
@@ -831,14 +870,16 @@ export class NetworkMonitoringService {
                         MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.issue_type END),
                         MAX(CASE WHEN trouble.trouble_type = 'offline' THEN trouble.issue_type END),
                         MAX(CASE WHEN trouble.trouble_type = 'sla_incident' THEN trouble.issue_type END),
+                        MAX(CASE WHEN trouble.trouble_type = 'ticket' THEN trouble.issue_type END),
                         MAX(trouble.issue_type)
                     ) as issue_type,
                     MAX(trouble.trouble_since) as trouble_since,
                     MIN(CASE trouble.trouble_type
                         WHEN 'maintenance' THEN 1
                         WHEN 'offline' THEN 2
-                        WHEN 'sla_incident' THEN 3
-                        ELSE 4
+                        WHEN 'ticket' THEN 3
+                        WHEN 'sla_incident' THEN 4
+                        ELSE 5
                     END) as priority_type
                 FROM (
                     ${queries.join(' UNION ALL ')}

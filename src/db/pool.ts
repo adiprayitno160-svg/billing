@@ -531,6 +531,41 @@ export async function ensureInitialSchema(): Promise<void> {
 			 '✅ *Layanan Internet Diaktifkan Kembali*\n\nHalo {customer_name},\n\nLayanan internet Anda telah diaktifkan kembali!\n\n📋 *Informasi:*\n{details}\n\n💡 *Terima Kasih:*\nTerima kasih telah melakukan pembayaran. Nikmati layanan internet Anda kembali!\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
 			 '["customer_name", "details"]', 'normal', TRUE)`);
 
+		// Create tickets table for SLA tracking
+		await conn.query(`CREATE TABLE IF NOT EXISTS tickets (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			ticket_number VARCHAR(50) UNIQUE,
+			subject VARCHAR(255),
+			description TEXT,
+			status ENUM('open', 'closed', 'resolved') DEFAULT 'open',
+			priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+			reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			resolved_at DATETIME NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_status (status),
+			CONSTRAINT fk_tickets_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create sla_records table
+		await conn.query(`CREATE TABLE IF NOT EXISTS sla_records (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			period VARCHAR(7) NOT NULL COMMENT 'Format YYYY-MM',
+			total_downtime_minutes INT DEFAULT 0,
+			ticket_count INT DEFAULT 0,
+			uptime_percentage DECIMAL(5,2) DEFAULT 100.00,
+			is_sla_breached BOOLEAN DEFAULT FALSE,
+			discount_percentage DECIMAL(5,2) DEFAULT 0.00,
+			calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY unique_customer_period (customer_id, period),
+			CONSTRAINT fk_sla_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
 	} finally {
 		conn.release();
 	}

@@ -677,59 +677,74 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                 const year = parseInt(periodParts[0]);
                 const month = parseInt(periodParts[1]);
 
-                // month_year format is first day of month (YYYY-MM-01)
-                const monthYearStr = `${year}-${month.toString().padStart(2, '0')}-01`;
+                // Calculate start and end of the period
+                const startDate = `${invoice.period}-01 00:00:00`;
+                const endDate = new Date(year, month, 0, 23, 59, 59).toISOString().slice(0, 19).replace('T', ' ');
 
-                const [slaRecords] = await conn.query(`
+                // Query closed tickets in this period
+                // Downtime counts from reported_at to resolved_at
+                const [tickets] = await conn.query(`
                     SELECT 
-                        sla_percentage,
-                        sla_status,
-                        discount_amount,
-                        downtime_minutes,
-                        incident_count
-                    FROM sla_records
+                        id, reported_at, resolved_at
+                    FROM tickets
                     WHERE customer_id = ? 
-                    AND month_year = ?
-                    LIMIT 1
-                `, [invoice.customer_id, monthYearStr]) as any;
+                    AND reported_at >= ? 
+                    AND reported_at <= ?
+                    AND status IN ('closed', 'resolved')
+                    AND resolved_at IS NOT NULL
+                `, [invoice.customer_id, startDate, endDate]) as any;
 
-                if (slaRecords.length > 0) {
-                    const slaRecord = slaRecords[0];
+                let totalDowntimeMinutes = 0;
+                const incidentCount = tickets.length;
 
-                    // NEW FORMULA: Kompensasi = selisih antara target dan aktual
-                    const uptimePercentage = parseFloat(slaRecord.sla_percentage) || 100;
-                    const actualTarget = slaTarget; // Use dynamic SLA target
-
-                    let discountPercentage = 0;
-                    let discountAmount = 0;
-
-                    // Hitung kompensasi jika uptime di bawah target
-                    if (uptimePercentage < actualTarget) {
-                        // Selisih = target - aktual
-                        discountPercentage = actualTarget - uptimePercentage;
-
-                        // Cap maksimum 30%
-                        if (discountPercentage > 30.0) {
-                            discountPercentage = 30.0;
-                        }
-
-                        // Calculate discount amount
-                        discountAmount = slaRecord.discount_amount > 0
-                            ? parseFloat(slaRecord.discount_amount)
-                            : (parseFloat(invoice.total_amount) * discountPercentage / 100);
+                for (const ticket of tickets) {
+                    const reported = new Date(ticket.reported_at);
+                    const resolved = new Date(ticket.resolved_at);
+                    const diffMs = resolved.getTime() - reported.getTime();
+                    if (diffMs > 0) {
+                        totalDowntimeMinutes += Math.floor(diffMs / 60000);
                     }
-
-                    slaDiscount = {
-                        uptime_percentage: uptimePercentage,
-                        sla_target: actualTarget,
-                        sla_met: uptimePercentage >= actualTarget,
-                        discount_percentage: discountPercentage,
-                        discount_amount: discountAmount,
-                        total_downtime_minutes: slaRecord.downtime_minutes || 0,
-                        incident_count: slaRecord.incident_count || 0,
-                        applicable: discountPercentage > 0
-                    };
                 }
+
+                // SLA Constants per User Request
+                const TOTAL_HOURS_MONTH = 720; // 30 days * 24 hours
+                const TARGET_SLA = 90.0; // 90%
+
+                // Calculate Uptime
+                const totalDowntimeHours = totalDowntimeMinutes / 60;
+                const uptimeHours = TOTAL_HOURS_MONTH - totalDowntimeHours;
+                let uptimePercentage = (uptimeHours / TOTAL_HOURS_MONTH) * 100;
+
+                // Clamp uptime (cannot be > 100%)
+                if (uptimePercentage > 100) uptimePercentage = 100;
+                if (uptimePercentage < 0) uptimePercentage = 0;
+
+                let discountPercentage = 0;
+                let discountAmount = 0;
+
+                // Calculate Discount: If Uptime < 90%, Discount = 90% - RealUptime%
+                if (uptimePercentage < TARGET_SLA) {
+                    discountPercentage = TARGET_SLA - uptimePercentage;
+
+                    // Optional: Cap discount (e.g. max 100% or user defined? User didn't specify cap, but code had 30%. keeping safety cap)
+                    // User said: "Contoh: Jika uptime 85%, diskon adalah 5%". No cap mentioned.
+                    // I'll leave the cap if it feels unsafe, but prompt implies specific math. 
+                    // Let's remove the arbitrary 30% cap to follow user instructions strictly, 
+                    // or set it to 100% implicitly.
+
+                    discountAmount = parseFloat(invoice.total_amount) * (discountPercentage / 100);
+                }
+
+                slaDiscount = {
+                    uptime_percentage: uptimePercentage,
+                    sla_target: TARGET_SLA,
+                    sla_met: uptimePercentage >= TARGET_SLA,
+                    discount_percentage: discountPercentage,
+                    discount_amount: discountAmount,
+                    total_downtime_minutes: totalDowntimeMinutes,
+                    incident_count: incidentCount,
+                    applicable: discountPercentage > 0
+                };
             }
 
             console.log('[Payment Form] Rendering view with SLA discount:', slaDiscount);
