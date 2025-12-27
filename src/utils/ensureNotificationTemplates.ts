@@ -99,6 +99,17 @@ export async function ensureNotificationTemplates(): Promise<void> {
         variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'paid_amount', 'remaining_amount', 'due_date', 'days_overdue']),
         priority: 'high',
         is_active: true
+      },
+      {
+        template_code: 'pre_block_warning',
+        template_name: 'Peringatan Blokir Awal Bulan',
+        notification_type: 'pre_block_warning',
+        channel: 'whatsapp',
+        title_template: 'Peringatan: Layanan Akan Diblokir Tanggal 1',
+        message_template: '🚨 *PERINGATAN: Layanan Akan Diblokir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan *DIBLOKIR pada tanggal {blocking_date}* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Kode Pelanggan: {customer_code}\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n• Jatuh Tempo: {due_date}\n\n⏳ *Waktu Tersisa: {days_until_block} hari*\n\n⚠️ *PENTING:*\n• Tanggal 1 adalah masa transisi ke blokir\n• Segera lakukan pembayaran sebelum tanggal 1\n• Setelah diblokir, layanan tidak dapat digunakan\n• Pembayaran setelah blokir akan memulihkan layanan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\n🔔 Jangan sampai layanan Anda terputus. Bayar sekarang!\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'customer_code', 'invoice_number', 'total_amount', 'remaining_amount', 'due_date', 'blocking_date', 'days_until_block']),
+        priority: 'high',
+        is_active: true
       }
     ];
 
