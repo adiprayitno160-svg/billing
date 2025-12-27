@@ -36,9 +36,13 @@ export class SystemUpdateController {
                 const { stdout: commitOutput } = await execAsync('git rev-parse --short HEAD');
                 gitCommit = commitOutput.trim();
 
-                const { stdout: statusOutput } = await execAsync('git status -uno');
-                gitStatus = statusOutput.includes('Your branch is behind') ? 'Updates Available' : 'Up to date';
-                hasUpdates = statusOutput.includes('Your branch is behind');
+                // Check if behind using rev-list (more reliable than git status)
+                await execAsync('git fetch origin');
+                const { stdout: revList } = await execAsync('git rev-list HEAD..origin/main --count');
+                const commitsBehind = parseInt(revList.trim(), 10);
+
+                hasUpdates = commitsBehind > 0;
+                gitStatus = hasUpdates ? `${commitsBehind} New Updates Available` : 'Up to date';
             } catch (error) {
                 console.error('Git command error:', error);
             }
@@ -69,15 +73,10 @@ export class SystemUpdateController {
             await execAsync('git fetch origin');
 
             // Check if behind
-            const { stdout: statusOutput } = await execAsync('git status -uno');
-            const hasUpdates = statusOutput.includes('Your branch is behind');
-
-            // Get commits ahead/behind
-            let commitsBehind = 0;
-            if (hasUpdates) {
-                const { stdout: revList } = await execAsync('git rev-list HEAD..origin/main --count');
-                commitsBehind = parseInt(revList.trim(), 10);
-            }
+            // Get commits ahead/behind using rev-list
+            const { stdout: revList } = await execAsync('git rev-list HEAD..origin/main --count');
+            const commitsBehind = parseInt(revList.trim(), 10);
+            const hasUpdates = commitsBehind > 0;
 
             // Get latest commit info from remote
             const { stdout: latestCommit } = await execAsync('git log origin/main -1 --pretty=format:"%h - %s (%cr)"');
