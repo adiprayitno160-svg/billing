@@ -215,6 +215,61 @@ export async function ensureInitialSchema(): Promise<void> {
 			CONSTRAINT fk_odp_odc FOREIGN KEY (odc_id) REFERENCES ftth_odc(id) ON DELETE CASCADE
 		)`);
 
+		// Create network_devices table for unified network monitoring
+		await conn.query(`CREATE TABLE IF NOT EXISTS network_devices (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			device_type ENUM('customer', 'ont', 'olt', 'odc', 'odp', 'router', 'switch', 'access_point') NOT NULL,
+			name VARCHAR(191) NOT NULL,
+			ip_address VARCHAR(45) NULL,
+			mac_address VARCHAR(17) NULL,
+			genieacs_id VARCHAR(191) NULL,
+			genieacs_serial VARCHAR(191) NULL,
+			customer_id INT NULL,
+			olt_id INT NULL,
+			odc_id INT NULL,
+			odp_id INT NULL,
+			latitude DECIMAL(10,8) NULL,
+			longitude DECIMAL(11,8) NULL,
+			address TEXT NULL,
+			status ENUM('online', 'offline', 'warning', 'unknown') DEFAULT 'unknown',
+			last_seen DATETIME NULL,
+			last_check DATETIME NULL,
+			latency_ms INT NULL,
+			packet_loss_percent DECIMAL(5,2) NULL,
+			uptime_percent DECIMAL(5,2) NULL,
+			metadata JSON NULL,
+			icon VARCHAR(50) NULL,
+			color VARCHAR(20) NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_device_type (device_type),
+			INDEX idx_status (status),
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_genieacs_id (genieacs_id),
+			INDEX idx_olt_id (olt_id),
+			INDEX idx_odc_id (odc_id),
+			INDEX idx_odp_id (odp_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create network_links table for topology connections
+		await conn.query(`CREATE TABLE IF NOT EXISTS network_links (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			source_device_id INT NOT NULL,
+			target_device_id INT NOT NULL,
+			link_type VARCHAR(50) DEFAULT 'fiber',
+			bandwidth_mbps INT NULL,
+			status VARCHAR(20) DEFAULT 'up',
+			color VARCHAR(20) NULL,
+			width INT DEFAULT 1,
+			style VARCHAR(20) DEFAULT 'solid',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_source (source_device_id),
+			INDEX idx_target (target_device_id),
+			CONSTRAINT fk_link_source FOREIGN KEY (source_device_id) REFERENCES network_devices(id) ON DELETE CASCADE,
+			CONSTRAINT fk_link_target FOREIGN KEY (target_device_id) REFERENCES network_devices(id) ON DELETE CASCADE
+		)`);
+
 		// Create address_lists table for MikroTik address list management
 		await conn.query(`CREATE TABLE IF NOT EXISTS address_lists (
 			id INT AUTO_INCREMENT PRIMARY KEY,
