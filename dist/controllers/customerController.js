@@ -330,12 +330,15 @@ const getCustomerDetail = async (req, res) => {
                 c.*,
                 s.package_name as postpaid_package_name,
                 s.price as subscription_price,
+                s.package_id as subscription_package_id,
                 pp.name as pppoe_package_name,
                 pp.rate_limit_rx,
                 pp.rate_limit_tx,
                 pp.price as pppoe_package_price,
                 pp.description as pppoe_package_description,
-                olt.name as olt_name
+                olt.name as olt_name,
+                odc.name as odc_name,
+                odp.name as odp_name
             FROM customers c
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
             LEFT JOIN pppoe_packages pp ON s.package_id = pp.id AND c.connection_type = 'pppoe'
@@ -665,6 +668,37 @@ const updateCustomer = async (req, res) => {
                 // Note: Password update will be handled after MikroTik sync to ensure consistency
                 updateValues.push(customerId);
                 await conn.query(`UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`, updateValues);
+            }
+            // ========== UPDATE SUBSCRIPTION KETIKA PAKET DIUBAH ==========
+            // Handle package update for PPPoE customers
+            if (connection_type === 'pppoe' && pppoe_package) {
+                const packageId = parseInt(pppoe_package);
+                if (!isNaN(packageId) && packageId > 0) {
+                    console.log(`[Edit Customer] Updating subscription for customer ${customerId} to package ${packageId}`);
+                    // Get package details
+                    const [packageRows] = await conn.query('SELECT id, name, price FROM pppoe_packages WHERE id = ?', [packageId]);
+                    if (packageRows && packageRows.length > 0) {
+                        const pkg = packageRows[0];
+                        // Check if subscription exists
+                        const [existingSubs] = await conn.query('SELECT id FROM subscriptions WHERE customer_id = ? AND status = "active"', [customerId]);
+                        if (existingSubs && existingSubs.length > 0) {
+                            // Update existing subscription
+                            await conn.query(`UPDATE subscriptions 
+                                 SET package_id = ?, package_name = ?, price = ?, updated_at = NOW() 
+                                 WHERE customer_id = ? AND status = 'active'`, [pkg?.id, pkg?.name, pkg?.price, customerId]);
+                            console.log(`[Edit Customer] ✅ Subscription updated to package: ${pkg?.name}`);
+                        }
+                        else {
+                            // Create new subscription
+                            await conn.query(`INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)
+                                 VALUES (?, ?, ?, ?, 'active', NOW(), NOW(), NOW())`, [customerId, pkg?.id, pkg?.name, pkg?.price]);
+                            console.log(`[Edit Customer] ✅ New subscription created with package: ${pkg?.name}`);
+                        }
+                    }
+                    else {
+                        console.log(`[Edit Customer] ⚠️ Package ID ${packageId} not found in pppoe_packages`);
+                    }
+                }
             }
             await conn.commit();
             // Sync secret ke MikroTik untuk PPPoE customers

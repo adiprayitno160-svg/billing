@@ -268,6 +268,105 @@ class IsolationService {
         return { warned, failed };
     }
     /**
+     * Send pre-block warnings to customers with unpaid invoices
+     * Called from 25th to end of month, warning about blocking on the 1st
+     */
+    static async sendPreBlockWarnings() {
+        const connection = await pool_1.databasePool.getConnection();
+        let warned = 0;
+        let failed = 0;
+        try {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            // Get current month period (YYYY-MM)
+            const currentPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            // Calculate blocking date (1st of next month)
+            const nextMonth = new Date(currentYear, currentMonth + 1, 1);
+            const blockingDate = nextMonth.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            // Get customers with unpaid invoices for current month
+            const query = `
+                SELECT DISTINCT 
+                    c.id, 
+                    c.name, 
+                    c.phone, 
+                    c.customer_code,
+                    i.id as invoice_id,
+                    i.invoice_number,
+                    i.total_amount,
+                    i.remaining_amount,
+                    i.due_date
+                FROM customers c
+                JOIN invoices i ON c.id = i.customer_id
+                WHERE i.period = ?
+                AND i.status IN ('sent', 'partial', 'overdue', 'draft')
+                AND i.remaining_amount > 0
+                AND c.is_isolated = FALSE
+                AND c.status = 'active'
+                AND c.phone IS NOT NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM notification_queue nq
+                    WHERE nq.customer_id = c.id
+                    AND nq.notification_type = 'pre_block_warning'
+                    AND DATE(nq.created_at) = CURDATE()
+                )
+            `;
+            const [customers] = await connection.query(query, [currentPeriod]);
+            console.log(`[Pre-Block Warning] Found ${customers.length} customers with unpaid invoices for period ${currentPeriod}`);
+            for (const customer of customers) {
+                try {
+                    if (!customer.phone) {
+                        console.log(`[Pre-Block Warning] ⚠️ No phone number for customer ${customer.name}, skipping`);
+                        continue;
+                    }
+                    const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
+                    // Calculate days until blocking
+                    const daysUntilBlock = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    console.log(`[Pre-Block Warning] 📱 Sending warning to ${customer.name} - ${daysUntilBlock} days until block...`);
+                    const notificationIds = await UnifiedNotificationService.queueNotification({
+                        customer_id: customer.id,
+                        invoice_id: customer.invoice_id,
+                        notification_type: 'pre_block_warning',
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: customer.name || 'Pelanggan',
+                            customer_code: customer.customer_code || '',
+                            invoice_number: customer.invoice_number || '',
+                            total_amount: parseFloat(customer.total_amount || 0).toLocaleString('id-ID'),
+                            remaining_amount: parseFloat(customer.remaining_amount || 0).toLocaleString('id-ID'),
+                            due_date: customer.due_date ? new Date(customer.due_date).toLocaleDateString('id-ID') : '-',
+                            blocking_date: blockingDate,
+                            days_until_block: daysUntilBlock.toString()
+                        },
+                        priority: 'high'
+                    });
+                    console.log(`[Pre-Block Warning] ✅ Warning queued for ${customer.name} (IDs: ${notificationIds.join(', ')})`);
+                    // Process queue immediately
+                    try {
+                        const result = await UnifiedNotificationService.sendPendingNotifications(10);
+                        console.log(`[Pre-Block Warning] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed`);
+                    }
+                    catch (queueError) {
+                        console.warn(`[Pre-Block Warning] ⚠️ Queue processing error (non-critical):`, queueError.message);
+                    }
+                    warned++;
+                }
+                catch (error) {
+                    console.error(`[Pre-Block Warning] Failed to send warning to customer ${customer.id}:`, error.message);
+                    failed++;
+                }
+            }
+        }
+        catch (error) {
+            console.error('[Pre-Block Warning] Error sending pre-block warnings:', error);
+            throw error;
+        }
+        finally {
+            connection.release();
+        }
+        return { warned, failed };
+    }
+    /**
      * Auto isolir pelanggan dengan invoice overdue
      */
     static async autoIsolateOverdueCustomers() {

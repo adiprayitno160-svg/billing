@@ -230,10 +230,10 @@ class InvoiceService {
                 for (const subscription of subscriptionResult) {
                     try {
                         console.log(`[InvoiceService] Processing subscription: ${subscription.subscription_id} for customer: ${subscription.customer_name}`);
-                        // Billing mengikuti tanggal daftar: Jatuh tempo H+1 dari tanggal tagihan
-                        const invoiceDate = new Date(subscription.start_date || periodDate);
-                        const dueDate = new Date(invoiceDate);
-                        dueDate.setDate(dueDate.getDate() + 1); // Jatuh tempo H+1
+                        // Jatuh tempo: tanggal 28 bulan ini
+                        const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
+                        const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
+                        const dueDate = new Date(periodYear, periodMonth - 1, 28); // Tanggal 28 bulan invoice
                         // Check for carry over amount (with error handling)
                         let carryOverAmount = 0;
                         try {
@@ -337,8 +337,10 @@ class InvoiceService {
                 const defaultPrice = 100000; // Harga default jika tidak ada paket
                 for (const customer of customerResult) {
                     try {
-                        const dueDate = new Date(periodDate);
-                        dueDate.setDate(dueDate.getDate() + 7); // Jatuh tempo H+7
+                        // Jatuh tempo: tanggal 28 bulan ini
+                        const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
+                        const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
+                        const dueDate = new Date(periodYear, periodMonth - 1, 28); // Tanggal 28 bulan invoice
                         const invoiceData = {
                             customer_id: customer.customer_id || 0,
                             period: period,

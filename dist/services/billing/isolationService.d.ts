@@ -17,6 +17,14 @@ export declare class IsolationService {
         failed: number;
     }>;
     /**
+     * Send pre-block warnings to customers with unpaid invoices
+     * Called from 25th to end of month, warning about blocking on the 1st
+     */
+    static sendPreBlockWarnings(): Promise<{
+        warned: number;
+        failed: number;
+    }>;
+    /**
      * Auto isolir pelanggan dengan invoice overdue
      */
     static autoIsolateOverdueCustomers(): Promise<{

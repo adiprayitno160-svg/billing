@@ -50,7 +50,12 @@ class SchedulerService {
             return;
         }
         console.log('Initializing billing scheduler...');
-        // Generate monthly invoices - jadwal dinamis (default tanggal 1 jam 00:10)
+        // ========== ALUR BILLING BARU ==========
+        // 1. Tanggal 1: Generate tagihan otomatis untuk bulan berjalan
+        // 2. Jatuh tempo: Tanggal 28 bulan tersebut
+        // 3. Tanggal 25-31: Kirim notifikasi peringatan blokir
+        // 4. Tanggal 1 bulan berikutnya: Blokir otomatis yang belum bayar
+        // Generate monthly invoices - tanggal 1 jam 00:10
         this.applyInvoiceScheduleFromDb().catch((err) => {
             console.error('Failed to apply Invoice Generation schedule, fallback to default (day 1 00:10):', err);
             this.scheduleInvoiceGeneration([1], 0, 10);
@@ -60,11 +65,10 @@ class SchedulerService {
             console.error('Failed to apply Payment Reminder schedule, fallback enabling at 08:00 daily:', err);
             this.schedulePaymentReminders(true);
         });
-        // Auto isolate overdue customers - jadwal dinamis (default tanggal 1 jam 00:00)
-        // HARUS dijalankan SEBELUM generate tagihan baru
+        // Auto isolate - tanggal 1 jam 00:00 (blokir yang belum bayar tagihan bulan sebelumnya)
         this.applyAutoIsolationScheduleFromDb().catch((err) => {
             console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
-            this.scheduleAutoIsolation([1], 0, 0); // Jam 00:00
+            this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
         });
         // Auto restore paid customers - setiap hari jam 06:00
         cron.schedule('0 6 * * *', async () => {
@@ -99,8 +103,25 @@ class SchedulerService {
             this.scheduleOverdueNotifications(true);
         });
         // Send isolation warnings 3 days before isolation - daily at 09:00
+        // ALSO send warnings from 25th-31st of each month (before blocking on 1st)
         cron.schedule('0 9 * * *', async () => {
-            console.log('Running isolation warnings (3 days before)...');
+            const today = new Date();
+            const dayOfMonth = today.getDate();
+            // Send warnings from 25th to end of month (days before blocking on 1st)
+            if (dayOfMonth >= 25) {
+                console.log(`[Pre-Block Warning] Running on day ${dayOfMonth} - sending block warnings...`);
+                try {
+                    const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                    // Send warnings for unpaid invoices that will be blocked on 1st
+                    const result = await IsolationService.sendPreBlockWarnings();
+                    console.log(`[Pre-Block Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
+                }
+                catch (error) {
+                    console.error('Error sending pre-block warnings:', error);
+                }
+            }
+            // Also send regular isolation warnings (3 days before deadline)
+            console.log('Running isolation warnings (3 days before deadline)...');
             try {
                 const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
                 const result = await IsolationService.sendIsolationWarnings(3);

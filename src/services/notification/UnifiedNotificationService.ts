@@ -30,7 +30,8 @@ export type NotificationType =
   | 'customer_migrated_to_postpaid'
   | 'payment_debt'
   | 'isolation_warning'
-  | 'payment_shortage_warning';
+  | 'payment_shortage_warning'
+  | 'pre_block_warning';
 
 export type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push';
 

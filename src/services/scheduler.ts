@@ -23,7 +23,13 @@ export class SchedulerService {
 
         console.log('Initializing billing scheduler...');
 
-        // Generate monthly invoices - jadwal dinamis (default tanggal 1 jam 00:10)
+        // ========== ALUR BILLING BARU ==========
+        // 1. Tanggal 1: Generate tagihan otomatis untuk bulan berjalan
+        // 2. Jatuh tempo: Tanggal 28 bulan tersebut
+        // 3. Tanggal 25-31: Kirim notifikasi peringatan blokir
+        // 4. Tanggal 1 bulan berikutnya: Blokir otomatis yang belum bayar
+
+        // Generate monthly invoices - tanggal 1 jam 00:10
         this.applyInvoiceScheduleFromDb().catch((err) => {
             console.error('Failed to apply Invoice Generation schedule, fallback to default (day 1 00:10):', err);
             this.scheduleInvoiceGeneration([1], 0, 10);
@@ -35,11 +41,10 @@ export class SchedulerService {
             this.schedulePaymentReminders(true);
         });
 
-        // Auto isolate overdue customers - jadwal dinamis (default tanggal 1 jam 00:00)
-        // HARUS dijalankan SEBELUM generate tagihan baru
+        // Auto isolate - tanggal 1 jam 00:00 (blokir yang belum bayar tagihan bulan sebelumnya)
         this.applyAutoIsolationScheduleFromDb().catch((err) => {
             console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
-            this.scheduleAutoIsolation([1], 0, 0); // Jam 00:00
+            this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
         });
 
         // Auto restore paid customers - setiap hari jam 06:00
@@ -76,8 +81,26 @@ export class SchedulerService {
         });
 
         // Send isolation warnings 3 days before isolation - daily at 09:00
+        // ALSO send warnings from 25th-31st of each month (before blocking on 1st)
         cron.schedule('0 9 * * *', async () => {
-            console.log('Running isolation warnings (3 days before)...');
+            const today = new Date();
+            const dayOfMonth = today.getDate();
+
+            // Send warnings from 25th to end of month (days before blocking on 1st)
+            if (dayOfMonth >= 25) {
+                console.log(`[Pre-Block Warning] Running on day ${dayOfMonth} - sending block warnings...`);
+                try {
+                    const { IsolationService } = await import('./billing/isolationService');
+                    // Send warnings for unpaid invoices that will be blocked on 1st
+                    const result = await IsolationService.sendPreBlockWarnings();
+                    console.log(`[Pre-Block Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
+                } catch (error) {
+                    console.error('Error sending pre-block warnings:', error);
+                }
+            }
+
+            // Also send regular isolation warnings (3 days before deadline)
+            console.log('Running isolation warnings (3 days before deadline)...');
             try {
                 const { IsolationService } = await import('./billing/isolationService');
                 const result = await IsolationService.sendIsolationWarnings(3);
@@ -164,11 +187,11 @@ export class SchedulerService {
         try {
             // WhatsApp service removed
             // const whatsappService = new WhatsappService();
-            
+
             // Get invoices due in 3 days
             const dueIn3Days = new Date();
             dueIn3Days.setDate(dueIn3Days.getDate() + 3);
-            
+
             const { databasePool } = await import('../db/pool');
             const query = `
                 SELECT i.*, c.name as customer_name, c.phone
@@ -178,9 +201,9 @@ export class SchedulerService {
                 AND i.due_date = $1
                 AND c.phone IS NOT NULL
             `;
-            
+
             const result = await databasePool.query(query, [dueIn3Days.toISOString().split('T')[0]]);
-            
+
             for (const invoice of result) {
                 // WhatsApp notification removed
                 // await whatsappService.sendPaymentReminder(invoice);
@@ -198,7 +221,7 @@ export class SchedulerService {
             // WhatsApp service removed
             // const whatsappService = new WhatsappService();
             const overdueInvoices = await InvoiceService.getOverdueInvoices();
-            
+
             for (const invoice of overdueInvoices) {
                 // WhatsApp notification removed
                 // if (invoice.phone) {
@@ -216,15 +239,15 @@ export class SchedulerService {
     private static async calculateSlaAndApplyDiscounts(): Promise<void> {
         try {
             const { DiscountService } = await import('./billing/discountService');
-            
+
             // Get previous month
             const currentDate = new Date();
             const previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
             const period = `${previousMonth.getFullYear()}-${(previousMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-            
+
             // Calculate SLA for all customers
             const slaResults: any[] = [];
-            
+
             // Apply discounts based on SLA
             /*for (const result of slaResults) {
                 if (result.compensation_amount > 0) {
@@ -253,7 +276,7 @@ export class SchedulerService {
     /**
      * Manual trigger for auto isolation
      */
-    static async triggerAutoIsolation(): Promise<{isolated: number, failed: number}> {
+    static async triggerAutoIsolation(): Promise<{ isolated: number, failed: number }> {
         try {
             // IsolationService removed - functionality disabled
             // return await IsolationService.autoIsolateOverdueCustomers();
@@ -267,7 +290,7 @@ export class SchedulerService {
     /**
      * Manual trigger for auto restore
      */
-    static async triggerAutoRestore(): Promise<{restored: number, failed: number}> {
+    static async triggerAutoRestore(): Promise<{ restored: number, failed: number }> {
         try {
             // IsolationService removed - functionality disabled
             // return await IsolationService.autoRestorePaidCustomers();
@@ -281,7 +304,7 @@ export class SchedulerService {
     /**
      * Get scheduler status
      */
-    static getStatus(): {isRunning: boolean, initialized: boolean, tasks: string[], lastRun?: string, nextRun?: string, totalJobs?: number} {
+    static getStatus(): { isRunning: boolean, initialized: boolean, tasks: string[], lastRun?: string, nextRun?: string, totalJobs?: number } {
         return {
             isRunning: this.isInitialized,
             initialized: this.isInitialized,
@@ -306,7 +329,7 @@ export class SchedulerService {
     // =============== INVOICE GENERATION SCHEDULING ===============
     private static scheduleInvoiceGeneration(daysOfMonth: number[], hour: number = 0, minute: number = 10): void {
         for (const job of this.invoiceGenerationJobs) {
-            try { job.stop(); } catch {}
+            try { job.stop(); } catch { }
         }
         this.invoiceGenerationJobs = [];
 
@@ -319,7 +342,7 @@ export class SchedulerService {
         for (const day of uniqueDays) {
             const expression = `${m} ${h} ${day} * *`;
             const task = cron.schedule(expression, async () => {
-                console.log(`[Invoice Generation] Running for day ${day} at ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+                console.log(`[Invoice Generation] Running for day ${day} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
                 try {
                     const currentDate = new Date();
                     const period = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -332,7 +355,7 @@ export class SchedulerService {
             }, { scheduled: true, timezone: 'Asia/Jakarta' });
             this.invoiceGenerationJobs.push(task);
         }
-        console.log(`[Invoice Generation] Scheduled for days: ${uniqueDays.join(', ')} at ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+        console.log(`[Invoice Generation] Scheduled for days: ${uniqueDays.join(', ')} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     }
 
     private static async applyInvoiceScheduleFromDb(): Promise<void> {
@@ -355,7 +378,7 @@ export class SchedulerService {
             }
         }
         if (!isActive) {
-            for (const job of this.invoiceGenerationJobs) { try { job.stop(); } catch {} }
+            for (const job of this.invoiceGenerationJobs) { try { job.stop(); } catch { } }
             this.invoiceGenerationJobs = [];
             console.log('[Invoice Generation] Disabled via settings');
             return;
@@ -363,7 +386,7 @@ export class SchedulerService {
         this.scheduleInvoiceGeneration(days && days.length ? days : [1], hour, minute);
     }
 
-    static async updateInvoiceSchedule(daysOfMonth: number[], isActive = true, hour: number = 0, minute: number = 10): Promise<{days: number[], isActive: boolean, hour: number, minute: number}> {
+    static async updateInvoiceSchedule(daysOfMonth: number[], isActive = true, hour: number = 0, minute: number = 10): Promise<{ days: number[], isActive: boolean, hour: number, minute: number }> {
         const validDays = Array.from(new Set(daysOfMonth.filter(d => Number.isInteger(d) && d >= 1 && d <= 31)));
         const daysToSave = validDays.length ? validDays : [1];
         const h = Math.max(0, Math.min(23, Number(hour)));
@@ -372,12 +395,12 @@ export class SchedulerService {
             `INSERT INTO scheduler_settings (task_name, cron_schedule, description, is_enabled)
              VALUES ('monthly_invoice', ?, 'Generate monthly invoices', ?)
              ON DUPLICATE KEY UPDATE cron_schedule = VALUES(cron_schedule), is_enabled = VALUES(is_enabled), updated_at = CURRENT_TIMESTAMP`,
-            [`${daysToSave.join(',')}|${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`, isActive ? 1 : 0]
+            [`${daysToSave.join(',')}|${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`, isActive ? 1 : 0]
         );
         if (isActive) {
             this.scheduleInvoiceGeneration(daysToSave, h, m);
         } else {
-            for (const job of this.invoiceGenerationJobs) { try { job.stop(); } catch {} }
+            for (const job of this.invoiceGenerationJobs) { try { job.stop(); } catch { } }
             this.invoiceGenerationJobs = [];
             console.log('[Invoice Generation] Disabled');
         }
@@ -386,7 +409,7 @@ export class SchedulerService {
 
     // =============== REMINDER/OVERDUE TOGGLES ===============
     private static schedulePaymentReminders(enable: boolean): void {
-        if (this.paymentReminderJob) { try { this.paymentReminderJob.stop(); } catch {} this.paymentReminderJob = null; }
+        if (this.paymentReminderJob) { try { this.paymentReminderJob.stop(); } catch { } this.paymentReminderJob = null; }
         if (!enable) { console.log('[Payment Reminders] Disabled'); return; }
         this.paymentReminderJob = cron.schedule('0 8 * * *', async () => {
             console.log('Running payment reminders...');
@@ -396,7 +419,7 @@ export class SchedulerService {
     }
 
     private static scheduleOverdueNotifications(enable: boolean): void {
-        if (this.overdueNotificationJob) { try { this.overdueNotificationJob.stop(); } catch {} this.overdueNotificationJob = null; }
+        if (this.overdueNotificationJob) { try { this.overdueNotificationJob.stop(); } catch { } this.overdueNotificationJob = null; }
         if (!enable) { console.log('[Overdue Notifications] Disabled'); return; }
         this.overdueNotificationJob = cron.schedule('0 10 * * *', async () => {
             console.log('Running overdue notifications...');
@@ -445,7 +468,7 @@ export class SchedulerService {
     private static scheduleAutoIsolation(daysOfMonth: number[], hour: number = 0, minute: number = 0): void {
         // Clear previous jobs
         for (const job of this.autoIsolationJobs) {
-            try { job.stop(); } catch {}
+            try { job.stop(); } catch { }
         }
         this.autoIsolationJobs = [];
 
@@ -459,7 +482,7 @@ export class SchedulerService {
         for (const day of uniqueDays) {
             const expression = `${m} ${h} ${day} * *`;
             const task = cron.schedule(expression, async () => {
-                console.log(`[Auto Isolation] Running for day ${day} at ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+                console.log(`[Auto Isolation] Running for day ${day} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
                 try {
                     // Isolir pelanggan dengan tagihan bulan sebelumnya yang belum lunas
                     const result = await IsolationService.autoIsolatePreviousMonthUnpaid();
@@ -471,7 +494,7 @@ export class SchedulerService {
             this.autoIsolationJobs.push(task);
         }
 
-        console.log(`[Auto Isolation] Scheduled for days: ${uniqueDays.join(', ')} at ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+        console.log(`[Auto Isolation] Scheduled for days: ${uniqueDays.join(', ')} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     }
 
     /**
@@ -506,7 +529,7 @@ export class SchedulerService {
         if (!isActive) {
             // If disabled, clear jobs
             for (const job of this.autoIsolationJobs) {
-                try { job.stop(); } catch {}
+                try { job.stop(); } catch { }
             }
             this.autoIsolationJobs = [];
             console.log('[Auto Isolation] Disabled via settings');
@@ -518,7 +541,7 @@ export class SchedulerService {
     /**
      * Update Auto Isolation schedule and re-schedule jobs
      */
-    static async updateAutoIsolationSchedule(daysOfMonth: number[], isActive = true, hour: number = 1, minute: number = 0): Promise<{days: number[], isActive: boolean, hour: number, minute: number}> {
+    static async updateAutoIsolationSchedule(daysOfMonth: number[], isActive = true, hour: number = 1, minute: number = 0): Promise<{ days: number[], isActive: boolean, hour: number, minute: number }> {
         const validDays = Array.from(new Set(daysOfMonth.filter(d => Number.isInteger(d) && d >= 1 && d <= 31)));
         const daysToSave = validDays.length ? validDays : [1];
         const h = Math.max(0, Math.min(23, Number(hour)));
@@ -527,14 +550,14 @@ export class SchedulerService {
             `INSERT INTO scheduler_settings (task_name, cron_schedule, description, is_enabled)
              VALUES ('auto_isolation', ?, 'Auto isolate overdue customers', ?)
              ON DUPLICATE KEY UPDATE cron_schedule = VALUES(cron_schedule), is_enabled = VALUES(is_enabled), updated_at = CURRENT_TIMESTAMP`,
-            [`${daysToSave.join(',')}|${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`, isActive ? 1 : 0]
+            [`${daysToSave.join(',')}|${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`, isActive ? 1 : 0]
         );
 
         if (isActive) {
             this.scheduleAutoIsolation(daysToSave, h, m);
         } else {
             for (const job of this.autoIsolationJobs) {
-                try { job.stop(); } catch {}
+                try { job.stop(); } catch { }
             }
             this.autoIsolationJobs = [];
             console.log('[Auto Isolation] Disabled');
