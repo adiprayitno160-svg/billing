@@ -31,9 +31,13 @@ export class WhatsAppBotService {
      * Returns customer object if valid, null otherwise (and sends rejection message)
      */
     private static async validateCustomer(phone: string): Promise<any | null> {
+        console.log(`[WhatsAppBot] 🔍 Validating customer for phone: ${phone}`);
+
         const customer = await this.getCustomerByPhone(phone);
 
         if (!customer) {
+            console.log(`[WhatsAppBot] ❌ Customer NOT FOUND for phone: ${phone}`);
+
             await this.sendMessage(
                 phone,
                 '⛔ *AKSES DITOLAK*\n\n' +
@@ -44,6 +48,7 @@ export class WhatsAppBotService {
             return null;
         }
 
+        console.log(`[WhatsAppBot] ✅ Customer FOUND: ${customer.name} (ID: ${customer.id})`);
         return customer;
     }
 
@@ -904,43 +909,56 @@ Ketik /menu untuk kembali ke menu utama.`;
      */
     private static async getCustomerByPhone(phone: string): Promise<any | null> {
         try {
-            let normalizedPhone = phone.replace('@c.us', '').trim();
+            let normalizedPhone = phone.replace('@c.us', '').replace('@s.whatsapp.net', '').trim();
+            console.log(`[WhatsAppBot] 🔍 Looking for customer with phone: ${normalizedPhone}`);
 
             // Try exact match first
+            console.log(`[WhatsAppBot]   → Query 1: Exact match for "${normalizedPhone}"`);
             const [customersExact] = await databasePool.query<RowDataPacket[]>(
                 'SELECT * FROM customers WHERE phone = ? LIMIT 1',
                 [normalizedPhone]
             );
 
             if (customersExact.length > 0) {
+                console.log(`[WhatsAppBot]   ✅ FOUND via exact match!`);
                 return customersExact[0];
             }
+            console.log(`[WhatsAppBot]   ❌ Not found via exact match`);
 
             // Try with leading 0 removed (if starts with 62)
             if (normalizedPhone.startsWith('62')) {
                 const phoneWithZero = '0' + normalizedPhone.substring(2);
+                console.log(`[WhatsAppBot]   → Query 2: Trying "${phoneWithZero}" OR "${normalizedPhone}"`);
+
                 const [customersZero] = await databasePool.query<RowDataPacket[]>(
                     'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
                     [phoneWithZero, normalizedPhone]
                 );
                 if (customersZero.length > 0) {
+                    console.log(`[WhatsAppBot]   ✅ FOUND via 62→0 conversion!`);
                     return customersZero[0];
                 }
+                console.log(`[WhatsAppBot]   ❌ Not found via 62→0 conversion`);
             } else if (normalizedPhone.startsWith('0')) {
                 // Try with 62 prefix
                 const phoneWith62 = '62' + normalizedPhone.substring(1);
+                console.log(`[WhatsAppBot]   → Query 3: Trying "${phoneWith62}" OR "${normalizedPhone}"`);
+
                 const [customers62] = await databasePool.query<RowDataPacket[]>(
                     'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
                     [phoneWith62, normalizedPhone]
                 );
                 if (customers62.length > 0) {
+                    console.log(`[WhatsAppBot]   ✅ FOUND via 0→62 conversion!`);
                     return customers62[0];
                 }
+                console.log(`[WhatsAppBot]   ❌ Not found via 0→62 conversion`);
             }
 
+            console.log(`[WhatsAppBot]   ❌ Customer NOT FOUND after all attempts`);
             return null;
         } catch (error: any) {
-            console.error('[WhatsAppBot] Error getting customer by phone:', error);
+            console.error('[WhatsAppBot] ❌ Error getting customer by phone:', error);
             return null;
         }
     }
