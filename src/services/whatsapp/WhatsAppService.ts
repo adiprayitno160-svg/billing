@@ -6,6 +6,7 @@
 import * as qrcode from 'qrcode-terminal';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
+import { WhatsAppBotService } from './WhatsAppBotService';
 
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
@@ -97,10 +98,7 @@ export class WhatsAppService {
                     console.log('[WhatsAppService] From:', message.from);
                     console.log('[WhatsAppService] Body:', message.body?.substring(0, 100));
 
-                    // Import bot handler
-                    const { WhatsAppBotService } = await import('./WhatsAppBotService');
-
-                    // Create adapter
+                    // Create adapter (NO dynamic import, using static import from top)
                     const adapter = {
                         from: message.from,
                         body: message.body || '',
