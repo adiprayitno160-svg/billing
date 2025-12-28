@@ -110,6 +110,7 @@ export class WhatsAppBotService {
     /**
      * Handle media message (bukti transfer)
      * AI akan analisa dan auto-approve jika valid
+     * Jika tidak valid atau confidence rendah, akan diflag untuk manual verification
      */
     private static async handleMediaMessage(message: WhatsAppMessageInterface, phone: string): Promise<void> {
         try {
@@ -119,8 +120,24 @@ export class WhatsAppBotService {
 
             const media = await message.downloadMedia();
 
+            // Validate media type
+            if (!media.mimetype.startsWith('image/')) {
+                await this.sendMessage(
+                    phone,
+                    '❌ *Format File Tidak Didukung*\n\n' +
+                    'Silakan kirim gambar (JPG, PNG, atau WebP) saja.\n' +
+                    'File yang dikirim harus berupa foto bukti transfer.'
+                );
+                return;
+            }
+
             // Process payment verification - AI will analyze and match automatically
-            await this.sendMessage(phone, '⏳ Sedang menganalisa bukti transfer Anda dengan AI...\nMohon tunggu sebentar.');
+            await this.sendMessage(
+                phone,
+                '⏳ *Memproses Bukti Transfer...*\n\n' +
+                '🤖 AI sedang menganalisa bukti transfer Anda\n' +
+                'Mohon tunggu sebentar...'
+            );
 
             const verificationResult = await PaymentVerificationService.verifyPaymentProofAuto(
                 media,
@@ -128,33 +145,102 @@ export class WhatsAppBotService {
             );
 
             if (verificationResult.success) {
+                // Successful verification - payment auto-approved
                 await this.sendMessage(
                     phone,
-                    '✅ *Pembayaran Berhasil Diverifikasi!*\n\n' +
-                    `Invoice: ${verificationResult.invoiceNumber || '-'}\n` +
-                    `Jumlah: Rp ${verificationResult.amount?.toLocaleString('id-ID') || '0'}\n` +
-                    `Status: ${verificationResult.invoiceStatus || 'Lunas'}\n\n` +
-                    'Terima kasih atas pembayaran Anda!'
+                    '✅ *PEMBAYARAN BERHASIL DIVERIFIKASI!*\n\n' +
+                    `📄 Invoice: ${verificationResult.invoiceNumber || '-'}\n` +
+                    `💰 Jumlah: Rp ${verificationResult.amount?.toLocaleString('id-ID') || '0'}\n` +
+                    `📊 Status: ${verificationResult.invoiceStatus || 'Lunas'}\n` +
+                    `🎯 Confidence: ${Math.round((verificationResult.confidence || 0) * 100)}%\n\n` +
+                    '🎉 *Terima kasih atas pembayaran Anda!*\n\n' +
+                    'Layanan Anda sudah aktif kembali.'
                 );
             } else {
-                await this.sendMessage(
-                    phone,
-                    '❌ *Verifikasi Gagal*\n\n' +
-                    `Alasan: ${verificationResult.error}\n\n` +
-                    'Silakan periksa kembali bukti transfer Anda atau hubungi customer service.\n\n' +
-                    '*Tips:*\n' +
-                    '• Pastikan foto bukti transfer jelas\n' +
-                    '• Pastikan jumlah transfer sesuai dengan tagihan\n' +
-                    '• Pastikan bukti transfer belum pernah digunakan'
-                );
+                // Verification failed - check if it's low confidence or genuine error
+                const errorLower = (verificationResult.error || '').toLowerCase();
+                const isLowConfidence = errorLower.includes('confidence') ||
+                    errorLower.includes('tidak jelas') ||
+                    errorLower.includes('blur');
+                const isNoInvoice = errorLower.includes('tidak ada tagihan') ||
+                    errorLower.includes('sudah lunas');
+                const isAmountMismatch = errorLower.includes('tidak sesuai') ||
+                    errorLower.includes('jumlah');
+
+                if (isNoInvoice) {
+                    // No pending invoices
+                    await this.sendMessage(
+                        phone,
+                        '✅ *Tagihan Sudah Lunas*\n\n' +
+                        'Semua tagihan Anda sudah dibayar.\n' +
+                        'Tidak ada tagihan yang perlu dibayar saat ini.\n\n' +
+                        'Terima kasih! 🙏'
+                    );
+                } else if (isLowConfidence || isAmountMismatch) {
+                    // Flag for manual verification
+                    await this.flagForManualVerification(customer.id, media, verificationResult.error || 'Unknown error');
+
+                    await this.sendMessage(
+                        phone,
+                        '⚠️ *BUKTI TRANSFER MEMERLUKAN VERIFIKASI MANUAL*\n\n' +
+                        `Alasan: ${verificationResult.error}\n\n` +
+                        '📋 *Bukti transfer Anda telah disimpan dan akan diverifikasi oleh admin.*\n\n' +
+                        '⏱️ Verifikasi manual biasanya selesai dalam 1-2 jam kerja.\n' +
+                        'Anda akan mendapat notifikasi WhatsApp setelah verifikasi selesai.\n\n' +
+                        '💡 *Tips untuk verifikasi lebih cepat:*\n' +
+                        '• Pastikan foto jelas dan tidak blur\n' +
+                        '• Pastikan semua informasi terlihat lengkap\n' +
+                        '• Pastikan jumlah transfer sesuai tagihan\n\n' +
+                        'Atau hubungi customer service: [CS Number]'
+                    );
+                } else {
+                    // Genuine error
+                    await this.sendMessage(
+                        phone,
+                        '❌ *VERIFIKASI GAGAL*\n\n' +
+                        `Alasan: ${verificationResult.error}\n\n` +
+                        '💡 *Saran:*\n' +
+                        '• Pastikan foto bukti transfer jelas\n' +
+                        '• Pastikan jumlah transfer sesuai dengan tagihan\n' +
+                        '• Pastikan bukti transfer belum pernah digunakan\n\n' +
+                        '📞 Jika masalah berlanjut, silakan hubungi customer service.'
+                    );
+                }
             }
 
         } catch (error: any) {
             console.error('[WhatsAppBot] Error handling media:', error);
             await this.sendMessage(
                 phone,
-                '❌ Terjadi kesalahan saat memproses bukti transfer. Silakan coba lagi atau hubungi customer service.'
+                '❌ *Terjadi Kesalahan*\n\n' +
+                'Maaf, terjadi kesalahan saat memproses bukti transfer.\n\n' +
+                'Silakan coba lagi atau hubungi customer service.\n' +
+                `Error: ${error.message || 'Unknown error'}`
             );
+        }
+    }
+
+    /**
+     * Flag payment for manual verification by admin
+     */
+    private static async flagForManualVerification(
+        customerId: number,
+        media: any,
+        reason: string
+    ): Promise<void> {
+        try {
+            // Save to manual_payment_verifications table
+            await databasePool.query(
+                `INSERT INTO manual_payment_verifications 
+                 (customer_id, image_data, image_mimetype, reason, status, created_at)
+                 VALUES (?, ?, ?, ?, 'pending', NOW())`,
+                [customerId, media.data, media.mimetype, reason]
+            );
+
+            console.log(`[WhatsAppBot] Payment flagged for manual verification - Customer ${customerId}`);
+        } catch (error: any) {
+            console.error('[WhatsAppBot] Error flagging for manual verification:', error);
+            // Don't throw - customer already notified
         }
     }
 

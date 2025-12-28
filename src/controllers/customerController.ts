@@ -779,6 +779,105 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             await conn.commit();
 
+            // Handle status change (Enable/Disable) side effects
+            if (status !== undefined && status !== oldCustomer.status) {
+                console.log(`[UpdateCustomer] Status changed from ${oldCustomer.status} to ${status} for customer ${customerId}`);
+
+                try {
+                    const isDisabling = status === 'inactive';
+                    const activeConnType = connection_type || oldCustomer.connection_type;
+                    const activeUsername = pppoe_username || oldPppoeUsername;
+
+                    // 1. Sync to MikroTik
+                    const { getMikrotikConfig } = await import('../services/pppoeService');
+                    // We need raw API for disable/enable for now if service function unavailable
+                    const { RouterOSAPI } = await import('node-routeros');
+
+                    const config = await getMikrotikConfig();
+                    if (config) {
+                        const api = new RouterOSAPI({
+                            host: config.host,
+                            port: config.port,
+                            user: config.username,
+                            password: config.password,
+                            timeout: 10000
+                        });
+
+                        await api.connect();
+
+                        try {
+                            if (activeConnType === 'pppoe' && activeUsername) {
+                                // Find secret
+                                const secrets = await api.write('/ppp/secret/print', [`?name=${activeUsername}`]);
+                                if (secrets && secrets.length > 0) {
+                                    const secretId = secrets[0]['.id'];
+                                    await api.write('/ppp/secret/set', [
+                                        `=.id=${secretId}`,
+                                        `=disabled=${isDisabling ? 'yes' : 'no'}`
+                                    ]);
+
+                                    // Also kick active connection if disabling
+                                    if (isDisabling) {
+                                        const active = await api.write('/ppp/active/print', [`?name=${activeUsername}`]);
+                                        if (active && active.length > 0) {
+                                            const activeId = active[0]['.id'];
+                                            await api.write('/ppp/active/remove', [`=.id=${activeId}`]);
+                                        }
+                                    }
+                                    console.log(`[UpdateCustomer] PPPoE secret ${activeUsername} ${isDisabling ? 'disabled' : 'enabled'}`);
+                                }
+                            } else if (activeConnType === 'static_ip') {
+
+                                // For Static IP, we disable the Simple Queue to block bandwidth
+                                // Getting IP/Name to find queue
+                                const [staticClient] = await databasePool.query<RowDataPacket[]>(
+                                    "SELECT client_name FROM static_ip_clients WHERE customer_id = ?",
+                                    [customerId]
+                                );
+
+                                if (staticClient && staticClient.length > 0 && staticClient[0].client_name) {
+                                    const clientName = staticClient[0].client_name;
+                                    const queues = await api.write('/queue/simple/print', [`?name=${clientName}`]);
+                                    if (queues && queues.length > 0) {
+                                        const queueId = queues[0]['.id'];
+                                        await api.write('/queue/simple/set', [
+                                            `=.id=${queueId}`,
+                                            `=disabled=${isDisabling ? 'yes' : 'no'}`
+                                        ]);
+                                        console.log(`[UpdateCustomer] Static Queue ${clientName} ${isDisabling ? 'disabled' : 'enabled'}`);
+                                    }
+                                }
+                            }
+                        } finally {
+                            await api.close();
+                        }
+                    }
+
+                    // 2. Send Notification
+                    if (phone) {
+                        const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+                        await UnifiedNotificationService.queueNotification({
+                            customer_id: customerId,
+                            notification_type: isDisabling ? 'service_suspended' : 'service_restored',
+                            channels: ['whatsapp'],
+                            variables: {
+                                customer_name: name || oldName,
+                                reason: isDisabling ? 'Status pelanggan dinonaktifkan (Disable Mode)' : 'Status pelanggan diaktifkan kembali'
+                            },
+                            priority: 'high'
+                        });
+                        // Trigger send immediately
+                        try {
+                            await UnifiedNotificationService.sendPendingNotifications(5);
+                        } catch (e) { /* ignore */ }
+                    }
+
+                } catch (statusError) {
+                    console.error('[UpdateCustomer] Error handling status change side-effects:', statusError);
+                    // Don't fail the request, just log
+                }
+            }
+
             // Sync secret ke MikroTik untuk PPPoE customers
             const currentConnectionType = connection_type || oldCustomer.connection_type;
             const newName = name || oldName;

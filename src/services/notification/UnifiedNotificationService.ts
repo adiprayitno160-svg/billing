@@ -22,6 +22,7 @@ export type NotificationType =
   | 'referral_reward'
   | 'maintenance_scheduled'
   | 'service_restored'
+  | 'service_suspended'
   | 'service_blocked'
   | 'service_unblocked'
   | 'customer_created'
