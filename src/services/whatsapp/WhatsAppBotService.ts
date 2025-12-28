@@ -67,48 +67,124 @@ export class WhatsAppBotService {
     static async handleMessage(message: WhatsAppMessageInterface): Promise<void> {
         let phone = '';
         try {
+            console.log('[WhatsAppBot] ========== MESSAGE HANDLER START ==========');
+
             const from = message.from || '';
-            if (!from) return;
+            if (!from) {
+                console.log('[WhatsAppBot] ❌ No sender found, ignoring message');
+                return;
+            }
+
             const body = message.body?.trim() || '';
             const hasMedia = message.hasMedia;
 
-            // Extract phone number (remove @c.us)
+            // Extract phone number (remove @c.us / @s.whatsapp.net)
             phone = from.split('@')[0] || '';
 
-            console.log(`[WhatsAppBot] Message from ${phone}: ${body.substring(0, 50)}...`);
+            console.log(`[WhatsAppBot] 📨 Incoming message:`);
+            console.log(`[WhatsAppBot]   From: ${phone}`);
+            console.log(`[WhatsAppBot]   Body: "${body.substring(0, 100)}${body.length > 100 ? '...' : ''}"`);
+            console.log(`[WhatsAppBot]   Has Media: ${hasMedia}`);
 
             // GLOBAL GUARD: Only registered customers can access the bot
-            // This prevents unauthorized access to any feature (Menu, Invoice, etc.)
+            console.log('[WhatsAppBot] 🔐 Validating customer access...');
             const customer = await this.validateCustomer(phone);
             if (!customer) {
+                console.log('[WhatsAppBot] ❌ Customer validation failed, message rejected');
                 // validateCustomer already sends the rejection message
                 return;
             }
 
+            console.log('[WhatsAppBot] ✅ Customer validated successfully');
+
             // Handle image/media (bukti transfer)
             if (hasMedia) {
-                await this.handleMediaMessage(message, phone);
+                console.log('[WhatsAppBot] 🖼️  Processing media message...');
+                try {
+                    await this.handleMediaMessage(message, phone);
+                    console.log('[WhatsAppBot] ✅ Media message handled successfully');
+                } catch (mediaError: any) {
+                    console.error('[WhatsAppBot] ❌ Error in handleMediaMessage:', mediaError);
+                    await this.sendMessage(
+                        phone,
+                        '❌ *Terjadi Kesalahan*\n\n' +
+                        'Maaf, terjadi kesalahan saat memproses media Anda.\n' +
+                        'Silakan coba lagi atau hubungi customer service.'
+                    );
+                }
                 return;
             }
 
             // Handle text commands
             if (body.startsWith(this.COMMAND_PREFIX)) {
-                await this.handleCommand(message, phone, body);
+                console.log('[WhatsAppBot] 🔧 Processing command...');
+                try {
+                    await this.handleCommand(message, phone, body);
+                    console.log('[WhatsAppBot] ✅ Command handled successfully');
+                } catch (cmdError: any) {
+                    console.error('[WhatsAppBot] ❌ Error in handleCommand:', cmdError);
+                    await this.sendMessage(
+                        phone,
+                        '❌ *Terjadi Kesalahan*\n\n' +
+                        'Maaf, terjadi kesalahan saat memproses command Anda.\n' +
+                        'Silakan coba lagi atau hubungi customer service.'
+                    );
+                }
                 return;
             }
 
             // Handle menu navigation
             if (this.isMenuCommand(body)) {
-                await this.handleMenuCommand(message, phone, body);
+                console.log('[WhatsAppBot] 📋 Processing menu command...');
+                try {
+                    await this.handleMenuCommand(message, phone, body);
+                    console.log('[WhatsAppBot] ✅ Menu command handled successfully');
+                } catch (menuError: any) {
+                    console.error('[WhatsAppBot] ❌ Error in handleMenuCommand:', menuError);
+                    await this.sendMessage(
+                        phone,
+                        '❌ *Terjadi Kesalahan*\n\n' +
+                        'Maaf, terjadi kesalahan saat menampilkan menu.\n' +
+                        'Silakan coba lagi atau hubungi customer service.'
+                    );
+                }
                 return;
             }
 
             // Default: Show main menu for any other text interaction
-            await this.showMainMenu(phone);
+            console.log('[WhatsAppBot] 🏠 Showing main menu (default)...');
+            try {
+                await this.showMainMenu(phone);
+                console.log('[WhatsAppBot] ✅ Main menu sent successfully');
+            } catch (defaultError: any) {
+                console.error('[WhatsAppBot] ❌ Error in showMainMenu:', defaultError);
+                await this.sendMessage(
+                    phone,
+                    '❌ *Terjadi Kesalahan*\n\n' +
+                    'Maaf, terjadi kesalahan.\n' +
+                    'Silakan coba lagi atau hubungi customer service.'
+                );
+            }
 
         } catch (error: any) {
-            console.error('[WhatsAppBot] Error handling message:', error);
-            await this.sendMessage(phone, '❌ Terjadi kesalahan. Silakan coba lagi atau hubungi customer service.');
+            console.error('[WhatsAppBot] ========== FATAL ERROR ==========');
+            console.error('[WhatsAppBot] Error details:', error);
+            console.error('[WhatsAppBot] Stack trace:', error.stack);
+            console.error('[WhatsAppBot] ==========================================');
+
+            // Send generic error message to customer
+            if (phone) {
+                try {
+                    await this.sendMessage(
+                        phone,
+                        '❌ Terjadi kesalahan sistem. Silakan coba lagi atau hubungi customer service.'
+                    );
+                } catch (sendError) {
+                    console.error('[WhatsAppBot] ❌ Failed to send error message to customer:', sendError);
+                }
+            }
+        } finally {
+            console.log('[WhatsAppBot] ========== MESSAGE HANDLER END ==========');
         }
     }
 
