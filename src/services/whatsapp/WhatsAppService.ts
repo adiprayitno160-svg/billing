@@ -45,7 +45,7 @@ export class WhatsAppService {
             // Create client with local auth strategy
             this.client = new Client({
                 authStrategy: new LocalAuth({
-                    dataPath: './whatsapp-session'
+                    dataPath: './.wwebjs_auth'
                 }),
                 puppeteer: {
                     headless: true,
@@ -56,8 +56,12 @@ export class WhatsAppService {
                         '--disable-accelerated-2d-canvas',
                         '--no-first-run',
                         '--no-zygote',
-                        '--disable-gpu'
-                    ]
+                        '--single-process',
+                        '--disable-gpu',
+                        '--disable-web-security',
+                        '--disable-features=IsolateOrigins,site-per-process'
+                    ],
+                    executablePath: undefined // Use bundled Chromium
                 }
             });
 

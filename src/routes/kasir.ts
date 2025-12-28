@@ -39,6 +39,12 @@ router.post('/transactions', kasirController.processPayment.bind(kasirController
 router.get('/payments', kasirController.payments.bind(kasirController));
 router.post('/payments', kasirController.processPayment.bind(kasirController));
 
+// Manual Verification
+router.get('/manual-verifications', kasirController.manualVerifications.bind(kasirController));
+router.post('/manual-verifications/:id/approve', kasirController.approveManualVerification.bind(kasirController));
+router.post('/manual-verifications/:id/reject', kasirController.rejectManualVerification.bind(kasirController));
+router.get('/api/manual-verifications', kasirController.getManualVerifications.bind(kasirController));
+
 // Search customer for payment
 router.get('/api/search-customer', kasirController.searchCustomer.bind(kasirController));
 router.get('/api/customer/:id/invoices', kasirController.getCustomerInvoices.bind(kasirController));

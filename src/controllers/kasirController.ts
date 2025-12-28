@@ -1401,5 +1401,207 @@ export class KasirController {
             });
         }
     }
+
+    // Manual Verifications - Halaman utama
+    public async manualVerifications(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            res.render('kasir/manual-verifications', {
+                title: 'Verifikasi Manual Pembayaran'
+            });
+        } catch (error) {
+            console.error('Error loading manual verifications page:', error);
+            req.flash('error', 'Gagal memuat halaman verifikasi manual');
+            res.redirect('/kasir/dashboard');
+        }
+    }
+
+    // Get manual verifications API
+    public async getManualVerifications(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { status = 'pending', page = 1, limit = 20 } = req.query;
+            const offset = (Number(page) - 1) * Number(limit);
+
+            const conn = await databasePool.getConnection();
+            try {
+                // Get verifications
+                const [verifications] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        mpv.*,
+                        c.name as customer_name,
+                        c.phone as customer_phone,
+                        c.customer_code,
+                        i.invoice_number,
+                        i.period,
+                        i.total_amount,
+                        i.remaining_amount
+                    FROM manual_payment_verifications mpv
+                    LEFT JOIN customers c ON mpv.customer_id = c.id
+                    LEFT JOIN invoices i ON mpv.invoice_id = i.id
+                    WHERE mpv.status = ?
+                    ORDER BY mpv.created_at DESC
+                    LIMIT ? OFFSET ?
+                `, [status, Number(limit), offset]);
+
+                // Get total count
+                const [countResult] = await conn.query<RowDataPacket[]>(`
+                    SELECT COUNT(*) as total 
+                    FROM manual_payment_verifications 
+                    WHERE status = ?
+                `, [status]);
+
+                const total = countResult[0]?.total || 0;
+
+                res.json({
+                    success: true,
+                    data: verifications,
+                    pagination: {
+                        page: Number(page),
+                        limit: Number(limit),
+                        total,
+                        pages: Math.ceil(total / Number(limit))
+                    }
+                });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error getting manual verifications:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal mengambil data verifikasi'
+            });
+        }
+    }
+
+    // Approve manual verification
+    public async approveManualVerification(req: AuthenticatedRequest, res: Response): Promise<void> {
+        const conn = await databasePool.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            const { id } = req.params;
+            const { amount } = req.body;
+
+            // Get verification data
+            const [verifications] = await conn.query<RowDataPacket[]>(`
+                SELECT * FROM manual_payment_verifications WHERE id = ?
+            `, [id]);
+
+            if (verifications.length === 0) {
+                await conn.rollback();
+                return res.status(404).json({
+                    success: false,
+                    message: 'Data verifikasi tidak ditemukan'
+                });
+            }
+
+            const verification = verifications[0];
+
+            // Create payment record
+            const [paymentResult] = await conn.query<ResultSetHeader>(`
+                INSERT INTO payments (
+                    invoice_id,
+                    payment_method,
+                    amount,
+                    payment_date,
+                    gateway_status,
+                    notes,
+                    created_by,
+                    created_at
+                ) VALUES (?, 'transfer', ?, NOW(), 'completed', ?, ?, NOW())
+            `, [
+                verification.invoice_id,
+                amount || verification.amount,
+                `Verified from WhatsApp proof - ${verification.reason || ''}`,
+                req.user!.id
+            ]);
+
+            const paymentId = paymentResult.insertId;
+
+            // Update invoice
+            const [invoice] = await conn.query<RowDataPacket[]>(`
+                SELECT * FROM invoices WHERE id = ?
+            `, [verification.invoice_id]);
+
+            if (invoice.length > 0) {
+                const inv = invoice[0];
+                const newPaidAmount = (inv.paid_amount || 0) + (amount || verification.amount);
+                const newRemainingAmount = inv.total_amount - newPaidAmount;
+                const newStatus = newRemainingAmount <= 0 ? 'paid' : 'partial';
+
+                await conn.query(`
+                    UPDATE invoices 
+                    SET paid_amount = ?,
+                        remaining_amount = ?,
+                        status = ?,
+                        paid_at = CASE WHEN ? = 'paid' THEN NOW() ELSE paid_at END
+                    WHERE id = ?
+                `, [newPaidAmount, newRemainingAmount, newStatus, newStatus, verification.invoice_id]);
+            }
+
+            // Update verification status
+            await conn.query(`
+                UPDATE manual_payment_verifications 
+                SET status = 'approved',
+                    approved_by = ?,
+                    approved_at = NOW(),
+                    payment_id = ?
+                WHERE id = ?
+            `, [req.user!.id, paymentId, id]);
+
+            await conn.commit();
+
+            res.json({
+                success: true,
+                message: 'Pembayaran berhasil diverifikasi dan disetujui',
+                paymentId
+            });
+
+        } catch (error) {
+            await conn.rollback();
+            console.error('Error approving verification:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal menyetujui verifikasi'
+            });
+        } finally {
+            conn.release();
+        }
+    }
+
+    // Reject manual verification
+    public async rejectManualVerification(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+
+            const conn = await databasePool.getConnection();
+            try {
+                await conn.query(`
+                    UPDATE manual_payment_verifications 
+                    SET status = 'rejected',
+                        rejected_by = ?,
+                        rejected_at = NOW(),
+                        reject_reason = ?
+                    WHERE id = ?
+                `, [req.user!.id, reason || 'Bukti pembayaran tidak valid', id]);
+
+                // TODO: Send WhatsApp notification to customer about rejection
+
+                res.json({
+                    success: true,
+                    message: 'Verifikasi ditolak'
+                });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error rejecting verification:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal menolak verifikasi'
+            });
+        }
+    }
 }
 
