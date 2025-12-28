@@ -1,40 +1,48 @@
 ﻿<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Edit ODP</h2>
-        <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
+        <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>"
+            class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
     </div>
     <form method="post" action="/ftth/odp/<%= item.id %>" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
             <label class="block text-xs text-slate-600 mb-1">Pilih ODC</label>
             <select name="odc_id" required class="w-full rounded border border-slate-300 px-2 py-1.5">
                 <% (odcs || []).forEach(function(odc){ %>
-                <option value="<%= odc.id %>" <%= (item.odc_id == odc.id) ? 'selected' : '' %>><%= odc.name %></option>
-                <% }) %>
+                    <option value="<%= odc.id %>" <%=(item.odc_id==odc.id) ? 'selected' : '' %>><%= odc.name %>
+                    </option>
+                    <% }) %>
             </select>
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Nama</label>
-            <input name="name" value="<%= item.name %>" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+            <input name="name" value="<%= item.name %>" required
+                class="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Lokasi</label>
-            <input name="location" value="<%= item.location || '' %>" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+            <input name="location" value="<%= item.location || '' %>"
+                class="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Latitude</label>
-            <input name="latitude" type="number" step="0.0000001" value="<%= item.latitude || '' %>" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+            <input name="latitude" type="number" step="0.0000001" value="<%= item.latitude || '' %>"
+                class="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Longitude</label>
-            <input name="longitude" type="number" step="0.0000001" value="<%= item.longitude || '' %>" class="w-full rounded border border-slate-300 px-2 py-1.5" />
+            <input name="longitude" type="number" step="0.0000001" value="<%= item.longitude || '' %>"
+                class="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Total Port</label>
-            <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+            <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required
+                class="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Terpakai</label>
-            <input name="used_ports" type="number" min="0" value="<%= item.used_ports %>" required class="w-full rounded border border-slate-300 px-2 py-1.5" />
+            <input name="used_ports" type="number" min="0" value="<%= item.used_ports %>" required
+                class="w-full rounded border border-slate-300 px-2 py-1.5" />
         </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Baris Kartu OLT</label>
@@ -46,42 +54,151 @@
         </div>
         <div class="sm:col-span-2">
             <label class="block text-xs text-slate-600 mb-1">Catatan</label>
-            <textarea name="notes" class="w-full rounded border border-slate-300 px-2 py-1.5"><%= item.notes || '' %></textarea>
+            <textarea name="notes"
+                class="w-full rounded border border-slate-300 px-2 py-1.5"><%= item.notes || '' %></textarea>
         </div>
+
+        <div class="sm:col-span-2">
+            <label class="block text-xs text-slate-600 mb-1">Peta Lokasi</label>
+            <div id="mapOdp" class="h-64 w-full rounded border border-slate-200"></div>
+            <button type="button" id="btnGetLocation"
+                class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">Ambil Lokasi Saat
+                Ini</button>
+        </div>
+
         <div class="sm:col-span-2 flex justify-end gap-2">
-            <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>" class="px-3 py-1.5 rounded border border-slate-300">Batal</a>
+            <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>"
+                class="px-3 py-1.5 rounded border border-slate-300">Batal</a>
             <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
         </div>
     </form>
+
+    <!-- Dynamic Dropdown Script -->
     <script>
-    (function(){
-        const odcToOlt = <%- JSON.stringify(odcToOlt || {}) %>;
-        const odcSelect = document.querySelector('select[name="odc_id"]');
-        const cardSelect = document.getElementById('odpOltCard');
-        const portSelect = document.getElementById('odpOltPort');
-        function fillOptions(sel, count, label, selected){
-            sel.innerHTML = '<option value="">-- Pilih ' + label + ' --</option>';
-            const n = Number(count||0);
-            for(let i=1;i<=n;i++){
-                const opt = document.createElement('option');
-                opt.value = String(i);
-                opt.textContent = label + ' ' + i;
-                if (selected && Number(selected) === i) opt.selected = true;
-                sel.appendChild(opt);
+        (function () {
+            const odcToOlt = <% - JSON.stringify(odcToOlt || {}) %>;
+            const odcSelect = document.querySelector('select[name="odc_id"]');
+            const cardSelect = document.getElementById('odpOltCard');
+            const portSelect = document.getElementById('odpOltPort');
+            function fillOptions(sel, count, label, selected) {
+                sel.innerHTML = '<option value="">-- Pilih ' + label + ' --</option>';
+                const n = Number(count || 0);
+                for (let i = 1; i <= n; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = String(i);
+                    opt.textContent = label + ' ' + i;
+                    if (selected && Number(selected) === i) opt.selected = true;
+                    sel.appendChild(opt);
+                }
             }
-        }
-        function refreshFromOdc(){
-            const odcId = odcSelect && odcSelect.value ? String(odcSelect.value) : '';
-            const meta = odcToOlt[odcId] || {};
-            fillOptions(cardSelect, meta.line_cards, 'Baris', <%- JSON.stringify(item.olt_card || null) %>);
-            fillOptions(portSelect, meta.total_ports, 'Port', <%- JSON.stringify(item.olt_port || null) %>);
-        }
-        if (odcSelect){
-            odcSelect.addEventListener('change', refreshFromOdc);
-            refreshFromOdc();
-        }
-    })();
+            function refreshFromOdc() {
+                const odcId = odcSelect && odcSelect.value ? String(odcSelect.value) : '';
+                const meta = odcToOlt[odcId] || {};
+                fillOptions(cardSelect, meta.line_cards, 'Baris', <% - JSON.stringify(item.olt_card || null) %>);
+                fillOptions(portSelect, meta.total_ports, 'Port', <% - JSON.stringify(item.olt_port || null) %>);
+            }
+            if (odcSelect) {
+                odcSelect.addEventListener('change', refreshFromOdc);
+                refreshFromOdc();
+            }
+        })();
+    </script>
+
+    <!-- Map Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let map, marker;
+            const initialLat = <%= item.latitude || -6.2 %>;
+            const initialLng = <%= item.longitude || 106.8 %>;
+            const hasLocation = <%= (item.latitude && item.longitude) ? 'true' : 'false' %>;
+
+            function waitForLeaflet() {
+                return new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const maxAttempts = 50;
+
+                    const checkLeaflet = () => {
+                        attempts++;
+                        if (typeof L !== 'undefined') {
+                            resolve();
+                        } else if (attempts >= maxAttempts) {
+                            reject(new Error('Leaflet tidak dapat dimuat'));
+                        } else {
+                            setTimeout(checkLeaflet, 100);
+                        }
+                    };
+
+                    checkLeaflet();
+                });
+            }
+
+            function initMap() {
+                try {
+                    const mapElement = document.getElementById('mapOdp');
+                    if (!mapElement) return;
+
+                    if (mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
+                        setTimeout(initMap, 200);
+                        return;
+                    }
+
+                    if (map) map.remove();
+
+                    map = L.map('mapOdp').setView([initialLat, initialLng], hasLocation ? 15 : 11);
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
+
+                    marker = L.marker([initialLat, initialLng]).addTo(map);
+
+                    const latInput = document.querySelector('input[name="latitude"]');
+                    const lngInput = document.querySelector('input[name="longitude"]');
+
+                    map.on('click', function (e) {
+                        const lat = e.latlng.lat;
+                        const lng = e.latlng.lng;
+
+                        marker.setLatLng([lat, lng]);
+
+                        if (latInput) latInput.value = lat.toFixed(7);
+                        if (lngInput) lngInput.value = lng.toFixed(7);
+                    });
+
+                    setTimeout(() => { if (map) map.invalidateSize(); }, 100);
+                } catch (error) {
+                    console.error('Map init error:', error);
+                }
+            }
+
+            const getLocationBtn = document.getElementById('btnGetLocation');
+            if (getLocationBtn) {
+                getLocationBtn.addEventListener('click', function () {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function (position) {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            if (map) {
+                                map.setView([lat, lng], 15);
+                                marker.setLatLng([lat, lng]);
+                            }
+                            const latInput = document.querySelector('input[name="latitude"]');
+                            const lngInput = document.querySelector('input[name="longitude"]');
+                            if (latInput) latInput.value = lat.toFixed(7);
+                            if (lngInput) lngInput.value = lng.toFixed(7);
+                        }, function (error) {
+                            alert('Error: ' + error.message);
+                        });
+                    } else {
+                        alert('Geolocation not supported');
+                    }
+                });
+            }
+
+            waitForLeaflet().then(() => {
+                setTimeout(initMap, 100);
+            }).catch(console.error);
+        });
     </script>
 </div>
-
-

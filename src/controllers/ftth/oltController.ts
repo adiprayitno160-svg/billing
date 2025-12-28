@@ -7,13 +7,13 @@ export async function getOltList(req: Request, res: Response, next: NextFunction
             SELECT * FROM ftth_olt 
             ORDER BY id DESC
         `);
-        
-        res.render('ftth/olt', { 
-            title: 'FTTH - OLT', 
-            items: rows 
+
+        res.render('ftth/olt', {
+            title: 'FTTH - OLT',
+            items: rows
         });
-    } catch (err) { 
-        next(err); 
+    } catch (err) {
+        next(err);
     }
 }
 
@@ -23,63 +23,64 @@ export async function getOltEdit(req: Request, res: Response, next: NextFunction
         const [rows] = await databasePool.query(`
             SELECT * FROM ftth_olt WHERE id = ?
         `, [id]);
-        
+
         if (!Array.isArray(rows) || rows.length === 0) {
             res.status(404).send('OLT tidak ditemukan');
             return;
         }
-        
-        res.render('ftth/olt_edit', { 
-            title: 'Edit OLT', 
-            olt: rows[0] 
+
+        res.render('ftth/olt_edit', {
+            title: 'Edit OLT',
+            olt: rows[0]
         });
-    } catch (err) { 
-        next(err); 
+    } catch (err) {
+        next(err);
     }
 }
 
+// postOltCreate
 export async function postOltCreate(req: Request, res: Response, next: NextFunction) {
     try {
-        const { name, ip_address, location, status, total_ports, used_ports, description } = req.body;
-        
+        const { name, ip_address, location, status, total_ports, used_ports, description, latitude, longitude } = req.body;
+
         await databasePool.query(`
-            INSERT INTO ftth_olt (name, ip_address, location, status, total_ports, used_ports, description, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-        `, [name, ip_address, location, status || 'offline', total_ports || 0, used_ports || 0, description]);
-        
+            INSERT INTO ftth_olt (name, ip_address, location, status, total_ports, used_ports, description, latitude, longitude, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `, [name, ip_address, location, status || 'offline', total_ports || 0, used_ports || 0, description, latitude || null, longitude || null]);
+
         res.redirect('/ftth/olt');
-    } catch (err) { 
-        next(err); 
+    } catch (err) {
+        next(err);
     }
 }
 
 export async function postOltUpdate(req: Request, res: Response, next: NextFunction) {
     try {
         const id = Number(req.params.id);
-        const { name, ip_address, location, status, total_ports, used_ports, description } = req.body;
-        
+        const { name, ip_address, location, status, total_ports, used_ports, description, latitude, longitude } = req.body;
+
         await databasePool.query(`
             UPDATE ftth_olt 
-            SET name = ?, ip_address = ?, location = ?, status = ?, total_ports = ?, used_ports = ?, description = ?, updated_at = NOW()
+            SET name = ?, ip_address = ?, location = ?, status = ?, total_ports = ?, used_ports = ?, description = ?, latitude = ?, longitude = ?, updated_at = NOW()
             WHERE id = ?
-        `, [name, ip_address, location, status, total_ports, used_ports, description, id]);
-        
+        `, [name, ip_address, location, status, total_ports, used_ports, description, latitude || null, longitude || null, id]);
+
         res.redirect('/ftth/olt');
-    } catch (err) { 
-        next(err); 
+    } catch (err) {
+        next(err);
     }
 }
 
 export async function postOltDelete(req: Request, res: Response, next: NextFunction) {
     try {
         const id = Number(req.params.id);
-        
+
         await databasePool.query(`
             DELETE FROM ftth_olt WHERE id = ?
         `, [id]);
-        
+
         res.redirect('/ftth/olt');
-    } catch (err) { 
-        next(err); 
+    } catch (err) {
+        next(err);
     }
 }

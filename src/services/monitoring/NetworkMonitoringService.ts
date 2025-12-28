@@ -470,10 +470,6 @@ export class NetworkMonitoringService {
             console.error('Error injecting ODC port info:', e);
         }
 
-        const [links] = await databasePool.query<RowDataPacket[]>(
-            'SELECT * FROM network_links'
-        );
-
         // Auto-sync checks:
         // 1. Check if we display any customers. If 0, and we have customers with lat/long, sync them!
         const [customerCountResult] = await databasePool.query<RowDataPacket[]>(
@@ -490,11 +486,72 @@ export class NetworkMonitoringService {
             const potentialCount = (potentialCustomers as any)[0]?.count || 0;
 
             if (potentialCount > 0) {
-                console.log('Topology request detected missing customers. Triggering auto-sync...');
+                console.log('📍 Topology request detected missing customers. Triggering auto-sync...');
                 await this.syncCustomerDevices();
                 // Re-fetch devices after sync
                 devices = await this.getAllDevices();
             }
+        }
+
+        // 2. Check if we display any FTTH infrastructure (OLT, ODC, ODP). If missing, sync them!
+        const [ftthCountResult] = await databasePool.query<RowDataPacket[]>(
+            "SELECT COUNT(*) as count FROM network_devices WHERE device_type IN ('olt', 'odc', 'odp')"
+        );
+        const existingFtthCount = (ftthCountResult as any)[0]?.count || 0;
+
+        if (existingFtthCount === 0) {
+            // Check if we have FTTH infrastructure in the ftth_* tables
+            const [potentialOlt] = await databasePool.query<RowDataPacket[]>(
+                "SELECT COUNT(*) as count FROM ftth_olt"
+            );
+            const [potentialOdc] = await databasePool.query<RowDataPacket[]>(
+                "SELECT COUNT(*) as count FROM ftth_odc"
+            );
+            const [potentialOdp] = await databasePool.query<RowDataPacket[]>(
+                "SELECT COUNT(*) as count FROM ftth_odp"
+            );
+
+            const oltCount = (potentialOlt as any)[0]?.count || 0;
+            const odcCount = (potentialOdc as any)[0]?.count || 0;
+            const odpCount = (potentialOdp as any)[0]?.count || 0;
+            const potentialFtthCount = oltCount + odcCount + odpCount;
+
+            if (potentialFtthCount > 0) {
+                console.log(`🏗️ Topology request detected missing FTTH infrastructure (${oltCount} OLT, ${odcCount} ODC, ${odpCount} ODP). Triggering auto-sync...`);
+                await this.syncFTTHInfrastructure();
+                // Re-fetch devices after sync
+                devices = await this.getAllDevices();
+            }
+        }
+
+        const [links] = await databasePool.query<RowDataPacket[]>(
+            'SELECT * FROM network_links'
+        );
+
+        // 3. Check if we have links. If 0 but we have devices, auto-create them!
+        if ((links as any[]).length === 0 && devices.length > 0) {
+            console.log('🔗 Topology request detected missing network links. Triggering auto-create...');
+            await this.autoCreateLinks();
+            // Re-fetch links after creation
+            const [newLinks] = await databasePool.query<RowDataPacket[]>(
+                'SELECT * FROM network_links'
+            );
+
+            // Calculate statistics
+            const [stats] = await databasePool.query<RowDataPacket[]>(
+                `SELECT 
+                    COUNT(*) as total_devices,
+                    SUM(CASE WHEN status = 'online' THEN 1 ELSE 0 END) as online_devices,
+                    SUM(CASE WHEN status = 'offline' THEN 1 ELSE 0 END) as offline_devices,
+                    SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warning_devices
+                 FROM network_devices`
+            );
+
+            return {
+                devices,
+                links: newLinks as NetworkLink[],
+                statistics: stats[0] as any
+            };
         }
 
         const [stats] = await databasePool.query<RowDataPacket[]>(

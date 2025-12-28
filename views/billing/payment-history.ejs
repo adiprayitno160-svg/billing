@@ -1,277 +1,284 @@
-﻿<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title || 'Riwayat Pembayaran' %></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-gray-50">
-    <div class="min-h-screen">
-        <!-- Header -->
-        <div class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="py-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h1 class="text-3xl font-bold text-gray-900">Riwayat Pembayaran</h1>
-                            <p class="mt-2 text-sm text-gray-600">Semua transaksi pembayaran pelanggan</p>
-                        </div>
-                        <div class="flex space-x-3">
-                            <button onclick="exportPayments()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                                <i class="fas fa-download mr-2"></i>Export Excel
-                            </button>
-                        </div>
-                    </div>
+﻿<div class="space-y-6">
+    <!-- Header & Actions -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Riwayat Pembayaran</h1>
+            <p class="text-sm text-gray-500">Semua transaksi pembayaran pelanggan</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="exportPayments()"
+                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm text-sm font-medium">
+                <i class="fas fa-download mr-2"></i>Export Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Pembayaran</p>
+                    <p id="total-amount" class="text-2xl font-bold text-gray-900">Rp 0</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
                 </div>
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Metode Pembayaran</label>
-                        <select name="method" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <option value="">Semua Metode</option>
-                            <option value="cash">Tunai</option>
-                            <option value="transfer">Transfer</option>
-                            <option value="e-wallet">E-Wallet</option>
-                            <option value="gateway">Payment Gateway</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Mulai</label>
-                        <input type="date" name="start_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Akhir</label>
-                        <input type="date" name="end_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    
-                    <div class="flex items-end space-x-2">
-                        <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                            <i class="fas fa-search mr-2"></i>Filter
-                        </button>
-                        <a href="/billing/payments" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
-                            <i class="fas fa-refresh"></i>
-                        </a>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Total Pembayaran</p>
-                            <p id="total-amount" class="text-xl font-bold text-gray-900">Rp 0</p>
-                        </div>
-                    </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Jumlah Transaksi</p>
+                    <p id="total-count" class="text-2xl font-bold text-gray-900">0</p>
                 </div>
-                
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-receipt text-blue-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Jumlah Transaksi</p>
-                            <p id="total-count" class="text-xl font-bold text-gray-900">0</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-chart-line text-yellow-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Rata-rata</p>
-                            <p id="avg-amount" class="text-xl font-bold text-gray-900">Rp 0</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar-day text-purple-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Tunai</p>
-                            <p id="cash-amount" class="text-xl font-bold text-gray-900">Rp 0</p>
-                        </div>
-                    </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-receipt text-blue-600 text-xl"></i>
                 </div>
             </div>
+        </div>
 
-            <!-- Payments Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Daftar Pembayaran</h3>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Rata-rata</p>
+                    <p id="avg-amount" class="text-2xl font-bold text-gray-900">Rp 0</p>
                 </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. Tagihan</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pelanggan</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jumlah</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="payments-tbody" class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                    <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
-                                    <p>Memuat data...</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-chart-line text-yellow-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Tunai</p>
+                    <p id="cash-amount" class="text-2xl font-bold text-gray-900">Rp 0</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-calendar-day text-purple-600 text-xl"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        async function loadPayments() {
-            try {
-                const response = await fetch('/billing/payments?format=json');
-                const data = await response.json();
-                
-                const tbody = document.getElementById('payments-tbody');
-                
-                // Update summary cards
-                if (data.stats) {
-                    const totalAmount = parseFloat(data.stats.total_amount || 0);
-                    const totalPayments = parseInt(data.stats.total_payments || 0);
-                    const avgAmount = totalPayments > 0 ? totalAmount / totalPayments : 0;
-                    const cashAmount = parseFloat(data.stats.cash_amount || 0);
-                    
-                    document.getElementById('total-amount').textContent = 
-                        'Rp ' + new Intl.NumberFormat('id-ID').format(totalAmount);
-                    document.getElementById('total-count').textContent = totalPayments;
-                    document.getElementById('avg-amount').textContent = 
-                        'Rp ' + new Intl.NumberFormat('id-ID').format(avgAmount);
-                    document.getElementById('cash-amount').textContent = 
-                        'Rp ' + new Intl.NumberFormat('id-ID').format(cashAmount);
-                }
-                
-                if (!data.payments || data.payments.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                <i class="fas fa-inbox text-4xl mb-2"></i>
-                                <p>Belum ada pembayaran</p>
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                tbody.innerHTML = data.payments.map(payment => {
-                    // Determine payment status based on invoice status
-                    let statusClass = 'bg-green-100 text-green-800';
-                    let statusText = 'Lunas';
-                    
-                    if (payment.invoice_status === 'paid') {
-                        statusClass = 'bg-green-100 text-green-800';
-                        statusText = 'Lunas';
-                    } else if (payment.invoice_status === 'partial') {
-                        statusClass = 'bg-yellow-100 text-yellow-800';
-                        statusText = 'Kurang/Cicilan';
-                    } else if (payment.invoice_status === 'overdue' || payment.invoice_status === 'debt') {
-                        statusClass = 'bg-red-100 text-red-800';
-                        statusText = 'Hutang';
-                    } else if (payment.invoice_status === 'unpaid') {
-                        statusClass = 'bg-gray-100 text-gray-800';
-                        statusText = 'Belum Lunas';
-                    }
-                    
-                    return `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ${new Date(payment.payment_date).toLocaleDateString('id-ID')}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                ${payment.invoice_number || '-'}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">${payment.customer_name || '-'}</div>
-                                <div class="text-sm text-gray-500">${payment.customer_phone || '-'}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                Rp ${new Intl.NumberFormat('id-ID').format(parseFloat(payment.amount || 0))}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                ${formatPaymentMethod(payment.payment_method)}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}" 
-                                      title="${payment.invoice_status === 'partial' || payment.invoice_status === 'overdue' ? 
-                                             'Sisa: Rp ' + new Intl.NumberFormat('id-ID').format(parseFloat(payment.invoice_remaining || 0)) : ''}">
-                                    ${statusText}
-                                </span>
-                                ${payment.invoice_status === 'partial' || payment.invoice_status === 'overdue' ? 
-                                  '<div class="text-xs text-gray-500 mt-1">Sisa: Rp ' + new Intl.NumberFormat('id-ID').format(parseFloat(payment.invoice_remaining || 0)) + '</div>' : ''}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <button onclick="viewPayment(${payment.id})" class="text-blue-600 hover:text-blue-900">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-                
-            } catch (error) {
-                console.error('Error loading payments:', error);
-                document.getElementById('payments-tbody').innerHTML = `
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Metode Pembayaran</label>
+                <select name="method"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Semua Metode</option>
+                    <option value="cash">Tunai</option>
+                    <option value="transfer">Transfer</option>
+                    <option value="e-wallet">E-Wallet</option>
+                    <option value="gateway">Payment Gateway</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Mulai</label>
+                <input type="date" name="start_date"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Akhir</label>
+                <input type="date" name="end_date"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div class="flex items-end gap-2">
+                <button type="submit"
+                    class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                    <i class="fas fa-search mr-2"></i>Filter
+                </button>
+                <a href="/billing/payments"
+                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors shadow-sm">
+                    <i class="fas fa-sync-alt"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Payments Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-900">Daftar Transaksi</h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-red-500">
-                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
-                            <p>Gagal memuat data pembayaran</p>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tanggal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.
+                            Tagihan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Pelanggan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Jumlah</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Metode</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="payments-tbody" class="bg-white divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-3xl mb-2 text-blue-500"></i>
+                            <p>Memuat data...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadPayments() {
+        try {
+            // Get query parameters from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryStr = urlParams.toString() ? '?' + urlParams.toString() : '';
+
+            // Set form values from URL params
+            const methodSelect = document.querySelector('select[name="method"]');
+            if (methodSelect && urlParams.get('method')) methodSelect.value = urlParams.get('method');
+
+            const startDateInput = document.querySelector('input[name="start_date"]');
+            if (startDateInput && urlParams.get('start_date')) startDateInput.value = urlParams.get('start_date');
+
+            const endDateInput = document.querySelector('input[name="end_date"]');
+            if (endDateInput && urlParams.get('end_date')) endDateInput.value = urlParams.get('end_date');
+
+            const response = await fetch('/billing/payments' + queryStr + (queryStr ? '&' : '?') + 'format=json');
+            const data = await response.json();
+
+            const tbody = document.getElementById('payments-tbody');
+
+            // Update summary cards
+            if (data.stats) {
+                const totalAmount = parseFloat(data.stats.total_amount || 0);
+                const totalPayments = parseInt(data.stats.total_payments || 0);
+                const avgAmount = totalPayments > 0 ? totalAmount / totalPayments : 0;
+                const cashAmount = parseFloat(data.stats.cash_amount || 0);
+
+                document.getElementById('total-amount').textContent =
+                    'Rp ' + new Intl.NumberFormat('id-ID').format(totalAmount);
+                document.getElementById('total-count').textContent = totalPayments;
+                document.getElementById('avg-amount').textContent =
+                    'Rp ' + new Intl.NumberFormat('id-ID').format(avgAmount);
+                document.getElementById('cash-amount').textContent =
+                    'Rp ' + new Intl.NumberFormat('id-ID').format(cashAmount);
+            }
+
+            if (!data.payments || data.payments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i>
+                                <p>Belum ada data pembayaran</p>
+                            </div>
                         </td>
                     </tr>
                 `;
+                return;
             }
-        }
 
-        function formatPaymentMethod(method) {
-            const methods = {
-                'cash': 'Tunai',
-                'transfer': 'Transfer Bank',
-                'e-wallet': 'E-Wallet',
-                'gateway': 'Payment Gateway'
-            };
-            return methods[method] || method;
-        }
+            tbody.innerHTML = data.payments.map(payment => {
+                // Determine payment status based on invoice status
+                let statusClass = 'bg-green-100 text-green-800 border border-green-200';
+                let statusText = 'Lunas';
 
-        function viewPayment(id) {
-            window.location.href = `/billing/payments/${id}`;
-        }
+                if (payment.invoice_status === 'paid') {
+                    statusClass = 'bg-green-100 text-green-800 border border-green-200';
+                    statusText = 'Lunas';
+                } else if (payment.invoice_status === 'partial') {
+                    statusClass = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+                    statusText = 'Cicilan';
+                } else if (payment.invoice_status === 'overdue' || payment.invoice_status === 'debt') {
+                    statusClass = 'bg-red-100 text-red-800 border border-red-200';
+                    statusText = 'Hutang';
+                } else if (payment.invoice_status === 'unpaid') {
+                    statusClass = 'bg-gray-100 text-gray-800 border border-gray-200';
+                    statusText = 'Belum Lunas';
+                }
 
-        function exportPayments() {
-            window.location.href = '/billing/payments/export';
-        }
+                return `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            ${new Date(payment.payment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                            <a href="/billing/tagihan/${payment.invoice_id}" class="hover:underline">${payment.invoice_number || '-'}</a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${payment.customer_name || '-'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                            Rp ${new Intl.NumberFormat('id-ID').format(parseFloat(payment.amount || 0))}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            ${formatPaymentMethod(payment.payment_method)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="viewPayment(${payment.id})" class="text-gray-400 hover:text-blue-600 transition-colors" title="Lihat Detail">
+                                <i class="fas fa-eye text-lg"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
 
-        // Load payments on page load
-        loadPayments();
-    </script>
-</body>
-</html>
+        } catch (error) {
+            console.error('Error loading payments:', error);
+            document.getElementById('payments-tbody').innerHTML = `
+                <tr>
+                    <td colspan="7" class="px-6 py-12 text-center text-red-500">
+                        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                        <p>Gagal memuat data pembayaran</p>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function formatPaymentMethod(method) {
+        const methods = {
+            'cash': '<span class="inline-flex items-center gap-1"><i class="fas fa-money-bill text-green-500"></i> Tunai</span>',
+            'transfer': '<span class="inline-flex items-center gap-1"><i class="fas fa-university text-blue-500"></i> Bank</span>',
+            'e-wallet': '<span class="inline-flex items-center gap-1"><i class="fas fa-wallet text-purple-500"></i> E-Wallet</span>',
+            'gateway': '<span class="inline-flex items-center gap-1"><i class="fas fa-globe text-cyan-500"></i> Gateway</span>'
+        };
+        return methods[method] || method;
+    }
+
+    function viewPayment(id) {
+        // window.location.href = `/billing/payments/${id}`; // Just view invoice for now if detail not ready
+        // Find the invoice ID from the row data if possible, or just alert/modal.
+        // For now, let's redirect to invoice which is more useful
+        alert('Fitur detail pembayaran akan segera hadir. Silakan cek detail Tagihan.');
+    }
+
+    function exportPayments() {
+        window.location.href = '/billing/payments/export';
+    }
+
+    // Load payments on page load
+    loadPayments();
+</script>
