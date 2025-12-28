@@ -101,59 +101,56 @@ export class SystemUpdateController {
     /**
      * Perform system update
      */
+    /**
+     * Perform system update
+     */
     static async performUpdate(req: Request, res: Response): Promise<any> {
         try {
-            console.log('🚀 Starting system update...');
+            console.log('🚀 Starting robust system update...');
 
             const updateSteps: string[] = [];
             let currentStep = 0;
 
-            // Step 1: Stash local changes
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Stashing local changes...`);
-            console.log(updateSteps[currentStep - 1]);
+            const logStep = (msg: string) => {
+                currentStep++;
+                const fullMsg = `[${currentStep}/7] ${msg}`;
+                updateSteps.push(fullMsg);
+                console.log(fullMsg);
+            };
 
+            // Step 1: Fetch latest from remote
+            logStep('Fetching latest from GitHub...');
+            await execAsync('git fetch origin');
+
+            // Step 2: Reset hard to match origin/main (Force Update)
+            logStep('Forcing sync with main branch (git reset --hard)...');
             try {
-                await execAsync('git stash');
+                await execAsync('git reset --hard origin/main');
             } catch (error) {
-                console.log('No local changes to stash');
+                console.error('Git reset failed, trying simple pull...');
+                await execAsync('git pull origin main --force');
             }
 
-            // Step 2: Pull latest changes
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Pulling latest changes from GitHub...`);
-            console.log(updateSteps[currentStep - 1]);
+            // Step 3: Clean untracked files (Optional but safer)
+            // logStep('Cleaning untracked files...');
+            // await execAsync('git clean -fd'); 
 
-            // Ensure we are on main branch
-            await execAsync('git checkout main');
-            const { stdout: pullOutput } = await execAsync('git pull origin main');
-            console.log(pullOutput);
+            // Step 4: Install dependencies
+            logStep('Installing dependencies (npm install)...');
+            await execAsync('npm install --legacy-peer-deps');
 
-            // Step 3: Install dependencies
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Installing dependencies...`);
-            console.log(updateSteps[currentStep - 1]);
+            // Step 5: Build application
+            logStep('Building application (npm run build)...');
+            await execAsync('npm run build');
 
-            const { stdout: npmOutput } = await execAsync('npm install');
-            console.log(npmOutput);
-
-            // Step 4: Build application
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Building application...`);
-            console.log(updateSteps[currentStep - 1]);
-
-            const { stdout: buildOutput } = await execAsync('npm run build');
-            console.log(buildOutput);
-
-            // Step 5: Read new version
+            // Step 6: Read new version
             const packageJson = JSON.parse(
                 fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')
             );
             const newVersion = packageJson.version;
 
-            // Step 6: Send Success Response FIRST
-            currentStep++;
-            updateSteps.push(`[${currentStep}/6] Update complete! Restarting server...`);
+            // Step 7: Send response BEFORE restarting
+            logStep(`Update complete! New version: ${newVersion}. Restarting server...`);
 
             res.json({
                 success: true,
@@ -162,21 +159,21 @@ export class SystemUpdateController {
                 steps: updateSteps
             });
 
-            console.log('✅ Update finished. Scheduling restart...');
+            console.log('✅ Update finished. Scheduling restart in 2 seconds...');
 
-            // Step 7: Restart Server (Async)
-            // We use process.exit(0) because PM2 will automatically restart the service
-            // This is more reliable than calling 'pm2 restart' from within the process
+            // Step 8: Trigger Restart
             setTimeout(() => {
-                console.log('🔄 Triggering restart (process.exit)...');
+                console.log('🔄 Triggering process exit (PM2 should restart automatically)...');
                 process.exit(0);
-            }, 1000);
+            }, 2000);
+
         } catch (error: any) {
             console.error('❌ Error performing update:', error);
             res.status(500).json({
                 success: false,
                 error: 'Failed to update system',
-                details: error.message
+                details: error.message,
+                steps: [] // We might want to pass steps so far, but local scope makes it hard without refactoring
             });
         }
     }
