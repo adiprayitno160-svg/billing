@@ -72,6 +72,14 @@ export class WhatsAppBotService {
 
             console.log(`[WhatsAppBot] Message from ${phone}: ${body.substring(0, 50)}...`);
 
+            // GLOBAL GUARD: Only registered customers can access the bot
+            // This prevents unauthorized access to any feature (Menu, Invoice, etc.)
+            const customer = await this.validateCustomer(phone);
+            if (!customer) {
+                // validateCustomer already sends the rejection message
+                return;
+            }
+
             // Handle image/media (bukti transfer)
             if (hasMedia) {
                 await this.handleMediaMessage(message, phone);
@@ -90,7 +98,7 @@ export class WhatsAppBotService {
                 return;
             }
 
-            // Default: Show main menu
+            // Default: Show main menu for any other text interaction
             await this.showMainMenu(phone);
 
         } catch (error: any) {

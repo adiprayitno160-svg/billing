@@ -105,35 +105,97 @@ export class GitHubService {
   /**
    * Fetch latest release from GitHub
    */
+  /**
+   * Fetch latest release from GitHub
+   * Now supporting Tags as fallback if they are newer than Releases
+   */
   static async getLatestRelease(channel: string = 'stable'): Promise<GitHubRelease | null> {
     try {
       const { owner, repo } = await this.getRepoInfo();
-      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/releases`;
 
-      const response = await axios.get(apiUrl, {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Billing-System-Auto-Update'
-        },
-        timeout: 10000
-      });
+      // 1. Fetch Releases
+      const releasesUrl = `https://api.github.com/repos/${owner}/${repo}/releases`;
+      let latestRelease: GitHubRelease | null = null;
 
-      const releases: GitHubRelease[] = response.data;
+      try {
+        const response = await axios.get(releasesUrl, {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Billing-System-Auto-Update'
+          },
+          timeout: 5000
+        });
 
-      // Filter based on channel
-      let filteredReleases = releases.filter(release => !release.draft);
+        const releases: GitHubRelease[] = response.data;
+        let filteredReleases = releases.filter(release => !release.draft);
+        if (channel === 'stable') {
+          filteredReleases = filteredReleases.filter(release => !release.prerelease);
+        }
 
-      if (channel === 'stable') {
-        // Stable: only non-prerelease
-        filteredReleases = filteredReleases.filter(release => !release.prerelease);
-      } else if (channel === 'beta') {
-        // Beta: include prerelease
-        // All releases
+        if (filteredReleases.length > 0) {
+          latestRelease = filteredReleases[0];
+        }
+      } catch (err) {
+        console.warn('Failed to fetch releases, trying tags...', err);
       }
 
-      return filteredReleases.length > 0 && filteredReleases[0] ? filteredReleases[0] : null;
+      // 2. Fetch Tags (Fallback or Newer Check)
+      // GitHub Releases sometimes lag or users only push tags. 
+      // We check tags to see if there is a version newer than the latest release.
+      const tagsUrl = `https://api.github.com/repos/${owner}/${repo}/tags`;
+      let latestTagRelease: GitHubRelease | null = null;
+
+      try {
+        const response = await axios.get(tagsUrl, {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Billing-System-Auto-Update'
+          },
+          timeout: 5000
+        });
+
+        const tags = response.data;
+        if (tags && tags.length > 0) {
+          // Tags are usually sorted by creation, but not always guaranteed by semver in API
+          // However, usually the 0-th element is the latest pushed tag.
+          // Let's assume tags[0] is the candidate.
+          const tag = tags[0];
+          const tagName = tag.name;
+
+          // Simulate a Release object from Tag
+          latestTagRelease = {
+            tag_name: tagName,
+            name: tagName,
+            body: `Release based on tag ${tagName}`,
+            published_at: new Date().toISOString(), // Tags API doesn't list date directly without commit fetch
+            zipball_url: tag.zipball_url,
+            tarball_url: tag.tarball_url,
+            prerelease: false,
+            draft: false
+          };
+        }
+      } catch (err) {
+        console.warn('Failed to fetch tags', err);
+      }
+
+      // 3. Determine the winner
+      if (!latestRelease && !latestTagRelease) return null;
+      if (!latestRelease) return latestTagRelease;
+      if (!latestTagRelease) return latestRelease;
+
+      // Compare versions
+      const releaseVer = latestRelease.tag_name;
+      const tagVer = latestTagRelease.tag_name;
+
+      if (this.compareVersions(tagVer, releaseVer) > 0) {
+        console.log(`Found newer tag ${tagVer} (vs release ${releaseVer})`);
+        return latestTagRelease;
+      }
+
+      return latestRelease;
+
     } catch (error: any) {
-      console.error('Error fetching GitHub releases:', error.message);
+      console.error('Error fetching GitHub update info:', error.message);
       return null;
     }
   }
