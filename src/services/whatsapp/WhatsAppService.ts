@@ -169,61 +169,83 @@ export class WhatsAppService {
 
             // Handle incoming messages
             this.sock.ev.on('messages.upsert', async (m: any) => {
-                const message = m.messages[0];
-                if (!message.key.fromMe && m.type === 'notify') {
-                    console.log('📩 New message received');
-                    try {
-                        const { WhatsAppBotService } = await import('./WhatsAppBotService');
+                try {
+                    const message = m.messages[0];
 
-                        // Construct Adapter for WhatsAppBotService
-                        const from = message.key.remoteJid;
+                    if (!message.key.fromMe && m.type === 'notify') {
+                        console.log('📩 New message received');
+                        console.log('[WhatsAppService] Message type:', m.type);
+                        console.log('[WhatsAppService] From:', message.key.remoteJid);
 
-                        // Extract text body
-                        let body = '';
-                        if (message.message?.conversation) {
-                            body = message.message.conversation;
-                        } else if (message.message?.extendedTextMessage?.text) {
-                            body = message.message.extendedTextMessage.text;
-                        } else if (message.message?.imageMessage?.caption) {
-                            body = message.message.imageMessage.caption;
-                        }
+                        try {
+                            console.log('[WhatsAppService] Importing WhatsAppBotService...');
+                            const { WhatsAppBotService } = await import('./WhatsAppBotService');
+                            console.log('[WhatsAppService] ✅ WhatsAppBotService imported');
 
-                        // Check for media
-                        const hasMedia = !!(message.message?.imageMessage ||
-                            message.message?.videoMessage ||
-                            message.message?.documentMessage);
+                            // Construct Adapter for WhatsAppBotService
+                            const from = message.key.remoteJid;
 
-                        const adapter = {
-                            from: from,
-                            body: body,
-                            hasMedia: hasMedia,
-                            downloadMedia: async () => {
-                                const buffer = await downloadMediaMessage(
-                                    message,
-                                    'buffer',
-                                    {}
-                                );
-
-                                // Detect mime type
-                                let mimetype = 'application/octet-stream';
-                                if (message.message?.imageMessage) mimetype = message.message.imageMessage.mimetype;
-                                else if (message.message?.videoMessage) mimetype = message.message.videoMessage.mimetype;
-                                else if (message.message?.documentMessage) mimetype = message.message.documentMessage.mimetype;
-
-                                return {
-                                    mimetype,
-                                    data: buffer.toString('base64'),
-                                    filename: 'file'
-                                };
+                            // Extract text body
+                            let body = '';
+                            if (message.message?.conversation) {
+                                body = message.message.conversation;
+                            } else if (message.message?.extendedTextMessage?.text) {
+                                body = message.message.extendedTextMessage.text;
+                            } else if (message.message?.imageMessage?.caption) {
+                                body = message.message.imageMessage.caption;
                             }
-                        };
 
-                        console.log(`[Adapter] From: ${from}, Body: ${body}, Media: ${hasMedia}`);
-                        await WhatsAppBotService.handleMessage(adapter);
+                            // Check for media
+                            const hasMedia = !!(message.message?.imageMessage ||
+                                message.message?.videoMessage ||
+                                message.message?.documentMessage);
 
-                    } catch (error) {
-                        console.error('Error handling bot message:', error);
+                            console.log('[WhatsAppService] Creating adapter...');
+                            const adapter = {
+                                from: from,
+                                body: body,
+                                hasMedia: hasMedia,
+                                downloadMedia: async () => {
+                                    const buffer = await downloadMediaMessage(
+                                        message,
+                                        'buffer',
+                                        {}
+                                    );
+
+                                    // Detect mime type
+                                    let mimetype = 'application/octet-stream';
+                                    if (message.message?.imageMessage) mimetype = message.message.imageMessage.mimetype;
+                                    else if (message.message?.videoMessage) mimetype = message.message.videoMessage.mimetype;
+                                    else if (message.message?.documentMessage) mimetype = message.message.documentMessage.mimetype;
+
+                                    return {
+                                        mimetype,
+                                        data: buffer.toString('base64'),
+                                        filename: 'file'
+                                    };
+                                }
+                            };
+
+                            console.log(`[WhatsAppService] Adapter created. From: ${from}, Body: "${body.substring(0, 50)}", Media: ${hasMedia}`);
+                            console.log('[WhatsAppService] Calling WhatsAppBotService.handleMessage()...');
+
+                            await WhatsAppBotService.handleMessage(adapter);
+
+                            console.log('[WhatsAppService] ✅ Message handled successfully');
+
+                        } catch (error: any) {
+                            console.error('[WhatsAppService] ========== ERROR IN MESSAGE HANDLER ==========');
+                            console.error('[WhatsAppService] Error type:', error.constructor.name);
+                            console.error('[WhatsAppService] Error message:', error.message);
+                            console.error('[WhatsAppService] Error stack:', error.stack);
+                            console.error('[WhatsAppService] ==========================================');
+                        }
                     }
+                } catch (outerError: any) {
+                    console.error('[WhatsAppService] ========== FATAL ERROR IN UPSERT HANDLER ==========');
+                    console.error('[WhatsAppService] Error:', outerError);
+                    console.error('[WhatsAppService] Stack:', outerError.stack);
+                    console.error('[WhatsAppService] ====================================================');
                 }
             });
 
