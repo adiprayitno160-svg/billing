@@ -1,24 +1,13 @@
 /**
- * Modern WhatsApp Service using Baileys (Multi-Device)
- * Replaces Puppeteer implementation for better stability
+ * Simple WhatsApp Service using whatsapp-web.js
+ * Stable and battle-tested library
  */
 
 import * as qrcode from 'qrcode-terminal';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as crypto from 'crypto';
 
-// Polyfill Web Crypto for Node.js < 19
-if (!globalThis.crypto) {
-    try {
-        // @ts-ignore
-        globalThis.crypto = crypto.webcrypto;
-    } catch (e) {
-        console.warn('⚠️ Failed to polyfill Web Crypto (Node version might be too old)');
-    }
-}
+const { Client, LocalAuth } = require('whatsapp-web.js');
 
 export interface WhatsAppMessageOptions {
     customerId?: number;
@@ -26,245 +15,135 @@ export interface WhatsAppMessageOptions {
     priority?: 'low' | 'normal' | 'high';
 }
 
-// Dynamic import wrapper for Baileys
-let baileysModule: any = null;
-
-// Helper to force native dynamic import (bypassing TS transpilation to require)
-const dynamicImport = new Function('specifier', 'return import(specifier)');
-
-async function loadBaileys() {
-    if (!baileysModule) {
-        baileysModule = await dynamicImport('@whiskeysockets/baileys');
-    }
-    return baileysModule;
-}
-
 export class WhatsAppService {
-    private static sock: any = null;
+    private static client: any = null;
     private static isInitialized = false;
     private static isInitializing = false;
     private static isConnected = false;
     private static currentQRCode: string | null = null;
-    private static sessionPath = path.join(process.cwd(), 'baileys-session-new');
-    private static reconnectAttempts = 0;
-    private static maxReconnectAttempts = 5;
     private static channelColumnExists: boolean | null = null;
 
     /**
-     * Initialize Baileys WhatsApp client with dynamic import
+     * Initialize WhatsApp Web client
      */
     static async initialize(): Promise<void> {
         if (this.isInitialized) {
-            console.log('✅ Baileys WhatsApp service already initialized');
+            console.log('✅ WhatsApp service already initialized');
             return;
         }
 
         if (this.isInitializing) {
-            console.log('⏳ Baileys WhatsApp service is already initializing');
+            console.log('⏳ WhatsApp service is already initializing');
             return;
         }
 
         try {
             this.isInitializing = true;
-            console.log('📱 Initializing Baileys WhatsApp service...');
-            console.log(`   Session path: ${this.sessionPath}`);
+            console.log('📱 Initializing WhatsApp Web service...');
 
-            // Load Baileys module dynamically
-            const baileys = await loadBaileys();
-            const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion,
-                makeCacheableSignalKeyStore, DisconnectReason, Browsers, downloadMediaMessage } = baileys;
-
-            // Create Pino logger dynamically
-            const pino = await dynamicImport('pino');
-            const logger = pino.default({
-                level: process.env.NODE_ENV === 'production' ? 'silent' : 'error'
-            });
-
-            // Create session directory if doesn't exist
-            if (!fs.existsSync(this.sessionPath)) {
-                fs.mkdirSync(this.sessionPath, { recursive: true });
-                console.log('✅ Session directory created');
-            }
-
-            // Load auth state
-            const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
-            console.log('✅ Auth state loaded');
-
-            // Get latest Baileys version
-            const { version, isLatest } = await fetchLatestBaileysVersion();
-            console.log(`📱 Using WA v${version.join('.')}, isLatest: ${isLatest}`);
-
-            // Create socket
-            this.sock = makeWASocket({
-                version,
-                logger: logger,
-                printQRInTerminal: false, // We handle QR display manually or via frontend
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, logger)
-                },
-                browser: Browsers.ubuntu('Chrome'),
-                markOnlineOnConnect: true,
-                generateHighQualityLinkPreview: true,
-                syncFullHistory: false,
-                getMessage: async (key: any) => {
-                    return { conversation: '' };
+            // Create client with local auth strategy
+            this.client = new Client({
+                authStrategy: new LocalAuth({
+                    dataPath: './whatsapp-session'
+                }),
+                puppeteer: {
+                    headless: true,
+                    args: [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
+                    ]
                 }
             });
 
-            console.log('✅ Baileys socket created');
-
-            // Handle credentials update
-            this.sock.ev.on('creds.update', saveCreds);
-
-            // Handle connection updates
-            this.sock.ev.on('connection.update', async (update: any) => {
-                const { connection, lastDisconnect, qr } = update;
-
-                if (qr) {
-                    console.log('📱 QR Code generated');
-                    qrcode.generate(qr, { small: true });
-                    this.currentQRCode = qr;
-                    this.isConnected = false;
-                }
-
-                if (connection === 'close') {
-                    const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
-
-                    console.log('⚠️ Connection closed:', lastDisconnect?.error);
-                    console.log(`   Should reconnect: ${shouldReconnect}`);
-
-                    this.isConnected = false;
-                    this.isInitialized = false;
-                    this.isInitializing = false;
-
-                    if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-                        this.reconnectAttempts++;
-                        console.log(`🔄 Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-                        await new Promise(resolve => setTimeout(resolve, 5000));
-                        // Re-initialize logic
-                        // Note: calling initialize() recursively might cause stack issues if loops rapidly, 
-                        // but with timeout it's fine.
-                        // However, standard Baileys usually handles reconnects if we just recreate the socket.
-                        await this.initialize();
-                    } else if (!shouldReconnect) {
-                        console.log('🚪 Logged out. Please scan QR code again.');
-                        this.currentQRCode = null;
-                        this.reconnectAttempts = 0;
-                    } else {
-                        console.error('❌ Max reconnection attempts reached');
-                        this.currentQRCode = null; // Clear QR code so user knows to click "regenerate"
-                    }
-                } else if (connection === 'open') {
-                    console.log('✅ WhatsApp connection opened successfully!');
-                    this.isConnected = true;
-                    this.isInitialized = true;
-                    this.isInitializing = false;
-                    this.currentQRCode = null;
-                    this.reconnectAttempts = 0;
-                } else if (connection === 'connecting') {
-                    console.log('⏳ Connecting to WhatsApp...');
-                }
+            // QR Code event
+            this.client.on('qr', (qr: string) => {
+                console.log('📱 QR Code generated');
+                qrcode.generate(qr, { small: true });
+                this.currentQRCode = qr;
+                this.isConnected = false;
             });
 
-            // Handle incoming messages
-            this.sock.ev.on('messages.upsert', async (m: any) => {
+            // Ready event
+            this.client.on('ready', () => {
+                console.log('✅ WhatsApp connection opened successfully!');
+                this.isConnected = true;
+                this.isInitialized = true;
+                this.isInitializing = false;
+                this.currentQRCode = null;
+            });
+
+            // Authentication event
+            this.client.on('authenticated', () => {
+                console.log('✅ WhatsApp authenticated');
+            });
+
+            // Disconnected event
+            this.client.on('disconnected', (reason: string) => {
+                console.log('⚠️ WhatsApp disconnected:', reason);
+                this.isConnected = false;
+                this.isInitialized = false;
+                this.initialize();
+            });
+
+            // Message event
+            this.client.on('message', async (message: any) => {
                 try {
-                    const message = m.messages[0];
+                    console.log('📩 New message received');
+                    console.log('[WhatsAppService] From:', message.from);
+                    console.log('[WhatsAppService] Body:', message.body?.substring(0, 100));
 
-                    if (!message.key.fromMe && m.type === 'notify') {
-                        console.log('📩 New message received');
-                        console.log('[WhatsAppService] Message type:', m.type);
-                        console.log('[WhatsAppService] From:', message.key.remoteJid);
+                    // Import bot handler
+                    const { WhatsAppBotService } = await import('./WhatsAppBotService');
 
-                        try {
-                            console.log('[WhatsAppService] Importing WhatsAppBotService...');
-                            const { WhatsAppBotService } = await import('./WhatsAppBotService');
-                            console.log('[WhatsAppService] ✅ WhatsAppBotService imported');
-
-                            // Construct Adapter for WhatsAppBotService
-                            const from = message.key.remoteJid;
-
-                            // Extract text body
-                            let body = '';
-                            if (message.message?.conversation) {
-                                body = message.message.conversation;
-                            } else if (message.message?.extendedTextMessage?.text) {
-                                body = message.message.extendedTextMessage.text;
-                            } else if (message.message?.imageMessage?.caption) {
-                                body = message.message.imageMessage.caption;
+                    // Create adapter
+                    const adapter = {
+                        from: message.from,
+                        body: message.body || '',
+                        hasMedia: message.hasMedia,
+                        downloadMedia: async () => {
+                            if (!message.hasMedia) {
+                                return null;
                             }
-
-                            // Check for media
-                            const hasMedia = !!(message.message?.imageMessage ||
-                                message.message?.videoMessage ||
-                                message.message?.documentMessage);
-
-                            console.log('[WhatsAppService] Creating adapter...');
-                            const adapter = {
-                                from: from,
-                                body: body,
-                                hasMedia: hasMedia,
-                                downloadMedia: async () => {
-                                    const buffer = await downloadMediaMessage(
-                                        message,
-                                        'buffer',
-                                        {}
-                                    );
-
-                                    // Detect mime type
-                                    let mimetype = 'application/octet-stream';
-                                    if (message.message?.imageMessage) mimetype = message.message.imageMessage.mimetype;
-                                    else if (message.message?.videoMessage) mimetype = message.message.videoMessage.mimetype;
-                                    else if (message.message?.documentMessage) mimetype = message.message.documentMessage.mimetype;
-
-                                    return {
-                                        mimetype,
-                                        data: buffer.toString('base64'),
-                                        filename: 'file'
-                                    };
-                                }
+                            const media = await message.downloadMedia();
+                            return {
+                                mimetype: media.mimetype,
+                                data: media.data,
+                                filename: media.filename || 'file'
                             };
-
-                            console.log(`[WhatsAppService] Adapter created. From: ${from}, Body: "${body.substring(0, 50)}", Media: ${hasMedia}`);
-                            console.log('[WhatsAppService] Calling WhatsAppBotService.handleMessage()...');
-
-                            await WhatsAppBotService.handleMessage(adapter);
-
-                            console.log('[WhatsAppService] ✅ Message handled successfully');
-
-                        } catch (error: any) {
-                            console.error('[WhatsAppService] ========== ERROR IN MESSAGE HANDLER ==========');
-                            console.error('[WhatsAppService] Error type:', error.constructor.name);
-                            console.error('[WhatsAppService] Error message:', error.message);
-                            console.error('[WhatsAppService] Error stack:', error.stack);
-                            console.error('[WhatsAppService] ==========================================');
                         }
-                    }
-                } catch (outerError: any) {
-                    console.error('[WhatsAppService] ========== FATAL ERROR IN UPSERT HANDLER ==========');
-                    console.error('[WhatsAppService] Error:', outerError);
-                    console.error('[WhatsAppService] Stack:', outerError.stack);
-                    console.error('[WhatsAppService] ====================================================');
+                    };
+
+                    console.log('[WhatsAppService] Calling WhatsAppBotService.handleMessage()...');
+                    await WhatsAppBotService.handleMessage(adapter);
+                    console.log('[WhatsAppService] ✅ Message handled successfully');
+
+                } catch (error: any) {
+                    console.error('[WhatsAppService] ========== ERROR IN MESSAGE HANDLER ==========');
+                    console.error('[WhatsAppService] Error:', error?.message || 'Unknown');
+                    console.error('[WhatsAppService] Stack:', error?.stack);
+                    console.error('[WhatsAppService] ==========================================');
                 }
             });
 
-            this.isInitialized = true;
-            this.isInitializing = false;
-
-            console.log('✅ Baileys WhatsApp service initialized successfully');
+            // Initialize client
+            await this.client.initialize();
+            console.log('✅ WhatsApp Web service initialized successfully');
 
         } catch (error: any) {
             this.isInitializing = false;
             this.isInitialized = false;
-            console.error('❌ Failed to initialize Baileys WhatsApp service:');
-            console.error('   Error:', error.message || error);
+            console.error('❌ Failed to initialize WhatsApp service:', error.message || error);
             throw error;
         }
     }
 
     static isClientReady(): boolean {
-        return this.isConnected && this.sock !== null;
+        return this.isConnected && this.client !== null;
     }
 
     static getStatus(): {
@@ -291,42 +170,17 @@ export class WhatsAppService {
         try {
             console.log('🔄 Regenerating QR code...');
 
-            if (this.sock) {
+            if (this.client) {
                 await this.destroy();
-            }
-
-            if (fs.existsSync(this.sessionPath)) {
-                try {
-                    fs.rmSync(this.sessionPath, { recursive: true, force: true });
-                    console.log('✅ Session folder deleted');
-                } catch (err) {
-                    console.warn('⚠️ Error deleting session folder:', err);
-                }
             }
 
             this.currentQRCode = null;
             this.isConnected = false;
             this.isInitialized = false;
-            this.reconnectAttempts = 0;
 
             await new Promise(resolve => setTimeout(resolve, 2000));
             await this.initialize();
 
-            // Wait for QR
-            let attempts = 0;
-            const maxAttempts = 30; // 15s
-            while (!this.currentQRCode && attempts < maxAttempts && !this.isConnected) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                attempts++;
-            }
-
-            if (this.currentQRCode) {
-                console.log('✅ QR code regenerated successfully');
-            } else if (this.isConnected) {
-                console.log('ℹ️ Client already connected, no QR code needed');
-            } else {
-                console.warn('⚠️ QR code not generated yet');
-            }
         } catch (error) {
             console.error('Failed to regenerate QR code:', error);
             throw error;
@@ -341,9 +195,7 @@ export class WhatsAppService {
         let cleaned = phone.replace(/\D/g, '');
 
         if (!cleaned || cleaned.length < 5) {
-            // throw new Error(`Invalid phone number: "${phone}"`);
-            // Be more lenient to avoid crashes on bad data
-            console.warn(`Invalid phone number: "${phone}", cleaner: ${cleaned}`);
+            console.warn(`Invalid phone number: "${phone}", cleaned: ${cleaned}`);
             if (!cleaned) return '';
         }
 
@@ -355,7 +207,7 @@ export class WhatsAppService {
             cleaned = '62' + cleaned;
         }
 
-        return cleaned + '@s.whatsapp.net';
+        return cleaned + '@c.us';
     }
 
     static async sendMessage(
@@ -382,16 +234,13 @@ export class WhatsAppService {
         try {
             const formattedPhone = this.formatPhoneNumber(phone);
 
-            // if invalid phone
             if (!formattedPhone) {
                 return { success: false, error: 'Invalid phone number format' };
             }
 
-            console.log(`📱 [Baileys] Sending message to ${formattedPhone}`);
+            console.log(`📱 [WhatsApp] Sending message to ${formattedPhone}`);
 
-            const result = await this.sock!.sendMessage(formattedPhone, {
-                text: message
-            });
+            const result = await this.client.sendMessage(formattedPhone, message);
 
             console.log(`✅ WhatsApp message sent to ${phone}`);
 
@@ -406,7 +255,7 @@ export class WhatsAppService {
 
             return {
                 success: true,
-                messageId: result?.key?.id || 'unknown'
+                messageId: result?.id?.id || 'unknown'
             };
         } catch (error: any) {
             const errorMessage = error.message || 'Unknown error';
@@ -628,21 +477,15 @@ export class WhatsAppService {
     }
 
     static async destroy(): Promise<void> {
-        if (this.sock) {
+        if (this.client) {
             try {
-                // Baileys socket doesn't have a direct 'destroy' or 'logout' that is always safe
-                // But end() or logout() usually works.
-                // sock.end is not always available depending on version, check types or documentation?
-                // Using socket reference `end` if available, or just logout.
-                if (this.sock.logout) await this.sock.logout();
-                else if (this.sock.end) this.sock.end();
-
-                console.log('✅ Baileys WhatsApp client logged out/ended');
+                await this.client.destroy();
+                console.log('✅ WhatsApp client destroyed');
             } catch (error) {
-                console.warn('⚠️ Error during logout:', error);
+                console.warn('⚠️ Error during cleanup:', error);
             }
 
-            this.sock = null;
+            this.client = null;
             this.isInitialized = false;
             this.isConnected = false;
             this.currentQRCode = null;
