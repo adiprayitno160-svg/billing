@@ -34,51 +34,10 @@
         </button>
 
         <!-- Print ODC Area -->
-        <div class="relative inline-block text-left relative-z-fix">
-            <button type="button" id="btnPrintODC" data-action="print-odc"
-                style="display: inline-flex; align-items: center; background-color: #0891b2; color: white; padding: 10px 16px; border-radius: 8px; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); white-space: nowrap;">
-                <i class="fas fa-map-marked-alt" style="margin-right: 8px;"></i>Print Area ODC
-            </button>
-            <div id="odcPrintMenu"
-                class="hidden absolute left-0 mt-2 w-72 bg-white rounded-lg shadow-2xl border border-gray-200 z-[100] max-h-96 overflow-y-auto"
-                style="min-width: 280px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
-                <div class="p-2">
-                    <div
-                        class="text-xs font-semibold text-gray-700 px-3 py-2 bg-cyan-50 border-b border-cyan-100 rounded-t-lg flex justify-between items-center">
-                        <span><i class="fas fa-building mr-2 text-cyan-600"></i>Pilih Area ODC:</span>
-                        <span class="text-xs text-cyan-600 font-normal">
-                            <%= typeof odcList !=='undefined' ? odcList.length : 0 %> Area
-                        </span>
-                    </div>
-                    <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
-                        <% odcList.forEach(function(odc) { %>
-                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal"
-                                target="_blank"
-                                class="block px-4 py-3 text-sm text-gray-700 hover:bg-cyan-50 border-b border-gray-100 last:border-0 transition-colors group">
-                                <div class="flex items-start">
-                                    <i
-                                        class="fas fa-print mt-1 mr-3 text-cyan-600 group-hover:scale-110 transition-transform"></i>
-                                    <div>
-                                        <div class="font-semibold">
-                                            <%= odc.name %>
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            <i class="fas fa-map-pin mr-1 text-gray-400"></i>
-                                            <%= odc.location || 'Lokasi tidak tersedia' %>
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
-                            <% }); %>
-                                <% } else { %>
-                                    <div class="px-4 py-6 text-sm text-gray-500 text-center flex flex-col items-center">
-                                        <i class="fas fa-info-circle text-2xl mb-2 text-gray-300"></i>
-                                        <p>Tidak ada data ODC</p>
-                                    </div>
-                                    <% } %>
-                </div>
-            </div>
-        </div>
+        <button type="button" id="btnPrintODC" onclick="showOdcPrintModal()"
+            style="display: inline-flex; align-items: center; background-color: #0891b2; color: white; padding: 10px 16px; border-radius: 8px; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); white-space: nowrap;">
+            <i class="fas fa-map-marked-alt" style="margin-right: 8px;"></i>Print Area ODC
+        </button>
 
         <!-- Bulk Delete -->
         <button type="button" id="bulkDeleteBtn" data-action="bulk-delete" class="bulk-delete-hidden"
@@ -515,12 +474,149 @@
             </div>
         </div>
 
+        <!-- Print ODC Modal with Search -->
+        <div id="odcPrintModal"
+            style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+            <div
+                style="background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 80vh; display: flex; flex-direction: column;">
+                <!-- Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="font-size: 20px; font-weight: bold; color: #111827; margin: 0;">
+                        <i class="fas fa-print" style="color: #0891b2; margin-right: 8px;"></i>Print Tagihan Area ODC
+                    </h3>
+                    <button onclick="closeOdcPrintModal()"
+                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">
+                        &times;
+                    </button>
+                </div>
+
+                <!-- Search Box -->
+                <div style="margin-bottom: 16px;">
+                    <div style="position: relative;">
+                        <i class="fas fa-search"
+                            style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+                        <input type="text" id="odcSearchInput" placeholder="Cari nama ODC atau lokasi..."
+                            onkeyup="filterOdcList()"
+                            style="width: 100%; padding: 10px 12px 10px 36px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
+                    </div>
+                </div>
+
+                <!-- ODC List Container -->
+                <div style="flex: 1; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px;">
+                    <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
+                        <div id="odcListContainer" style="display: grid; gap: 8px;">
+                            <% odcList.forEach(function(odc) { %>
+                                <div class="odc-item" data-name="<%= odc.name.toLowerCase() %>"
+                                    data-location="<%= (odc.location || '').toLowerCase() %>"
+                                    style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #f3f4f6; border-radius: 6px; hover:background-color: #f9fafb;">
+                                    <div>
+                                        <div style="font-weight: 600; color: #1f2937;">
+                                            <%= odc.name %>
+                                        </div>
+                                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                                            <i class="fas fa-map-pin" style="margin-right: 4px;"></i>
+                                            <%= odc.location || 'Lokasi tidak tersedia' %>
+                                        </div>
+                                    </div>
+                                    <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal"
+                                        target="_blank"
+                                        style="display: inline-flex; align-items: center; background-color: #0891b2; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
+                                        <i class="fas fa-print" style="margin-right: 6px;"></i> Print
+                                    </a>
+                                </div>
+                                <% }); %>
+                        </div>
+                        <div id="odcNoResults"
+                            style="display: none; text-align: center; padding: 20px; color: #6b7280;">
+                            <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; color: #d1d5db;"></i>
+                            <p>Tidak ada ODC yang cocok</p>
+                        </div>
+                        <% } else { %>
+                            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                <i class="fas fa-inbox"
+                                    style="font-size: 32px; margin-bottom: 12px; color: #d1d5db;"></i>
+                                <p>Belum ada data ODC</p>
+                            </div>
+                            <% } %>
+                </div>
+
+                <!-- Footer -->
+                <div
+                    style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12px; color: #6b7280;">
+                        Total: <%= typeof odcList !=='undefined' ? odcList.length : 0 %> Area
+                    </span>
+                    <button onclick="closeOdcPrintModal()"
+                        style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 14px;">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <script>
-            // Show Generate Invoice Modal
+            // ODC Modal Functions
+            function showOdcPrintModal() {
+                const modal = document.getElementById('odcPrintModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    // Focus search input
+                    setTimeout(() => document.getElementById('odcSearchInput').focus(), 100);
+                }
+            }
+
+            function closeOdcPrintModal() {
+                const modal = document.getElementById('odcPrintModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            }
+
+            function filterOdcList() {
+                const input = document.getElementById('odcSearchInput');
+                const filter = input.value.toLowerCase();
+                const container = document.getElementById('odcListContainer');
+                const items = container.getElementsByClassName('odc-item');
+                let hasVisible = false;
+
+                for (let i = 0; i < items.length; i++) {
+                    const name = items[i].getAttribute('data-name');
+                    const location = items[i].getAttribute('data-location');
+
+                    if (name.includes(filter) || location.includes(filter)) {
+                        items[i].style.display = "";
+                        hasVisible = true;
+                    } else {
+                        items[i].style.display = "none";
+                    }
+                }
+
+                // Show no results message
+                const noResults = document.getElementById('odcNoResults');
+                if (noResults) {
+                    noResults.style.display = hasVisible ? "none" : "block";
+                }
+            }
+
+            // Close modal when clicking outside
+            document.addEventListener('click', function (e) {
+                const modal = document.getElementById('odcPrintModal');
+                if (e.target === modal) {
+                    closeOdcPrintModal();
+                }
+            });
+
+            // Prevent closing when clicking content
+            document.getElementById('odcPrintModal')?.querySelector('div').addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+
+            // Show Generate Invoice Modal (Existing function, just re-declaring to be safe if moved)
             function showGenerateInvoiceModal() {
                 console.log('🟢 showGenerateInvoiceModal() called!');
                 const modal = document.getElementById('generateInvoiceModal');
                 console.log('Modal element:', modal);
+
 
                 if (!modal) {
                     alert('❌ ERROR: Modal element not found! Please refresh the page.');

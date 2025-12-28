@@ -437,7 +437,7 @@ export class IsolationService {
 
     /**
      * Auto isolir pelanggan dengan tagihan bulan sebelumnya yang belum lunas
-     * Dipanggil setiap hari untuk isolir berdasarkan custom deadline atau default (tanggal 1)
+     * Dipanggil setiap hari untuk isolir berdasarkan tanggal yang ditentukan
      */
     static async autoIsolatePreviousMonthUnpaid(): Promise<{ isolated: number, failed: number }> {
         // Get previous month period (YYYY-MM)
@@ -446,15 +446,40 @@ export class IsolationService {
         const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const previousPeriod = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
 
-        // Get customers with unpaid invoices from previous month, including custom deadline info
+        // Get scheduler settings for isolation date
+        let targetIsolateDate = 1;
+        try {
+            // Fetch config from scheduler_settings. We check invoice_generation as that's where isolir settings are stored
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                "SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation'"
+            );
+
+            if (rows.length > 0) {
+                const row = rows[0];
+                // Parse config JSON
+                if (row.config) {
+                    const config = typeof row.config === 'string' ? JSON.parse(row.config) : row.config;
+                    if (config.isolir_date) {
+                        targetIsolateDate = config.isolir_date;
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("Could not fetch isolation settings, defaulting to date 1", err);
+        }
+
+        // Only run if today is the target isolation date
+        if (currentDate !== targetIsolateDate) {
+            return { isolated: 0, failed: 0 };
+        }
+
+        // Get customers with unpaid invoices from previous month
         const query = `
             SELECT DISTINCT 
                 c.id, 
                 c.name, 
                 c.phone, 
                 c.email,
-                c.custom_payment_deadline,
-                c.custom_isolate_days_after_deadline,
                 i.due_date
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
@@ -473,52 +498,19 @@ export class IsolationService {
 
         for (const customer of (result as any)) {
             try {
-                let shouldIsolate = false;
+                const isolationData: IsolationData = {
+                    customer_id: customer.id || 0,
+                    action: 'isolate',
+                    reason: `Auto isolation: Unpaid invoice for period ${previousPeriod}`
+                };
 
-                // Check if customer has custom deadline
-                if (customer.custom_payment_deadline && customer.custom_payment_deadline >= 1 && customer.custom_payment_deadline <= 31) {
-                    // For customers with custom deadline, isolate after X days from deadline
-                    const customDeadline = customer.custom_payment_deadline;
-                    const isolateDaysAfter = customer.custom_isolate_days_after_deadline || 1;
-
-                    // Calculate isolation date based on previous month's deadline
-                    // For example: if deadline is 25, and we're checking for previous month's invoice
-                    // Isolation should be on the 25th + isolateDaysAfter of current month
-                    const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, customDeadline);
-                    const isolationDate = new Date(previousMonthDate);
-                    isolationDate.setDate(isolationDate.getDate() + isolateDaysAfter);
-
-                    // Check if today is the isolation date or later
-                    const today = new Date(now.getFullYear(), now.getMonth(), currentDate);
-                    if (today >= isolationDate) {
-                        shouldIsolate = true;
-                        console.log(`[Auto Isolation] Customer ${customer.name} (ID: ${customer.id}) - Custom deadline ${customDeadline}, isolation date: ${isolationDate.toISOString().split('T')[0]}, today: ${today.toISOString().split('T')[0]}`);
-                    }
+                const success = await this.isolateCustomer(isolationData);
+                if (success) {
+                    isolated++;
+                    console.log(`[Auto Isolation] ✓ Isolated customer: ${customer.name} (ID: ${customer.id})`);
                 } else {
-                    // For customers without custom deadline, isolate on the 1st of the month
-                    if (currentDate === 1) {
-                        shouldIsolate = true;
-                        console.log(`[Auto Isolation] Customer ${customer.name} (ID: ${customer.id}) - Default deadline, isolating on 1st`);
-                    }
-                }
-
-                if (shouldIsolate) {
-                    const isolationData: IsolationData = {
-                        customer_id: customer.id || 0,
-                        action: 'isolate',
-                        reason: customer.custom_payment_deadline
-                            ? `Auto isolation: Unpaid invoice for period ${previousPeriod} (custom deadline ${customer.custom_payment_deadline})`
-                            : `Auto isolation: Unpaid invoice for period ${previousPeriod}`
-                    };
-
-                    const success = await this.isolateCustomer(isolationData);
-                    if (success) {
-                        isolated++;
-                        console.log(`[Auto Isolation] ✓ Isolated customer: ${customer.name} (ID: ${customer.id})`);
-                    } else {
-                        failed++;
-                        console.log(`[Auto Isolation] ✗ Failed to isolate customer: ${customer.name} (ID: ${customer.id})`);
-                    }
+                    failed++;
+                    console.log(`[Auto Isolation] ✗ Failed to isolate customer: ${customer.name} (ID: ${customer.id})`);
                 }
             } catch (error) {
                 console.error(`[Auto Isolation] ✗ Error isolating customer ${customer.id || 0}:`, error);

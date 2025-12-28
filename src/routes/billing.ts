@@ -1011,12 +1011,13 @@ router.get('/scheduler/settings', async (req, res) => {
 // Update invoice generation settings
 router.post('/scheduler/settings', async (req, res) => {
     try {
-        const { auto_generate_enabled, cron_schedule, due_date_offset, enable_due_date } = req.body;
+        const { auto_generate_enabled, cron_schedule, due_date_offset, enable_due_date, due_date_fixed_day } = req.body;
 
         await InvoiceSchedulerService.updateSchedulerSettings({
             auto_generate_enabled: auto_generate_enabled === 'true' || auto_generate_enabled === true,
             cron_schedule,
             due_date_offset: parseInt(due_date_offset),
+            due_date_fixed_day: parseInt(due_date_fixed_day),
             enable_due_date: enable_due_date === 'true' || enable_due_date === true
         });
 
@@ -1065,6 +1066,18 @@ router.post('/scheduler/isolir-settings', async (req, res) => {
                 SET config = ?, updated_at = NOW()
                 WHERE task_name = 'invoice_generation'
             `, [JSON.stringify(newConfig)]);
+
+            // Update the actual scheduler job
+            const { SchedulerService } = await import('../services/scheduler');
+            const isolateDate = parseInt(isolir_date);
+            const [hour, minute] = (isolir_execution_time || '01:00').split(':');
+
+            await SchedulerService.updateAutoIsolationSchedule(
+                [isolateDate],
+                auto_isolir_enabled === 'true' || auto_isolir_enabled === true,
+                parseInt(hour),
+                parseInt(minute)
+            );
 
             res.json({ success: true, message: 'Pengaturan auto isolir berhasil disimpan' });
         } finally {

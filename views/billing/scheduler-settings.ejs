@@ -195,17 +195,33 @@
                         <div id="dueDateOffsetContainer"
                             class="<%= (settings.enable_due_date !== false) ? '' : 'opacity-50 pointer-events-none' %>">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                <i class="fas fa-calendar-check text-blue-600 mr-2"></i>Jangka Waktu Tenggat
+                                <i class="fas fa-calendar-check text-blue-600 mr-2"></i>Tanggal Jatuh Tempo
                             </label>
-                            <div class="flex items-center space-x-3">
-                                <input type="number" name="due_date_offset" id="due_date_offset"
-                                    value="<%= settings.due_date_offset || 7 %>" min="1" max="90"
-                                    class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                                <span class="text-gray-600 font-medium">Hari</span>
-                            </div>
+
+                            <!-- Hidden input for backward compatibility if needed, but we will handle logic in JS -->
+
+                            <select id="due_date_day" name="due_date_day"
+                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                <% for(let i=1; i <=28; i++) { %>
+                                    <% // Calculate current selected day based on existing offset and generation date //
+                                        Default generation is 1. Default offset is 7=> Due Date 8.
+                                        // If settings.due_date_fix_day exists use it, else calc.
+                                        const genDate = settings.generation_date || 1;
+                                        const currentOffset = settings.due_date_offset || 7;
+                                        const estimatedDay = (genDate + currentOffset);
+                                        // If estimated > 28, it might wrap. Just try to match.
+                                        const selected = (settings.due_date_fixed_day) ? (settings.due_date_fixed_day ==
+                                        i) : (estimatedDay == i);
+                                        %>
+                                        <option value="<%= i %>" <%=selected ? 'selected' : '' %>>
+                                            Tanggal <%= i %> (Setiap Bulan)
+                                        </option>
+                                        <% } %>
+                            </select>
+
                             <p class="mt-2 text-xs text-gray-500">
                                 <i class="fas fa-info-circle text-blue-500"></i>
-                                Jangka waktu dari invoice dibuat hingga jatuh tempo (1-90 hari)
+                                Tagihan akan jatuh tempo pada tanggal ini setiap bulannya.
                             </p>
                         </div>
                     </div>
@@ -450,7 +466,10 @@
             auto_generate_enabled: formData.get('auto_generate_enabled') === 'true',
             generation_date: parseInt(generationDate),
             cron_schedule: `${minute} ${hour} ${generationDate} * *`,
-            due_date_offset: parseInt(formData.get('due_date_offset')),
+            due_date_fixed_day: parseInt(formData.get('due_date_day')), // Send fixed day
+            // Calculate pseudo-offset for legacy support if needed (target - gen)
+            // But we will primarily use fixed day in backend now
+            due_date_offset: parseInt(formData.get('due_date_day')) - parseInt(generationDate),
             enable_due_date: document.getElementById('enable_due_date').checked
         };
 

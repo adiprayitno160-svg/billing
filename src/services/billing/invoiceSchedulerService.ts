@@ -98,17 +98,16 @@ export class InvoiceSchedulerService {
                     if (settings.enable_due_date !== false) {
                         const periodDate = new Date(currentPeriod + '-01');
                         const dueDate = new Date(periodDate);
-                        
-                        // Use custom payment deadline if set, otherwise use default offset
-                        if (subscription.custom_payment_deadline && subscription.custom_payment_deadline >= 1 && subscription.custom_payment_deadline <= 31) {
-                            // Use custom deadline date (e.g., 25th of the month)
-                            dueDate.setDate(subscription.custom_payment_deadline);
-                            // If custom deadline is before period start, use next month
+
+                        // Use Fixed Day if configured (e.g., 28th of the month)
+                        if (settings.due_date_fixed_day && settings.due_date_fixed_day >= 1 && settings.due_date_fixed_day <= 28) {
+                            dueDate.setDate(settings.due_date_fixed_day);
+                            // If fixed day is before period start (impossible if period start is 1st), but just in case
                             if (dueDate < periodDate) {
                                 dueDate.setMonth(dueDate.getMonth() + 1);
                             }
                         } else {
-                            // Use default offset from period start
+                            // Fallback to offset
                             dueDate.setDate(dueDate.getDate() + dueDateOffset);
                         }
                         dueDateStr = dueDate.toISOString().slice(0, 10);
@@ -253,22 +252,21 @@ export class InvoiceSchedulerService {
 
             for (const subscription of subscriptions) {
                 try {
-                    const periodDate = new Date(targetPeriod + '-01');
-                    const dueDate = new Date(periodDate);
-                    
-                    // Use custom payment deadline if set, otherwise use default offset
-                    if (subscription.custom_payment_deadline && subscription.custom_payment_deadline >= 1 && subscription.custom_payment_deadline <= 31) {
-                        // Use custom deadline date (e.g., 25th of the month)
-                        dueDate.setDate(subscription.custom_payment_deadline);
-                        // If custom deadline is before period start, use next month
-                        if (dueDate < periodDate) {
-                            dueDate.setMonth(dueDate.getMonth() + 1);
+                    // Logic similar to monthly generation
+                    let dueDateStr = null;
+                    if (settings.enable_due_date !== false) {
+                        const periodDate = new Date(targetPeriod + '-01');
+                        const dueDate = new Date(periodDate);
+
+                        // Use Fixed Day if configured (e.g., 28th of the month)
+                        if (settings.due_date_fixed_day && settings.due_date_fixed_day >= 1 && settings.due_date_fixed_day <= 28) {
+                            dueDate.setDate(settings.due_date_fixed_day);
+                        } else {
+                            // Fallback to offset
+                            dueDate.setDate(dueDate.getDate() + dueDateOffset);
                         }
-                    } else {
-                        // Use default offset from period start
-                        dueDate.setDate(dueDate.getDate() + dueDateOffset);
+                        dueDateStr = dueDate.toISOString().slice(0, 10);
                     }
-                    const dueDateStr = dueDate.toISOString().slice(0, 10);
 
                     const invoiceNumber = await this.generateInvoiceNumber(targetPeriod, conn);
                     const price = parseFloat(subscription.price);
@@ -347,7 +345,7 @@ export class InvoiceSchedulerService {
                         '0 1 1 * *',
                         NULL,
                         NULL,
-                        '{"due_date_offset": 7}',
+                        '{"due_date_offset": 7, "due_date_fixed_day": 28}',
                         NOW(),
                         NOW()
                     )
@@ -356,7 +354,9 @@ export class InvoiceSchedulerService {
                 return {
                     auto_generate_enabled: true,
                     cron_schedule: '0 1 1 * *',
-                    due_date_offset: 7
+                    due_date_offset: 7,
+                    due_date_fixed_day: 28, // Default to 28 per user request
+                    enable_due_date: true
                 };
             }
 
@@ -365,12 +365,12 @@ export class InvoiceSchedulerService {
                 return {
                     auto_generate_enabled: false,
                     cron_schedule: '0 1 1 * *',
-                    due_date_offset: 7
+                    due_date_offset: 7,
                 };
             }
 
-            const config = typeof firstResult.config === 'string' 
-                ? JSON.parse(firstResult.config) 
+            const config = typeof firstResult.config === 'string'
+                ? JSON.parse(firstResult.config)
                 : firstResult.config;
 
             return {
@@ -398,20 +398,21 @@ export class InvoiceSchedulerService {
         auto_generate_enabled?: boolean;
         cron_schedule?: string;
         due_date_offset?: number;
+        due_date_fixed_day?: number;
         enable_due_date?: boolean;
     }): Promise<void> {
         try {
             const currentSettings = await this.getSchedulerSettings();
-            
+
             // Get current config to preserve other settings
             const [result] = await databasePool.query<RowDataPacket[]>(`
                 SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation'
             `);
-            
+
             let currentConfig = {};
             if (result && result.length > 0) {
-                currentConfig = typeof result[0].config === 'string' 
-                    ? JSON.parse(result[0].config) 
+                currentConfig = typeof result[0].config === 'string'
+                    ? JSON.parse(result[0].config)
                     : result[0].config || {};
             }
 
@@ -419,6 +420,7 @@ export class InvoiceSchedulerService {
             const newConfig = {
                 ...currentConfig,
                 ...(settings.due_date_offset !== undefined && { due_date_offset: settings.due_date_offset }),
+                ...(settings.due_date_fixed_day !== undefined && { due_date_fixed_day: settings.due_date_fixed_day }),
                 ...(settings.enable_due_date !== undefined && { enable_due_date: settings.enable_due_date })
             };
 
@@ -473,7 +475,7 @@ export class InvoiceSchedulerService {
      */
     private static async generateInvoiceNumber(period: string, conn: any): Promise<string> {
         const [year, month] = period.split('-');
-        
+
         const [result] = await conn.query(`
             SELECT invoice_number 
             FROM invoices 
@@ -483,7 +485,7 @@ export class InvoiceSchedulerService {
         `, [period]) as [RowDataPacket[], any];
 
         let sequence = 1;
-        
+
         if (result.length > 0 && result[0]) {
             const lastNumber = result[0].invoice_number;
             const match = lastNumber.match(/\/(\d+)$/);
