@@ -3,7 +3,7 @@
  * Handles Telegram bot for staff notifications and commands
  */
 
-import TelegramBot from 'node-telegram-bot-api';
+import TelegramBot from '../stubs/node-telegram-bot-api';
 import pool from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
