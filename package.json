@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.3.18",
+  "version": "2.3.19",
   "description": "",
   "main": "index.js",
   "engines": {
@@ -41,7 +41,7 @@
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.2",
     "@types/ws": "^8.18.1",
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "@whiskeysockets/baileys": "^6.7.8",
     "@wppconnect-team/wppconnect": "^1.37.8",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
