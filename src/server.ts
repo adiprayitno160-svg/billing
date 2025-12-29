@@ -13,7 +13,9 @@ import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
 
-import { WhatsAppService } from './services/whatsapp/WhatsAppService';
+// Use Baileys (pure JS, no Chromium) instead of whatsapp-web.js (Puppeteer/Chromium)
+// Compatible with old CPUs (Intel Atom D2500, etc)
+import { WhatsAppServiceBaileys } from './services/whatsapp/WhatsAppServiceBaileys';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
@@ -292,13 +294,14 @@ async function start() {
 			console.log('⚠️ WhatsApp service DISABLED (DISABLE_WHATSAPP=true)');
 		} else {
 			// Initialize WhatsApp Business service (non-blocking)
-			WhatsAppService.initialize()
-				.then(() => console.log('WhatsApp Business service initialized'))
+			// Using Baileys (pure JS, no Chromium) - compatible with old CPUs
+			WhatsAppServiceBaileys.initialize()
+				.then(() => console.log('✅ WhatsApp Business service initialized (Baileys)'))
 				.catch(error => {
-					console.error('Failed to initialize WhatsApp service:', error);
+					console.error('❌ Failed to initialize WhatsApp service:', error);
 					console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
 				});
-			console.log('WhatsApp service initialization started in background');
+			console.log('📱 WhatsApp service (Baileys) initialization started in background');
 		}
 
 		// Initialize default users
