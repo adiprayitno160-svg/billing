@@ -43,12 +43,15 @@ export class WhatsAppService {
             console.log('📱 Initializing WhatsApp Web service...');
 
             // Create client with local auth strategy
+            // Enhanced configuration for Ubuntu server stability
             this.client = new Client({
                 authStrategy: new LocalAuth({
                     dataPath: './.wwebjs_auth'
                 }),
                 puppeteer: {
                     headless: true,
+                    // Timeout settings for Ubuntu server
+                    timeout: 60000, // 60 seconds timeout for browser launch
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -59,9 +62,33 @@ export class WhatsAppService {
                         '--single-process',
                         '--disable-gpu',
                         '--disable-web-security',
-                        '--disable-features=IsolateOrigins,site-per-process'
+                        '--disable-features=IsolateOrigins,site-per-process',
+                        '--disable-software-rasterizer',
+                        '--disable-extensions',
+                        '--disable-background-networking',
+                        '--disable-background-timer-throttling',
+                        '--disable-backgrounding-occluded-windows',
+                        '--disable-breakpad',
+                        '--disable-component-extensions-with-background-pages',
+                        '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+                        '--disable-ipc-flooding-protection',
+                        '--disable-renderer-backgrounding',
+                        '--enable-features=NetworkService,NetworkServiceInProcess',
+                        '--force-color-profile=srgb',
+                        '--hide-scrollbars',
+                        '--metrics-recording-only',
+                        '--mute-audio',
+                        '--no-default-browser-check',
+                        '--no-pings',
+                        '--password-store=basic',
+                        '--use-mock-keychain',
+                        '--disable-blink-features=AutomationControlled',
+                        // Memory optimization for Ubuntu
+                        '--js-flags=--max-old-space-size=512'
                     ],
-                    executablePath: undefined // Use bundled Chromium
+                    // Try to use system Chromium on Ubuntu, fallback to bundled
+                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
+                        (process.platform === 'linux' ? '/usr/bin/chromium-browser' : undefined)
                 }
             });
 

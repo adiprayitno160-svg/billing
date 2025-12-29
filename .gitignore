@@ -37,6 +37,7 @@ whatsapp-session/
 baileys-session/
 baileys-session-new/
 .wwebjs_cache/
+.wwebjs_auth/
 *.wwebjs_cache
 
 # Uploads

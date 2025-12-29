@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.3.15",
+  "version": "2.3.16",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -20,6 +20,7 @@
     "pm2:status": "pm2 list",
     "pm2:monit": "pm2 monit",
     "deploy": "npm run build && pm2 reload billing-app",
+    "deploy:ubuntu": "npm run build && pm2 delete billing-app || true && pm2 start ecosystem.config.js --env production",
     "test:bot": "node test-bot-response.js",
     "rebuild": "npm run build",
     "rebuild:restart": "npm run build && npm run pm2:restart",
