@@ -3,7 +3,13 @@
  * Handles payment proof verification using OCR and AI
  */
 
-import { MessageMedia } from 'whatsapp-web.js';
+// Baileys-compatible media interface
+interface MediaMessage {
+    data: string | Buffer; // base64 string or Buffer
+    mimetype?: string;
+    filename?: string;
+}
+
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 
@@ -24,7 +30,7 @@ export class PaymentVerificationService {
      * Verify payment proof automatically - AI will analyze and match
      */
     static async verifyPaymentProofAuto(
-        media: MessageMedia,
+        media: MediaMessage,
         customerId: number
     ): Promise<VerificationResult> {
         try {
@@ -61,7 +67,7 @@ export class PaymentVerificationService {
      */
     private static async verifyPostpaidPayment(
         customerId: number,
-        media: MessageMedia,
+        media: MediaMessage,
         transferAmount: number,
         extractedData: any
     ): Promise<VerificationResult> {
@@ -120,7 +126,9 @@ export class PaymentVerificationService {
             }
 
             // Verify with AI
-            const imageBuffer = Buffer.from(media.data, 'base64');
+            const imageBuffer = typeof media.data === 'string'
+                ? Buffer.from(media.data, 'base64')
+                : media.data;
             const geminiEnabled = await GeminiService.isEnabled();
 
             if (geminiEnabled) {
@@ -285,7 +293,7 @@ export class PaymentVerificationService {
     /**
      * Extract payment data from image using OCR/AI
      */
-    private static async extractPaymentData(media: MessageMedia): Promise<{
+    private static async extractPaymentData(media: MediaMessage): Promise<{
         success: boolean;
         amount?: number;
         invoiceNumber?: string;
@@ -295,7 +303,9 @@ export class PaymentVerificationService {
     }> {
         try {
             // Convert base64 to buffer
-            const imageBuffer = Buffer.from(media.data, 'base64');
+            const imageBuffer = typeof media.data === 'string'
+                ? Buffer.from(media.data, 'base64')
+                : media.data;
 
             // Try Gemini AI first (more accurate)
             const geminiEnabled = await GeminiService.isEnabled();
