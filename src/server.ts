@@ -287,14 +287,19 @@ async function start() {
 		console.log('Notification scheduler initialized');
 
 		// Initialize WhatsApp Business service
-		// Initialize WhatsApp Business service (non-blocking)
-		WhatsAppService.initialize()
-			.then(() => console.log('WhatsApp Business service initialized'))
-			.catch(error => {
-				console.error('Failed to initialize WhatsApp service:', error);
-				console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
-			});
-		console.log('WhatsApp service initialization started in background');
+		// Can be disabled via DISABLE_WHATSAPP=true environment variable
+		if (process.env.DISABLE_WHATSAPP === 'true') {
+			console.log('⚠️ WhatsApp service DISABLED (DISABLE_WHATSAPP=true)');
+		} else {
+			// Initialize WhatsApp Business service (non-blocking)
+			WhatsAppService.initialize()
+				.then(() => console.log('WhatsApp Business service initialized'))
+				.catch(error => {
+					console.error('Failed to initialize WhatsApp service:', error);
+					console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
+				});
+			console.log('WhatsApp service initialization started in background');
+		}
 
 		// Initialize default users
 		const authController = new AuthController();
