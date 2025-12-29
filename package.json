@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.3.22",
+  "version": "2.3.23",
   "description": "",
   "main": "index.js",
   "engines": {
@@ -61,7 +61,6 @@
     "node-cron": "^3.0.3",
     "node-routeros": "^1.6.8",
     "node-ssh": "^12.0.5",
-    "node-telegram-bot-api": "^0.66.0",
     "node-thermal-printer": "^4.4.4",
     "nodemailer": "^7.0.9",
     "pdfkit": "^0.15.0",
@@ -88,7 +87,6 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.9.1",
     "@types/node-cron": "^3.0.11",
-    "@types/node-telegram-bot-api": "^0.64.11",
     "@types/qrcode": "^1.5.5",
     "@types/ssh2": "^1.11.0",
     "autoprefixer": "^10.4.20",
