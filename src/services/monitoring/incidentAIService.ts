@@ -40,7 +40,7 @@ interface AnomalyDetection {
 }
 
 export class IncidentAIService {
-    
+
     /**
      * Analyze incident and detect root cause
      */
@@ -59,36 +59,36 @@ export class IncidentAIService {
                 LEFT JOIN odc_list odc ON c.odc_id = odc.id
                 WHERE si.id = ?
             `, [incidentId]);
-            
+
             if (incidents.length === 0) return null;
             const incident = incidents[0];
-            
+
             // Classify incident type
             const analysis = await this.classifyIncident(incident);
-            
+
             // Detect root causes
             const rootCauses = await this.detectRootCauses(incident);
             analysis.root_cause_hypotheses = rootCauses;
-            
+
             // Generate recommendations
             analysis.recommended_actions = this.generateRecommendations(analysis, rootCauses);
-            
+
             // Save analysis
             await this.saveIncidentAnalysis(incidentId, analysis);
-            
+
             // Auto-escalate if critical
             if (analysis.severity === 'critical') {
                 await this.autoEscalate(incident, analysis);
             }
-            
+
             return analysis;
-            
+
         } catch (error) {
             console.error('[IncidentAI] Error analyzing incident:', error);
             return null;
         }
     }
-    
+
     /**
      * Classify incident type using pattern analysis
      */
@@ -104,7 +104,7 @@ export class IncidentAIService {
             affected_area: incident.area,
             anomaly_score: 0
         };
-        
+
         // Check if mass outage
         const [affectedInArea] = await databasePool.query<RowDataPacket[]>(`
             SELECT COUNT(DISTINCT si.customer_id) as count
@@ -119,10 +119,10 @@ export class IncidentAIService {
                     OR (odc.name = ? AND c.odc_id IS NULL)
                 )
         `, [incident.odc_id, incident.area]);
-        
+
         const affectedCount = affectedInArea[0]?.count || 0;
         analysis.affected_customers_count = affectedCount;
-        
+
         if (affectedCount >= 10) {
             analysis.analysis_type = 'mass_outage';
             analysis.confidence = 0.90;
@@ -145,26 +145,26 @@ export class IncidentAIService {
             analysis.severity = 'minor';
             analysis.anomaly_score = 20;
         }
-        
+
         // Check network degradation indicators
         const durationMinutes = incident.duration_minutes || 0;
         if (durationMinutes > 60) {
             analysis.severity = analysis.severity === 'critical' ? 'critical' : 'major';
         }
-        
+
         if (durationMinutes > 240) {
             analysis.severity = 'critical';
         }
-        
+
         return analysis;
     }
-    
+
     /**
      * Detect root causes based on context
      */
     private static async detectRootCauses(incident: any): Promise<RootCauseHypothesis[]> {
         const hypotheses: RootCauseHypothesis[] = [];
-        
+
         // Hypothesis 1: Power outage in area
         const [powerRelated] = await databasePool.query<RowDataPacket[]>(`
             SELECT COUNT(DISTINCT si.customer_id) as count
@@ -179,7 +179,7 @@ export class IncidentAIService {
                     OR (odc.name = ? AND c.odc_id IS NULL)
                 )
         `, [incident.odc_id, incident.area]);
-        
+
         const affectedCount = powerRelated[0]?.count || 0;
         if (affectedCount >= 5) {
             hypotheses.push({
@@ -189,7 +189,7 @@ export class IncidentAIService {
                 impact_score: 90
             });
         }
-        
+
         // Hypothesis 2: Fiber cut
         if (incident.connection_type === 'pppoe' && incident.area) {
             if (affectedCount >= 3) {
@@ -201,7 +201,7 @@ export class IncidentAIService {
                 });
             }
         }
-        
+
         // Hypothesis 3: Router/equipment failure
         if (incident.connection_type === 'static_ip' && affectedCount >= 2) {
             hypotheses.push({
@@ -211,7 +211,7 @@ export class IncidentAIService {
                 impact_score: 80
             });
         }
-        
+
         // Hypothesis 4: Network congestion
         const [congestion] = await databasePool.query<RowDataPacket[]>(`
             SELECT AVG(response_time_ms) as avg_latency
@@ -221,7 +221,7 @@ export class IncidentAIService {
                 AND status = 'online'
                 AND response_time_ms IS NOT NULL
         `, [incident.service_type]);
-        
+
         if (congestion[0]?.avg_latency > 300) {
             hypotheses.push({
                 hypothesis: 'Network congestion - bandwidth terbatas',
@@ -230,7 +230,7 @@ export class IncidentAIService {
                 impact_score: 50
             });
         }
-        
+
         // Hypothesis 5: Customer equipment issue (single customer)
         if (affectedCount === 1 && incident.connection_type === 'static_ip') {
             hypotheses.push({
@@ -240,29 +240,29 @@ export class IncidentAIService {
                 impact_score: 30
             });
         }
-        
+
         // Sort by impact score (highest first)
         hypotheses.sort((a, b) => b.impact_score - a.impact_score);
-        
+
         return hypotheses;
     }
-    
+
     /**
      * Generate recommended actions
      */
     private static generateRecommendations(analysis: IncidentAnalysis, rootCauses: RootCauseHypothesis[]): string[] {
         const actions: string[] = [];
-        
+
         if (analysis.severity === 'critical') {
             actions.push('🔴 Segera hubungi teknisi untuk tindakan darurat');
             actions.push('📞 Kontak pelanggan terdampak dengan prioritas');
         }
-        
+
         if (analysis.affected_customers_count >= 5) {
             actions.push('🏢 Cek status ODC dan infrastruktur area');
             actions.push('🔌 Periksa pasokan daya dan UPS');
         }
-        
+
         if (rootCauses.length > 0) {
             const topCause = rootCauses[0];
             if (topCause.hypothesis.includes('Power')) {
@@ -278,26 +278,26 @@ export class IncidentAIService {
                 actions.push('🏠 Koordinasikan dengan pelanggan untuk pengecekan perangkat');
             }
         }
-        
+
         // Add monitoring recommendations
         if (analysis.severity !== 'minor') {
             actions.push('📊 Tingkatkan monitoring interval untuk area terdampak');
         }
-        
+
         // Add notification recommendations
         if (analysis.affected_customers_count > 0) {
             actions.push(`📢 Kirim notifikasi ke ${analysis.affected_customers_count} pelanggan terdampak`);
         }
-        
+
         return actions;
     }
-    
+
     /**
      * Auto-escalate critical incidents
      */
     private static async autoEscalate(incident: any, analysis: IncidentAnalysis): Promise<void> {
         try {
-            const alertBody = 
+            const alertBody =
                 `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                 `🚨 INSIDEN KRITIS TERDETEKSI\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -306,15 +306,15 @@ export class IncidentAIService {
                 `⏱️ Durasi: ${incident.duration_minutes || 0} menit\n` +
                 `🔌 Type: ${incident.connection_type?.toUpperCase() || 'UNKNOWN'}\n\n` +
                 `📋 Kemungkinan Penyebab:\n` +
-                analysis.root_cause_hypotheses.slice(0, 2).map((h, i) => 
+                analysis.root_cause_hypotheses.slice(0, 2).map((h, i) =>
                     `${i + 1}. ${h.hypothesis} (${(h.confidence * 100).toFixed(0)}% confidence)`
                 ).join('\n') +
                 `\n\n📝 Rekomendasi:\n` +
                 analysis.recommended_actions.slice(0, 3).map(a => `• ${a}`).join('\n') +
                 `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-            
+
             // Send alert via existing routing service
-            await alertRoutingService.routeAlert({
+            const criticalAlert: any = {
                 alert_type: 'critical',
                 recipient_type: 'internal',
                 recipient_id: 0,
@@ -327,42 +327,43 @@ export class IncidentAIService {
                     analysis_type: analysis.analysis_type,
                     affected_count: analysis.affected_customers_count
                 }
-            });
-            
+            };
+            await alertRoutingService.routeAlert(criticalAlert);
+
             console.log(`[IncidentAI] Auto-escalated critical incident #${incident.id}`);
-            
+
         } catch (error) {
             console.error('[IncidentAI] Error auto-escalating:', error);
         }
     }
-    
+
     /**
      * Detect real-time anomalies
      */
     static async detectRealTimeAnomalies(): Promise<AnomalyDetection[]> {
         const anomalies: AnomalyDetection[] = [];
-        
+
         try {
             // 1. Check downtime spike
             const downtimeAnomaly = await this.analyzeDowntimeSpike();
             if (downtimeAnomaly) anomalies.push(downtimeAnomaly);
-            
+
             // 2. Check latency degradation
             const latencyAnomaly = await this.analyzeLatencyDegradation();
             if (latencyAnomaly) anomalies.push(latencyAnomaly);
-            
+
             // 3. Check packet loss spike
             const packetLossAnomaly = await this.analyzePacketLossSpike();
             if (packetLossAnomaly) anomalies.push(packetLossAnomaly);
-            
+
             return anomalies;
-            
+
         } catch (error) {
             console.error('[IncidentAI] Error detecting anomalies:', error);
             return anomalies;
         }
     }
-    
+
     /**
      * Analyze downtime spike
      */
@@ -375,13 +376,13 @@ export class IncidentAIService {
                 AND incident_type = 'downtime'
                 AND status = 'ongoing'
         `;
-        
+
         const [rows] = await databasePool.query<RowDataPacket[]>(query);
-        
+
         if (!rows[0]?.incident_count) return null;
-        
+
         const currentCount = rows[0]?.incident_count || 0;
-        
+
         // Get baseline (average of last 7 days same hour)
         const baselineQuery = `
             SELECT AVG(incident_count) as baseline
@@ -396,13 +397,13 @@ export class IncidentAIService {
             ) hourly
             WHERE hour = HOUR(NOW())
         `;
-        
+
         const [baselineRows] = await databasePool.query<RowDataPacket[]>(baselineQuery);
         const baseline = baselineRows[0]?.baseline || 1;
-        
+
         // Calculate anomaly score
         const ratio = currentCount / baseline;
-        
+
         if (ratio > 3) {
             return {
                 timestamp: new Date(),
@@ -413,10 +414,10 @@ export class IncidentAIService {
                 severity: ratio > 5 ? 'critical' : 'major'
             };
         }
-        
+
         return null;
     }
-    
+
     /**
      * Analyze latency degradation
      */
@@ -428,15 +429,15 @@ export class IncidentAIService {
                 AND status = 'online'
                 AND response_time_ms IS NOT NULL
         `;
-        
+
         const [rows] = await databasePool.query<RowDataPacket[]>(query);
         if (!rows[0]?.avg_latency) return null;
-        
+
         const currentAvg = rows[0]?.avg_latency || 0;
         const baseline = 50; // 50ms baseline
-        
+
         const increasePercentage = ((currentAvg - baseline) / baseline) * 100;
-        
+
         if (increasePercentage > 50) {
             return {
                 timestamp: new Date(),
@@ -447,10 +448,10 @@ export class IncidentAIService {
                 severity: increasePercentage > 100 ? 'critical' : 'major'
             };
         }
-        
+
         return null;
     }
-    
+
     /**
      * Analyze packet loss spike
      */
@@ -461,15 +462,15 @@ export class IncidentAIService {
             WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
                 AND packet_loss_percent IS NOT NULL
         `;
-        
+
         const [rows] = await databasePool.query<RowDataPacket[]>(query);
         if (!rows[0]?.avg_packet_loss) return null;
-        
+
         const currentLoss = rows[0]?.avg_packet_loss || 0;
         const baselineLoss = 0.5; // 0.5% baseline
-        
+
         const ratio = currentLoss / baselineLoss;
-        
+
         if (ratio > 3) {
             return {
                 timestamp: new Date(),
@@ -480,10 +481,10 @@ export class IncidentAIService {
                 severity: ratio > 5 ? 'critical' : 'major'
             };
         }
-        
+
         return null;
     }
-    
+
     /**
      * Save incident analysis
      */
@@ -507,9 +508,9 @@ export class IncidentAIService {
                     FOREIGN KEY (incident_id) REFERENCES sla_incidents(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             `;
-            
+
             await databasePool.query(createTableQuery);
-            
+
             // Insert or update analysis
             const insertQuery = `
                 INSERT INTO incident_analyses (
@@ -528,7 +529,7 @@ export class IncidentAIService {
                     recommendations = VALUES(recommendations),
                     created_at = CURRENT_TIMESTAMP
             `;
-            
+
             await databasePool.query(insertQuery, [
                 incidentId,
                 analysis.analysis_type,
@@ -540,7 +541,7 @@ export class IncidentAIService {
                 JSON.stringify(analysis.root_cause_hypotheses),
                 JSON.stringify(analysis.recommended_actions)
             ]);
-            
+
         } catch (error) {
             console.error('[IncidentAI] Error saving analysis:', error);
         }

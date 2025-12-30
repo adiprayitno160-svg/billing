@@ -1,16 +1,19 @@
 ﻿<div class="space-y-6">
 	<!-- Header Section -->
-	<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+	<div
+		class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-modern-blue-900">Detail Pelanggan</h1>
 				<p class="text-modern-blue-600 mt-1">Informasi lengkap pelanggan sistem billing</p>
 			</div>
 			<div class="flex items-center gap-3">
-				<a href="/customers/list" class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
+				<a href="/customers/list"
+					class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
 					← Kembali ke Daftar
 				</a>
-				<a href="/customers/<%= customer.id %>/edit" class="px-4 py-2 bg-gradient-to-r from-modern-blue-500 to-modern-cyan-500 text-white rounded-lg hover:from-modern-blue-600 hover:to-modern-cyan-600 transition-all duration-300 font-medium shadow-lg">
+				<a href="/customers/<%= customer.id %>/edit"
+					class="px-4 py-2 bg-gradient-to-r from-modern-blue-500 to-modern-cyan-500 text-white rounded-lg hover:from-modern-blue-600 hover:to-modern-cyan-600 transition-all duration-300 font-medium shadow-lg">
 					✏️ Edit
 				</a>
 			</div>
@@ -22,173 +25,245 @@
 		<!-- Main Info -->
 		<div class="lg:col-span-2 space-y-6">
 			<!-- Basic Information -->
-			<div class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
+			<div
+				class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
 				<h2 class="text-lg font-bold text-modern-purple-900 mb-4">Informasi Dasar</h2>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
 						<label class="block text-sm font-medium text-modern-purple-600 mb-1">Kode Pelanggan</label>
-						<div class="text-lg font-semibold text-modern-purple-800"><%= customer.customer_code || '-' %></div>
+						<div class="text-lg font-semibold text-modern-purple-800">
+							<%= customer.customer_code || '-' %>
+						</div>
 					</div>
 					<div>
 						<label class="block text-sm font-medium text-modern-purple-600 mb-1">Nama Lengkap</label>
-						<div class="text-lg font-semibold text-modern-purple-800"><%= customer.name %></div>
+						<div class="text-lg font-semibold text-modern-purple-800">
+							<%= customer.name %>
+						</div>
 					</div>
 					<div>
 						<label class="block text-sm font-medium text-modern-purple-600 mb-1">Email</label>
-						<div class="text-lg text-modern-purple-700"><%= customer.email || '-' %></div>
+						<div class="text-lg text-modern-purple-700">
+							<%= customer.email || '-' %>
+						</div>
 					</div>
 					<div>
 						<label class="block text-sm font-medium text-modern-purple-600 mb-1">Nomor Telepon</label>
-						<div class="text-lg text-modern-purple-700"><%= customer.phone || '-' %></div>
+						<div class="text-lg text-modern-purple-700">
+							<%= customer.phone || '-' %>
+						</div>
 					</div>
 					<div>
 						<label class="block text-sm font-medium text-modern-purple-600 mb-1">Status</label>
-						<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.status === 'active' ? 'bg-modern-green-100 text-modern-green-700' : 'bg-modern-red-100 text-modern-red-700' %>">
-							<%= customer.status === 'active' ? 'Aktif' : 'Tidak Aktif' %>
+						<span
+							class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.status === 'active' ? 'bg-modern-green-100 text-modern-green-700' : 'bg-modern-red-100 text-modern-red-700' %>">
+							<%= customer.status==='active' ? 'Aktif' : 'Tidak Aktif' %>
 						</span>
 					</div>
 				</div>
 			</div>
 
 			<!-- Connection Information -->
-			<div class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-white to-modern-blue-50/30 p-6 shadow-lg">
+			<div
+				class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-white to-modern-blue-50/30 p-6 shadow-lg">
 				<h2 class="text-lg font-bold text-modern-blue-900 mb-4">Informasi Koneksi</h2>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
 						<label class="block text-sm font-medium text-modern-blue-600 mb-1">Jenis Koneksi</label>
-						<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
-							<%= customer.connection_type === 'pppoe' ? 'PPPOE' : 'IP Static' %>
+						<span
+							class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= customer.connection_type === 'pppoe' ? 'bg-modern-blue-100 text-modern-blue-700' : 'bg-modern-green-100 text-modern-green-700' %>">
+							<%= customer.connection_type==='pppoe' ? 'PPPOE' : 'IP Static' %>
 						</span>
 					</div>
 					<% if (customer.pppoe_username) { %>
-					<div>
-						<label class="block text-sm font-medium text-modern-blue-600 mb-1">Username PPPOE</label>
-						<div class="text-lg text-modern-blue-700"><%= customer.pppoe_username %></div>
-					</div>
-					<% } %>
-					<% if (customer.pppoe_profile_id) { %>
-					<div>
-						<label class="block text-sm font-medium text-modern-blue-600 mb-1">Profile ID</label>
-						<div class="text-lg text-modern-blue-700"><%= customer.pppoe_profile_id %></div>
-					</div>
-					<% } %>
-					<% if (customer.connection_type === 'static_ip' && customer.static_ip_address) { %>
-					<div>
-						<label class="block text-sm font-medium text-modern-blue-600 mb-1">IP Address</label>
-						<div class="text-lg text-modern-blue-700 font-mono"><%= customer.static_ip_address %></div>
-					</div>
-					<% if (customer.static_ip_interface) { %>
-					<div>
-						<label class="block text-sm font-medium text-modern-blue-600 mb-1">Interface</label>
-						<div class="text-lg text-modern-blue-700"><%= customer.static_ip_interface %></div>
-					</div>
-					<% } %>
-					<% } %>
+						<div>
+							<label class="block text-sm font-medium text-modern-blue-600 mb-1">Username PPPOE</label>
+							<div class="text-lg text-modern-blue-700">
+								<%= customer.pppoe_username %>
+							</div>
+						</div>
+						<% } %>
+							<% if (customer.pppoe_profile_id) { %>
+								<div>
+									<label class="block text-sm font-medium text-modern-blue-600 mb-1">Profile
+										ID</label>
+									<div class="text-lg text-modern-blue-700">
+										<%= customer.pppoe_profile_id %>
+									</div>
+								</div>
+								<% } %>
+									<% if (customer.connection_type==='static_ip' && customer.static_ip_address) { %>
+										<div>
+											<label class="block text-sm font-medium text-modern-blue-600 mb-1">IP
+												Address</label>
+											<div class="text-lg text-modern-blue-700 font-mono">
+												<%= customer.static_ip_address %>
+											</div>
+										</div>
+										<% if (customer.static_ip_interface) { %>
+											<div>
+												<label
+													class="block text-sm font-medium text-modern-blue-600 mb-1">Interface</label>
+												<div class="text-lg text-modern-blue-700">
+													<%= customer.static_ip_interface %>
+												</div>
+											</div>
+											<% } %>
+												<% } %>
 				</div>
 			</div>
 
 			<!-- Package Information -->
-			<% if ((customer.pppoe_package && customer.connection_type === 'pppoe') || (customer.static_ip_package && customer.connection_type === 'static_ip')) { %>
-			<div class="rounded-2xl border border-modern-yellow-200 bg-gradient-to-br from-white to-modern-yellow-50/30 p-6 shadow-lg">
-				<h2 class="text-lg font-bold text-modern-yellow-900 mb-4">Informasi Paket</h2>
-				<% if (customer.connection_type === 'pppoe' && customer.pppoe_package) { %>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Nama Paket</label>
-							<div class="text-lg font-semibold text-modern-yellow-800"><%= customer.pppoe_package.name %></div>
+			<% if ((customer.pppoe_package && customer.connection_type==='pppoe' ) || (customer.static_ip_package &&
+				customer.connection_type==='static_ip' )) { %>
+				<div
+					class="rounded-2xl border border-modern-yellow-200 bg-gradient-to-br from-white to-modern-yellow-50/30 p-6 shadow-lg">
+					<h2 class="text-lg font-bold text-modern-yellow-900 mb-4">Informasi Paket</h2>
+					<% if (customer.connection_type==='pppoe' && customer.pppoe_package) { %>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Nama Paket</label>
+								<div class="text-lg font-semibold text-modern-yellow-800">
+									<%= customer.pppoe_package.name %>
+								</div>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Harga</label>
+								<div class="text-lg font-semibold text-modern-yellow-800">Rp <%=
+										parseFloat(customer.pppoe_package.price || 0).toLocaleString('id-ID') %>
+								</div>
+							</div>
+							<% if (customer.pppoe_package.rate_limit_rx && customer.pppoe_package.rate_limit_tx) { %>
+								<div>
+									<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Download
+										Limit</label>
+									<div class="text-lg text-modern-yellow-700">
+										<%= customer.pppoe_package.rate_limit_rx %>
+									</div>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Upload
+										Limit</label>
+									<div class="text-lg text-modern-yellow-700">
+										<%= customer.pppoe_package.rate_limit_tx %>
+									</div>
+								</div>
+								<% } %>
+									<% if (customer.pppoe_package.description) { %>
+										<div class="md:col-span-2">
+											<label
+												class="block text-sm font-medium text-modern-yellow-600 mb-1">Deskripsi</label>
+											<div class="text-sm text-modern-yellow-700">
+												<%= customer.pppoe_package.description %>
+											</div>
+										</div>
+										<% } %>
 						</div>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Harga</label>
-							<div class="text-lg font-semibold text-modern-yellow-800">Rp <%= parseFloat(customer.pppoe_package.price || 0).toLocaleString('id-ID') %></div>
-						</div>
-						<% if (customer.pppoe_package.rate_limit_rx && customer.pppoe_package.rate_limit_tx) { %>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Download Limit</label>
-							<div class="text-lg text-modern-yellow-700"><%= customer.pppoe_package.rate_limit_rx %></div>
-						</div>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Upload Limit</label>
-							<div class="text-lg text-modern-yellow-700"><%= customer.pppoe_package.rate_limit_tx %></div>
-						</div>
-						<% } %>
-						<% if (customer.pppoe_package.description) { %>
-						<div class="md:col-span-2">
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Deskripsi</label>
-							<div class="text-sm text-modern-yellow-700"><%= customer.pppoe_package.description %></div>
-						</div>
-						<% } %>
-					</div>
-				<% } else if (customer.connection_type === 'static_ip' && customer.static_ip_package) { %>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Nama Paket</label>
-							<div class="text-lg font-semibold text-modern-yellow-800"><%= customer.static_ip_package.package_name || customer.static_ip_package.name || '-' %></div>
-						</div>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Harga</label>
-							<div class="text-lg font-semibold text-modern-yellow-800">Rp <%= parseFloat(customer.static_ip_package.price || 0).toLocaleString('id-ID') %></div>
-						</div>
-						<% if (customer.static_ip_package.max_limit_download) { %>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Download Limit</label>
-							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.max_limit_download %></div>
-						</div>
-						<% } %>
-						<% if (customer.static_ip_package.max_limit_upload) { %>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Upload Limit</label>
-							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.max_limit_upload %></div>
-						</div>
-						<% } %>
-						<% if (customer.static_ip_package.parent_download_name) { %>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Parent Download</label>
-							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.parent_download_name %></div>
-						</div>
-						<% } %>
-						<% if (customer.static_ip_package.parent_upload_name) { %>
-						<div>
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Parent Upload</label>
-							<div class="text-lg text-modern-yellow-700"><%= customer.static_ip_package.parent_upload_name %></div>
-						</div>
-						<% } %>
-						<% if (customer.static_ip_package.description) { %>
-						<div class="md:col-span-2">
-							<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Deskripsi</label>
-							<div class="text-sm text-modern-yellow-700"><%= customer.static_ip_package.description %></div>
-						</div>
-						<% } %>
-					</div>
+						<% } else if (customer.connection_type==='static_ip' && customer.static_ip_package) { %>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div>
+									<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Nama
+										Paket</label>
+									<div class="text-lg font-semibold text-modern-yellow-800">
+										<%= customer.static_ip_package.package_name || customer.static_ip_package.name
+											|| '-' %>
+									</div>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Harga</label>
+									<div class="text-lg font-semibold text-modern-yellow-800">Rp <%=
+											parseFloat(customer.static_ip_package.price || 0).toLocaleString('id-ID') %>
+									</div>
+								</div>
+								<% if (customer.static_ip_package.max_limit_download) { %>
+									<div>
+										<label class="block text-sm font-medium text-modern-yellow-600 mb-1">Download
+											Limit</label>
+										<div class="text-lg text-modern-yellow-700">
+											<%= customer.static_ip_package.max_limit_download %>
+										</div>
+									</div>
+									<% } %>
+										<% if (customer.static_ip_package.max_limit_upload) { %>
+											<div>
+												<label
+													class="block text-sm font-medium text-modern-yellow-600 mb-1">Upload
+													Limit</label>
+												<div class="text-lg text-modern-yellow-700">
+													<%= customer.static_ip_package.max_limit_upload %>
+												</div>
+											</div>
+											<% } %>
+												<% if (customer.static_ip_package.parent_download_name) { %>
+													<div>
+														<label
+															class="block text-sm font-medium text-modern-yellow-600 mb-1">Parent
+															Download</label>
+														<div class="text-lg text-modern-yellow-700">
+															<%= customer.static_ip_package.parent_download_name %>
+														</div>
+													</div>
+													<% } %>
+														<% if (customer.static_ip_package.parent_upload_name) { %>
+															<div>
+																<label
+																	class="block text-sm font-medium text-modern-yellow-600 mb-1">Parent
+																	Upload</label>
+																<div class="text-lg text-modern-yellow-700">
+																	<%= customer.static_ip_package.parent_upload_name %>
+																</div>
+															</div>
+															<% } %>
+																<% if (customer.static_ip_package.description) { %>
+																	<div class="md:col-span-2">
+																		<label
+																			class="block text-sm font-medium text-modern-yellow-600 mb-1">Deskripsi</label>
+																		<div class="text-sm text-modern-yellow-700">
+																			<%= customer.static_ip_package.description
+																				%>
+																		</div>
+																	</div>
+																	<% } %>
+							</div>
+							<% } %>
+				</div>
 				<% } %>
-			</div>
-			<% } %>
 
-			<!-- Address Information -->
-			<% if (customer.address) { %>
-			<div class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-white to-modern-orange-50/30 p-6 shadow-lg">
-				<h2 class="text-lg font-bold text-modern-orange-900 mb-4">Alamat</h2>
-				<div class="text-lg text-modern-orange-800"><%= customer.address %></div>
-			</div>
-			<% } %>
+					<!-- Address Information -->
+					<% if (customer.address) { %>
+						<div
+							class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-white to-modern-orange-50/30 p-6 shadow-lg">
+							<h2 class="text-lg font-bold text-modern-orange-900 mb-4">Alamat</h2>
+							<div class="text-lg text-modern-orange-800">
+								<%= customer.address %>
+							</div>
+						</div>
+						<% } %>
 
 		</div>
 
 		<!-- Sidebar -->
 		<div class="space-y-6">
 			<!-- Quick Actions -->
-			<div class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
+			<div
+				class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
 				<h3 class="text-lg font-bold text-modern-purple-900 mb-4">Aksi Cepat</h3>
 				<div class="space-y-3">
-					<a href="/customers/<%= customer.id %>/edit" class="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-modern-green-500 to-modern-emerald-500 text-white rounded-lg hover:from-modern-green-600 hover:to-modern-emerald-600 transition-all duration-300 font-medium shadow-lg">
+					<a href="/customers/<%= customer.id %>/edit"
+						class="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-modern-green-500 to-modern-emerald-500 text-white rounded-lg hover:from-modern-green-600 hover:to-modern-emerald-600 transition-all duration-300 font-medium shadow-lg">
 						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-							<path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+							<path
+								d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
 						</svg>
 						Edit Pelanggan
 					</a>
-					<button onclick="deleteCustomer(<%= customer.id %>, '<%= customer.name %>')" class="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-modern-red-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-red-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
+					<button onclick="deleteCustomer(<%= customer.id %>, '<%= customer.name %>')"
+						class="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-modern-red-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-red-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
 						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
-							<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+							<path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd" />
+							<path fill-rule="evenodd"
+								d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+								clip-rule="evenodd" />
 						</svg>
 						Hapus Pelanggan
 					</button>
@@ -196,35 +271,46 @@
 			</div>
 
 			<!-- Customer Stats -->
-			<div class="rounded-2xl border border-modern-cyan-200 bg-gradient-to-br from-white to-modern-cyan-50/30 p-6 shadow-lg">
+			<div
+				class="rounded-2xl border border-modern-cyan-200 bg-gradient-to-br from-white to-modern-cyan-50/30 p-6 shadow-lg">
 				<h3 class="text-lg font-bold text-modern-cyan-900 mb-4">Statistik</h3>
 				<div class="space-y-3">
 					<div class="flex justify-between items-center">
 						<span class="text-sm text-modern-cyan-600">Tanggal Daftar</span>
-						<span class="text-sm font-medium text-modern-cyan-800"><%= new Date(customer.created_at).toLocaleDateString('id-ID') %></span>
+						<span class="text-sm font-medium text-modern-cyan-800">
+							<%= new Date(customer.created_at).toLocaleDateString('id-ID') %>
+						</span>
 					</div>
 					<div class="flex justify-between items-center">
 						<span class="text-sm text-modern-cyan-600">Terakhir Diupdate</span>
-						<span class="text-sm font-medium text-modern-cyan-800"><%= new Date(customer.updated_at).toLocaleDateString('id-ID') %></span>
+						<span class="text-sm font-medium text-modern-cyan-800">
+							<%= new Date(customer.updated_at).toLocaleDateString('id-ID') %>
+						</span>
 					</div>
 					<div class="flex justify-between items-center">
 						<span class="text-sm text-modern-cyan-600">ODP</span>
-						<span class="text-sm font-medium text-modern-cyan-800"><%= customer.odp_name || '-' %></span>
+						<span class="text-sm font-medium text-modern-cyan-800">
+							<%= customer.odp_name || '-' %>
+						</span>
 					</div>
 					<div class="flex justify-between items-center">
 						<span class="text-sm text-modern-cyan-600">ODC</span>
-						<span class="text-sm font-medium text-modern-cyan-800"><%= customer.odc_name || '-' %></span>
+						<span class="text-sm font-medium text-modern-cyan-800">
+							<%= customer.odc_name || '-' %>
+						</span>
 					</div>
 					<div class="flex justify-between items-center">
 						<span class="text-sm text-modern-cyan-600">OLT</span>
-						<span class="text-sm font-medium text-modern-cyan-800"><%= customer.olt_name || '-' %></span>
+						<span class="text-sm font-medium text-modern-cyan-800">
+							<%= customer.olt_name || '-' %>
+						</span>
 					</div>
 					<% if (customer.is_isolated) { %>
-					<div class="flex justify-between items-center">
-						<span class="text-sm text-modern-red-600">Status</span>
-						<span class="text-sm font-medium text-modern-red-800">Terisolasi</span>
-					</div>
-					<% } %>
+						<div class="flex justify-between items-center">
+							<span class="text-sm text-modern-red-600">Status</span>
+							<span class="text-sm font-medium text-modern-red-800">Terisolasi</span>
+						</div>
+						<% } %>
 				</div>
 			</div>
 		</div>
@@ -232,96 +318,115 @@
 
 	<!-- Location Information with Full Page Map -->
 	<% if (customer.latitude && customer.longitude) { %>
-	<div class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-white to-modern-green-50/30 p-6 shadow-lg">
-		<h2 class="text-lg font-bold text-modern-green-900 mb-4">Lokasi Pelanggan</h2>
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-			<div>
-				<label class="block text-sm font-medium text-modern-green-600 mb-1">Latitude</label>
-				<div class="text-lg font-semibold text-modern-green-800"><%= customer.latitude %></div>
+		<div
+			class="rounded-2xl border border-modern-green-200 bg-gradient-to-br from-white to-modern-green-50/30 p-6 shadow-lg">
+			<h2 class="text-lg font-bold text-modern-green-900 mb-4">Lokasi Pelanggan</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+				<div>
+					<label class="block text-sm font-medium text-modern-green-600 mb-1">Latitude</label>
+					<div class="text-lg font-semibold text-modern-green-800">
+						<%= customer.latitude %>
+					</div>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-modern-green-600 mb-1">Longitude</label>
+					<div class="text-lg font-semibold text-modern-green-800">
+						<%= customer.longitude %>
+					</div>
+				</div>
 			</div>
-			<div>
-				<label class="block text-sm font-medium text-modern-green-600 mb-1">Longitude</label>
-				<div class="text-lg font-semibold text-modern-green-800"><%= customer.longitude %></div>
+			<div class="mt-4">
+				<div id="detailCustomerMap"
+					style="height: 500px; width: 100%; border: 1px solid #bbf7d0; border-radius: 0.75rem;"
+					class="rounded-lg shadow-sm bg-white"></div>
+				<p class="text-xs text-modern-green-700 mt-2">Lokasi ditampilkan sesuai koordinat tersimpan (read-only).
+				</p>
 			</div>
 		</div>
-		<div class="mt-4">
-			<div id="detailCustomerMap" style="height: 500px; width: 100%; border: 1px solid #bbf7d0; border-radius: 0.75rem;" class="rounded-lg shadow-sm bg-white"></div>
-			<p class="text-xs text-modern-green-700 mt-2">Lokasi ditampilkan sesuai koordinat tersimpan (read-only).</p>
-		</div>
-	</div>
-	<% } %>
+		<% } %>
 
-	<!-- Invoices Section -->
-	<% if (typeof invoices !== 'undefined' && invoices && invoices.length > 0) { %>
-	<div class="rounded-2xl border border-modern-yellow-200 bg-gradient-to-br from-white to-modern-yellow-50/30 p-6 shadow-lg">
-		<h2 class="text-lg font-bold text-modern-yellow-900 mb-4">Riwayat Tagihan</h2>
-		<div class="overflow-x-auto">
-			<table class="min-w-full">
-				<thead>
-					<tr class="border-b border-modern-yellow-200">
-						<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">No. Tagihan</th>
-						<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Periode</th>
-						<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Jumlah</th>
-						<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Status</th>
-						<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Tanggal</th>
-					</tr>
-				</thead>
-				<tbody>
-					<% invoices.forEach(invoice => { %>
-					<tr class="border-b border-modern-yellow-100">
-						<td class="py-4 px-4 text-modern-yellow-800 font-medium"><%= invoice.invoice_number %></td>
-						<td class="py-4 px-4 text-modern-yellow-700"><%= invoice.period %></td>
-						<td class="py-4 px-4 text-modern-yellow-700">Rp <%= parseFloat(invoice.total_amount).toLocaleString('id-ID') %></td>
-						<td class="py-4 px-4">
-							<span class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= invoice.status === 'paid' ? 'bg-modern-green-100 text-modern-green-700' : invoice.status === 'overdue' ? 'bg-modern-red-100 text-modern-red-700' : 'bg-modern-yellow-100 text-modern-yellow-700' %>">
-								<%= invoice.status === 'paid' ? 'Lunas' : invoice.status === 'overdue' ? 'Jatuh Tempo' : 'Belum Bayar' %>
-							</span>
-						</td>
-						<td class="py-4 px-4 text-modern-yellow-700"><%= new Date(invoice.created_at).toLocaleDateString('id-ID') %></td>
-					</tr>
-					<% }) %>
-				</tbody>
-			</table>
-		</div>
-	</div>
-	<% } %>
+			<!-- Invoices Section -->
+			<% if (typeof invoices !=='undefined' && invoices && invoices.length> 0) { %>
+				<div
+					class="rounded-2xl border border-modern-yellow-200 bg-gradient-to-br from-white to-modern-yellow-50/30 p-6 shadow-lg">
+					<h2 class="text-lg font-bold text-modern-yellow-900 mb-4">Riwayat Tagihan</h2>
+					<div class="overflow-x-auto">
+						<table class="min-w-full">
+							<thead>
+								<tr class="border-b border-modern-yellow-200">
+									<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">No. Tagihan</th>
+									<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Periode</th>
+									<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Jumlah</th>
+									<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Status</th>
+									<th class="text-left py-3 px-4 text-modern-yellow-600 font-medium">Tanggal</th>
+								</tr>
+							</thead>
+							<tbody>
+								<% invoices.forEach(invoice=> { %>
+									<tr class="border-b border-modern-yellow-100">
+										<td class="py-4 px-4 text-modern-yellow-800 font-medium">
+											<%= invoice.invoice_number %>
+										</td>
+										<td class="py-4 px-4 text-modern-yellow-700">
+											<%= invoice.period %>
+										</td>
+										<td class="py-4 px-4 text-modern-yellow-700">Rp <%=
+												parseFloat(invoice.total_amount).toLocaleString('id-ID') %>
+										</td>
+										<td class="py-4 px-4">
+											<span
+												class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= invoice.status === 'paid' ? 'bg-modern-green-100 text-modern-green-700' : invoice.status === 'overdue' ? 'bg-modern-red-100 text-modern-red-700' : 'bg-modern-yellow-100 text-modern-yellow-700' %>">
+												<%= invoice.status==='paid' ? 'Lunas' : invoice.status==='overdue'
+													? 'Jatuh Tempo' : 'Belum Bayar' %>
+											</span>
+										</td>
+										<td class="py-4 px-4 text-modern-yellow-700">
+											<%= new Date(invoice.created_at).toLocaleDateString('id-ID') %>
+										</td>
+									</tr>
+									<% }) %>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<% } %>
 </div>
 
 <script>
-function deleteCustomer(id, name) {
-    if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
-        fetch(`/customers/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Pelanggan berhasil dihapus!');
-                window.location.href = '/customers/list';
-            } else {
-                alert('Gagal menghapus pelanggan: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Terjadi kesalahan saat menghapus pelanggan');
-        });
-    }
-}
+	function deleteCustomer(id, name) {
+		if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
+			fetch(`/customers/${id}`, {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+				}
+			})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						alert('Pelanggan berhasil dihapus!');
+						window.location.href = '/customers/list';
+					} else {
+						alert('Gagal menghapus pelanggan: ' + data.error);
+					}
+				})
+				.catch(error => {
+					console.error('Error:', error);
+					alert('Terjadi kesalahan saat menghapus pelanggan');
+				});
+		}
+	}
 
-// Map render (read-only) on detail page
-document.addEventListener('DOMContentLoaded', function(){
-  var mapEl = document.getElementById('detailCustomerMap');
-  if (!mapEl) return;
-  var lat = Number('<%= customer.latitude %>');
-  var lng = Number('<%= customer.longitude %>');
-  if (!lat || !lng) return;
-  var map = L.map('detailCustomerMap', { zoomControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false }).setView([lat, lng], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-  var marker = L.marker([lat, lng]).addTo(map);
-  marker.bindPopup('Lokasi Pelanggan').openPopup();
-});
+	// Map render (read-only) on detail page
+	document.addEventListener('DOMContentLoaded', function () {
+		var mapEl = document.getElementById('detailCustomerMap');
+		if (!mapEl) return;
+		var lat = Number('<%= customer.latitude %>');
+		var lng = Number('<%= customer.longitude %>');
+		if (!lat || !lng) return;
+		var map = L.map('detailCustomerMap', { zoomControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false }).setView([lat, lng], 15);
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+		var marker = L.marker([lat, lng]).addTo(map);
+		marker.bindPopup('Lokasi Pelanggan').openPopup();
+	});
 </script>

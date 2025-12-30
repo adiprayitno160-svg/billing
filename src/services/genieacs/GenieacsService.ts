@@ -202,6 +202,40 @@ export class GenieacsService {
         }
     }
 
+    /**
+     * Set parameter values (generic method for setting any parameters)
+     */
+    async setParameterValues(
+        deviceId: string,
+        parameters: Array<[string, any, string]>
+    ): Promise<{ success: boolean; taskId?: string; message: string }> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+
+            // Clear task queue
+            try {
+                const tasks = await this.getDeviceTasks(deviceId);
+                for (const t of tasks) {
+                    await this.deleteTask(t._id);
+                }
+            } catch (e) { }
+
+            // Send parameter values
+            const response = await this.client.post(`/devices/${encodedId}/tasks?connection_request`, {
+                name: 'setParameterValues',
+                parameterValues: parameters
+            });
+
+            return {
+                success: true,
+                taskId: response.data._id,
+                message: 'Parameter values sent successfully'
+            };
+        } catch (error: any) {
+            return { success: false, message: error.message };
+        }
+    }
+
     getWiFiDetails(device: any): { ssid: string; password: string; } {
         const findValue = (paths: string[]) => {
             for (const path of paths) {

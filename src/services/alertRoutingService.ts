@@ -30,7 +30,7 @@ interface CustomerAlert extends Alert {
 }
 
 export class AlertRoutingService {
-    
+
     /**
      * Route alert to appropriate channel
      */
@@ -43,16 +43,16 @@ export class AlertRoutingService {
                 console.warn('[AlertRouting] Customer alerts via WhatsApp are disabled');
                 return false;
             }
-            
+
             console.warn('[AlertRouting] Unknown recipient type:', alert.recipient_type);
             return false;
-            
+
         } catch (error) {
             console.error('[AlertRouting] Error routing alert:', error);
             return false;
         }
     }
-    
+
     /**
      * Send alert via Telegram (Internal)
      */
@@ -65,12 +65,12 @@ export class AlertRoutingService {
                     FROM telegram_users
                     WHERE id = ? AND is_active = 1
                 `, [alert.recipient_id]);
-                
+
                 if (users.length === 0) {
                     console.warn('[AlertRouting] Telegram user not found:', alert.recipient_id);
                     return false;
                 }
-                
+
                 const success = await telegramBotService.sendAlert(
                     users[0].telegram_chat_id,
                     {
@@ -80,7 +80,7 @@ export class AlertRoutingService {
                         metadata: alert.metadata
                     }
                 );
-                
+
                 await this.logAlert({
                     alert_type: alert.alert_type,
                     channel: 'telegram',
@@ -92,10 +92,10 @@ export class AlertRoutingService {
                     metadata: alert.metadata,
                     delivery_status: success ? 'sent' : 'failed'
                 });
-                
+
                 return success;
             }
-            
+
             // Send by role
             if (alert.role) {
                 const sentCount = await telegramBotService.sendAlertByRole(
@@ -108,20 +108,20 @@ export class AlertRoutingService {
                     },
                     alert.area
                 );
-                
+
                 console.log(`[AlertRouting] Sent to ${sentCount} Telegram users (role: ${alert.role})`);
                 return sentCount > 0;
             }
-            
+
             return false;
-            
+
         } catch (error) {
             console.error('[AlertRouting] Telegram send error:', error);
             return false;
         }
     }
-    
-    
+
+
     /**
      * Log alert to database
      */
@@ -165,7 +165,7 @@ export class AlertRoutingService {
             console.error('[AlertRouting] Failed to log alert:', error);
         }
     }
-    
+
     /**
      * Send downtime alert (to internal staff via Telegram)
      */
@@ -199,17 +199,18 @@ export class AlertRoutingService {
                 customer_id: incident.customer_id
             }
         };
-        
+
         // Send to teknisi in area
         await this.routeAlert(alert);
-        
+
         // Also send to admin
-        await this.routeAlert({
+        const adminAlert: InternalAlert = {
             ...alert,
             role: 'admin',
             area: undefined // Admin gets all alerts
-        });
-        
+        };
+        await this.routeAlert(adminAlert);
+
         // Mark alert as sent in incident
         await pool.query(`
             UPDATE sla_incidents
@@ -217,7 +218,7 @@ export class AlertRoutingService {
             WHERE id = ?
         `, [incident.incident_id]);
     }
-    
+
     /**
      * Send service restored notification (to customer via WhatsApp)
      */
@@ -239,10 +240,10 @@ export class AlertRoutingService {
                 `Terima kasih atas kesabaran Anda.\n\n` +
                 `Tim Support ISP`
         };
-        
+
         await this.routeAlert(alert);
     }
-    
+
     /**
      * Send SLA breach notification (to customer via WhatsApp)
      */
@@ -271,9 +272,9 @@ export class AlertRoutingService {
                 `Terima kasih atas kepercayaan Anda.\n\n` +
                 `Tim ISP`
         };
-        
+
         await this.routeAlert(alert);
-        
+
         // Mark as sent
         await pool.query(`
             UPDATE sla_records
@@ -281,7 +282,7 @@ export class AlertRoutingService {
             WHERE customer_id = ? AND month_year = ?
         `, [sla.customer_id, sla.month_year]);
     }
-    
+
     /**
      * Send planned maintenance notification (to customers via WhatsApp)
      */
@@ -296,18 +297,18 @@ export class AlertRoutingService {
             dateStyle: 'long',
             timeStyle: 'short'
         });
-        
+
         const endStr = new Date(maintenance.end_time).toLocaleTimeString('id-ID', {
             timeStyle: 'short'
         });
-        
+
         for (const customerId of maintenance.affected_customers) {
             const [customers] = await pool.query<RowDataPacket[]>(`
                 SELECT name FROM customers WHERE id = ?
             `, [customerId]);
-            
+
             if (customers.length === 0) continue;
-            
+
             const alert: CustomerAlert = {
                 alert_type: 'warning',
                 recipient_type: 'customer',
@@ -323,11 +324,11 @@ export class AlertRoutingService {
                     `Mohon maaf atas ketidaknyamanan ini.\n\n` +
                     `Tim ISP`
             };
-            
+
             await this.routeAlert(alert);
         }
     }
-    
+
     /**
      * Send SLA warning to admin (approaching breach)
      */
@@ -357,10 +358,10 @@ export class AlertRoutingService {
                 customer_id: warning.customer_id
             }
         };
-        
+
         await this.routeAlert(alert);
     }
-    
+
     /**
      * Send daily summary report to admin
      */
@@ -376,7 +377,7 @@ export class AlertRoutingService {
                 FROM sla_incidents
                 WHERE start_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)
             `);
-            
+
             const alert: InternalAlert = {
                 alert_type: 'info',
                 recipient_type: 'internal',
@@ -392,14 +393,14 @@ export class AlertRoutingService {
                     `⏱️ Avg Resolution: ${Math.round(stats[0].avg_resolution_time || 0)} min\n` +
                     `━━━━━━━━━━━━━━━━━━━━`
             };
-            
+
             await this.routeAlert(alert);
-            
+
         } catch (error) {
             console.error('[AlertRouting] Error sending daily summary:', error);
         }
     }
-    
+
     /**
      * Get alert statistics
      */
@@ -416,7 +417,7 @@ export class AlertRoutingService {
             GROUP BY channel, alert_type
             ORDER BY channel, alert_type
         `, [days]);
-        
+
         return stats;
     }
 }

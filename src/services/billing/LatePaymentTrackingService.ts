@@ -258,7 +258,7 @@ export class LatePaymentTrackingService {
           customerId,
           0,
           `Auto-reset: ${consecutiveOnTime} consecutive on-time payments`,
-          0
+          '0'
         );
 
         // Reset consecutive counter
@@ -389,7 +389,7 @@ Terima kasih.`;
           try {
             const { WhatsAppService } = await import('../whatsapp/WhatsAppService');
             const result = await WhatsAppService.sendMessage(customer.phone, message, {
-              customerId: customerId.toString(),
+              customerId: customerId,
               template: count === 3 ? 'late_payment_warning_3' : 'late_payment_warning_4'
             });
             sent = result.success;

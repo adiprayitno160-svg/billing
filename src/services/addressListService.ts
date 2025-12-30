@@ -136,7 +136,7 @@ export class AddressListService {
 			[id]
 		);
 		const result = rows as AddressListItem[];
-		return result.length > 0 ? result[0] : null as AddressList | null;
+		return result.length > 0 ? result[0] : null as AddressListItem | null;
 	}
 
 	static async createAddressListItem(data: CreateAddressListItemData): Promise<AddressListItem> {
@@ -192,7 +192,7 @@ export class AddressListService {
 	// Bulk operations
 	static async createAddressListItems(addressListId: number, addresses: string[]): Promise<AddressListItem[]> {
 		const items: AddressListItem[] = [];
-		
+
 		for (const address of addresses) {
 			try {
 				const item = await this.createAddressListItem({
@@ -205,7 +205,7 @@ export class AddressListService {
 				console.log(`Skipping duplicate address: ${address}`);
 			}
 		}
-		
+
 		return items;
 	}
 

@@ -57,3 +57,17 @@ export async function deleteOdc(id: number): Promise<void> {
 }
 
 
+
+
+export async function recalculateOdcUsage(id: number): Promise<void> {
+	const [rows] = await databasePool.query(
+		'SELECT COUNT(*) as count FROM ftth_odp WHERE odc_id = ?',
+		[id]
+	);
+	const count = (rows as any)[0]?.count || 0;
+	await databasePool.query(
+		'UPDATE ftth_odc SET used_ports = ? WHERE id = ?',
+		[count, id]
+	);
+}
+

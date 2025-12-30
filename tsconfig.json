@@ -41,7 +41,7 @@
     "noUncheckedSideEffectImports": false,
     "moduleDetection": "auto",
     "skipLibCheck": true,
-    "noEmitOnError": false,
+    "noEmitOnError": false, // Allow build even with errors
     "esModuleInterop": true,
     "resolveJsonModule": true,
   }

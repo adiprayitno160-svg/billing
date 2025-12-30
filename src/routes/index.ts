@@ -1961,6 +1961,52 @@ router.post('/customers/new-pppoe', async (req, res) => {
             await conn.commit();
             console.log('✅ Database transaction committed successfully');
 
+            // Generate first invoice if billing is enabled
+            if (enableBilling && package_id) {
+                try {
+                    console.log('🧾 Generating first invoice for new customer...');
+                    const { InvoiceService } = await import('../services/billing/invoiceService');
+
+                    // Get latest subscription for this customer to ensure we link correctly
+                    const [subs] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT id, price, start_date, package_name FROM subscriptions WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+                        [customerId]
+                    );
+
+                    if (subs.length > 0) {
+                        const sub = subs[0];
+                        const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+                        // Create invoice
+                        const invoiceData = {
+                            customer_id: customerId,
+                            subscription_id: sub.id,
+                            period: currentPeriod,
+                            // Due date: 1 day after registration
+                            due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+                            subtotal: sub.price,
+                            total_amount: sub.price,
+                            discount_amount: 0,
+                            status: 'sent', // Mark as sent so it shows up as unpaid/due
+                            notes: 'Tagihan otomatis untuk pelanggan baru'
+                        };
+
+                        const items = [{
+                            description: `Paket ${sub.package_name} - ${currentPeriod}`,
+                            quantity: 1,
+                            unit_price: sub.price,
+                            total_price: sub.price
+                        }];
+
+                        const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
+                        console.log(`✅ First invoice generated successfully: ${invoiceId}`);
+                    }
+                } catch (invError) {
+                    console.error('❌ Failed to generate first invoice:', invError);
+                    // Don't fail the request, just log it
+                }
+            }
+
             // Send notification to customer and admin (non-blocking)
             console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
             try {

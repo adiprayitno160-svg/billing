@@ -554,10 +554,10 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         res.render('customers/edit', {
             title: `Edit Pelanggan - ${customer.name}`,
             customer: customerForView,
-            packages: packages || [],
-            interfaces: interfaces || [],
-            interfaceError: interfaceError,
-            odpData: odpData || [],
+            packages: packages && Array.isArray(packages) ? packages : [],
+            interfaces: interfaces && Array.isArray(interfaces) ? interfaces : [],
+            interfaceError: interfaceError || null,
+            odpData: odpData && Array.isArray(odpData) ? odpData : [],
             currentPath: `/customers/${customerId}/edit`
         });
 

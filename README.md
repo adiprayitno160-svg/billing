@@ -1,17 +1,57 @@
 # 🏢 Billing System
+**Version:** 2.4.1  
+**Release Date:** 2025-12-30
 
-Sistem Billing untuk ISP/Provider Internet dengan integrasi GenieACS, MikroTik, WhatsApp Bot, dan berbagai Payment Gateway.
+Sistem Billing untuk ISP/Provider Internet dengan integrasi GenieACS, MikroTik, WhatsApp Bot, AI-Powered Verification, dan berbagai Payment Gateway.
 
 ## ✨ Fitur Utama
 
-- **Manajemen Pelanggan** - CRUD pelanggan dengan status aktif/nonaktif
-- **Manajemen Subscription** - Paket internet dan periode billing
-- **Invoice & Payment** - Generate invoice otomatis dan tracking pembayaran
-- **GenieACS Integration** - Manajemen ONT/Router via TR-069
-- **MikroTik Integration** - Hotspot dan PPPoE management
-- **WhatsApp Bot** - Notifikasi dan layanan pelanggan via WhatsApp
-- **Payment Gateway** - Integrasi Midtrans, Tripay, Xendit
-- **Network Monitoring** - Monitoring status perangkat dan uptime
+### 1. **Customer Management**
+- ✅ CRUD pelanggan dengan status tracking
+- ✅ Customer migration (Hotspot ↔ PPPoE)
+- ✅ Late Payment Tracking dengan auto-suspend
+- ✅ Customer detail view dengan payment history
+
+### 2. **Invoice & Payment Management**
+- ✅ Auto invoice generator bulanan
+- ✅ Multiple payment methods (Cash, Transfer, E-wallet)
+- ✅ **🤖 AI-Powered Payment Verification** (Gemini 2.0)
+- ✅ Manual verification queue
+- ✅ Payment proof upload & export
+
+### 3. **GenieACS Integration (TR-069)**
+- ✅ ONT/CPE device management
+- ✅ Real-time status monitoring
+- ✅ Remote WiFi management
+- ✅ Device reboot & parameter configuration
+
+### 4. **MikroTik Integration**
+- ✅ Hotspot & PPPoE management
+- ✅ Queue tree bandwidth control
+- ✅ Auto-suspend/resume on payment status
+- ✅ Active sessions monitoring
+
+### 5. **WhatsApp Bot** 🤖
+- ✅ Customer self-service (`/menu`, `/tagihan`)
+- ✅ AI payment verification
+- ✅ Automated notifications
+- ✅ WiFi password requests
+
+### 6. **Payment Gateway**
+- ✅ Midtrans, Tripay, Xendit
+- ✅ Auto callback handling
+- ✅ Payment status sync
+
+### 7. **SLA & Monitoring**
+- ✅ Real-time uptime tracking
+- ✅ **🤖 AI Incident Analysis** (Root cause, Auto-recommendations)
+- ✅ SLA breach auto-discount
+- ✅ Anomaly detection
+
+### 8. **Alert System**
+- ✅ Dual-channel routing (Telegram →  Staff, WhatsApp → Customers)
+- ✅ Late payment warnings
+- ✅ Service downtime alerts
 
 ## 🛠️ Tech Stack
 
