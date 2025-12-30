@@ -53,19 +53,6 @@
                                 <% }) %>
             </select>
         </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Port OLT</label>
-            <select name="olt_port" class="w-full rounded border border-slate-300 px-2 py-1.5">
-                <option value="">-- Pilih Port --</option>
-                <% (olts || []).forEach(function(olt){ %>
-                    <% const maxPorts=(olt.total_ports || 0); %>
-                        <% for (var p=1; p <=maxPorts; p++) { %>
-                            <option value="<%= p %>">Port <%= p %> - <%= olt.name %>
-                            </option>
-                            <% } %>
-                                <% }) %>
-            </select>
-        </div>
         <div class="sm:col-span-2">
             <label class="block text-xs text-slate-600 mb-1">Catatan</label>
             <textarea name="notes" class="w-full rounded border border-slate-300 px-2 py-1.5"></textarea>
