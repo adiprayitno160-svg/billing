@@ -213,10 +213,55 @@ export async function getAppFeatures(): Promise<AppFeature[]> {
 
 /**
  * Check for updates
- * ⚠️ HANYA check MAJOR updates, TIDAK termasuk hotfixes
+ * Combines Git check (commits behind) and GitHub Releases
  */
 export async function checkForUpdates(): Promise<UpdateInfo> {
     try {
+        // 1. Try Git Check First (Most reliable for "update to latest code")
+        try {
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+            const projectRoot = require('path').resolve(__dirname, '../../..');
+
+            // Fetch origin
+            await execAsync('git fetch origin', { cwd: projectRoot, timeout: 15000 });
+
+            // Check commits behind
+            const { stdout: behindCount } = await execAsync('git rev-list HEAD..origin/main --count', { cwd: projectRoot });
+            const commitsBehind = parseInt(behindCount.trim(), 10);
+
+            if (commitsBehind > 0) {
+                // Get latest commit info
+                const { stdout: latestLog } = await execAsync('git log origin/main -1 --pretty=format:"%h|%s|%cd"', { cwd: projectRoot });
+                const [hash, msg, date] = latestLog.split('|');
+
+                // Get current package version to see if it changed
+                const packageJson = require(require('path').join(projectRoot, 'package.json'));
+                const fs = require('fs');
+                // Try to read remote package.json version
+                let remoteVersion = packageJson.version;
+                try {
+                    const { stdout: remotePkg } = await execAsync('git show origin/main:package.json', { cwd: projectRoot });
+                    const remoteJson = JSON.parse(remotePkg);
+                    remoteVersion = remoteJson.version;
+                } catch (e) { /* ignore */ }
+
+                return {
+                    available: true,
+                    version: remoteVersion,
+                    releaseDate: new Date(date).toISOString(),
+                    changelog: [
+                        `Sync with main branch (${commitsBehind} commits behind)`,
+                        `Latest commit: ${hash} - ${msg}`
+                    ]
+                };
+            }
+        } catch (gitError: any) {
+            console.warn('Git update check failed, falling back to Release check:', gitError.message);
+        }
+
+        // 2. Fallback to GitHub Release/Tag Check
         // Check for MAJOR updates only (ignores hotfixes like 2.0.8.1, 2.0.8.2, etc)
         const updateCheck = await GitHubService.checkForMajorUpdates();
 
