@@ -136,12 +136,30 @@ export class WhatsAppServiceBaileys {
 
             // Handle incoming messages
             this.sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
-                if (type !== 'notify') return;
+                console.log(`[Baileys] 📩 messages.upsert event received - type: ${type}, count: ${messages?.length || 0}`);
+
+                if (type !== 'notify') {
+                    console.log(`[Baileys] ⏭️  Skipping - type is "${type}" (not "notify")`);
+                    return;
+                }
 
                 for (const msg of messages) {
-                    if (!msg.message) continue;
-                    if (msg.key.fromMe) continue; // Ignore messages from self
+                    console.log(`[Baileys] 🔍 Processing message:`, {
+                        hasMessage: !!msg.message,
+                        fromMe: msg.key?.fromMe,
+                        remoteJid: msg.key?.remoteJid
+                    });
 
+                    if (!msg.message) {
+                        console.log(`[Baileys] ⏭️  Skipping - no message content`);
+                        continue;
+                    }
+                    if (msg.key.fromMe) {
+                        console.log(`[Baileys] ⏭️  Skipping - message from self`);
+                        continue;
+                    }
+
+                    console.log(`[Baileys] ✅ Valid message received, calling handleIncomingMessage...`);
                     await this.handleIncomingMessage(msg);
                 }
             });
