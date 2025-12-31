@@ -111,8 +111,8 @@
                     </p>
                 </div>
 
-                <!-- Email -->
-                <div>
+                <!-- Email (Hidden) -->
+                <div class="hidden">
                     <label for="email" class="block text-sm font-medium text-modern-purple-700 mb-2">Email</label>
                     <div class="relative">
                         <input type="email" id="email" name="email" value="<%= customer.email || '' %>"
@@ -1930,6 +1930,116 @@
     if (pppoePasswordField) {
         pppoePasswordField.required = false; // Password tidak wajib, akan auto-generate jika kosong
     }
+
+    // Initialize Leaflet Map for Location
+    (function initEditLocationMap() {
+        const mapContainer = document.getElementById('editLocationMap');
+        if (!mapContainer) return;
+        if (typeof L === 'undefined') {
+            console.warn('[Map] Leaflet not loaded');
+            return;
+        }
+
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+
+        // Default center (Jakarta)
+        let defaultLat = -6.2088;
+        let defaultLng = 106.8456;
+        let zoomLevel = 12;
+
+        // Use customer's current location if available
+        const currentLat = parseFloat(latInput?.value);
+        const currentLng = parseFloat(lngInput?.value);
+
+        if (!isNaN(currentLat) && !isNaN(currentLng)) {
+            defaultLat = currentLat;
+            defaultLng = currentLng;
+            zoomLevel = 15;
+        }
+
+        // Initialize map
+        const map = L.map('editLocationMap').setView([defaultLat, defaultLng], zoomLevel);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add marker if coordinates exist
+        let marker = null;
+        if (!isNaN(currentLat) && !isNaN(currentLng)) {
+            marker = L.marker([currentLat, currentLng]).addTo(map);
+            marker.bindPopup(`Lokasi: ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`).openPopup();
+        }
+
+        // Click on map to set location
+        map.on('click', function (e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            // Update input fields
+            if (latInput) latInput.value = lat.toFixed(7);
+            if (lngInput) lngInput.value = lng.toFixed(7);
+
+            // Update or create marker
+            if (marker) {
+                marker.setLatLng(e.latlng);
+            } else {
+                marker = L.marker(e.latlng).addTo(map);
+            }
+            marker.bindPopup(`Lokasi Baru: ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
+        });
+
+        // My Location button
+        const myLocationBtn = document.getElementById('btnMyLocation');
+        if (myLocationBtn) {
+            myLocationBtn.addEventListener('click', function () {
+                if (!navigator.geolocation) {
+                    alert('Geolocation tidak didukung browser Anda');
+                    return;
+                }
+
+                myLocationBtn.textContent = 'Mencari...';
+                myLocationBtn.disabled = true;
+
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+
+                        // Update inputs
+                        if (latInput) latInput.value = lat.toFixed(7);
+                        if (lngInput) lngInput.value = lng.toFixed(7);
+
+                        // Update map
+                        map.setView([lat, lng], 15);
+
+                        // Update marker
+                        if (marker) {
+                            marker.setLatLng([lat, lng]);
+                        } else {
+                            marker = L.marker([lat, lng]).addTo(map);
+                        }
+                        marker.bindPopup(`Lokasi Saya: ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
+
+                        myLocationBtn.textContent = 'Lokasi Saya';
+                        myLocationBtn.disabled = false;
+                    },
+                    function (error) {
+                        alert('Gagal mendapatkan lokasi: ' + error.message);
+                        myLocationBtn.textContent = 'Lokasi Saya';
+                        myLocationBtn.disabled = false;
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            });
+        }
+
+        // Force map resize after layout settles
+        setTimeout(() => map.invalidateSize(), 300);
+        console.log('[Map] Edit location map initialized');
+    })();
 
     // Ensure footer doesn't cover content - minimal padding
     window.addEventListener('load', function () {
