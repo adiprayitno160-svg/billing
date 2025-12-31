@@ -5,6 +5,7 @@ export interface User {
     id: number;
     username: string;
     email: string;
+    phone: string | null;
     full_name: string;
     role: 'superadmin' | 'operator' | 'teknisi' | 'kasir';
     is_active: boolean;
@@ -15,6 +16,7 @@ export interface User {
 export interface CreateUserData {
     username: string;
     email: string;
+    phone?: string;
     password: string;
     role: 'superadmin' | 'operator' | 'teknisi' | 'kasir';
     full_name: string;
@@ -23,6 +25,7 @@ export interface CreateUserData {
 export interface UpdateUserData {
     username: string;
     email: string;
+    phone?: string;
     role: 'superadmin' | 'operator' | 'teknisi' | 'kasir';
     full_name: string;
     password?: string;
@@ -33,7 +36,7 @@ export class UserService {
     public async getAllUsers(): Promise<User[]> {
         try {
             const [rows] = await databasePool.execute(
-                'SELECT id, username, email, full_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC'
+                'SELECT id, username, email, phone, full_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC'
             );
             return rows as User[];
         } catch (error) {
@@ -46,7 +49,7 @@ export class UserService {
     public async getUserById(id: number): Promise<User | any> {
         try {
             const [rows] = await databasePool.execute(
-                'SELECT id, username, email, full_name, role, is_active, session_id, created_at, updated_at FROM users WHERE id = ?',
+                'SELECT id, username, email, phone, full_name, role, is_active, session_id, created_at, updated_at FROM users WHERE id = ?',
                 [id]
             );
             const users = rows as User[];
@@ -61,7 +64,7 @@ export class UserService {
     public async getUserByUsername(username: string): Promise<User | null> {
         try {
             const [rows] = await databasePool.execute(
-                'SELECT id, username, email, full_name, role, is_active, created_at, updated_at FROM users WHERE username = ?',
+                'SELECT id, username, email, phone, full_name, role, is_active, created_at, updated_at FROM users WHERE username = ?',
                 [username]
             );
             const users = rows as User[];
@@ -76,7 +79,7 @@ export class UserService {
     public async getUserByEmail(email: string): Promise<User | null> {
         try {
             const [rows] = await databasePool.execute(
-                'SELECT id, username, email, full_name, role, is_active, created_at, updated_at FROM users WHERE email = ?',
+                'SELECT id, username, email, phone, full_name, role, is_active, created_at, updated_at FROM users WHERE email = ?',
                 [email]
             );
             const users = rows as User[];
@@ -107,8 +110,8 @@ export class UserService {
             const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
 
             const [result] = await databasePool.execute(
-                'INSERT INTO users (username, email, password, role, full_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())',
-                [userData.username, userData.email, hashedPassword, userData.role, userData.full_name]
+                'INSERT INTO users (username, email, phone, password, role, full_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())',
+                [userData.username, userData.email, userData.phone || null, hashedPassword, userData.role, userData.full_name]
             );
 
             const insertResult = result as any;
@@ -140,8 +143,8 @@ export class UserService {
                 throw new Error('Email sudah digunakan');
             }
 
-            let query = 'UPDATE users SET username = ?, email = ?, role = ?, full_name = ?, updated_at = NOW()';
-            const params: any[] = [userData.username, userData.email, userData.role, userData.full_name];
+            let query = 'UPDATE users SET username = ?, email = ?, phone = ?, role = ?, full_name = ?, updated_at = NOW()';
+            const params: any[] = [userData.username, userData.email, userData.phone || null, userData.role, userData.full_name];
 
             // Update password jika disediakan
             if (userData.password) {

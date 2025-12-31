@@ -5787,6 +5787,17 @@ router.get('/customers/:id/edit', (req, res, next) => {
     getCustomerEdit(req, res, next);
 });
 
+// Toggle customer status
+router.post('/customers/:id/toggle-status', authMiddleware.requireAuth.bind(authMiddleware), async (req, res) => {
+    try {
+        const { toggleCustomerStatus } = await import('../controllers/customerController');
+        return toggleCustomerStatus(req, res);
+    } catch (error) {
+        console.error('Error in toggle customer status route:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
 // Migration endpoints - MUST be before generic /customers/:id routes
 
 // DELETE route must be BEFORE GET route to ensure proper routing

@@ -286,11 +286,16 @@
                         </div>
                     </form>
 
+                    <script type="application/json" id="odp-data-store"><%- JSON.stringify(odpData || []) %></script>
                     <script>
                         console.log('=== SCRIPT LOADED ===');
 
                         // Data ODP untuk lookup OLT/ODC
-                        const odpData = <% - JSON.stringify(odpData || []) %>;
+                        let odpData = [];
+                        try {
+                            const raw = document.getElementById('odp-data-store').textContent;
+                            odpData = JSON.parse(raw);
+                        } catch (e) { console.error('EJS Data Parse Error', e); }
 
                         console.log('ODP Data loaded:', odpData);
                         console.log('ODP Data length:', odpData ? odpData.length : 0);
@@ -676,55 +681,100 @@
                             }
                         }
 
-                        function initMaps() {
-                            // Skip map initialization if Leaflet is not loaded to avoid breaking other scripts
-                            if (typeof L === 'undefined') {
-                                console.warn('Leaflet tidak tersedia. Melewati inisialisasi peta.');
-                                return;
-                            }
-                            // Initialize map with default center (Jakarta)
-                            map = L.map('map').setView([-6.200000, 106.816666], 13);
+                        // Wait for Leaflet to be loaded with fallback
+                        async function waitForLeaflet() {
+                            if (typeof L !== 'undefined') return true;
 
-                            // Add OpenStreetMap tiles
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                attribution: '© OpenStreetMap contributors'
-                            }).addTo(map);
-
-                            const latInput = document.querySelector('input[name="latitude"]');
-                            const lngInput = document.querySelector('input[name="longitude"]');
-
-                            if (latInput && lngInput) {
-                                latInput.addEventListener('input', updateMapPreview);
-                                lngInput.addEventListener('input', updateMapPreview);
+                            // Wait up to 3 seconds for initial load (jsdelivr)
+                            for (let i = 0; i < 30; i++) {
+                                if (typeof L !== 'undefined') return true;
+                                await new Promise(r => setTimeout(r, 100));
                             }
 
-                            // Add click event to map
-                            map.on('click', function (e) {
-                                const lat = e.latlng.lat.toFixed(6);
-                                const lng = e.latlng.lng.toFixed(6);
+                            // Inject fallback (unpkg)
+                            const link = document.createElement('link');
+                            link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                            document.head.appendChild(link);
+                            const script = document.createElement('script');
+                            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                            document.head.appendChild(script);
 
-                                // Update input fields
-                                latInput.value = lat;
-                                lngInput.value = lng;
+                            // Wait up to 5 seconds for fallback
+                            for (let i = 0; i < 50; i++) {
+                                if (typeof L !== 'undefined') return true;
+                                await new Promise(r => setTimeout(r, 100));
+                            }
+                            throw new Error('Leaflet libraries failed to load');
+                        }
 
-                                // Update map with new marker
-                                updateMapPreview();
+                        async function initMaps() {
+                            const mapContainer = document.getElementById('map');
+                            if (!mapContainer) return;
 
-                                // Show notification
-                                showNotification(`Koordinat dipilih: ${lat}, ${lng}`, 'success');
-                            });
+                            // Loading Indicator
+                            if (!mapContainer.hasChildNodes()) {
+                                mapContainer.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;color:#666;"><div>⏳ Memuat Peta...</div></div>';
+                            }
 
-                            // Otomatis ambil lokasi saat ini jika koordinat masih kosong
-                            if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
-                                getCurrentLocation()
-                                    .then(({ lat, lng }) => {
-                                        setLocationToMap(lat, lng);
-                                        showNotification('Lokasi saat ini berhasil diambil', 'success');
-                                    })
-                                    .catch((error) => {
-                                        console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
-                                        // Tidak menampilkan error, hanya log saja karena ini opsional
-                                    });
+                            try {
+                                await waitForLeaflet();
+
+                                // Clear loading
+                                mapContainer.innerHTML = '';
+                                if (map) { map.remove(); map = null; }
+
+                                // Initialize map with default center (Jakarta)
+                                map = L.map('map').setView([-6.200000, 106.816666], 13);
+
+                                // Add OpenStreetMap tiles
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    attribution: '© OpenStreetMap contributors',
+                                    maxZoom: 19
+                                }).addTo(map);
+
+                                // Force resize to ensure tiles render
+                                setTimeout(() => { map.invalidateSize(); }, 200);
+
+                                const latInput = document.querySelector('input[name="latitude"]');
+                                const lngInput = document.querySelector('input[name="longitude"]');
+
+                                if (latInput && lngInput) {
+                                    latInput.addEventListener('input', updateMapPreview);
+                                    lngInput.addEventListener('input', updateMapPreview);
+                                }
+
+                                // Add click event to map
+                                map.on('click', function (e) {
+                                    const lat = e.latlng.lat.toFixed(6);
+                                    const lng = e.latlng.lng.toFixed(6);
+
+                                    // Update input fields
+                                    if (latInput) latInput.value = lat;
+                                    if (lngInput) lngInput.value = lng;
+
+                                    // Update map with new marker
+                                    updateMapPreview();
+
+                                    // Show notification
+                                    showNotification(`Koordinat dipilih: ${lat}, ${lng}`, 'success');
+                                });
+
+                                // Otomatis ambil lokasi saat ini jika koordinat masih kosong
+                                setTimeout(async () => {
+                                    if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
+                                        try {
+                                            const { lat, lng } = await getCurrentLocation();
+                                            setLocationToMap(lat, lng);
+                                            showNotification('Lokasi saat ini berhasil diambil', 'success');
+                                        } catch (error) {
+                                            console.log('Auto location failed:', error.message);
+                                        }
+                                    }
+                                }, 1000);
+                            } catch (error) {
+                                console.error('Error initializing map:', error);
+                                if (error.message && error.message.includes('initialized')) return;
+                                if (mapContainer) mapContainer.innerHTML = '<div class="p-4 text-center text-red-500">Gagal memuat peta (Cek Koneksi).</div>';
                             }
                         }
 

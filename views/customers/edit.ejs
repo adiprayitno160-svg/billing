@@ -328,7 +328,7 @@
                                 <script>
                                     (function () {
                                         try {
-                                            var interfacesData = <%= typeof interfaces !== 'undefined' ? JSON.stringify(viewInterfaces) : '[]' %>;
+                                            var interfacesData = <% - typeof interfaces !== 'undefined' ? JSON.stringify(viewInterfaces) : '[]' %>;
                                             console.log('🔍 VIEW DEBUG - Interface Section:');
                                             console.log('  - interfaces type:', typeof interfacesData);
                                             console.log('  - interfaces isArray:', Array.isArray(interfacesData));
@@ -538,12 +538,15 @@
                 </button>
             </div>
         </form>
+        <!-- Data Storage for Javascript -->
+        <!-- Data Storage for Javascript -->
+        <script id="odp-data-json" type="application/json">
+            <%- (typeof odpData !== "undefined" && odpData) ? JSON.stringify(odpData) : "[]" %>
+        </script>
     </div>
 </div>
 
 <script>
-    console.log('DEBUG: edit.ejs script execution started');
-
     function toggleConnectionFields() {
         const connectionType = document.querySelector('input[name="connection_type"]:checked')?.value;
         if (!connectionType) return;
@@ -560,13 +563,11 @@
             // Show PPPOE config, hide Static IP config
             if (pppoeConfig) {
                 pppoeConfig.classList.remove('hidden');
-                console.log('[Connection Type] PPPoE config shown - search field should be visible');
 
                 // Ensure search field is visible and trigger loadSecrets
                 setTimeout(() => {
                     const pppoeSearch = document.getElementById('pppoe_search');
                     if (pppoeSearch) {
-                        console.log('[Connection Type] PPPoE search field is visible');
                         // Re-initialize handlers if needed
                         if (typeof window.reinitializePPPoESearch === 'function') {
                             window.reinitializePPPoESearch();
@@ -815,52 +816,53 @@
             const mapContainer = document.getElementById('editLocationMap');
             function parseNum(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
 
-            // Wait for Leaflet to be loaded
-            function waitForLeaflet() {
-                return new Promise((resolve, reject) => {
-                    let attempts = 0;
-                    const maxAttempts = 50; // 5 detik maksimal
+            // Wait for Leaflet to be loaded with fallback
+            async function waitForLeaflet() {
+                if (typeof L !== 'undefined') {
+                    return true;
+                }
 
-                    const checkLeaflet = () => {
-                        attempts++;
-                        if (typeof L !== 'undefined') {
-                            resolve();
-                        } else if (attempts >= maxAttempts) {
-                            reject(new Error('Leaflet tidak dapat dimuat dalam waktu yang ditentukan'));
-                        } else {
-                            setTimeout(checkLeaflet, 100);
-                        }
-                    };
+                // Wait up to 3 seconds for initial load (jsdelivr)
+                for (let i = 0; i < 30; i++) {
+                    if (typeof L !== 'undefined') {
+                        return true;
+                    }
+                    await new Promise(r => setTimeout(r, 100));
+                }
 
-                    checkLeaflet();
-                });
+                console.warn('Leaflet slow/failed to load, attempting fallback CDN...');
+
+                // Inject fallback (unpkg)
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                document.head.appendChild(link);
+
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                document.head.appendChild(script);
+
+                // Wait up to 5 seconds for fallback
+                for (let i = 0; i < 50; i++) {
+                    if (typeof L !== 'undefined') return true;
+                    await new Promise(r => setTimeout(r, 100));
+                }
+
+                throw new Error('Leaflet libraries failed to load from all sources');
             }
 
-            function ensureMap() {
+            async function ensureMap() {
                 try {
                     if (map || !mapContainer) return;
 
-                    // Check if Leaflet is loaded
-                    if (typeof L === 'undefined') {
-                        console.warn('Leaflet belum dimuat, menunggu...');
-                        waitForLeaflet().then(() => {
-                            console.log('Leaflet loaded, initializing map...');
-                            setTimeout(ensureMap, 100);
-                        }).catch((error) => {
-                            console.error('Failed to load Leaflet:', error);
-                            // Fallback: coba lagi setelah delay lebih lama
-                            setTimeout(() => {
-                                try {
-                                    if (typeof L !== 'undefined') {
-                                        ensureMap();
-                                    } else {
-                                        console.error('Leaflet tidak tersedia. Map tidak dapat diinisialisasi.');
-                                    }
-                                } catch (e) {
-                                    console.error('Error in Leaflet fallback:', e);
-                                }
-                            }, 2000);
-                        });
+                    // Ensure Leaflet is loaded
+                    try {
+                        await waitForLeaflet();
+                    } catch (loadError) {
+                        console.error('Map init failed:', loadError);
+                        if (mapContainer) {
+                            mapContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-gray-50 text-gray-500 flex-col gap-2 p-4 text-center border-2 border-dashed border-gray-300 rounded"><i class="fas fa-wifi text-2xl text-red-400"></i><span class="font-medium">Gagal memuat peta</span><span class="text-xs">Periksa koneksi internet Anda untuk memuat library peta.</span></div>';
+                        }
                         return;
                     }
 
@@ -929,40 +931,56 @@
                     }, 100);
 
                     // Otomatis ambil lokasi saat ini jika koordinat masih kosong
-                    if ((!latEl || !latEl.value) && (!lngEl || !lngEl.value)) {
-                        if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition(function (position) {
-                                try {
-                                    const lat = position.coords.latitude;
-                                    const lng = position.coords.longitude;
+                    setTimeout(() => {
+                        if ((!latEl || !latEl.value) && (!lngEl || !lngEl.value)) {
+                            if (navigator.geolocation) {
+                                navigator.geolocation.getCurrentPosition(function (position) {
+                                    try {
+                                        const lat = position.coords.latitude;
+                                        const lng = position.coords.longitude;
 
-                                    // Update map view
-                                    if (map) {
-                                        map.setView([lat, lng], 15);
-                                        if (marker) {
-                                            marker.setLatLng([lat, lng]);
+                                        // Update map view
+                                        if (map) {
+                                            map.setView([lat, lng], 15);
+                                            if (marker) {
+                                                marker.setLatLng([lat, lng]);
+                                            }
                                         }
-                                    }
 
-                                    // Update form fields
-                                    if (latEl) latEl.value = lat.toFixed(7);
-                                    if (lngEl) lngEl.value = lng.toFixed(7);
-                                } catch (e) {
-                                    console.error('Error updating location:', e);
-                                }
-                            }, function (error) {
-                                console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
-                                // Tidak menampilkan error, hanya log saja karena ini opsional
-                            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+                                        // Update form fields
+                                        if (latEl) latEl.value = lat.toFixed(7);
+                                        if (lngEl) lngEl.value = lng.toFixed(7);
+                                    } catch (e) {
+                                        console.error('Error updating location:', e);
+                                    }
+                                }, function (error) {
+                                    console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
+                                    // Tidak menampilkan error, hanya log saja karena ini opsional
+                                }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+                            }
                         }
-                    }
+                    }, 1000);
 
                     console.log('Map initialized successfully');
                 } catch (error) {
                     console.error('Error initializing map:', error);
-                    // Show user-friendly message in map container
-                    if (mapContainer) {
-                        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Peta tidak dapat dimuat. Silakan isi koordinat secara manual.</div>';
+
+                    // Ignore duplicate initialization error
+                    if (error.message && error.message.includes('initialized')) {
+                        console.warn('Map redundancy check: Already initialized.');
+                        // Try to recover map instance if variable is lost
+                        if (!map && mapContainer && mapContainer._leaflet_id) {
+                            // If element has leaflet_id, it is initialized.
+                            // We can't easily get the map instance back from DOM element in Leaflet 1.x without global store,
+                            // but at least we don't destroy it.
+                            return;
+                        }
+                        return;
+                    }
+
+                    // Only show error message if container is empty (meaning no map rendered)
+                    if (mapContainer && mapContainer.children.length === 0) {
+                        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Gagal memuat peta: ' + (error.message || 'Error tidak diketahui') + '</div>';
                     }
                 }
             }
@@ -1659,8 +1677,12 @@
             }
         }, 2000); // Check every 2 seconds
 
-        // ODP/ODC/OLT Update Handler - Safe Injection
-        const odpData = <% - (typeof odpData !== 'undefined' && odpData) ? JSON.stringify(odpData) : '[]' %>;
+        // ODP/ODC/OLT Update Handler
+        const odpDataScript = document.getElementById('odp-data-json');
+        let odpData = [];
+        try {
+            odpData = odpDataScript ? JSON.parse(odpDataScript.textContent || '[]') : [];
+        } catch (e) { console.error('Error parsing ODP data', e); }
         const odpSelect = document.getElementById('odp_id');
         const odcDisplay = document.getElementById('odc_display');
         const oltDisplay = document.getElementById('olt_display');

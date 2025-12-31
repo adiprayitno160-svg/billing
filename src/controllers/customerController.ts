@@ -1668,3 +1668,124 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
         }
     }
 };
+
+/**
+ * Toggle customer status (Active/Inactive)
+ */
+export const toggleCustomerStatus = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // 'active' or 'inactive'
+
+        if (!id) return res.status(400).json({ success: false, error: 'ID is required' });
+        if (!status || (status !== 'active' && status !== 'inactive')) {
+            return res.status(400).json({ success: false, error: 'Invalid status' });
+        }
+
+        const customerId = parseInt(id);
+        const conn = await databasePool.getConnection();
+
+        try {
+            await conn.beginTransaction();
+
+            const [customers] = await conn.query<RowDataPacket[]>(
+                'SELECT id, name, connection_type, pppoe_username, status FROM customers WHERE id = ?',
+                [customerId]
+            );
+
+            if (!customers || customers.length === 0) {
+                await conn.rollback();
+                return res.status(404).json({ success: false, error: 'Customer not found' });
+            }
+
+            const customer = customers[0];
+
+            if (customer.status === status) {
+                await conn.rollback();
+                return res.json({ success: true, message: 'Status already ' + status });
+            }
+
+            await conn.query(
+                'UPDATE customers SET status = ?, updated_at = NOW() WHERE id = ?',
+                [status, customerId]
+            );
+
+            // Conditional subscription update
+            if (status === 'active') {
+                // Only set to active if previously suspended
+                await conn.query(
+                    'UPDATE subscriptions SET status = "active", updated_at = NOW() WHERE customer_id = ? AND status = "suspended"',
+                    [customerId]
+                );
+            } else {
+                // If deactivating customer, suspend active subscription
+                await conn.query(
+                    'UPDATE subscriptions SET status = "suspended", updated_at = NOW() WHERE customer_id = ? AND status = "active"',
+                    [customerId]
+                );
+            }
+
+            // Sync to Mikrotik
+            if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
+                try {
+                    const config = await getMikrotikConfig();
+
+                    if (config) {
+                        const { RouterOSAPI } = require('routeros-api');
+                        const api = new RouterOSAPI({
+                            host: config.host,
+                            port: config.port,
+                            user: config.username,
+                            password: config.password,
+                            timeout: 5000
+                        });
+
+                        await api.connect();
+
+                        const secrets = await api.write('/ppp/secret/print', [`?name=${customer.pppoe_username}`]);
+
+                        if (Array.isArray(secrets) && secrets.length > 0) {
+                            const secretId = secrets[0]['.id'];
+                            const isDisabled = status === 'inactive';
+
+                            await api.write('/ppp/secret/set', [
+                                `.id=${secretId}`,
+                                `disabled=${isDisabled ? 'yes' : 'no'}`
+                            ]);
+
+                            if (isDisabled) {
+                                const activeConns = await api.write('/ppp/active/print', [`?name=${customer.pppoe_username}`]);
+                                if (Array.isArray(activeConns)) {
+                                    for (const conn of activeConns) {
+                                        await api.write('/ppp/active/remove', [`.id=${conn['.id']}`]);
+                                    }
+                                }
+                            }
+                        }
+
+                        api.close();
+                    }
+                } catch (mikrotikError) {
+                    console.error('Failed to sync status to Mikrotik:', mikrotikError);
+                }
+            }
+
+            await conn.commit();
+
+            res.json({
+                success: true,
+                message: `Status updated to ${status}`
+            });
+
+        } catch (error) {
+            await conn.rollback();
+            throw error;
+        } finally {
+            conn.release();
+        }
+
+    } catch (error: any) {
+        console.error('Toggle status error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};

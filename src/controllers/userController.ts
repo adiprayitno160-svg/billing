@@ -45,8 +45,8 @@ export class UserController {
     // Proses tambah user
     public async create(req: Request, res: Response): Promise<void> {
         try {
-            const { username, email, password, role, full_name } = req.body;
-            
+            const { username, email, phone, password, role, full_name } = req.body;
+
             // Validasi input
             if (!username || !email || !password || !role || !full_name) {
                 req.flash('error', 'Semua field harus diisi');
@@ -63,6 +63,7 @@ export class UserController {
             const userId = await this.userService.createUser({
                 username,
                 email,
+                phone,
                 password,
                 role,
                 full_name
@@ -82,7 +83,7 @@ export class UserController {
         try {
             const { id } = req.params;
             const user = await this.userService.getUserById(parseInt(id as string));
-            
+
             if (!user) {
                 req.flash('error', 'User tidak ditemukan');
                 return res.redirect('/settings/users');
@@ -106,8 +107,8 @@ export class UserController {
     public async update(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-            const { username, email, role, full_name, password } = req.body;
-            
+            const { username, email, phone, role, full_name, password } = req.body;
+
             // Validasi input
             if (!username || !email || !role || !full_name) {
                 req.flash('error', 'Semua field harus diisi');
@@ -124,6 +125,7 @@ export class UserController {
             await this.userService.updateUser(parseInt(id as string), {
                 username,
                 email,
+                phone,
                 role,
                 full_name,
                 password: password || undefined // Password opsional untuk update
@@ -143,7 +145,7 @@ export class UserController {
         try {
             const { id } = req.params;
             await this.userService.deleteUser(parseInt(id as string));
-            
+
             req.flash('success', 'User berhasil dihapus');
             res.redirect('/settings/users');
         } catch (error: any) {
@@ -158,7 +160,7 @@ export class UserController {
         try {
             const { id } = req.params;
             await this.userService.toggleUserStatus(parseInt(id as string));
-            
+
             req.flash('success', 'Status user berhasil diubah');
             res.redirect('/settings/users');
         } catch (error: any) {

@@ -261,14 +261,18 @@
 											<% } %>
 								</td>
 								<td class="py-4 px-4">
-									<% let statusLabel='Tidak Aktif' ; let
-										statusClass='bg-modern-red-100 text-modern-red-700' ; if
-										(customer.status==='active' ) { statusLabel='Aktif' ;
-										statusClass='bg-modern-green-100 text-modern-green-700' ; } %>
-										<span
-											class="inline-flex items-center rounded-full px-3 py-1 text-xs <%= statusClass %>">
-											<%= statusLabel %>
-										</span>
+									<label class="inline-flex items-center cursor-pointer">
+										<input type="checkbox" class="sr-only peer status-toggle"
+											<%=customer.status==='active' ? 'checked' : '' %>
+										onchange="toggleCustomerStatus('<%= customer.id %>', this)">
+											<div
+												class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+											</div>
+											<span
+												class="ms-3 text-xs font-medium text-gray-900 status-label-<%= customer.id %>">
+												<%= customer.status==='active' ? 'Aktif' : 'Nonaktif' %>
+											</span>
+									</label>
 								</td>
 								<td class="py-4 px-4">
 									<div class="flex items-center gap-2">
@@ -1331,6 +1335,66 @@ Terima kasih! 🙏`;
 
 		// Open WhatsApp in new tab
 		window.open(whatsappUrl, '_blank');
+	}
+
+	function toggleCustomerStatus(id, checkbox) {
+		const newStatus = checkbox.checked ? 'active' : 'inactive';
+		const label = document.querySelector(`.status-label-${id}`);
+		const originalChecked = !checkbox.checked;
+		const originalLabel = label ? label.textContent : '';
+
+		// Disable checkbox temporarily
+		checkbox.disabled = true;
+
+		// Optimistic UI update
+		if (label) label.textContent = checkbox.checked ? 'Aktif' : 'Nonaktif';
+
+		// Optional: Show toast or indicator
+		// if (typeof showToast === 'function') showToast('Mengupdate status...', 'info');
+
+		fetch(`/customers/${id}/toggle-status`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			body: JSON.stringify({ status: newStatus })
+		})
+			.then(async response => {
+				const contentType = response.headers.get('content-type') || '';
+				if (!response.ok) {
+					let errorMsg = `HTTP ${response.status}`;
+					try {
+						if (contentType.includes('application/json')) {
+							const data = await response.json();
+							errorMsg = data.error || JSON.stringify(data);
+						} else {
+							const text = await response.text();
+							errorMsg = text.slice(0, 100);
+						}
+					} catch (e) { }
+					throw new Error(errorMsg);
+				}
+				return response.json();
+			})
+			.then(data => {
+				if (data.success) {
+					// Show success toast if available, or lightweight notification
+					// alert(`Status pelanggan berhasil diubah menjadi ${newStatus === 'active' ? 'Aktif' : 'Nonaktif'}`);
+				} else {
+					throw new Error(data.error || 'Gagal mengubah status');
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				alert('Gagal mengubah status: ' + error.message);
+				// Revert UI
+				checkbox.checked = originalChecked;
+				if (label) label.textContent = originalLabel;
+			})
+			.finally(() => {
+				checkbox.disabled = false;
+			});
 	}
 </script>
 

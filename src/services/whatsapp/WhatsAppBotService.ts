@@ -11,6 +11,7 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { PaymentVerificationService } from './PaymentVerificationService';
 import { AIAnomalyDetectionService } from '../billing/AIAnomalyDetectionService';
 import { WiFiManagementService } from '../genieacs/WiFiManagementService';
+import { GenieacsService } from '../genieacs/GenieacsService';
 import { MikrotikService } from '../mikrotik/MikrotikService';
 import { ChatBotService } from '../ai/ChatBotService';
 import { WhatsAppRegistrationService } from './WhatsAppRegistrationService';
@@ -34,8 +35,26 @@ export class WhatsAppBotService {
      * Check if phone number belongs to an admin
      */
     private static async isAdmin(phone: string): Promise<boolean> {
-        // You can add logic to check DB here if needed
-        return this.ADMIN_NUMBERS.includes(phone);
+        // 1. Check Hardcoded list (Fallback)
+        if (this.ADMIN_NUMBERS.includes(phone)) return true;
+
+        // 2. Check Database (Users Table)
+        try {
+            const cleanPhone = phone.replace('@c.us', '').replace('@s.whatsapp.net', '');
+
+            // Check for both 62... and 0... formats
+            const phoneWithZero = '0' + cleanPhone.substring(2);
+
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                "SELECT id FROM users WHERE (phone = ? OR phone = ?) AND role IN ('superadmin', 'admin', 'teknisi')",
+                [cleanPhone, phoneWithZero]
+            );
+
+            return rows.length > 0;
+        } catch (error) {
+            console.error('Error verifying admin status:', error);
+            return false;
+        }
     }
 
 
@@ -1089,8 +1108,15 @@ Ketik /menu untuk kembali ke menu utama.`;
             const password = parts.slice(3).join(' ');
 
             await this.adminChangeWifi(adminPhone, code, ssid, password);
+        } else if (cmd.startsWith('/adm_cek ')) {
+            const parts = command.split(' ');
+            if (parts.length < 2) {
+                await this.sendMessage(adminPhone, '❌ Format: /adm_cek [kode_pelanggan]');
+                return;
+            }
+            await this.checkCustomerDevice(adminPhone, parts[1]);
         } else {
-            await this.sendMessage(adminPhone, '🛠️ *ADMIN COMMANDS*\n\n/adm_offline - Cek pelanggan offline\n/adm_wifi [kode] [ssid] [pass] - Ganti WiFi Pelanggan');
+            await this.sendMessage(adminPhone, '🛠️ *ADMIN COMMANDS*\n\n/adm_offline - Cek pelanggan offline\n/adm_cek [kode] - Cek Sinyal & Status Device\n/adm_wifi [kode] [ssid] [pass] - Ganti WiFi Pelanggan');
         }
     }
 
@@ -1133,6 +1159,59 @@ Ketik /menu untuk kembali ke menu utama.`;
         } catch (err: any) {
             console.error('Check Offline Error:', err);
             await this.sendMessage(adminPhone, '❌ Gagal check offline: ' + err.message);
+        }
+    }
+    /**
+     * Check Customer Device Info (Signal/Status)
+     */
+    private static async checkCustomerDevice(adminPhone: string, code: string): Promise<void> {
+        try {
+            await this.sendMessage(adminPhone, `⏳ Checking device for customer ${code}...`);
+
+            // Find customer
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                "SELECT id, name, device_id FROM customers WHERE customer_code = ?",
+                [code]
+            );
+
+            if (rows.length === 0) {
+                await this.sendMessage(adminPhone, '❌ Customer not found.');
+                return;
+            }
+            const customer = rows[0];
+
+            if (!customer.device_id) {
+                await this.sendMessage(adminPhone, `❌ Customer ${customer.name} has no device linked.`);
+                return;
+            }
+
+            const genieacs = await GenieacsService.getInstanceFromDb();
+            const device = await genieacs.getDevice(customer.device_id);
+
+            if (!device) {
+                await this.sendMessage(adminPhone, `❌ Device not found in GenieACS.`);
+                return;
+            }
+
+            const info = genieacs.extractDeviceInfo(device);
+
+            // Format message
+            const msg = `📊 *DEVICE INFO - ${customer.name}*\n` +
+                `---------------------------\n` +
+                `Status: ${info.isOnline ? '✅ ONLINE' : '🔴 OFFLINE'}\n` +
+                `IP: ${info.ipAddress || 'N/A'}\n` +
+                `Last Inform: ${info.lastInform ? info.lastInform.toLocaleString('id-ID') : 'Never'}\n\n` +
+                `*OPTICAL SIGNAL* 📡\n` +
+                `Rx Power: ${info.signal.rxPower}\n` +
+                `Tx Power: ${info.signal.txPower}\n` +
+                `Temp: ${info.signal.temperature}\n` +
+                `---------------------------`;
+
+            await this.sendMessage(adminPhone, msg);
+
+        } catch (err: any) {
+            console.error('Check Device Error:', err);
+            await this.sendMessage(adminPhone, '❌ Error: ' + err.message);
         }
     }
 
