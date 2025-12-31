@@ -38,6 +38,21 @@ export class AISettingsService {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            // Helper to add column if not exists
+            const addCol = async (sql: string) => {
+                try { await databasePool.query(sql); } catch (err: any) {
+                    if (!String(err).includes('Duplicate column name')) {
+                        console.error('Column addition warning:', err.message);
+                    }
+                }
+            };
+
+            // Ensure columns exist (for migration)
+            await addCol('ALTER TABLE ai_settings ADD COLUMN risk_threshold VARCHAR(20) DEFAULT "medium" AFTER min_confidence');
+            await addCol('ALTER TABLE ai_settings ADD COLUMN max_age_days INT DEFAULT 7 AFTER risk_threshold');
+            await addCol('ALTER TABLE ai_settings ADD COLUMN model VARCHAR(100) DEFAULT "gemini-1.5-pro" AFTER api_key');
+            await addCol('ALTER TABLE ai_settings ADD COLUMN auto_approve_enabled TINYINT(1) DEFAULT 1 AFTER enabled');
+
             // Insert default settings if not exists
             const [existing] = await databasePool.query<RowDataPacket[]>(
                 'SELECT id FROM ai_settings LIMIT 1'
