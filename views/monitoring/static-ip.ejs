@@ -11,29 +11,39 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
-<body class="bg-gray-50">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
     <%- include('../partials/navbar') %>
 
         <div class="flex">
             <%- include('../partials/sidebar') %>
-                <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
+                <main class="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">
                     <div class="space-y-6">
                         <!-- Page Header -->
-                        <div class="mb-6">
-                            <div class="flex items-center justify-between">
+                        <div class="mb-8">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div>
-                                    <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                                        <i class="fas fa-network-wired mr-3 text-purple-600"></i>
+                                    <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2 flex items-center">
+                                        <div
+                                            class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                                            <i class="fas fa-network-wired text-white text-xl"></i>
+                                        </div>
                                         Monitor Static IP
                                     </h1>
-                                    <p class="text-gray-600">Monitor real-time status pelanggan Static IP dengan ping
-                                        monitoring</p>
+                                    <p class="text-gray-600 ml-16">Monitor real-time status pelanggan Static IP dengan
+                                        ping monitoring</p>
                                 </div>
-                                <a href="/monitoring/dashboard"
-                                    class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                                    <i class="fas fa-arrow-left mr-2"></i>
-                                    Kembali
-                                </a>
+                                <div class="flex gap-2 ml-16 sm:ml-0">
+                                    <button onclick="location.reload()"
+                                        class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm flex items-center gap-2">
+                                        <i class="fas fa-sync-alt"></i>
+                                        <span class="hidden sm:inline">Refresh</span>
+                                    </button>
+                                    <a href="/monitoring/dashboard"
+                                        class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm flex items-center gap-2">
+                                        <i class="fas fa-arrow-left"></i>
+                                        <span class="hidden sm:inline">Kembali</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
@@ -96,42 +106,101 @@
                         </div>
 
                         <!-- Stats Summary -->
-                        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-                            <div class="bg-white rounded-lg shadow-sm border p-4">
-                                <div class="text-xs text-gray-600 mb-1">Total</div>
-                                <div class="text-2xl font-bold text-gray-800">
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                            <div
+                                class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div
+                                        class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600">
+                                        <i class="fas fa-users text-lg"></i>
+                                    </div>
+                                    <span
+                                        class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TOTAL</span>
+                                </div>
+                                <div class="text-2xl font-bold text-gray-900">
                                     <%= stats.total %>
                                 </div>
+                                <div class="text-xs text-gray-500">Total Clients</div>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border p-4">
-                                <div class="text-xs text-gray-600 mb-1">🟢 Online</div>
+
+                            <div
+                                class="bg-white rounded-2xl shadow-sm border border-green-200 p-5 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div
+                                        class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
+                                        <i class="fas fa-signal text-lg"></i>
+                                    </div>
+                                    <span
+                                        class="text-[10px] font-bold text-green-600 uppercase tracking-wider">ONLINE</span>
+                                </div>
                                 <div class="text-2xl font-bold text-green-600">
                                     <%= stats.online %>
                                 </div>
+                                <div class="text-xs text-gray-500 text-green-600/70">Responsive</div>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border p-4">
-                                <div class="text-xs text-gray-600 mb-1">🔴 Offline</div>
+
+                            <div
+                                class="bg-white rounded-2xl shadow-sm border border-red-200 p-5 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div
+                                        class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600">
+                                        <i class="fas fa-signal-slash text-lg"></i>
+                                    </div>
+                                    <span
+                                        class="text-[10px] font-bold text-red-600 uppercase tracking-wider">OFFLINE</span>
+                                </div>
                                 <div class="text-2xl font-bold text-red-600">
                                     <%= stats.offline %>
                                 </div>
+                                <div class="text-xs text-gray-500 text-red-600/70">No Response</div>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border p-4">
-                                <div class="text-xs text-gray-600 mb-1">🟡 Degraded</div>
+
+                            <div
+                                class="bg-white rounded-2xl shadow-sm border border-yellow-200 p-5 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div
+                                        class="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600">
+                                        <i class="fas fa-exclamation-triangle text-lg"></i>
+                                    </div>
+                                    <span
+                                        class="text-[10px] font-bold text-yellow-600 uppercase tracking-wider">DEGRADED</span>
+                                </div>
                                 <div class="text-2xl font-bold text-yellow-600">
                                     <%= stats.degraded %>
                                 </div>
+                                <div class="text-xs text-gray-500 text-yellow-600/70">High Latency</div>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border p-4">
-                                <div class="text-xs text-gray-600 mb-1">⛔ Isolir</div>
+
+                            <div
+                                class="bg-white rounded-2xl shadow-sm border border-orange-200 p-5 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div
+                                        class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
+                                        <i class="fas fa-user-slash text-lg"></i>
+                                    </div>
+                                    <span
+                                        class="text-[10px] font-bold text-orange-600 uppercase tracking-wider">ISOLATED</span>
+                                </div>
                                 <div class="text-2xl font-bold text-orange-600">
                                     <%= stats.isolated %>
                                 </div>
+                                <div class="text-xs text-gray-500 text-orange-600/70">Blocked</div>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border p-4">
-                                <div class="text-xs text-gray-600 mb-1">⚪ Unknown</div>
+
+                            <div
+                                class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div
+                                        class="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                        <i class="fas fa-question text-lg"></i>
+                                    </div>
+                                    <span
+                                        class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">UNKNOWN</span>
+                                </div>
                                 <div class="text-2xl font-bold text-gray-400">
                                     <%= stats.unknown %>
                                 </div>
+                                <div class="text-xs text-gray-500">Not Checked</div>
                             </div>
                         </div>
 

@@ -15,15 +15,11 @@
             <i class="fas fa-search text-purple-600 mr-2"></i>
             Cari Pelanggan
         </h3>
-        
+
         <div class="mb-4">
-            <input 
-                type="text" 
-                id="customerSearch" 
-                placeholder="Cari by Customer Code, Nama, No HP..." 
+            <input type="text" id="customerSearch" placeholder="Cari by Customer Code, Nama, No HP..."
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
-                autofocus
-            >
+                autofocus>
         </div>
 
         <!-- Search Results -->
@@ -37,54 +33,113 @@
 
     <!-- Customer Invoices -->
     <div id="invoicesCard" class="hidden bg-white rounded-xl shadow-sm p-6">
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-200 mb-6">
+            <button id="tabPending"
+                class="flex-1 pb-4 text-center font-medium text-purple-600 border-b-2 border-purple-600 focus:outline-none transition-colors"
+                onclick="switchTab('pending')">
+                Tagihan Belum Lunas
+            </button>
+            <button id="tabPaid"
+                class="flex-1 pb-4 text-center font-medium text-gray-500 border-b-2 border-transparent hover:text-purple-600 focus:outline-none transition-colors"
+                onclick="switchTab('paid')">
+                Riwayat Lunas (Cetak Ulang)
+            </button>
+        </div>
+
         <h3 class="text-lg font-semibold text-gray-900 mb-4">
             <i class="fas fa-file-invoice text-purple-600 mr-2"></i>
             Daftar Tagihan
         </h3>
-        
+
         <div id="customerInfo" class="mb-4 p-4 bg-gray-50 rounded-lg"></div>
         <div id="invoicesList" class="space-y-2"></div>
+    </div>
+
+    <!-- Deferment Modal -->
+    <div id="defermentModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-900">Minta Penundaan Bayar</h3>
+                <button onclick="closeDefermentModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="defermentForm" onsubmit="submitDeferment(event)">
+                <input type="hidden" id="deferInvoiceId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ditunda Sampai Tanggal</label>
+                        <input type="date" id="deferredUntilDate" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <p class="text-[10px] text-gray-500 mt-1">* Biasa diberikan sampai tanggal 6 bulan berikutnya
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alasan</label>
+                        <textarea id="deferReason" rows="3" required
+                            placeholder="Contoh: Gaji belum turun, Ada keperluan mendadak"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex gap-2">
+                    <button type="button" onclick="closeDefermentModal()"
+                        class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-semibold">
+                        Batal
+                    </button>
+                    <button type="submit" id="btnSubmitDeferment"
+                        class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+                        Kirim Permintaan
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
-let searchTimeout;
+    let searchTimeout;
+    let currentCustomerId = null;
+    let currentTab = 'pending';
 
-// Search customer
-document.getElementById('customerSearch').addEventListener('input', function(e) {
-    const query = e.target.value.trim();
-    
-    clearTimeout(searchTimeout);
-    
-    if (query.length < 2) {
-        document.getElementById('searchResults').classList.add('hidden');
-        return;
-    }
-    
-    searchTimeout = setTimeout(() => {
-        searchCustomers(query);
-    }, 300);
-});
+    // Search customer
+    document.getElementById('customerSearch').addEventListener('input', function (e) {
+        const query = e.target.value.trim();
 
-async function searchCustomers(query) {
-    try {
-        const response = await fetch(`/kasir/api/search-customer?q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        
-        if (data.success && data.data.length > 0) {
-            displaySearchResults(data.data);
-        } else {
-            document.getElementById('customerList').innerHTML = '<p class="text-gray-500 text-center py-4">Tidak ada hasil ditemukan</p>';
-            document.getElementById('searchResults').classList.remove('hidden');
+        clearTimeout(searchTimeout);
+
+        if (query.length < 2) {
+            document.getElementById('searchResults').classList.add('hidden');
+            return;
         }
-    } catch (error) {
-        console.error('Error searching customers:', error);
-    }
-}
 
-function displaySearchResults(customers) {
-    const listEl = document.getElementById('customerList');
-    listEl.innerHTML = customers.map(customer => `
+        searchTimeout = setTimeout(() => {
+            searchCustomers(query);
+        }, 300);
+    });
+
+    async function searchCustomers(query) {
+        try {
+            const response = await fetch(`/kasir/api/search-customer?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (data.success && data.data.length > 0) {
+                displaySearchResults(data.data);
+            } else {
+                document.getElementById('customerList').innerHTML = '<p class="text-gray-500 text-center py-4">Tidak ada hasil ditemukan</p>';
+                document.getElementById('searchResults').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error searching customers:', error);
+        }
+    }
+
+    function displaySearchResults(customers) {
+        const listEl = document.getElementById('customerList');
+        listEl.innerHTML = customers.map(customer => `
         <div class="border rounded-lg p-4 hover:bg-purple-50 cursor-pointer transition" onclick='selectCustomer(${JSON.stringify(customer)})'>
             <div class="flex items-center justify-between">
                 <div class="flex-1">
@@ -94,26 +149,27 @@ function displaySearchResults(customers) {
                     </div>
                 </div>
                 <div>
-                    ${customer.pending_count > 0 ? 
-                        `<span class="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
+                    ${customer.pending_count > 0 ?
+                `<span class="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
                             ${customer.pending_count} Tagihan
-                        </span>` : 
-                        '<span class="text-green-600 text-sm">✓ Lunas</span>'}
+                        </span>` :
+                '<span class="text-green-600 text-sm">✓ Lunas</span>'}
                 </div>
             </div>
         </div>
     `).join('');
-    
-    document.getElementById('searchResults').classList.remove('hidden');
-}
 
-async function selectCustomer(customer) {
-    // Hide search results
-    document.getElementById('searchResults').classList.add('hidden');
-    document.getElementById('customerSearch').value = `${customer.name} (${customer.customer_code})`;
-    
-    // Display customer info
-    document.getElementById('customerInfo').innerHTML = `
+        document.getElementById('searchResults').classList.remove('hidden');
+    }
+
+    async function selectCustomer(customer) {
+        currentCustomerId = customer.id;
+        // Hide search results
+        document.getElementById('searchResults').classList.add('hidden');
+        document.getElementById('customerSearch').value = `${customer.name} (${customer.customer_code})`;
+
+        // Display customer info
+        document.getElementById('customerInfo').innerHTML = `
         <div class="flex items-center">
             <div class="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mr-4">
                 <i class="fas fa-user text-white text-xl"></i>
@@ -128,41 +184,87 @@ async function selectCustomer(customer) {
             </div>
         </div>
     `;
-    
-    // Load invoices
-    await loadCustomerInvoices(customer.id);
-}
 
-async function loadCustomerInvoices(customerId) {
-    try {
-        const response = await fetch(`/kasir/api/customer/${customerId}/invoices`);
-        const data = await response.json();
-        
-        if (data.success) {
-            displayInvoices(data.data);
-            document.getElementById('invoicesCard').classList.remove('hidden');
+        // Reset to pending tab
+        switchTab('pending');
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+
+        // Update tab styling
+        const tabPending = document.getElementById('tabPending');
+        const tabPaid = document.getElementById('tabPaid');
+
+        if (tab === 'pending') {
+            tabPending.classList.remove('text-gray-500', 'border-transparent');
+            tabPending.classList.add('text-purple-600', 'border-purple-600');
+            tabPaid.classList.remove('text-purple-600', 'border-purple-600');
+            tabPaid.classList.add('text-gray-500', 'border-transparent');
+        } else {
+            tabPaid.classList.remove('text-gray-500', 'border-transparent');
+            tabPaid.classList.add('text-purple-600', 'border-purple-600');
+            tabPending.classList.remove('text-purple-600', 'border-purple-600');
+            tabPending.classList.add('text-gray-500', 'border-transparent');
         }
-    } catch (error) {
-        console.error('Error loading invoices:', error);
-    }
-}
 
-function displayInvoices(invoices) {
-    const listEl = document.getElementById('invoicesList');
-    
-    if (invoices.length === 0) {
-        listEl.innerHTML = '<p class="text-green-600 text-center py-4">✓ Tidak ada tagihan pending</p>';
-        return;
+        if (currentCustomerId) {
+            loadCustomerInvoices(currentCustomerId);
+        }
     }
-    
-    listEl.innerHTML = invoices.map(invoice => {
-        const amount = invoice.remaining_amount || invoice.total_amount;
-        const statusClass = invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : 
-                           invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800' : 
-                           'bg-blue-100 text-blue-800';
-        
-        return `
-            <div class="border rounded-lg p-4">
+
+    async function loadCustomerInvoices(customerId) {
+        if (!customerId) return;
+
+        // Show loading
+        document.getElementById('invoicesList').innerHTML = '<p class="text-center py-4 text-gray-500">Memuat data...</p>';
+        document.getElementById('invoicesCard').classList.remove('hidden');
+
+        try {
+            const response = await fetch(`/kasir/api/customer/${customerId}/invoices?status=${currentTab}`);
+            const data = await response.json();
+
+            if (data.success) {
+                displayInvoices(data.data);
+            }
+        } catch (error) {
+            console.error('Error loading invoices:', error);
+            document.getElementById('invoicesList').innerHTML = '<p class="text-center py-4 text-red-500">Gagal memuat data</p>';
+        }
+    }
+
+    function displayInvoices(invoices) {
+        const listEl = document.getElementById('invoicesList');
+
+        if (invoices.length === 0) {
+            if (currentTab === 'pending') {
+                listEl.innerHTML = '<p class="text-green-600 text-center py-4">✓ Tidak ada tagihan pending</p>';
+            } else {
+                listEl.innerHTML = '<p class="text-gray-500 text-center py-4">Belum ada riwayat pembayaran</p>';
+            }
+            return;
+        }
+
+        listEl.innerHTML = invoices.map(invoice => {
+            const amount = currentTab === 'paid' ? invoice.total_amount : (invoice.remaining_amount || invoice.total_amount);
+            const statusClass = invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                    invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
+                        'bg-blue-100 text-blue-800';
+
+            let statusLabel = invoice.status;
+            if (invoice.status === 'paid') statusLabel = 'LUNAS';
+            if (invoice.status === 'overdue') statusLabel = 'JATUH TEMPO';
+
+            const deferButton = invoice.status !== 'paid' ? `
+                <button onclick="openDefermentModal(${invoice.id})" 
+                    class="px-4 py-2 bg-orange-100 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-200 transition text-center font-medium">
+                    <i class="fas fa-clock mr-2"></i>Minta Penundaan
+                </button>
+            ` : '';
+
+            return `
+            <div class="border rounded-lg p-4 ${invoice.status === 'paid' ? 'bg-green-50' : 'bg-white'}">
                 <div class="flex justify-between items-center mb-3">
                     <div>
                         <div class="font-semibold text-gray-900">${invoice.invoice_number}</div>
@@ -170,27 +272,87 @@ function displayInvoices(invoices) {
                     </div>
                     <div class="text-right">
                         <div class="font-bold text-lg text-gray-900">Rp ${amount.toLocaleString('id-ID')}</div>
-                        <span class="inline-block px-2 py-1 ${statusClass} rounded text-xs font-semibold uppercase">${invoice.status}</span>
+                        <span class="inline-block px-2 py-1 ${statusClass} rounded text-xs font-semibold uppercase">${statusLabel}</span>
                     </div>
                 </div>
-                <div class="flex gap-2">
-                    <a href="/billing/tagihan/${invoice.id}/print-thermal" target="_blank" 
-                       class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-center">
-                        <i class="fas fa-print mr-2"></i>Print Thermal (58mm)
-                    </a>
-                    <a href="/billing/tagihan/${invoice.id}/print" target="_blank"
-                       class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-center">
-                        <i class="fas fa-file-pdf mr-2"></i>Print A4
-                    </a>
+                <div class="flex flex-col gap-2">
+                    <div class="flex gap-2">
+                        <a href="/billing/tagihan/${invoice.id}/print-thermal" target="_blank" 
+                           class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-center text-sm">
+                            <i class="fas fa-print mr-2"></i>Thermal
+                        </a>
+                        <a href="/billing/tagihan/${invoice.id}/print" target="_blank"
+                           class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-center text-sm">
+                            <i class="fas fa-file-pdf mr-2"></i>PDF A4
+                        </a>
+                    </div>
+                    ${deferButton}
                 </div>
             </div>
         `;
-    }).join('');
-}
+        }).join('');
+    }
 
-// Focus on search input
-document.getElementById('customerSearch').focus();
+    // Deferment Functions
+    function openDefermentModal(invoiceId) {
+        document.getElementById('deferInvoiceId').value = invoiceId;
+
+        // Default date: 7th of next month (based on user requirement "sampai tanggal 6")
+        const date = new Date();
+        date.setDate(date.getDate() + 7);
+        document.getElementById('deferredUntilDate').value = date.toISOString().split('T')[0];
+
+        document.getElementById('defermentModal').classList.remove('hidden');
+    }
+
+    function closeDefermentModal() {
+        document.getElementById('defermentModal').classList.add('hidden');
+        document.getElementById('defermentForm').reset();
+    }
+
+    async function submitDeferment(event) {
+        event.preventDefault();
+
+        const invoiceId = document.getElementById('deferInvoiceId').value;
+        const deferredUntilDate = document.getElementById('deferredUntilDate').value;
+        const reason = document.getElementById('deferReason').value;
+
+        const btn = document.getElementById('btnSubmitDeferment');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
+
+        try {
+            const response = await fetch('/kasir/api/deferment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_id: currentCustomerId,
+                    invoice_id: invoiceId,
+                    deferred_until_date: deferredUntilDate,
+                    reason: reason
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('✅ Permintaan penundaan berhasil disetujui!');
+                closeDefermentModal();
+                loadCustomerInvoices(currentCustomerId);
+            } else {
+                alert('❌ Gagal: ' + result.message);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (error) {
+            console.error('Error submitting deferment:', error);
+            alert('❌ Terjadi kesalahan sistem.');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+
+    // Focus on search input
+    document.getElementById('customerSearch').focus();
 </script>
-
-
-

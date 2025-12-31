@@ -62,9 +62,20 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'payment_partial',
         channel: 'whatsapp',
         title_template: 'Pembayaran Kurang',
-        message_template: '⚠️ *Pembayaran Kurang*\n\nHalo {customer_name},\n\nTerima kasih atas pembayaran Anda untuk invoice *{invoice_number}*.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Jumlah Dibayar: Rp {paid_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n\n💡 *Informasi Penting:*\n• Masih ada sisa tagihan yang harus dilunasi\n• Silakan lakukan pembayaran sisa tagihan segera\n• Layanan dapat terganggu jika sisa tagihan tidak dilunasi\n• Hubungi kami jika ada pertanyaan tentang tagihan\n\n📅 *Jatuh Tempo:* {due_date}\n\nTerima kasih,\nTim Support',
-        variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'paid_amount', 'remaining_amount', 'due_date']),
+        message_template: '⚠️ *Pembayaran Kurang*\n\nHalo {customer_name},\n\nTerima kasih atas pembayaran Anda untuk invoice *{invoice_number}*.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Jumlah Dibayar: Rp {paid_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n\n💰 *Informasi Saldo:*\n• Digunakan: Rp {balance_used}\n• Saldo Bertambah: Rp {excess_amount}\n• Saldo Akhir: Rp {new_balance}\n\n💡 *Informasi Penting:*\n• Masih ada sisa tagihan yang harus dilunasi\n• Silakan lakukan pembayaran sisa tagihan segera\n• Layanan dapat terganggu jika sisa tagihan tidak dilunasi\n• Hubungi kami jika ada pertanyaan tentang tagihan\n\n📅 *Jatuh Tempo:* {due_date}\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'paid_amount', 'remaining_amount', 'due_date', 'balance_used', 'excess_amount', 'new_balance']),
         priority: 'high',
+        is_active: true
+      },
+      {
+        template_code: 'payment_received',
+        template_name: 'Pembayaran Diterima',
+        notification_type: 'payment_received',
+        channel: 'whatsapp',
+        title_template: 'Pembayaran Diterima - {invoice_number}',
+        message_template: '✅ *Pembayaran Diterima*\n\nHalo {customer_name},\n\nTerima kasih! Pembayaran Anda telah kami terima.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Jumlah: Rp {amount}\n• Metode: {payment_method}\n• Tanggal: {payment_date}\n\n💰 *Informasi Saldo:*\n• Digunakan: Rp {balance_used}\n• Saldo Bertambah: Rp {excess_amount}\n• Saldo Akhir: Rp {new_balance}\n\n💡 *Terima Kasih:*\nLayanan internet Anda tetap aktif. Terima kasih atas kerja samanya!\n\nJika ada pertanyaan, silakan hubungi kami.\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'payment_method', 'payment_date', 'balance_used', 'excess_amount', 'new_balance']),
+        priority: 'normal',
         is_active: true
       },
       {
@@ -106,8 +117,30 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'pre_block_warning',
         channel: 'whatsapp',
         title_template: 'Peringatan: Layanan Akan Diblokir Tanggal 1',
-        message_template: '🚨 *PERINGATAN: Layanan Akan Diblokir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan *DIBLOKIR pada tanggal {blocking_date}* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Kode Pelanggan: {customer_code}\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n• Jatuh Tempo: {due_date}\n\n⏳ *Waktu Tersisa: {days_until_block} hari*\n\n⚠️ *PENTING:*\n• Tanggal 1 adalah masa transisi ke blokir\n• Segera lakukan pembayaran sebelum tanggal 1\n• Setelah diblokir, layanan tidak dapat digunakan\n• Pembayaran setelah blokir akan memulihkan layanan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\n🔔 Jangan sampai layanan Anda terputus. Bayar sekarang!\n\nTerima kasih,\nTim Support',
+        message_template: '🚨 *PERINGATAN: Layanan Akan Diblokir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan *DIBLOKIR pada tanggal {blocking_date}* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Kode Pelanggan: {customer_code}\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n• Jatuh Tempo: {due_date}\n\n⏳ *Waktu Tersisa: {days_until_block} hari*\n\n⚠️ *PENTING:*\n• Tanggal 1 adalah masa transisi ke blokir\n• Segera lakukan pembayaran sebelum tanggal 1\n• Setelah diblokir, layanan tidak dapat digunakan\n• Pembayaran setelah blokir akan memulihkan layanan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\n        🔔 Jangan sampai layanan Anda terputus. Bayar sekarang!\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'customer_code', 'invoice_number', 'total_amount', 'remaining_amount', 'due_date', 'blocking_date', 'days_until_block']),
+        priority: 'high',
+        is_active: true
+      },
+      {
+        template_code: 'payment_deferment_approved',
+        template_name: 'Penundaan Pembayaran Disetujui',
+        notification_type: 'payment_deferment',
+        channel: 'whatsapp',
+        title_template: 'Penundaan Pembayaran Disetujui',
+        message_template: '✅ *Penundaan Pembayaran Disetujui*\n\nHalo {customer_name},\n\nPermintaan penundaan pembayaran Anda telah *DISETUJUI*.\n\n📋 *Informasi:*\n{details}\n\n💡 *Penting:*\nHarap lakukan pembayaran sebelum batas waktu tersebut untuk menghindari pemutusan layanan otomatis oleh sistem.\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'details']),
+        priority: 'normal',
+        is_active: true
+      },
+      {
+        template_code: 'payment_deferment_limit',
+        template_name: 'Limit Penundaan Tercapai',
+        notification_type: 'payment_deferment',
+        channel: 'whatsapp',
+        title_template: 'Limit Penundaan Tercapai',
+        message_template: '⚠️ *Limit Penundaan Tercapai*\n\nHalo {customer_name},\n\nMohon maaf, permintaan penundaan pembayaran Anda *GAGAL*.\n\n📋 *Alasan:*\n{details}\n\n💡 *Tindakan:*\nSilakan lakukan pelunasan tagihan segera agar layanan tetap aktif.\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'details']),
         priority: 'high',
         is_active: true
       }

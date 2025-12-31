@@ -391,6 +391,7 @@ router.get('/tagihan/export/pdf', async (req, res) => {
 
 // Update invoice status
 router.post('/tagihan/:id/status', invoiceController.updateInvoiceStatus.bind(invoiceController));
+router.post('/tagihan/:id/notes', invoiceController.updateInvoiceNotes.bind(invoiceController));
 
 // Print invoice (A4)
 router.get('/tagihan/:id/print', async (req, res) => {

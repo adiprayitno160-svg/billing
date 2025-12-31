@@ -19,11 +19,11 @@ export class AuthController {
                 });
                 req.flash('error', 'Session Anda telah berakhir karena tidak ada aktivitas selama 10 menit. Silakan login kembali.');
             }
-            
+
             // Tangkap pesan dari query string
             const successMessage = req.query.success as string;
             const errorMessage = req.query.error as string;
-            
+
             // Set flash message jika ada
             if (successMessage) {
                 req.flash('success', successMessage);
@@ -84,6 +84,11 @@ export class AuthController {
             (req.session as any).userRole = user.role;
             (req.session as any).username = user.username;
 
+            // Single Session Enforcement: Update User's Session ID
+            if (req.sessionID) {
+                await this.userService.updateSessionId(user.id, req.sessionID);
+            }
+
             req.flash('success', `Selamat datang, ${user.full_name}!`);
 
             // Redirect berdasarkan role
@@ -105,7 +110,7 @@ export class AuthController {
             // Simpan pesan flash sebelum destroy session
             const userId = (req.session as any)?.userId;
             const username = (req.session as any)?.username;
-            
+
             // Log untuk tracking
             if (userId) {
                 console.log(`User ${username} (ID: ${userId}) logged out at ${new Date().toISOString()}`);
@@ -117,10 +122,10 @@ export class AuthController {
                     console.error('Error destroying session:', err);
                     return res.redirect('/login?error=Gagal logout, silakan coba lagi');
                 }
-                
+
                 // Clear cookie
                 res.clearCookie('connect.sid');
-                
+
                 // Redirect ke login dengan pesan sukses
                 res.redirect('/login?success=Anda telah berhasil logout');
             });
@@ -135,7 +140,7 @@ export class AuthController {
         try {
             // Cek apakah user admin sudah ada
             const adminUser = await this.userService.getUserByUsername('admin');
-            
+
             if (!adminUser) {
                 // Buat user admin default (password akan di-hash oleh createUser)
                 await this.userService.createUser({
@@ -145,13 +150,13 @@ export class AuthController {
                     full_name: 'Administrator',
                     role: 'superadmin'
                 });
-                
+
                 console.log('Default admin user created: admin/admin');
             }
 
             // Cek apakah user kasir sudah ada
             const kasirUser = await this.userService.getUserByUsername('kasir');
-            
+
             if (!kasirUser) {
                 // Buat user kasir default (password akan di-hash oleh createUser)
                 await this.userService.createUser({
@@ -161,7 +166,7 @@ export class AuthController {
                     full_name: 'Kasir',
                     role: 'kasir'
                 });
-                
+
                 console.log('Default kasir user created: kasir/kasir');
             }
         } catch (error) {
@@ -174,7 +179,7 @@ export class AuthController {
         try {
             // Cari user kasir yang lama
             const kasirUser = await this.userService.getUserByUsername('kasir');
-            
+
             if (kasirUser) {
                 // Hapus user kasir yang lama
                 await this.userService.deleteUser(kasirUser.id);
@@ -189,7 +194,7 @@ export class AuthController {
                 full_name: 'Kasir',
                 role: 'kasir'
             });
-            
+
             console.log('New kasir user created: kasir/kasir');
         } catch (error) {
             console.error('Error resetting kasir user:', error);

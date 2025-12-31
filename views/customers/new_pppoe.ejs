@@ -75,11 +75,11 @@
                                 class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             <p class="text-xs text-slate-500 mt-1">Password untuk koneksi PPPOE</p>
                         </div>
-                        <div>
+                        <!-- Email (Hidden) -->
+                        <div class="hidden">
                             <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
                             <input name="email" id="email" placeholder="static@example.com"
                                 class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                            <p class="text-xs text-slate-500 mt-1">Otomatis: nama_pelanggan@id.net (bisa diubah)</p>
                         </div>
 
                         <!-- Informasi Kontak -->
@@ -255,7 +255,28 @@
 
 
 
-                        <input type="hidden" name="enable_billing" value="1">
+                        <!-- Billing Options -->
+                        <div class="sm:col-span-2">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
+                                    📅 Pengaturan Tagihan
+                                </h3>
+
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" name="enable_billing" id="enable_billing" value="1"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="enable_billing"
+                                        class="text-sm font-medium text-slate-700 cursor-pointer">
+                                        Aktifkan Sistem Billing Postpaid
+                                    </label>
+                                </div>
+                                <p class="text-xs text-slate-600 mt-2 ml-7">
+                                    ✅ Jika aktif: Tagihan bulanan dibuat otomatis sesuai tanggal daftar<br>
+                                    📌 Contoh: Daftar tgl 12 → Tagihan setiap tgl 12 → Auto-isolir jika telat<br>
+                                    ❌ Default tidak aktif (sesuai permintaan)
+                                </p>
+                            </div>
+                        </div>
 
                         <div class="sm:col-span-2 flex justify-end gap-3">
                             <a href="/customers/list"

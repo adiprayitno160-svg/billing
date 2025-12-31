@@ -285,6 +285,8 @@ async function start() {
 
 		// Initialize Notification Scheduler
 		const { NotificationScheduler } = await import('./services/notification/NotificationScheduler');
+		const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
+		await ensureNotificationTemplates();
 		NotificationScheduler.initialize();
 		console.log('Notification scheduler initialized');
 

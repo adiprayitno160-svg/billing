@@ -49,6 +49,8 @@ router.get('/api/manual-verifications', kasirController.getManualVerifications.b
 router.get('/api/search-customer', kasirController.searchCustomer.bind(kasirController));
 router.get('/api/customer/:id/invoices', kasirController.getCustomerInvoices.bind(kasirController));
 router.get('/api/payment/:id', kasirController.getPaymentDetail.bind(kasirController));
+router.post('/api/deferment', kasirController.requestDeferment.bind(kasirController));
+
 
 // Reports
 router.get('/reports', kasirController.reports.bind(kasirController));

@@ -440,13 +440,16 @@ export class PaymentController {
                 return;
             }
 
+            // Calculate excess amount
+            let excessAmount = 0;
             if (paymentAmountFloat > remainingAmount) {
-                res.status(400).json({
-                    success: false,
-                    message: 'Jumlah pembayaran melebihi sisa tagihan'
-                });
-                await conn.rollback();
-                return;
+                excessAmount = paymentAmountFloat - remainingAmount;
+            }
+
+            // Append overpayment to notes
+            let paymentNotes = notes || '';
+            if (excessAmount > 0) {
+                paymentNotes = (paymentNotes ? paymentNotes + '. ' : '') + `Kelebihan bayar Rp ${new Intl.NumberFormat('id-ID').format(excessAmount)} masuk ke saldo akun.`;
             }
 
             const paymentDateStr = payment_date || new Date().toISOString().slice(0, 10);
@@ -471,7 +474,7 @@ export class PaymentController {
                 paymentAmountFloat,
                 paymentDateStr,
                 reference_number || null,
-                notes || null
+                paymentNotes || null
             ]);
 
             // Record discounts if valid
@@ -558,6 +561,17 @@ export class PaymentController {
                 invoice_id
             ]);
 
+            // Handle Overpayment (Deposit to Balance)
+            if (excessAmount > 0) {
+                await conn.execute('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
+
+                await conn.execute(`
+                    INSERT INTO customer_balance_logs (
+                        customer_id, type, amount, description, reference_id, created_at
+                    ) VALUES (?, 'credit', ?, ?, ?, NOW())
+                `, [invoice.customer_id, excessAmount, `Kelebihan pembayaran invoice ${invoice.invoice_number}`, invoice_id.toString()]);
+            }
+
             // Create or update debt tracking
             // Use newRemainingAmount
 
@@ -600,6 +614,7 @@ export class PaymentController {
                 payment_amount: paymentAmountFloat,
                 discount_amount: discountAmount || 0,
                 remaining_amount: newRemainingAmount,
+                excess_amount: excessAmount,
                 invoice_status: newStatus
             });
 

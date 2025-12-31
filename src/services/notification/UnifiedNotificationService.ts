@@ -32,7 +32,9 @@ export type NotificationType =
   | 'payment_debt'
   | 'isolation_warning'
   | 'payment_shortage_warning'
-  | 'pre_block_warning';
+  | 'pre_block_warning'
+  | 'payment_reminder'
+  | 'payment_deferment';
 
 export type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push';
 
@@ -550,8 +552,9 @@ export class UnifiedNotificationService {
           amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
           paid_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
           remaining_amount: NotificationTemplateService.formatCurrency(remainingAmount),
-          payment_method: payment.payment_method || 'Tunai',
-          payment_date: NotificationTemplateService.formatDate(paymentDate)
+          payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
+          payment_date: NotificationTemplateService.formatDate(paymentDate),
+          notes: payment.notes || ''
         }
       });
     } finally {

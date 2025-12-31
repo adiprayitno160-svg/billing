@@ -303,6 +303,23 @@
             }
         }
 
+        @keyframes blink-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+                transform: scale(1);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+                transform: scale(1.1);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+                transform: scale(1);
+            }
+        }
+
         .status-text {
             font-size: 14px;
             font-weight: 600;
@@ -1130,6 +1147,7 @@
                         border: 3px solid white;
                         transition: all 0.3s ease;
                         ${device.status === 'online' ? 'animation: pulse 2s ease-in-out infinite;' : ''}
+                        ${device.status === 'offline' && device.device_type === 'customer' ? 'animation: blink-red 1.5s infinite;' : ''}
                     ">
                         <i class="fas ${iconClass}"></i>
                     </div>
@@ -1167,6 +1185,25 @@
                             <span class="status-badge ${statusClass}">${device.status}</span>
                         </div>
             `;
+
+            // ODP/ODC Port Info
+            if ((device.device_type === 'odp' || device.device_type === 'odc') && metadata.port_info) {
+                const p = metadata.port_info;
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Total Ports:</span>
+                        <span class="device-popup-value">${p.total}</span>
+                    </div>
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Used Ports:</span>
+                        <span class="device-popup-value" style="color: #f59e0b; font-weight: bold;">${p.used}</span>
+                    </div>
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Free Ports:</span>
+                        <span class="device-popup-value" style="color: #10b981; font-weight: bold;">${p.free}</span>
+                    </div>
+                `;
+            }
 
             // Signal Info (Redaman)
             // Signal Info (Redaman)

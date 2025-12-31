@@ -11,6 +11,9 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { PaymentVerificationService } from './PaymentVerificationService';
 import { AIAnomalyDetectionService } from '../billing/AIAnomalyDetectionService';
 import { WiFiManagementService } from '../genieacs/WiFiManagementService';
+import { MikrotikService } from '../mikrotik/MikrotikService';
+import { ChatBotService } from '../ai/ChatBotService';
+import { WhatsAppRegistrationService } from './WhatsAppRegistrationService';
 
 // Generic interface to support both Baileys and WhatsAppAuth based messages
 export interface WhatsAppMessageInterface {
@@ -24,11 +27,22 @@ export interface WhatsAppMessageInterface {
 
 export class WhatsAppBotService {
     private static readonly COMMAND_PREFIX = '/';
+    // TODO: Add Admin Numbers here (e.g., '628123456789')
+    private static readonly ADMIN_NUMBERS: string[] = [];
+
+    /**
+     * Check if phone number belongs to an admin
+     */
+    private static async isAdmin(phone: string): Promise<boolean> {
+        // You can add logic to check DB here if needed
+        return this.ADMIN_NUMBERS.includes(phone);
+    }
 
 
     /**
      * Validate if sender is a registered customer
-     * Returns customer object if valid, null otherwise (and sends rejection message)
+     * Returns customer object if valid, null otherwise
+     * NOTE: No longer sends rejection - caller handles unregistered flow
      */
     private static async validateCustomer(phone: string): Promise<any | null> {
         console.log(`[WhatsAppBot] 🔍 Validating customer for phone: ${phone}`);
@@ -37,14 +51,6 @@ export class WhatsAppBotService {
 
         if (!customer) {
             console.log(`[WhatsAppBot] ❌ Customer NOT FOUND for phone: ${phone}`);
-
-            await this.sendMessage(
-                phone,
-                '⛔ *AKSES DITOLAK*\n\n' +
-                'Maaf, nomor WhatsApp Anda belum terdaftar di sistem kami.\n\n' +
-                'Menu ini khusus untuk pelanggan terdaftar.\n' +
-                'Silakan hubungi admin/customer service untuk pendaftaran.'
-            );
             return null;
         }
 
@@ -88,10 +94,35 @@ export class WhatsAppBotService {
 
             // GLOBAL GUARD: Only registered customers can access the bot
             console.log('[WhatsAppBot] 🔐 Validating customer access...');
+
+            // ADMIN BYPASS CHECK
+            if (await this.isAdmin(phone)) {
+                if (body.startsWith('/adm_')) {
+                    console.log('[WhatsAppBot] 🛡️ Processing ADMIN command...');
+                    await this.handleAdminCommand(message, phone, body);
+                    return;
+                }
+            }
+
             const customer = await this.validateCustomer(phone);
             if (!customer) {
-                console.log('[WhatsAppBot] ❌ Customer validation failed, message rejected');
-                // validateCustomer already sends the rejection message
+                // Check if user has active registration session OR start new one
+                console.log('[WhatsAppBot] 📝 Customer not found, redirecting to registration flow...');
+
+                // Handle registration flow for unregistered numbers
+                try {
+                    const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
+                    await this.sendMessage(phone, registrationResponse);
+                    console.log('[WhatsAppBot] ✅ Registration step processed');
+                } catch (regError: any) {
+                    console.error('[WhatsAppBot] ❌ Error in registration flow:', regError);
+                    await this.sendMessage(
+                        phone,
+                        '❌ *Terjadi Kesalahan*\n\n' +
+                        'Maaf, terjadi kesalahan saat memproses pendaftaran.\n' +
+                        'Silakan coba lagi atau hubungi customer service.'
+                    );
+                }
                 return;
             }
 
@@ -151,19 +182,15 @@ export class WhatsAppBotService {
                 return;
             }
 
-            // Default: Show main menu for any other text interaction
-            console.log('[WhatsAppBot] 🏠 Showing main menu (default)...');
+            // Handle AI ChatBot (Fallback for other text)
+            console.log('[WhatsAppBot] 🤖 Hubbing AI ChatBot...');
             try {
+                const aiResponse = await ChatBotService.ask(body, customer);
+                await this.sendMessage(phone, aiResponse);
+                console.log('[WhatsAppBot] ✅ AI ChatBot response sent');
+            } catch (aiError: any) {
+                console.error('[WhatsAppBot] ❌ Error in AI ChatBot:', aiError);
                 await this.showMainMenu(phone);
-                console.log('[WhatsAppBot] ✅ Main menu sent successfully');
-            } catch (defaultError: any) {
-                console.error('[WhatsAppBot] ❌ Error in showMainMenu:', defaultError);
-                await this.sendMessage(
-                    phone,
-                    '❌ *Terjadi Kesalahan*\n\n' +
-                    'Maaf, terjadi kesalahan.\n' +
-                    'Silakan coba lagi atau hubungi customer service.'
-                );
             }
 
         } catch (error: any) {
@@ -416,23 +443,15 @@ export class WhatsAppBotService {
         const menu = `🏠 *MENU UTAMA*
 Hai *${customer.name || 'Pelanggan'}*,
 
-1️⃣ *Tagihan* - Lihat tagihan yang belum dibayar
-2️⃣ *Bantuan* - Informasi bantuan
+1️⃣ *Tagihan* - Lihat tagihan Anda
+2️⃣ *Bantuan / Tanya AI* - Tanya apapun ke AI CS
 3️⃣ *WiFi* - Ubah nama WiFi & password
 4️⃣ *Reboot* - Restart Perangkat (ONT)
 
-*Cara Menggunakan:*
-• Ketik angka menu (1, 2, 3, 4) atau
-• Ketik command: /tagihan, /help, /wifi, /reboot
-
-*Atau gunakan command:*
-/tagihan - Lihat tagihan
-/wifi - Ubah WiFi
-/reboot - Reboot ONT
-/help - Bantuan
-
-*💡 TIP:*
-Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
+*Tips:*
+• Ketik angka (1-4) atau perintah (contoh: /tagihan)
+• Anda bisa langsung bertanya: "Gimana cara bayar?" atau "Kenapa internet lemot?"
+• Kirim foto bukti transfer untuk verifikasi otomatis!`;
 
         await this.sendMessage(phone, menu);
     }
@@ -522,7 +541,7 @@ Kirim foto bukti transfer langsung untuk verifikasi otomatis!`;
 
             message += '*💡 Cara Membayar:*\n';
             message += '1. Transfer sesuai jumlah tagihan yang tersisa\n';
-            message += '2. Kirim foto bukti transfer ke chat ini\n';
+            message += '2. Kirim foto bukti transfer *KE NOMOR WA INI*\n';
             message += '3. Sistem akan verifikasi otomatis dengan AI\n';
             message += '4. Tagihan akan otomatis terupdate\n\n';
             message += '*Catatan:* Pastikan jumlah transfer sesuai dengan sisa tagihan.';
@@ -556,7 +575,7 @@ Hai ${customer.name},
 *Cara Membayar:*
 1. Ketik: /tagihan (untuk lihat tagihan)
 2. Transfer sesuai jumlah tagihan
-3. Kirim foto bukti transfer ke chat ini
+3. Kirim foto bukti transfer *KE NOMOR WA INI*
 4. Sistem akan verifikasi otomatis dengan AI
 
 *Command yang Tersedia:*
@@ -1048,6 +1067,125 @@ Ketik /menu untuk kembali ke menu utama.`;
             await WhatsAppService.sendMessage(phone, message);
         } catch (error: any) {
             console.error('[WhatsAppBot] Error sending message:', error);
+        }
+    }
+    /**
+     * Handle Admin Commands
+     */
+    private static async handleAdminCommand(message: WhatsAppMessageInterface, adminPhone: string, command: string): Promise<void> {
+        const cmd = command.toLowerCase().trim();
+
+        if (cmd === '/adm_offline') {
+            await this.checkOfflineCustomers(adminPhone);
+        } else if (cmd.startsWith('/adm_wifi ')) {
+            // /adm_wifi [kode_pelanggan] [ssid] [password]
+            const parts = command.split(' ');
+            if (parts.length < 4) {
+                await this.sendMessage(adminPhone, '❌ Format salah.\nGunakan: /adm_wifi [kode_plgn] [ssid] [pass]');
+                return;
+            }
+            const code = parts[1];
+            const ssid = parts[2];
+            const password = parts.slice(3).join(' ');
+
+            await this.adminChangeWifi(adminPhone, code, ssid, password);
+        } else {
+            await this.sendMessage(adminPhone, '🛠️ *ADMIN COMMANDS*\n\n/adm_offline - Cek pelanggan offline\n/adm_wifi [kode] [ssid] [pass] - Ganti WiFi Pelanggan');
+        }
+    }
+
+    /**
+     * Check Offline Customers (Admin Feature)
+     */
+    private static async checkOfflineCustomers(adminPhone: string): Promise<void> {
+        await this.sendMessage(adminPhone, '⏳ Checking offline customers...');
+
+        try {
+            const mikrotik = await MikrotikService.getInstance();
+            const activeSessions = await mikrotik.getActivePPPoESessions();
+            const activeUsernames = new Set(activeSessions.map(s => s.name));
+
+            const [customers] = await databasePool.query<RowDataPacket[]>(`
+                 SELECT id, name, customer_code, pppoe_username, odc_id 
+                 FROM customers 
+                 WHERE status = 'active' AND connection_type = 'pppoe'
+                 ORDER BY name ASC
+            `);
+
+            const offline = [];
+            for (const c of customers) {
+                if (c.pppoe_username && !activeUsernames.has(c.pppoe_username)) {
+                    offline.push(c);
+                }
+            }
+
+            let msg = `📉 *OFFLINE REPORT*\nTotal Offline: ${offline.length}\n\n`;
+            if (offline.length === 0) {
+                msg += '✅ Semua pelanggan ONLINE.';
+            } else {
+                offline.slice(0, 50).forEach(c => { // Limit list
+                    msg += `• ${c.name} (${c.customer_code})\n`;
+                });
+                if (offline.length > 50) msg += `\n...dan ${offline.length - 50} lainnya.`;
+            }
+
+            await this.sendMessage(adminPhone, msg);
+        } catch (err: any) {
+            console.error('Check Offline Error:', err);
+            await this.sendMessage(adminPhone, '❌ Gagal check offline: ' + err.message);
+        }
+    }
+
+    /**
+     * Admin Change Wifi
+     */
+    private static async adminChangeWifi(adminPhone: string, code: string, ssid: string, pass: string): Promise<void> {
+        try {
+            // Find customer by code
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                "SELECT id, name FROM customers WHERE customer_code = ?",
+                [code]
+            );
+
+            if (rows.length === 0) {
+                await this.sendMessage(adminPhone, '❌ Customer not found with code: ' + code);
+                return;
+            }
+            const customer = rows[0];
+
+            const wifiService = new WiFiManagementService();
+            const deviceId = await wifiService.getCustomerDeviceId(customer.id);
+
+            if (!deviceId) {
+                await this.sendMessage(adminPhone, `❌ Customer ${customer.name} has no device linked.`);
+                return;
+            }
+
+            await this.sendMessage(adminPhone, `⏳ Changing WiFi for ${customer.name}...`);
+
+            const result = await wifiService.changeWiFiCredentials(deviceId, ssid, pass);
+
+            // Save request log
+            await wifiService.saveWiFiChangeRequest({
+                customerId: customer.id,
+                customerName: customer.name,
+                phone: adminPhone, // Admin phone doing request
+                deviceId: deviceId,
+                newSSID: ssid,
+                newPassword: pass,
+                requestedAt: new Date(),
+                status: result.success ? 'completed' : 'failed',
+                errorMessage: result.success ? undefined : `ADMIN-REQ: ${result.message}`
+            });
+
+            if (result.success) {
+                await this.sendMessage(adminPhone, `✅ Success change WiFi for ${customer.name}\nSSID: ${ssid}\nPass: ${pass}`);
+            } else {
+                await this.sendMessage(adminPhone, `❌ Failed: ${result.message}`);
+            }
+        } catch (err: any) {
+            console.error('Admin Wifi Change Error:', err);
+            await this.sendMessage(adminPhone, '❌ Error: ' + err.message);
         }
     }
 }

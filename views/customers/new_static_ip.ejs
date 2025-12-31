@@ -3,608 +3,670 @@
         <h2 class="text-lg font-semibold">Pelanggan IP Statis Baru</h2>
         <a href="/packages/static-ip" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
     </div>
-    <% if (typeof error !== 'undefined' && error) { %>
-    <div class="mb-3 px-3 py-2 text-sm rounded border border-rose-200 text-rose-700 bg-rose-50"><%= error %></div>
-    <% } %>
-    <form method="post" action="/customers/new-static-ip" class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="static-ip-form">
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">ID Pelanggan (otomatis)</label>
-            <input name="customer_code" readonly value="<%= (initial_customer_code || '') %>" class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
-            <p class="text-xs text-slate-500 mt-1">Format: YYYYMMDDHHMMSS (otomatis)</p>
+    <% if (typeof error !=='undefined' && error) { %>
+        <div class="mb-3 px-3 py-2 text-sm rounded border border-rose-200 text-rose-700 bg-rose-50">
+            <%= error %>
         </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pelanggan *</label>
-            <input name="client_name" required placeholder="Contoh: Pelanggan A" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">Nama untuk mengidentifikasi pelanggan</p>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">IP Statis *</label>
-            <input name="ip_address" required placeholder="192.168.1.1/30" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">IP address yang akan digunakan pelanggan</p>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <input name="email" id="email" placeholder="static@example.com" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">Otomatis: nama_pelanggan@id.net (bisa diubah)</p>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Packet Mark (preview)</label>
-            <input id="packetMarkPreview" readonly class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
-        </div>
-
-        <!-- Informasi Kontak -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📞 Informasi Kontak</h3>
-            
-            <!-- Container dengan background dan border -->
-            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Alamat</label>
-                        <textarea name="address" placeholder="Alamat lengkap pelanggan" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Nomor Telepon</label>
-                        <input name="phone_number" placeholder="08123456789" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        <p class="text-xs text-slate-500 mt-1 flex items-center">
-                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                            </svg>
-                            Format: 08xxxxxxxxxx
-                        </p>
-                    </div>
+        <% } %>
+            <form method="post" action="/customers/new-static-ip" class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                id="static-ip-form">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">ID Pelanggan (otomatis)</label>
+                    <input name="customer_code" readonly value="<%= (initial_customer_code || '') %>"
+                        class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
+                    <p class="text-xs text-slate-500 mt-1">Format: YYYYMMDDHHMMSS (otomatis)</p>
                 </div>
-            </div>
-        </div>
-
-        <!-- Koordinat & Maps -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📍 Koordinat & Maps</h3>
-            
-            <!-- Container dengan background dan border -->
-            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Koordinat -->
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Latitude</label>
-                            <input name="latitude" type="number" step="any" placeholder="-6.200000" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Longitude</label>
-                            <input name="longitude" type="number" step="any" placeholder="106.816666" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        </div>
-                        <div class="text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                            💡 <strong>Tips:</strong> Masukkan koordinat yang akurat untuk menampilkan lokasi di peta
-                        </div>
-                    </div>
-                    
-                    <!-- Maps Preview -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Peta Lokasi</label>
-                        <div id="map" style="height: 220px; width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;" class="rounded-lg shadow-sm"></div>
-                        <button type="button" id="btnGetLocation" class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">📍 Ambil Lokasi Saat Ini</button>
-                        <p class="text-xs text-slate-500 mt-2 flex items-center">
-                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                            </svg>
-                            Klik pada peta untuk memilih koordinat atau isi manual
-                        </p>
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pelanggan *</label>
+                    <input name="client_name" required placeholder="Contoh: Pelanggan A"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-slate-500 mt-1">Nama untuk mengidentifikasi pelanggan</p>
                 </div>
-            </div>
-        </div>
-
-        <!-- OLT, ODC, ODP -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">🏗️ Infrastruktur FTTH</h3>
-            
-            <!-- Container dengan background dan border -->
-            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">OLT (View Only)</label>
-                        <input name="olt_display" readonly class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" placeholder="Akan muncul setelah memilih ODP" />
-                        <input name="olt_id" type="hidden" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">ODC (View Only)</label>
-                        <input name="odc_display" readonly class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" placeholder="Akan muncul setelah memilih ODP" />
-                        <input name="odc_id" type="hidden" />
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">IP Statis *</label>
+                    <input name="ip_address" required placeholder="192.168.1.1/30"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-slate-500 mt-1">IP address yang akan digunakan pelanggan</p>
                 </div>
-                
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">ODP *</label>
-                    <select name="odp_id" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" id="odp-select">
-                        <option value="">Pilih ODP</option>
-                        <% (odpData || []).forEach(function(odp){ %>
-                        <option value="<%= odp.id %>"><%= odp.odp_name %></option>
-                        <% }) %>
-                    </select>
-                    <p class="text-xs text-slate-500 mt-2 flex items-center">
-                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                        </svg>
-                        Pilih ODP untuk mengisi OLT dan ODC secara otomatis
-                    </p>
+                <!-- Email (Hidden) -->
+                <div class="hidden">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input name="email" id="email" placeholder="static@example.com"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-            </div>
-        </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Packet Mark (preview)</label>
+                    <input id="packetMarkPreview" readonly
+                        class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
+                </div>
 
-        <!-- Paket & Interface -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📦 Paket & Konfigurasi</h3>
-            
-            <!-- Container dengan background dan border -->
-            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Paket Static IP *</label>
-                        <select name="package_id" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">-- Pilih Paket --</option>
-                            <% (packages || []).forEach(function(p){ %>
-                            <option value="<%= p.id %>"><%= p.name %> (Max Client: <%= p.max_clients %>)</option>
-                            <% }) %>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Interface MikroTik *</label>
-                        <% if (typeof interfaceError !== 'undefined' && interfaceError) { %>
-                            <div class="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                                ⚠️ <strong>Peringatan:</strong> <%= interfaceError %>
-                                <br>
-                                <a href="/settings/mikrotik" class="text-blue-600 hover:underline mt-1 inline-block">Konfigurasi MikroTik</a>
+                <!-- Informasi Kontak -->
+                <div class="sm:col-span-2">
+                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📞 Informasi
+                        Kontak</h3>
+
+                    <!-- Container dengan background dan border -->
+                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Alamat</label>
+                                <textarea name="address" placeholder="Alamat lengkap pelanggan"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    rows="3"></textarea>
                             </div>
-                        <% } %>
-                        <select name="interface" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" <%= (typeof interfaceError !== 'undefined' && interfaceError) ? 'disabled' : '' %>>
-                            <option value="">-- Pilih Interface --</option>
-                            <% if (interfaces && interfaces.length > 0) { %>
-                                <% interfaces.forEach(function(ifc){ %>
-                                <option value="<%= ifc.name %>"><%= ifc.name %> <% if (ifc.type) { %>(<%= ifc.type %>)<% } %></option>
-                                <% }) %>
-                            <% } else if (!interfaceError) { %>
-                                <option value="" disabled>Belum ada interface</option>
-                            <% } %>
-                        </select>
-                        <% if (interfaces && interfaces.length === 0 && !interfaceError) { %>
-                            <p class="text-xs text-slate-500 mt-1">Interface tidak tersedia. Pastikan MikroTik terhubung.</p>
-                        <% } %>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Nomor Telepon</label>
+                                <input name="phone_number" placeholder="08123456789"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1 flex items-center">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                    </svg>
+                                    Format: 08xxxxxxxxxx
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Koordinat & Maps -->
+                <div class="sm:col-span-2">
+                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📍 Koordinat &
+                        Maps</h3>
+
+                    <!-- Container dengan background dan border -->
+                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Koordinat -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Latitude</label>
+                                    <input name="latitude" type="number" step="any" placeholder="-6.200000"
+                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Longitude</label>
+                                    <input name="longitude" type="number" step="any" placeholder="106.816666"
+                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                                <div class="text-xs text-slate-500 bg-blue-50 p-2 rounded">
+                                    💡 <strong>Tips:</strong> Masukkan koordinat yang akurat untuk menampilkan lokasi di
+                                    peta
+                                </div>
+                            </div>
+
+                            <!-- Maps Preview -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Peta Lokasi</label>
+                                <div id="map"
+                                    style="height: 220px; width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;"
+                                    class="rounded-lg shadow-sm"></div>
+                                <button type="button" id="btnGetLocation"
+                                    class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">📍
+                                    Ambil Lokasi Saat Ini</button>
+                                <p class="text-xs text-slate-500 mt-2 flex items-center">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    Klik pada peta untuk memilih koordinat atau isi manual
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OLT, ODC, ODP -->
+                <div class="sm:col-span-2">
+                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">🏗️ Infrastruktur
+                        FTTH</h3>
+
+                    <!-- Container dengan background dan border -->
+                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">OLT (View Only)</label>
+                                <input name="olt_display" readonly
+                                    class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
+                                    placeholder="Akan muncul setelah memilih ODP" />
+                                <input name="olt_id" type="hidden" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">ODC (View Only)</label>
+                                <input name="odc_display" readonly
+                                    class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
+                                    placeholder="Akan muncul setelah memilih ODP" />
+                                <input name="odc_id" type="hidden" />
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">ODP *</label>
+                            <select name="odp_id" required
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                id="odp-select">
+                                <option value="">Pilih ODP</option>
+                                <% (odpData || []).forEach(function(odp){ %>
+                                    <option value="<%= odp.id %>">
+                                        <%= odp.odp_name %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-2 flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                Pilih ODP untuk mengisi OLT dan ODC secara otomatis
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paket & Interface -->
+                <div class="sm:col-span-2">
+                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📦 Paket &
+                        Konfigurasi</h3>
+
+                    <!-- Container dengan background dan border -->
+                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Paket Static IP *</label>
+                                <select name="package_id" required
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- Pilih Paket --</option>
+                                    <% (packages || []).forEach(function(p){ %>
+                                        <option value="<%= p.id %>">
+                                            <%= p.name %> (Max Client: <%= p.max_clients %>)
+                                        </option>
+                                        <% }) %>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Interface MikroTik
+                                    *</label>
+                                <% if (typeof interfaceError !=='undefined' && interfaceError) { %>
+                                    <div
+                                        class="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                                        ⚠️ <strong>Peringatan:</strong>
+                                        <%= interfaceError %>
+                                            <br>
+                                            <a href="/settings/mikrotik"
+                                                class="text-blue-600 hover:underline mt-1 inline-block">Konfigurasi
+                                                MikroTik</a>
+                                    </div>
+                                    <% } %>
+                                        <select name="interface" required
+                                            class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            <%=(typeof interfaceError !=='undefined' && interfaceError) ? 'disabled'
+                                            : '' %>>
+                                            <option value="">-- Pilih Interface --</option>
+                                            <% if (interfaces && interfaces.length> 0) { %>
+                                                <% interfaces.forEach(function(ifc){ %>
+                                                    <option value="<%= ifc.name %>">
+                                                        <%= ifc.name %>
+                                                            <% if (ifc.type) { %>(<%= ifc.type %>)<% } %>
+                                                    </option>
+                                                    <% }) %>
+                                                        <% } else if (!interfaceError) { %>
+                                                            <option value="" disabled>Belum ada interface</option>
+                                                            <% } %>
+                                        </select>
+                                        <% if (interfaces && interfaces.length===0 && !interfaceError) { %>
+                                            <p class="text-xs text-slate-500 mt-1">Interface tidak tersedia. Pastikan
+                                                MikroTik terhubung.</p>
+                                            <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billing Options -->
+                <div class="sm:col-span-2">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
+                            📅 Pengaturan Tagihan
+                        </h3>
+
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" name="enable_billing" id="enable_billing" value="1"
+                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="enable_billing" class="text-sm font-medium text-slate-700 cursor-pointer">
+                                Aktifkan Sistem Billing Postpaid
+                            </label>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-2 ml-7">
+                            ✅ Default aktif: Tagihan akan mengikuti tanggal daftar setiap bulan<br>
+                            📌 Contoh: Daftar tanggal 12 Oktober → Tagihan bulanan setiap tanggal 12 → Jatuh tempo
+                            tanggal 13 → Auto-isolir jika tidak dibayar<br>
+                            ❌ Uncheck untuk menggunakan sistem billing lama
+                        </p>
+                    </div>
+                </div>
+
+                <div class="sm:col-span-2 flex justify-end gap-3">
+                    <a href="/packages/static-ip"
+                        class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
+                    <button type="submit"
+                        class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+                </div>
+            </form>
+            <script>
+                console.log('=== STATIC IP SCRIPT LOADED ===');
+
+                // Data ODP untuk lookup OLT/ODC
+                const odpData = <% - JSON.stringify(odpData || []) %>;
+
+                console.log('ODP Data loaded:', odpData);
+                console.log('ODP Data length:', odpData ? odpData.length : 0);
+
+                // Add event listener for ODP select
+                document.addEventListener('DOMContentLoaded', function () {
+                    console.log('=== STATIC IP DOM CONTENT LOADED ===');
+
+                    const odpSelect = document.getElementById('odp-select');
+                    if (odpSelect) {
+                        odpSelect.addEventListener('change', updateOLTODC);
+                        console.log('Event listener added to ODP select');
+                    } else {
+                        console.error('ODP select element not found');
+                    }
+
+                    // Add form submission debug
+                    const form = document.getElementById('static-ip-form');
+                    if (form) {
+                        form.addEventListener('submit', function (e) {
+                            console.log('Static IP form submission started');
+                            console.log('Form action:', form.action);
+                            console.log('Form method:', form.method);
+
+                            // Get form data
+                            const formData = new FormData(form);
+                            console.log('Form data:');
+                            for (let [key, value] of formData.entries()) {
+                                console.log(key + ':', value);
+                            }
+                        });
+                        console.log('Static IP form submission listener added');
+                    } else {
+                        console.error('Static IP form element not found');
+                    }
+                });
+
+                function updateOLTODC() {
+                    console.log('updateOLTODC called');
+                    const odpSelect = document.getElementById('odp-select');
+                    const oltDisplay = document.querySelector('input[name="olt_display"]');
+                    const odcDisplay = document.querySelector('input[name="odc_display"]');
+                    const oltIdInput = document.querySelector('input[name="olt_id"]');
+                    const odcIdInput = document.querySelector('input[name="odc_id"]');
+
+                    const selectedOdpId = odpSelect.value;
+
+                    if (selectedOdpId) {
+                        const odp = odpData.find(o => o.id == selectedOdpId);
+                        if (odp) {
+                            oltDisplay.value = odp.olt_name || '';
+                            odcDisplay.value = odp.odc_name || '';
+                            oltIdInput.value = odp.olt_id || '';
+                            odcIdInput.value = odp.odc_id || '';
+                        }
+                    } else {
+                        oltDisplay.value = '';
+                        odcDisplay.value = '';
+                        oltIdInput.value = '';
+                        odcIdInput.value = '';
+                    }
+                }
+
+
+                // Maps integration
+                let map;
+                let marker;
+
+                function getCurrentLocation() {
+                    return new Promise((resolve, reject) => {
+                        if (!navigator.geolocation) {
+                            reject(new Error('Browser tidak mendukung geolocation'));
+                            return;
+                        }
+
+                        navigator.geolocation.getCurrentPosition(
+                            function (position) {
+                                const lat = position.coords.latitude;
+                                const lng = position.coords.longitude;
+                                resolve({ lat, lng });
+                            },
+                            function (error) {
+                                reject(error);
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                        );
+                    });
+                }
+
+                function setLocationToMap(lat, lng) {
+                    const latInput = document.querySelector('input[name="latitude"]');
+                    const lngInput = document.querySelector('input[name="longitude"]');
+
+                    if (latInput && lngInput) {
+                        latInput.value = lat.toFixed(7);
+                        lngInput.value = lng.toFixed(7);
+                    }
+
+                    if (map) {
+                        map.setView([lat, lng], 15);
+                        if (marker) {
+                            map.removeLayer(marker);
+                        }
+                        marker = L.marker([lat, lng]).addTo(map);
+                        marker.bindPopup(`<b>Lokasi Saat Ini</b><br>Lat: ${lat.toFixed(7)}<br>Lng: ${lng.toFixed(7)}`).openPopup();
+                    }
+                }
+
+                function initMaps() {
+                    // Initialize map with default center (Jakarta)
+                    map = L.map('map').setView([-6.200000, 106.816666], 13);
+
+                    // Add OpenStreetMap tiles
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    const latInput = document.querySelector('input[name="latitude"]');
+                    const lngInput = document.querySelector('input[name="longitude"]');
+
+                    if (latInput && lngInput) {
+                        latInput.addEventListener('input', updateMapPreview);
+                        lngInput.addEventListener('input', updateMapPreview);
+                    }
+
+                    // Add click event to map
+                    map.on('click', function (e) {
+                        const lat = e.latlng.lat.toFixed(6);
+                        const lng = e.latlng.lng.toFixed(6);
+
+                        // Update input fields
+                        latInput.value = lat;
+                        lngInput.value = lng;
+
+                        // Update map with new marker
+                        updateMapPreview();
+
+                        // Show notification
+                        showNotification(`Koordinat dipilih: ${lat}, ${lng}`, 'success');
+                    });
+
+                    // Otomatis ambil lokasi saat ini jika koordinat masih kosong
+                    if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
+                        getCurrentLocation()
+                            .then(({ lat, lng }) => {
+                                setLocationToMap(lat, lng);
+                                showNotification('Lokasi saat ini berhasil diambil', 'success');
+                            })
+                            .catch((error) => {
+                                console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
+                                // Tidak menampilkan error, hanya log saja karena ini opsional
+                            });
+                    }
+                }
+
+                function updateMapPreview() {
+                    const lat = parseFloat(document.querySelector('input[name="latitude"]').value);
+                    const lng = parseFloat(document.querySelector('input[name="longitude"]').value);
+
+                    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+                        // Update map center
+                        map.setView([lat, lng], 15);
+
+                        // Remove existing marker
+                        if (marker) {
+                            map.removeLayer(marker);
+                        }
+
+                        // Add new marker
+                        marker = L.marker([lat, lng]).addTo(map);
+                        marker.bindPopup(`<b>Lokasi Pelanggan</b><br>Lat: ${lat}<br>Lng: ${lng}`).openPopup();
+                    }
+                }
+
+                function showNotification(message, type = 'info') {
+                    // Create notification element
+                    const notification = document.createElement('div');
+                    notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white text-sm ${type === 'success' ? 'bg-green-500' :
+                        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                        }`;
+                    notification.textContent = message;
+
+                    document.body.appendChild(notification);
+
+                    // Remove after 3 seconds
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 3000);
+                }
+
+                (function () {
+                    const ipInput = document.querySelector('input[name="ip_address"]');
+                    const preview = document.getElementById('packetMarkPreview');
+                    const nameInput = document.querySelector('input[name="client_name"]');
+                    const emailInput = document.getElementById('email');
+                    let emailTouched = false;
+                    if (emailInput) emailInput.addEventListener('input', () => { emailTouched = true; });
+                    const pkgSelect = document.querySelector('select[name="package_id"]');
+                    const childDownloadEl = document.getElementById('childDownloadName');
+                    const childUploadEl = document.getElementById('childUploadName');
+                    const parentDownloadEl = document.getElementById('parentDownloadName');
+                    const parentUploadEl = document.getElementById('parentUploadName');
+                    const networkEl = document.getElementById('networkPreview');
+                    const packages = <% - JSON.stringify(packages || []) %>;
+
+                    function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
+                    function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
+                    function updateMark() {
+                        const v = (ipInput.value || '').trim();
+                        const parts = v.split('/');
+                        const ip = parts[0] || '';
+                        const pref = Number(parts[1] || '0');
+                        if (!ip || !pref) { if (preview) preview.value = ''; if (networkEl) networkEl.value = ''; return; }
+                        const mask = pref === 0 ? 0 : (0xFFFFFFFF << (32 - pref)) >>> 0;
+                        const net = ipToInt(ip) & mask;
+                        if (networkEl) networkEl.value = intToIp(net);
+                        let peer = ip;
+                        if (pref === 30) {
+                            const firstHost = net + 1;
+                            const secondHost = net + 2;
+                            const ipInt = ipToInt(ip);
+                            peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                        }
+                        if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer}`;
+                        updateChildNames();
+                    }
+
+                    function updateChildNames() {
+                        const clientName = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
+                        if (childDownloadEl) childDownloadEl.value = clientName ? `${clientName}_DOWNLOAD` : '';
+                        if (childUploadEl) childUploadEl.value = clientName ? `${clientName}_UPLOAD` : '';
+                        const selectedPkgId = pkgSelect && pkgSelect.value ? Number(pkgSelect.value) : null;
+                        const pkg = packages.find(p => p.id === selectedPkgId);
+                        if (pkg) {
+                            if (parentDownloadEl) parentDownloadEl.value = pkg.parent_download_name || '';
+                            if (parentUploadEl) parentUploadEl.value = pkg.parent_upload_name || '';
+                            // Populate child template defaults to related inputs (if exist)
+                            const qd = document.querySelector('select[name="qtype_download"]');
+                            const qu = document.querySelector('select[name="qtype_upload"]');
+                            const pd = document.querySelector('select[name="priority_download"]');
+                            const pu = document.querySelector('select[name="priority_upload"]');
+                            const lad = document.querySelector('input[name="limitat_download"]');
+                            const lau = document.querySelector('input[name="limitat_upload"]');
+                            const mld = document.querySelector('input[name="maxlimit_download"]');
+                            const mlu = document.querySelector('input[name="maxlimit_upload"]');
+                            const bld = document.querySelector('input[name="burst_limit_download"]');
+                            const blu = document.querySelector('input[name="burst_limit_upload"]');
+                            const btd = document.querySelector('input[name="burst_threshold_download"]');
+                            const btu = document.querySelector('input[name="burst_threshold_upload"]');
+                            const btimeD = document.querySelector('input[name="burst_time_download"]');
+                            const btimeU = document.querySelector('input[name="burst_time_upload"]');
+                            if (qd && pkg.child_queue_type_download) qd.value = pkg.child_queue_type_download;
+                            if (qu && pkg.child_queue_type_upload) qu.value = pkg.child_queue_type_upload;
+                            if (pd && pkg.child_priority_download) pd.value = String(pkg.child_priority_download);
+                            if (pu && pkg.child_priority_upload) pu.value = String(pkg.child_priority_upload);
+                            if (lad && pkg.child_limit_at_download) lad.value = pkg.child_limit_at_download;
+                            if (lau && pkg.child_limit_at_upload) lau.value = pkg.child_limit_at_upload;
+                            if (mld && (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download)) mld.value = (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download);
+                            if (mlu && (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload)) mlu.value = (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload);
+                            if (bld && pkg.child_burst_download) bld.value = pkg.child_burst_download;
+                            if (blu && pkg.child_burst_upload) blu.value = pkg.child_burst_upload;
+                            if (btd && pkg.child_burst_threshold_download) btd.value = pkg.child_burst_threshold_download;
+                            if (btu && pkg.child_burst_threshold_upload) btu.value = pkg.child_burst_threshold_upload;
+                            if (btimeD && pkg.child_burst_time_download) btimeD.value = pkg.child_burst_time_download;
+                            if (btimeU && pkg.child_burst_time_upload) btimeU.value = pkg.child_burst_time_upload;
+
+                            // Fill readonly default panel
+                            const rd = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+                            rd('pkgQtypeDownload', pkg.child_queue_type_download || 'pcq-download-default');
+                            rd('pkgQtypeUpload', pkg.child_queue_type_upload || 'pcq-upload-default');
+                            rd('pkgPriorityDownload', String(pkg.child_priority_download || '8'));
+                            rd('pkgPriorityUpload', String(pkg.child_priority_upload || '8'));
+                            rd('pkgLimitAtDownload', pkg.child_limit_at_download || pkg.limit_at_download || '');
+                            rd('pkgLimitAtUpload', pkg.child_limit_at_upload || pkg.limit_at_upload || '');
+                            rd('pkgMaxDownload', pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download || '');
+                            rd('pkgMaxUpload', pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload || '');
+                            rd('pkgBurstThresholdDownload', pkg.child_burst_threshold_download || '');
+                            rd('pkgBurstThresholdUpload', pkg.child_burst_threshold_upload || '');
+                            rd('pkgBurstTimeDownload', pkg.child_burst_time_download || '');
+                            rd('pkgBurstTimeUpload', pkg.child_burst_time_upload || '');
+                        } else {
+                            if (parentDownloadEl) parentDownloadEl.value = '';
+                            if (parentUploadEl) parentUploadEl.value = '';
+                        }
+                    }
+                    if (nameInput) nameInput.addEventListener('input', updateChildNames);
+                    if (pkgSelect) pkgSelect.addEventListener('change', updateChildNames);
+                    if (ipInput) { ipInput.addEventListener('input', updateMark); }
+                    updateMark();
+                    updateChildNames();
+
+                    // Auto-fill email dari nama pelanggan → nama_pelanggan@id.net
+                    function slugifyNameToEmailLocal(name) {
+                        return (name || '')
+                            .toLowerCase()
+                            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^a-z0-9]+/g, '.')
+                            .replace(/^\.+|\.+$/g, '')
+                            .slice(0, 32);
+                    }
+                    if (nameInput && emailInput) {
+                        nameInput.addEventListener('input', function () {
+                            if (emailTouched) return;
+                            const local = slugifyNameToEmailLocal(this.value);
+                            emailInput.value = local ? `${local}@id.net` : '';
+                        });
+                        if (!emailInput.value && nameInput.value) {
+                            const local = slugifyNameToEmailLocal(nameInput.value);
+                            emailInput.value = local ? `${local}@id.net` : '';
+                        }
+                    }
+
+                    // Initialize maps
+                    initMaps();
+
+                    // Initialize OLT/ODC display on page load
+                    updateOLTODC();
+
+                    // Tombol manual untuk mengambil lokasi saat ini
+                    const getLocationBtn = document.getElementById('btnGetLocation');
+                    if (getLocationBtn) {
+                        getLocationBtn.addEventListener('click', function () {
+                            getLocationBtn.disabled = true;
+                            getLocationBtn.textContent = '⏳ Mendeteksi...';
+
+                            getCurrentLocation()
+                                .then(({ lat, lng }) => {
+                                    setLocationToMap(lat, lng);
+                                    showNotification('Lokasi saat ini berhasil diambil', 'success');
+                                    getLocationBtn.disabled = false;
+                                    getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
+                                })
+                                .catch((error) => {
+                                    showNotification('Tidak dapat mengambil lokasi: ' + error.message, 'error');
+                                    getLocationBtn.disabled = false;
+                                    getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
+                                });
+                        });
+                    }
+                })();
+            </script>
+
+            <!-- Default Template dari Paket (readonly, untuk referensi) -->
+            <div class="mt-6 rounded border border-slate-200 bg-white p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-base font-semibold">Default Paket (Readonly)</h3>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Queue Type Download</label>
+                        <input id="pkgQtypeDownload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Queue Type Upload</label>
+                        <input id="pkgQtypeUpload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Priority Download</label>
+                        <input id="pkgPriorityDownload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Priority Upload</label>
+                        <input id="pkgPriorityUpload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Limit At Download</label>
+                        <input id="pkgLimitAtDownload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Limit At Upload</label>
+                        <input id="pkgLimitAtUpload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Max Download</label>
+                        <input id="pkgMaxDownload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Max Upload</label>
+                        <input id="pkgMaxUpload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Burst Threshold Download</label>
+                        <input id="pkgBurstThresholdDownload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Burst Threshold Upload</label>
+                        <input id="pkgBurstThresholdUpload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Burst Time Download</label>
+                        <input id="pkgBurstTimeDownload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Burst Time Upload</label>
+                        <input id="pkgBurstTimeUpload" readonly
+                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Billing Options -->
-        <div class="sm:col-span-2">
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
-                    📅 Pengaturan Tagihan
-                </h3>
-                
-                <div class="flex items-center gap-3">
-                    <input type="checkbox" name="enable_billing" id="enable_billing" value="1" checked
-                           class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <label for="enable_billing" class="text-sm font-medium text-slate-700 cursor-pointer">
-                        Aktifkan Sistem Billing Postpaid
-                    </label>
-                </div>
-                <p class="text-xs text-slate-600 mt-2 ml-7">
-                    ✅ Default aktif: Tagihan akan mengikuti tanggal daftar setiap bulan<br>
-                    📌 Contoh: Daftar tanggal 12 Oktober → Tagihan bulanan setiap tanggal 12 → Jatuh tempo tanggal 13 → Auto-isolir jika tidak dibayar<br>
-                    ❌ Uncheck untuk menggunakan sistem billing lama
-                </p>
-            </div>
-        </div>
-
-        <div class="sm:col-span-2 flex justify-end gap-3">
-            <a href="/packages/static-ip" class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
-            <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
-        </div>
-    </form>
-    <script>
-    console.log('=== STATIC IP SCRIPT LOADED ===');
-    
-    // Data ODP untuk lookup OLT/ODC
-    const odpData = <%- JSON.stringify(odpData || []) %>;
-    
-    console.log('ODP Data loaded:', odpData);
-    console.log('ODP Data length:', odpData ? odpData.length : 0);
-    
-    // Add event listener for ODP select
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('=== STATIC IP DOM CONTENT LOADED ===');
-        
-        const odpSelect = document.getElementById('odp-select');
-        if (odpSelect) {
-            odpSelect.addEventListener('change', updateOLTODC);
-            console.log('Event listener added to ODP select');
-        } else {
-            console.error('ODP select element not found');
-        }
-        
-        // Add form submission debug
-        const form = document.getElementById('static-ip-form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                console.log('Static IP form submission started');
-                console.log('Form action:', form.action);
-                console.log('Form method:', form.method);
-                
-                // Get form data
-                const formData = new FormData(form);
-                console.log('Form data:');
-                for (let [key, value] of formData.entries()) {
-                    console.log(key + ':', value);
-                }
-            });
-            console.log('Static IP form submission listener added');
-        } else {
-            console.error('Static IP form element not found');
-        }
-    });
-    
-    function updateOLTODC() {
-        console.log('updateOLTODC called');
-        const odpSelect = document.getElementById('odp-select');
-        const oltDisplay = document.querySelector('input[name="olt_display"]');
-        const odcDisplay = document.querySelector('input[name="odc_display"]');
-        const oltIdInput = document.querySelector('input[name="olt_id"]');
-        const odcIdInput = document.querySelector('input[name="odc_id"]');
-        
-        const selectedOdpId = odpSelect.value;
-        
-        if (selectedOdpId) {
-            const odp = odpData.find(o => o.id == selectedOdpId);
-            if (odp) {
-                oltDisplay.value = odp.olt_name || '';
-                odcDisplay.value = odp.odc_name || '';
-                oltIdInput.value = odp.olt_id || '';
-                odcIdInput.value = odp.odc_id || '';
-            }
-        } else {
-            oltDisplay.value = '';
-            odcDisplay.value = '';
-            oltIdInput.value = '';
-            odcIdInput.value = '';
-        }
-    }
-    
-    
-    // Maps integration
-    let map;
-    let marker;
-    
-    function getCurrentLocation() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error('Browser tidak mendukung geolocation'));
-                return;
-            }
-            
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    resolve({ lat, lng });
-                },
-                function(error) {
-                    reject(error);
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-            );
-        });
-    }
-    
-    function setLocationToMap(lat, lng) {
-        const latInput = document.querySelector('input[name="latitude"]');
-        const lngInput = document.querySelector('input[name="longitude"]');
-        
-        if (latInput && lngInput) {
-            latInput.value = lat.toFixed(7);
-            lngInput.value = lng.toFixed(7);
-        }
-        
-        if (map) {
-            map.setView([lat, lng], 15);
-            if (marker) {
-                map.removeLayer(marker);
-            }
-            marker = L.marker([lat, lng]).addTo(map);
-            marker.bindPopup(`<b>Lokasi Saat Ini</b><br>Lat: ${lat.toFixed(7)}<br>Lng: ${lng.toFixed(7)}`).openPopup();
-        }
-    }
-    
-    function initMaps() {
-        // Initialize map with default center (Jakarta)
-        map = L.map('map').setView([-6.200000, 106.816666], 13);
-        
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-        
-        const latInput = document.querySelector('input[name="latitude"]');
-        const lngInput = document.querySelector('input[name="longitude"]');
-        
-        if (latInput && lngInput) {
-            latInput.addEventListener('input', updateMapPreview);
-            lngInput.addEventListener('input', updateMapPreview);
-        }
-        
-        // Add click event to map
-        map.on('click', function(e) {
-            const lat = e.latlng.lat.toFixed(6);
-            const lng = e.latlng.lng.toFixed(6);
-            
-            // Update input fields
-            latInput.value = lat;
-            lngInput.value = lng;
-            
-            // Update map with new marker
-            updateMapPreview();
-            
-            // Show notification
-            showNotification(`Koordinat dipilih: ${lat}, ${lng}`, 'success');
-        });
-        
-        // Otomatis ambil lokasi saat ini jika koordinat masih kosong
-        if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
-            getCurrentLocation()
-                .then(({ lat, lng }) => {
-                    setLocationToMap(lat, lng);
-                    showNotification('Lokasi saat ini berhasil diambil', 'success');
-                })
-                .catch((error) => {
-                    console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
-                    // Tidak menampilkan error, hanya log saja karena ini opsional
-                });
-        }
-    }
-
-    function updateMapPreview() {
-        const lat = parseFloat(document.querySelector('input[name="latitude"]').value);
-        const lng = parseFloat(document.querySelector('input[name="longitude"]').value);
-        
-        if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-            // Update map center
-            map.setView([lat, lng], 15);
-            
-            // Remove existing marker
-            if (marker) {
-                map.removeLayer(marker);
-            }
-            
-            // Add new marker
-            marker = L.marker([lat, lng]).addTo(map);
-            marker.bindPopup(`<b>Lokasi Pelanggan</b><br>Lat: ${lat}<br>Lng: ${lng}`).openPopup();
-        }
-    }
-    
-    function showNotification(message, type = 'info') {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white text-sm ${
-            type === 'success' ? 'bg-green-500' : 
-            type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-        }`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
-    }
-    
-    (function(){
-        const ipInput = document.querySelector('input[name="ip_address"]');
-        const preview = document.getElementById('packetMarkPreview');
-        const nameInput = document.querySelector('input[name="client_name"]');
-        const emailInput = document.getElementById('email');
-        let emailTouched = false;
-        if (emailInput) emailInput.addEventListener('input', ()=>{ emailTouched = true; });
-        const pkgSelect = document.querySelector('select[name="package_id"]');
-        const childDownloadEl = document.getElementById('childDownloadName');
-        const childUploadEl = document.getElementById('childUploadName');
-        const parentDownloadEl = document.getElementById('parentDownloadName');
-        const parentUploadEl = document.getElementById('parentUploadName');
-        const networkEl = document.getElementById('networkPreview');
-        const packages = <%- JSON.stringify(packages || []) %>;
-
-        function ipToInt(ip){return ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0}
-        function intToIp(int){return [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.')}
-        function updateMark(){
-            const v = (ipInput.value||'').trim();
-            const parts = v.split('/');
-            const ip = parts[0]||'';
-            const pref = Number(parts[1]||'0');
-            if (!ip || !pref) { if (preview) preview.value = ''; if (networkEl) networkEl.value=''; return; }
-            const mask = pref===0 ? 0 : (0xFFFFFFFF << (32-pref))>>>0;
-            const net = ipToInt(ip) & mask;
-            if (networkEl) networkEl.value = intToIp(net);
-            let peer = ip;
-            if (pref === 30){
-                const firstHost = net + 1;
-                const secondHost = net + 2;
-                const ipInt = ipToInt(ip);
-                peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-            }
-            if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer}`;
-            updateChildNames();
-        }
-
-        function updateChildNames(){
-            const clientName = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
-            if (childDownloadEl) childDownloadEl.value = clientName ? `${clientName}_DOWNLOAD` : '';
-            if (childUploadEl) childUploadEl.value = clientName ? `${clientName}_UPLOAD` : '';
-            const selectedPkgId = pkgSelect && pkgSelect.value ? Number(pkgSelect.value) : null;
-            const pkg = packages.find(p => p.id === selectedPkgId);
-            if (pkg) {
-                if (parentDownloadEl) parentDownloadEl.value = pkg.parent_download_name || '';
-                if (parentUploadEl) parentUploadEl.value = pkg.parent_upload_name || '';
-                // Populate child template defaults to related inputs (if exist)
-                const qd = document.querySelector('select[name="qtype_download"]');
-                const qu = document.querySelector('select[name="qtype_upload"]');
-                const pd = document.querySelector('select[name="priority_download"]');
-                const pu = document.querySelector('select[name="priority_upload"]');
-                const lad = document.querySelector('input[name="limitat_download"]');
-                const lau = document.querySelector('input[name="limitat_upload"]');
-                const mld = document.querySelector('input[name="maxlimit_download"]');
-                const mlu = document.querySelector('input[name="maxlimit_upload"]');
-                const bld = document.querySelector('input[name="burst_limit_download"]');
-                const blu = document.querySelector('input[name="burst_limit_upload"]');
-                const btd = document.querySelector('input[name="burst_threshold_download"]');
-                const btu = document.querySelector('input[name="burst_threshold_upload"]');
-                const btimeD = document.querySelector('input[name="burst_time_download"]');
-                const btimeU = document.querySelector('input[name="burst_time_upload"]');
-                if (qd && pkg.child_queue_type_download) qd.value = pkg.child_queue_type_download;
-                if (qu && pkg.child_queue_type_upload) qu.value = pkg.child_queue_type_upload;
-                if (pd && pkg.child_priority_download) pd.value = String(pkg.child_priority_download);
-                if (pu && pkg.child_priority_upload) pu.value = String(pkg.child_priority_upload);
-                if (lad && pkg.child_limit_at_download) lad.value = pkg.child_limit_at_download;
-                if (lau && pkg.child_limit_at_upload) lau.value = pkg.child_limit_at_upload;
-                if (mld && (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download)) mld.value = (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download);
-                if (mlu && (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload)) mlu.value = (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload);
-                if (bld && pkg.child_burst_download) bld.value = pkg.child_burst_download;
-                if (blu && pkg.child_burst_upload) blu.value = pkg.child_burst_upload;
-                if (btd && pkg.child_burst_threshold_download) btd.value = pkg.child_burst_threshold_download;
-                if (btu && pkg.child_burst_threshold_upload) btu.value = pkg.child_burst_threshold_upload;
-                if (btimeD && pkg.child_burst_time_download) btimeD.value = pkg.child_burst_time_download;
-                if (btimeU && pkg.child_burst_time_upload) btimeU.value = pkg.child_burst_time_upload;
-
-                // Fill readonly default panel
-                const rd = (id,v)=>{ const el=document.getElementById(id); if(el) el.value = v || ''; };
-                rd('pkgQtypeDownload', pkg.child_queue_type_download || 'pcq-download-default');
-                rd('pkgQtypeUpload', pkg.child_queue_type_upload || 'pcq-upload-default');
-                rd('pkgPriorityDownload', String(pkg.child_priority_download || '8'));
-                rd('pkgPriorityUpload', String(pkg.child_priority_upload || '8'));
-                rd('pkgLimitAtDownload', pkg.child_limit_at_download || pkg.limit_at_download || '');
-                rd('pkgLimitAtUpload', pkg.child_limit_at_upload || pkg.limit_at_upload || '');
-                rd('pkgMaxDownload', pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download || '');
-                rd('pkgMaxUpload', pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload || '');
-                rd('pkgBurstThresholdDownload', pkg.child_burst_threshold_download || '');
-                rd('pkgBurstThresholdUpload', pkg.child_burst_threshold_upload || '');
-                rd('pkgBurstTimeDownload', pkg.child_burst_time_download || '');
-                rd('pkgBurstTimeUpload', pkg.child_burst_time_upload || '');
-            } else {
-                if (parentDownloadEl) parentDownloadEl.value = '';
-                if (parentUploadEl) parentUploadEl.value = '';
-            }
-        }
-        if (nameInput) nameInput.addEventListener('input', updateChildNames);
-        if (pkgSelect) pkgSelect.addEventListener('change', updateChildNames);
-        if (ipInput){ ipInput.addEventListener('input', updateMark); }
-        updateMark();
-        updateChildNames();
-
-        // Auto-fill email dari nama pelanggan → nama_pelanggan@id.net
-        function slugifyNameToEmailLocal(name){
-            return (name || '')
-                .toLowerCase()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '.')
-                .replace(/^\.+|\.+$/g, '')
-                .slice(0, 32);
-        }
-        if (nameInput && emailInput) {
-            nameInput.addEventListener('input', function(){
-                if (emailTouched) return;
-                const local = slugifyNameToEmailLocal(this.value);
-                emailInput.value = local ? `${local}@id.net` : '';
-            });
-            if (!emailInput.value && nameInput.value) {
-                const local = slugifyNameToEmailLocal(nameInput.value);
-                emailInput.value = local ? `${local}@id.net` : '';
-            }
-        }
-        
-        // Initialize maps
-        initMaps();
-        
-        // Initialize OLT/ODC display on page load
-        updateOLTODC();
-        
-        // Tombol manual untuk mengambil lokasi saat ini
-        const getLocationBtn = document.getElementById('btnGetLocation');
-        if (getLocationBtn) {
-            getLocationBtn.addEventListener('click', function() {
-                getLocationBtn.disabled = true;
-                getLocationBtn.textContent = '⏳ Mendeteksi...';
-                
-                getCurrentLocation()
-                    .then(({ lat, lng }) => {
-                        setLocationToMap(lat, lng);
-                        showNotification('Lokasi saat ini berhasil diambil', 'success');
-                        getLocationBtn.disabled = false;
-                        getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
-                    })
-                    .catch((error) => {
-                        showNotification('Tidak dapat mengambil lokasi: ' + error.message, 'error');
-                        getLocationBtn.disabled = false;
-                        getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
-                    });
-            });
-        }
-    })();
-    </script>
-
-    <!-- Default Template dari Paket (readonly, untuk referensi) -->
-    <div class="mt-6 rounded border border-slate-200 bg-white p-4">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="text-base font-semibold">Default Paket (Readonly)</h3>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Queue Type Download</label>
-                <input id="pkgQtypeDownload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Queue Type Upload</label>
-                <input id="pkgQtypeUpload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Priority Download</label>
-                <input id="pkgPriorityDownload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Priority Upload</label>
-                <input id="pkgPriorityUpload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Limit At Download</label>
-                <input id="pkgLimitAtDownload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Limit At Upload</label>
-                <input id="pkgLimitAtUpload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Max Download</label>
-                <input id="pkgMaxDownload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Max Upload</label>
-                <input id="pkgMaxUpload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Burst Threshold Download</label>
-                <input id="pkgBurstThresholdDownload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Burst Threshold Upload</label>
-                <input id="pkgBurstThresholdUpload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Burst Time Download</label>
-                <input id="pkgBurstTimeDownload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Burst Time Upload</label>
-                <input id="pkgBurstTimeUpload" readonly class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-            </div>
-        </div>
-    </div>
-
-

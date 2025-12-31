@@ -42,6 +42,7 @@ router.get('/analytics/anomalies', (req, res) => controller.getAnomalies(req, re
 router.get('/analytics/incident/:id', (req, res) => controller.getIncidentAnalysis(req, res));
 
 // Monitoring AI page
-router.get('/ai', (req, res) => controller.getAIAnalyticsPage(req, res));
+// Usage monitoring
+router.get('/usage/:customerId/graph', (req, res) => controller.getBandwidthTrend(req, res));
 
 export default router;

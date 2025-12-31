@@ -19,6 +19,18 @@ export class IsolationService {
         try {
             await connection.beginTransaction();
 
+            // Security Check: Prevent manual restore if debt exists
+            if (isolationData.action === 'restore' && isolationData.performed_by !== 'system') {
+                const [unpaidCheck] = await connection.query<RowDataPacket[]>(
+                    "SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status != 'paid'",
+                    [isolationData.customer_id]
+                );
+
+                if (unpaidCheck.length > 0 && unpaidCheck[0].count > 0) {
+                    throw new Error('BLOCKED: Pelanggan masih memiliki tagihan belum lunas. Admin tidak diizinkan membuka isolir manual. Wajib lunas via Transfer untuk verifikasi AI.');
+                }
+            }
+
             // Get customer details
             const customerQuery = `
                 SELECT c.*, s.package_name, s.price
@@ -40,11 +52,6 @@ export class IsolationService {
             let success = false;
 
             try {
-                // Call MikroTik service to isolate user
-                // This depends on your MikroTikService implementation
-                // const { MikrotikService } = await import('../mikrotikService');
-                // const mikrotikService = new (MikrotikService as any)();
-
                 if (isolationData.action === 'isolate') {
                     // Move user to isolation profile or set queue limit to 0
                     // mikrotikResponse = await mikrotikService.isolateUser(mikrotikUsername);
@@ -95,28 +102,27 @@ export class IsolationService {
 
             // Send notification to customer using template system
             try {
-                const [customerRows] = await connection.query<RowDataPacket[]>(
-                    'SELECT name, phone, customer_code FROM customers WHERE id = ?',
-                    [isolationData.customer_id]
-                );
-
-                if (customerRows.length > 0 && customerRows[0].phone) {
-                    const customer = customerRows[0];
-
+                if (customer.phone) {
                     if (isolationData.action === 'isolate') {
                         // Get invoice details for blocked notification
                         const [invoiceRows] = await connection.query<RowDataPacket[]>(
                             `SELECT invoice_number, total_amount, due_date, period 
                              FROM invoices 
                              WHERE customer_id = ? AND status != 'paid' 
-                             ORDER BY due_date DESC LIMIT 1`,
+                             ORDER BY due_date DESC LIMIT 2`,
                             [isolationData.customer_id]
                         );
 
                         let details = `Kode Pelanggan: ${customer.customer_code}`;
                         if (invoiceRows.length > 0) {
-                            const invoice = invoiceRows[0];
-                            details += `\n📄 Invoice: ${invoice.invoice_number}\n💰 Jumlah: Rp ${parseFloat(invoice.total_amount).toLocaleString('id-ID')}\n📅 Jatuh Tempo: ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : 'N/A'}`;
+                            details += `\n⚠️ LAYANAN DIBLOKIR SEMENTARA\n`;
+                            details += `Terdeteksi tunggakan ${invoiceRows.length} tagihan belum lunas.\n`;
+                            details += `Total Tagihan Terakhir: Rp ${parseFloat(invoiceRows[0].total_amount).toLocaleString('id-ID')}\n`;
+                            details += `\n⛔ Admin tidak dapat membuka blokir manual.\n`;
+                            details += `✅ CARA BUKA BLOKIR:\n`;
+                            details += `1. Transfer total tagihan ke rekening terdaftar.\n`;
+                            details += `2. Kirim BUKTI TRANSFER via WhatsApp ini.\n`;
+                            details += `3. Sistem AI akan memverifikasi dan membuka blokir otomatis.\n`;
                         }
 
                         await UnifiedNotificationService.queueNotification({
@@ -145,7 +151,7 @@ export class IsolationService {
                         let details = `Kode Pelanggan: ${customer.customer_code}`;
                         if (invoiceRows.length > 0) {
                             const invoice = invoiceRows[0];
-                            details += `\n✅ Pembayaran untuk invoice ${invoice.invoice_number} telah diterima`;
+                            details += `\n✅ Pembayaran diterima & Terverifikasi AI.\nLayanan internet Anda telah AKTIF kembali.`;
                         } else {
                             details += `\n✅ Layanan telah diaktifkan kembali`;
                         }
@@ -166,7 +172,6 @@ export class IsolationService {
                 }
             } catch (notifError) {
                 console.error('[IsolationService] Failed to send notification (non-critical):', notifError);
-                // Non-critical, don't fail the isolation process
             }
 
             return success;
@@ -174,6 +179,9 @@ export class IsolationService {
         } catch (error) {
             await connection.rollback();
             console.error('Error in isolation service:', error);
+            if (error instanceof Error && error.message.includes('BLOCKED')) {
+                throw error;
+            }
             return false;
         } finally {
             connection.release();
@@ -395,29 +403,35 @@ export class IsolationService {
     }
 
     /**
-     * Auto isolir pelanggan dengan invoice overdue
+     * Auto isolir pelanggan dengan 2x tagihan belum lunas
      */
     static async autoIsolateOverdueCustomers(): Promise<{ isolated: number, failed: number }> {
-        // Get customers with overdue invoices
+        // Get customers with >= 2 overdue/unpaid invoices
         const query = `
-            SELECT DISTINCT c.id, c.name, c.phone, c.email
+            SELECT c.id, c.name, c.phone, c.email, COUNT(i.id) as unpaid_count
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
-            WHERE i.status = 'overdue'
+            WHERE i.status != 'paid' 
             AND i.due_date < CURDATE()
             AND c.is_isolated = FALSE
+            AND c.is_deferred = FALSE
+            GROUP BY c.id
+            HAVING unpaid_count >= 2
         `;
 
         const [result] = await databasePool.execute(query);
         let isolated = 0;
         let failed = 0;
+        const customers = result as any[];
 
-        for (const customer of (result as any)) {
+        console.log(`[Auto Isolation] Found ${customers.length} customers with 2+ unpaid invoices`);
+
+        for (const customer of customers) {
             try {
                 const isolationData: IsolationData = {
                     customer_id: customer.id || 0,
                     action: 'isolate',
-                    reason: 'Auto isolation due to overdue invoice'
+                    reason: `Auto Lock system: Terdeteksi ${customer.unpaid_count} tagihan belum lunas (Min 2)`
                 };
 
                 const success = await this.isolateCustomer(isolationData);
@@ -486,6 +500,7 @@ export class IsolationService {
             WHERE i.period = ?
             AND i.status != 'paid'
             AND c.is_isolated = FALSE
+            AND c.is_deferred = FALSE
             AND c.status = 'active'
         `;
 

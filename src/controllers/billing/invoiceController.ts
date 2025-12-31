@@ -136,7 +136,19 @@ export class InvoiceController {
                 console.warn('Error getting scheduler settings (using default):', schedulerError.message);
             }
 
+            // Get active customers list for manual billing
+            const customerQuery = `
+                SELECT c.id, c.name, c.customer_code, o.name as odc_name
+                FROM customers c
+                LEFT JOIN ftth_odc o ON c.odc_id = o.id
+                WHERE c.status = 'active'
+                ORDER BY c.name ASC
+            `;
+            const [activeResult] = await databasePool.query(customerQuery);
+            const activeCustomers = activeResult as RowDataPacket[];
+
             res.render('billing/tagihan', {
+                activeCustomers,
                 title: 'Daftar Tagihan',
                 invoices,
                 stats,
@@ -342,11 +354,12 @@ export class InvoiceController {
         try {
             await conn.beginTransaction();
 
-            const { period, due_date_offset } = req.body;
+            const { period, due_date_offset, customer_ids } = req.body;
             const currentPeriod = period || new Date().toISOString().slice(0, 7); // YYYY-MM
             const dueDateOffset = parseInt(due_date_offset || '7'); // Default 7 days from period start
 
             console.log(`Generating bulk invoices for period: ${currentPeriod}`);
+            if (customer_ids) console.log(`Targeting ${Array.isArray(customer_ids) ? customer_ids.length : 0} specific customers`);
 
             // Get all active customers with their subscriptions (if any)
             // This ensures we capture all active customers, not just those with active subscriptions
@@ -359,6 +372,7 @@ export class InvoiceController {
                     c.name as customer_name,
                     c.customer_code,
                     c.phone as customer_phone,
+                    c.account_balance,
                     c.status as customer_status,
                     c.connection_type,
                     s.package_name,
@@ -371,9 +385,15 @@ export class InvoiceController {
                 WHERE c.status = 'active'
                 ${billingModeFilter}
                 AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
+                ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
             `;
 
-            const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery);
+            const queryParams: any[] = [];
+            if (customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0) {
+                queryParams.push(customer_ids);
+            }
+
+            const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
 
             console.log(`Found ${subscriptions.length} active customers for billing`);
 
@@ -421,8 +441,14 @@ export class InvoiceController {
             let createdCount = 0;
             let skippedCount = 0;
             const errors: string[] = [];
+            const customerBalances = new Map<number, number>();
 
             for (const subscription of subscriptions) {
+                // Initialize balance tracker if not set
+                if (!customerBalances.has(subscription.customer_id)) {
+                    customerBalances.set(subscription.customer_id, parseFloat(subscription.account_balance || 0));
+                }
+
                 try {
                     // Check for exact match: customer_id + subscription_id
                     // Normalize subscription_id: if 0 or null, treat as 0
@@ -466,13 +492,38 @@ export class InvoiceController {
                     // Only use subscription_id if it exists (not 0 or null)
                     const finalSubscriptionId = subscriptionId || null;
 
+                    // Calculate balance deduction
+                    let currentBalance = customerBalances.get(subscription.customer_id) || 0;
+                    let balanceDeduction = 0;
+                    let paidAmount = 0;
+                    let remainingAmount = price;
+                    let status = 'sent';
+                    let invoiceNotes = null;
+
+                    if (currentBalance > 0) {
+                        balanceDeduction = Math.min(currentBalance, price);
+
+                        if (balanceDeduction > 0) {
+                            paidAmount = balanceDeduction;
+                            remainingAmount = price - balanceDeduction;
+                            currentBalance -= balanceDeduction;
+                            customerBalances.set(subscription.customer_id, currentBalance);
+
+                            status = remainingAmount <= 0 ? 'paid' : 'partial';
+                            invoiceNotes = `Otomatis dipotong dari saldo (Rp ${new Intl.NumberFormat('id-ID').format(balanceDeduction)})`;
+
+                            // Update Customer Balance
+                            await conn.execute('UPDATE customers SET account_balance = ? WHERE id = ?', [currentBalance, subscription.customer_id]);
+                        }
+                    }
+
                     // Insert invoice
                     const invoiceInsertQuery = `
                         INSERT INTO invoices (
                             invoice_number, customer_id, subscription_id, period, due_date,
                             subtotal, discount_amount, total_amount, paid_amount, remaining_amount,
-                            status, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, 'sent', NOW(), NOW())
+                            status, notes, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NOW(), NOW())
                     `;
 
                     const [invoiceResult] = await conn.execute<ResultSetHeader>(invoiceInsertQuery, [
@@ -483,10 +534,22 @@ export class InvoiceController {
                         dueDateStr,
                         price,
                         price,
-                        price
+                        paidAmount,
+                        remainingAmount,
+                        status,
+                        invoiceNotes
                     ]);
 
                     const invoiceId = invoiceResult.insertId;
+
+                    // Log Balance Usage if applicable
+                    if (balanceDeduction > 0) {
+                        await conn.execute(`
+                            INSERT INTO customer_balance_logs (
+                                customer_id, type, amount, description, reference_id, created_at
+                            ) VALUES (?, 'debit', ?, ?, ?, NOW())
+                        `, [subscription.customer_id, balanceDeduction, `Pembayaran otomatis invoice ${invoiceNumber}`, invoiceId.toString()]);
+                    }
 
                     // Insert invoice item
                     const itemInsertQuery = `
@@ -682,6 +745,32 @@ export class InvoiceController {
             });
         } finally {
             conn.release();
+        }
+    }
+
+    /**
+     * Update invoice notes
+     */
+    async updateInvoiceNotes(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const { notes } = req.body;
+
+            await databasePool.query(
+                'UPDATE invoices SET notes = ?, updated_at = NOW() WHERE id = ?',
+                [notes, id]
+            );
+
+            res.json({
+                success: true,
+                message: 'Catatan berhasil disimpan'
+            });
+        } catch (error) {
+            console.error('Error updating invoice notes:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal menyimpan catatan'
+            });
         }
     }
 

@@ -5,6 +5,7 @@
 
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { IsolationService } from './isolationService';
 
 // WhatsApp service removed
 
@@ -189,6 +190,11 @@ export class LatePaymentTrackingService {
         [count, customerId]
       );
 
+      // Check if threshold reached for auto-isolation
+      if (count > 0) {
+        await this.checkAndApplyIsolation(customerId, count);
+      }
+
       return count;
     } catch (error: any) {
       // If error is about missing column, return 0
@@ -200,6 +206,40 @@ export class LatePaymentTrackingService {
       throw error;
     } finally {
       connection.release();
+    }
+  }
+
+  /**
+   * Check if customer should be isolated due to late payment count
+   */
+  static async checkAndApplyIsolation(customerId: number, count: number): Promise<void> {
+    try {
+      // Get threshold from settings
+      const [settings] = await pool.query<RowDataPacket[]>(
+        `SELECT setting_value FROM system_settings WHERE setting_key = 'late_payment_threshold'`
+      );
+      const threshold = settings.length > 0 ? parseInt(settings[0].setting_value) : 5;
+
+      if (count >= threshold) {
+        // Check if already isolated to avoid redundant actions
+        const [customer] = await pool.query<RowDataPacket[]>(
+          'SELECT is_isolated FROM customers WHERE id = ?',
+          [customerId]
+        );
+
+        if (customer.length > 0 && !customer[0].is_isolated) {
+          console.log(`🚨 Customer ${customerId} reached late payment threshold (${count}/${threshold}). Triggering auto-isolation.`);
+
+          await IsolationService.isolateCustomer({
+            customer_id: customerId,
+            action: 'isolate',
+            reason: `Auto-locking: Terlalu banyak pembayaran telat (${count}x)`,
+            performed_by: 'system'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[LatePaymentTrackingService] Error in checkAndApplyIsolation:', error);
     }
   }
 

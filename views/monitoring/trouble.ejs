@@ -1,63 +1,100 @@
-<div class="space-y-6 w-full">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Monitor Pelanggan Trouble</h1>
-            <p class="text-sm text-gray-500 mt-1">Daftar pelanggan yang mengalami gangguan (Offline, Maintenance, High
-                Latency, dll)</p>
+<div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div class="p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div>
+                    <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2 flex items-center">
+                        <div
+                            class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mr-4 shadow-lg shadow-red-200">
+                            <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                        </div>
+                        Monitor Trouble
+                    </h1>
+                    <p class="text-gray-600 ml-16 italic">Daftar pelanggan yang mengalami gangguan (Offline,
+                        Maintenance, High Latency)</p>
+                </div>
+                <div class="flex items-center gap-3 ml-16 sm:ml-0">
+                    <span
+                        class="text-xs font-semibold text-gray-400 uppercase tracking-widest bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                        Live: <%= new Date(updatedAt).toLocaleTimeString('id-ID') %>
+                    </span>
+                    <button onclick="window.location.reload()"
+                        class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm flex items-center gap-2 font-medium">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500">
-                Update terakhir: <%= new Date(updatedAt).toLocaleTimeString('id-ID') %>
-            </span>
-            <button onclick="window.location.reload()"
-                class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-all duration-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-            </button>
+
+        <!-- Stats Cards Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <% const stats={ total: troubleCustomers.length, offline: troubleCustomers.filter(c=> c.issue_type ===
+                'Offline').length,
+                maintenance: troubleCustomers.filter(c => c.trouble_type === 'maintenance').length,
+                sla: troubleCustomers.filter(c => c.trouble_type === 'sla_incident').length
+                };
+                %>
+
+                <div
+                    class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600">
+                            <i class="fas fa-list-check text-xl"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TOTAL ISSUE</span>
+                    </div>
+                    <div class="text-3xl font-bold text-gray-900 mb-1">
+                        <%= stats.total %>
+                    </div>
+                    <div class="text-sm text-gray-500">Jumlah Gangguan</div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-red-200 p-6 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-red-600">
+                            <i class="fas fa-signal-slash text-xl"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-red-600 uppercase tracking-widest">OFFLINE</span>
+                    </div>
+                    <div class="text-3xl font-bold text-red-600 mb-1">
+                        <%= stats.offline %>
+                    </div>
+                    <div class="text-sm text-red-500/70">Koneksi Terputus</div>
+                </div>
+
+                <div
+                    class="bg-white rounded-2xl shadow-sm border border-yellow-200 p-6 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <div
+                            class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600">
+                            <i class="fas fa-tools text-xl"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">MAINTENANCE</span>
+                    </div>
+                    <div class="text-3xl font-bold text-yellow-600 mb-1">
+                        <%= stats.maintenance %>
+                    </div>
+                    <div class="text-sm text-yellow-600/70">Perbaikan Aktif</div>
+                </div>
+
+                <div
+                    class="bg-white rounded-2xl shadow-sm border border-orange-200 p-6 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <div
+                            class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
+                            <i class="fas fa-triangle-exclamation text-xl"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-orange-600 uppercase tracking-widest">SLA
+                            INCIDENT</span>
+                    </div>
+                    <div class="text-3xl font-bold text-orange-600 mb-1">
+                        <%= stats.sla %>
+                    </div>
+                    <div class="text-sm text-orange-600/70">Gangguan SLA</div>
+                </div>
         </div>
-    </div>
-
-    <!-- Stats Cards Summary -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <% const stats={ total: troubleCustomers.length, offline: troubleCustomers.filter(c=> c.issue_type ===
-            'Offline').length,
-            maintenance: troubleCustomers.filter(c => c.trouble_type === 'maintenance').length,
-            sla: troubleCustomers.filter(c => c.trouble_type === 'sla_incident').length
-            };
-            %>
-
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                <div class="text-sm font-medium text-gray-500">Total Trouble</div>
-                <div class="mt-1 text-2xl font-bold text-gray-900">
-                    <%= stats.total %>
-                </div>
-            </div>
-
-            <div class="bg-red-50 rounded-xl p-4 shadow-sm border border-red-100">
-                <div class="text-sm font-medium text-red-600">Offline</div>
-                <div class="mt-1 text-2xl font-bold text-red-700">
-                    <%= stats.offline %>
-                </div>
-            </div>
-
-            <div class="bg-yellow-50 rounded-xl p-4 shadow-sm border border-yellow-100">
-                <div class="text-sm font-medium text-yellow-600">Maintenance</div>
-                <div class="mt-1 text-2xl font-bold text-yellow-700">
-                    <%= stats.maintenance %>
-                </div>
-            </div>
-
-            <div class="bg-orange-50 rounded-xl p-4 shadow-sm border border-orange-100">
-                <div class="text-sm font-medium text-orange-600">SLA Incident</div>
-                <div class="mt-1 text-2xl font-bold text-orange-700">
-                    <%= stats.sla %>
-                </div>
-            </div>
     </div>
 
     <!-- Main Table -->
@@ -82,10 +119,12 @@
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status</th>
                         <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sejak
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sejak
                         </th>
                         <th scope="col"
-                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Aksi
                         </th>
                     </tr>
                 </thead>
@@ -195,7 +234,8 @@
                                     <% if (customer.trouble_since) { %>
                                         <% const since=new Date(customer.trouble_since); const now=new Date(); const
                                             diffMs=now - since; const diffMins=Math.floor(diffMs / 60000); const
-                                            diffHrs=Math.floor(diffMins / 60); let durationStr='' ; if (diffHrs> 24) {
+                                            diffHrs=Math.floor(diffMins / 60); let durationStr='' ; if (diffHrs> 24)
+                                            {
                                             durationStr = Math.floor(diffHrs / 24) + ' hari';
                                             } else if (diffHrs > 0) {
                                             durationStr = diffHrs + ' jam ' + (diffMins % 60) + ' menit';
@@ -242,8 +282,10 @@
                                                             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                 </div>
-                                                <h3 class="text-lg font-medium text-gray-900">Semua sistem normal</h3>
-                                                <p class="mt-1 text-sm text-gray-500">Tidak ada pelanggan yang mengalami
+                                                <h3 class="text-lg font-medium text-gray-900">Semua sistem normal
+                                                </h3>
+                                                <p class="mt-1 text-sm text-gray-500">Tidak ada pelanggan yang
+                                                    mengalami
                                                     gangguan saat ini.</p>
                                             </div>
                                         </td>

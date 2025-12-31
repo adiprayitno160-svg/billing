@@ -49,7 +49,8 @@ export class KasirController {
             // Validasi input
             if (!username || !password) {
                 req.flash('error', 'Username dan password harus diisi');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             // Cari user berdasarkan username
@@ -57,19 +58,22 @@ export class KasirController {
 
             if (!user) {
                 req.flash('error', 'Username atau password salah');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             // Cek apakah user aktif
             if (!user.is_active) {
                 req.flash('error', 'Akun tidak aktif');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             // Cek role kasir
             if (user.role !== 'kasir') {
                 req.flash('error', 'Akses ditolak. Hanya kasir yang dapat login');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             // Verifikasi password
@@ -77,7 +81,8 @@ export class KasirController {
 
             if (!isValidPassword) {
                 req.flash('error', 'Username atau password salah');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             // Set session
@@ -110,7 +115,8 @@ export class KasirController {
             req.session?.destroy((err) => {
                 if (err) {
                     console.error('Error destroying session:', err);
-                    return res.redirect('/kasir/login?error=Gagal logout, silakan coba lagi');
+                    res.redirect('/kasir/login?error=Gagal logout, silakan coba lagi');
+                    return;
                 }
 
                 // Clear cookie
@@ -281,15 +287,27 @@ export class KasirController {
     public async getCustomerInvoices(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
             const { id } = req.params;
+            const { status } = req.query;
 
             const conn = await databasePool.getConnection();
             try {
-                const [invoices] = await conn.query<RowDataPacket[]>(`
+                let query = `
                     SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices
                     WHERE customer_id = ?
-                    AND status IN ('sent', 'partial', 'overdue')
-                    ORDER BY period ASC
-                `, [id]);
+                `;
+                const params: any[] = [id];
+
+                if (status === 'paid') {
+                    query += " AND status = 'paid'";
+                } else if (status === 'all') {
+                    // No filter
+                } else {
+                    query += " AND status IN ('sent', 'partial', 'overdue')";
+                }
+
+                query += " ORDER BY period DESC";
+
+                const [invoices] = await conn.query<RowDataPacket[]>(query, params);
 
                 res.json({ success: true, data: invoices });
             } finally {
@@ -511,10 +529,11 @@ export class KasirController {
                 `, [paymentId]);
 
                 if (!payments || payments.length === 0) {
-                    return res.status(404).render('error', {
+                    res.status(404).render('error', {
                         title: 'Error',
                         message: 'Data pembayaran tidak ditemukan'
                     });
+                    return;
                 }
 
                 const payment = payments[0];
@@ -657,7 +676,7 @@ export class KasirController {
     // Proses pembayaran
     public async processPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
-            const { customerId, amount, paymentMethod, notes, paymentType } = req.body;
+            const { customerId, amount, paymentMethod, notes, paymentType, useBalance } = req.body;
 
             // Validasi input
             if (!customerId || !paymentType) {
@@ -680,7 +699,7 @@ export class KasirController {
             }
 
             // Validate payment method (not required for debt)
-            if (paymentType !== 'debt' && !paymentMethod) {
+            if (paymentType !== 'debt' && !paymentMethod && !useBalance) {
                 req.flash('error', 'Metode pembayaran harus dipilih');
                 return res.redirect('/kasir/payments');
             }
@@ -692,7 +711,8 @@ export class KasirController {
                 paymentMethod || 'cash',
                 notes || '',
                 req.user!.id,
-                paymentType
+                paymentType,
+                useBalance === 'true' || useBalance === true
             );
 
             if (paymentResult.success) {
@@ -925,7 +945,8 @@ export class KasirController {
         paymentMethod: string,
         notes: string,
         kasirId: number,
-        paymentType: string
+        paymentType: string,
+        useBalance: boolean = false
     ): Promise<{ success: boolean, message?: string, paymentId?: number }> {
         const conn = await databasePool.getConnection();
         try {
@@ -933,7 +954,7 @@ export class KasirController {
 
             // Get customer info
             const [customerRows] = await conn.query<RowDataPacket[]>(
-                'SELECT id, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
+                'SELECT id, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, account_balance as balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -943,6 +964,7 @@ export class KasirController {
             }
 
             const customer = customerRows[0];
+            const currentBalance = parseFloat(customer.balance || 0);
 
             // Get pending invoices for this customer
             const [invoices] = await conn.query<RowDataPacket[]>(`
@@ -963,56 +985,88 @@ export class KasirController {
                 await conn.rollback();
                 return { success: false, message: 'Invoice tidak ditemukan' };
             }
-            const remainingAmount = invoice.remaining_amount || invoice.total_amount;
+            const remainingAmount = parseFloat(invoice.remaining_amount || invoice.total_amount);
 
-            // Determine payment amount based on type
-            let paymentAmount = amount;
+            // Calculate balance usage
+            let amountFromBalance = 0;
+            if (useBalance && currentBalance > 0) {
+                amountFromBalance = Math.min(currentBalance, remainingAmount);
+
+                // Deduct from customer balance
+                await conn.query(
+                    'UPDATE customers SET account_balance = account_balance - ? WHERE id = ?',
+                    [amountFromBalance, customerId]
+                );
+
+                // Add balance log
+                await conn.query(`
+                    INSERT INTO customer_balance_logs (customer_id, amount, type, description, reference_id, reference_type, created_by)
+                    VALUES (?, ?, 'debit', ?, ?, 'invoice', ?)
+                `, [customerId, amountFromBalance, `Pembayaran tagihan ${invoice.invoice_number} menggunakan saldo`, invoice.id, kasirId]);
+
+                // Create a payment record for balance part
+                await conn.query<ResultSetHeader>(`
+                    INSERT INTO payments (
+                        invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at
+                    ) VALUES (?, 'balance', ?, NOW(), 'completed', ?, ?, NOW())
+                `, [invoice.id, amountFromBalance, `Bayar via saldo untuk tagihan ${invoice.invoice_number}`, kasirId]);
+            }
+
+            // Determine cash payment amount
+            let cashAmount = amount;
             if (paymentType === 'full') {
-                paymentAmount = remainingAmount;
+                cashAmount = Math.max(0, remainingAmount - amountFromBalance);
             } else if (paymentType === 'debt') {
-                paymentAmount = 0; // No actual payment for debt
+                cashAmount = 0;
             }
 
-            // Validate partial payment amount
-            if (paymentType === 'partial' && paymentAmount > remainingAmount) {
-                await conn.rollback();
-                return { success: false, message: 'Jumlah pembayaran melebihi total tagihan' };
+            // Handle overpayment if cash provided exceeds remaining needed
+            let excessAmount = 0;
+            let cashAppliedToInvoice = cashAmount;
+
+            if (paymentType !== 'debt' && cashAmount > (remainingAmount - amountFromBalance)) {
+                cashAppliedToInvoice = Math.max(0, remainingAmount - amountFromBalance);
+                excessAmount = cashAmount - cashAppliedToInvoice;
             }
 
-            // Insert payment record
-            const paymentStatus = paymentType === 'debt' ? 'pending' : 'completed';
-            const [paymentResult] = await conn.query<ResultSetHeader>(`
-                INSERT INTO payments (
-                    invoice_id, 
-                    payment_method, 
-                    amount, 
-                    payment_date,
-                    gateway_status,
-                    notes,
-                    created_by,
-                    created_at
-                ) VALUES (?, ?, ?, NOW(), ?, ?, ?, NOW())
-            `, [invoice.id, paymentMethod, paymentAmount, paymentStatus, notes || '', kasirId]);
+            const totalAppliedToInvoice = amountFromBalance + cashAppliedToInvoice;
 
-            const paymentId = paymentResult.insertId;
+            // Insert cash payment record (if any)
+            let paymentId: number | undefined;
+            if (cashAmount > 0) {
+                const paymentStatus = paymentType === 'debt' ? 'pending' : 'completed';
+                const [paymentResult] = await conn.query<ResultSetHeader>(`
+                    INSERT INTO payments (
+                        invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at
+                    ) VALUES (?, ?, ?, NOW(), ?, ?, ?, NOW())
+                `, [invoice.id, paymentMethod, cashAmount, paymentStatus, notes || '', kasirId]);
+                paymentId = paymentResult.insertId;
+            }
 
-            // Update invoice based on payment type
-            let newPaidAmount = invoice.paid_amount || 0;
-            let newRemainingAmount = remainingAmount;
+            // Handle excess (credit to balance)
+            if (excessAmount > 0) {
+                await conn.query(
+                    'UPDATE customers SET account_balance = account_balance + ? WHERE id = ?',
+                    [excessAmount, customerId]
+                );
+
+                await conn.query(`
+                    INSERT INTO customer_balance_logs (customer_id, amount, type, description, reference_id, reference_type, created_by)
+                    VALUES (?, ?, 'credit', ?, ?, 'payment', ?)
+                `, [customerId, excessAmount, `Kelebihan pembayaran tagihan ${invoice.invoice_number}`, paymentId || 0, kasirId]);
+            }
+
+            // Update invoice
+            let newPaidAmount = parseFloat(invoice.paid_amount || 0) + totalAppliedToInvoice;
+            let newRemainingAmount = Math.max(0, parseFloat(invoice.total_amount) - newPaidAmount);
             let newStatus = invoice.status;
 
-            if (paymentType === 'full') {
-                newPaidAmount += remainingAmount;
-                newRemainingAmount = 0;
+            if (newRemainingAmount <= 0) {
                 newStatus = 'paid';
-            } else if (paymentType === 'partial') {
-                newPaidAmount += paymentAmount;
-                newRemainingAmount -= paymentAmount;
-                newStatus = newRemainingAmount <= 0 ? 'paid' : 'partial';
+            } else if (newPaidAmount > 0) {
+                newStatus = 'partial';
             } else if (paymentType === 'debt') {
-                // For debt, just mark the invoice but don't change paid amount yet
-                // Status remains as is or could be marked differently
-                newStatus = 'debt'; // You may need to add this status to your database
+                newStatus = 'debt';
             }
 
             await conn.query(`
@@ -1034,20 +1088,23 @@ export class KasirController {
 
             await conn.commit();
 
-            // Track late payment (async, don't wait)
-            const paymentDateStr = new Date().toISOString().slice(0, 10);
-            this.trackLatePayment(invoice.id, paymentId, paymentDateStr).catch(err => {
-                console.error('Error tracking late payment:', err);
-            });
+            // Track late payment (async)
+            if (paymentId) {
+                const paymentDateStr = new Date().toISOString().slice(0, 10);
+                this.trackLatePayment(invoice.id, paymentId, paymentDateStr).catch(err => {
+                    console.error('Error tracking late payment:', err);
+                });
+            }
 
-            // Send WhatsApp notification (async, don't wait)
-            this.sendPaymentNotification(customer, invoice, paymentAmount, paymentMethod, paymentId, paymentType).catch(err => {
+            // Send WhatsApp notification (async)
+            const finalCustomer = { ...customer, balance: (currentBalance - amountFromBalance + excessAmount) };
+            this.sendPaymentNotification(finalCustomer, invoice, cashAmount, paymentMethod, paymentId || 0, paymentType, amountFromBalance, excessAmount).catch(err => {
                 console.error('Error sending WhatsApp notification:', err);
             });
 
             return {
                 success: true,
-                message: 'Pembayaran berhasil diproses',
+                message: 'Pembayaran berhasil diproses' + (excessAmount > 0 ? `. Kelebihan Rp ${excessAmount.toLocaleString('id-ID')} masuk ke saldo.` : ''),
                 paymentId: paymentId
             };
 
@@ -1070,7 +1127,9 @@ export class KasirController {
         amount: number,
         paymentMethod: string,
         paymentId: number,
-        paymentType?: string
+        paymentType?: string,
+        amountFromBalance: number = 0,
+        excessAmount: number = 0
     ): Promise<void> {
         try {
             if (!customer.phone) {
@@ -1101,6 +1160,9 @@ export class KasirController {
                 invoice_number: invoice.invoice_number || '',
                 billing_month: billingMonth,
                 amount: amount.toLocaleString('id-ID'),
+                balance_used: amountFromBalance.toLocaleString('id-ID'),
+                excess_amount: excessAmount.toLocaleString('id-ID'),
+                new_balance: (customer.balance || 0).toLocaleString('id-ID'),
                 payment_method: this.getPaymentMethodName(paymentMethod),
                 payment_id: paymentId.toString()
             };
@@ -1108,7 +1170,7 @@ export class KasirController {
             if (paymentType === 'partial') {
                 variables.total_amount = parseFloat(invoice.total_amount || 0).toLocaleString('id-ID');
                 variables.paid_amount = amount.toLocaleString('id-ID');
-                variables.remaining_amount = (parseFloat(invoice.remaining_amount || 0) - amount).toLocaleString('id-ID');
+                variables.remaining_amount = parseFloat(invoice.remaining_amount || 0).toLocaleString('id-ID');
                 variables.due_date = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : '-';
             }
 
@@ -1142,12 +1204,9 @@ export class KasirController {
                 console.log(`[KasirController] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed`);
             } catch (queueError: any) {
                 console.warn(`[KasirController] ⚠️ Queue processing error (non-critical):`, queueError.message);
-                // Non-critical, notification is already queued
             }
-
         } catch (error) {
             console.error('[KasirController] Error sending payment notification:', error);
-            // Don't throw error, just log it - payment should still succeed
         }
     }
 
@@ -1197,7 +1256,8 @@ export class KasirController {
             'transfer': 'Transfer Bank',
             'gateway': 'Payment Gateway',
             'ewallet': 'E-Wallet',
-            'qris': 'QRIS'
+            'qris': 'QRIS',
+            'balance': 'Saldo'
         };
         return methods[method] || method;
     }
@@ -1489,10 +1549,11 @@ export class KasirController {
 
             if (verifications.length === 0) {
                 await conn.rollback();
-                return res.status(404).json({
+                res.status(404).json({
                     success: false,
                     message: 'Data verifikasi tidak ditemukan'
                 });
+                return;
             }
 
             const verification = verifications[0];
@@ -1603,5 +1664,33 @@ export class KasirController {
             });
         }
     }
-}
 
+    async requestDeferment(req: Request, res: Response): Promise<void> {
+        try {
+            const { customer_id, invoice_id, deferred_until_date, reason } = req.body;
+
+            if (!customer_id || !deferred_until_date) {
+                res.status(400).json({ success: false, message: 'Customer ID dan tanggal penundaan wajib diisi.' });
+                return;
+            }
+
+            const { DefermentService } = await import('../services/billing/DefermentService');
+            const result = await DefermentService.requestDeferment({
+                customer_id: parseInt(customer_id),
+                invoice_id: invoice_id ? parseInt(invoice_id) : undefined,
+                deferred_until_date,
+                reason,
+                requested_by: (req as any).user?.username || 'kasir'
+            });
+
+            if (result.success) {
+                res.json(result);
+            } else {
+                res.status(400).json(result);
+            }
+        } catch (error: any) {
+            console.error('Error requesting deferment:', error);
+            res.status(500).json({ success: false, message: error.message || 'Gagal memproses penundaan.' });
+        }
+    }
+}

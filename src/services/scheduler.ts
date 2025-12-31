@@ -156,6 +156,21 @@ export class SchedulerService {
             }
         }, { scheduled: true, timezone: 'Asia/Jakarta' });
 
+        // Deferment expiration check - every day at 23:00 (Malam)
+        cron.schedule('0 23 * * *', async () => {
+            console.log('Running expired deferment check...');
+            try {
+                const { DefermentService } = await import('./billing/DefermentService');
+                const result = await DefermentService.processExpiredDeferments();
+                console.log(`Processed ${result.processed} expired deferments`);
+            } catch (error) {
+                console.error('Error processing expired deferments:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
 
         this.isInitialized = true;
         console.log('Billing scheduler initialized successfully');

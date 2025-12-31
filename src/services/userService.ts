@@ -43,10 +43,10 @@ export class UserService {
     }
 
     // Dapatkan user by ID
-    public async getUserById(id: number): Promise<User | null> {
+    public async getUserById(id: number): Promise<User | any> {
         try {
             const [rows] = await databasePool.execute(
-                'SELECT id, username, email, full_name, role, is_active, created_at, updated_at FROM users WHERE id = ?',
+                'SELECT id, username, email, full_name, role, is_active, session_id, created_at, updated_at FROM users WHERE id = ?',
                 [id]
             );
             const users = rows as User[];
@@ -205,7 +205,7 @@ export class UserService {
                 [userId]
             );
             const users = rows as any[];
-            
+
             if (users.length === 0) {
                 return false;
             }
@@ -222,7 +222,7 @@ export class UserService {
         try {
             const saltRounds = 10;
             const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-            
+
             await databasePool.execute(
                 'UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?',
                 [hashedPassword, userId]
@@ -230,6 +230,19 @@ export class UserService {
         } catch (error) {
             console.error('Error updating password:', error);
             throw new Error('Gagal memperbarui password');
+        }
+    }
+
+    // Update session ID for single-session enforcement
+    public async updateSessionId(userId: number, sessionId: string): Promise<void> {
+        try {
+            await databasePool.execute(
+                'UPDATE users SET session_id = ?, updated_at = NOW() WHERE id = ?',
+                [sessionId, userId]
+            );
+        } catch (error) {
+            console.error('Error updating session ID:', error);
+            throw new Error('Gagal memperbarui session ID');
         }
     }
 }

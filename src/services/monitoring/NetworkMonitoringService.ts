@@ -443,31 +443,105 @@ export class NetworkMonitoringService {
                 odcPortMap.set(odc.id, { total: odc.total_ports, used: odc.used_ports });
             });
 
-            // Update ODC devices metadata
+            // Inject ODP Port Info
+            const [odpDetails] = await databasePool.query<RowDataPacket[]>(`
+                SELECT 
+                    id, 
+                    total_ports, 
+                    used_ports 
+                FROM ftth_odp
+            `);
+            const odpPortMap = new Map<number, { total: number, used: number }>();
+            (odpDetails as any[]).forEach(odp => {
+                odpPortMap.set(odp.id, { total: odp.total_ports, used: odp.used_ports });
+            });
+
+            // Update devices metadata with port info
             devices = devices.map(device => {
+                let metadata = device.metadata && typeof device.metadata === 'object' ? device.metadata : {};
+
+                // ODC Port Injection
                 if (device.device_type === 'odc' && device.odc_id) {
                     const ports = odcPortMap.get(device.odc_id);
                     if (ports) {
-                        // Ensure metadata is object (getAllDevices parses it)
-                        const metadata = device.metadata && typeof device.metadata === 'object' ? device.metadata : {};
-
-                        return {
-                            ...device,
-                            metadata: {
-                                ...metadata,
-                                port_info: {
-                                    total: ports.total,
-                                    used: ports.used,
-                                    free: ports.total - ports.used
-                                }
+                        metadata = {
+                            ...metadata,
+                            port_info: {
+                                total: ports.total,
+                                used: ports.used,
+                                free: ports.total - ports.used
                             }
                         };
                     }
                 }
-                return device;
+
+                // ODP Port Injection
+                if (device.device_type === 'odp' && device.odp_id) {
+                    const ports = odpPortMap.get(device.odp_id);
+                    if (ports) {
+                        metadata = {
+                            ...metadata,
+                            port_info: {
+                                total: ports.total,
+                                used: ports.used,
+                                free: ports.total - ports.used
+                            }
+                        };
+                    }
+                }
+
+                return { ...device, metadata };
             });
+
         } catch (e) {
-            console.error('Error injecting ODC port info:', e);
+            console.error('Error injecting ODC/ODP port info:', e);
+        }
+
+        // Inject Live PPPoE Status
+        try {
+            // Dynamic import to avoid circular dependencies if any
+            const { getMikrotikConfig } = await import('../pppoeService');
+            const { getPppoeActiveConnections } = await import('../mikrotikService');
+
+            const config = await getMikrotikConfig();
+            if (config) {
+                const activeSessions = await getPppoeActiveConnections(config);
+                const activeUsernames = new Set(activeSessions.map(s => s.name));
+                const sessionMap = new Map(activeSessions.map(s => [s.name, s]));
+
+                devices = devices.map(device => {
+                    if (device.device_type === 'customer') {
+                        const metadata = device.metadata || {};
+                        const username = metadata.pppoe_username;
+
+                        if (username) {
+                            const isOnline = activeUsernames.has(username);
+                            // If isOnline is true, set status to online. 
+                            // If false, set to offline (override DB status which might be 'active' but offline)
+                            const newStatus = isOnline ? 'online' : 'offline';
+
+                            // Optional: Inject session details
+                            const session = sessionMap.get(username);
+
+                            return {
+                                ...device,
+                                status: newStatus as any,
+                                metadata: {
+                                    ...metadata,
+                                    session_info: session ? {
+                                        uptime: session.uptime,
+                                        address: session.address,
+                                        mac: session['caller-id']
+                                    } : null
+                                }
+                            };
+                        }
+                    }
+                    return device;
+                });
+            }
+        } catch (e) {
+            console.error('Error injecting live PPPoE status:', e);
         }
 
         // Auto-sync checks:

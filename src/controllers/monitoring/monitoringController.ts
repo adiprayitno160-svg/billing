@@ -6,6 +6,7 @@ import { getPppoeActiveConnections, getPppoeSecrets } from '../../services/mikro
 import MonitoringAnalyticsService from '../../services/monitoring/monitoringAnalyticsService';
 import IncidentAIService from '../../services/monitoring/incidentAIService';
 import NetworkMonitoringService from '../../services/monitoring/NetworkMonitoringService';
+import BandwidthLogService from '../../services/bandwidthLogService';
 
 export class MonitoringController {
 
@@ -36,12 +37,17 @@ export class MonitoringController {
 
                 // Get online sessions from MikroTik
                 let onlinePPPoE = 0;
+                let healthInfo: any[] = [];
 
                 try {
                     const mikrotikConfig = await getMikrotikConfig();
                     if (mikrotikConfig) {
                         const activeSessions = await getPppoeActiveConnections(mikrotikConfig);
                         onlinePPPoE = activeSessions.length;
+
+                        // Fetch health info (temperature, voltage)
+                        const { getSystemHealth } = await import('../../services/mikrotikService');
+                        healthInfo = await getSystemHealth(mikrotikConfig);
                     }
                 } catch (error) {
                     console.error('Error fetching MikroTik data:', error);
@@ -51,7 +57,8 @@ export class MonitoringController {
                     title: 'Monitor Pelanggan',
                     pppoeStats: pppoeStats[0],
                     staticIpStats: staticIpStats[0],
-                    onlinePPPoE
+                    onlinePPPoE,
+                    healthInfo
                 });
             } finally {
                 conn.release();
@@ -602,7 +609,8 @@ export class MonitoringController {
             // Use it for queries that require a valid customer_id from customers table
             const actualCustomerId = customer?.id;
             if (!actualCustomerId) {
-                return res.status(404).json({ success: false, error: 'Customer not found' });
+                res.status(404).json({ success: false, error: 'Customer not found' });
+                return;
             }
 
             // IMPORTANT: Proses IP address untuk static IP
@@ -831,7 +839,8 @@ export class MonitoringController {
         try {
             const { id } = req.params;
             if (!id) {
-                return res.status(400).json({ success: false, error: 'id is required' });
+                res.status(400).json({ success: false, error: 'id is required' });
+                return;
             }
             const incidentId = parseInt(id);
 
@@ -903,6 +912,28 @@ export class MonitoringController {
             res.status(500).render('error', {
                 title: 'Error',
                 message: 'Gagal memuat halaman Monitoring AI'
+            });
+        }
+    }
+
+    /**
+     * GET /monitoring/usage/:customerId/graph
+     * Get bandwidth usage trend for a specific customer
+     */
+    async getBandwidthTrend(req: Request, res: Response): Promise<void> {
+        try {
+            const { customerId } = req.params;
+            const trend = await BandwidthLogService.getBandwidthTrend24h(Number(customerId));
+
+            res.json({
+                success: true,
+                data: trend
+            });
+        } catch (error: any) {
+            console.error('Error getting bandwidth trend:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Gagal mendapatkan data pemakaian'
             });
         }
     }

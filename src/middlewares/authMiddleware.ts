@@ -9,6 +9,9 @@ export interface AuthenticatedRequest extends Request {
         full_name: string;
         role: 'superadmin' | 'operator' | 'teknisi' | 'kasir';
         is_active: boolean;
+        session_id?: string;
+        created_at: Date;
+        updated_at: Date;
     };
 }
 
@@ -16,7 +19,7 @@ export interface AuthenticatedRequest extends Request {
 export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = (req.session as any)?.userId;
-        
+
         if (!userId) {
             req.flash('error', 'Anda harus login terlebih dahulu');
             return res.redirect('/login');
@@ -24,7 +27,7 @@ export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, 
 
         const userService = new UserService();
         const user = await userService.getUserById(userId);
-        
+
         if (!user || !user.is_active) {
             req.flash('error', 'Akun tidak aktif atau tidak ditemukan');
             return res.redirect('/login');
@@ -42,7 +45,7 @@ export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, 
 export const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = (req.session as any)?.userId;
-        
+
         if (!userId) {
             req.flash('error', 'Anda harus login terlebih dahulu');
             return res.redirect('/login');
@@ -50,7 +53,7 @@ export const isAdmin = async (req: AuthenticatedRequest, res: Response, next: Ne
 
         const userService = new UserService();
         const user = await userService.getUserById(userId);
-        
+
         if (!user || !user.is_active) {
             req.flash('error', 'Akun tidak aktif atau tidak ditemukan');
             return res.redirect('/login');
@@ -58,7 +61,8 @@ export const isAdmin = async (req: AuthenticatedRequest, res: Response, next: Ne
 
         if (user.role !== 'superadmin' && user.role !== 'operator') {
             req.flash('error', 'Akses ditolak. Anda tidak memiliki hak akses');
-            return res.redirect('/');
+            res.redirect('/');
+            return;
         }
 
         req.user = user;
@@ -81,28 +85,39 @@ export class AuthMiddleware {
     public requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
             const userId = (req.session as any)?.userId;
-            
+
             if (!userId) {
                 // Check if this is an API request (JSON expected)
-                const acceptsJson = req.headers.accept?.includes('application/json') || 
-                                   req.headers['content-type']?.includes('application/json');
-                
+                const acceptsJson = req.headers.accept?.includes('application/json') ||
+                    req.headers['content-type']?.includes('application/json');
+
                 if (acceptsJson || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH') {
                     res.status(401).json({
                         success: false,
                         error: 'Unauthorized: Anda harus login terlebih dahulu'
                     });
                 }
-                
+
                 req.flash('error', 'Anda harus login terlebih dahulu');
-                return res.redirect('/login');
+                res.redirect('/login');
+                return;
             }
 
             const user = await this.userService.getUserById(userId);
-            
+
             if (!user || !user.is_active) {
                 req.flash('error', 'Akun tidak aktif atau tidak ditemukan');
-                return res.redirect('/login');
+                res.redirect('/login');
+                return;
+            }
+
+            // Single Session Enforcement
+            if (user.session_id && user.session_id !== req.sessionID) {
+                req.session.destroy(() => {
+                    res.clearCookie('connect.sid');
+                    res.redirect('/login?error=Sesi berakhir. Akun Anda telah login di perangkat lain.');
+                });
+                return;
             }
 
             req.user = user;
@@ -119,12 +134,14 @@ export class AuthMiddleware {
         try {
             if (!req.user) {
                 req.flash('error', 'Anda harus login terlebih dahulu');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             if (req.user.role !== 'kasir') {
                 req.flash('error', 'Akses ditolak. Hanya kasir yang dapat mengakses halaman ini');
-                return res.redirect('/kasir/login');
+                res.redirect('/kasir/login');
+                return;
             }
 
             next();
@@ -139,15 +156,17 @@ export class AuthMiddleware {
     public redirectIfAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
             const userId = (req.session as any)?.userId;
-            
+
             if (userId) {
                 const user = await this.userService.getUserById(userId);
-                
+
                 if (user && user.is_active) {
                     if (user.role === 'kasir') {
-                        return res.redirect('/kasir/dashboard');
+                        res.redirect('/kasir/dashboard');
+                        return;
                     } else {
-                        return res.redirect('/');
+                        res.redirect('/');
+                        return;
                     }
                 }
             }
@@ -164,7 +183,8 @@ export class AuthMiddleware {
         try {
             if (req.user && req.user.role === 'kasir') {
                 req.flash('error', 'Akses ditolak. Silakan gunakan portal kasir.');
-                return res.redirect('/kasir/dashboard');
+                res.redirect('/kasir/dashboard');
+                return;
             }
 
             next();

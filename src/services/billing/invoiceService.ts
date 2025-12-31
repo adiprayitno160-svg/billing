@@ -8,6 +8,7 @@ export interface InvoiceData {
     subtotal: number;
     discount_amount?: number;
     total_amount: number;
+    paid_amount?: number;
     notes?: string;
     status?: string;
 }
@@ -57,9 +58,13 @@ export class InvoiceService {
                 INSERT INTO invoices (
                     invoice_number, customer_id, subscription_id, period, 
                     due_date, subtotal, discount_amount, total_amount, 
-                    remaining_amount, status, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    paid_amount, remaining_amount, status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
+
+            const paidAmount = invoiceData.paid_amount || 0;
+            const remainingAmount = Math.max(0, invoiceData.total_amount - paidAmount);
+            const status = invoiceData.status || (remainingAmount <= 0 ? 'paid' : 'sent');
 
             const [invoiceResult] = await connection.execute(invoiceQuery, [
                 invoiceNumber,
@@ -70,8 +75,9 @@ export class InvoiceService {
                 invoiceData.subtotal || 0,
                 invoiceData.discount_amount || 0,
                 invoiceData.total_amount || 0,
-                invoiceData.total_amount || 0,
-                'draft',
+                paidAmount,
+                remainingAmount,
+                status,
                 invoiceData.notes || null
             ]);
 
@@ -242,7 +248,7 @@ export class InvoiceService {
             let subscriptionQuery = `
                 SELECT s.id as subscription_id, s.customer_id, s.package_name, s.price,
                        c.name as customer_name, c.email, c.phone, s.start_date,
-                       DAY(s.start_date) as billing_day
+                       DAY(s.start_date) as billing_day, c.account_balance
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
@@ -289,6 +295,13 @@ export class InvoiceService {
 
                         const totalAmount = (subscription.price || 0) + carryOverAmount;
 
+                        // Apply balance deduction
+                        let accountBalance = parseFloat(subscription.account_balance || 0);
+                        let amountFromBalance = 0;
+                        if (accountBalance > 0) {
+                            amountFromBalance = Math.min(accountBalance, totalAmount);
+                        }
+
                         const invoiceData: InvoiceData = {
                             customer_id: subscription.customer_id || 0,
                             subscription_id: subscription.subscription_id || subscription.id || 0,
@@ -296,6 +309,7 @@ export class InvoiceService {
                             due_date: dueDate.toISOString().split('T')[0] as string,
                             subtotal: subscription.price || 0,
                             total_amount: totalAmount,
+                            paid_amount: amountFromBalance,
                             discount_amount: 0,
                             notes: carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : undefined
                         };
@@ -317,10 +331,28 @@ export class InvoiceService {
                             });
                         }
 
-                        console.log(`[InvoiceService] Creating invoice for customer ${subscription.customer_name} with amount ${totalAmount} (base: ${subscription.price}, carry over: ${carryOverAmount})`);
+                        console.log(`[InvoiceService] Creating invoice for customer ${subscription.customer_name} with amount ${totalAmount} (balance use: ${amountFromBalance})`);
                         const invoiceId = await this.createInvoice(invoiceData, items);
                         console.log(`[InvoiceService] Created invoice with ID: ${invoiceId}`);
                         invoiceIds.push(invoiceId);
+
+                        // If balance used, finalize the transaction (log and update customer)
+                        if (amountFromBalance > 0) {
+                            await databasePool.execute(
+                                'UPDATE customers SET account_balance = account_balance - ? WHERE id = ?',
+                                [amountFromBalance, subscription.customer_id]
+                            );
+
+                            await databasePool.execute(
+                                'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())',
+                                [invoiceId, amountFromBalance]
+                            );
+
+                            await databasePool.execute(
+                                'INSERT INTO customer_balance_logs (customer_id, invoice_id, amount, type, description, created_at) VALUES (?, ?, ?, "debit", ?, NOW())',
+                                [subscription.customer_id, invoiceId, amountFromBalance, `Potong saldo otomatis untuk invoice ${period}`]
+                            );
+                        }
 
                         // Mark carry over as applied if exists
                         if (carryOverAmount > 0) {
@@ -366,7 +398,7 @@ export class InvoiceService {
                 // Jika hasil masih kosong, coba tanpa filter status
                 if (!Array.isArray(customerResult) || customerResult.length === 0) {
                     const customerQueryNoStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance
                         FROM customers c
                         WHERE c.id NOT IN (
                             SELECT DISTINCT customer_id 
@@ -389,12 +421,16 @@ export class InvoiceService {
                         const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
                         const dueDate = new Date(periodYear, periodMonth - 1, 28); // Tanggal 28 bulan invoice
 
+                        const customerBalance = parseFloat(customer.account_balance || 0);
+                        const amountFromBalance = Math.min(customerBalance, defaultPrice);
+
                         const invoiceData: InvoiceData = {
                             customer_id: customer.customer_id || 0,
                             period: period,
                             due_date: dueDate.toISOString().split('T')[0] as string,
                             subtotal: defaultPrice,
                             total_amount: defaultPrice,
+                            paid_amount: amountFromBalance,
                             discount_amount: 0,
                             notes: 'Tagihan bulanan default'
                         };
@@ -407,8 +443,23 @@ export class InvoiceService {
                         }];
 
                         const invoiceId = await this.createInvoice(invoiceData, items);
+                        console.log(`[InvoiceService] Created fallback invoice for customer ${customer.customer_name} with ID: ${invoiceId} (balance use: ${amountFromBalance})`);
                         invoiceIds.push(invoiceId);
-                        console.log(`[InvoiceService] Created fallback invoice for customer ${customer.customer_name} with ID: ${invoiceId}`);
+
+                        if (amountFromBalance > 0) {
+                            await databasePool.execute(
+                                'UPDATE customers SET account_balance = account_balance - ? WHERE id = ?',
+                                [amountFromBalance, customer.customer_id]
+                            );
+                            await databasePool.execute(
+                                'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())',
+                                [invoiceId, amountFromBalance]
+                            );
+                            await databasePool.execute(
+                                'INSERT INTO customer_balance_logs (customer_id, invoice_id, amount, type, description, created_at) VALUES (?, ?, ?, "debit", ?, NOW())',
+                                [customer.customer_id, invoiceId, amountFromBalance, `Potong saldo otomatis untuk invoice ${period}`]
+                            );
+                        }
                     } catch (customerError) {
                         console.error(`[InvoiceService] Error processing customer ${customer.customer_name}:`, customerError);
                         // Continue with next customer

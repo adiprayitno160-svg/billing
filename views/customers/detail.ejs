@@ -316,6 +316,38 @@
 		</div>
 	</div>
 
+	<!-- Bandwidth Usage Graph -->
+	<div
+		class="rounded-2xl border border-modern-cyan-200 bg-gradient-to-br from-white to-modern-cyan-50/10 p-6 shadow-lg">
+		<div class="flex items-center justify-between mb-6">
+			<div>
+				<h2
+					class="text-xl font-bold bg-gradient-to-r from-modern-blue-600 to-modern-cyan-600 bg-clip-text text-transparent">
+					Grafik Pemakaian Banda (24 Jam)
+				</h2>
+				<p class="text-sm text-modern-blue-500">Monitor pemakaian real-time pelanggan</p>
+			</div>
+			<div class="flex items-center gap-2 text-xs font-medium">
+				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span>
+					Download</span>
+				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+					Upload</span>
+			</div>
+		</div>
+		<div class="relative" style="height: 300px;">
+			<canvas id="usageChart"></canvas>
+			<div id="usageLoader"
+				class="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-xl">
+				<div class="flex flex-col items-center">
+					<div
+						class="w-10 h-10 border-4 border-modern-blue-200 border-t-modern-blue-600 rounded-full animate-spin">
+					</div>
+					<p class="mt-3 text-sm text-modern-blue-600 font-medium">Memuat data...</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- Location Information with Full Page Map -->
 	<% if (customer.latitude && customer.longitude) { %>
 		<div
@@ -419,14 +451,114 @@
 
 	// Map render (read-only) on detail page
 	document.addEventListener('DOMContentLoaded', function () {
+		// --- Map Stats ---
 		var mapEl = document.getElementById('detailCustomerMap');
-		if (!mapEl) return;
-		var lat = Number('<%= customer.latitude %>');
-		var lng = Number('<%= customer.longitude %>');
-		if (!lat || !lng) return;
-		var map = L.map('detailCustomerMap', { zoomControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false }).setView([lat, lng], 15);
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-		var marker = L.marker([lat, lng]).addTo(map);
-		marker.bindPopup('Lokasi Pelanggan').openPopup();
+		if (mapEl) {
+			var lat = Number('<%= customer.latitude %>');
+			var lng = Number('<%= customer.longitude %>');
+			if (lat && lng) {
+				var map = L.map('detailCustomerMap', { zoomControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false }).setView([lat, lng], 15);
+				L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+				var marker = L.marker([lat, lng]).addTo(map);
+				marker.bindPopup('Lokasi Pelanggan').openPopup();
+			}
+		}
+
+		// --- Usage Chart ---
+		const ctx = document.getElementById('usageChart')?.getContext('2d');
+		if (ctx) {
+			fetch(`/monitoring/usage/<%= customer.id %>/graph`)
+				.then(res => res.json())
+				.then(result => {
+					document.getElementById('usageLoader').classList.add('hidden');
+					if (!result.success || !result.data.length) {
+						ctx.font = '14px Inter';
+						ctx.fillStyle = '#94a3b8';
+						ctx.textAlign = 'center';
+						ctx.fillText('Tidak ada data pemakaian dalam 24 jam terakhir', ctx.canvas.width / 2, ctx.canvas.height / 2);
+						return;
+					}
+
+					const data = result.data;
+					const labels = data.map(d => {
+						const date = new Date(d.timestamp);
+						return date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+					});
+
+					// Convert bytes to Mbps for better visualization
+					const rxData = data.map(d => (Number(d.byte_in_diff || 0) * 8) / (5 * 60 * 1000000)); // Approx Mbps over 5m window
+					const txData = data.map(d => (Number(d.byte_out_diff || 0) * 8) / (5 * 60 * 1000000));
+
+					new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels: labels,
+							datasets: [
+								{
+									label: 'Download (Mbps)',
+									data: rxData,
+									borderColor: '#3b82f6',
+									backgroundColor: 'rgba(59, 130, 246, 0.1)',
+									fill: true,
+									tension: 0.4,
+									pointRadius: 2,
+									borderWidth: 2
+								},
+								{
+									label: 'Upload (Mbps)',
+									data: txData,
+									borderColor: '#10b981',
+									backgroundColor: 'rgba(16, 185, 129, 0.1)',
+									fill: true,
+									tension: 0.4,
+									pointRadius: 2,
+									borderWidth: 2
+								}
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								legend: { display: false },
+								tooltip: {
+									mode: 'index',
+									intersect: false,
+									backgroundColor: 'rgba(255, 255, 255, 0.9)',
+									titleColor: '#1e293b',
+									bodyColor: '#475569',
+									borderColor: '#e2e8f0',
+									borderWidth: 1,
+									padding: 12,
+									callbacks: {
+										label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(2)} Mbps`
+									}
+								}
+							},
+							scales: {
+								x: {
+									grid: { display: false },
+									ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+								},
+								y: {
+									beginAtZero: true,
+									grid: { color: '#f1f5f9' },
+									ticks: {
+										callback: (value) => value + ' Mbps'
+									}
+								}
+							},
+							interaction: {
+								intersect: false,
+								mode: 'index',
+							}
+						}
+					});
+				})
+				.catch(err => {
+					console.error('Error loading chart:', err);
+					document.getElementById('usageLoader').innerHTML = '<p class="text-red-500">Gagal memuat grafik</p>';
+				});
+		}
 	});
 </script>
