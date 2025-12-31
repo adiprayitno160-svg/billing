@@ -96,6 +96,24 @@ export async function ensureInitialSchema(): Promise<void> {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		)`);
 
+		// Create users table
+		await conn.query(`CREATE TABLE IF NOT EXISTS users (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			username VARCHAR(191) NOT NULL UNIQUE,
+			email VARCHAR(191) NOT NULL UNIQUE,
+			phone VARCHAR(50) NULL,
+			password VARCHAR(255) NOT NULL,
+			role ENUM('superadmin', 'operator', 'teknisi', 'kasir') NOT NULL DEFAULT 'operator',
+			full_name VARCHAR(191) NOT NULL,
+			is_active TINYINT(1) DEFAULT 1,
+			session_id VARCHAR(255) NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_username (username),
+			INDEX idx_email (email),
+			INDEX idx_role (role)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
 		// Create static_ip_packages table with correct structure
 		await conn.query(`CREATE TABLE IF NOT EXISTS static_ip_packages (
 			id INT AUTO_INCREMENT PRIMARY KEY,
