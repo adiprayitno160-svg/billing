@@ -22,6 +22,8 @@ npm install --production=false
 echo "🗄️ [3/5] Menjalankan migrasi database..."
 # Run deferment migration
 npx ts-node src/scripts/migrate_deferments.ts
+# Run GenieACS settings migration
+npx ts-node src/scripts/migrate_genieacs_settings.ts
 
 # 4. Build Application
 echo "🔨 [4/5] Membangun aplikasi & compiling CSS..."
