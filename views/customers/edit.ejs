@@ -1659,8 +1659,8 @@
             }
         }, 2000); // Check every 2 seconds
 
-        // ODP/ODC/OLT Update Handler - Fixed syntax
-        const odpData = <% - JSON.stringify(typeof odpData !== 'undefined' ? odpData : []) %>;
+        // ODP/ODC/OLT Update Handler - Safe Injection
+        const odpData = <% - (typeof odpData !== 'undefined' && odpData) ? JSON.stringify(odpData) : '[]' %>;
         const odpSelect = document.getElementById('odp_id');
         const odcDisplay = document.getElementById('odc_display');
         const oltDisplay = document.getElementById('olt_display');
