@@ -12,7 +12,7 @@ import pingService from '../../services/pingService';
 import { calculateCustomerIP } from '../../utils/ipHelper';
 
 export class SLAController {
-    
+
     /**
      * GET /monitoring/sla
      * SLA Dashboard - Overview of all customers' SLA performance
@@ -21,13 +21,13 @@ export class SLAController {
         try {
             const month = req.query.month as string || new Date().toISOString().slice(0, 7);
             const monthDate = new Date(month + '-01');
-            
+
             // Get SLA summary for the month
             const [summary] = await pool.query<RowDataPacket[]>(`
                 SELECT * FROM v_monthly_sla_summary
                 WHERE month_year = ?
             `, [monthDate]);
-            
+
             // Get customers with SLA breach
             const [breaches] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -42,14 +42,14 @@ export class SLAController {
                 ORDER BY sr.sla_percentage ASC
                 LIMIT 50
             `, [monthDate]);
-            
+
             // Get active incidents
             const [activeIncidents] = await pool.query<RowDataPacket[]>(`
                 SELECT * FROM v_active_incidents
                 ORDER BY duration_minutes DESC
                 LIMIT 20
             `);
-            
+
             // Get current connection status
             const [connectionStatus] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -58,7 +58,7 @@ export class SLAController {
                 FROM v_current_connection_status
                 GROUP BY current_status
             `);
-            
+
             res.render('monitoring/sla/dashboard', {
                 title: 'SLA Monitoring Dashboard',
                 month,
@@ -68,17 +68,17 @@ export class SLAController {
                 connectionStatus,
                 user: req.user
             });
-            
+
         } catch (error) {
             console.error('Error in SLA dashboard:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Gagal memuat SLA dashboard',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * GET /monitoring/sla/customer/:customerId
      * Detailed SLA view for specific customer
@@ -86,13 +86,14 @@ export class SLAController {
     async customerDetail(req: Request, res: Response): Promise<void> {
         try {
             const { customerId } = req.params;
-        if (!customerId) {
-            return res.status(400).json({ success: false, error: 'customerId is required' });
-        }
-        const parsedCustomerId = parseInt(customerId);
+            if (!customerId) {
+                res.status(400).json({ success: false, error: 'customerId is required' });
+                return;
+            }
+            const parsedCustomerId = parseInt(customerId);
             const month = req.query.month as string || new Date().toISOString().slice(0, 7);
             const monthDate = new Date(month + '-01');
-            
+
             // Get customer info
             const [customers] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -118,24 +119,24 @@ export class SLAController {
                 LEFT JOIN static_ip_packages sp ON c.connection_type = 'static_ip' AND sic.package_id = sp.id
                 WHERE c.id = ?
             `, [parsedCustomerId]);
-            
+
             if (customers.length === 0) {
                 res.status(404).json({ success: false, message: 'Customer not found' });
                 return;
             }
-            
+
             const customer = customers[0];
-            
+
             // IMPORTANT: Proses IP address untuk static IP
             // IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
             // IP yang ditampilkan ke user harus IP client (192.168.1.2)
             if (customer.connection_type === 'static_ip' && customer.ip_address) {
                 customer.ip_address_display = calculateCustomerIP(customer.ip_address);
             }
-            
+
             // Get SLA record for the month
             const slaRecord = await slaMonitoringService.getCustomerSLASummary(parsedCustomerId, monthDate);
-            
+
             // Get incidents history
             const [incidents] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -148,22 +149,23 @@ export class SLAController {
                     AND start_time < DATE_ADD(?, INTERVAL 1 MONTH)
                 ORDER BY start_time DESC
             `, [parsedCustomerId, monthDate, monthDate]);
-            
+
             // Get bandwidth data (if PPPoE)
             let bandwidthData = null;
             if (!customer) {
-                return res.status(404).json({ success: false, error: 'Customer not found' });
+                res.status(404).json({ success: false, error: 'Customer not found' });
+                return;
             }
             if (customer.service_type === 'pppoe') {
                 bandwidthData = await bandwidthLogService.getCustomerBandwidth24h(parsedCustomerId);
             }
-            
+
             // Get ping status (if Static IP)
             let pingStatus = null;
             if (customer.service_type === 'static_ip') {
                 pingStatus = await pingService.getCustomerStatus(parsedCustomerId);
             }
-            
+
             // Get monthly SLA history (last 6 months)
             const [slaHistory] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -179,7 +181,7 @@ export class SLAController {
                 ORDER BY month_year DESC
                 LIMIT 6
             `, [parsedCustomerId]);
-            
+
             res.render('monitoring/sla/customer-detail', {
                 title: `SLA Detail - ${customer.name}`,
                 customer,
@@ -191,17 +193,17 @@ export class SLAController {
                 slaHistory,
                 user: req.user
             });
-            
+
         } catch (error) {
             console.error('Error in customer SLA detail:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Gagal memuat detail SLA customer',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * GET /monitoring/sla/incidents
      * List all SLA incidents
@@ -214,17 +216,17 @@ export class SLAController {
             const page = parseInt(req.query.page as string) || 1;
             const limit = 50;
             const offset = (page - 1) * limit;
-            
+
             let whereConditions = [`si.status = ?`];
             const params: any[] = [status];
-            
+
             if (area) {
                 whereConditions.push(`c.area = ?`);
                 params.push(area);
             }
-            
+
             const whereClause = whereConditions.join(' AND ');
-            
+
             // Get incidents
             const [incidents] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -248,7 +250,7 @@ export class SLAController {
                 ORDER BY si.start_time DESC
                 LIMIT ? OFFSET ?
             `, [...params, limit, offset]);
-            
+
             // Get total count
             const [countResult] = await pool.query<RowDataPacket[]>(`
                 SELECT COUNT(*) AS total
@@ -256,15 +258,15 @@ export class SLAController {
                 JOIN customers c ON si.customer_id = c.id
                 WHERE ${whereClause}
             `, params);
-            
+
             const total = countResult[0]?.total || 0;
             const totalPages = Math.ceil(total / limit);
-            
+
             // Get areas for filter
             const [areas] = await pool.query<RowDataPacket[]>(`
                 SELECT DISTINCT area FROM customers WHERE area IS NOT NULL ORDER BY area
             `);
-            
+
             res.render('monitoring/sla/incidents', {
                 title: 'SLA Incidents',
                 incidents,
@@ -280,17 +282,17 @@ export class SLAController {
                 },
                 user: req.user
             });
-            
+
         } catch (error) {
             console.error('Error in SLA incidents:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Gagal memuat incidents',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * POST /monitoring/sla/incident/:id/exclude
      * Exclude incident from SLA calculation (Admin only)
@@ -299,21 +301,22 @@ export class SLAController {
         try {
             const { id } = req.params;
             if (!id) {
-                return res.status(400).json({ success: false, error: 'id is required' });
+                res.status(400).json({ success: false, error: 'id is required' });
+                return;
             }
             const incidentId = parseInt(id);
             const { exclude_reason, exclude_notes } = req.body;
-            
+
             // Validate exclude reason
             const validReasons = ['maintenance', 'force_majeure', 'customer_fault', 'transient', 'isolated'];
             if (!validReasons.includes(exclude_reason)) {
-                res.status(400).json({ 
-                    success: false, 
-                    message: 'Invalid exclude reason' 
+                res.status(400).json({
+                    success: false,
+                    message: 'Invalid exclude reason'
                 });
                 return;
             }
-            
+
             await pool.query(`
                 UPDATE sla_incidents
                 SET 
@@ -323,22 +326,22 @@ export class SLAController {
                     is_counted_in_sla = 0
                 WHERE id = ?
             `, [exclude_reason, exclude_notes, incidentId]);
-            
-            res.json({ 
-                success: true, 
-                message: 'Incident excluded from SLA calculation' 
+
+            res.json({
+                success: true,
+                message: 'Incident excluded from SLA calculation'
             });
-            
+
         } catch (error) {
             console.error('Error excluding incident:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Failed to exclude incident',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * POST /monitoring/sla/discount/:id/approve
      * Approve SLA discount (Admin only)
@@ -347,33 +350,34 @@ export class SLAController {
         try {
             const { id } = req.params;
             if (!id) {
-                return res.status(400).json({ success: false, error: 'id is required' });
+                res.status(400).json({ success: false, error: 'id is required' });
+                return;
             }
             const slaRecordId = parseInt(id);
             const userId = (req.user as any)?.id;
-            
+
             if (!userId) {
                 res.status(401).json({ success: false, message: 'Unauthorized' });
                 return;
             }
-            
+
             await slaMonitoringService.approveDiscount(slaRecordId, userId);
-            
-            res.json({ 
-                success: true, 
-                message: 'Discount approved successfully' 
+
+            res.json({
+                success: true,
+                message: 'Discount approved successfully'
             });
-            
+
         } catch (error) {
             console.error('Error approving discount:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Failed to approve discount',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * GET /api/monitoring/bandwidth/:customerId
      * Get bandwidth trend data for charts (API)
@@ -381,28 +385,29 @@ export class SLAController {
     async getBandwidthTrend(req: Request, res: Response): Promise<void> {
         try {
             const { customerId } = req.params;
-        if (!customerId) {
-            return res.status(400).json({ success: false, error: 'customerId is required' });
-        }
-        const parsedCustomerId = parseInt(customerId);
-            
+            if (!customerId) {
+                res.status(400).json({ success: false, error: 'customerId is required' });
+                return;
+            }
+            const parsedCustomerId = parseInt(customerId);
+
             const trend = await bandwidthLogService.getBandwidthTrend24h(parsedCustomerId);
-            
-            res.json({ 
-                success: true, 
-                data: trend 
+
+            res.json({
+                success: true,
+                data: trend
             });
-            
+
         } catch (error) {
             console.error('Error getting bandwidth trend:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Failed to get bandwidth trend',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * GET /api/monitoring/sla/stats
      * Get SLA statistics (API)
@@ -411,7 +416,7 @@ export class SLAController {
         try {
             const month = req.query.month as string || new Date().toISOString().slice(0, 7);
             const monthDate = new Date(month + '-01');
-            
+
             const [stats] = await pool.query<RowDataPacket[]>(`
                 SELECT 
                     COUNT(*) AS total_customers,
@@ -427,22 +432,22 @@ export class SLAController {
                 FROM sla_records
                 WHERE month_year = ?
             `, [monthDate]);
-            
-            res.json({ 
-                success: true, 
-                data: stats[0] 
+
+            res.json({
+                success: true,
+                data: stats[0]
             });
-            
+
         } catch (error) {
             console.error('Error getting SLA stats:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Failed to get stats',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         }
     }
-    
+
     /**
      * POST /api/monitoring/sla/calculate
      * Manually trigger SLA calculation (Admin only)
@@ -451,21 +456,21 @@ export class SLAController {
         try {
             const month = req.body.month as string || new Date().toISOString().slice(0, 7);
             const monthDate = new Date(month + '-01');
-            
+
             // Run calculation asynchronously
             slaMonitoringService.calculateMonthlySLA(monthDate).catch(err => {
                 console.error('Error in async SLA calculation:', err);
             });
-            
-            res.json({ 
-                success: true, 
-                message: 'SLA calculation started. This may take a few minutes.' 
+
+            res.json({
+                success: true,
+                message: 'SLA calculation started. This may take a few minutes.'
             });
-            
+
         } catch (error) {
             console.error('Error triggering calculation:', error);
-            res.status(500).json({ 
-                success: false, 
+            res.status(500).json({
+                success: false,
                 message: 'Failed to trigger calculation',
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
