@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import * as mysql from 'mysql2/promise';
+import bcrypt from 'bcrypt';
 
 // Don't override environment variables from PM2/system
 dotenv.config({ override: false });
@@ -113,6 +114,17 @@ export async function ensureInitialSchema(): Promise<void> {
 			INDEX idx_email (email),
 			INDEX idx_role (role)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Ensure default admin user exists
+		const [existingUsers] = await conn.query('SELECT id FROM users WHERE username = ?', ['admin']);
+		if (Array.isArray(existingUsers) && existingUsers.length === 0) {
+			const hashedPassword = await bcrypt.hash('admin', 10);
+			await conn.query(`INSERT INTO users (username, email, phone, password, role, full_name, is_active) 
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				['admin', 'admin@example.com', '08123456789', hashedPassword, 'superadmin', 'Administrator', 1]
+			);
+			console.log('✅ Default admin user created (admin/admin)');
+		}
 
 		// Create static_ip_packages table with correct structure
 		await conn.query(`CREATE TABLE IF NOT EXISTS static_ip_packages (
