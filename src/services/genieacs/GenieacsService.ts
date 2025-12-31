@@ -1,4 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
+import { databasePool } from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 
 export interface GenieacsDevice {
     _id: string;
@@ -60,11 +62,61 @@ export class GenieacsService {
         }
     }
 
+    /**
+     * Get GenieACS configuration from database
+     */
+    static async getConfigFromDb(): Promise<GenieacsConfig> {
+        try {
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                `SELECT setting_key, setting_value FROM system_settings 
+                 WHERE setting_key IN ('genieacs_host', 'genieacs_port', 'genieacs_username', 'genieacs_password')`
+            );
+
+            const settings: Record<string, string> = {};
+            for (const row of rows) {
+                settings[row.setting_key] = row.setting_value;
+            }
+
+            return {
+                host: settings['genieacs_host'] || '192.168.239.154',
+                port: parseInt(settings['genieacs_port'] || '7557', 10),
+                username: settings['genieacs_username'] || undefined,
+                password: settings['genieacs_password'] || undefined
+            };
+        } catch (error) {
+            console.warn('[GenieACS] Failed to load config from database, using defaults:', error);
+            return {
+                host: '192.168.239.154',
+                port: 7557
+            };
+        }
+    }
+
     static getInstance(config?: GenieacsConfig): GenieacsService {
         if (!GenieacsService.instance) {
             GenieacsService.instance = new GenieacsService(config);
         }
         return GenieacsService.instance;
+    }
+
+    /**
+     * Get instance with config from database (async)
+     */
+    static async getInstanceFromDb(): Promise<GenieacsService> {
+        if (!GenieacsService.instance) {
+            const config = await GenieacsService.getConfigFromDb();
+            GenieacsService.instance = new GenieacsService(config);
+        }
+        return GenieacsService.instance;
+    }
+
+    /**
+     * Reload configuration from database
+     */
+    static async reloadConfig(): Promise<void> {
+        const config = await GenieacsService.getConfigFromDb();
+        GenieacsService.instance = new GenieacsService(config);
+        console.log(`[GenieACS] Configuration reloaded: ${config.host}:${config.port}`);
     }
 
     async testConnection(): Promise<{ success: boolean; message: string }> {
