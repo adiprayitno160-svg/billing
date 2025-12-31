@@ -179,6 +179,13 @@ export async function ensureInitialSchema(): Promise<void> {
 		await addCol(`ALTER TABLE static_ip_packages ADD COLUMN child_burst_upload VARCHAR(50) NULL AFTER child_limit_at_download`);
 		await addCol(`ALTER TABLE static_ip_packages ADD COLUMN child_burst_download VARCHAR(50) NULL AFTER child_burst_upload`);
 
+		// Ensure users table has all required columns (migrating from legacy/bad state)
+		await addCol(`ALTER TABLE users ADD COLUMN phone VARCHAR(50) NULL AFTER email`);
+		await addCol(`ALTER TABLE users ADD COLUMN role ENUM('superadmin', 'operator', 'teknisi', 'kasir') NOT NULL DEFAULT 'operator' AFTER password`);
+		await addCol(`ALTER TABLE users ADD COLUMN full_name VARCHAR(191) NOT NULL AFTER role`);
+		await addCol(`ALTER TABLE users ADD COLUMN is_active TINYINT(1) DEFAULT 1 AFTER full_name`);
+		await addCol(`ALTER TABLE users ADD COLUMN session_id VARCHAR(255) NULL AFTER is_active`);
+
 		// Remove old parent_queue_name column if it exists
 		try {
 			await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN parent_queue_name`);
