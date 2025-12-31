@@ -9,7 +9,7 @@ export class GenieacsController {
      */
     static async dashboard(req: Request, res: Response) {
         try {
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
 
             // Test connection
             const connectionTest = await genieacs.testConnection();
@@ -66,7 +66,7 @@ export class GenieacsController {
      */
     static async devices(req: Request, res: Response) {
         try {
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
             const page = parseInt(req.query.page as string) || 1;
             const limit = 20;
             const skip = (page - 1) * limit;
@@ -133,7 +133,7 @@ export class GenieacsController {
     static async deviceDetail(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
 
             const device = await genieacs.getDevice(id);
             if (!device) {
@@ -177,7 +177,7 @@ export class GenieacsController {
     static async rebootDevice(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
 
             const result = await genieacs.rebootDevice(id);
 
@@ -201,7 +201,7 @@ export class GenieacsController {
     static async refreshDevice(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
 
             const result = await genieacs.refreshDevice(id);
 
@@ -224,7 +224,7 @@ export class GenieacsController {
      */
     static async apiGetDevices(req: Request, res: Response) {
         try {
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
             const limit = parseInt(req.query.limit as string) || 100;
             const skip = parseInt(req.query.skip as string) || 0;
 
@@ -253,7 +253,7 @@ export class GenieacsController {
      */
     static async apiTestConnection(req: Request, res: Response) {
         try {
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
             const result = await genieacs.testConnection();
             res.json(result);
         } catch (error: any) {
@@ -282,7 +282,7 @@ export class GenieacsController {
                 return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
             }
 
-            const genieacs = GenieacsService.getInstance();
+            const genieacs = await GenieacsService.getInstanceFromDb();
             const result = await genieacs.changeWiFiCredentials(id, ssid, password);
 
             if (result.success) {

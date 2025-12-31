@@ -213,6 +213,15 @@ export class GenieacsService {
         } catch (e) { return []; }
     }
 
+    async getFaults(limit: number = 10): Promise<GenieacsTask[]> {
+        try {
+            const response = await this.client.get('/faults/', {
+                params: { limit }
+            });
+            return response.data || [];
+        } catch (e) { return []; }
+    }
+
     async deleteTask(taskId: string): Promise<boolean> {
         try {
             await this.client.delete(`/tasks/${taskId}`);
