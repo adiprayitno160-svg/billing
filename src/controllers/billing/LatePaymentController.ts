@@ -13,7 +13,7 @@ export class LatePaymentController {
   /**
    * Show late payment dashboard
    */
-  async dashboard(req: Request, res: Response): Promise<void> {
+  async dashboard(req: Request, res: Response): Promise<any> {
     try {
       // Check if columns exist
       const [columnCheck] = await pool.query<RowDataPacket[]>(`
@@ -100,7 +100,7 @@ export class LatePaymentController {
   /**
    * Show late payment report
    */
-  async report(req: Request, res: Response): Promise<void> {
+  async report(req: Request, res: Response): Promise<any> {
     try {
       const {
         customer_id,
@@ -206,7 +206,7 @@ export class LatePaymentController {
   /**
    * Show customer late payment detail
    */
-  async customerDetail(req: Request, res: Response): Promise<void> {
+  async customerDetail(req: Request, res: Response): Promise<any> {
     try {
       const customerId = parseInt(req.params.customerId || '0');
       if (!req.params.customerId || isNaN(customerId)) {
@@ -279,7 +279,7 @@ export class LatePaymentController {
   /**
    * Reset counter API
    */
-  async resetCounter(req: Request, res: Response): Promise<void> {
+  async resetCounter(req: Request, res: Response): Promise<any> {
     try {
       const customerId = parseInt(req.params.customerId || '0');
       if (!req.params.customerId || isNaN(customerId)) {
@@ -312,7 +312,7 @@ export class LatePaymentController {
   /**
    * Adjust counter API
    */
-  async adjustCounter(req: Request, res: Response): Promise<void> {
+  async adjustCounter(req: Request, res: Response): Promise<any> {
     try {
       const customerId = parseInt(req.params.customerId || '0');
       if (!req.params.customerId || isNaN(customerId)) {
@@ -355,7 +355,7 @@ export class LatePaymentController {
   /**
    * Batch reset counter
    */
-  async batchReset(req: Request, res: Response): Promise<void> {
+  async batchReset(req: Request, res: Response): Promise<any> {
     try {
       const { customer_ids, reason } = req.body;
       const adminId = (req.session as any).userId || 0;
@@ -395,7 +395,7 @@ export class LatePaymentController {
   /**
    * Export report to Excel
    */
-  async exportReport(req: Request, res: Response): Promise<void> {
+  async exportReport(req: Request, res: Response): Promise<any> {
     try {
       const { customer_id, min_count, max_count } = req.query;
 

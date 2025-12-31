@@ -252,7 +252,7 @@ router.get('/api/check-notification', async (req, res) => {
             );
 
             // Cek WhatsApp status
-            let whatsappStatus = { ready: false, error: 'Not checked' };
+            let whatsappStatus: any = { ready: false, error: 'Not checked' };
             try {
                 const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
                 whatsappStatus = WhatsAppService.getStatus();
@@ -1743,6 +1743,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
             console.log('   Secret name (Customer ID):', customerId.toString());
             console.log('   Customer name:', client_name);
             console.log('   Password provided:', password ? 'YES' : 'NO');
+            let profileName = 'GRATIS';
 
             try {
                 console.log('   Step 1: Import services...');
@@ -1762,12 +1763,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     });
 
                     // Get package untuk profile
-                    let profileName = 'GRATIS'; // Default ke 'GRATIS' (uppercase)
+                    profileName = 'GRATIS'; // Default ke 'GRATIS' (uppercase)
                     try {
                         console.log('   Step 3: Get package info...');
                         const { getPackageById } = await import('../services/pppoeService');
                         const pkg = await getPackageById(Number(package_id));
-                        profileName = pkg?.profile_name || 'GRATIS';
+                        profileName = (pkg as any)?.profile_name || 'GRATIS';
                         console.log('   ✅ Profile name dari package:', profileName);
                     } catch (pkgError: any) {
                         console.error('   ⚠️ Gagal mendapatkan package:', pkgError.message);
@@ -2325,7 +2326,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
     }
 });
 import { listStaticIpPackages } from '../services/staticIpPackageService';
-import { getMikrotikConfig, getStaticIpPackageById } from '../services/staticIpPackageService';
+import { getStaticIpPackageById } from '../services/staticIpPackageService';
 import { getInterfaces, addMangleRulesForClient, createClientQueues, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName, createQueueTree } from '../services/mikrotikService';
 import { getPppoeSecrets } from '../services/mikrotikService';
 import { addClientToPackage, isPackageFull, getClientById, updateClient } from '../services/staticIpClientService';
@@ -2933,7 +2934,7 @@ router.get('/api/test/queue/auto-test', async (req, res) => {
                 comment: 'Auto test 3'
             };
             console.log('Testing format 3:', command3);
-            const result3 = await api.write('/queue/tree/add', command3);
+            const result3 = await api.write('/queue/tree/add', command3 as any);
             results.push({ format: 'Object format', success: true, result: result3 });
         } catch (error: any) {
             results.push({ format: 'Object format', success: false, error: error.message });
@@ -3058,7 +3059,7 @@ router.get('/api/test/queue/loop-test', async (req, res) => {
 
             try {
                 console.log(`Testing ${format.name}...`);
-                const result = await api.write(format.command);
+                const result = await api.write(format.command as any);
                 results.push({
                     format: format.name,
                     success: true,
@@ -3170,7 +3171,7 @@ router.get('/api/test/queue/find-format', async (req, res) => {
 
             try {
                 console.log(`Testing ${format.name}...`);
-                const result = await api.write(format.command);
+                const result = await api.write(format.command as any);
                 results.push({
                     format: format.name,
                     success: true,
@@ -3275,7 +3276,7 @@ router.get('/api/test/queue/auto-find', async (req, res) => {
                 test: async () => {
                     const command = { name: `${testName}4`, parent: 'UPLOAD ALL', 'max-limit': '5M', comment: 'Auto test 4' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -3467,7 +3468,7 @@ router.get('/api/test/queue/auto-test-all', async (req, res) => {
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
                 } else if (typeof format.command === 'object') {
-                    result = await api.write('/queue/tree/add', format.command);
+                    result = await api.write('/queue/tree/add', format.command as any);
                 } else {
                     result = await api.write(format.command);
                 }
@@ -3629,7 +3630,7 @@ router.get('/api/test/queue/routeros-v6', async (req, res) => {
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
                 } else if (typeof format.command === 'object') {
-                    result = await api.write('/queue/tree/add', format.command);
+                    result = await api.write('/queue/tree/add', format.command as any);
                 } else {
                     result = await api.write(format.command);
                 }
@@ -3786,7 +3787,7 @@ router.get('/api/test/queue/mikrotik-official', async (req, res) => {
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
                 } else if (typeof format.command === 'object') {
-                    result = await api.write('/queue/tree/add', format.command);
+                    result = await api.write('/queue/tree/add', format.command as any);
                 } else {
                     result = await api.write(format.command);
                 }
@@ -3911,7 +3912,7 @@ router.get('/api/test/queue/test123', async (req, res) => {
                 if (Array.isArray(format.command)) {
                     result = await api.write(format.command);
                 } else if (typeof format.command === 'object') {
-                    result = await api.write('/queue/tree/add', format.command);
+                    result = await api.write('/queue/tree/add', format.command as any);
                 } else {
                     result = await api.write(format.command);
                 }
@@ -4051,7 +4052,7 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'global' };
                     console.log('Testing Object format 1:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4059,7 +4060,7 @@ router.get('/api/test/queue/simple-fix', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'global', name: testName };
                     console.log('Testing Object format 2:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4390,7 +4391,7 @@ router.get('/api/test/queue/loop-until-success', async (req, res) => {
                     if (Array.isArray(command)) {
                         result = await api.write(command);
                     } else {
-                        result = await api.write('/queue/tree/add', command);
+                        result = await api.write('/queue/tree/add', command as any);
                     }
 
                     console.log(`✅ ${template.name} succeeded:`, result);
@@ -4497,7 +4498,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4505,7 +4506,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4513,7 +4514,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'UPLOAD ALL' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4521,7 +4522,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'UPLOAD ALL', name: testName };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4529,7 +4530,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'global' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4537,7 +4538,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'global', name: testName };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
 
@@ -4597,7 +4598,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: `"${testName}"`, parent: 'DOWNLOAD ALL' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4605,7 +4606,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: '"DOWNLOAD ALL"', name: testName };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4631,7 +4632,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL', 'max-limit': '5M' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4639,7 +4640,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName, 'max-limit': '5M' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4665,7 +4666,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL', comment: 'Comprehensive test' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4673,7 +4674,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName, comment: 'Comprehensive test' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4704,7 +4705,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                         comment: 'Comprehensive test'
                     };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4717,7 +4718,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                         comment: 'Comprehensive test'
                     };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4743,7 +4744,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL', priority: '8' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4751,7 +4752,7 @@ router.get('/api/test/queue/comprehensive-test', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName, priority: '8' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4856,7 +4857,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4864,7 +4865,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4872,7 +4873,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL', 'max-limit': '5M' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4880,7 +4881,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName, 'max-limit': '5M' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4888,7 +4889,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'DOWNLOAD ALL', comment: 'Auto test' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4896,7 +4897,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'DOWNLOAD ALL', name: testName, comment: 'Auto test' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4909,7 +4910,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                         comment: 'Auto test'
                     };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -4922,7 +4923,7 @@ router.get('/api/test/queue/auto-test-download-all', async (req, res) => {
                         comment: 'Auto test'
                     };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
 
@@ -5144,7 +5145,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'global' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5152,7 +5153,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'global', name: testName };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5160,7 +5161,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'global', 'max-limit': '5M' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5168,7 +5169,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'global', name: testName, 'max-limit': '5M' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5176,7 +5177,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 test: async () => {
                     const command = { name: testName, parent: 'global', comment: 'Auto test' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5184,7 +5185,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                 test: async () => {
                     const command = { parent: 'global', name: testName, comment: 'Auto test' };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5197,7 +5198,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                         comment: 'Auto test'
                     };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
             {
@@ -5210,7 +5211,7 @@ router.get('/api/test/queue/auto-find-working-format', async (req, res) => {
                         comment: 'Auto test'
                     };
                     console.log('Testing:', command);
-                    return await api.write('/queue/tree/add', command);
+                    return await api.write('/queue/tree/add', command as any);
                 }
             },
 
@@ -5784,7 +5785,7 @@ router.get('/billing/payment', (req, res) => {
 // Customer detail and edit routes - MUST be after migration routes but before generic /customers/:id routes
 router.get('/customers/:id/edit', (req, res, next) => {
     console.log('[ROUTE] GET /customers/:id/edit - Customer ID:', req.params.id);
-    getCustomerEdit(req, res, next);
+    getCustomerEdit(req, res);
 });
 
 // Toggle customer status
@@ -5822,7 +5823,7 @@ router.put('/customers/:id', updateCustomer);
 router.patch('/customers/:id', updateCustomer);
 router.get('/customers/:id', (req, res, next) => {
     console.log('[ROUTE] GET /customers/:id - Customer ID:', req.params.id);
-    getCustomerDetail(req, res, next);
+    getCustomerDetail(req, res);
 });
 // router.post('/customers/:id/fix-prepaid', fixPrepaidCustomer); // COMMENTED OUT - not exported
 // router.post('/prepaid/fix-all-customers', fixAllPrepaidCustomers); // COMMENTED OUT - not exported

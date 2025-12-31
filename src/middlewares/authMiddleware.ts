@@ -7,6 +7,7 @@ export interface AuthenticatedRequest extends Request {
         username: string;
         email: string;
         full_name: string;
+        phone: string;
         role: 'superadmin' | 'operator' | 'teknisi' | 'kasir';
         is_active: boolean;
         session_id?: string;
@@ -16,7 +17,7 @@ export interface AuthenticatedRequest extends Request {
 }
 
 // Simple auth check middleware functions
-export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
     try {
         const userId = (req.session as any)?.userId;
 
@@ -42,7 +43,7 @@ export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, 
     }
 };
 
-export const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+export const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
     try {
         const userId = (req.session as any)?.userId;
 
@@ -82,7 +83,7 @@ export class AuthMiddleware {
     }
 
     // Middleware untuk memeriksa apakah user sudah login
-    public requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    public requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
         try {
             const userId = (req.session as any)?.userId;
 
@@ -130,7 +131,7 @@ export class AuthMiddleware {
     };
 
     // Middleware untuk memeriksa role kasir
-    public requireKasir = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    public requireKasir = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
         try {
             if (!req.user) {
                 req.flash('error', 'Anda harus login terlebih dahulu');
@@ -153,7 +154,7 @@ export class AuthMiddleware {
     };
 
     // Middleware untuk memeriksa apakah user sudah login (untuk redirect jika sudah login)
-    public redirectIfAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    public redirectIfAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
         try {
             const userId = (req.session as any)?.userId;
 
@@ -179,7 +180,7 @@ export class AuthMiddleware {
     };
 
     // Middleware untuk mencegah kasir mengakses halaman non-kasir
-    public requireNonKasir = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    public requireNonKasir = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
         try {
             if (req.user && req.user.role === 'kasir') {
                 req.flash('error', 'Akses ditolak. Silakan gunakan portal kasir.');

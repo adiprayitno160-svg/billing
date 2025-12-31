@@ -10,7 +10,7 @@ export class SystemLogController {
     /**
      * Get system logs page
      */
-    static async getLogsPage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async getLogsPage(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             console.log('[SystemLogController] Rendering logs page');
             res.render('billing/system-logs', {
@@ -20,7 +20,7 @@ export class SystemLogController {
         } catch (error) {
             console.error('[SystemLogController] Error rendering logs page:', error);
             BillingLogService.error('api', 'SystemLogController', 'Error rendering logs page', error as Error);
-            
+
             // Render error page instead of 404
             res.status(500).render('error', {
                 title: 'Error',
@@ -34,7 +34,7 @@ export class SystemLogController {
     /**
      * Get logs via API
      */
-    static async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async getLogs(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             const {
                 level,
@@ -65,7 +65,7 @@ export class SystemLogController {
             // Apply search filter if provided
             if (search) {
                 const searchTerm = (search as string).toLowerCase();
-                logs = logs.filter(log => 
+                logs = logs.filter(log =>
                     log.message.toLowerCase().includes(searchTerm) ||
                     log.service_name.toLowerCase().includes(searchTerm)
                 );
@@ -105,7 +105,7 @@ export class SystemLogController {
     /**
      * Get log statistics
      */
-    static async getLogStatistics(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async getLogStatistics(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             const { days = '7' } = req.query;
             const daysNum = parseInt(days as string);
@@ -190,7 +190,7 @@ export class SystemLogController {
     /**
      * Get specific log details
      */
-    static async getLogDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async getLogDetails(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             const { id } = req.params;
 
@@ -209,7 +209,7 @@ export class SystemLogController {
                 }
 
                 const log = (rows as any[])[0];
-                
+
                 // Parse JSON fields safely
                 const parseJsonSafely = (value: any) => {
                     if (typeof value === 'string' && value) {
@@ -221,7 +221,7 @@ export class SystemLogController {
                     }
                     return value || {};
                 };
-                
+
                 log.context = parseJsonSafely(log.context);
                 log.ai_analysis = parseJsonSafely(log.ai_analysis);
 
@@ -241,7 +241,7 @@ export class SystemLogController {
     /**
      * Resolve anomaly
      */
-    static async resolveAnomaly(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async resolveAnomaly(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             const { id } = req.params;
             const { resolution } = req.body;
@@ -265,7 +265,7 @@ export class SystemLogController {
     /**
      * Get anomalies
      */
-    static async getAnomalies(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async getAnomalies(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             const {
                 limit = '50',
@@ -328,7 +328,7 @@ export class SystemLogController {
     /**
      * Export logs
      */
-    static async exportLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async exportLogs(req: Request, res: Response, next: NextFunction): Promise<any> {
         try {
             const {
                 level,

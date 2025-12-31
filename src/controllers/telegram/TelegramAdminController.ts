@@ -9,15 +9,15 @@ import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export class TelegramAdminController {
-    
+
     /**
      * Dashboard - Display Telegram Bot dashboard
      */
-    async dashboard(req: Request, res: Response): Promise<void> {
+    async dashboard(req: Request, res: Response): Promise<any> {
         try {
             // Get bot info
             const botInfo = TelegramAdminService.getBotInfo();
-            
+
             // Get active users count by role
             const [users] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -27,7 +27,7 @@ export class TelegramAdminController {
                 WHERE is_active = 1
                 GROUP BY role
             `);
-            
+
             // Get today's statistics
             const [todayStats] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -39,7 +39,7 @@ export class TelegramAdminController {
                 FROM telegram_bot_statistics
                 WHERE date = CURDATE()
             `);
-            
+
             // Get recent chat logs
             const [recentChats] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -57,7 +57,7 @@ export class TelegramAdminController {
                 ORDER BY tcl.created_at DESC
                 LIMIT 50
             `);
-            
+
             // Get recent notifications
             const [recentNotifications] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -75,7 +75,7 @@ export class TelegramAdminController {
                 ORDER BY created_at DESC
                 LIMIT 20
             `);
-            
+
             const stats = todayStats.length > 0 ? todayStats[0] : {
                 total_messages: 0,
                 total_commands: 0,
@@ -83,18 +83,18 @@ export class TelegramAdminController {
                 successful_sends: 0,
                 failed_sends: 0
             };
-            
+
             const usersByRole = {
                 admin: 0,
                 teknisi: 0,
                 kasir: 0,
                 superadmin: 0
             };
-            
+
             users.forEach((u: any) => {
                 usersByRole[u.role as keyof typeof usersByRole] = u.count;
             });
-            
+
             res.render('telegram/dashboard', {
                 title: 'Telegram Bot Dashboard',
                 botInfo,
@@ -104,33 +104,33 @@ export class TelegramAdminController {
                 recentNotifications,
                 user: (req.session as any).user
             });
-            
+
         } catch (error) {
             console.error('Telegram dashboard error:', error);
-            res.status(500).render('error', { 
+            res.status(500).render('error', {
                 error: 'Failed to load dashboard',
                 user: (req.session as any).user
             });
         }
     }
-    
+
     /**
      * Get bot statistics (API)
      */
-    async getStatistics(req: Request, res: Response): Promise<void> {
+    async getStatistics(req: Request, res: Response): Promise<any> {
         try {
             const { dateFrom, dateTo } = req.query;
-            
+
             const from = dateFrom ? new Date(dateFrom as string) : new Date();
             const to = dateTo ? new Date(dateTo as string) : new Date();
-            
+
             const stats = await TelegramAdminService.getBotStatistics(from, to);
-            
+
             res.json({
                 success: true,
                 data: stats
             });
-            
+
         } catch (error) {
             console.error('Get statistics error:', error);
             res.status(500).json({
@@ -139,14 +139,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Users Page - Display users list with layout
      */
-    async usersPage(req: Request, res: Response): Promise<void> {
+    async usersPage(req: Request, res: Response): Promise<any> {
         try {
             const { role, area } = req.query;
-            
+
             let query = `
                 SELECT 
                     id,
@@ -163,29 +163,29 @@ export class TelegramAdminController {
                 FROM telegram_users
                 WHERE is_active = 1
             `;
-            
+
             const params: any[] = [];
-            
+
             if (role) {
                 query += ` AND role = ?`;
                 params.push(role);
             }
-            
+
             if (area) {
                 query += ` AND JSON_CONTAINS(area_coverage, ?)`;
                 params.push(JSON.stringify(area));
             }
-            
+
             query += ` ORDER BY last_active_at DESC`;
-            
+
             const [users] = await pool.query<RowDataPacket[]>(query, params);
-            
+
             // Parse JSON fields
             const formattedUsers = users.map((u: any) => ({
                 ...u,
                 area_coverage: JSON.parse(u.area_coverage || '[]')
             }));
-            
+
             res.render('telegram/users', {
                 title: 'Telegram Users',
                 users: formattedUsers,
@@ -193,23 +193,23 @@ export class TelegramAdminController {
                 area: area || '',
                 user: (req.session as any).user
             });
-            
+
         } catch (error) {
             console.error('Users page error:', error);
-            res.status(500).render('error', { 
+            res.status(500).render('error', {
                 error: 'Failed to load users page',
                 user: (req.session as any).user
             });
         }
     }
-    
+
     /**
      * Get active users list (API)
      */
-    async getUsers(req: Request, res: Response): Promise<void> {
+    async getUsers(req: Request, res: Response): Promise<any> {
         try {
             const { role, area, userId } = req.query;
-            
+
             let query = `
                 SELECT 
                     id,
@@ -226,39 +226,39 @@ export class TelegramAdminController {
                 FROM telegram_users
                 WHERE is_active = 1
             `;
-            
+
             const params: any[] = [];
-            
+
             if (userId) {
                 query += ` AND id = ?`;
                 params.push(userId);
             }
-            
+
             if (role) {
                 query += ` AND role = ?`;
                 params.push(role);
             }
-            
+
             if (area) {
                 query += ` AND JSON_CONTAINS(area_coverage, ?)`;
                 params.push(JSON.stringify(area));
             }
-            
+
             query += ` ORDER BY last_active_at DESC`;
-            
+
             const [users] = await pool.query<RowDataPacket[]>(query, params);
-            
+
             // Parse JSON fields
             const formattedUsers = users.map((u: any) => ({
                 ...u,
                 area_coverage: JSON.parse(u.area_coverage || '[]')
             }));
-            
+
             res.json({
                 success: true,
                 data: formattedUsers
             });
-            
+
         } catch (error) {
             console.error('Get users error:', error);
             res.status(500).json({
@@ -267,14 +267,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Create invite code
      */
-    async createInviteCode(req: Request, res: Response): Promise<void> {
+    async createInviteCode(req: Request, res: Response): Promise<any> {
         try {
             const { role, areaCoverage, expiryDays } = req.body;
-            
+
             if (!role || !['admin', 'teknisi', 'kasir', 'superadmin'].includes(role)) {
                 res.status(400).json({
                     success: false,
@@ -282,12 +282,12 @@ export class TelegramAdminController {
                 });
                 return;
             }
-            
+
             const areas = areaCoverage || [];
             const expiry = expiryDays || 7;
-            
+
             const inviteCode = await TelegramAdminService.createInviteCode(role, areas, expiry);
-            
+
             res.json({
                 success: true,
                 data: {
@@ -298,7 +298,7 @@ export class TelegramAdminController {
                 },
                 message: `Invite code created successfully. Send this to user: /register ${inviteCode}`
             });
-            
+
         } catch (error) {
             console.error('Create invite code error:', error);
             res.status(500).json({
@@ -307,14 +307,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Send custom notification
      */
-    async sendNotification(req: Request, res: Response): Promise<void> {
+    async sendNotification(req: Request, res: Response): Promise<any> {
         try {
             const { type, priority, title, message, targetRole, targetArea, customerId } = req.body;
-            
+
             if (!type || !priority || !title || !message) {
                 res.status(400).json({
                     success: false,
@@ -322,7 +322,7 @@ export class TelegramAdminController {
                 });
                 return;
             }
-            
+
             const result = await TelegramAdminService.sendNotification({
                 type,
                 priority,
@@ -336,13 +336,13 @@ export class TelegramAdminController {
                     sentAt: new Date()
                 }
             });
-            
+
             res.json({
                 success: true,
                 data: result,
                 message: `Notification sent to ${result.sent} users`
             });
-            
+
         } catch (error) {
             console.error('Send notification error:', error);
             res.status(500).json({
@@ -351,14 +351,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Get chat logs
      */
-    async getChatLogs(req: Request, res: Response): Promise<void> {
+    async getChatLogs(req: Request, res: Response): Promise<any> {
         try {
             const { limit = 100, userId, messageType } = req.query;
-            
+
             let query = `
                 SELECT 
                     tcl.id,
@@ -378,29 +378,29 @@ export class TelegramAdminController {
                 LEFT JOIN telegram_users tu ON tcl.user_id = tu.id
                 WHERE 1=1
             `;
-            
+
             const params: any[] = [];
-            
+
             if (userId) {
                 query += ` AND tcl.user_id = ?`;
                 params.push(userId);
             }
-            
+
             if (messageType) {
                 query += ` AND tcl.message_type = ?`;
                 params.push(messageType);
             }
-            
+
             query += ` ORDER BY tcl.created_at DESC LIMIT ?`;
             params.push(parseInt(limit as string));
-            
+
             const [logs] = await pool.query<RowDataPacket[]>(query, params);
-            
+
             res.json({
                 success: true,
                 data: logs
             });
-            
+
         } catch (error) {
             console.error('Get chat logs error:', error);
             res.status(500).json({
@@ -409,14 +409,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Get notifications history
      */
-    async getNotifications(req: Request, res: Response): Promise<void> {
+    async getNotifications(req: Request, res: Response): Promise<any> {
         try {
             const { limit = 50, type, status } = req.query;
-            
+
             let query = `
                 SELECT 
                     tn.id,
@@ -436,29 +436,29 @@ export class TelegramAdminController {
                 LEFT JOIN customers c ON tn.customer_id = c.id
                 WHERE 1=1
             `;
-            
+
             const params: any[] = [];
-            
+
             if (type) {
                 query += ` AND tn.notification_type = ?`;
                 params.push(type);
             }
-            
+
             if (status) {
                 query += ` AND tn.status = ?`;
                 params.push(status);
             }
-            
+
             query += ` ORDER BY tn.created_at DESC LIMIT ?`;
             params.push(parseInt(limit as string));
-            
+
             const [notifications] = await pool.query<RowDataPacket[]>(query, params);
-            
+
             res.json({
                 success: true,
                 data: notifications
             });
-            
+
         } catch (error) {
             console.error('Get notifications error:', error);
             res.status(500).json({
@@ -467,14 +467,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Get incident assignments
      */
-    async getIncidentAssignments(req: Request, res: Response): Promise<void> {
+    async getIncidentAssignments(req: Request, res: Response): Promise<any> {
         try {
             const { technicianId, status, limit = 50 } = req.query;
-            
+
             let query = `
                 SELECT 
                     tia.id,
@@ -498,29 +498,29 @@ export class TelegramAdminController {
                 JOIN customers c ON si.customer_id = c.id
                 WHERE 1=1
             `;
-            
+
             const params: any[] = [];
-            
+
             if (technicianId) {
                 query += ` AND tia.technician_user_id = ?`;
                 params.push(technicianId);
             }
-            
+
             if (status) {
                 query += ` AND tia.status = ?`;
                 params.push(status);
             }
-            
+
             query += ` ORDER BY tia.assigned_at DESC LIMIT ?`;
             params.push(parseInt(limit as string));
-            
+
             const [assignments] = await pool.query<RowDataPacket[]>(query, params);
-            
+
             res.json({
                 success: true,
                 data: assignments
             });
-            
+
         } catch (error) {
             console.error('Get incident assignments error:', error);
             res.status(500).json({
@@ -529,15 +529,15 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Get technician performance
      */
-    async getTechnicianPerformance(req: Request, res: Response): Promise<void> {
+    async getTechnicianPerformance(req: Request, res: Response): Promise<any> {
         try {
             const { period = '7' } = req.query;
             const days = parseInt(period as string);
-            
+
             const [performance] = await pool.query<RowDataPacket[]>(`
                 SELECT 
                     tu.id,
@@ -561,19 +561,19 @@ export class TelegramAdminController {
                 GROUP BY tu.id
                 ORDER BY completed_assignments DESC
             `, [days]);
-            
+
             // Parse JSON fields
             const formattedPerformance = performance.map((p: any) => ({
                 ...p,
                 area_coverage: JSON.parse(p.area_coverage || '[]'),
                 avg_completion_minutes: p.avg_completion_minutes ? Math.round(p.avg_completion_minutes) : null
             }));
-            
+
             res.json({
                 success: true,
                 data: formattedPerformance
             });
-            
+
         } catch (error) {
             console.error('Get technician performance error:', error);
             res.status(500).json({
@@ -582,28 +582,28 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Update user settings
      */
-    async updateUserSettings(req: Request, res: Response): Promise<void> {
+    async updateUserSettings(req: Request, res: Response): Promise<any> {
         try {
             const { userId } = req.params;
             const { notificationEnabled, areaCoverage } = req.body;
-            
+
             const updates: string[] = [];
             const params: any[] = [];
-            
+
             if (notificationEnabled !== undefined) {
                 updates.push('notification_enabled = ?');
                 params.push(notificationEnabled ? 1 : 0);
             }
-            
+
             if (areaCoverage !== undefined) {
                 updates.push('area_coverage = ?');
                 params.push(JSON.stringify(areaCoverage));
             }
-            
+
             if (updates.length === 0) {
                 res.status(400).json({
                     success: false,
@@ -611,20 +611,20 @@ export class TelegramAdminController {
                 });
                 return;
             }
-            
+
             params.push(userId);
-            
+
             await pool.query(`
                 UPDATE telegram_users
                 SET ${updates.join(', ')}
                 WHERE id = ?
             `, params);
-            
+
             res.json({
                 success: true,
                 message: 'User settings updated successfully'
             });
-            
+
         } catch (error) {
             console.error('Update user settings error:', error);
             res.status(500).json({
@@ -633,25 +633,25 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Deactivate user
      */
-    async deactivateUser(req: Request, res: Response): Promise<void> {
+    async deactivateUser(req: Request, res: Response): Promise<any> {
         try {
             const { userId } = req.params;
-            
+
             await pool.query(`
                 UPDATE telegram_users
                 SET is_active = 0
                 WHERE id = ?
             `, [userId]);
-            
+
             res.json({
                 success: true,
                 message: 'User deactivated successfully'
             });
-            
+
         } catch (error) {
             console.error('Deactivate user error:', error);
             res.status(500).json({
@@ -660,14 +660,14 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Test send message to user
      */
-    async testSendMessage(req: Request, res: Response): Promise<void> {
+    async testSendMessage(req: Request, res: Response): Promise<any> {
         try {
             const { chatId, message } = req.body;
-            
+
             if (!chatId || !message) {
                 res.status(400).json({
                     success: false,
@@ -675,7 +675,7 @@ export class TelegramAdminController {
                 });
                 return;
             }
-            
+
             await TelegramAdminService.sendNotification({
                 type: 'custom',
                 priority: 'low',
@@ -684,15 +684,15 @@ export class TelegramAdminController {
                 targetRole: 'all',
                 metadata: {
                     test: true,
-                    sentBy: req.session.user?.username
+                    sentBy: (req.session as any).user?.username
                 }
             });
-            
+
             res.json({
                 success: true,
                 message: 'Test message sent successfully'
             });
-            
+
         } catch (error) {
             console.error('Test send message error:', error);
             res.status(500).json({
@@ -701,19 +701,19 @@ export class TelegramAdminController {
             });
         }
     }
-    
+
     /**
      * Get bot info
      */
-    async getBotInfo(req: Request, res: Response): Promise<void> {
+    async getBotInfo(req: Request, res: Response): Promise<any> {
         try {
             const botInfo = TelegramAdminService.getBotInfo();
-            
+
             res.json({
                 success: true,
                 data: botInfo
             });
-            
+
         } catch (error) {
             console.error('Get bot info error:', error);
             res.status(500).json({

@@ -14,10 +14,10 @@ export class NotificationTemplateController {
    * GET /notification/templates/page
    * Show template management page
    */
-  async showTemplatesPage(req: Request, res: Response): Promise<void> {
+  async showTemplatesPage(req: Request, res: Response): Promise<any> {
     try {
       console.log('[NotificationTemplateController] Loading templates page...');
-      
+
       // Get templates with error handling
       let templates: any[] = [];
       try {
@@ -27,7 +27,7 @@ export class NotificationTemplateController {
         console.error('[NotificationTemplateController] Error loading templates:', error);
         // Continue with empty templates array
       }
-      
+
       // Get statistics with error handling
       let stats: any = {
         total: 0,
@@ -43,7 +43,7 @@ export class NotificationTemplateController {
         console.error('[NotificationTemplateController] Error loading statistics:', error);
         // Continue with default stats
       }
-      
+
       // Group templates by notification type
       const templatesByType: { [key: string]: any[] } = {};
       templates.forEach(template => {
@@ -52,7 +52,7 @@ export class NotificationTemplateController {
         }
         templatesByType[template.notification_type].push(template);
       });
-      
+
       console.log('[NotificationTemplateController] Rendering templates page...');
       res.render('notification/templates', {
         title: 'Template Notifikasi',
@@ -73,16 +73,16 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * GET /notification/templates/edit/:code
    * Show edit template page
    */
-  async showEditTemplatePage(req: Request, res: Response): Promise<void> {
+  async showEditTemplatePage(req: Request, res: Response): Promise<any> {
     try {
       const { code } = req.params;
       const template = await NotificationTemplateService.getTemplateByCode(code);
-      
+
       if (!template) {
         res.status(404).render('error', {
           error: 'Template tidak ditemukan',
@@ -90,7 +90,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       res.render('notification/template-edit', {
         title: 'Edit Template Notifikasi',
         currentPath: '/notification/templates',
@@ -105,12 +105,12 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * GET /notification/templates/create
    * Show create template page
    */
-  async showCreateTemplatePage(req: Request, res: Response): Promise<void> {
+  async showCreateTemplatePage(req: Request, res: Response): Promise<any> {
     try {
       res.render('notification/template-create', {
         title: 'Buat Template Notifikasi',
@@ -125,21 +125,21 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * GET /api/notification/templates
    * List all notification templates (API)
    */
-  async listTemplates(req: Request, res: Response): Promise<void> {
+  async listTemplates(req: Request, res: Response): Promise<any> {
     try {
       const { notification_type, channel, is_active } = req.query;
-      
+
       const templates = await NotificationTemplateService.getAllTemplates({
         notification_type: notification_type as string,
         channel: channel as string,
         is_active: is_active === 'true' ? true : is_active === 'false' ? false : undefined
       });
-      
+
       res.json({
         success: true,
         data: templates
@@ -153,17 +153,17 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * GET /api/notification/templates/:code
    * Get template by code (API)
    */
-  async getTemplate(req: Request, res: Response): Promise<void> {
+  async getTemplate(req: Request, res: Response): Promise<any> {
     try {
       const { code } = req.params;
-      
+
       const template = await NotificationTemplateService.getTemplateByCode(code);
-      
+
       if (!template) {
         res.status(404).json({
           success: false,
@@ -171,7 +171,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       res.json({
         success: true,
         data: template
@@ -185,12 +185,12 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * POST /api/notification/templates
    * Create new template (API)
    */
-  async createTemplate(req: Request, res: Response): Promise<void> {
+  async createTemplate(req: Request, res: Response): Promise<any> {
     try {
       const {
         template_code,
@@ -204,7 +204,7 @@ export class NotificationTemplateController {
         priority,
         schedule_days_before
       } = req.body;
-      
+
       // Validation
       if (!template_code || !template_name || !notification_type || !channel || !title_template || !message_template) {
         res.status(400).json({
@@ -213,7 +213,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       // Check if template code already exists
       const existing = await NotificationTemplateService.getTemplateByCode(template_code);
       if (existing) {
@@ -223,7 +223,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       const templateId = await NotificationTemplateService.createTemplate({
         template_code,
         template_name,
@@ -236,7 +236,7 @@ export class NotificationTemplateController {
         priority: priority || 'normal',
         schedule_days_before: schedule_days_before || undefined
       });
-      
+
       res.json({
         success: true,
         message: 'Template berhasil dibuat',
@@ -251,24 +251,24 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * PUT /api/notification/templates/:code
    * Update template (API)
    */
-  async updateTemplate(req: Request, res: Response): Promise<void> {
+  async updateTemplate(req: Request, res: Response): Promise<any> {
     try {
       const { code } = req.params;
       const updates = req.body;
-      
+
       // Remove fields that shouldn't be updated
       delete updates.id;
       delete updates.template_code;
       delete updates.created_at;
       delete updates.updated_at;
-      
+
       const success = await NotificationTemplateService.updateTemplate(code, updates);
-      
+
       if (!success) {
         res.status(404).json({
           success: false,
@@ -276,7 +276,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       res.json({
         success: true,
         message: 'Template berhasil diperbarui'
@@ -290,17 +290,17 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * DELETE /api/notification/templates/:code
    * Delete template (API)
    */
-  async deleteTemplate(req: Request, res: Response): Promise<void> {
+  async deleteTemplate(req: Request, res: Response): Promise<any> {
     try {
       const { code } = req.params;
-      
+
       const success = await NotificationTemplateService.deleteTemplate(code);
-      
+
       if (!success) {
         res.status(404).json({
           success: false,
@@ -308,7 +308,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       res.json({
         success: true,
         message: 'Template berhasil dihapus'
@@ -322,17 +322,17 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * GET /api/notification/statistics
    * Get notification statistics (API)
    */
-  async getStatistics(req: Request, res: Response): Promise<void> {
+  async getStatistics(req: Request, res: Response): Promise<any> {
     try {
       const days = parseInt(req.query.days as string) || 30;
-      
+
       const stats = await UnifiedNotificationService.getStatistics(days);
-      
+
       res.json({
         success: true,
         data: stats
@@ -346,15 +346,15 @@ export class NotificationTemplateController {
       });
     }
   }
-  
+
   /**
    * POST /api/notification/test
    * Test notification template (API)
    */
-  async testTemplate(req: Request, res: Response): Promise<void> {
+  async testTemplate(req: Request, res: Response): Promise<any> {
     try {
       const { template_code, customer_id, variables } = req.body;
-      
+
       if (!template_code || !customer_id) {
         res.status(400).json({
           success: false,
@@ -362,7 +362,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       const template = await NotificationTemplateService.getTemplateByCode(template_code);
       if (!template) {
         res.status(404).json({
@@ -371,7 +371,7 @@ export class NotificationTemplateController {
         });
         return;
       }
-      
+
       // Queue test notification
       await UnifiedNotificationService.queueNotification({
         customer_id: parseInt(customer_id),
@@ -379,7 +379,7 @@ export class NotificationTemplateController {
         variables: variables || {},
         channels: [template.channel]
       });
-      
+
       res.json({
         success: true,
         message: 'Notifikasi test telah dikirim ke queue'
@@ -398,11 +398,11 @@ export class NotificationTemplateController {
    * POST /api/notification/process-queue
    * Manually process pending notifications (API)
    */
-  async processQueue(req: Request, res: Response): Promise<void> {
+  async processQueue(req: Request, res: Response): Promise<any> {
     try {
       const { NotificationScheduler } = await import('../../services/notification/NotificationScheduler');
       const result = await NotificationScheduler.processNow();
-      
+
       res.json({
         success: true,
         message: 'Queue processed successfully',
@@ -422,21 +422,21 @@ export class NotificationTemplateController {
    * GET /api/notification/whatsapp-status
    * Get WhatsApp service status (API)
    */
-  async getWhatsAppStatus(req: Request, res: Response): Promise<void> {
+  async getWhatsAppStatus(req: Request, res: Response): Promise<any> {
     try {
       const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
       const status = WhatsAppService.getStatus();
       const qrCode = WhatsAppService.getQRCode();
-      
+
       res.json({
         success: true,
         data: {
           ...status,
           qrCode: qrCode,
-          message: !status.ready 
-            ? (status.hasQRCode 
-                ? 'WhatsApp client is waiting for QR code scan. Please scan the QR code to activate WhatsApp service.'
-                : 'WhatsApp client is not initialized or disconnected. Please check server logs.')
+          message: !status.ready
+            ? (status.hasQRCode
+              ? 'WhatsApp client is waiting for QR code scan. Please scan the QR code to activate WhatsApp service.'
+              : 'WhatsApp client is not initialized or disconnected. Please check server logs.')
             : 'WhatsApp client is ready and can send messages.'
         }
       });
@@ -454,10 +454,10 @@ export class NotificationTemplateController {
    * GET /api/notification/queue-status
    * Get queue status (API)
    */
-  async getQueueStatus(req: Request, res: Response): Promise<void> {
+  async getQueueStatus(req: Request, res: Response): Promise<any> {
     try {
       const connection = await databasePool.getConnection();
-      
+
       try {
         // Get queue statistics
         const [statsRows] = await connection.query<RowDataPacket[]>(
@@ -470,7 +470,7 @@ export class NotificationTemplateController {
            FROM unified_notifications_queue
            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
         );
-        
+
         // Get recent pending notifications
         const [pendingRows] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -481,7 +481,7 @@ export class NotificationTemplateController {
            ORDER BY created_at DESC
            LIMIT 20`
         );
-        
+
         // Get recent failed notifications
         const [failedRows] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -492,7 +492,7 @@ export class NotificationTemplateController {
            ORDER BY created_at DESC
            LIMIT 10`
         );
-        
+
         res.json({
           success: true,
           data: {
@@ -518,23 +518,23 @@ export class NotificationTemplateController {
    * POST /api/notification/debug-customer/:customerId
    * Debug notification for specific customer (API)
    */
-  async debugCustomerNotification(req: Request, res: Response): Promise<void> {
+  async debugCustomerNotification(req: Request, res: Response): Promise<any> {
     try {
       const { customerId } = req.params;
       const connection = await databasePool.getConnection();
-      
+
       try {
         const debugInfo: any = {
           customerId: parseInt(customerId),
           steps: []
         };
-        
+
         // Step 1: Check customer exists
         const [customerRows] = await connection.query<RowDataPacket[]>(
           'SELECT id, name, phone, email, customer_code FROM customers WHERE id = ?',
           [customerId]
         );
-        
+
         if (customerRows.length === 0) {
           return res.status(404).json({
             success: false,
@@ -542,7 +542,7 @@ export class NotificationTemplateController {
             debug: debugInfo
           });
         }
-        
+
         const customer = customerRows[0];
         debugInfo.customer = {
           id: customer.id,
@@ -556,24 +556,24 @@ export class NotificationTemplateController {
           status: 'ok',
           message: 'Customer found'
         });
-        
+
         // Step 2: Check template exists
         const template = await NotificationTemplateService.getTemplate('customer_created', 'whatsapp');
-        
+
         if (!template) {
           debugInfo.steps.push({
             step: 2,
             status: 'error',
             message: 'Template customer_created not found or inactive'
           });
-          
+
           return res.json({
             success: false,
             message: 'Template not found',
             debug: debugInfo
           });
         }
-        
+
         debugInfo.template = {
           code: template.template_code,
           name: template.template_name,
@@ -584,7 +584,7 @@ export class NotificationTemplateController {
           status: 'ok',
           message: 'Template found and active'
         });
-        
+
         // Step 3: Check WhatsApp status
         const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
         const whatsappStatus = WhatsAppService.getStatus();
@@ -592,11 +592,11 @@ export class NotificationTemplateController {
         debugInfo.steps.push({
           step: 3,
           status: whatsappStatus.ready ? 'ok' : 'error',
-          message: whatsappStatus.ready 
-            ? 'WhatsApp client is ready' 
+          message: whatsappStatus.ready
+            ? 'WhatsApp client is ready'
             : 'WhatsApp client is not ready'
         });
-        
+
         // Step 4: Check queue for this customer
         const [queueRows] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -608,14 +608,14 @@ export class NotificationTemplateController {
            LIMIT 10`,
           [customerId]
         );
-        
+
         debugInfo.queue = queueRows;
         debugInfo.steps.push({
           step: 4,
           status: 'ok',
           message: `Found ${queueRows.length} notifications in queue`
         });
-        
+
         // Step 5: Try to queue a test notification
         if (req.query.test === 'true') {
           try {
@@ -633,7 +633,7 @@ export class NotificationTemplateController {
               },
               priority: 'normal'
             });
-            
+
             debugInfo.testNotification = {
               success: true,
               notificationIds: notificationIds
@@ -643,7 +643,7 @@ export class NotificationTemplateController {
               status: 'ok',
               message: `Test notification queued (IDs: ${notificationIds.join(', ')})`
             });
-            
+
             // Try to process immediately
             try {
               const result = await UnifiedNotificationService.sendPendingNotifications(10);
@@ -679,7 +679,7 @@ export class NotificationTemplateController {
             });
           }
         }
-        
+
         res.json({
           success: true,
           message: 'Debug information collected',
@@ -702,11 +702,11 @@ export class NotificationTemplateController {
    * GET /api/notification/recent-logs
    * Get recent notification logs for analysis (API)
    */
-  async getRecentLogs(req: Request, res: Response): Promise<void> {
+  async getRecentLogs(req: Request, res: Response): Promise<any> {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const connection = await databasePool.getConnection();
-      
+
       try {
         // Get recent queue notifications
         const [queueRows] = await connection.query<RowDataPacket[]>(
@@ -730,7 +730,7 @@ export class NotificationTemplateController {
            LIMIT ?`,
           [limit]
         );
-        
+
         // Get recent notification logs (from notification_logs table if exists)
         let notificationLogs: any[] = [];
         try {
@@ -757,7 +757,7 @@ export class NotificationTemplateController {
           // Table might not exist, that's okay
           console.log('notification_logs table not found or error:', logError.message);
         }
-        
+
         // Get customer notification logs (from customer_notifications_log if exists)
         let customerLogs: any[] = [];
         try {
@@ -782,7 +782,7 @@ export class NotificationTemplateController {
           // Table might not exist, that's okay
           console.log('customer_notifications_log table not found or error:', customerLogError.message);
         }
-        
+
         // Get statistics
         const [statsRows] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -794,7 +794,7 @@ export class NotificationTemplateController {
            FROM unified_notifications_queue
            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)`
         );
-        
+
         // Get recent customer_created notifications specifically
         const [customerCreatedRows] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -813,7 +813,7 @@ export class NotificationTemplateController {
            ORDER BY unq.created_at DESC
            LIMIT 20`
         );
-        
+
         res.json({
           success: true,
           data: {
@@ -847,16 +847,16 @@ export class NotificationTemplateController {
    * GET /api/notification/analyze
    * Analyze notification flow for debugging (API)
    */
-  async analyzeNotificationFlow(req: Request, res: Response): Promise<void> {
+  async analyzeNotificationFlow(req: Request, res: Response): Promise<any> {
     try {
       const connection = await databasePool.getConnection();
-      
+
       try {
         const analysis: any = {
           timestamp: new Date().toISOString(),
           checks: []
         };
-        
+
         // Check 1: Template exists and active
         const template = await NotificationTemplateService.getTemplate('customer_created', 'whatsapp');
         analysis.checks.push({
@@ -868,7 +868,7 @@ export class NotificationTemplateController {
             is_active: template.is_active
           } : null
         });
-        
+
         // Check 2: WhatsApp status
         const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
         const whatsappStatus = WhatsAppService.getStatus();
@@ -877,7 +877,7 @@ export class NotificationTemplateController {
           status: whatsappStatus.ready ? 'ready' : 'not_ready',
           details: whatsappStatus
         });
-        
+
         // Check 3: Recent queue status
         const [recentQueue] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -893,7 +893,7 @@ export class NotificationTemplateController {
           status: 'ok',
           details: recentQueue[0] || {}
         });
-        
+
         // Check 4: Recent customer_created notifications
         const [customerCreated] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -908,7 +908,7 @@ export class NotificationTemplateController {
           status: customerCreated.length > 0 ? 'found' : 'none',
           details: customerCreated
         });
-        
+
         // Check 5: Failed notifications with errors
         const [failed] = await connection.query<RowDataPacket[]>(
           `SELECT 
@@ -924,15 +924,15 @@ export class NotificationTemplateController {
           status: failed.length > 0 ? 'has_errors' : 'no_errors',
           details: failed
         });
-        
+
         // Summary
-        const allOk = analysis.checks.every((c: any) => 
+        const allOk = analysis.checks.every((c: any) =>
           c.status === 'ok' || c.status === 'ready' || c.status === 'found' || c.status === 'none' || c.status === 'no_errors'
         );
-        
+
         analysis.summary = {
           allChecksPassed: allOk,
-          issues: analysis.checks.filter((c: any) => 
+          issues: analysis.checks.filter((c: any) =>
             c.status !== 'ok' && c.status !== 'ready' && c.status !== 'found' && c.status !== 'none' && c.status !== 'no_errors'
           ).map((c: any) => ({
             check: c.check,
@@ -940,7 +940,7 @@ export class NotificationTemplateController {
             details: c.details
           }))
         };
-        
+
         res.json({
           success: true,
           analysis: analysis

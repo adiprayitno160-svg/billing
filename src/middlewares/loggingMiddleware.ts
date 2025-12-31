@@ -7,7 +7,7 @@ import { BillingLogService } from '../services/billing/BillingLogService';
 export function loggingMiddleware(req: Request, res: Response, next: NextFunction): void {
     const startTime = Date.now();
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Add request ID to request object
     (req as any).requestId = requestId;
 
@@ -24,15 +24,15 @@ export function loggingMiddleware(req: Request, res: Response, next: NextFunctio
             ip: req.ip || req.connection.remoteAddress,
             userAgent: req.get('user-agent')
         }
-    ).catch(() => {}); // Non-blocking
+    ).catch(() => { }); // Non-blocking
 
     // Override res.end to log response
     const originalEnd = res.end;
-    res.end = function(chunk?: any, encoding?: any): Response {
+    res.end = function (chunk?: any, encoding?: any): any {
         const responseTime = Date.now() - startTime;
-        const logLevel: 'info' | 'warning' | 'error' = 
-            res.statusCode >= 500 ? 'error' : 
-            res.statusCode >= 400 ? 'warning' : 'info';
+        const logLevel: 'info' | 'warning' | 'error' =
+            res.statusCode >= 500 ? 'error' :
+                res.statusCode >= 400 ? 'warning' : 'info';
 
         BillingLogService.log({
             level: logLevel,
@@ -50,9 +50,9 @@ export function loggingMiddleware(req: Request, res: Response, next: NextFunctio
             ipAddress: req.ip || req.connection.remoteAddress || undefined,
             userAgent: req.get('user-agent') || undefined,
             userId: (req as any).user?.id
-        }).catch(() => {}); // Non-blocking
+        }).catch(() => { }); // Non-blocking
 
-        originalEnd.call(this, chunk, encoding);
+        return originalEnd.call(this, chunk, encoding);
     };
 
     next();
@@ -81,7 +81,7 @@ export function errorLoggingMiddleware(
             statusCode: res.statusCode || 500,
             stack: error.stack
         }
-    ).catch(() => {}); // Non-blocking
+    ).catch(() => { }); // Non-blocking
 
     next(error);
 }

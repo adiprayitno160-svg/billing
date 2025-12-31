@@ -14,7 +14,7 @@ export class TelegramUserController {
      * GET /monitoring/telegram/users
      * List all Telegram users
      */
-    async listUsers(req: Request, res: Response): Promise<void> {
+    async listUsers(req: Request, res: Response): Promise<any> {
         try {
             const [users] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -51,7 +51,7 @@ export class TelegramUserController {
      * GET /monitoring/telegram/create-invite
      * Show create invite form
      */
-    async showCreateInvite(req: Request, res: Response): Promise<void> {
+    async showCreateInvite(req: Request, res: Response): Promise<any> {
         try {
             // Get areas from customers
             const [areas] = await pool.query<RowDataPacket[]>(`
@@ -81,7 +81,7 @@ export class TelegramUserController {
      * POST /api/monitoring/telegram/create-invite
      * Create new invite code
      */
-    async createInvite(req: Request, res: Response): Promise<void> {
+    async createInvite(req: Request, res: Response): Promise<any> {
         try {
             const { role, areas } = req.body;
             const userId = (req.user as any)?.id;
@@ -131,7 +131,7 @@ export class TelegramUserController {
      * POST /api/monitoring/telegram/users/:id/deactivate
      * Deactivate user
      */
-    async deactivateUser(req: Request, res: Response): Promise<void> {
+    async deactivateUser(req: Request, res: Response): Promise<any> {
         try {
             const { id } = req.params;
             if (!id) {
@@ -164,7 +164,7 @@ export class TelegramUserController {
      * POST /api/monitoring/telegram/users/:id/activate
      * Activate user
      */
-    async activateUser(req: Request, res: Response): Promise<void> {
+    async activateUser(req: Request, res: Response): Promise<any> {
         try {
             const { id } = req.params;
             if (!id) {
@@ -197,7 +197,7 @@ export class TelegramUserController {
      * DELETE /api/monitoring/telegram/users/:id
      * Delete user
      */
-    async deleteUser(req: Request, res: Response): Promise<void> {
+    async deleteUser(req: Request, res: Response): Promise<any> {
         try {
             const { id } = req.params;
             if (!id) {
@@ -229,7 +229,7 @@ export class TelegramUserController {
      * GET /api/monitoring/telegram/bot-info
      * Get bot information
      */
-    async getBotInfo(req: Request, res: Response): Promise<void> {
+    async getBotInfo(req: Request, res: Response): Promise<any> {
         try {
             const botInfo = telegramBotService.getBotInfo();
 
