@@ -345,7 +345,12 @@ export class WhatsAppServiceBaileys {
         }
 
         try {
-            const formattedPhone = this.formatPhoneNumber(phone);
+            // Check if phone already has JID suffix (@s.whatsapp.net or @lid)
+            let formattedPhone = phone;
+            if (!phone.includes('@')) {
+                // Only format if it doesn't have suffix
+                formattedPhone = this.formatPhoneNumber(phone);
+            }
 
             if (!formattedPhone) {
                 return { success: false, error: 'Invalid phone number format' };
