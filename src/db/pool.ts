@@ -209,6 +209,15 @@ export async function ensureInitialSchema(): Promise<void> {
 		)`);
 
 		// Create FTTH tables
+		await conn.query(`CREATE TABLE IF NOT EXISTS ftth_areas (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			code VARCHAR(50) UNIQUE NOT NULL,
+			name VARCHAR(100) NOT NULL,
+			description TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
 		await conn.query(`CREATE TABLE IF NOT EXISTS ftth_olt (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(191) NOT NULL,
@@ -226,6 +235,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			olt_id INT NOT NULL,
 			name VARCHAR(191) NOT NULL,
+			area_id INT NULL,
 			location VARCHAR(191) NULL,
 			latitude DECIMAL(10,7) NULL,
 			longitude DECIMAL(10,7) NULL,
@@ -234,7 +244,8 @@ export async function ensureInitialSchema(): Promise<void> {
 			notes TEXT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			CONSTRAINT fk_odc_olt FOREIGN KEY (olt_id) REFERENCES ftth_olt(id) ON DELETE CASCADE
+			CONSTRAINT fk_odc_olt FOREIGN KEY (olt_id) REFERENCES ftth_olt(id) ON DELETE CASCADE,
+			CONSTRAINT fk_odc_area FOREIGN KEY (area_id) REFERENCES ftth_areas(id) ON DELETE SET NULL
 		)`);
 
 		await conn.query(`CREATE TABLE IF NOT EXISTS ftth_odp (
@@ -336,6 +347,20 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Ensure mikrotik_address_list_items has required columns
 		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN customer_id INT NULL AFTER id`);
 		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN list_name VARCHAR(191) NULL AFTER customer_id`);
+
+		// Ensure ftth_odc has area_id column
+		try {
+			await addCol(`ALTER TABLE ftth_odc ADD COLUMN area_id INT NULL AFTER name`);
+			// Add Foreign Key separately to avoid syntax error if column already exists but key doesn't? 
+			// addCol handles "Duplicate column", but not constraints.
+			// Let's just try to add the constraint.
+			await conn.query(`ALTER TABLE ftth_odc ADD CONSTRAINT fk_odc_area FOREIGN KEY (area_id) REFERENCES ftth_areas(id) ON DELETE SET NULL`);
+		} catch (err: any) {
+			// Ignore if constraint already exists
+			if (!err.message.includes('Duplicate key') && !err.message.includes('already exists')) {
+				// console.error('Warning: Could not add fk_odc_area constraint:', err.message);
+			}
+		}
 
 		// Create maintenance_schedules table for trouble monitoring
 		await conn.query(`CREATE TABLE IF NOT EXISTS maintenance_schedules (
