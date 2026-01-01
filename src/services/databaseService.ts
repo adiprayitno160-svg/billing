@@ -1,4 +1,5 @@
 import { databasePool } from '../db/pool';
+import { RowDataPacket } from 'mysql2';
 
 export interface DatabaseStatus {
     connected: boolean;
@@ -188,6 +189,44 @@ export async function checkDatabaseSchema(): Promise<SchemaIssue[]> {
             }
         }
 
+        // Check for missing columns in ai_settings
+        try {
+            const [columns] = await conn.execute('SHOW COLUMNS FROM ai_settings');
+            const aiColumns = (columns as RowDataPacket[]).map(col => col.Field);
+
+            const requiredAiColumns = [
+                { name: 'min_confidence', def: 'INT DEFAULT 70', after: 'auto_approve_enabled' },
+                { name: 'risk_threshold', def: 'VARCHAR(20) DEFAULT "medium"', after: 'min_confidence' },
+                { name: 'max_age_days', def: 'INT DEFAULT 7', after: 'risk_threshold' },
+                { name: 'model', def: 'VARCHAR(100) DEFAULT "gemini-1.5-pro"', after: 'api_key' },
+                { name: 'enabled', def: 'TINYINT(1) DEFAULT 1', after: 'model' },
+                { name: 'auto_approve_enabled', def: 'TINYINT(1) DEFAULT 1', after: 'enabled' }
+            ];
+
+            for (const col of requiredAiColumns) {
+                if (!aiColumns.includes(col.name)) {
+                    issues.push({
+                        table: 'ai_settings',
+                        issue: `Missing column ${col.name}`,
+                        severity: 'high',
+                        description: `Kolom ${col.name} tidak ditemukan di tabel ai_settings`,
+                        fixCommand: `ALTER TABLE ai_settings ADD COLUMN ${col.name} ${col.def} AFTER ${col.after}`
+                    });
+                }
+            }
+        } catch (error: any) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes("doesn't exist")) {
+                issues.push({
+                    table: 'ai_settings',
+                    issue: 'Missing table ai_settings',
+                    severity: 'high',
+                    description: 'Tabel ai_settings tidak ditemukan',
+                    fixCommand: 'CREATE TABLE ai_settings ... (handled by migration)'
+                });
+            }
+        }
+
     } finally {
         conn.release();
     }
@@ -262,6 +301,36 @@ export async function fixMissingColumns(): Promise<void> {
             if (String(error).includes('already exists')) {
                 throw error;
             }
+        }
+
+        // Fix ai_settings columns
+        try {
+            const [columns] = await conn.execute('SHOW COLUMNS FROM ai_settings');
+            const aiColumns = (columns as RowDataPacket[]).map(col => col.Field);
+
+            const requiredAiColumns = [
+                { name: 'model', def: 'VARCHAR(100) DEFAULT "gemini-1.5-pro"', after: 'api_key' },
+                { name: 'enabled', def: 'TINYINT(1) DEFAULT 1', after: 'model' },
+                { name: 'auto_approve_enabled', def: 'TINYINT(1) DEFAULT 1', after: 'enabled' },
+                { name: 'min_confidence', def: 'INT DEFAULT 70', after: 'auto_approve_enabled' },
+                { name: 'risk_threshold', def: 'VARCHAR(20) DEFAULT "medium"', after: 'min_confidence' },
+                { name: 'max_age_days', def: 'INT DEFAULT 7', after: 'risk_threshold' }
+            ];
+
+            for (const col of requiredAiColumns) {
+                if (!aiColumns.includes(col.name)) {
+                    try {
+                        await conn.execute(`ALTER TABLE ai_settings ADD COLUMN ${col.name} ${col.def} AFTER ${col.after}`);
+                        console.log(`Auto-fixed: Added column ${col.name} to ai_settings`);
+                    } catch (err: any) {
+                        if (!String(err).includes('Duplicate column name')) {
+                            console.log(`Warning adding column ${col.name}:`, err.message);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('Error fixing ai_settings columns (table might need creation first)', error);
         }
 
         await conn.commit();
