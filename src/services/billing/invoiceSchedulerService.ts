@@ -208,7 +208,7 @@ export class InvoiceSchedulerService {
     /**
      * Manually trigger invoice generation
      */
-    static async triggerManualGeneration(period?: string): Promise<{
+    static async triggerManualGeneration(period?: string, customerId?: number): Promise<{
         success: boolean;
         message: string;
         created_count?: number;
@@ -227,7 +227,8 @@ export class InvoiceSchedulerService {
             const dueDateOffset = settings?.due_date_offset || 7;
 
             // Get all active subscriptions
-            const subscriptionsQuery = `
+            // Use REPLACE to allow filtering by specific customer if provided
+            let subscriptionsQuery = `
                 SELECT 
                     s.*,
                     c.name as customer_name,
@@ -245,7 +246,22 @@ export class InvoiceSchedulerService {
                 )
             `;
 
-            const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, [targetPeriod]);
+            const queryParams: any[] = [targetPeriod];
+
+            if (customerId) {
+                subscriptionsQuery += ` AND s.customer_id = ?`;
+                queryParams.push(customerId);
+            }
+
+            const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
+
+            if (customerId && subscriptions.length === 0) {
+                await conn.rollback();
+                return {
+                    success: false,
+                    message: 'Tidak ada langganan aktif yang belum ditagih untuk periode ini.'
+                };
+            }
 
             let createdCount = 0;
             const errors: string[] = [];
@@ -261,6 +277,9 @@ export class InvoiceSchedulerService {
                         // Use Fixed Day if configured (e.g., 28th of the month)
                         if (settings.due_date_fixed_day && settings.due_date_fixed_day >= 1 && settings.due_date_fixed_day <= 28) {
                             dueDate.setDate(settings.due_date_fixed_day);
+                            if (dueDate < periodDate) {
+                                dueDate.setMonth(dueDate.getMonth() + 1);
+                            }
                         } else {
                             // Fallback to offset
                             dueDate.setDate(dueDate.getDate() + dueDateOffset);
