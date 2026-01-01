@@ -125,23 +125,42 @@ export class WhatsAppBotService {
 
             const customer = await this.validateCustomer(phone);
             if (!customer) {
-                // Check if user has active registration session OR start new one
-                console.log('[WhatsAppBot] 📝 Customer not found, redirecting to registration flow...');
+                // UNREGISTERED USER HANDLING
 
-                // Handle registration flow for unregistered numbers
-                try {
-                    const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
-                    await this.sendMessage(phone, registrationResponse);
-                    console.log('[WhatsAppBot] ✅ Registration step processed');
-                } catch (regError: any) {
-                    console.error('[WhatsAppBot] ❌ Error in registration flow:', regError);
-                    await this.sendMessage(
-                        phone,
-                        '❌ *Terjadi Kesalahan*\n\n' +
-                        'Maaf, terjadi kesalahan saat memproses pendaftaran.\n' +
-                        'Silakan coba lagi atau hubungi customer service.'
-                    );
+                // Allow explicit registration command
+                if (body.toLowerCase() === '/daftar' || body.toLowerCase() === '/reg') {
+                    console.log('[WhatsAppBot] 📝 Starting registration for new user...');
+                    try {
+                        const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
+                        await this.sendMessage(phone, registrationResponse);
+                    } catch (regError: any) {
+                        console.error('[WhatsAppBot] ❌ Error in registration:', regError);
+                        await this.sendMessage(phone, '❌ Terjadi kesalahan saat registrasi.');
+                    }
+                    return;
                 }
+
+                // Check if already in registration session
+                if (WhatsAppRegistrationService.hasActiveSession(phone)) {
+                    console.log('[WhatsAppBot] 📝 Continuing registration session...');
+                    try {
+                        const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
+                        await this.sendMessage(phone, registrationResponse);
+                    } catch (regError: any) {
+                        console.error('[WhatsAppBot] ❌ Error in registration session:', regError);
+                    }
+                    return;
+                }
+
+                // Default: Reject unregistered users
+                console.log('[WhatsAppBot] ⛔ Unregistered user rejected');
+                await this.sendMessage(
+                    phone,
+                    '⛔ *Akses Ditolak*\n\n' +
+                    'Maaf, nomor Anda belum terdaftar di sistem kami.\n\n' +
+                    'Jika Anda pelanggan baru, ketik */daftar* untuk registrasi.\n' +
+                    'Jika Anda pelanggan lama, hubungi Admin untuk update nomor HP.'
+                );
                 return;
             }
 
