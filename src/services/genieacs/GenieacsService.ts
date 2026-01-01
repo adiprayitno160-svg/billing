@@ -311,15 +311,44 @@ export class GenieacsService {
     }
 
     getSignalInfo(device: any): any {
-        const getVal = (path: string) => this.getDeviceParameter(device, path);
+        const findVal = (paths: string[]) => {
+            for (const path of paths) {
+                const val = this.getDeviceParameter(device, path);
+                if (val !== null && val !== undefined && val !== '') return val;
+            }
+            return null;
+        };
 
-        // Huawei Optical Info Paths
-        const rx = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower');
-        const tx = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower');
-        const temp = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature');
+        // Aggressive optical info paths for Huawei, common ZTE & TR-181 standard
+        const rx = findVal([
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.RxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower',
+            'Device.Optical.Interface.1.Stats.RxOpticalPower',
+            'Device.Optical.Interface.1.RXPower'
+        ]);
 
-        // WiFi Clients - Huawei
-        const clients = getVal('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations');
+        const tx = findVal([
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.TxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower',
+            'Device.Optical.Interface.1.Stats.TxOpticalPower',
+            'Device.Optical.Interface.1.TXPower'
+        ]);
+
+        const temp = findVal([
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature',
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.Temperature',
+            'Device.Optical.Interface.1.Stats.Temperature',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.Temperature'
+        ]);
+
+        const clients = findVal([
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDeviceNumberOfEntities',
+            'Device.WiFi.SSID.1.Stats.TotalAssociations',
+            'Device.WiFi.AccessPoint.1.AssociatedDeviceNumberOfEntities'
+        ]);
 
         return {
             rxPower: rx || 'N/A',
@@ -330,13 +359,30 @@ export class GenieacsService {
     }
 
     getDeviceParameter(device: any, path: string): any {
+        if (!device) return null;
+
+        // 1. Try direct access first (some GenieACS responses are flat)
+        if (device[path] !== undefined) {
+            const node = device[path];
+            return (node && typeof node === 'object' && '_value' in node) ? node._value : node;
+        }
+
+        // 2. Try nested access
         const parts = path.split('.');
         let current = device;
         for (const part of parts) {
-            if (current && current[part] !== undefined) current = current[part];
-            else return null;
+            if (current && current[part] !== undefined) {
+                current = current[part];
+            } else {
+                return null;
+            }
         }
-        return (current && typeof current === 'object' && '_value' in current) ? current._value : current;
+
+        // Handle GenieACS _value format or direct value
+        if (current && typeof current === 'object') {
+            return ('_value' in current) ? current._value : null;
+        }
+        return current;
     }
 
     /**
