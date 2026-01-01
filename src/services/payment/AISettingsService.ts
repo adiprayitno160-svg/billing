@@ -54,10 +54,13 @@ export class AISettingsService {
                 }
             };
 
+            // Ensure columns exist (for migration)
+            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-1.5-pro"', 'api_key');
+            await ensureColumn('enabled', 'TINYINT(1) DEFAULT 1', 'model');
+            await ensureColumn('auto_approve_enabled', 'TINYINT(1) DEFAULT 1', 'enabled');
+            await ensureColumn('min_confidence', 'INT DEFAULT 70', 'auto_approve_enabled');
             await ensureColumn('risk_threshold', 'VARCHAR(20) DEFAULT "medium"', 'min_confidence');
             await ensureColumn('max_age_days', 'INT DEFAULT 7', 'risk_threshold');
-            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-1.5-pro"', 'api_key');
-            await ensureColumn('auto_approve_enabled', 'TINYINT(1) DEFAULT 1', 'enabled');
 
             // Insert default settings if not exists
             const [existing] = await databasePool.query<RowDataPacket[]>(
