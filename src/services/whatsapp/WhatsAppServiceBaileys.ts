@@ -588,6 +588,7 @@ export class WhatsAppServiceBaileys {
 
             this.sock = null;
             this.isInitialized = false;
+            this.isInitializing = false; // Fix: Reset initializing flag
             this.isConnected = false;
             this.currentQRCode = null;
         }
