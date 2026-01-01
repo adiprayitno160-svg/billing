@@ -38,20 +38,26 @@ export class AISettingsService {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
-            // Helper to add column if not exists
-            const addCol = async (sql: string) => {
-                try { await databasePool.query(sql); } catch (err: any) {
-                    if (!String(err).includes('Duplicate column name')) {
-                        console.error('Column addition warning:', err.message);
+            // Check existing columns
+            const [columns] = await databasePool.query<RowDataPacket[]>('SHOW COLUMNS FROM ai_settings');
+            const columnNames = columns.map(col => col.Field);
+
+            // Helper to add column if missing
+            const ensureColumn = async (colName: string, colDef: string, afterCol: string) => {
+                if (!columnNames.includes(colName)) {
+                    try {
+                        await databasePool.query(`ALTER TABLE ai_settings ADD COLUMN ${colName} ${colDef} AFTER ${afterCol}`);
+                        console.log(`Column ${colName} added to ai_settings`);
+                    } catch (err) {
+                        console.error(`Failed to add column ${colName}:`, err);
                     }
                 }
             };
 
-            // Ensure columns exist (for migration)
-            await addCol('ALTER TABLE ai_settings ADD COLUMN risk_threshold VARCHAR(20) DEFAULT "medium" AFTER min_confidence');
-            await addCol('ALTER TABLE ai_settings ADD COLUMN max_age_days INT DEFAULT 7 AFTER risk_threshold');
-            await addCol('ALTER TABLE ai_settings ADD COLUMN model VARCHAR(100) DEFAULT "gemini-1.5-pro" AFTER api_key');
-            await addCol('ALTER TABLE ai_settings ADD COLUMN auto_approve_enabled TINYINT(1) DEFAULT 1 AFTER enabled');
+            await ensureColumn('risk_threshold', 'VARCHAR(20) DEFAULT "medium"', 'min_confidence');
+            await ensureColumn('max_age_days', 'INT DEFAULT 7', 'risk_threshold');
+            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-1.5-pro"', 'api_key');
+            await ensureColumn('auto_approve_enabled', 'TINYINT(1) DEFAULT 1', 'enabled');
 
             // Insert default settings if not exists
             const [existing] = await databasePool.query<RowDataPacket[]>(
