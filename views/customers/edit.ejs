@@ -157,6 +157,96 @@
                 </div>
             </div>
 
+            <!-- Billing Mode Configuration -->
+            <div
+                class="rounded-xl border border-modern-indigo-200 bg-gradient-to-br from-modern-indigo-50 to-modern-purple-50 p-6">
+                <h3 class="text-lg font-bold text-modern-indigo-900 mb-4">💳 Mode Pembayaran</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Billing Mode -->
+                    <div>
+                        <label for="billing_mode" class="block text-sm font-medium text-modern-indigo-700 mb-2">
+                            Sistem Pembayaran
+                        </label>
+                        <select id="billing_mode" name="billing_mode"
+                            class="w-full px-4 py-3 border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-2 focus:ring-modern-indigo-200 transition-all duration-300">
+                            <option value="postpaid" <%=(customer.billing_mode==='postpaid' || !customer.billing_mode)
+                                ? 'selected' : '' %>>
+                                📅 Pascabayar (Tagihan Bulanan)
+                            </option>
+                            <option value="prepaid" <%=customer.billing_mode==='prepaid' ? 'selected' : '' %>>
+                                💰 Prabayar (Isi Ulang)
+                            </option>
+                        </select>
+                        <p class="text-xs text-modern-indigo-600 mt-1">
+                            Pascabayar: Tagihan dikirim tiap bulan | Prabayar: Bayar dulu, internet aktif
+                        </p>
+                    </div>
+
+                    <!-- Bonus Days for Prepaid -->
+                    <div id="prepaid_bonus_container"
+                        class="<%= customer.billing_mode === 'prepaid' ? '' : 'hidden' %>">
+                        <label for="prepaid_bonus_days" class="block text-sm font-medium text-modern-indigo-700 mb-2">
+                            Bonus Hari (Jika Pindah ke Prabayar)
+                        </label>
+                        <input type="number" id="prepaid_bonus_days" name="prepaid_bonus_days" value="1" min="0"
+                            max="365"
+                            class="w-full px-4 py-3 border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-2 focus:ring-modern-indigo-200 transition-all duration-300"
+                            placeholder="1">
+                        <p class="text-xs text-modern-indigo-600 mt-1">
+                            Berapa hari bonus saat pindah ke prabayar?
+                        </p>
+                    </div>
+
+                    <!-- Expiry Date Display (for Prepaid) -->
+                    <% if (customer.billing_mode==='prepaid' && customer.expiry_date) { %>
+                        <div class="md:col-span-2">
+                            <div class="p-4 bg-white border border-modern-indigo-200 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-sm font-medium text-modern-indigo-700">⏰ Masa Aktif
+                                            Sampai:</span>
+                                        <p class="text-lg font-bold text-modern-indigo-900 mt-1">
+                                            <%= new Date(customer.expiry_date).toLocaleString('id-ID', {
+                                                dateStyle: 'full' , timeStyle: 'short' }) %>
+                                        </p>
+                                    </div>
+                                    <% const expiryDate=new Date(customer.expiry_date); const now=new Date(); const
+                                        isExpired=expiryDate <=now; %>
+                                        <div class="text-right">
+                                            <% if (isExpired) { %>
+                                                <span
+                                                    class="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full">
+                                                    ⚠️ Expired
+                                                </span>
+                                                <% } else { %>
+                                                    <span
+                                                        class="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+                                                        ✅ Aktif
+                                                    </span>
+                                                    <% } %>
+                                                        <p class="text-xs text-slate-500 mt-1">
+                                                            <%= isExpired ? 'Sudah kadaluarsa' : 'Masih aktif' %>
+                                                        </p>
+                                        </div>
+                                </div>
+                            </div>
+                        </div>
+                        <% } %>
+                </div>
+
+                <!-- Info Box -->
+                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <strong>ℹ️ Informasi:</strong>
+                    </p>
+                    <ul class="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                        <li><strong>Pascabayar:</strong> Pelanggan menerima tagihan bulanan otomatis</li>
+                        <li><strong>Prabayar:</strong> Pelanggan harus isi ulang sebelum masa aktif habis (via WhatsApp
+                            Bot dengan perintah <code>/beli</code>)</li>
+                        <li>Saat pindah ke prabayar, sistem akan mengirim notifikasi WhatsApp otomatis ke pelanggan</li>
+                    </ul>
+                </div>
+            </div>
 
 
             <!-- PPPOE Configuration -->
@@ -786,6 +876,21 @@
                 }
             });
         });
+
+        // Billing Mode toggle handler
+        const billingModeSelect = document.getElementById('billing_mode');
+        const prepaidBonusContainer = document.getElementById('prepaid_bonus_container');
+
+        if (billingModeSelect && prepaidBonusContainer) {
+            billingModeSelect.addEventListener('change', function () {
+                if (this.value === 'prepaid') {
+                    prepaidBonusContainer.classList.remove('hidden');
+                } else {
+                    prepaidBonusContainer.classList.add('hidden');
+                }
+            });
+        }
+
 
         // Add form validation on submit - MUST be isolated from map errors
         try {

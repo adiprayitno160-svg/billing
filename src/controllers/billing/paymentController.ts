@@ -3,6 +3,7 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
 import { PaymentGatewayService } from '../../services/payment/PaymentGatewayService';
+import SLAMonitoringService from '../../services/slaMonitoringService';
 
 export class PaymentController {
     private billingPaymentService: BillingPaymentIntegration;
@@ -1137,11 +1138,73 @@ export class PaymentController {
                 invoice.customer_id
             );
 
+            // --- SLA Discount Logic ---
+            let slaDiscount = null;
+            try {
+                // Determine period date from invoice
+                let periodDate = new Date();
+                if (invoice.period && /^\d{4}-\d{2}$/.test(invoice.period)) {
+                    const parts = invoice.period.split('-');
+                    // Create date: Year, Month (0-indexed), Day 1
+                    periodDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                } else if (invoice.created_at) {
+                    periodDate = new Date(invoice.created_at);
+                    periodDate.setDate(1); // Force to start of month
+                }
+
+                // Use ensureSLARecord to calculate on the fly if missing (e.g. new month)
+                const slaRecord = await SLAMonitoringService.ensureSLARecord(invoice.customer_id, periodDate);
+
+                if (slaRecord) {
+                    // Check if SLA criteria is met
+                    const isSlaMet = slaRecord.sla_percentage >= slaRecord.sla_target;
+
+                    // Calculate effective discount percentage based on amount
+                    // Calculate effective discount percentage based on amount
+                    let discountPercent = Number(slaRecord.sla_target) - Number(slaRecord.sla_percentage);
+                    if (discountPercent < 0) discountPercent = 0;
+
+                    // Use values from record if available, otherwise estimate
+                    const discountAmount = Number(slaRecord.discount_amount || 0);
+
+                    slaDiscount = {
+                        applicable: true,
+                        sla_target: parseFloat(String(slaRecord.sla_target || 99.0)),
+                        uptime_percentage: parseFloat(String(slaRecord.sla_percentage || 100)),
+                        total_downtime_minutes: parseInt(String(slaRecord.downtime_minutes || 0)),
+                        incident_count: parseInt(String(slaRecord.incident_count || 0)),
+                        discount_amount: discountAmount,
+                        discount_percentage: discountPercent,
+                        sla_met: isSlaMet
+                    };
+
+                    console.log(`[PaymentController] SLA Info for Invoice ${invoiceId}:`, slaDiscount);
+                } else {
+                    console.log(`[PaymentController] No SLA record found for customer ${invoice.customer_id} period ${periodDate.toISOString().slice(0, 7)}`);
+                    // Create default object to trigger "Unavailable" view state
+                    slaDiscount = {
+                        applicable: false, // This will trigger the 'else' block in the view
+                        sla_target: 0,
+                        uptime_percentage: 0,
+                        total_downtime_minutes: 0,
+                        incident_count: 0,
+                        discount_amount: 0,
+                        discount_percentage: 0,
+                        sla_met: false
+                    };
+                }
+            } catch (slaError) {
+                console.error('Error fetching SLA info for payment form:', slaError);
+                // Even on error, pass empty object so the view doesn't crash
+                slaDiscount = { applicable: false };
+            }
+
             res.render('billing/payment-form', {
                 title: 'Form Pembayaran',
                 invoice,
                 gateways,
-                availableMethods
+                availableMethods,
+                slaDiscount
             });
 
         } catch (error) {

@@ -482,7 +482,7 @@ export class DiscountService {
 
         // Apply
         const discountId = await this.applyManualDiscount({
-            invoiceId: invoiceId, // Note: interface expects snake_case in some places, let's fix that if needed. 
+
             // The interface DiscountData uses snake_case: invoice_id. But applyManualDiscount implementation takes camelCase object?
             // Let's check the interface definition in this file.
             // Interface DiscountData uses snake_case: invoice_id, discount_type...

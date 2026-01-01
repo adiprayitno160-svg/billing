@@ -387,7 +387,8 @@ export class MonitoringController {
                     totalCount,
                     limit
                 },
-                filters: { search, status, ping_status: pingStatus }
+                filters: { search, status, ping_status: pingStatus },
+                layout: 'layouts/main'
             });
         } catch (error) {
             console.error('Error monitoring Static IP:', error);

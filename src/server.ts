@@ -281,6 +281,14 @@ async function start() {
 		// Initialize invoice auto-generation scheduler
 		await InvoiceSchedulerService.initialize();
 
+		// Initialize prepaid scheduler (auto-disable expired customers)
+		try {
+			const { PrepaidScheduler } = await import('./services/billing/PrepaidScheduler');
+			PrepaidScheduler.initialize();
+			console.log('✅ Prepaid scheduler initialized');
+		} catch (error) {
+			console.error('⚠️ Error initializing prepaid scheduler (non-critical):', error);
+		}
 
 
 		// Initialize Notification Scheduler

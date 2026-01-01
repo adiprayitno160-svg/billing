@@ -1,36 +1,36 @@
 import { Request, Response, NextFunction } from 'express';
-import { 
-    listStaticIpPackages, 
-    getStaticIpPackageById, 
-    createStaticIpPackage, 
-    updateStaticIpPackage, 
-    deleteStaticIpPackage,
-    createMikrotikQueues,
-    deleteMikrotikQueuesOnly
+import {
+	listStaticIpPackages,
+	getStaticIpPackageById,
+	createStaticIpPackage,
+	updateStaticIpPackage,
+	deleteStaticIpPackage,
+	createMikrotikQueues,
+	deleteMikrotikQueuesOnly
 } from '../services/staticIpPackageService';
 
 export async function getStaticIpPackageList(req: Request, res: Response, next: NextFunction) {
 	try {
 		const packages = await listStaticIpPackages();
-		res.render('packages/static_ip_packages', { 
-			title: 'Paket IP Static', 
+		res.render('packages/static_ip_packages', {
+			title: 'Paket IP Static',
 			packages,
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
 export async function getStaticIpPackageAdd(req: Request, res: Response, next: NextFunction) {
 	try {
-		res.render('packages/static_ip_add', { 
+		res.render('packages/static_ip_add', {
 			title: 'Tambah Paket IP Static',
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
@@ -38,26 +38,26 @@ export async function getStaticIpPackageEdit(req: Request, res: Response, next: 
 	try {
 		const id = Number(req.params.id);
 		const packageData = await getStaticIpPackageById(id);
-		
+
 		if (!packageData) {
 			req.flash('error', 'Paket tidak ditemukan');
 			return res.redirect('/packages/static-ip');
 		}
-		
-		res.render('packages/static_ip_edit', { 
+
+		res.render('packages/static_ip_edit', {
 			title: 'Edit Paket IP Static',
 			package: packageData,
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
 export async function postStaticIpPackageCreate(req: Request, res: Response, next: NextFunction) {
 	try {
-		const { 
-			name, 
+		const {
+			name,
 			parent_upload_name,
 			parent_download_name,
 			max_limit_upload,
@@ -81,9 +81,9 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			child_burst_threshold_upload,
 			child_burst_time_download,
 			child_burst_time_upload,
-			price, 
-			duration_days, 
-			status, 
+			price,
+			duration_days,
+			status,
 			description
 		} = req.body;
 
@@ -95,19 +95,21 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 		if (!max_clients || Number(max_clients) < 1) throw new Error('Max clients harus minimal 1');
 		if (!child_upload_name) throw new Error('Child upload name wajib diisi');
 		if (!child_download_name) throw new Error('Child download name wajib diisi');
+		// ... (previous checks)
+		if (!child_download_name) throw new Error('Child download name wajib diisi');
 		if (!price || Number(price) < 0) throw new Error('Harga harus lebih dari 0');
-		if (!duration_days || Number(duration_days) < 1) throw new Error('Durasi harus minimal 1 hari');
+		// Removed mandatory duration check, defaulted to 30
 
 		await createStaticIpPackage({
 			name,
 			parent_upload_name,
 			parent_download_name,
-            max_limit_upload,
-            max_limit_download,
-            max_clients: Number(max_clients),
-            child_upload_name,
-            child_download_name,
-            child_upload_limit: child_upload_limit || undefined,
+			max_limit_upload,
+			max_limit_download,
+			max_clients: Number(max_clients),
+			child_upload_name,
+			child_download_name,
+			child_upload_limit: child_upload_limit || undefined,
 			child_download_limit: child_download_limit || undefined,
 			child_limit_at_upload: child_limit_at_upload || undefined,
 			child_limit_at_download: child_limit_at_download || undefined,
@@ -121,15 +123,15 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			child_burst_threshold_upload: child_burst_threshold_upload || undefined,
 			child_burst_time_download: child_burst_time_download || undefined,
 			child_burst_time_upload: child_burst_time_upload || undefined,
-            price: Number(price),
-            duration_days: Number(duration_days),
-            status: status as 'active' | 'inactive',
-            description: description || undefined
-        });
+			price: Number(price),
+			duration_days: duration_days ? Number(duration_days) : 30, // Default 30 days
+			status: status as 'active' | 'inactive',
+			description: description || undefined
+		});
 
 		req.flash('success', 'Paket IP Static berhasil dibuat');
 		res.redirect('/packages/static-ip');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal membuat paket IP Static');
 		res.redirect('/packages/static-ip');
 	}
@@ -138,8 +140,8 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 export async function postStaticIpPackageUpdate(req: Request, res: Response, next: NextFunction) {
 	try {
 		const id = Number(req.params.id);
-		const { 
-			name, 
+		const {
+			name,
 			parent_upload_name,
 			parent_download_name,
 			max_limit_upload,
@@ -163,9 +165,9 @@ export async function postStaticIpPackageUpdate(req: Request, res: Response, nex
 			child_burst_threshold_upload,
 			child_burst_time_download,
 			child_burst_time_upload,
-			price, 
-			duration_days, 
-			status, 
+			price,
+			duration_days,
+			status,
 			description
 		} = req.body;
 
@@ -178,7 +180,7 @@ export async function postStaticIpPackageUpdate(req: Request, res: Response, nex
 		if (child_upload_name && !child_upload_name.trim()) throw new Error('Child upload name tidak boleh kosong');
 		if (child_download_name && !child_download_name.trim()) throw new Error('Child download name tidak boleh kosong');
 		if (price && Number(price) < 0) throw new Error('Harga harus lebih dari 0');
-		if (duration_days && Number(duration_days) < 1) throw new Error('Durasi harus minimal 1 hari');
+		// field removed
 
 		await updateStaticIpPackage(id, {
 			name,
@@ -213,7 +215,7 @@ export async function postStaticIpPackageUpdate(req: Request, res: Response, nex
 
 		req.flash('success', 'Paket IP Static berhasil diupdate');
 		res.redirect('/packages/static-ip');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal mengupdate paket IP Static');
 		res.redirect('/packages/static-ip');
 	}
@@ -225,7 +227,7 @@ export async function postStaticIpPackageCreateQueues(req: Request, res: Respons
 		await createMikrotikQueues(id);
 		req.flash('success', 'Queue MikroTik berhasil dibuat');
 		res.redirect('/packages/static-ip');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal membuat queue MikroTik');
 		res.redirect('/packages/static-ip');
 	}
@@ -237,20 +239,20 @@ export async function postStaticIpPackageDelete(req: Request, res: Response, nex
 		await deleteStaticIpPackage(id);
 		req.flash('success', 'Paket IP Static berhasil dihapus');
 		res.redirect('/packages/static-ip');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus paket IP Static');
 		res.redirect('/packages/static-ip');
 	}
 }
 
 export async function postStaticIpPackageDeleteQueues(req: Request, res: Response, next: NextFunction) {
-    try {
-        const id = Number(req.params.id);
-        await deleteMikrotikQueuesOnly(id);
-        req.flash('success', 'Queue MikroTik untuk paket ini telah dihapus');
-        res.redirect('/packages/static-ip');
-    } catch (err) { 
-        req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus queue MikroTik');
-        res.redirect('/packages/static-ip');
-    }
+	try {
+		const id = Number(req.params.id);
+		await deleteMikrotikQueuesOnly(id);
+		req.flash('success', 'Queue MikroTik untuk paket ini telah dihapus');
+		res.redirect('/packages/static-ip');
+	} catch (err) {
+		req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus queue MikroTik');
+		res.redirect('/packages/static-ip');
+	}
 }

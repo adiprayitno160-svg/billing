@@ -23,6 +23,7 @@ export interface WhatsAppMessageInterface {
     from: string;
     body: string;
     hasMedia: boolean;
+    fromMe?: boolean;
     downloadMedia(): Promise<{ mimetype: string; data: string; filename?: string }>;
 }
 
@@ -100,6 +101,13 @@ export class WhatsAppBotService {
             console.log('[WhatsAppBot] ========== MESSAGE HANDLER START ==========');
 
             senderJid = message.from || '';
+
+            // Ignore messages from self
+            if (message.fromMe) {
+                console.log('[WhatsAppBot] ⏩ Ignoring message from self');
+                return;
+            }
+
             if (!senderJid) {
                 console.log('[WhatsAppBot] ❌ No sender found, ignoring message');
                 return;
@@ -182,12 +190,10 @@ export class WhatsAppBotService {
                     console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
                     await this.sendMessage(
                         senderJid,
-                        '👋 *Halo!*\n\n' +
-                        'Nomor Anda belum terdaftar di sistem kami.\n\n' +
-                        '📝 *Untuk pelanggan baru:*\n' +
-                        'Ketik */daftar* untuk memulai registrasi\n\n' +
-                        '👤 *Untuk pelanggan lama:*\n' +
-                        'Hubungi Admin untuk update nomor HP Anda'
+                        '❌ *Nomor Belum Terdaftar*\n\n' +
+                        'Maaf, nomor ini belum terdaftar di database kami.\n\n' +
+                        'Ketik */daftar* untuk registrasi pelanggan baru.\n' +
+                        'Atau hubungi admin jika Anda sudah berlangganan.'
                     );
                 } catch (unregError) {
                     console.error('[WhatsAppBot] Error in unregistered flow:', unregError);
@@ -234,11 +240,30 @@ export class WhatsAppBotService {
                 return;
             }
 
-            // Handle menu navigation
-            if (this.isMenuCommand(body)) {
-                console.log('[WhatsAppBot] 📋 Processing menu command...');
+            // Handle prepaid package selection (1 = weekly, 2 = monthly)
+            if (customer.billing_mode === 'prepaid' && (body === '1' || body === '2')) {
+                console.log(`[WhatsAppBot] 📦 Processing prepaid package selection: ${body}`);
                 try {
-                    await this.handleMenuCommand(message, phone, body, customer, senderJid);
+                    const { PrepaidBotHandler } = await import('./PrepaidBotHandler');
+                    const response = await PrepaidBotHandler.handlePackageSelection(phone, customer, body);
+                    if (response) {
+                        await this.sendMessage(senderJid, response);
+                        return;
+                    }
+                } catch (prepaidError) {
+                    console.error('[WhatsAppBot] Error handling package selection:', prepaidError);
+                }
+            }
+
+            // Handle menu navigation
+
+            const isMenu = WhatsAppBotService.isMenuCommand(body);
+            console.log(`[WhatsAppBot] Checking menu command: "${body}" -> ${isMenu}`);
+
+            if (isMenu) {
+                console.log(`[WhatsAppBot] 📋 Processing menu command for: "${body}"`);
+                try {
+                    await WhatsAppBotService.handleMenuCommand(message, phone, body, customer, senderJid);
                     console.log('[WhatsAppBot] ✅ Menu command handled successfully');
                 } catch (menuError: any) {
                     console.error('[WhatsAppBot] ❌ Error in handleMenuCommand:', menuError);
@@ -250,12 +275,26 @@ export class WhatsAppBotService {
                     );
                 }
                 return;
+            } else {
+                console.log(`[WhatsAppBot] ⏩ NOT a menu command: "${body}"`);
             }
 
             // Handle AI ChatBot (Fallback for other text)
             console.log('[WhatsAppBot] 🤖 Hubbing AI ChatBot...');
             try {
+                // PRE-CHECK: Removed numeric check to rely on isMenuCommand
+
                 const aiResponse = await ChatBotService.ask(body, customer);
+
+                // If AI returns the specific error message (service down/unconfigured)
+                const aiResponseLower = aiResponse.toLowerCase();
+                if (aiResponseLower.includes("maaf") && (aiResponseLower.includes("gangguan") || aiResponseLower.includes("sistem ai"))) {
+                    console.log('[WhatsAppBot] ⚠️ AI Service returned error');
+                    // Reformatted to avoid auto-spamming the full menu
+                    await this.sendMessage(senderJid, `⚠️ Maaf, sistem AI sedang offline.\nSilakan ketik */menu* untuk melihat opsi layanan.\n(Debug: "${body}")`);
+                    return;
+                }
+
                 await this.sendMessage(senderJid, aiResponse);
                 console.log('[WhatsAppBot] ✅ AI ChatBot response sent');
             } catch (aiError: any) {
@@ -456,6 +495,16 @@ export class WhatsAppBotService {
         } else if (cmd.startsWith('/nama ') || cmd.startsWith('/gantinama ')) {
             const newName = command.replace(/^\/(nama|gantinama)\s+/i, '').trim();
             await this.changeCustomerName(senderJid, newName);
+        } else if (cmd === '/beli' || cmd === '/paket') {
+            // Prepaid package purchase command
+            try {
+                const { PrepaidBotHandler } = await import('./PrepaidBotHandler');
+                const response = await PrepaidBotHandler.handleBuyCommand(phone, customer);
+                await this.sendMessage(senderJid, response);
+            } catch (prepaidError) {
+                console.error('[WhatsAppBot] Error handling /beli:', prepaidError);
+                await this.sendMessage(senderJid, '❌ Terjadi kesalahan saat memproses permintaan. Silakan coba lagi.');
+            }
         } else {
             await this.sendMessage(
                 senderJid,
@@ -485,10 +534,13 @@ export class WhatsAppBotService {
             await this.showWiFiMenu(senderJid);
         } else if (cmd === '4' || cmd === 'reboot' || cmd === 'restart') {
             await this.rebootOnt(senderJid);
-        } else if (cmd === '5' || cmd === 'gantinama' || cmd === 'nama') {
-            await this.sendMessage(senderJid, 'Silakan ketik nama baru Anda dengan format:\n*/nama [nama_baru]*\n\nContoh: */nama Budi Santoso*');
+        } else if (cmd === '5' || cmd === 'bantuan') {
+            await this.showHelp(senderJid);
+        } else if (cmd === '6' || cmd === 'gantinama' || cmd === 'nama' || cmd === '10') {
+            await this.sendMessage(senderJid, '📝 *GANTI NAMA PELANGGAN*\n\nSilakan balas pesan ini dengan format:\n*/nama [Nama Baru]*\n\nContoh:\n*/nama Budi Santoso*');
         } else {
-            await this.showMainMenu(senderJid, customer);
+            console.log(`[WhatsAppBot] Menu command fallthrough for "${cmd}". Sending hint.`);
+            await this.sendMessage(senderJid, '❓ Perintah tidak dikenali.\nSilakan ketik */menu* untuk kembali ke menu utama.');
         }
     }
 
@@ -497,23 +549,40 @@ export class WhatsAppBotService {
      */
     private static async changeCustomerName(phone: string, newName: string): Promise<void> {
         try {
+            console.log(`[WhatsAppBot] Changing name for ${phone} to "${newName}"`);
+
             if (!newName || newName.length < 3) {
                 await this.sendMessage(phone, '❌ Nama terlalu pendek (min 3 karakter).');
                 return;
             }
 
-            const customer = await this.validateCustomer(phone);
-            if (!customer) return;
+            // Prepare phone variants (08xx and 628xx) to capture all duplicate accounts
+            const normalizedPhone = this.resolveLid(phone).split('@')[0].trim();
+            const phoneVariants = [normalizedPhone];
 
-            await databasePool.query(
-                'UPDATE customers SET name = ? WHERE id = ?',
-                [newName, customer.id]
+            if (normalizedPhone.startsWith('62')) {
+                phoneVariants.push('0' + normalizedPhone.substring(2));
+            } else if (normalizedPhone.startsWith('0')) {
+                phoneVariants.push('62' + normalizedPhone.substring(1));
+            }
+
+            console.log(`[WhatsAppBot] Updating records for phones: ${phoneVariants.join(', ')}`);
+
+            const [result] = await databasePool.query<any>(
+                'UPDATE customers SET name = ? WHERE phone IN (?)',
+                [newName, phoneVariants]
             );
 
-            await this.sendMessage(phone, `✅ Nama berhasil diubah menjadi: *${newName}*`);
+            console.log('[WhatsAppBot] Update Result:', result);
+
+            if (result.affectedRows > 0) {
+                await this.sendMessage(phone, `✅ Nama berhasil diubah menjadi: *${newName}*\n(Ter-update pada ${result.affectedRows} data pelanggan)`);
+            } else {
+                await this.sendMessage(phone, '❌ Gagal mengubah nama. Nomor Anda tidak ditemukan di sistem.');
+            }
         } catch (error) {
             console.error('Error changing customer name:', error);
-            await this.sendMessage(phone, '❌ Gagal mengubah nama.');
+            await this.sendMessage(phone, '❌ Gagal mengubah nama (System Error).');
         }
     }
 
@@ -521,7 +590,7 @@ export class WhatsAppBotService {
      * Check if command is menu navigation
      */
     private static isMenuCommand(command: string): boolean {
-        const menuCommands = ['1', '2', '3', '4', 'tagihan', 'invoice', 'bantuan', 'help', 'menu', 'wifi', 'ubahwifi', 'reboot', 'restart'];
+        const menuCommands = ['1', '2', '3', '4', '5', '6', '10', 'tagihan', 'invoice', 'bantuan', 'help', 'menu', 'wifi', 'ubahwifi', 'reboot', 'restart', 'gantinama', 'nama'];
         return menuCommands.includes(command.toLowerCase());
     }
 
@@ -537,30 +606,32 @@ export class WhatsAppBotService {
 
         // Determine customer status
         let statusIcon = '✅';
-        let statusText = 'Aktif';
+        let statusText = 'ACTIVE';
+        let statusNote = '';
+
         if (customer.is_isolated === 1 || customer.is_isolated === true) {
-            statusIcon = '🔒';
-            statusText = 'Diblokir';
+            statusIcon = '🔴';
+            statusText = 'TERBLOKIR';
+            statusNote = '\n⚠️ *Layanan Internet Anda sedang diisolir.*\nMohon segera lakukan pembayaran agar internet aktif kembali.';
         } else if (customer.status === 'inactive') {
-            statusIcon = '⏸️';
-            statusText = 'Nonaktif';
+            statusIcon = '⚫';
+            statusText = 'NONAKTIF';
         }
 
         const menu = `🏠 *MENU UTAMA*
 Hai *${customer.name || 'Pelanggan'}*,
 
-${statusIcon} *Status Layanan:* ${statusText}
+${statusIcon} Status: *${statusText}*${statusNote}
 
-1️⃣ *Tagihan* - Lihat tagihan Anda
-2️⃣ *Bantuan / Tanya AI* - Tanya apapun ke AI CS
-3️⃣ *WiFi* - Ubah nama WiFi & password
-4️⃣ *Reboot* - Restart Perangkat (ONT)
-5️⃣ *Ganti Nama* - Ubah nama akun Anda
+1️⃣ *Tagihan* - Cek Tagihan & Pembayaran
+2️⃣ *Lapor Gangguan* - Lapor internet mati
+3️⃣ *WiFi* - Ganti Password WiFi
+4️⃣ *Reboot* - Restart Modem
+5️⃣ *Bantuan* - Tanya CS
+6️⃣ *Ganti Nama* - Ubah Nama Pelanggan
 
-*Tips:*
-• Ketik angka (1-5) atau perintah (contoh: /tagihan)
-• Anda bisa langsung bertanya: "Gimana cara bayar?" atau "Kenapa internet lemot?"
-• Kirim foto bukti transfer untuk verifikasi otomatis!`;
+_Ketik angka (1-6) untuk memilih menu._
+_Anda juga bisa chat langsung dengan AI Assistant kami._`;
 
         await this.sendMessage(phone, menu);
     }

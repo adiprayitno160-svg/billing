@@ -1,0 +1,167 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-green-900">📊 Transaksi Prabayar</h1>
+                <p class="text-green-600 mt-1">Laporan pembayaran & perpanjangan masa aktif</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="/prepaid/customers"
+                    class="px-4 py-2 bg-white border border-green-200 text-green-700 rounded-lg hover:bg-green-50 transition-all">
+                    👥 Pelanggan
+                </a>
+                <button onclick="window.print()"
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all">
+                    🖨️ Print
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Today Stats -->
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <h3 class="text-lg font-semibold text-slate-900 mb-4">📅 Hari Ini</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600">Jumlah Transaksi</span>
+                    <span class="text-2xl font-bold text-green-600">
+                        <%= todayStats.transaction_count || 0 %>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600">Total Pendapatan</span>
+                    <span class="text-xl font-bold text-green-900">
+                        Rp <%= (todayStats.total_revenue || 0).toLocaleString('id-ID') %>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-500">Rata-rata</span>
+                    <span class="text-slate-700">
+                        Rp <%= (todayStats.avg_transaction || 0).toLocaleString('id-ID') %>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Month Stats -->
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <h3 class="text-lg font-semibold text-slate-900 mb-4">📆 Bulan Ini</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600">Jumlah Transaksi</span>
+                    <span class="text-2xl font-bold text-indigo-600">
+                        <%= monthStats.transaction_count || 0 %>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600">Total Pendapatan</span>
+                    <span class="text-xl font-bold text-indigo-900">
+                        Rp <%= (monthStats.total_revenue || 0).toLocaleString('id-ID') %>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-500">Rata-rata</span>
+                    <span class="text-slate-700">
+                        Rp <%= (monthStats.avg_transaction || 0).toLocaleString('id-ID') %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">100 Transaksi Terakhir</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Tanggal</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Pelanggan</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Paket</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase">Nominal</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Durasi</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Metode</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <% if (transactions && transactions.length> 0) { %>
+                        <% transactions.forEach(tx=> { %>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-3">
+                                    <div class="text-sm">
+                                        <p class="font-medium text-slate-900">
+                                            <%= new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit' ,
+                                                month: 'short' , year: 'numeric' }) %>
+                                        </p>
+                                        <p class="text-xs text-slate-500">
+                                            <%= new Date(tx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit' ,
+                                                minute: '2-digit' }) %>
+                                        </p>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div>
+                                        <p class="font-medium text-slate-900 text-sm">
+                                            <%= tx.customer_name %>
+                                        </p>
+                                        <p class="text-xs text-slate-500">
+                                            <%= tx.customer_code || '-' %>
+                                        </p>
+                                        <% if (tx.phone) { %>
+                                            <p class="text-xs text-slate-400">
+                                                <%= tx.phone %>
+                                            </p>
+                                            <% } %>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-700">
+                                    <%= tx.package_name || '-' %>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="font-bold text-green-600">
+                                        Rp <%= parseFloat(tx.amount).toLocaleString('id-ID') %>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        <%= tx.duration_days %> hari
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-700 capitalize">
+                                    <%= tx.payment_method || 'transfer' %>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-xs">
+                                        <% if (tx.new_expiry_date) { %>
+                                            <p class="text-green-600 font-medium">✅ Berhasil</p>
+                                            <p class="text-slate-500">Sampai: <%= new
+                                                    Date(tx.new_expiry_date).toLocaleDateString('id-ID', {
+                                                    day: '2-digit' , month: 'short' }) %>
+                                            </p>
+                                            <% } else { %>
+                                                <p class="text-slate-400">-</p>
+                                                <% } %>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">
+                                            Belum ada transaksi prepaid
+                                        </td>
+                                    </tr>
+                                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

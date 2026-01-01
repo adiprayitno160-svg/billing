@@ -374,6 +374,9 @@ export class SLAMonitoringService {
         totalMinutes: number,
         slaTarget: number
     ): Promise<void> {
+        // Format period YYYY-MM
+        const periodStr = monthYear.toISOString().slice(0, 7);
+
         // Get incidents for this customer in this month
         const [incidents] = await pool.query<RowDataPacket[]>(`
             SELECT 
@@ -404,29 +407,33 @@ export class SLAMonitoringService {
         await pool.query(`
             INSERT INTO sla_records (
                 customer_id,
-                month_year,
+                period,
                 total_minutes,
                 downtime_minutes,
                 excluded_downtime_minutes,
                 sla_target,
                 incident_count,
-                discount_amount
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                discount_amount,
+                sla_percentage,
+                calculated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
                 downtime_minutes = VALUES(downtime_minutes),
                 excluded_downtime_minutes = VALUES(excluded_downtime_minutes),
                 incident_count = VALUES(incident_count),
                 discount_amount = VALUES(discount_amount),
+                sla_percentage = VALUES(sla_percentage),
                 calculated_at = NOW()
         `, [
             customerId,
-            monthYear,
+            periodStr,
             totalMinutes,
             downtimeMinutes,
             excludedDowntime,
             slaTarget,
             incidentCount,
-            discountAmount
+            discountAmount,
+            slaPercentage
         ]);
     }
 
@@ -474,20 +481,69 @@ export class SLAMonitoringService {
     }
 
     /**
+     * Ensure SLA record exists for a customer and month
+     * Calculates it if missing
+     */
+    async ensureSLARecord(customerId: number, monthYear: Date): Promise<SLARecord | null> {
+        // Check if exists
+        const existing = await this.getCustomerSLASummary(customerId, monthYear);
+        if (existing) return existing;
+
+        // Verify customer exists and gets target
+        const [customerRows] = await pool.query<RowDataPacket[]>(`
+            SELECT 
+                c.id,
+                c.connection_type,
+                COALESCE(
+                    (SELECT pp.sla_target FROM pppoe_packages pp WHERE pp.id = c.pppoe_package_id AND c.connection_type = 'pppoe'),
+                    (SELECT sip.sla_target FROM static_ip_packages sip WHERE sip.id = c.static_ip_package_id AND c.connection_type = 'static_ip'),
+                    95.00
+                ) AS sla_target
+            FROM customers c
+            WHERE c.id = ?
+        `, [customerId]);
+
+        if (customerRows.length === 0) return null;
+
+        const slaTarget = customerRows[0].sla_target;
+
+        // Calculate total minutes
+        const targetMonth = new Date(monthYear.getFullYear(), monthYear.getMonth(), 1);
+        const nextMonth = new Date(targetMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const totalMinutes = Math.floor((nextMonth.getTime() - targetMonth.getTime()) / 60000);
+
+        // Calculate
+        await this.calculateCustomerMonthlySLA(customerId, targetMonth, totalMinutes, slaTarget);
+
+        // Return new record
+        return await this.getCustomerSLASummary(customerId, targetMonth);
+    }
+
+    /**
+     * Get SLA summary for customer
+     */
+    /**
      * Get SLA summary for customer
      */
     async getCustomerSLASummary(customerId: number, monthYear?: Date): Promise<SLARecord | null> {
         const targetMonth = monthYear || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const periodStr = targetMonth.toISOString().slice(0, 7);
 
         const [rows] = await pool.query<RowDataPacket[]>(`
             SELECT * FROM sla_records
             WHERE customer_id = ?
-                AND month_year = ?
-        `, [customerId, targetMonth]);
+                AND period = ?
+        `, [customerId, periodStr]);
 
         if (rows.length === 0) return null;
 
-        return rows[0] as SLARecord;
+        const row = rows[0];
+        return {
+            ...row,
+            sla_percentage: parseFloat(row.uptime_percentage || row.sla_percentage || 100),
+            month_year: targetMonth // Backwards compatibility for runtime objects
+        } as unknown as SLARecord;
     }
 
     /**

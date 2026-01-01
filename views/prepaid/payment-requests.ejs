@@ -1,0 +1,209 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-purple-900">💳 Payment Requests</h1>
+                <p class="text-purple-600 mt-1">Monitor kode pembayaran pelanggan (24 jam terakhir)</p>
+            </div>
+            <a href="/prepaid/customers"
+                class="px-4 py-2 bg-white border border-purple-200 text-purple-700 rounded-lg hover:bg-purple-50 transition-all">
+                👥 Pelanggan
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl border border-green-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-green-600">Pending (Aktif)</p>
+                    <p class="text-2xl font-bold text-green-900">
+                        <%= stats.pending_active || 0 %>
+                    </p>
+                </div>
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-yellow-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-yellow-600">Expired (Lewat 1 jam)</p>
+                    <p class="text-2xl font-bold text-yellow-900">
+                        <%= stats.pending_expired || 0 %>
+                    </p>
+                </div>
+                <div class="p-3 bg-yellow-100 rounded-lg">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-indigo-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-indigo-600">Terbayar</p>
+                    <p class="text-2xl font-bold text-indigo-900">
+                        <%= stats.paid_count || 0 %>
+                    </p>
+                </div>
+                <div class="p-3 bg-indigo-100 rounded-lg">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Requests Table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Payment Requests (24 Jam Terakhir)</h3>
+            <button onclick="location.reload()" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                🔄 Refresh
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Dibuat</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Pelanggan</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase">Kode Unik</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase">Total Bayar</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Paket</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Expired</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <% if (requests && requests.length> 0) { %>
+                        <% requests.forEach(req=> { %>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-3">
+                                    <div class="text-xs">
+                                        <p class="text-slate-900">
+                                            <%= new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit' ,
+                                                month: 'short' }) %>
+                                        </p>
+                                        <p class="text-slate-500">
+                                            <%= new Date(req.created_at).toLocaleTimeString('id-ID', { hour: '2-digit' ,
+                                                minute: '2-digit' }) %>
+                                        </p>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-sm">
+                                        <p class="font-medium text-slate-900">
+                                            <%= req.customer_name %>
+                                        </p>
+                                        <p class="text-xs text-slate-500">
+                                            <%= req.customer_code || '-' %>
+                                        </p>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="text-lg font-mono font-bold text-indigo-600">
+                                        <%= req.unique_code %>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="font-bold text-green-600">
+                                        Rp <%= parseFloat(req.total_amount).toLocaleString('id-ID') %>
+                                    </span>
+                                    <p class="text-xs text-slate-500">
+                                        Base: Rp <%= parseFloat(req.base_amount).toLocaleString('id-ID') %>
+                                    </p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-sm">
+                                        <p class="text-slate-900">
+                                            <%= req.package_name || '-' %>
+                                        </p>
+                                        <p class="text-xs text-slate-500">
+                                            <%= req.duration_days %> hari
+                                        </p>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-xs">
+                                        <p class="text-slate-900">
+                                            <%= new Date(req.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit' ,
+                                                minute: '2-digit' }) %>
+                                        </p>
+                                        <% if (req.display_status==='active' ) { %>
+                                            <p class="text-green-600">
+                                                <%= req.minutes_remaining %> menit lagi
+                                            </p>
+                                            <% } else if (req.display_status==='expired' ) { %>
+                                                <p class="text-red-600">Sudah lewat</p>
+                                                <% } %>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <% let statusClass='' ; let statusText='' ; let statusIcon='' ; if
+                                        (req.display_status==='active' ) { statusClass='bg-green-100 text-green-800' ;
+                                        statusText='Pending' ; statusIcon='⏳' ; } else if
+                                        (req.display_status==='expired' ) { statusClass='bg-yellow-100 text-yellow-800'
+                                        ; statusText='Expired' ; statusIcon='⏰' ; } else if (req.status==='paid' ) {
+                                        statusClass='bg-indigo-100 text-indigo-800' ; statusText='Paid' ; statusIcon='✅'
+                                        ; } else { statusClass='bg-slate-100 text-slate-800' ; statusText=req.status;
+                                        statusIcon='❓' ; } %>
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= statusClass %>">
+                                            <%= statusIcon %>
+                                                <%= statusText %>
+                                        </span>
+                                        <% if (req.paid_at) { %>
+                                            <p class="text-xs text-slate-500 mt-1">
+                                                <%= new Date(req.paid_at).toLocaleTimeString('id-ID', { hour: '2-digit'
+                                                    , minute: '2-digit' }) %>
+                                            </p>
+                                            <% } %>
+                                </td>
+                            </tr>
+                            <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">
+                                            Belum ada payment request dalam 24 jam terakhir
+                                        </td>
+                                    </tr>
+                                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p class="text-sm text-blue-800">
+            <strong>ℹ️ Informasi:</strong>
+        </p>
+        <ul class="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
+            <li>Payment request dibuat saat pelanggan memilih paket di WhatsApp Bot</li>
+            <li>Kode unik valid selama 1 jam sejak dibuat</li>
+            <li>Status "Expired" = kode sudah tidak valid, pelanggan harus buat baru</li>
+            <li>Status "Paid" = pembayaran sudah dikonfirmasi & internet sudah diperpanjang</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // Auto-refresh setiap 30 detik untuk melihat update real-time
+    setTimeout(() => {
+        location.reload();
+    }, 30000);
+</script>

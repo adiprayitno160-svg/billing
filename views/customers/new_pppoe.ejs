@@ -255,28 +255,69 @@
 
 
 
-                        <!-- Billing Options -->
+                        <!-- Billing Mode Options -->
                         <div class="sm:col-span-2">
                             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
-                                    📅 Pengaturan Tagihan
+                                    💰 Mode Pembayaran (Billing Mode)
                                 </h3>
 
-                                <div class="flex items-center gap-3">
-                                    <input type="checkbox" name="enable_billing" id="enable_billing" value="1"
-                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                    <label for="enable_billing"
-                                        class="text-sm font-medium text-slate-700 cursor-pointer">
-                                        Aktifkan Sistem Billing Postpaid
-                                    </label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- Billing Mode Selection -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Metode
+                                            Penagihan</label>
+                                        <select name="billing_mode" id="billing_mode"
+                                            class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            onchange="toggleBillingOptions()">
+                                            <option value="postpaid" selected>📅 Pascabayar (Tagihan Bulanan)</option>
+                                            <option value="prepaid">🎟️ Prabayar (Sistem Voucher/Topup)</option>
+                                        </select>
+                                        <p class="text-xs text-slate-500 mt-2" id="billing_desc">
+                                            Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.
+                                        </p>
+                                    </div>
+
+                                    <!-- Prepaid Option: Initial Bonus -->
+                                    <div id="prepaid_options" class="hidden">
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Masa Aktif Awal
+                                            (Bonus)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" name="initial_validity_days" value="0" min="0"
+                                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-sm text-slate-600">Hari</span>
+                                        </div>
+                                        <p class="text-xs text-slate-500 mt-2">
+                                            Jumlah hari aktif gratis saat akun dibuat. Isi 0 jika tidak ada bonus.
+                                        </p>
+                                    </div>
+
+                                    <!-- Hidden enable_billing for backward compatibility -->
+                                    <input type="hidden" name="enable_billing" id="enable_billing_hidden" value="1">
                                 </div>
-                                <p class="text-xs text-slate-600 mt-2 ml-7">
-                                    ✅ Jika aktif: Tagihan bulanan dibuat otomatis sesuai tanggal daftar<br>
-                                    📌 Contoh: Daftar tgl 12 → Tagihan setiap tgl 12 → Auto-isolir jika telat<br>
-                                    ❌ Default tidak aktif (sesuai permintaan)
-                                </p>
                             </div>
                         </div>
+
+                        <script>
+                            function toggleBillingOptions() {
+                                const mode = document.getElementById('billing_mode').value;
+                                const prepaidOptions = document.getElementById('prepaid_options');
+                                const desc = document.getElementById('billing_desc');
+                                const enableBilling = document.getElementById('enable_billing_hidden');
+
+                                if (mode === 'prepaid') {
+                                    prepaidOptions.classList.remove('hidden');
+                                    desc.innerHTML = "❌ <strong>Tidak ada tagihan bulanan.</strong> Pelanggan harus beli paket lewat WA Bot agar internet aktif.";
+                                    desc.className = "text-xs text-orange-600 mt-2";
+                                    // For prepaid, we might technically disable 'enable_billing' logic in backend or handle it differently
+                                    // But generating invoice is strictly for postpaid.
+                                } else {
+                                    prepaidOptions.classList.add('hidden');
+                                    desc.innerHTML = "✅ <strong>Tagihan Otomatis.</strong> Tagihan dibuat tiap bulan, auto-isolir jika telat bayar.";
+                                    desc.className = "text-xs text-blue-600 mt-2";
+                                }
+                            }
+                        </script>
 
                         <div class="sm:col-span-2 flex justify-end gap-3">
                             <a href="/customers/list"

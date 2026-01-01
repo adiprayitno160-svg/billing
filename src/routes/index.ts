@@ -61,6 +61,8 @@ import slaRoutes from './sla';
 import maintenanceRoutes from './maintenance';
 import settingsRoutes from './settings';
 import whatsappRoutes from './whatsapp';
+import prepaidRoutes from './prepaid';
+import prepaidDashboardRoutes from './prepaidDashboard';
 
 import { pageRouter as notificationPageRouter, apiRouter as notificationApiRouter } from './notification';
 import genieacsRoutes from './genieacs';
@@ -306,6 +308,13 @@ router.get('/dashboard', (req, res) => res.redirect('/'));
 
 // Billing routes
 router.use('/billing', billingRoutes);
+
+// Prepaid routes (for hybrid billing system)
+router.use('/api/prepaid', prepaidRoutes);
+
+// Prepaid Dashboard routes (UI pages)
+router.use('/prepaid', prepaidDashboardRoutes);
+
 
 
 
@@ -1689,13 +1698,30 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
             }
 
+            // Determine billing mode and expiry date
+            const billing_mode_value = req.body.billing_mode || (enable_billing ? 'postpaid' : 'prepaid'); // Default fallback
+            let expiry_date_val = null;
+
+            if (billing_mode_value === 'prepaid') {
+                const initialDays = parseInt(req.body.initial_validity_days || '0');
+                if (initialDays > 0) {
+                    // Set expiry date to NOW() + initialDays
+                    // We construct a MySQL compatible date string or rely on DB date math in query
+                    // Easier to pass params
+                    const expDate = new Date();
+                    expDate.setDate(expDate.getDate() + initialDays);
+                    expiry_date_val = expDate;
+                }
+            }
+
             // Insert customer (pppoe_username will be set to customer ID after insert)
             const insertQuery = `
                 INSERT INTO customers (
                     customer_code, name, phone, email, address, odc_id, odp_id,
                     connection_type, status, latitude, longitude,
-                    pppoe_username, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW())
+                    pppoe_username, created_at, updated_at,
+                    billing_mode, expiry_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW(), ?, ?)
             `;
 
             console.log('Inserting customer with data:', {
@@ -1706,12 +1732,15 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 odc_id,
                 odp_id,
                 latitude,
-                longitude
+                longitude,
+                billing_mode: billing_mode_value,
+                expiry_date: expiry_date_val
             });
 
             const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null,
-                odc_id || null, odp_id, latitude || null, longitude || null
+                odc_id || null, odp_id, latitude || null, longitude || null,
+                billing_mode_value, expiry_date_val
             ]);
 
             console.log('Insert result:', result);

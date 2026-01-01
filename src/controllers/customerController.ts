@@ -702,6 +702,37 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 }
             }
 
+            // Handle billing mode change (Prepaid/Postpaid)
+            const { billing_mode, prepaid_bonus_days } = req.body;
+            let billingModeChanged = false;
+            let oldBillingMode = null;
+
+            if (billing_mode !== undefined) {
+                // Get current billing mode
+                const [currentCustomer] = await conn.query<RowDataPacket[]>(
+                    'SELECT billing_mode FROM customers WHERE id = ?',
+                    [customerId]
+                );
+
+                if (currentCustomer && currentCustomer.length > 0) {
+                    oldBillingMode = currentCustomer[0].billing_mode || 'postpaid';
+
+                    if (oldBillingMode !== billing_mode) {
+                        billingModeChanged = true;
+                        updateFields.push('billing_mode = ?');
+                        updateValues.push(billing_mode);
+
+                        // If switching to prepaid, we'll need to set expiry date after update
+                        // If switching to postpaid, clear expiry date
+                        if (billing_mode === 'postpaid') {
+                            updateFields.push('expiry_date = NULL');
+                        }
+                    }
+                }
+            }
+
+
+
             if (updateFields.length > 0) {
                 updateValues.push(customerId);
                 await conn.query(
@@ -778,6 +809,30 @@ export const updateCustomer = async (req: Request, res: Response) => {
             }
 
             await conn.commit();
+
+            // Handle prepaid mode switch AFTER commit
+            if (billingModeChanged && billing_mode === 'prepaid') {
+                try {
+                    const { PrepaidService } = await import('../services/billing/PrepaidService');
+                    const bonusDays = prepaid_bonus_days ? parseInt(prepaid_bonus_days) : 1;
+
+                    const result = await PrepaidService.switchToPrepaid(
+                        customerId,
+                        bonusDays,
+                        true // Send WhatsAppnotification
+                    );
+
+                    if (result.success) {
+                        console.log(`✅ Customer ${customerId} switched to prepaid mode successfully`);
+                    } else {
+                        console.error(`⚠️ Failed to switch customer ${customerId} to prepaid:`, result.message);
+                    }
+                } catch (prepaidError) {
+                    console.error('Error switching to prepaid:', prepaidError);
+                    // Don't fail the whole update - customer is still updated
+                }
+            }
+
 
             // Handle status change (Enable/Disable) side effects
             if (status !== undefined && status !== oldCustomer.status) {
@@ -1787,5 +1842,84 @@ export const toggleCustomerStatus = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Toggle status error:', error);
         res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * Switch customer to prepaid billing mode
+ */
+export const switchToPrepaid = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { initialDays } = req.body;
+
+        const customerId = parseInt(id);
+        if (!customerId || isNaN(customerId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid customer ID'
+            });
+        }
+
+        const { PrepaidService } = await import('../services/billing/PrepaidService');
+
+        const result = await PrepaidService.switchToPrepaid(
+            customerId,
+            parseInt(initialDays) || 1,
+            true // Send WhatsApp notification
+        );
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                expiryDate: result.expiryDate
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.message
+            });
+        }
+
+    } catch (error: any) {
+        console.error('Switch to prepaid error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to switch to prepaid mode'
+        });
+    }
+};
+
+/**
+ * Switch customer back to postpaid billing mode
+ */
+export const switchToPostpaid = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const customerId = parseInt(id);
+        if (!customerId || isNaN(customerId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid customer ID'
+            });
+        }
+
+        const { PrepaidService } = await import('../services/billing/PrepaidService');
+
+        const result = await PrepaidService.switchToPostpaid(customerId);
+
+        res.json({
+            success: result.success,
+            message: result.message
+        });
+
+    } catch (error: any) {
+        console.error('Switch to postpaid error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to switch to postpaid mode'
+        });
     }
 };

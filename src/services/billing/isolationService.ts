@@ -710,7 +710,7 @@ export class IsolationService {
                         const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
                         await UnifiedNotificationService.queueNotification({
                             customer_id: customer.id,
-                            notification_type: 'account_deleted',
+                            notification_type: 'customer_deleted',
                             channels: ['whatsapp'],
                             variables: {
                                 customer_name: customer.name,
