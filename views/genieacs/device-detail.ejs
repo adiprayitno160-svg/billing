@@ -216,43 +216,47 @@
                         <div
                             class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
                             <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">RX Power</span>
+                                <span class="text-sm font-medium text-gray-600">RX Power (Terima)</span>
                                 <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
                                     <i class="fas fa-arrow-down text-white"></i>
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-green-700 mb-1">
-                                <%= signalInfo.rxPower %>
+                                <%= signalInfo.rxPower && signalInfo.rxPower !=='N/A' ? signalInfo.rxPower : 'N/A' %>
+                                    <span class="text-base font-normal text-green-600">dBm</span>
                             </p>
-                            <p class="text-xs text-gray-500">Daya Terima Optik</p>
+                            <p class="text-xs text-gray-500">Standar: -18 s.d -27 dBm</p>
                         </div>
 
                         <!-- TX Power -->
                         <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6 border border-blue-200">
                             <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">TX Power</span>
+                                <span class="text-sm font-medium text-gray-600">TX Power (Kirim)</span>
                                 <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                                     <i class="fas fa-arrow-up text-white"></i>
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-blue-700 mb-1">
-                                <%= signalInfo.txPower %>
+                                <%= signalInfo.txPower && signalInfo.txPower !=='N/A' ? signalInfo.txPower : 'N/A' %>
+                                    <span class="text-base font-normal text-blue-600">dBm</span>
                             </p>
-                            <p class="text-xs text-gray-500">Daya Kirim Optik</p>
+                            <p class="text-xs text-gray-500">Standar: +2 s.d +7 dBm</p>
                         </div>
 
                         <!-- Temperature -->
                         <div class="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6 border border-orange-200">
                             <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">Temperature</span>
+                                <span class="text-sm font-medium text-gray-600">Suhu (Temp)</span>
                                 <div class="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
                                     <i class="fas fa-thermometer-half text-white"></i>
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-orange-700 mb-1">
-                                <%= signalInfo.temperature %>
+                                <%= signalInfo.temperature && signalInfo.temperature !=='N/A' ? signalInfo.temperature
+                                    : 'N/A' %>
+                                    <span class="text-base font-normal text-orange-600">°C</span>
                             </p>
-                            <p class="text-xs text-gray-500">Suhu Device</p>
+                            <p class="text-xs text-gray-500">Batas Aman: < 60°C</p>
                         </div>
 
                         <!-- WiFi Clients -->
@@ -266,6 +270,7 @@
                             </div>
                             <p class="text-3xl font-bold text-indigo-700 mb-1">
                                 <%= signalInfo.wifiClients %>
+                                    <span class="text-base font-normal text-indigo-600">user</span>
                             </p>
                             <p class="text-xs text-gray-500">Perangkat Terhubung</p>
                         </div>
