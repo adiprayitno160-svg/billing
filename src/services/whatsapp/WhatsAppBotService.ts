@@ -157,10 +157,17 @@ export class WhatsAppBotService {
                     return;
                 }
 
-                // Default: Reject unregistered users SILENTLY
-                console.log('[WhatsAppBot] ⛔ Unregistered user ignored (Silent Mode)');
-                console.log(`[WhatsAppBot] Tip: User can type /daftar to register`);
-
+                // Default: Guide unregistered users to register
+                console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
+                await this.sendMessage(
+                    phone,
+                    '👋 *Halo!*\n\n' +
+                    'Nomor Anda belum terdaftar di sistem kami.\n\n' +
+                    '📝 *Untuk pelanggan baru:*\n' +
+                    'Ketik */daftar* untuk memulai registrasi\n\n' +
+                    '👤 *Untuk pelanggan lama:*\n' +
+                    'Hubungi Admin untuk update nomor HP Anda'
+                );
                 return;
             }
 
