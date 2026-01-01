@@ -176,7 +176,12 @@ export class WhatsAppServiceBaileys {
     private static async handleIncomingMessage(msg: WAMessage) {
         try {
             const from = msg.key.remoteJid || '';
-            if (!from || !from.endsWith('@s.whatsapp.net')) return;
+            // Filter: Only process individual chats (not groups, broadcast, or status)
+            // Accept: @s.whatsapp.net (standard) and @lid (linked devices/new format)
+            if (!from || from === 'status@broadcast' || from.includes('@g.us')) {
+                console.log('[WhatsAppBaileys] Skipping non-individual chat:', from);
+                return;
+            }
 
             console.log('📩 New message received from:', from);
 
