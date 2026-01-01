@@ -57,3 +57,18 @@
         }
     }
 </style>
+
+<script>
+    console.log('Footer loaded. Checking connection...');
+    fetch('/api/server-time')
+        .then(response => {
+            if (response.ok) {
+                console.log('✅ Connection to server OK');
+            } else {
+                console.error('❌ Server responded with error:', response.status);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Connection failed:', error);
+        });
+</script>
