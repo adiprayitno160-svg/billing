@@ -222,8 +222,12 @@
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-green-700 mb-1">
-                                <%= signalInfo.rxPower && signalInfo.rxPower !=='N/A' ? signalInfo.rxPower : 'N/A' %>
-                                    <span class="text-base font-normal text-green-600">dBm</span>
+                                <% if (signalInfo.rxPower && signalInfo.rxPower !=='N/A' ) { %>
+                                    <%= signalInfo.rxPower %>
+                                        <span class="text-base font-normal text-green-600">dBm</span>
+                                        <% } else { %>
+                                            N/A
+                                            <% } %>
                             </p>
                             <p class="text-xs text-gray-500">Standar: -18 s.d -27 dBm</p>
                         </div>
@@ -237,8 +241,12 @@
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-blue-700 mb-1">
-                                <%= signalInfo.txPower && signalInfo.txPower !=='N/A' ? signalInfo.txPower : 'N/A' %>
-                                    <span class="text-base font-normal text-blue-600">dBm</span>
+                                <% if (signalInfo.txPower && signalInfo.txPower !=='N/A' ) { %>
+                                    <%= signalInfo.txPower %>
+                                        <span class="text-base font-normal text-blue-600">dBm</span>
+                                        <% } else { %>
+                                            N/A
+                                            <% } %>
                             </p>
                             <p class="text-xs text-gray-500">Standar: +2 s.d +7 dBm</p>
                         </div>
@@ -252,9 +260,12 @@
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-orange-700 mb-1">
-                                <%= signalInfo.temperature && signalInfo.temperature !=='N/A' ? signalInfo.temperature
-                                    : 'N/A' %>
-                                    <span class="text-base font-normal text-orange-600">°C</span>
+                                <% if (signalInfo.temperature && signalInfo.temperature !=='N/A' ) { %>
+                                    <%= signalInfo.temperature %>
+                                        <span class="text-base font-normal text-orange-600">°C</span>
+                                        <% } else { %>
+                                            N/A
+                                            <% } %>
                             </p>
                             <p class="text-xs text-gray-500">Batas Aman: < 60°C</p>
                         </div>
@@ -269,8 +280,12 @@
                                 </div>
                             </div>
                             <p class="text-3xl font-bold text-indigo-700 mb-1">
-                                <%= signalInfo.wifiClients %>
-                                    <span class="text-base font-normal text-indigo-600">user</span>
+                                <% if (signalInfo.wifiClients && signalInfo.wifiClients !=='N/A' ) { %>
+                                    <%= signalInfo.wifiClients %>
+                                        <span class="text-base font-normal text-indigo-600">user</span>
+                                        <% } else { %>
+                                            0
+                                            <% } %>
                             </p>
                             <p class="text-xs text-gray-500">Perangkat Terhubung</p>
                         </div>
