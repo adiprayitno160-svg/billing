@@ -218,7 +218,7 @@ export class WhatsAppSettingsController {
             console.log('🔄 Starting QR code regeneration...');
 
             // First clear session if exists
-            const sessionPath = path.join(process.cwd(), 'baileys-session');
+            const sessionPath = path.join(process.cwd(), 'baileys_auth');
 
             // Destroy client first
             try {
