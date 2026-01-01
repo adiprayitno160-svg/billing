@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title || 'Buat Tagihan Manual' %>
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">
+                <i class="fas fa-file-invoice-dollar text-blue-600 mr-3"></i>Buat Tagihan Manual
+            </h1>
+            <p class="mt-2 text-gray-600">Buat invoice baru untuk pelanggan secara manual.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <h2 class="text-white font-semibold text-lg flex items-center">
+                    <i class="fas fa-edit mr-2"></i>Form Tagihan
+                </h2>
+            </div>
+
+            <form id="createInvoiceForm" class="p-6 md:p-8 space-y-8">
+                <!-- Customer & Date Section -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Customer Select -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Pilih Pelanggan <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <select name="customer_id" id="customer_id" required
+                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white">
+                                <option value="">-- Pilih Pelanggan --</option>
+                                <% if (typeof customers !=='undefined' && customers.length> 0) { %>
+                                    <% customers.forEach(customer=> { %>
+                                        <option value="<%= customer.id %>">
+                                            <%= customer.name %> (<%= customer.customer_code || 'No Code' %>)
+                                        </option>
+                                        <% }); %>
+                                            <% } else { %>
+                                                <option value="" disabled>Tidak ada data pelanggan aktif</option>
+                                                <% } %>
+                            </select>
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <i class="fas fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Period -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Periode Tagihan <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="month" name="period" id="period" required
+                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-calendar-alt text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Due Date -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Jatuh Tempo <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="date" name="due_date" id="due_date" required
+                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-hourglass-end text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-200">
+
+                <!-- Items Section -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">Detail Item Tagihan</h3>
+                        <button type="button" id="addItemBtn"
+                            class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-semibold text-sm transition-colors border border-blue-200">
+                            <i class="fas fa-plus mr-1"></i> Tambah Item
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-left border-y border-gray-200 text-gray-600 text-sm">
+                                    <th class="py-3 px-4 font-semibold w-12">#</th>
+                                    <th class="py-3 px-4 font-semibold">Deskripsi Layanan / Produk</th>
+                                    <th class="py-3 px-4 font-semibold w-32">Qty</th>
+                                    <th class="py-3 px-4 font-semibold w-48">Harga Satuan (Rp)</th>
+                                    <th class="py-3 px-4 font-semibold w-48">Total (Rp)</th>
+                                    <th class="py-3 px-4 font-semibold w-16 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                <!-- Initial Item Row -->
+                                <tr class="item-row border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <td class="py-3 px-4 text-center text-gray-500 row-number">1</td>
+                                    <td class="py-3 px-4">
+                                        <input type="text" name="items[0][description]" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Contoh: Paket Internet 20Mbps">
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <input type="number" name="items[0][quantity]" value="1" min="1" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 item-qty text-center">
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <input type="number" name="items[0][unit_price]" min="0" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 item-price text-right"
+                                            placeholder="0">
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <input type="text" readonly
+                                            class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700 font-semibold text-right item-total"
+                                            value="Rp 0">
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <button type="button" class="text-red-500 hover:text-red-700 delete-row-btn"
+                                            disabled>
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="4" class="py-3 px-4 text-right font-semibold text-gray-700">Subtotal:
+                                    </td>
+                                    <td class="py-3 px-4 text-right font-bold text-gray-900" id="subtotalDisplay">Rp 0
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="py-3 px-4 text-right font-semibold text-gray-700"></td>
+                                    <!-- Spacer -->
+                                    <td
+                                        class="py-3 px-4 text-right font-semibold text-gray-700 flex items-center justify-end">
+                                        <span>Diskon (Rp):</span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <input type="number" name="discount_amount" id="discount_amount" min="0"
+                                            value="0"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-right font-semibold text-red-600">
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr class="bg-blue-50 border-t-2 border-blue-100">
+                                    <td colspan="4" class="py-4 px-4 text-right font-bold text-lg text-blue-800">Total
+                                        Tagihan:</td>
+                                    <td class="py-4 px-4 text-right font-bold text-xl text-blue-700"
+                                        id="grandTotalDisplay">Rp 0</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end pt-6">
+                    <button type="submit" id="submitBtn"
+                        class="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-bold shadow-lg flex items-center transform hover:-translate-y-0.5">
+                        <i class="fas fa-check-circle mr-2"></i> Simpan & Buat Tagihan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="hidden fixed bottom-5 right-5 z-50 transition-all duration-300 transform translate-y-10 opacity-0">
+        <div class="flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800"
+            role="alert">
+            <div id="toastIcon" class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg">
+            </div>
+            <div class="ml-3 text-sm font-normal" id="toastMessage">Message content</div>
+            <button type="button"
+                class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700"
+                data-dismiss-target="#toast" aria-label="Close" onclick="hideToast()">
+                <span class="sr-only">Close</span>
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Utilities ---
+        const formatRupiah = (number) => new Intl.NumberFormat('id-ID').format(number);
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+
+            msg.textContent = message;
+
+            if (type === 'success') {
+                icon.className = 'inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg';
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+            } else {
+                icon.className = 'inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-red-500 bg-red-100 rounded-lg';
+                icon.innerHTML = '<i class="fas fa-exclamation"></i>';
+            }
+
+            toast.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+
+            setTimeout(() => {
+                hideToast();
+            }, 3000);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => toast.classList.add('hidden'), 300);
+        }
+
+        // --- Logic ---
+        const today = new Date();
+        document.getElementById('period').value = today.toISOString().slice(0, 7); // YYYY-MM
+
+        // Set due date to today + 7 days by default
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+        document.getElementById('due_date').value = nextWeek.toISOString().slice(0, 10);
+
+        let rowCount = 1;
+
+        // Add Item
+        document.getElementById('addItemBtn').addEventListener('click', () => {
+            const tbody = document.getElementById('itemsTableBody');
+            const newRow = document.createElement('tr');
+            newRow.className = 'item-row border-b border-gray-100 hover:bg-gray-50 transition-colors';
+            newRow.innerHTML = `
+                <td class="py-3 px-4 text-center text-gray-500 row-number">${rowCount + 1}</td>
+                <td class="py-3 px-4">
+                    <input type="text" name="items[${rowCount}][description]" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Deskripsi item">
+                </td>
+                <td class="py-3 px-4">
+                    <input type="number" name="items[${rowCount}][quantity]" value="1" min="1" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 item-qty text-center">
+                </td>
+                <td class="py-3 px-4">
+                    <input type="number" name="items[${rowCount}][unit_price]" min="0" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 item-price text-right"
+                        placeholder="0">
+                </td>
+                <td class="py-3 px-4">
+                    <input type="text" readonly
+                        class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700 font-semibold text-right item-total"
+                        value="Rp 0">
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <button type="button" class="text-red-500 hover:text-red-700 delete-row-btn">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+            rowCount++;
+            updateRowNumbers();
+            attachRowEvents(newRow);
+        });
+
+        // Delete Item (Event Delegation or attach on create)
+        function attachRowEvents(row) {
+            const inputs = row.querySelectorAll('.item-qty, .item-price');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculateTotals);
+            });
+
+            const deleteBtn = row.querySelector('.delete-row-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    if (document.querySelectorAll('.item-row').length > 1) {
+                        row.remove();
+                        updateRowNumbers();
+                        calculateTotals();
+                    }
+                });
+            }
+        }
+
+        // Initialize first row events
+        attachRowEvents(document.querySelector('.item-row'));
+
+        function updateRowNumbers() {
+            document.querySelectorAll('.row-number').forEach((cell, index) => {
+                cell.textContent = index + 1;
+            });
+            // Disable delete button if only 1 row
+            const rows = document.querySelectorAll('.item-row');
+            rows.forEach(row => {
+                const btn = row.querySelector('.delete-row-btn');
+                if (btn) btn.disabled = rows.length === 1;
+            });
+        }
+
+        function calculateTotals() {
+            let subtotal = 0;
+            const rows = document.querySelectorAll('.item-row');
+
+            rows.forEach(row => {
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                const total = qty * price;
+
+                row.querySelector('.item-total').value = 'Rp ' + formatRupiah(total);
+                subtotal += total;
+            });
+
+            const discount = parseFloat(document.getElementById('discount_amount').value) || 0;
+            const grandTotal = Math.max(0, subtotal - discount);
+
+            document.getElementById('subtotalDisplay').textContent = 'Rp ' + formatRupiah(subtotal);
+            document.getElementById('grandTotalDisplay').textContent = 'Rp ' + formatRupiah(grandTotal);
+        }
+
+        // Global listeners
+        document.getElementById('discount_amount').addEventListener('input', calculateTotals);
+
+        // Form Submit
+        document.getElementById('createInvoiceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const originalText = btn.innerHTML;
+
+            // Build items array manually to ensure proper structure/indexing
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push({
+                    description: row.querySelector('input[name*="[description]"]').value,
+                    quantity: row.querySelector('input[name*="[quantity]"]').value,
+                    unit_price: row.querySelector('input[name*="[unit_price]"]').value
+                });
+            });
+
+            const formData = {
+                customer_id: document.getElementById('customer_id').value,
+                period: document.getElementById('period').value,
+                due_date: document.getElementById('due_date').value,
+                discount_amount: document.getElementById('discount_amount').value,
+                items: items
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Menyimpan...';
+
+            try {
+                const response = await fetch('/billing/tagihan/create/manual', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('Tagihan berhasil dibuat!', 'success');
+                    setTimeout(() => {
+                        window.location.href = `/billing/tagihan/${result.invoice_id}`;
+                    }, 1000);
+                } else {
+                    showToast(result.message || 'Gagal membuat tagihan', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Terjadi kesalahan sistem', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+
+    </script>
+</body>
+
+</html>

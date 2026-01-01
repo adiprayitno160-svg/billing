@@ -85,8 +85,26 @@ router.get('/invoices', invoiceController.getInvoiceList.bind(invoiceController)
 router.get('/tagihan', invoiceController.getInvoiceList.bind(invoiceController));
 
 // Create manual invoice
+// Create manual invoice
 router.get('/tagihan/create/manual', async (req, res) => {
-    res.render('billing/tagihan-create', { title: 'Buat Tagihan Manual' });
+    try {
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+        try {
+            const [customers] = await conn.query(
+                "SELECT id, name, customer_code, connection_type FROM customers WHERE status = 'active' ORDER BY name ASC"
+            ) as any;
+
+            res.render('billing/tagihan-create', {
+                title: 'Buat Tagihan Manual',
+                customers
+            });
+        } finally {
+            conn.release();
+        }
+    } catch (error) {
+        console.error('Error loading manual invoice form:', error);
+        res.status(500).send('Error loading form');
+    }
 });
 
 router.post('/tagihan/create/manual', invoiceController.createManualInvoice.bind(invoiceController));

@@ -207,6 +207,7 @@
                                         Default generation is 1. Default offset is 7=> Due Date 8.
                                         // If settings.due_date_fix_day exists use it, else calc.
                                         const genDate = settings.generation_date || 1;
+
                                         const currentOffset = settings.due_date_offset || 7;
                                         const estimatedDay = (genDate + currentOffset);
                                         // If estimated > 28, it might wrap. Just try to match.
