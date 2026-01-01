@@ -654,4 +654,91 @@ export class IsolationService {
 
         return { isolated, failed };
     }
+    /**
+     * Auto delete (soft delete) customers blocked > 7 days
+     */
+    static async autoDeleteBlockedCustomers(): Promise<{ deleted: number, failed: number }> {
+        const connection = await databasePool.getConnection();
+        let deleted = 0;
+        let failed = 0;
+
+        try {
+            // Find customers isolated > 7 days ago
+            // We use isolation_logs to find the last isolation date
+            // OR checks customers table if we had an 'isolated_at' column.
+            // Using isolation_logs is safer if we don't trust a single column.
+            // However, for performance, let's assume we can query customers who are isolated.
+
+            // Note: In `isolateCustomer` we don't update `isolated_at` on the customer table (only `is_isolated`).
+            // We should use `isolation_logs` to find when they were isolated.
+
+            const query = `
+                SELECT c.id, c.name, MAX(il.created_at) as last_isolation_date
+                FROM customers c
+                JOIN isolation_logs il ON c.id = il.customer_id
+                WHERE c.is_isolated = 1
+                AND c.status != 'deleted'
+                AND il.action = 'isolate'
+                GROUP BY c.id
+                HAVING last_isolation_date < DATE_SUB(NOW(), INTERVAL 7 DAY)
+            `;
+
+            const [customers] = await connection.query(query);
+
+            console.log(`[AutoDelete] Found ${(customers as any[]).length} customers blocked > 7 days`);
+
+            for (const customer of (customers as any[])) {
+                try {
+                    await connection.beginTransaction();
+
+                    // Soft delete customer
+                    await connection.query('UPDATE customers SET status = "deleted", deleted_at = NOW() WHERE id = ?', [customer.id]);
+
+                    // Terminate subscription
+                    await connection.query('UPDATE subscriptions SET status = "terminated", end_date = NOW() WHERE customer_id = ? AND status = "active"', [customer.id]);
+
+                    // Log action
+                    await connection.query(`
+                        INSERT INTO customer_logs (customer_id, action, description, created_by, created_at)
+                        VALUES (?, 'auto_delete', 'Auto deleted after 7 days of isolation', 0, NOW())
+                    `, [customer.id]);
+
+                    await connection.commit();
+
+                    // Send notification (Fire and forget)
+                    try {
+                        const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                        await UnifiedNotificationService.queueNotification({
+                            customer_id: customer.id,
+                            notification_type: 'account_deleted',
+                            channels: ['whatsapp'],
+                            variables: {
+                                customer_name: customer.name,
+                                reason: 'Tidak ada pembayaran setelah 7 hari isolir.'
+                            },
+                            priority: 'normal'
+                        });
+                    } catch (e) {
+                        console.error('Failed to send delete notification:', e);
+                    }
+
+                    deleted++;
+                    console.log(`[AutoDelete] Soft deleted customer ${customer.name} (${customer.id})`);
+
+                } catch (err) {
+                    await connection.rollback();
+                    console.error(`[AutoDelete] Failed to delete customer ${customer.id}:`, err);
+                    failed++;
+                }
+            }
+
+            return { deleted, failed };
+
+        } catch (error) {
+            console.error('[AutoDelete] Error in auto delete process:', error);
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
 }

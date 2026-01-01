@@ -204,6 +204,11 @@ export class WhatsAppServiceBaileys {
             console.log('[WhatsAppBaileys] Body:', messageText?.substring(0, 100));
             console.log('[WhatsAppBaileys] Has Media:', hasMedia);
 
+            // DEBUG: Log raw message for investigation
+            console.log('[DEBUG] Raw message key:', JSON.stringify(msg.key));
+            console.log('[DEBUG] Message participant:', msg.key.participant);
+            console.log('[DEBUG] Message fromMe:', msg.key.fromMe);
+
             // Create adapter for bot service
             const adapter = {
                 from: from,

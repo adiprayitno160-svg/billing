@@ -24,16 +24,16 @@ export async function pppoeStatsMiddleware(req: Request, res: Response, next: Ne
             const activeSessions = await mikrotikService.getActivePPPoESessions();
             const onlineCount = activeSessions ? activeSessions.length : 0;
 
-            // Get all PPPoE secrets from database
+            // Get all PPPoE customers from database
             const { databasePool } = await import('../db/pool');
-            const [secrets] = await databasePool.query<any[]>(
-                'SELECT COUNT(*) as total FROM pppoe_secrets'
+            const [secrets] = await (databasePool as any).query(
+                "SELECT COUNT(*) as total FROM customers WHERE connection_type = 'pppoe'"
             );
             const totalCount = secrets[0]?.total || 0;
 
-            // Get active (non-disabled) secrets
-            const [activeSecrets] = await databasePool.query<any[]>(
-                'SELECT COUNT(*) as active FROM pppoe_secrets WHERE disabled = 0'
+            // Get active (non-disabled) customers
+            const [activeSecrets] = await (databasePool as any).query(
+                "SELECT COUNT(*) as active FROM customers WHERE connection_type = 'pppoe' AND status = 'active'"
             );
             const activeCount = activeSecrets[0]?.active || 0;
 

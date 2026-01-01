@@ -143,8 +143,38 @@ export class SchedulerService {
             timezone: "Asia/Jakarta"
         });
 
-        // Weekly database backup with 90-day retention - every Sunday at 02:00 Asia/Jakarta
-        cron.schedule('0 2 * * 0', async () => {
+        // Auto isolate overdue (>= 2 unpaid invoices) - daily at 02:00
+        cron.schedule('0 2 * * *', async () => {
+            console.log('Running auto isolate overdue customers (>= 2 unpaid)...');
+            try {
+                const { IsolationService } = await import('./billing/isolationService');
+                const result = await IsolationService.autoIsolateOverdueCustomers();
+                console.log(`Auto isolate overdue: ${result.isolated} isolated, ${result.failed} failed`);
+            } catch (error) {
+                console.error('Error running auto isolate overdue:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
+        // Auto delete blocked customers (> 7 days) - daily at 03:00
+        cron.schedule('0 3 * * *', async () => {
+            console.log('Running auto delete blocked customers (> 7 days)...');
+            try {
+                const { IsolationService } = await import('./billing/isolationService');
+                const result = await IsolationService.autoDeleteBlockedCustomers();
+                console.log(`Auto delete blocked: ${result.deleted} deleted, ${result.failed} failed`);
+            } catch (error) {
+                console.error('Error running auto delete blocked:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
+        // Weekly database backup with 90-day retention - every Sunday at 04:00 Asia/Jakarta
+        cron.schedule('0 4 * * 0', async () => {
             console.log('[Scheduler] Running weekly database backup...');
             const backup = new BackupService();
             try {

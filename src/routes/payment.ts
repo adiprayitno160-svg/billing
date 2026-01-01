@@ -46,6 +46,7 @@ router.put('/gateways/:gatewayId', (req, res) => paymentController.updateGateway
 
 // Billing Payment Integration routes
 router.post('/billing/create', (req, res) => billingPaymentController.createInvoicePayment(req, res));
+router.post('/billing/discount', (req, res) => billingPaymentController.applyDiscount(req, res));
 router.get('/billing/invoice/:invoiceId/:customerId', (req, res) => billingPaymentController.getInvoiceWithPaymentOptions(req, res));
 router.get('/billing/customer/:customerId/history', (req, res) => billingPaymentController.getCustomerPaymentHistory(req, res));
 router.get('/billing/statistics', (req, res) => billingPaymentController.getPaymentStatistics(req, res));

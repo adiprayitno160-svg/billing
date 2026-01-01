@@ -416,34 +416,48 @@ export class InvoiceService {
 
                 for (const customer of customerResult as any[]) {
                     try {
-                        // Jatuh tempo: tanggal 28 bulan ini
+                        // Jatuh tempo: tanggal 28 bulan ini (GLOBAL RULE)
                         const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                         const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
                         const dueDate = new Date(periodYear, periodMonth - 1, 28); // Tanggal 28 bulan invoice
 
+                        // Enhanced Pricing Logic
+                        let price = 100000; // Default fallback
+                        let packageName = 'Paket Internet Bulanan';
+
+                        // Try to get price from customer package_id/type if possible (Simulated logic or simple check)
+                        // If we had the package tables joined here, we could use them.
+                        // For now, ensure we log if we are using the default fallback.
+                        if (customer.price && !isNaN(parseFloat(customer.price))) {
+                            price = parseFloat(customer.price);
+                            packageName = customer.package_name || packageName;
+                        } else {
+                            console.warn(`[InvoiceService] Customer ${customer.customer_name} has no subscription/price. Using default: ${price}`);
+                        }
+
                         const customerBalance = parseFloat(customer.account_balance || 0);
-                        const amountFromBalance = Math.min(customerBalance, defaultPrice);
+                        const amountFromBalance = Math.min(customerBalance, price);
 
                         const invoiceData: InvoiceData = {
                             customer_id: customer.customer_id || 0,
                             period: period,
                             due_date: dueDate.toISOString().split('T')[0] as string,
-                            subtotal: defaultPrice,
-                            total_amount: defaultPrice,
+                            subtotal: price,
+                            total_amount: price,
                             paid_amount: amountFromBalance,
                             discount_amount: 0,
-                            notes: 'Tagihan bulanan default'
+                            notes: 'Tagihan bulanan manual (Fallback)'
                         };
 
                         const items: InvoiceItem[] = [{
-                            description: `Paket Internet Bulanan - ${period}`,
+                            description: `${packageName} - ${period}`,
                             quantity: 1,
-                            unit_price: defaultPrice,
-                            total_price: defaultPrice
+                            unit_price: price,
+                            total_price: price
                         }];
 
                         const invoiceId = await this.createInvoice(invoiceData, items);
-                        console.log(`[InvoiceService] Created fallback invoice for customer ${customer.customer_name} with ID: ${invoiceId} (balance use: ${amountFromBalance})`);
+                        console.log(`[InvoiceService] Created manual invoice for customer ${customer.customer_name} (${customer.customer_id}) with ID: ${invoiceId}`);
                         invoiceIds.push(invoiceId);
 
                         if (amountFromBalance > 0) {
@@ -461,7 +475,7 @@ export class InvoiceService {
                             );
                         }
                     } catch (customerError) {
-                        console.error(`[InvoiceService] Error processing customer ${customer.customer_name}:`, customerError);
+                        console.error(`[InvoiceService] CRITICAL Error processing manual invoice for customer ${customer.customer_name}:`, customerError);
                         // Continue with next customer
                         continue;
                     }

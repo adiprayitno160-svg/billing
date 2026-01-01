@@ -21,6 +21,12 @@ router.use(isAuthenticated);
 router.get('/', controller.dashboard.bind(controller));
 
 /**
+ * GET /monitoring/sla/analysis/:customerId
+ * Customer SLA Analysis Data
+ */
+router.get('/analysis/:customerId', controller.getAnalysis.bind(controller));
+
+/**
  * GET /monitoring/sla/customer/:customerId
  * Customer SLA Detail
  */

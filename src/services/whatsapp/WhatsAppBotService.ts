@@ -6,7 +6,9 @@
 // import { Message, MessageMedia } from 'whatsapp-web.js'; // Removed to support multiple providers
 import { WhatsAppServiceBaileys as WhatsAppService } from './WhatsAppServiceBaileys';
 import { databasePool } from '../../db/pool';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
+import fs from 'fs';
+import path from 'path';
 
 import { PaymentVerificationService } from './PaymentVerificationService';
 import { AIAnomalyDetectionService } from '../billing/AIAnomalyDetectionService';
@@ -35,12 +37,14 @@ export class WhatsAppBotService {
      * Check if phone number belongs to an admin
      */
     private static async isAdmin(phone: string): Promise<boolean> {
+        const resolvedPhone = this.resolveLid(phone).split('@')[0];
+
         // 1. Check Hardcoded list (Fallback)
-        if (this.ADMIN_NUMBERS.includes(phone)) return true;
+        if (this.ADMIN_NUMBERS.includes(resolvedPhone)) return true;
 
         // 2. Check Database (Users Table)
         try {
-            const cleanPhone = phone.replace('@c.us', '').replace('@s.whatsapp.net', '');
+            const cleanPhone = resolvedPhone;
 
             // Check for both 62... and 0... formats
             const phoneWithZero = '0' + cleanPhone.substring(2);
@@ -91,11 +95,12 @@ export class WhatsAppBotService {
      */
     static async handleMessage(message: WhatsAppMessageInterface): Promise<void> {
         let phone = '';
+        let senderJid = '';
         try {
             console.log('[WhatsAppBot] ========== MESSAGE HANDLER START ==========');
 
-            const from = message.from || '';
-            if (!from) {
+            senderJid = message.from || '';
+            if (!senderJid) {
                 console.log('[WhatsAppBot] ❌ No sender found, ignoring message');
                 return;
             }
@@ -104,11 +109,11 @@ export class WhatsAppBotService {
             const bodyLower = body.toLowerCase(); // For case-insensitive comparison
             const hasMedia = message.hasMedia;
 
-            // Extract phone number (remove @c.us / @s.whatsapp.net / @lid)
-            phone = from.split('@')[0] || '';
-
+            // Extract phone number for DB lookup (remove @suffix)
+            phone = senderJid.split('@')[0] || '';
             console.log(`[WhatsAppBot] 📨 Incoming message:`);
-            console.log(`[WhatsAppBot]   From: ${phone}`);
+            console.log(`[WhatsAppBot]   From (JID): ${senderJid}`);
+            console.log(`[WhatsAppBot]   Phone ID: ${phone}`);
             console.log(`[WhatsAppBot]   Body: "${body.substring(0, 100)}${body.length > 100 ? '...' : ''}"`);
             console.log(`[WhatsAppBot]   Body (lowercase): "${bodyLower.substring(0, 100)}"`);
             console.log(`[WhatsAppBot]   Has Media: ${hasMedia}`);
@@ -136,11 +141,11 @@ export class WhatsAppBotService {
                     try {
                         const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
                         console.log(`[WhatsAppBot] Registration response: ${registrationResponse.substring(0, 100)}...`);
-                        await this.sendMessage(phone, registrationResponse);
+                        await this.sendMessage(senderJid, registrationResponse);
                         console.log('[WhatsAppBot] ✅ Registration message sent successfully');
                     } catch (regError: any) {
                         console.error('[WhatsAppBot] ❌ Error in registration:', regError);
-                        await this.sendMessage(phone, '❌ Terjadi kesalahan saat registrasi.');
+                        await this.sendMessage(senderJid, '❌ Terjadi kesalahan saat registrasi.');
                     }
                     return;
                 }
@@ -150,7 +155,7 @@ export class WhatsAppBotService {
                     console.log('[WhatsAppBot] 📝 Continuing registration session...');
                     try {
                         const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
-                        await this.sendMessage(phone, registrationResponse);
+                        await this.sendMessage(senderJid, registrationResponse);
                     } catch (regError: any) {
                         console.error('[WhatsAppBot] ❌ Error in registration session:', regError);
                     }
@@ -160,7 +165,7 @@ export class WhatsAppBotService {
                 // Default: Guide unregistered users to register
                 console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
                 await this.sendMessage(
-                    phone,
+                    senderJid,
                     '👋 *Halo!*\n\n' +
                     'Nomor Anda belum terdaftar di sistem kami.\n\n' +
                     '📝 *Untuk pelanggan baru:*\n' +
@@ -177,12 +182,12 @@ export class WhatsAppBotService {
             if (hasMedia) {
                 console.log('[WhatsAppBot] 🖼️  Processing media message...');
                 try {
-                    await this.handleMediaMessage(message, phone);
+                    await this.handleMediaMessage(message, phone, senderJid);
                     console.log('[WhatsAppBot] ✅ Media message handled successfully');
                 } catch (mediaError: any) {
                     console.error('[WhatsAppBot] ❌ Error in handleMediaMessage:', mediaError);
                     await this.sendMessage(
-                        phone,
+                        senderJid,
                         '❌ *Terjadi Kesalahan*\n\n' +
                         'Maaf, terjadi kesalahan saat memproses media Anda.\n' +
                         'Silakan coba lagi atau hubungi customer service.'
@@ -195,12 +200,12 @@ export class WhatsAppBotService {
             if (body.startsWith(this.COMMAND_PREFIX)) {
                 console.log('[WhatsAppBot] 🔧 Processing command...');
                 try {
-                    await this.handleCommand(message, phone, body, customer);
+                    await this.handleCommand(message, phone, body, customer, senderJid);
                     console.log('[WhatsAppBot] ✅ Command handled successfully');
                 } catch (cmdError: any) {
                     console.error('[WhatsAppBot] ❌ Error in handleCommand:', cmdError);
                     await this.sendMessage(
-                        phone,
+                        senderJid,
                         '❌ *Terjadi Kesalahan*\n\n' +
                         'Maaf, terjadi kesalahan saat memproses command Anda.\n' +
                         'Silakan coba lagi atau hubungi customer service.'
@@ -213,12 +218,12 @@ export class WhatsAppBotService {
             if (this.isMenuCommand(body)) {
                 console.log('[WhatsAppBot] 📋 Processing menu command...');
                 try {
-                    await this.handleMenuCommand(message, phone, body, customer);
+                    await this.handleMenuCommand(message, phone, body, customer, senderJid);
                     console.log('[WhatsAppBot] ✅ Menu command handled successfully');
                 } catch (menuError: any) {
                     console.error('[WhatsAppBot] ❌ Error in handleMenuCommand:', menuError);
                     await this.sendMessage(
-                        phone,
+                        senderJid,
                         '❌ *Terjadi Kesalahan*\n\n' +
                         'Maaf, terjadi kesalahan saat menampilkan menu.\n' +
                         'Silakan coba lagi atau hubungi customer service.'
@@ -231,11 +236,11 @@ export class WhatsAppBotService {
             console.log('[WhatsAppBot] 🤖 Hubbing AI ChatBot...');
             try {
                 const aiResponse = await ChatBotService.ask(body, customer);
-                await this.sendMessage(phone, aiResponse);
+                await this.sendMessage(senderJid, aiResponse);
                 console.log('[WhatsAppBot] ✅ AI ChatBot response sent');
             } catch (aiError: any) {
                 console.error('[WhatsAppBot] ❌ Error in AI ChatBot:', aiError);
-                await this.showMainMenu(phone, customer);
+                await this.showMainMenu(senderJid, customer);
             }
 
         } catch (error: any) {
@@ -245,15 +250,8 @@ export class WhatsAppBotService {
             console.error('[WhatsAppBot] ==========================================');
 
             // Send generic error message to customer
-            if (phone) {
-                try {
-                    await this.sendMessage(
-                        phone,
-                        '❌ Terjadi kesalahan sistem. Silakan coba lagi atau hubungi customer service.'
-                    );
-                } catch (sendError) {
-                    console.error('[WhatsAppBot] ❌ Failed to send error message to customer:', sendError);
-                }
+            if (senderJid) {
+                await this.sendMessage(senderJid, '❌ Terjadi kesalahan sistem. Silakan coba beberapa saat lagi.');
             }
         } finally {
             console.log('[WhatsAppBot] ========== MESSAGE HANDLER END ==========');
@@ -265,7 +263,7 @@ export class WhatsAppBotService {
      * AI akan analisa dan auto-approve jika valid
      * Jika tidak valid atau confidence rendah, akan diflag untuk manual verification
      */
-    private static async handleMediaMessage(message: WhatsAppMessageInterface, phone: string): Promise<void> {
+    private static async handleMediaMessage(message: WhatsAppMessageInterface, phone: string, senderJid: string): Promise<void> {
         try {
             // Validate customer first
             const customer = await this.validateCustomer(phone);
@@ -400,31 +398,31 @@ export class WhatsAppBotService {
     /**
      * Handle command
      */
-    private static async handleCommand(message: WhatsAppMessageInterface, phone: string, command: string, customer: any): Promise<void> {
+    private static async handleCommand(message: WhatsAppMessageInterface, phone: string, command: string, customer: any, senderJid: string): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
         if (cmd === '/start' || cmd === '/menu' || cmd === '/help') {
-            await this.showMainMenu(phone, customer);
+            await this.showMainMenu(senderJid, customer);
         } else if (cmd === '/tagihan' || cmd.startsWith('/tagihan')) {
-            await this.showInvoices(phone);
+            await this.showInvoices(senderJid);
         } else if (cmd === '/wifi' || cmd === '/ubahwifi') {
-            await this.showWiFiMenu(phone);
+            await this.showWiFiMenu(senderJid);
         } else if (cmd.startsWith('/wifi_ssid ')) {
             const newSSID = command.substring(11).trim();
-            await this.changeWiFiSSID(phone, newSSID);
+            await this.changeWiFiSSID(senderJid, newSSID);
         } else if (cmd.startsWith('/wifi_password ')) {
             const newPassword = command.substring(15).trim();
-            await this.changeWiFiPassword(phone, newPassword);
+            await this.changeWiFiPassword(senderJid, newPassword);
         } else if (cmd === '/reboot') {
-            await this.rebootOnt(phone);
+            await this.rebootOnt(senderJid);
         } else if (cmd.startsWith('/wifi_both ')) {
             // Format: /wifi_both SSID|Password
             const parts = command.substring(11).trim().split('|');
             if (parts.length === 2 && parts[0] && parts[1]) {
-                await this.changeWiFiBoth(phone, parts[0].trim(), parts[1].trim());
+                await this.changeWiFiBoth(senderJid, parts[0].trim(), parts[1].trim());
             } else {
                 await this.sendMessage(
-                    phone,
+                    senderJid,
                     '❌ *Format salah!*\n\n' +
                     'Gunakan format: /wifi_both SSID|Password\n' +
                     'Contoh: /wifi_both MyWiFi|password123'
@@ -432,15 +430,15 @@ export class WhatsAppBotService {
             }
         } else if (cmd.startsWith('/lapor')) {
             const description = command.substring(6).trim();
-            await this.handleReportCommand(phone, description);
+            await this.handleReportCommand(senderJid, description);
         } else if (cmd.startsWith('/selesai')) {
-            await this.handleResolveCommand(phone);
+            await this.handleResolveCommand(senderJid);
         } else if (cmd.startsWith('/nama ') || cmd.startsWith('/gantinama ')) {
             const newName = command.replace(/^\/(nama|gantinama)\s+/i, '').trim();
-            await this.changeCustomerName(phone, newName);
+            await this.changeCustomerName(senderJid, newName);
         } else {
             await this.sendMessage(
-                phone,
+                senderJid,
                 '❌ *Command tidak dikenal*\n\n' +
                 'Gunakan salah satu command berikut:\n' +
                 '*/menu* - Tampilkan menu utama\n' +
@@ -456,21 +454,21 @@ export class WhatsAppBotService {
     /**
      * Handle menu command
      */
-    private static async handleMenuCommand(message: WhatsAppMessageInterface, phone: string, command: string, customer: any): Promise<void> {
+    private static async handleMenuCommand(message: WhatsAppMessageInterface, phone: string, command: string, customer: any, senderJid: string): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
         if (cmd === '1' || cmd === 'tagihan' || cmd === 'invoice') {
-            await this.showInvoices(phone);
+            await this.showInvoices(senderJid);
         } else if (cmd === '2' || cmd === 'bantuan' || cmd === 'help') {
-            await this.showHelp(phone);
+            await this.showHelp(senderJid);
         } else if (cmd === '3' || cmd === 'wifi' || cmd === 'ubahwifi') {
-            await this.showWiFiMenu(phone);
+            await this.showWiFiMenu(senderJid);
         } else if (cmd === '4' || cmd === 'reboot' || cmd === 'restart') {
-            await this.rebootOnt(phone);
+            await this.rebootOnt(senderJid);
         } else if (cmd === '5' || cmd === 'gantinama' || cmd === 'nama') {
-            await this.sendMessage(phone, 'Silakan ketik nama baru Anda dengan format:\n*/nama [nama_baru]*\n\nContoh: */nama Budi Santoso*');
+            await this.sendMessage(senderJid, 'Silakan ketik nama baru Anda dengan format:\n*/nama [nama_baru]*\n\nContoh: */nama Budi Santoso*');
         } else {
-            await this.showMainMenu(phone, customer);
+            await this.showMainMenu(senderJid, customer);
         }
     }
 
@@ -1091,11 +1089,35 @@ Ketik /menu untuk kembali ke menu utama.`;
     }
 
     /**
+     * Resolve LID (Linked Identity ID) to a phone number if mapping exists
+     */
+    private static resolveLid(id: string): string {
+        try {
+            const cleanId = id.split('@')[0];
+            const authDir = path.join(process.cwd(), 'baileys_auth');
+            if (fs.existsSync(authDir)) {
+                const files = fs.readdirSync(authDir).filter(f => f.startsWith('lid-mapping-') && f.endsWith('.json'));
+                for (const file of files) {
+                    const content = fs.readFileSync(path.join(authDir, file), 'utf-8').replace(/"/g, '').trim();
+                    if (content === cleanId) {
+                        const phone = file.replace('lid-mapping-', '').replace('.json', '');
+                        console.log(`[WhatsAppBot] 🚀 Resolved LID ${cleanId} to phone: ${phone}`);
+                        return phone;
+                    }
+                }
+            }
+        } catch (err) {
+            // Ignore errors during resolution
+        }
+        return id;
+    }
+
+    /**
      * Get customer by phone number (helper)
      */
     private static async getCustomerByPhone(phone: string): Promise<any | null> {
         try {
-            let normalizedPhone = phone.replace('@c.us', '').replace('@s.whatsapp.net', '').trim();
+            let normalizedPhone = this.resolveLid(phone).split('@')[0].trim();
             console.log(`[WhatsAppBot] 🔍 Looking for customer with phone: ${normalizedPhone}`);
 
             // Try exact match first
@@ -1153,9 +1175,22 @@ Ketik /menu untuk kembali ke menu utama.`;
     /**
      * Send message helper
      */
-    private static async sendMessage(phone: string, message: string): Promise<void> {
+    private static async sendMessage(dest: string, message: string): Promise<void> {
         try {
-            await WhatsAppService.sendMessage(phone, message);
+            let targetJid = dest;
+
+            // If destination is just a phone number (no @ suffix), try to resolve its LID mapping
+            if (!targetJid.includes('@')) {
+                const authDir = path.join(process.cwd(), 'baileys_auth');
+                const mappingFile = path.join(authDir, `lid-mapping-${targetJid}.json`);
+                if (fs.existsSync(mappingFile)) {
+                    const lid = fs.readFileSync(mappingFile, 'utf-8').replace(/"/g, '').trim();
+                    console.log(`[WhatsAppBot] 🚀 Resolved phone ${targetJid} back to LID: ${lid}@lid`);
+                    targetJid = `${lid}@lid`;
+                }
+            }
+
+            await WhatsAppService.sendMessage(targetJid, message);
         } catch (error: any) {
             console.error('[WhatsAppBot] Error sending message:', error);
         }

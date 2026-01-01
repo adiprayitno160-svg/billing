@@ -320,4 +320,31 @@ export class BillingPaymentController {
       });
     }
   }
+  /**
+   * Apply discount code
+   */
+  async applyDiscount(req: Request, res: Response): Promise<void> {
+    try {
+      const { invoiceId, code } = req.body;
+      // Get user ID from auth context if available, otherwise 0 or system
+      const userId = (req as any).user?.id || 0;
+
+      if (!invoiceId || !code) {
+        res.status(400).json({ success: false, message: 'Invoice ID and code are required' });
+        return;
+      }
+
+      const { DiscountService } = await import('../../services/billing/discountService');
+      const result = await DiscountService.applyMarketingDiscount(parseInt(invoiceId), code, userId);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error applying discount:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to apply discount',
+        error: error.message
+      });
+    }
+  }
 }

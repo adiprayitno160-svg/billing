@@ -1,0 +1,241 @@
+<div class="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-blue-600"></i>
+                    SLA Monitoring & Analysis
+                </h1>
+                <p class="text-gray-500 text-sm mt-1">Real-time Service Level Agreement tracking and insights</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="refreshData()"
+                    class="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-500">Avg. Reliability</span>
+                    <i class="fas fa-check-circle text-green-500 bg-green-50 p-2 rounded-lg"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-800" id="avgReliability">--%</div>
+                <div class="text-xs text-green-600 mt-2 flex items-center gap-1">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Top 10% Industry</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-500">SLA Breaches</span>
+                    <i class="fas fa-exclamation-triangle text-red-500 bg-red-50 p-2 rounded-lg"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-800" id="breachCount">--</div>
+                <div class="text-xs text-gray-500 mt-2">This Month</div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-500">Refunds Given</span>
+                    <i class="fas fa-money-bill-wave text-yellow-500 bg-yellow-50 p-2 rounded-lg"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-800" id="refundAmount">Rp 0</div>
+                <div class="text-xs text-gray-500 mt-2">Auto-applied</div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-500">Active Incidents</span>
+                    <i class="fas fa-bolt text-purple-500 bg-purple-50 p-2 rounded-lg"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-800" id="activeIncidents">--</div>
+                <div class="text-xs text-purple-600 mt-2">Investigating</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Customer Analysis -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-800">Customer SLA Analysis</h3>
+                    <div class="relative">
+                        <input type="text" placeholder="Search customer..."
+                            class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="flex gap-4 mb-6">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Select Customer</label>
+                            <select id="customerSelect"
+                                class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                                onchange="loadCustomerAnalysis(this.value)">
+                                <option value="">-- Select Customer --</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Time Period</label>
+                            <select
+                                class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
+                                <option>Last 30 Days</option>
+                                <option>This Month</option>
+                                <option>Last Month</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="analysisResult" class="hidden space-y-6">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-sm text-gray-500 mb-1">Reliability Score</div>
+                                <div class="text-2xl font-bold text-blue-600" id="customerReliability">--%</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-sm text-gray-500 mb-1">Downtime (Min)</div>
+                                <div class="text-2xl font-bold text-red-600" id="customerDowntime">--</div>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <div class="text-sm text-gray-500 mb-1">Refund Eligible</div>
+                                <div class="text-2xl font-bold text-green-600" id="customerRefund">--</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="font-medium text-gray-800 mb-3">Analysis & Insights</h4>
+                            <div class="space-y-3">
+                                <div
+                                    class="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                                    <i class="fas fa-lightbulb text-yellow-600 mt-1"></i>
+                                    <div>
+                                        <h5 class="text-sm font-semibold text-yellow-800">Breach Probability: <span
+                                                id="breachProb">--</span></h5>
+                                        <p class="text-xs text-yellow-700 mt-1">Based on recent patterns, this customer
+                                            is at <span id="breachRiskText">--</span> risk of SLA breach this month.
+                                            Recommend proactive monitoring.</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                    <i class="fas fa-info-circle text-blue-600 mt-1"></i>
+                                    <div>
+                                        <h5 class="text-sm font-semibold text-blue-800">Service Pattern</h5>
+                                        <p class="text-xs text-blue-700 mt-1">Most incidents occur between 18:00 -
+                                            21:00. Likely congestion related.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="analysisEmpty" class="text-center py-10 text-gray-400">
+                        <i class="fas fa-magnifying-glass-chart text-4xl mb-3"></i>
+                        <p>Select a customer to view detailed SLA analysis</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Breaches -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="p-5 border-b border-gray-100">
+                    <h3 class="font-semibold text-gray-800">Recent Breaches</h3>
+                </div>
+                <div class="p-0">
+                    <ul class="divide-y divide-gray-100">
+                        <!-- Example Items -->
+                        <li class="p-4 hover:bg-gray-50 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-800">Customer #1023</h4>
+                                    <p class="text-xs text-red-500 mt-1">92.5% Availability (Target 99%)</p>
+                                </div>
+                                <span
+                                    class="px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full font-medium">Critical</span>
+                            </div>
+                        </li>
+                        <li class="p-4 hover:bg-gray-50 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-800">Customer #8841</h4>
+                                    <p class="text-xs text-orange-500 mt-1">94.8% Availability (Target 95%)</p>
+                                </div>
+                                <span
+                                    class="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full font-medium">Warning</span>
+                            </div>
+                        </li>
+                        <li class="p-4 hover:bg-gray-50 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-800">Customer #9921</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Maintenance Window Exceeded</p>
+                                </div>
+                                <span
+                                    class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">Review</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="p-4 border-t border-gray-100">
+                    <button
+                        class="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">View
+                        All Breaches</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dummy populate for now - in real app, fetch from API
+    document.addEventListener('DOMContentLoaded', () => {
+        const select = document.getElementById('customerSelect');
+        // Example only
+        const option = document.createElement('option');
+        option.value = "1";
+        option.text = "Demo Customer (ID: 1)";
+        select.appendChild(option);
+    });
+
+    async function loadCustomerAnalysis(customerId) {
+        if (!customerId) {
+            document.getElementById('analysisResult').classList.add('hidden');
+            document.getElementById('analysisEmpty').classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('analysisResult').classList.remove('hidden');
+        document.getElementById('analysisEmpty').classList.add('hidden');
+
+        try {
+            const response = await fetch(`/monitoring/sla/analysis/${customerId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const results = data.data;
+                document.getElementById('customerReliability').textContent = parseFloat(results.reliability_score).toFixed(2) + '%';
+                document.getElementById('customerDowntime').textContent = results.current_month.downtime_minutes;
+
+                const refundEl = document.getElementById('customerRefund');
+                refundEl.textContent = results.refund_eligible ? 'YES' : 'NO';
+                refundEl.className = results.refund_eligible ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-gray-600';
+
+                document.getElementById('breachProb').textContent = results.breach_probability;
+                document.getElementById('breachRiskText').textContent = results.breach_probability.toLowerCase();
+            }
+        } catch (error) {
+            console.error('Error fetching analysis:', error);
+            // Handle error UI
+        }
+    }
+
+    function refreshData() {
+        location.reload();
+    }
+</script>

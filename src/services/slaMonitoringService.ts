@@ -49,14 +49,14 @@ interface MaintenanceSchedule {
 export class SLAMonitoringService {
     private readonly DOWNTIME_THRESHOLD_MINUTES = 30;
     private readonly TRANSIENT_THRESHOLD_MINUTES = 30;
-    
+
     /**
      * Detect and create new downtime incidents from connection logs
      * Called every 5 minutes by scheduler
      */
     async detectDowntimeIncidents(): Promise<void> {
         console.log('[SLAMonitoring] Detecting downtime incidents...');
-        
+
         try {
             // Find customers that have been offline for more than threshold
             const query = `
@@ -85,11 +85,11 @@ export class SLAMonitoringService {
                 GROUP BY cl.customer_id, cl.service_type
                 HAVING TIMESTAMPDIFF(MINUTE, MIN(cl.timestamp), NOW()) >= ?
             `;
-            
+
             const [rows] = await pool.query<RowDataPacket[]>(query, [this.DOWNTIME_THRESHOLD_MINUTES]);
-            
+
             console.log(`[SLAMonitoring] Found ${rows.length} new downtime incidents`);
-            
+
             for (const row of rows) {
                 const incidentId = await this.createIncident({
                     customer_id: row.customer_id,
@@ -98,21 +98,21 @@ export class SLAMonitoringService {
                     start_time: row.start_time,
                     status: 'ongoing'
                 });
-                
+
                 console.log(`[SLAMonitoring] Created incident for customer ${row.customer_id}`);
-                
+
                 // AI Analysis - async, don't wait
                 IncidentAIService.analyzeIncident(incidentId).catch(error => {
                     console.error('[SLAMonitoring] AI analysis error:', error);
                 });
             }
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error detecting downtime:', error);
             throw error;
         }
     }
-    
+
     /**
      * Create new SLA incident
      */
@@ -137,9 +137,9 @@ export class SLAMonitoringService {
                 is_counted_in_sla
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        
+
         const isCountedInSLA = !incident.exclude_reason;
-        
+
         const [result] = await pool.query<ResultSetHeader>(query, [
             incident.customer_id,
             incident.service_type,
@@ -150,16 +150,16 @@ export class SLAMonitoringService {
             incident.exclude_notes || null,
             isCountedInSLA
         ]);
-        
+
         return result.insertId;
     }
-    
+
     /**
      * Resolve ongoing incidents when customer comes back online
      */
     async resolveIncidents(): Promise<void> {
         console.log('[SLAMonitoring] Resolving incidents...');
-        
+
         try {
             // Find ongoing incidents where customer is now online
             const query = `
@@ -184,23 +184,23 @@ export class SLAMonitoringService {
                             AND cl.timestamp > si.start_time
                     )
             `;
-            
+
             const [result] = await pool.query<ResultSetHeader>(query);
-            
+
             console.log(`[SLAMonitoring] Resolved ${result.affectedRows} incidents`);
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error resolving incidents:', error);
             throw error;
         }
     }
-    
+
     /**
      * Auto-exclude transient disconnects (<30 minutes)
      */
     async excludeTransientIncidents(): Promise<void> {
         console.log('[SLAMonitoring] Excluding transient incidents...');
-        
+
         try {
             const query = `
                 UPDATE sla_incidents
@@ -213,23 +213,23 @@ export class SLAMonitoringService {
                     AND duration_minutes < ?
                     AND exclude_reason IS NULL
             `;
-            
+
             const [result] = await pool.query<ResultSetHeader>(query, [this.TRANSIENT_THRESHOLD_MINUTES]);
-            
+
             console.log(`[SLAMonitoring] Excluded ${result.affectedRows} transient incidents`);
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error excluding transient incidents:', error);
             throw error;
         }
     }
-    
+
     /**
      * Exclude incidents during planned maintenance
      */
     async excludeMaintenanceIncidents(): Promise<void> {
         console.log('[SLAMonitoring] Excluding maintenance incidents...');
-        
+
         try {
             // Get active maintenance schedules
             const [schedules] = await pool.query<RowDataPacket[]>(`
@@ -242,16 +242,16 @@ export class SLAMonitoringService {
                 WHERE status IN ('scheduled', 'in_progress', 'completed')
                     AND start_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             `);
-            
+
             let totalExcluded = 0;
-            
+
             for (const schedule of schedules) {
                 const affectedCustomers = JSON.parse(schedule.affected_customers || '[]');
-                
+
                 if (affectedCustomers.length === 0) continue;
-                
+
                 const placeholders = affectedCustomers.map(() => '?').join(',');
-                
+
                 const query = `
                     UPDATE sla_incidents
                     SET 
@@ -265,29 +265,29 @@ export class SLAMonitoringService {
                         AND status = 'resolved'
                         AND exclude_reason IS NULL
                 `;
-                
+
                 const [result] = await pool.query<ResultSetHeader>(
                     query,
                     [schedule.id, ...affectedCustomers, schedule.start_time, schedule.end_time]
                 );
-                
+
                 totalExcluded += result.affectedRows;
             }
-            
+
             console.log(`[SLAMonitoring] Excluded ${totalExcluded} maintenance incidents`);
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error excluding maintenance incidents:', error);
             throw error;
         }
     }
-    
+
     /**
      * Exclude incidents for isolated customers
      */
     async excludeIsolatedCustomerIncidents(): Promise<void> {
         console.log('[SLAMonitoring] Excluding isolated customer incidents...');
-        
+
         try {
             // Exclude incidents for customers that were isolated (non-payment)
             const query = `
@@ -303,17 +303,17 @@ export class SLAMonitoringService {
                     AND s.is_isolated = 1
                     AND si.start_time >= s.isolated_at
             `;
-            
+
             const [result] = await pool.query<ResultSetHeader>(query);
-            
+
             console.log(`[SLAMonitoring] Excluded ${result.affectedRows} isolated customer incidents`);
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error excluding isolated incidents:', error);
             throw error;
         }
     }
-    
+
     /**
      * Calculate monthly SLA for all customers
      * Called daily by scheduler
@@ -321,9 +321,9 @@ export class SLAMonitoringService {
     async calculateMonthlySLA(monthYear?: Date): Promise<void> {
         const targetMonth = monthYear || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
         const monthStr = targetMonth.toISOString().slice(0, 10);
-        
+
         console.log(`[SLAMonitoring] Calculating SLA for ${monthStr}...`);
-        
+
         try {
             // Get all active customers with their SLA targets
             const [customers] = await pool.query<RowDataPacket[]>(`
@@ -340,14 +340,14 @@ export class SLAMonitoringService {
                 FROM customers c
                 WHERE c.status = 'active'
             `);
-            
+
             console.log(`[SLAMonitoring] Processing ${customers.length} customers`);
-            
+
             // Calculate total minutes in month
             const nextMonth = new Date(targetMonth);
             nextMonth.setMonth(nextMonth.getMonth() + 1);
             const totalMinutes = Math.floor((nextMonth.getTime() - targetMonth.getTime()) / 60000);
-            
+
             for (const customer of customers) {
                 await this.calculateCustomerMonthlySLA(
                     customer.customer_id,
@@ -356,15 +356,15 @@ export class SLAMonitoringService {
                     customer.sla_target
                 );
             }
-            
+
             console.log('[SLAMonitoring] Monthly SLA calculation completed');
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error calculating monthly SLA:', error);
             throw error;
         }
     }
-    
+
     /**
      * Calculate SLA for single customer
      */
@@ -386,20 +386,20 @@ export class SLAMonitoringService {
                 AND start_time < DATE_ADD(?, INTERVAL 1 MONTH)
                 AND status IN ('resolved', 'excluded')
         `, [customerId, monthYear, monthYear]);
-        
+
         const downtimeMinutes = incidents[0]?.downtime_minutes || 0;
         const excludedDowntime = incidents[0]?.excluded_downtime || 0;
         const incidentCount = incidents[0]?.incident_count || 0;
-        
+
         // Calculate discount if SLA breached
         // Prevent division by zero
         const slaPercentage = totalMinutes > 0 ? ((totalMinutes - downtimeMinutes) / totalMinutes) * 100 : 100;
         let discountAmount = 0;
-        
+
         if (slaPercentage < slaTarget) {
             discountAmount = await this.calculateDiscount(customerId, slaPercentage, slaTarget);
         }
-        
+
         // Insert or update SLA record
         await pool.query(`
             INSERT INTO sla_records (
@@ -429,7 +429,7 @@ export class SLAMonitoringService {
             discountAmount
         ]);
     }
-    
+
     /**
      * Calculate discount amount based on SLA breach
      */
@@ -442,11 +442,11 @@ export class SLAMonitoringService {
             ORDER BY invoice_date DESC 
             LIMIT 1
         `, [customerId]);
-        
+
         if (invoices.length === 0) return 0;
-        
+
         const invoiceAmount = parseFloat(invoices[0].amount);
-        
+
         // Get discount rate from SLA settings
         const [settings] = await pool.query<RowDataPacket[]>(`
             SELECT 
@@ -457,39 +457,39 @@ export class SLAMonitoringService {
             WHERE s.customer_id = ?
             LIMIT 1
         `, [customerId]);
-        
+
         const discountRate = settings.length > 0 ? parseFloat(settings[0].discount_rate) : 10.00;
         const maxDiscountPercent = settings.length > 0 ? parseFloat(settings[0].max_discount_percent) : 50.00;
-        
+
         // Calculate: discount rate per 1% SLA breach
         const slaBreach = targetSLA - actualSLA;
         let discountPercent = slaBreach * discountRate;
-        
+
         // Cap at maximum
         discountPercent = Math.min(discountPercent, maxDiscountPercent);
-        
+
         const discountAmount = (invoiceAmount * discountPercent) / 100;
-        
+
         return Math.round(discountAmount);
     }
-    
+
     /**
      * Get SLA summary for customer
      */
     async getCustomerSLASummary(customerId: number, monthYear?: Date): Promise<SLARecord | null> {
         const targetMonth = monthYear || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-        
+
         const [rows] = await pool.query<RowDataPacket[]>(`
             SELECT * FROM sla_records
             WHERE customer_id = ?
                 AND month_year = ?
         `, [customerId, targetMonth]);
-        
+
         if (rows.length === 0) return null;
-        
+
         return rows[0] as SLARecord;
     }
-    
+
     /**
      * Get active incidents for customer
      */
@@ -500,10 +500,10 @@ export class SLAMonitoringService {
                 AND status = 'ongoing'
             ORDER BY start_time DESC
         `, [customerId]);
-        
+
         return rows as SLAIncident[];
     }
-    
+
     /**
      * Approve SLA discount (Admin action)
      */
@@ -517,33 +517,74 @@ export class SLAMonitoringService {
             WHERE id = ?
         `, [approvedBy, slaRecordId]);
     }
-    
+
     /**
      * Main monitoring loop - called every 5 minutes
      */
     async runMonitoring(): Promise<void> {
         console.log('[SLAMonitoring] === Starting SLA monitoring cycle ===');
-        
+
         try {
             // 1. Detect new incidents
             await this.detectDowntimeIncidents();
-            
+
             // 2. Resolve incidents that are back online
             await this.resolveIncidents();
-            
+
             // 3. Exclude transient incidents
             await this.excludeTransientIncidents();
-            
+
             // 4. Exclude maintenance incidents
             await this.excludeMaintenanceIncidents();
-            
+
             // 5. Exclude isolated customer incidents
             await this.excludeIsolatedCustomerIncidents();
-            
+
             console.log('[SLAMonitoring] === Monitoring cycle completed ===');
-            
+
         } catch (error) {
             console.error('[SLAMonitoring] Error in monitoring cycle:', error);
+        }
+    }
+    /**
+     * Get detailed SLA analysis for dashboard
+     */
+    async getSLAAnalysis(customerId: number): Promise<any> {
+        try {
+            // Get current month stats
+            const currentMonth = new Date();
+            const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+
+            const [currentStats] = await pool.query<RowDataPacket[]>(`
+                SELECT 
+                    COUNT(*) as incident_count,
+                    SUM(duration_minutes) as total_downtime,
+                    MAX(end_time) as last_incident
+                FROM sla_incidents
+                WHERE customer_id = ?
+                AND start_time >= ?
+            `, [customerId, startOfMonth]);
+
+            // Get historical reliability score (last 3 months)
+            const [history] = await pool.query<RowDataPacket[]>(`
+                SELECT AVG(sla_percentage) as reliability_score
+                FROM sla_records
+                WHERE customer_id = ?
+                AND month_year >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+            `, [customerId]);
+
+            return {
+                current_month: {
+                    incidents: currentStats[0]?.incident_count || 0,
+                    downtime_minutes: currentStats[0]?.total_downtime || 0,
+                    last_incident: currentStats[0]?.last_incident || null
+                },
+                reliability_score: history[0]?.reliability_score || 100,
+                status: 'active' // You might want to derive this from real status
+            };
+        } catch (error) {
+            console.error('[SLAMonitoring] Error getting SLA analysis:', error);
+            throw error;
         }
     }
 }
