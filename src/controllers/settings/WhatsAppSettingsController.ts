@@ -122,6 +122,8 @@ export class WhatsAppSettingsController {
             const stats = await WhatsAppService.getNotificationStats();
             const qrCode = WhatsAppService.getQRCode();
 
+            console.log(`[SettingsController] getStatus - Ready: ${status.ready}, Initialized: ${status.initialized}, HasQRCode: ${!!qrCode}`);
+
             const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
@@ -136,6 +138,7 @@ export class WhatsAppSettingsController {
                 }
             });
         } catch (error: any) {
+            console.error('[SettingsController] Error in getStatus:', error);
             res.json({
                 success: false,
                 error: error.message || 'Failed to get WhatsApp status'

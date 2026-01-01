@@ -103,19 +103,20 @@ export class WhatsAppServiceBaileys {
 
                 // QR code received
                 if (qr) {
-                    console.log('📱 QR Code generated');
-                    qrcode.generate(qr, { small: true });
+                    console.log(`[Baileys] 📱 QR Code generated (Length: ${qr.length})`);
+                    // qrcode.generate(qr, { small: true }); // Skip terminal print for now to keep logs clean
                     this.currentQRCode = qr;
                     this.isConnected = false;
                 }
 
                 // Connection opened
                 if (connection === 'open') {
-                    console.log('✅ WhatsApp connection opened successfully!');
+                    console.log('[Baileys] ✅ WhatsApp connection opened successfully!');
                     this.isConnected = true;
                     this.isInitialized = true;
                     this.isInitializing = false;
                     this.currentQRCode = null;
+                    console.log('[Baileys] 🗑️ Cleared QR code because connection is open');
                 }
 
                 // Connection closed
