@@ -187,9 +187,9 @@ export class AISettingsService {
             }
 
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating AI settings:', error);
-            return false;
+            throw new Error(error.message || 'Database update failed');
         }
     }
 

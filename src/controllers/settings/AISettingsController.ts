@@ -67,7 +67,8 @@ export class AISettingsController {
             }
 
             // Update settings
-            const success = await AISettingsService.updateSettings({
+            // Update settings
+            await AISettingsService.updateSettings({
                 api_key: api_key.trim(),
                 model: model || 'gemini-1.5-pro',
                 enabled: enabled === '1' || enabled === true,
@@ -77,18 +78,14 @@ export class AISettingsController {
                 max_age_days: parseInt(max_age_days) || 7
             });
 
-            if (success) {
-                // Reset Gemini model to reload with new settings
-                const { GeminiService } = await import('../../services/payment/GeminiService');
-                GeminiService.resetModel();
+            // Reset Gemini model to reload with new settings
+            const { GeminiService } = await import('../../services/payment/GeminiService');
+            GeminiService.resetModel();
 
-                res.redirect('/settings/ai?success=' + encodeURIComponent('Pengaturan AI berhasil diperbarui'));
-            } else {
-                res.redirect('/settings/ai?error=' + encodeURIComponent('Gagal memperbarui pengaturan AI'));
-            }
-        } catch (error) {
+            res.redirect('/settings/ai?success=' + encodeURIComponent('Pengaturan AI berhasil diperbarui'));
+        } catch (error: any) {
             console.error('Error updating AI settings:', error);
-            res.redirect('/settings/ai?error=' + encodeURIComponent('Terjadi kesalahan saat memperbarui pengaturan'));
+            res.redirect('/settings/ai?error=' + encodeURIComponent(error.message || 'Terjadi kesalahan saat memperbarui pengaturan'));
         }
     }
 

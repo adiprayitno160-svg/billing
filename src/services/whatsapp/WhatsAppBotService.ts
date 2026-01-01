@@ -409,6 +409,9 @@ export class WhatsAppBotService {
             await this.handleReportCommand(phone, description);
         } else if (cmd.startsWith('/selesai')) {
             await this.handleResolveCommand(phone);
+        } else if (cmd.startsWith('/nama ') || cmd.startsWith('/gantinama ')) {
+            const newName = command.replace(/^\/(nama|gantinama)\s+/i, '').trim();
+            await this.changeCustomerName(phone, newName);
         } else {
             await this.sendMessage(
                 phone,
@@ -438,8 +441,35 @@ export class WhatsAppBotService {
             await this.showWiFiMenu(phone);
         } else if (cmd === '4' || cmd === 'reboot' || cmd === 'restart') {
             await this.rebootOnt(phone);
+        } else if (cmd === '5' || cmd === 'gantinama' || cmd === 'nama') {
+            await this.sendMessage(phone, 'Silakan ketik nama baru Anda dengan format:\n*/nama [nama_baru]*\n\nContoh: */nama Budi Santoso*');
         } else {
             await this.showMainMenu(phone);
+        }
+    }
+
+    /**
+     * Change Customer Name
+     */
+    private static async changeCustomerName(phone: string, newName: string): Promise<void> {
+        try {
+            if (!newName || newName.length < 3) {
+                await this.sendMessage(phone, '❌ Nama terlalu pendek (min 3 karakter).');
+                return;
+            }
+
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
+
+            await databasePool.query(
+                'UPDATE customers SET name = ? WHERE id = ?',
+                [newName, customer.id]
+            );
+
+            await this.sendMessage(phone, `✅ Nama berhasil diubah menjadi: *${newName}*`);
+        } catch (error) {
+            console.error('Error changing customer name:', error);
+            await this.sendMessage(phone, '❌ Gagal mengubah nama.');
         }
     }
 
@@ -466,9 +496,10 @@ Hai *${customer.name || 'Pelanggan'}*,
 2️⃣ *Bantuan / Tanya AI* - Tanya apapun ke AI CS
 3️⃣ *WiFi* - Ubah nama WiFi & password
 4️⃣ *Reboot* - Restart Perangkat (ONT)
+5️⃣ *Ganti Nama* - Ubah nama akun Anda
 
 *Tips:*
-• Ketik angka (1-4) atau perintah (contoh: /tagihan)
+• Ketik angka (1-5) atau perintah (contoh: /tagihan)
 • Anda bisa langsung bertanya: "Gimana cara bayar?" atau "Kenapa internet lemot?"
 • Kirim foto bukti transfer untuk verifikasi otomatis!`;
 
