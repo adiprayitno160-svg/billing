@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { databasePool } from '../../config/database';
+import { databasePool } from '../../db/pool';
 
 export class AreaController {
     static async index(req: Request, res: Response) {

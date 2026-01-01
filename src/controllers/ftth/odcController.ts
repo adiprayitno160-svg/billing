@@ -11,7 +11,7 @@ export async function getOdcList(req: Request, res: Response, next: NextFunction
 }
 
 // Import databasePool manually if needed or create AreaService usage
-import { databasePool } from '../../config/database';
+import { databasePool } from '../../db/pool';
 
 export async function getOdcAdd(req: Request, res: Response): Promise<void> {
 	try {
