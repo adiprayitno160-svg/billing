@@ -203,18 +203,10 @@
                             <select id="due_date_day" name="due_date_day"
                                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                 <% for(let i=1; i <=28; i++) { %>
-                                    <% // Calculate current selected day based on existing offset and generation date //
-                                        Default generation is 1. Default offset is 7=> Due Date 8.
-                                        // If settings.due_date_fix_day exists use it, else calc.
-                                        const genDate = settings.generation_date || 1;
-
-
-                                        const currentOffset = settings.due_date_offset || 7;
-                                        const estimatedDay = (genDate + currentOffset);
-                                        // If estimated > 28, it might wrap. Just try to match.
-                                        const selected = (settings.due_date_fixed_day) ? (settings.due_date_fixed_day ==
-                                        i) : (estimatedDay == i);
-                                        %>
+                                    <% const genDate=settings.generation_date || 1; const
+                                        currentOffset=settings.due_date_offset || 7; const estimatedDay=(genDate +
+                                        currentOffset); const selected=(settings.due_date_fixed_day) ?
+                                        (settings.due_date_fixed_day==i) : (estimatedDay==i); %>
                                         <option value="<%= i %>" <%=selected ? 'selected' : '' %>>
                                             Tanggal <%= i %> (Setiap Bulan)
                                         </option>
