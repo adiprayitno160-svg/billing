@@ -152,15 +152,9 @@ export class WhatsAppBotService {
                     return;
                 }
 
-                // Default: Reject unregistered users
-                console.log('[WhatsAppBot] ⛔ Unregistered user rejected');
-                await this.sendMessage(
-                    phone,
-                    '⛔ *Akses Ditolak*\n\n' +
-                    'Maaf, nomor Anda belum terdaftar di sistem kami.\n\n' +
-                    'Jika Anda pelanggan baru, ketik */daftar* untuk registrasi.\n' +
-                    'Jika Anda pelanggan lama, hubungi Admin untuk update nomor HP.'
-                );
+                // Default: Reject unregistered users SILENTLY
+                console.log('[WhatsAppBot] ⛔ Unregistered user ignored (Silent Mode)');
+
                 return;
             }
 
