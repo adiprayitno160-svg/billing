@@ -424,7 +424,7 @@ export class NotificationTemplateController {
    */
   async getWhatsAppStatus(req: Request, res: Response): Promise<any> {
     try {
-      const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
+      const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
       const status = WhatsAppService.getStatus();
       const qrCode = WhatsAppService.getQRCode();
 
@@ -586,7 +586,7 @@ export class NotificationTemplateController {
         });
 
         // Step 3: Check WhatsApp status
-        const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
+        const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
         const whatsappStatus = WhatsAppService.getStatus();
         debugInfo.whatsapp = whatsappStatus;
         debugInfo.steps.push({
@@ -870,7 +870,7 @@ export class NotificationTemplateController {
         });
 
         // Check 2: WhatsApp status
-        const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
+        const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
         const whatsappStatus = WhatsAppService.getStatus();
         analysis.checks.push({
           check: 'WhatsApp Client',

@@ -427,7 +427,7 @@ Terima kasih.`;
 
         while (retries > 0 && !sent) {
           try {
-            const { WhatsAppService } = await import('../whatsapp/WhatsAppService');
+            const { WhatsAppServiceBaileys: WhatsAppService } = await import('../whatsapp/WhatsAppServiceBaileys');
             const result = await WhatsAppService.sendMessage(customer.phone, message, {
               customerId: customerId,
               template: count === 3 ? 'late_payment_warning_3' : 'late_payment_warning_4'

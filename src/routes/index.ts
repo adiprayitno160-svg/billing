@@ -254,7 +254,7 @@ router.get('/api/check-notification', async (req, res) => {
             // Cek WhatsApp status
             let whatsappStatus: any = { ready: false, error: 'Not checked' };
             try {
-                const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
+                const { WhatsAppServiceBaileys: WhatsAppService } = await import('../services/whatsapp/WhatsAppServiceBaileys');
                 whatsappStatus = WhatsAppService.getStatus();
             } catch (e: any) {
                 whatsappStatus = { ready: false, error: e.message };

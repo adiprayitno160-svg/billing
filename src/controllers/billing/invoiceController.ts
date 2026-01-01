@@ -679,7 +679,7 @@ export class InvoiceController {
                 `Silakan melakukan pembayaran sebelum jatuh tempo. Terima kasih.`;
 
             // Import dynamically to avoid circular dependency issues if any
-            const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
+            const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
 
             const result = await WhatsAppService.sendMessage(
                 invoice.customer_phone,

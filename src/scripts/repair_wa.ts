@@ -1,5 +1,5 @@
 
-import { WhatsAppService } from '../services/whatsapp/WhatsAppService';
+import { WhatsAppServiceBaileys as WhatsAppService } from '../services/whatsapp/WhatsAppServiceBaileys';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
