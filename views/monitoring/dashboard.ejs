@@ -18,14 +18,15 @@
                     let bgClass = 'bg-blue-100';
                     let valueSuffix = '';
 
-                    if (item.name.toLowerCase().includes('temperature')) {
+                    if (item.name && typeof item.name === 'string' && item.name.toLowerCase().includes('temperature')) {
                     valueSuffix = '°C';
                     if (parseFloat(item.value) > 60) {
                     colorClass = 'text-red-600'; bgClass = 'bg-red-100';
                     } else if (parseFloat(item.value) > 50) {
                     colorClass = 'text-orange-600'; bgClass = 'bg-orange-100';
                     }
-                    } else if (item.name.toLowerCase().includes('voltage')) {
+                    } else if (item.name && typeof item.name === 'string' &&
+                    item.name.toLowerCase().includes('voltage')) {
                     icon = 'fa-bolt';
                     valueSuffix = 'V';
                     }
