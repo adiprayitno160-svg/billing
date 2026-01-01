@@ -348,11 +348,16 @@
                                                     Putus
                                                 </button>
                                                 <% } %>
-                                                    <a href="/customers/<%= customer.id %>"
+                                                    <button onclick="showCustomerDetail('<%= customer.id %>')"
                                                         class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium border border-blue-200"
-                                                        title="Lihat Detail">
-                                                        <i class="fas fa-eye mr-1.5"></i>
-                                                        Detail
+                                                        title="Monitor Live">
+                                                        <i class="fas fa-desktop mr-1.5"></i>
+                                                        Monitor
+                                                    </button>
+                                                    <a href="/customers/<%= customer.id %>"
+                                                        class="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium border border-gray-200"
+                                                        title="Buka Halaman Pelanggan">
+                                                        <i class="fas fa-external-link-alt"></i>
                                                     </a>
                                         </div>
                                     </td>
@@ -475,6 +480,230 @@
         }
     }, 1000);
 
-    // Show countdown in console (optional)
+    // Show countdown in console
     console.log('Auto-refresh enabled. Page will refresh in 60 seconds.');
+
+    // Modal Constants
+    const modal = document.getElementById('detailModal');
+    const modalContent = document.getElementById('modalContent');
+    let trafficInterval;
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        if (trafficInterval) clearInterval(trafficInterval);
+    }
+
+    // Close modal on ESC and outside click
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+    modal.addEventListener('click', (e) => {
+        if (e.target.id === 'detailModal') closeModal();
+    });
+
+    async function showCustomerDetail(customerId) {
+        modal.classList.remove('hidden');
+        modalContent.innerHTML = `
+            <div class="flex items-center justify-center py-12">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
+                    <p class="text-gray-600">Memuat data pelanggan...</p>
+                </div>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/monitoring/customer/${customerId}`);
+            const result = await response.json();
+
+            if (result.success) {
+                const customer = result.customer;
+                const isOnline = customer.is_online;
+                const session = customer.session_info || {};
+
+                let html = `
+                    <div class="space-y-6">
+                        <!-- Header Status -->
+                        <div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 ${isOnline ? 'bg-green-100' : 'bg-gray-100'} rounded-full flex items-center justify-center">
+                                    <i class="fas ${isOnline ? 'fa-wifi text-green-600' : 'fa-wifi-slash text-gray-400'} text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-900">${customer.name}</h4>
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span class="font-mono text-gray-500">${customer.customer_code}</span>
+                                        <span class="text-gray-300">|</span>
+                                        <span class="${isOnline ? 'text-green-600 font-semibold' : 'text-gray-500'}">
+                                            ${isOnline ? 'Online' : 'Offline'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            ${isOnline ? `
+                                <div class="text-right">
+                                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">UPTIME</div>
+                                    <div class="font-mono font-bold text-blue-600">${session.uptime || '-'}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Technical Details -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Account Info -->
+                            <div class="bg-white border border-gray-200 rounded-xl p-5">
+                                <h5 class="font-semibold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-user-cog text-blue-500 mr-2"></i> Informasi Akun
+                                </h5>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">Username</span>
+                                        <code class="text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-sm">${customer.pppoe_username}</code>
+                                    </div>
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">Password</span>
+                                        <span class="text-gray-700 font-mono text-sm">********</span>
+                                    </div>
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">Paket</span>
+                                        <span class="text-gray-900 font-medium text-sm">${customer.package_name || '-'}</span>
+                                    </div>
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">Harga</span>
+                                        <span class="text-gray-900 font-medium text-sm">Rp ${parseInt(customer.price || 0).toLocaleString('id-ID')}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500 text-sm">ODC</span>
+                                        <span class="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-sm font-medium">${customer.odc_name || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Network Info -->
+                            <div class="bg-white border border-gray-200 rounded-xl p-5">
+                                <h5 class="font-semibold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-network-wired text-green-500 mr-2"></i> Informasi Jaringan
+                                </h5>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">IP Address</span>
+                                        <code class="text-green-700 bg-green-50 px-2 py-0.5 rounded text-sm">${session.address || '-'}</code>
+                                    </div>
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">MAC Address</span>
+                                        <code class="text-gray-600 font-mono text-sm">${session['caller-id'] || '-'}</code>
+                                    </div>
+                                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                                        <span class="text-gray-500 text-sm">Limit Rx/Tx</span>
+                                        <span class="text-gray-700 text-sm font-mono">${customer.rate_limit_rx || 'Unl'} / ${customer.rate_limit_tx || 'Unl'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500 text-sm">Interface</span>
+                                        <span class="text-gray-700 text-sm">${session.interface || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Traffic Stats (If Online) -->
+                        ${isOnline ? `
+                            <div class="bg-gray-900 rounded-xl p-5 text-white">
+                                <h5 class="font-semibold mb-4 flex items-center">
+                                    <i class="fas fa-chart-area text-blue-400 mr-2"></i> Traffic Session Ini
+                                </h5>
+                                <div class="grid grid-cols-2 gap-6">
+                                    <div class="text-center p-3 bg-gray-800 rounded-lg">
+                                        <div class="text-gray-400 text-xs uppercase mb-1">Download (Rx)</div>
+                                        <div class="text-xl font-bold text-green-400" id="modal-rx">
+                                            ${formatBytes(session['bytes-out'] || 0)}
+                                        </div>
+                                    </div>
+                                    <div class="text-center p-3 bg-gray-800 rounded-lg">
+                                        <div class="text-gray-400 text-xs uppercase mb-1">Upload (Tx)</div>
+                                        <div class="text-xl font-bold text-blue-400" id="modal-tx">
+                                            ${formatBytes(session['bytes-in'] || 0)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 text-center text-xs text-gray-500">
+                                    Data traffic akumulatif untuk sesi saat ini
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex justify-end pt-4 border-t border-gray-100">
+                            <a href="/customers/${customer.id}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                <i class="fas fa-external-link-alt mr-2"></i> Buka Halaman Pelanggan
+                            </a>
+                        </div>
+                    </div>
+                `;
+                modalContent.innerHTML = html;
+
+                // Start polling traffic if online
+                if (isOnline) {
+                    pollTraffic(customer.pppoe_username);
+                }
+
+            } else {
+                throw new Error(result.message || 'Gagal mengambil data');
+            }
+        } catch (error) {
+            modalContent.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
+                    <p class="text-gray-600">Terjadi kesalahan: ${error.message}</p>
+                    <button onclick="closeModal()" class="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Tutup</button>
+                </div>
+            `;
+        }
+    }
+
+    function formatBytes(bytes, decimals = 2) {
+        if (!+bytes) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    }
+
+    async function pollTraffic(username) {
+        // Initial fetch handled by HTML render, subsequent by interval
+        trafficInterval = setInterval(async () => {
+            try {
+                const url = `/monitoring/traffic/${encodeURIComponent(username)}`;
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.success && result.online) {
+                    const rxEl = document.getElementById('modal-rx');
+                    const txEl = document.getElementById('modal-tx');
+                    if (rxEl) rxEl.textContent = formatBytes(result.data.download);
+                    if (txEl) txEl.textContent = formatBytes(result.data.upload);
+                }
+            } catch (e) {
+                console.error('Traffic poll error:', e);
+            }
+        }, 2000);
+    }
 </script>
+
+<!-- Add Modal HTML at the end of body -->
+<div id="detailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+        <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                Detail Pelanggan
+            </h3>
+            <button onclick="closeModal()"
+                class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="modalContent" class="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <!-- Content loaded via JS -->
+        </div>
+    </div>
+</div>

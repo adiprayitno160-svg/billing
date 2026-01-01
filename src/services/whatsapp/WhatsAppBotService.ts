@@ -133,46 +133,66 @@ export class WhatsAppBotService {
             const customer = await this.validateCustomer(phone);
             if (!customer) {
                 // UNREGISTERED USER HANDLING
-
-                // Allow explicit registration command (case-insensitive)
-                if (bodyLower === '/daftar' || bodyLower === '/reg' || bodyLower === '/register') {
-                    console.log('[WhatsAppBot] 📝 Starting registration for new user...');
-                    console.log(`[WhatsAppBot] Registration command detected: "${body}"`);
-                    try {
-                        const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
-                        console.log(`[WhatsAppBot] Registration response: ${registrationResponse.substring(0, 100)}...`);
-                        await this.sendMessage(senderJid, registrationResponse);
-                        console.log('[WhatsAppBot] ✅ Registration message sent successfully');
-                    } catch (regError: any) {
-                        console.error('[WhatsAppBot] ❌ Error in registration:', regError);
-                        await this.sendMessage(senderJid, '❌ Terjadi kesalahan saat registrasi.');
+                try {
+                    // Allow explicit registration command (case-insensitive)
+                    if (bodyLower === '/daftar' || bodyLower === '/reg' || bodyLower === '/register') {
+                        console.log('[WhatsAppBot] 📝 Starting registration for new user...');
+                        console.log(`[WhatsAppBot] Registration command detected: "${body}"`);
+                        try {
+                            // Ensure service is available
+                            if (!WhatsAppRegistrationService) {
+                                throw new Error('WhatsAppRegistrationService not initialized');
+                            }
+                            const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
+                            console.log(`[WhatsAppBot] Registration response: ${registrationResponse.substring(0, 100)}...`);
+                            await this.sendMessage(senderJid, registrationResponse);
+                            console.log('[WhatsAppBot] ✅ Registration message sent successfully');
+                        } catch (regError: any) {
+                            console.error('[WhatsAppBot] ❌ Error in registration:', regError);
+                            await this.sendMessage(senderJid, '❌ Terjadi kesalahan saat registrasi. Silakan coba lagi nanti.');
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                // Check if already in registration session
-                if (WhatsAppRegistrationService.hasActiveSession(phone)) {
-                    console.log('[WhatsAppBot] 📝 Continuing registration session...');
+                    // Check if already in registration session
+                    // Wrap in try-catch to prevent crash if service is missing
+                    let hasSession = false;
                     try {
-                        const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
-                        await this.sendMessage(senderJid, registrationResponse);
-                    } catch (regError: any) {
-                        console.error('[WhatsAppBot] ❌ Error in registration session:', regError);
+                        if (WhatsAppRegistrationService && WhatsAppRegistrationService.hasActiveSession(phone)) {
+                            hasSession = true;
+                        }
+                    } catch (sessError) {
+                        console.error('[WhatsAppBot] Error checking session:', sessError);
                     }
-                    return;
-                }
 
-                // Default: Guide unregistered users to register
-                console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
-                await this.sendMessage(
-                    senderJid,
-                    '👋 *Halo!*\n\n' +
-                    'Nomor Anda belum terdaftar di sistem kami.\n\n' +
-                    '📝 *Untuk pelanggan baru:*\n' +
-                    'Ketik */daftar* untuk memulai registrasi\n\n' +
-                    '👤 *Untuk pelanggan lama:*\n' +
-                    'Hubungi Admin untuk update nomor HP Anda'
-                );
+                    if (hasSession) {
+                        console.log('[WhatsAppBot] 📝 Continuing registration session...');
+                        try {
+                            const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
+                            await this.sendMessage(senderJid, registrationResponse);
+                        } catch (regError: any) {
+                            console.error('[WhatsAppBot] ❌ Error in registration session:', regError);
+                            await this.sendMessage(senderJid, '❌ Terjadi kesalahan. Silakan ketik /daftar untuk ulang.');
+                        }
+                        return;
+                    }
+
+                    // Default: Guide unregistered users to register
+                    // Only send this if it's NOT a command intended for registered users (to avoid spamming)
+                    console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
+                    await this.sendMessage(
+                        senderJid,
+                        '👋 *Halo!*\n\n' +
+                        'Nomor Anda belum terdaftar di sistem kami.\n\n' +
+                        '📝 *Untuk pelanggan baru:*\n' +
+                        'Ketik */daftar* untuk memulai registrasi\n\n' +
+                        '👤 *Untuk pelanggan lama:*\n' +
+                        'Hubungi Admin untuk update nomor HP Anda'
+                    );
+                } catch (unregError) {
+                    console.error('[WhatsAppBot] Error in unregistered flow:', unregError);
+                    // Do NOT throw to avoid global catch sending "System Error"
+                }
                 return;
             }
 
@@ -1163,10 +1183,11 @@ Ketik /menu untuk kembali ke menu utama.`;
                 console.log(`[WhatsAppBot]   ❌ Not found via 0→62 conversion`);
             }
 
-            console.log(`[WhatsAppBot]   ❌ Customer NOT FOUND after all attempts`);
+            console.log(`[WhatsAppBot]   ❌ Customer NOT FOUND after all attempts (Raw: ${phone}, Norm: ${normalizedPhone})`);
             return null;
         } catch (error: any) {
             console.error('[WhatsAppBot] ❌ Error getting customer by phone:', error);
+            // Return null instead of throwing to prevent global error handler from sending "System Error"
             return null;
         }
     }
