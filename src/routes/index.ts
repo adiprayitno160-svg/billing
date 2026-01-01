@@ -10,6 +10,7 @@ import { AuthMiddleware, isAuthenticated } from '../middlewares/authMiddleware';
 import { getOltList, getOltEdit, postOltCreate, postOltDelete, postOltUpdate } from '../controllers/ftth/oltController';
 import { getOdcList, getOdcAdd, getOdcEdit, postOdcCreate, postOdcDelete, postOdcUpdate } from '../controllers/ftth/odcController';
 import { getOdpList, getOdpAdd, getOdpEdit, postOdpCreate, postOdpDelete, postOdpUpdate } from '../controllers/ftth/odpController';
+import { AreaController } from '../controllers/ftth/AreaController';
 import {
     getProfileList,
     postSyncProfiles,
@@ -686,6 +687,14 @@ router.get('/ftth/odp/:id', getOdpEdit);
 router.post('/ftth/odp', postOdpCreate);
 router.post('/ftth/odp/:id', postOdpUpdate);
 router.post('/ftth/odp/:id/delete', postOdpDelete);
+
+// FTTH Areas
+router.get('/ftth/areas', AreaController.index);
+router.get('/ftth/areas/create', AreaController.create);
+router.post('/ftth/areas', AreaController.store);
+router.get('/ftth/areas/:id/edit', AreaController.edit);
+router.post('/ftth/areas/:id/update', AreaController.update);
+router.post('/ftth/areas/:id/delete', AreaController.delete);
 
 
 // Paket Internet -> PPPOE

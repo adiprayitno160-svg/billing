@@ -1,0 +1,56 @@
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Edit Area</h1>
+            <p class="text-gray-600">Perbarui data area <%= area.name %>
+            </p>
+        </div>
+        <a href="/ftth/areas" class="text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-1"></i> Kembali
+        </a>
+    </div>
+
+    <!-- Alert -->
+    <%- include('../../partials/alert') %>
+
+        <!-- Form -->
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+            <form action="/ftth/areas/<%= area.id %>/update" method="POST" class="p-6 space-y-6">
+
+                <!-- Code -->
+                <div>
+                    <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Kode Area</label>
+                    <input type="text" name="code" id="code" required value="<%= area.code %>"
+                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                <!-- Name -->
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nama Area</label>
+                    <input type="text" name="name" id="name" required value="<%= area.name %>"
+                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Deskripsi
+                        (Opsional)</label>
+                    <textarea name="description" id="description" rows="3"
+                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"><%= area.description %></textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
+                    <a href="/ftth/areas"
+                        class="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Batal
+                    </a>
+                    <button type="submit"
+                        class="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+</div>
