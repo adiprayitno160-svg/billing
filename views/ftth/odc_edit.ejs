@@ -14,6 +14,22 @@
                     <% }) %>
             </select>
         </div>
+
+        <div>
+            <label class="block text-xs text-slate-600 mb-1">Pilih Area (Opsional)</label>
+            <select name="area_id" class="w-full rounded border border-slate-300 px-2 py-1.5">
+                <option value="">-- Pilih Area --</option>
+                <% if (typeof areas !=='undefined' && areas.length> 0) { %>
+                    <% areas.forEach(function(area){ %>
+                        <option value="<%= area.id %>" <%=(item.area_id==area.id) ? 'selected' : '' %>>
+                            <%= area.name %> (<%= area.code %>)
+                        </option>
+                        <% }) %>
+                            <% } else { %>
+                                <option value="" disabled>Belum ada area (Buat di Master Area)</option>
+                                <% } %>
+            </select>
+        </div>
         <div>
             <label class="block text-xs text-slate-600 mb-1">Nama</label>
             <input name="name" value="<%= item.name %>" required

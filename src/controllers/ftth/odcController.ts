@@ -10,23 +10,24 @@ export async function getOdcList(req: Request, res: Response, next: NextFunction
 	} catch (err) { next(err); }
 }
 
+// Import databasePool manually if needed or create AreaService usage
+import { databasePool } from '../../config/database';
+
 export async function getOdcAdd(req: Request, res: Response): Promise<void> {
 	try {
 		console.log('getOdcAdd: Starting to load OLTs...');
 		const oltId = req.query.olt_id ? Number(req.query.olt_id) : undefined;
-		console.log('getOdcAdd: oltId =', oltId);
 
 		const olts = await OltService.listOlts();
-		console.log('getOdcAdd: olts loaded =', olts);
-		console.log('getOdcAdd: olts length =', olts.length);
 
-		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts });
+		// Load Areas
+		const [areas] = await databasePool.query('SELECT * FROM ftth_areas ORDER BY name ASC');
+
+		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts, areas });
 	} catch (error) {
 		console.error('Error loading OLTs for ODC add page:', error);
-		// Fallback: render with empty olts array
 		const oltId = req.query.olt_id ? Number(req.query.olt_id) : undefined;
-		console.log('getOdcAdd: Using fallback with empty olts array');
-		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts: [] });
+		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts: [], areas: [] });
 	}
 }
 
@@ -39,13 +40,17 @@ export async function getOdcEdit(req: Request, res: Response, next: NextFunction
 			return;
 		}
 		const olts = await OltService.listOlts();
-		res.render('ftth/odc_edit', { title: 'Edit ODC', item, olts });
+
+		// Load Areas
+		const [areas] = await databasePool.query('SELECT * FROM ftth_areas ORDER BY name ASC');
+
+		res.render('ftth/odc_edit', { title: 'Edit ODC', item, olts, areas });
 	} catch (err) { next(err); }
 }
 
 export async function postOdcCreate(req: Request, res: Response, next: NextFunction) {
 	try {
-		const { olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = req.body;
+		const { area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = req.body;
 		const total = Number(total_ports ?? 0);
 		const used = Number(used_ports ?? 0);
 		if (!name) throw new Error('Nama wajib diisi');
@@ -53,7 +58,9 @@ export async function postOdcCreate(req: Request, res: Response, next: NextFunct
 		if (used > total) throw new Error('Terpakai tidak boleh melebihi total port');
 		const cardNum = olt_card !== undefined && olt_card !== '' ? Number(olt_card) : null;
 		const portNum = olt_port !== undefined && olt_port !== '' ? Number(olt_port) : null;
-		await createOdc({ olt_id: Number(olt_id), name, location: location ?? null, latitude: latitude ? Number(latitude) : null, longitude: longitude ? Number(longitude) : null, total_ports: total, used_ports: 0, olt_card: cardNum, olt_port: portNum, notes: notes ?? null });
+		const areaIdNum = area_id ? Number(area_id) : null;
+
+		await createOdc({ area_id: areaIdNum, olt_id: Number(olt_id), name, location: location ?? null, latitude: latitude ? Number(latitude) : null, longitude: longitude ? Number(longitude) : null, total_ports: total, used_ports: 0, olt_card: cardNum, olt_port: portNum, notes: notes ?? null });
 		const redirectTo = olt_id ? `/ftth/odc?olt_id=${olt_id}` : '/ftth/odc';
 		res.redirect(redirectTo);
 	} catch (err) { next(err); }
@@ -62,7 +69,7 @@ export async function postOdcCreate(req: Request, res: Response, next: NextFunct
 export async function postOdcUpdate(req: Request, res: Response, next: NextFunction) {
 	try {
 		const id = Number(req.params.id);
-		const { olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = req.body;
+		const { area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = req.body;
 		const total = Number(total_ports ?? 0);
 		const used = Number(used_ports ?? 0);
 		if (!name) throw new Error('Nama wajib diisi');
@@ -70,10 +77,12 @@ export async function postOdcUpdate(req: Request, res: Response, next: NextFunct
 		if (used > total) throw new Error('Terpakai tidak boleh melebihi total port');
 		const cardNum = olt_card !== undefined && olt_card !== '' ? Number(olt_card) : null;
 		const portNum = olt_port !== undefined && olt_port !== '' ? Number(olt_port) : null;
+		const areaIdNum = area_id ? Number(area_id) : null;
+
 		// Fetch current ODC to preserve used_ports
 		const currentOdc = await getOdcById(id);
 		const currentUsed = currentOdc ? currentOdc.used_ports : 0;
-		await updateOdc(id, { olt_id: Number(olt_id), name, location: location ?? null, latitude: latitude ? Number(latitude) : null, longitude: longitude ? Number(longitude) : null, total_ports: total, used_ports: currentUsed, olt_card: cardNum, olt_port: portNum, notes: notes ?? null });
+		await updateOdc(id, { area_id: areaIdNum, olt_id: Number(olt_id), name, location: location ?? null, latitude: latitude ? Number(latitude) : null, longitude: longitude ? Number(longitude) : null, total_ports: total, used_ports: currentUsed, olt_card: cardNum, olt_port: portNum, notes: notes ?? null });
 		// Recalculate just in case
 		await recalculateOdcUsage(id);
 		const redirectTo = olt_id ? `/ftth/odc?olt_id=${olt_id}` : '/ftth/odc';

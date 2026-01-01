@@ -2,6 +2,7 @@ import { databasePool } from '../../db/pool';
 
 export interface OdcRecord {
 	id?: number;
+	area_id?: number | null; // Added area_id
 	olt_id: number;
 	name: string;
 	location?: string | null;
@@ -15,7 +16,8 @@ export interface OdcRecord {
 }
 
 export async function listOdcs(oltId?: number): Promise<OdcRecord[]> {
-	let sql = `SELECT id, olt_id, name, location, latitude, longitude, total_ports, used_ports, notes, created_at, updated_at FROM ftth_odc`;
+	// Select area_id too
+	let sql = `SELECT id, area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, notes, created_at, updated_at FROM ftth_odc`;
 	const params: any[] = [];
 	if (oltId) {
 		sql += ' WHERE olt_id = ?';
@@ -28,7 +30,7 @@ export async function listOdcs(oltId?: number): Promise<OdcRecord[]> {
 
 export async function getOdcById(id: number): Promise<OdcRecord | null> {
 	const [rows] = await databasePool.query(
-		`SELECT id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes FROM ftth_odc WHERE id = ? LIMIT 1`,
+		`SELECT id, area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes FROM ftth_odc WHERE id = ? LIMIT 1`,
 		[id]
 	);
 	const list = rows as OdcRecord[];
@@ -36,19 +38,19 @@ export async function getOdcById(id: number): Promise<OdcRecord | null> {
 }
 
 export async function createOdc(data: OdcRecord): Promise<number> {
-	const { olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = data;
+	const { area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = data;
 	const [result]: any = await databasePool.query(
-		`INSERT INTO ftth_odc (olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		[olt_id, name, location ?? null, latitude ?? null, longitude ?? null, total_ports, used_ports, olt_card ?? null, olt_port ?? null, notes ?? null]
+		`INSERT INTO ftth_odc (area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		[area_id ?? null, olt_id, name, location ?? null, latitude ?? null, longitude ?? null, total_ports, used_ports, olt_card ?? null, olt_port ?? null, notes ?? null]
 	);
 	return result.insertId as number;
 }
 
 export async function updateOdc(id: number, data: OdcRecord): Promise<void> {
-	const { olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = data;
+	const { area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = data;
 	await databasePool.query(
-		`UPDATE ftth_odc SET olt_id = ?, name = ?, location = ?, latitude = ?, longitude = ?, total_ports = ?, used_ports = ?, olt_card = ?, olt_port = ?, notes = ? WHERE id = ?`,
-		[olt_id, name, location ?? null, latitude ?? null, longitude ?? null, total_ports, used_ports, olt_card ?? null, olt_port ?? null, notes ?? null, id]
+		`UPDATE ftth_odc SET area_id = ?, olt_id = ?, name = ?, location = ?, latitude = ?, longitude = ?, total_ports = ?, used_ports = ?, olt_card = ?, olt_port = ?, notes = ? WHERE id = ?`,
+		[area_id ?? null, olt_id, name, location ?? null, latitude ?? null, longitude ?? null, total_ports, used_ports, olt_card ?? null, olt_port ?? null, notes ?? null, id]
 	);
 }
 
