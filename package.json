@@ -14,7 +14,7 @@
     "pm2:start": "pm2 start ecosystem.config.js --env production",
     "pm2:start:cmd": "start-pm2.bat",
     "pm2:start:bypass": "start-pm2-cmd.bat",
-    "pm2:restart": "pm2 restart billing-app",
+    "pm2:restart": "pm2 restart billing-app || npm run pm2:start",
     "pm2:restart:auto": "restart-pm2-auto.bat",
     "pm2:reload": "pm2 reload billing-app",
     "pm2:stop": "pm2 stop billing-app",
