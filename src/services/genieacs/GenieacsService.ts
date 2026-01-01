@@ -321,7 +321,8 @@ export class GenieacsService {
 
         // Aggressive optical info paths for Huawei, common ZTE & TR-181 standard
         const rx = findVal([
-            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RXPower', // Huawei HG8245 Typo path
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower', // Correct nested path for HG8245
+            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RXPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.RxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower',
@@ -330,6 +331,7 @@ export class GenieacsService {
         ]);
 
         const tx = findVal([
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower',
             'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TXPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.TxOpticalPower',
@@ -339,6 +341,7 @@ export class GenieacsService {
         ]);
 
         const temp = findVal([
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TransceiverTemperature',
             'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TransceiverTemperature',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.Temperature',
