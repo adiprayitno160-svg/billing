@@ -306,13 +306,19 @@ export class WhatsAppServiceBaileys {
             if (!cleaned) return '';
         }
 
+        // Convert Indonesian local format (0xxx) to international (+62xxx)
         if (cleaned.startsWith('0')) {
             cleaned = '62' + cleaned.substring(1);
         }
 
-        if (!cleaned.startsWith('62')) {
+        // If number doesn't have country code and is likely Indonesian
+        // (starts with 8 which is common for Indonesian mobile numbers)
+        if (cleaned.length >= 9 && cleaned.length <= 13 && cleaned[0] === '8') {
             cleaned = '62' + cleaned;
         }
+
+        // For all other cases, assume number already has country code
+        // or is in correct format (e.g., 63xxx for Philippines, 1xxx for US, etc.)
 
         return cleaned + '@s.whatsapp.net';
     }
