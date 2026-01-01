@@ -4,7 +4,7 @@
  */
 
 // import { Message, MessageMedia } from 'whatsapp-web.js'; // Removed to support multiple providers
-import { WhatsAppService } from './WhatsAppService';
+import { WhatsAppServiceBaileys as WhatsAppService } from './WhatsAppServiceBaileys';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
