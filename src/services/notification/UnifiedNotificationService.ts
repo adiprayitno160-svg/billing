@@ -7,7 +7,7 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { NotificationTemplateService } from './NotificationTemplateService';
-import { WhatsAppService } from '../whatsapp/WhatsAppService';
+import { WhatsAppServiceBaileys as WhatsAppService } from '../whatsapp/WhatsAppServiceBaileys';
 import { UrlConfigService } from '../../utils/urlConfigService';
 
 export type NotificationType =
