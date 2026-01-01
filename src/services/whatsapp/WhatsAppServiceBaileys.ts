@@ -19,7 +19,7 @@ import { Boom } from '@hapi/boom';
 import pino from 'pino';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
-import { WhatsAppBotService } from './WhatsAppBotService';
+// import { WhatsAppBotService } from './WhatsAppBotService'; // Removed to avoid circular dependency
 import fs from 'fs';
 import path from 'path';
 
@@ -233,6 +233,8 @@ export class WhatsAppServiceBaileys {
             };
 
             console.log('[WhatsAppBaileys] Calling WhatsAppBotService.handleMessage()...');
+            console.log('[WhatsAppBaileys] Calling WhatsAppBotService.handleMessage()...');
+            const { WhatsAppBotService } = await import('./WhatsAppBotService');
             await WhatsAppBotService.handleMessage(adapter);
             console.log('[WhatsAppBaileys] ✅ Message handled successfully');
 
