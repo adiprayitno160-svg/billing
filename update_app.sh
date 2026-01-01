@@ -13,8 +13,9 @@ npm install
 echo "[3/4] Membangun aplikasi (Build)..."
 npm run build
 
-echo "[4/4] Merestart layanan PM2..."
-npm run pm2:restart
+echo "[4/4] Merestart/Start layanan PM2..."
+# Coba restart, jika gagal (belum jalan) maka start baru
+pm2 restart billing-app 2>/dev/null || npm run pm2:start
 
 echo "=========================================="
 echo "   UPDATE SELESAI"
