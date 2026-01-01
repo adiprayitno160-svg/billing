@@ -169,7 +169,7 @@ export class WhatsAppBotService {
             if (body.startsWith(this.COMMAND_PREFIX)) {
                 console.log('[WhatsAppBot] 🔧 Processing command...');
                 try {
-                    await this.handleCommand(message, phone, body);
+                    await this.handleCommand(message, phone, body, customer);
                     console.log('[WhatsAppBot] ✅ Command handled successfully');
                 } catch (cmdError: any) {
                     console.error('[WhatsAppBot] ❌ Error in handleCommand:', cmdError);
@@ -187,7 +187,7 @@ export class WhatsAppBotService {
             if (this.isMenuCommand(body)) {
                 console.log('[WhatsAppBot] 📋 Processing menu command...');
                 try {
-                    await this.handleMenuCommand(message, phone, body);
+                    await this.handleMenuCommand(message, phone, body, customer);
                     console.log('[WhatsAppBot] ✅ Menu command handled successfully');
                 } catch (menuError: any) {
                     console.error('[WhatsAppBot] ❌ Error in handleMenuCommand:', menuError);
@@ -209,7 +209,7 @@ export class WhatsAppBotService {
                 console.log('[WhatsAppBot] ✅ AI ChatBot response sent');
             } catch (aiError: any) {
                 console.error('[WhatsAppBot] ❌ Error in AI ChatBot:', aiError);
-                await this.showMainMenu(phone);
+                await this.showMainMenu(phone, customer);
             }
 
         } catch (error: any) {
@@ -374,11 +374,11 @@ export class WhatsAppBotService {
     /**
      * Handle command
      */
-    private static async handleCommand(message: WhatsAppMessageInterface, phone: string, command: string): Promise<void> {
+    private static async handleCommand(message: WhatsAppMessageInterface, phone: string, command: string, customer: any): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
         if (cmd === '/start' || cmd === '/menu' || cmd === '/help') {
-            await this.showMainMenu(phone);
+            await this.showMainMenu(phone, customer);
         } else if (cmd === '/tagihan' || cmd.startsWith('/tagihan')) {
             await this.showInvoices(phone);
         } else if (cmd === '/wifi' || cmd === '/ubahwifi') {
@@ -430,7 +430,7 @@ export class WhatsAppBotService {
     /**
      * Handle menu command
      */
-    private static async handleMenuCommand(message: WhatsAppMessageInterface, phone: string, command: string): Promise<void> {
+    private static async handleMenuCommand(message: WhatsAppMessageInterface, phone: string, command: string, customer: any): Promise<void> {
         const cmd = command.toLowerCase().trim();
 
         if (cmd === '1' || cmd === 'tagihan' || cmd === 'invoice') {
@@ -444,7 +444,7 @@ export class WhatsAppBotService {
         } else if (cmd === '5' || cmd === 'gantinama' || cmd === 'nama') {
             await this.sendMessage(phone, 'Silakan ketik nama baru Anda dengan format:\n*/nama [nama_baru]*\n\nContoh: */nama Budi Santoso*');
         } else {
-            await this.showMainMenu(phone);
+            await this.showMainMenu(phone, customer);
         }
     }
 
@@ -484,10 +484,12 @@ export class WhatsAppBotService {
     /**
      * Show main menu
      */
-    private static async showMainMenu(phone: string): Promise<void> {
-        // Validate customer access first
-        const customer = await this.validateCustomer(phone);
-        if (!customer) return;
+    private static async showMainMenu(phone: string, customer: any): Promise<void> {
+        // Customer is already validated and passed from caller
+        if (!customer) {
+            customer = await this.validateCustomer(phone);
+            if (!customer) return;
+        }
 
         const menu = `🏠 *MENU UTAMA*
 Hai *${customer.name || 'Pelanggan'}*,
