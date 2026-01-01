@@ -15,17 +15,25 @@ export interface OdcRecord {
 	notes?: string | null;
 }
 
-export async function listOdcs(oltId?: number): Promise<OdcRecord[]> {
-	// Select area_id too
-	let sql = `SELECT id, area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, notes, created_at, updated_at FROM ftth_odc`;
+export async function listOdcs(oltId?: number): Promise<any[]> {
+	// Join with areas and olts
+	let sql = `
+		SELECT 
+			o.*, 
+			a.name as area_name,
+			olt.name as olt_name 
+		FROM ftth_odc o
+		LEFT JOIN ftth_areas a ON o.area_id = a.id
+		LEFT JOIN ftth_olt olt ON o.olt_id = olt.id
+	`;
 	const params: any[] = [];
 	if (oltId) {
-		sql += ' WHERE olt_id = ?';
+		sql += ' WHERE o.olt_id = ?';
 		params.push(oltId);
 	}
-	sql += ' ORDER BY id DESC';
+	sql += ' ORDER BY o.id DESC';
 	const [rows] = await databasePool.query(sql, params);
-	return rows as OdcRecord[];
+	return rows as any[];
 }
 
 export async function getOdcById(id: number): Promise<OdcRecord | null> {

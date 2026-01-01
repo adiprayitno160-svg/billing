@@ -14,16 +14,22 @@ export interface OdpRecord {
 	notes?: string | null;
 }
 
-export async function listOdps(odcId?: number): Promise<OdpRecord[]> {
-	let sql = `SELECT id, odc_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes, created_at, updated_at FROM ftth_odp`;
+export async function listOdps(odcId?: number): Promise<any[]> {
+	let sql = `
+		SELECT 
+			p.*, 
+			o.name as odc_name 
+		FROM ftth_odp p
+		LEFT JOIN ftth_odc o ON p.odc_id = o.id
+	`;
 	const params: any[] = [];
 	if (odcId) {
-		sql += ' WHERE odc_id = ?';
+		sql += ' WHERE p.odc_id = ?';
 		params.push(odcId);
 	}
-	sql += ' ORDER BY id DESC';
+	sql += ' ORDER BY p.id DESC';
 	const [rows] = await databasePool.query(sql, params);
-	return rows as OdpRecord[];
+	return rows as any[];
 }
 
 export async function getOdpById(id: number): Promise<OdpRecord | null> {

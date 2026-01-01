@@ -1,49 +1,73 @@
 ﻿<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Daftar ODC <%= oltId ? ('(OLT #' + oltId + ')') : '' %></h2>
-        <a href="/ftth/odc/add<%= oltId ? ('?olt_id=' + oltId) : '' %>" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Tambah ODC</a>
+        <h2 class="text-lg font-semibold">Daftar ODC <%= oltId ? ('(OLT #' + oltId + ')' ) : '' %>
+        </h2>
+        <a href="/ftth/odc/add<%= oltId ? ('?olt_id=' + oltId) : '' %>"
+            class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Tambah ODC</a>
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
-            <thead class="text-left text-slate-600">
+            <thead class="text-left text-slate-600 bg-slate-50/50">
                 <tr>
-                    <th class="py-2 pr-4">Nama</th>
-                    <th class="py-2 pr-4">OLT</th>
-                    <th class="py-2 pr-4">Lokasi</th>
-                    <th class="py-2 pr-4">Total</th>
-                    <th class="py-2 pr-4">Terpakai</th>
-                    <th class="py-2 pr-4">Sisa</th>
-                    <th class="py-2 pr-4">Koordinat</th>
-                    <th class="py-2 pr-4">Aksi</th>
+                    <th class="py-2 px-3">Area</th>
+                    <th class="py-2 px-3">Nama ODC</th>
+                    <th class="py-2 px-3">OLT</th>
+                    <th class="py-2 px-3">Lokasi</th>
+                    <th class="py-2 px-3">Port (T/U/S)</th>
+                    <th class="py-2 px-3 text-right">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 <% (items || []).forEach(function(odc){ %>
-                <tr class="border-t border-slate-100">
-                    <td class="py-2 pr-4"><%= odc.name %></td>
-                    <td class="py-2 pr-4">#<%= odc.olt_id %></td>
-                    <td class="py-2 pr-4"><%= odc.location || '-' %></td>
-                    <td class="py-2 pr-4"><%= odc.total_ports %></td>
-                    <td class="py-2 pr-4"><%= odc.used_ports %></td>
-                    <td class="py-2 pr-4"><%= (odc.total_ports - odc.used_ports) %></td>
-                    <td class="py-2 pr-4"><%= (odc.latitude && odc.longitude) ? (odc.latitude + ', ' + odc.longitude) : '-' %></td>
-                    <td class="py-2 pr-4 flex gap-2">
-                        <a href="/ftth/odc/<%= odc.id %>" class="px-2 py-1 text-xs rounded border border-slate-300">Edit</a>
-                        <form method="post" action="/ftth/odc/<%= odc.id %>/delete" onsubmit="return confirm('Hapus ODC ini?');">
-                            <button type="submit" class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700">Hapus</button>
-                        </form>
-                        <a href="/ftth/odp?odc_id=<%= odc.id %>" class="px-2 py-1 text-xs rounded bg-indigo-50 text-indigo-700">Lihat ODP</a>
-                    </td>
-                </tr>
-                <% }) %>
-                <% if (!items || items.length === 0) { %>
-                <tr><td colspan="8" class="py-6 text-center text-slate-500">Belum ada data</td></tr>
-                <% } %>
+                    <tr class="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
+                        <td class="py-2 px-3">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">
+                                <%= odc.area_name || 'Tanpa Area' %>
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 font-medium text-slate-700">
+                            <%= odc.name %>
+                        </td>
+                        <td class="py-2 px-3 text-slate-500">
+                            <%= odc.olt_name || ('#' + odc.olt_id) %>
+                        </td>
+                        <td class="py-2 px-3 text-slate-500 text-xs">
+                            <%= odc.location || '-' %>
+                        </td>
+                        <td class="py-2 px-3">
+                            <span class="font-semibold text-blue-600">
+                                <%= odc.total_ports %>
+                            </span> /
+                            <span class="font-semibold text-orange-600">
+                                <%= odc.used_ports %>
+                            </span> /
+                            <span class="font-semibold text-green-600">
+                                <%= (odc.total_ports - odc.used_ports) %>
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            <div class="flex justify-end gap-2 text-xs">
+                                <a href="/ftth/odc/<%= odc.id %>"
+                                    class="px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-white">Edit</a>
+                                <a href="/ftth/odp?odc_id=<%= odc.id %>"
+                                    class="px-2 py-1 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">ODP</a>
+                                <form method="post" action="/ftth/odc/<%= odc.id %>/delete"
+                                    onsubmit="return confirm('Hapus ODC ini?');" class="inline">
+                                    <button type="submit"
+                                        class="px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Hapus</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
+                        <% if (!items || items.length===0) { %>
+                            <tr>
+                                <td colspan="6" class="py-6 text-center text-slate-500">Belum ada data ODC</td>
+                            </tr>
+                            <% } %>
             </tbody>
         </table>
     </div>
 </div>
 
 <!-- Dialihkan ke halaman tambah khusus: /ftth/odc/add -->
-
-
