@@ -101,14 +101,16 @@ export class WhatsAppBotService {
             }
 
             const body = message.body?.trim() || '';
+            const bodyLower = body.toLowerCase(); // For case-insensitive comparison
             const hasMedia = message.hasMedia;
 
-            // Extract phone number (remove @c.us / @s.whatsapp.net)
+            // Extract phone number (remove @c.us / @s.whatsapp.net / @lid)
             phone = from.split('@')[0] || '';
 
             console.log(`[WhatsAppBot] 📨 Incoming message:`);
             console.log(`[WhatsAppBot]   From: ${phone}`);
             console.log(`[WhatsAppBot]   Body: "${body.substring(0, 100)}${body.length > 100 ? '...' : ''}"`);
+            console.log(`[WhatsAppBot]   Body (lowercase): "${bodyLower.substring(0, 100)}"`);
             console.log(`[WhatsAppBot]   Has Media: ${hasMedia}`);
 
             // GLOBAL GUARD: Only registered customers can access the bot
@@ -127,12 +129,15 @@ export class WhatsAppBotService {
             if (!customer) {
                 // UNREGISTERED USER HANDLING
 
-                // Allow explicit registration command
-                if (body.toLowerCase() === '/daftar' || body.toLowerCase() === '/reg') {
+                // Allow explicit registration command (case-insensitive)
+                if (bodyLower === '/daftar' || bodyLower === '/reg' || bodyLower === '/register') {
                     console.log('[WhatsAppBot] 📝 Starting registration for new user...');
+                    console.log(`[WhatsAppBot] Registration command detected: "${body}"`);
                     try {
                         const registrationResponse = await WhatsAppRegistrationService.processStep(phone, body);
+                        console.log(`[WhatsAppBot] Registration response: ${registrationResponse.substring(0, 100)}...`);
                         await this.sendMessage(phone, registrationResponse);
+                        console.log('[WhatsAppBot] ✅ Registration message sent successfully');
                     } catch (regError: any) {
                         console.error('[WhatsAppBot] ❌ Error in registration:', regError);
                         await this.sendMessage(phone, '❌ Terjadi kesalahan saat registrasi.');
@@ -154,6 +159,7 @@ export class WhatsAppBotService {
 
                 // Default: Reject unregistered users SILENTLY
                 console.log('[WhatsAppBot] ⛔ Unregistered user ignored (Silent Mode)');
+                console.log(`[WhatsAppBot] Tip: User can type /daftar to register`);
 
                 return;
             }
@@ -504,8 +510,21 @@ export class WhatsAppBotService {
             if (!customer) return;
         }
 
+        // Determine customer status
+        let statusIcon = '✅';
+        let statusText = 'Aktif';
+        if (customer.is_isolated === 1 || customer.is_isolated === true) {
+            statusIcon = '🔒';
+            statusText = 'Diblokir';
+        } else if (customer.status === 'inactive') {
+            statusIcon = '⏸️';
+            statusText = 'Nonaktif';
+        }
+
         const menu = `🏠 *MENU UTAMA*
 Hai *${customer.name || 'Pelanggan'}*,
+
+${statusIcon} *Status Layanan:* ${statusText}
 
 1️⃣ *Tagihan* - Lihat tagihan Anda
 2️⃣ *Bantuan / Tanya AI* - Tanya apapun ke AI CS
