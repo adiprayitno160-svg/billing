@@ -312,10 +312,21 @@ export class GenieacsService {
 
     getSignalInfo(device: any): any {
         const getVal = (path: string) => this.getDeviceParameter(device, path);
-        const rx = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower') || 'N/A';
-        const tx = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower') || 'N/A';
-        const temp = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature') || 'N/A';
-        return { rxPower: `${rx} dBm`, txPower: `${tx} dBm`, temperature: `${temp}°C`, wifiClients: '0 Perangkat' };
+
+        // Huawei Optical Info Paths
+        const rx = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower');
+        const tx = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower');
+        const temp = getVal('InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature');
+
+        // WiFi Clients - Huawei
+        const clients = getVal('InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations');
+
+        return {
+            rxPower: rx || 'N/A',
+            txPower: tx || 'N/A',
+            temperature: temp || 'N/A',
+            wifiClients: clients !== null ? clients : '0'
+        };
     }
 
     getDeviceParameter(device: any, path: string): any {
