@@ -1,31 +1,35 @@
 #!/bin/bash
-# Simple Update Script untuk Billing System
-# Version: 2.3.14
 
-echo "🚀 Starting update to v2.3.14..."
+#################################################
+# Billing App - Quick Update Script
+# Usage: bash update.sh
+#################################################
 
-# Pull latest version
-echo "📥 Pulling latest code from GitHub..."
-git fetch --tags
-git checkout v2.3.14
+set -e
 
-# Install dependencies
+APP_DIR="/var/www/billing"
+BRANCH="main"
+
+echo "🔄 Billing App - Quick Update"
+echo "=============================="
+
+cd "$APP_DIR"
+
+echo "📥 Pulling latest changes..."
+git fetch origin
+git reset --hard origin/$BRANCH
+git pull origin $BRANCH
+
 echo "📦 Installing dependencies..."
 npm install
 
-# Build application
-echo "🔨 Building application..."
+echo "🔨 Building..."
 npm run build
 
-# Restart PM2
-echo "🔄 Restarting application..."
+echo "🔄 Restarting PM2..."
 pm2 restart billing-app
 
-# Save PM2 config
-pm2 save
-
-echo "✅ Update completed successfully!"
-echo "📊 Current version: 2.3.14"
 echo ""
-echo "Don't forget to run the database migration:"
-echo "mysql -u root -p billing_db < migration.sql"
+echo "✅ Update completed!"
+echo ""
+pm2 status billing-app
