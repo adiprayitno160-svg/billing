@@ -145,6 +145,7 @@ export class GenieacsController {
             const tasks = await genieacs.getDeviceTasks(id);
             const signalInfo = genieacs.getSignalInfo(device);
             const wifiSettings = genieacs.getWiFiDetails(device);
+            const pppoeSettings = genieacs.getPPPoEDetails(device);
 
             // Get customer info from billing
             const [customers] = await databasePool.query<RowDataPacket[]>(
@@ -162,6 +163,7 @@ export class GenieacsController {
                 tasks,
                 signalInfo,
                 wifiSettings,
+                pppoeSettings,
                 customer
             });
         } catch (error: any) {
@@ -295,6 +297,88 @@ export class GenieacsController {
         } catch (error: any) {
             console.error('Error changing WiFi credentials:', error);
             req.flash('error', `Gagal mengubah WiFi credentials: ${error.message}`);
+            res.redirect('/genieacs/devices');
+        }
+    }
+
+    /**
+     * Change PPPoE credentials
+     */
+    static async changePPPoECredentials(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const { username, password } = req.body;
+
+            if (!username || !password) {
+                req.flash('error', 'PPPoE Username dan Password wajib diisi');
+                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+            }
+
+            const genieacs = await GenieacsService.getInstanceFromDb();
+            const result = await genieacs.updatePPPoECredentials(id, username, password);
+
+            if (result.success) {
+                req.flash('success', `PPPoE credentials berhasil di-update! User: ${username}`);
+            } else {
+                req.flash('error', `Gagal meng-update PPPoE credentials: ${result.message}`);
+            }
+
+            res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+        } catch (error: any) {
+            console.error('Error changing PPPoE credentials:', error);
+            req.flash('error', `Gagal meng-update PPPoE credentials: ${error.message}`);
+            res.redirect('/genieacs/devices');
+        }
+    }
+
+    /**
+     * Configure WAN PPP Connection with VLAN
+     */
+    static async configureWanPPP(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const {
+                wanDeviceIndex,
+                connectionIndex,
+                vlanId,
+                pppUsername,
+                pppPassword,
+                enableConnection
+            } = req.body;
+
+            // Validation
+            if (!vlanId || !pppUsername || !pppPassword) {
+                req.flash('error', 'VLAN ID, PPP Username, dan Password wajib diisi');
+                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+            }
+
+            const vlanIdNum = parseInt(vlanId, 10);
+            if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
+                req.flash('error', 'VLAN ID harus antara 1 dan 4094');
+                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+            }
+
+            const genieacs = await GenieacsService.getInstanceFromDb();
+            const result = await genieacs.configureWanPPP(id, {
+                wanDeviceIndex: parseInt(wanDeviceIndex, 10) || 1,
+                connectionDeviceIndex: parseInt(connectionIndex, 10) || 1,
+                pppConnectionIndex: 1, // Usually 1 for PPP connection
+                username: pppUsername,
+                password: pppPassword,
+                vlanId: vlanIdNum,
+                enable: enableConnection === '1' || enableConnection === 'on' || enableConnection === true
+            });
+
+            if (result.success) {
+                req.flash('success', `WAN PPP berhasil dikonfigurasi! VLAN: ${vlanIdNum}, Username: ${pppUsername}`);
+            } else {
+                req.flash('error', `Gagal konfigurasi WAN PPP: ${result.message}`);
+            }
+
+            res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+        } catch (error: any) {
+            console.error('Error configuring WAN PPP:', error);
+            req.flash('error', `Gagal konfigurasi WAN PPP: ${error.message}`);
             res.redirect('/genieacs/devices');
         }
     }

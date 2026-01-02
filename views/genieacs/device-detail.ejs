@@ -188,12 +188,174 @@
                                                 class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold shadow-md cursor-pointer flex items-center justify-center">
                                                 <i class="fas fa-save mr-2"></i>SIMPAN PERUBAHAN
                                             </button>
-                                            <p class="text-xs text-gray-500 mt-2 text-center">
-                                                <i class="fas fa-info-circle mr-1"></i>
-                                                Perubahan diterapkan dalam 1-5 menit
-                                            </p>
                                         </div>
                                     </form>
+                        </div>
+
+                        <!-- PPPoE Settings -->
+                        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                <i class="fas fa-network-wired text-blue-600"></i>
+                                PPPoE Settings
+                            </h3>
+
+                            <!-- Current PPPoE Info -->
+                            <% if (typeof pppoeSettings !=='undefined' && (pppoeSettings.username !=='-' ||
+                                pppoeSettings.password !=='-' )) { %>
+                                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                                    <h4 class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-2">Saat Ini
+                                    </h4>
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between items-center border-b border-blue-100 pb-2">
+                                            <span class="text-gray-600 flex items-center gap-2"><i
+                                                    class="fas fa-user text-blue-400"></i> Username</span>
+                                            <span
+                                                class="font-mono font-bold text-gray-900 bg-white px-2 py-1 rounded border border-blue-100">
+                                                <%= pppoeSettings.username %>
+                                            </span>
+                                        </div>
+                                        <div class="flex justify-between items-center pt-1">
+                                            <span class="text-gray-600 flex items-center gap-2"><i
+                                                    class="fas fa-key text-blue-400"></i> Password</span>
+                                            <div class="flex items-center gap-2">
+                                                <span
+                                                    class="font-mono font-bold text-gray-900 bg-white px-2 py-1 rounded border border-blue-100">
+                                                    <%= pppoeSettings.password %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <% } %>
+                                    <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/change-pppoe"
+                                        method="POST"
+                                        onsubmit="return confirm('Yakin ingin mengubah kredensial PPPoE?')">
+
+                                        <div class="border-t border-gray-100 my-4"></div>
+                                        <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                            <i class="fas fa-edit text-blue-500"></i> Update PPPoE
+                                        </h4>
+
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                    <i class="fas fa-user mr-1"></i> PPPoE Username
+                                                </label>
+                                                <input type="text" name="username" required
+                                                    value="<%= typeof pppoeSettings !== 'undefined' ? pppoeSettings.username : '' %>"
+                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    placeholder="Username PPPoE">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                    <i class="fas fa-key mr-1"></i> PPPoE Password
+                                                </label>
+                                                <input type="text" name="password" required
+                                                    value="<%= typeof pppoeSettings !== 'undefined' ? pppoeSettings.password : '' %>"
+                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    placeholder="Password PPPoE">
+                                            </div>
+                                        </div>
+                                        <div class="mt-4">
+                                            <button type="submit"
+                                                style="background-color: #2563eb !important; color: white !important;"
+                                                class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold shadow-md cursor-pointer flex items-center justify-center">
+                                                <i class="fas fa-save mr-2"></i>UPDATE PPPOE
+                                            </button>
+                                        </div>
+                                    </form>
+                        </div>
+
+                        <!-- WAN PPP Configuration (Add New/Edit WAN) -->
+                        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                <i class="fas fa-globe text-purple-600"></i>
+                                WAN PPP Configuration
+                            </h3>
+
+                            <div class="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                                <p class="text-xs text-purple-700">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Konfigurasi WAN PPP Connection dengan VLAN. Gunakan untuk setup koneksi internet
+                                    baru atau edit existing connection.
+                                </p>
+                            </div>
+
+                            <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/configure-wan-ppp"
+                                method="POST"
+                                onsubmit="return confirm('Yakin ingin mengkonfigurasi WAN PPP? Pastikan VLAN ID sudah benar.')">
+
+                                <div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                <i class="fas fa-layer-group mr-1 text-purple-500"></i> WAN Device Index
+                                            </label>
+                                            <select name="wanDeviceIndex"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                                <option value="1">WAN Device 1</option>
+                                                <option value="2">WAN Device 2</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                <i class="fas fa-plug mr-1 text-purple-500"></i> Connection Index
+                                            </label>
+                                            <select name="connectionIndex"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                                <option value="1">Connection 1</option>
+                                                <option value="2">Connection 2</option>
+                                                <option value="3">Connection 3</option>
+                                                <option value="4">Connection 4</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            <i class="fas fa-ethernet mr-1 text-purple-500"></i> VLAN ID
+                                        </label>
+                                        <input type="number" name="vlanId" required min="1" max="4094"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            placeholder="Contoh: 100, 200, 300">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            <i class="fas fa-user mr-1 text-purple-500"></i> PPP Username
+                                        </label>
+                                        <input type="text" name="pppUsername" required
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            placeholder="username@isp.com">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            <i class="fas fa-key mr-1 text-purple-500"></i> PPP Password
+                                        </label>
+                                        <input type="text" name="pppPassword" required
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            placeholder="Password PPP">
+                                    </div>
+
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <input type="checkbox" name="enableConnection" id="enableConnection" value="1"
+                                            checked
+                                            class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                                        <label for="enableConnection" class="text-sm text-gray-700">
+                                            Enable Connection (Aktifkan koneksi)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <button type="submit"
+                                        style="background-color: #7c3aed !important; color: white !important;"
+                                        class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-bold shadow-md cursor-pointer flex items-center justify-center">
+                                        <i class="fas fa-cog mr-2"></i>CONFIGURE WAN PPP
+                                    </button>
+                                </div>
+                            </form>
                         </div>
             </div>
 

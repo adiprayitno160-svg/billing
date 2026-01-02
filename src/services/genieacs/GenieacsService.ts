@@ -321,7 +321,9 @@ export class GenieacsService {
 
         // Aggressive optical info paths for Huawei, common ZTE & TR-181 standard
         const rx = findVal([
-            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RXPower', // Confirmed for Huawei HG8245
+            'VirtualParameters.RXPower', // GenieACS Virtual Parameter (usually normalized)
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower',
+            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RXPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.RxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower',
@@ -330,6 +332,8 @@ export class GenieacsService {
         ]);
 
         const tx = findVal([
+            'VirtualParameters.TXPower',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower',
             'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TXPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.TxOpticalPower',
@@ -339,6 +343,8 @@ export class GenieacsService {
         ]);
 
         const temp = findVal([
+            'VirtualParameters.gettemp',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TransceiverTemperature',
             'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TransceiverTemperature',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature',
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.Temperature',
@@ -347,15 +353,26 @@ export class GenieacsService {
         ]);
 
         const clients = findVal([
+            'VirtualParameters.activedevices',
             'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations',
             'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDeviceNumberOfEntities',
             'Device.WiFi.SSID.1.Stats.TotalAssociations',
             'Device.WiFi.AccessPoint.1.AssociatedDeviceNumberOfEntities'
         ]);
 
+        // Helper to format power values (some report -2705 for -27.05 dBm)
+        const formatPower = (val: any) => {
+            if (val === null || val === undefined || val === '') return 'N/A';
+            const num = parseFloat(val);
+            if (isNaN(num)) return val;
+            // If value is like -2500, it's likely -25.00 dBm
+            if (num < -100 || num > 100) return (num / 100).toFixed(2);
+            return num.toString();
+        };
+
         return {
-            rxPower: rx || 'N/A',
-            txPower: tx || 'N/A',
+            rxPower: formatPower(rx),
+            txPower: formatPower(tx),
             temperature: temp || 'N/A',
             wifiClients: clients !== null ? clients : '0'
         };
@@ -386,6 +403,164 @@ export class GenieacsService {
             return ('_value' in current) ? current._value : null;
         }
         return current;
+    }
+
+    /**
+     * Get PPPoE Credentials
+     */
+    getPPPoEDetails(device: any): { username: string; password: string; } {
+        const findValue = (paths: string[]) => {
+            for (const path of paths) {
+                const val = this.getDeviceParameter(device, path);
+                if (val && typeof val !== 'object') return String(val);
+            }
+            return '-';
+        };
+
+        const username = findValue([
+            'VirtualParameters.pppoeUsername',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username',
+            'Device.PPP.Interface.1.Username'
+        ]);
+        const password = findValue([
+            'VirtualParameters.pppoePassword',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password',
+            'Device.PPP.Interface.1.Password'
+        ]);
+
+        return { username, password };
+    }
+
+    /**
+     * Update PPPoE Credentials
+     */
+    async updatePPPoECredentials(deviceId: string, username: string, password: string): Promise<{ success: boolean; taskId?: string; message: string }> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+
+            // Bersihkan antrean
+            try {
+                const tasks = await this.getDeviceTasks(deviceId);
+                for (const t of tasks) {
+                    await this.deleteTask(t._id);
+                }
+            } catch (e) { }
+
+            // Kirim Perintah PPPoE
+            const response = await this.client.post(`/devices/${encodedId}/tasks?connection_request`, {
+                name: 'setParameterValues',
+                parameterValues: [
+                    ['InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username', username, 'xsd:string'],
+                    ['InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password', password, 'xsd:string']
+                ]
+            });
+
+            return {
+                success: true,
+                taskId: response.data._id,
+                message: 'Perintah Update PPPoE telah dikirim!'
+            };
+        } catch (error: any) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    /**
+     * Configure WAN PPP Connection with VLAN (Huawei HG8245A)
+     * This method sets up a WAN PPP connection with username, password, and VLAN ID
+     */
+    async configureWanPPP(
+        deviceId: string,
+        options: {
+            wanDeviceIndex: number;
+            connectionDeviceIndex: number;
+            pppConnectionIndex: number;
+            username: string;
+            password: string;
+            vlanId: number;
+            enable?: boolean;
+        }
+    ): Promise<{ success: boolean; taskId?: string; message: string }> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+            const {
+                wanDeviceIndex = 1,
+                connectionDeviceIndex = 1,
+                pppConnectionIndex = 1,
+                username,
+                password,
+                vlanId,
+                enable = true
+            } = options;
+
+            // Clear task queue
+            try {
+                const tasks = await this.getDeviceTasks(deviceId);
+                for (const t of tasks) {
+                    await this.deleteTask(t._id);
+                }
+            } catch (e) { }
+
+            // Build parameter paths for Huawei HG8245A
+            const basePath = `InternetGatewayDevice.WANDevice.${wanDeviceIndex}.WANConnectionDevice.${connectionDeviceIndex}.WANPPPConnection.${pppConnectionIndex}`;
+
+            const parameterValues: Array<[string, any, string]> = [
+                // PPP Username
+                [`${basePath}.Username`, username, 'xsd:string'],
+                // PPP Password
+                [`${basePath}.Password`, password, 'xsd:string'],
+                // VLAN ID (Huawei-specific parameter)
+                [`${basePath}.X_HW_VLAN`, vlanId.toString(), 'xsd:unsignedInt'],
+                // Enable the connection
+                [`${basePath}.Enable`, enable ? '1' : '0', 'xsd:boolean'],
+                // Set NAT Enable (commonly needed for internet access)
+                [`${basePath}.NATEnabled`, 'true', 'xsd:boolean'],
+                // Connection Type
+                [`${basePath}.ConnectionType`, 'IP_Routed', 'xsd:string'],
+            ];
+
+            // Send task to GenieACS
+            const response = await this.client.post(`/devices/${encodedId}/tasks?connection_request`, {
+                name: 'setParameterValues',
+                parameterValues
+            });
+
+            return {
+                success: true,
+                taskId: response.data._id,
+                message: `WAN PPP Configuration dikirim! VLAN: ${vlanId}, User: ${username}`
+            };
+        } catch (error: any) {
+            console.error('[GenieACS] Error configuring WAN PPP:', error.message);
+            return { success: false, message: error.message };
+        }
+    }
+
+    /**
+     * Get current WAN PPP Connection details
+     */
+    getWanPPPDetails(device: any, wanDeviceIndex: number = 1, connectionDeviceIndex: number = 1, pppConnectionIndex: number = 1): {
+        username: string;
+        vlanId: string;
+        enabled: string;
+        connectionType: string;
+        externalIP: string;
+    } {
+        const basePath = `InternetGatewayDevice.WANDevice.${wanDeviceIndex}.WANConnectionDevice.${connectionDeviceIndex}.WANPPPConnection.${pppConnectionIndex}`;
+
+        const findValue = (suffix: string) => {
+            const val = this.getDeviceParameter(device, `${basePath}.${suffix}`);
+            if (val && typeof val !== 'object') return String(val);
+            return '-';
+        };
+
+        return {
+            username: findValue('Username'),
+            vlanId: this.getDeviceParameter(device, `${basePath}.X_HW_VLAN`) || '-',
+            enabled: findValue('Enable'),
+            connectionType: findValue('ConnectionType'),
+            externalIP: findValue('ExternalIPAddress')
+        };
     }
 
     /**
