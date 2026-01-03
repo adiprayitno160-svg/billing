@@ -1,69 +1,232 @@
-﻿<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Daftar OLT</h2>
-        <a href="/ftth/olt/add" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Tambah
-            OLT</a>
+﻿<div class="space-y-6">
+    <!-- Header & Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Card 1: Total OLT -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Total OLT</p>
+                <h3 class="text-2xl font-bold text-slate-800">
+                    <%= items.length %>
+                </h3>
+            </div>
+            <div class="p-3 bg-blue-50 rounded-lg text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Card 2: Online Status -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Status Online</p>
+                <div class="flex items-baseline gap-2">
+                    <h3 class="text-2xl font-bold text-emerald-600">
+                        <%= items.filter(i=> i.status === 'online').length %>
+                    </h3>
+                    <span class="text-xs text-slate-400">/ <%= items.length %></span>
+                </div>
+            </div>
+            <div class="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Card 3: Total Ports -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Total Port</p>
+                <h3 class="text-2xl font-bold text-slate-800">
+                    <%= items.reduce((acc, curr)=> acc + (curr.total_ports || 0), 0) %>
+                </h3>
+            </div>
+            <div class="p-3 bg-orange-50 rounded-lg text-orange-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Card 4: Port Usage -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Port Terpakai</p>
+                <h3 class="text-2xl font-bold text-blue-600">
+                    <%= items.reduce((acc, curr)=> acc + (curr.used_ports || 0), 0) %>
+                </h3>
+            </div>
+            <div class="p-3 bg-indigo-50 rounded-lg text-indigo-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </div>
+        </div>
     </div>
-    <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-            <thead class="text-left text-slate-600 bg-slate-50/50">
-                <tr>
-                    <th class="py-2 px-3 font-medium">ID</th>
-                    <th class="py-2 px-3 font-medium">Nama OLT</th>
-                    <th class="py-2 px-3 font-medium">Lokasi</th>
-                    <th class="py-2 px-3 font-medium">IP Address</th>
-                    <th class="py-2 px-3 font-medium">Status</th>
-                    <th class="py-2 px-3 font-medium">Port (T/U)</th>
-                    <th class="py-2 px-3 text-right">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% (items || []).forEach(function(olt){ %>
-                    <tr class="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
-                        <td class="py-2 px-3 text-slate-400">#<%= olt.id %>
-                        </td>
-                        <td class="py-2 px-3 font-medium text-slate-700">
-                            <%= olt.name %>
-                        </td>
-                        <td class="py-2 px-3 text-slate-500 text-xs">
-                            <%= olt.location || '-' %>
-                        </td>
-                        <td class="py-2 px-3 text-slate-600 font-mono">
-                            <%= olt.ip_address || '-' %>
-                        </td>
-                        <td class="py-2 px-3">
-                            <span
-                                class="px-2 py-0.5 text-xs rounded-full font-medium <%= olt.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' %>">
-                                <%= olt.status || 'offline' %>
-                            </span>
-                        </td>
-                        <td class="py-2 px-3">
-                            <span class="font-semibold text-slate-700">
-                                <%= olt.total_ports || 0 %>
-                            </span> /
-                            <span class="font-semibold text-blue-600">
-                                <%= olt.used_ports || 0 %>
-                            </span>
-                        </td>
-                        <td class="py-2 px-3 text-right">
-                            <div class="flex justify-end gap-2 text-xs">
-                                <a href="/ftth/olt/<%= olt.id %>"
-                                    class="px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-white">Edit</a>
-                                <form method="post" action="/ftth/olt/<%= olt.id %>/delete"
-                                    onsubmit="return confirm('Hapus OLT ini?');" class="inline">
-                                    <button type="submit"
-                                        class="px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Hapus</button>
-                                </form>
-                            </div>
-                        </td>
+
+    <!-- Main Content -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">Daftar OLT</h2>
+                <p class="text-sm text-slate-500">Manajemen Optical Line Terminal</p>
+            </div>
+            <a href="/ftth/olt/add"
+                class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Tambah OLT
+            </a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-100">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Info OLT</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Lokasi / IP</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Kapasitas & Usage</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Status</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Aksi</th>
                     </tr>
-                    <% }) %>
-                        <% if (!items || items.length===0) { %>
-                            <tr>
-                                <td colspan="7" class="py-6 text-center text-slate-500">Belum ada data OLT</td>
-                            </tr>
-                            <% } %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-100">
+                    <% (items || []).forEach(function(olt){ const percentage=olt.total_ports> 0 ?
+                        Math.round((olt.used_ports / olt.total_ports) * 100) : 0;
+                        let barColor = 'bg-blue-600';
+                        if(percentage > 90) barColor = 'bg-red-500';
+                        else if(percentage > 70) barColor = 'bg-orange-500';
+                        %>
+                        <tr class="hover:bg-slate-50 transition-colors duration-150">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div
+                                        class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-bold text-slate-900">
+                                            <%= olt.name %>
+                                        </div>
+                                        <div class="text-xs text-slate-500">ID: #<%= olt.id %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-slate-900 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <%= olt.location || '-' %>
+                                </div>
+                                <div class="text-xs text-slate-500 font-mono mt-1 ml-5">
+                                    <%= olt.ip_address || 'No IP' %>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap align-middle">
+                                <div class="w-full max-w-xs">
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-xs font-medium text-slate-700">
+                                            <%= olt.used_ports %> / <%= olt.total_ports %> Port
+                                        </span>
+                                        <span class="text-xs font-medium text-slate-500">
+                                            <%= percentage %>%
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="<%= barColor %> h-2 rounded-full" style="width: <%= percentage %>%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <% if(olt.status==='online' ) { %>
+                                    <span
+                                        class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        ● Online
+                                    </span>
+                                    <% } else { %>
+                                        <span
+                                            class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                                            ● Offline
+                                        </span>
+                                        <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="/ftth/olt/<%= olt.id %>"
+                                        class="text-slate-400 hover:text-blue-600 transition-colors p-1" title="Edit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </a>
+                                    <form method="post" action="/ftth/olt/<%= olt.id %>/delete"
+                                        onsubmit="return confirm('Hapus OLT ini? Anda yakin?');" class="inline">
+                                        <button type="submit"
+                                            class="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                                            title="Hapus">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
+                            <% if (!items || items.length===0) { %>
+                                <tr>
+                                    <td colspan="5" class="px-6 py-10 text-center text-slate-500">
+                                        <div class="flex flex-col items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                class="h-12 w-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24"
+                                                stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <p class="text-base font-medium">Belum ada data OLT</p>
+                                            <p class="text-sm mt-1">Silakan tambah OLT baru untuk memulai.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <% } %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>

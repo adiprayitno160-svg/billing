@@ -1,633 +1,405 @@
 <%- contentFor('body') %>
 
-    <!-- Device Detail -->
     <div class="space-y-6">
         <!-- Header -->
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Detail Device</h1>
-                <p class="text-gray-600 mt-1">Serial: <%= deviceInfo.serialNumber %>
-                </p>
+                <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                    <a href="/genieacs/devices" class="hover:text-blue-600">Devices</a>
+                    <i class="fas fa-chevron-right text-xs"></i>
+                    <span class="text-gray-900 font-medium">Detail Device</span>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <%= deviceInfo.serialNumber %>
+                        <% if (deviceInfo.online) { %>
+                            <span
+                                class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium border border-green-200">Online</span>
+                            <% } else { %>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium border border-red-200">Offline</span>
+                                <% } %>
+                </h1>
             </div>
-            <div class="flex gap-3">
-                <a href="/genieacs/devices"
-                    class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-semibold">
-                    <i class="fas fa-arrow-left mr-2"></i>Kembali
-                </a>
+            <div class="flex gap-2">
                 <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/refresh" method="POST"
-                    style="display:inline;">
+                    class="inline">
                     <button type="submit"
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold">
-                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        class="px-4 py-2 bg-white border border-gray-300 shadow-sm text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition">
+                        <i class="fas fa-sync-alt mr-2 text-blue-500"></i>Refresh
                     </button>
                 </form>
                 <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/reboot" method="POST"
-                    style="display:inline;" onsubmit="return confirm('Yakin ingin mereboot device ini?')">
+                    class="inline" onsubmit="return confirm('Reboot device ini?');">
                     <button type="submit"
-                        class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-semibold">
+                        class="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 font-medium transition">
                         <i class="fas fa-power-off mr-2"></i>Reboot
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- Status Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-            <div class="flex items-center gap-4">
-                <% if (deviceInfo.isOnline) { %>
-                    <div class="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-check-circle text-3xl text-green-600"></i>
-                    </div>
-                    <div>
-                        <span
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-lg font-semibold">
-                            <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                            Online
-                        </span>
-                        <p class="text-gray-600 mt-1">Device sedang aktif dan terhubung</p>
-                    </div>
-                    <% } else { %>
-                        <div class="w-16 h-16 bg-red-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-times-circle text-3xl text-red-600"></i>
-                        </div>
-                        <div>
-                            <span
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-full text-lg font-semibold">
-                                <span class="w-3 h-3 bg-red-500 rounded-full"></span>
-                                Offline
-                            </span>
-                            <p class="text-gray-600 mt-1">Device tidak aktif atau tidak dapat dihubungi</p>
-                        </div>
-                        <% } %>
-            </div>
-        </div>
-
-        <!-- 2 Column Layout: Customer+WiFi (Left) | Signal (Right) -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- LEFT COLUMN: Customer Info + WiFi Settings -->
-            <div class="lg:col-span-1 space-y-6">
-                <!-- Customer Info (if exists) -->
-                <% if (customer) { %>
-                    <div
-                        class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-blue-100 p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <i class="fas fa-user-circle text-blue-600"></i>
-                            Info Pelanggan
-                        </h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-user text-white"></i>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-xs text-gray-500">Nama</p>
-                                    <p class="font-semibold text-gray-900 truncate">
-                                        <%= customer.name %>
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-phone text-white"></i>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-xs text-gray-500">Telepon</p>
-                                    <p class="font-semibold text-gray-900">
-                                        <%= customer.phone %>
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-map-marker-alt text-white"></i>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-xs text-gray-500">Alamat</p>
-                                    <p class="font-semibold text-gray-900 text-sm line-clamp-2">
-                                        <%= customer.address || '-' %>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <% } %>
-
-                        <!-- WiFi Settings -->
-                        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                <i class="fas fa-wifi text-indigo-600"></i>
-                                WiFi Settings
-                            </h3>
-
-                            <!-- Current WiFi Info -->
-                            <% if (typeof wifiSettings !=='undefined' && (wifiSettings.ssid !=='-' ||
-                                wifiSettings.password !=='-' )) { %>
-                                <div class="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                                    <h4 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">Saat Ini
-                                    </h4>
-                                    <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between items-center border-b border-indigo-100 pb-2">
-                                            <span class="text-gray-600 flex items-center gap-2"><i
-                                                    class="fas fa-broadcast-tower text-indigo-400"></i> SSID</span>
-                                            <span
-                                                class="font-mono font-bold text-gray-900 bg-white px-2 py-1 rounded border border-indigo-100">
-                                                <%= wifiSettings.ssid %>
-                                            </span>
-                                        </div>
-                                        <div class="flex justify-between items-center pt-1">
-                                            <span class="text-gray-600 flex items-center gap-2"><i
-                                                    class="fas fa-key text-indigo-400"></i> Password</span>
-                                            <div class="flex items-center gap-2">
-                                                <span
-                                                    class="font-mono font-bold text-gray-900 bg-white px-2 py-1 rounded border border-indigo-100">
-                                                    <%= wifiSettings.password %>
-                                                </span>
-                                                <button type="button"
-                                                    onclick="navigator.clipboard.writeText('<%= wifiSettings.password %>')"
-                                                    class="text-indigo-400 hover:text-indigo-600" title="Copy">
-                                                    <i class="fas fa-copy"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <% } %>
-                                    <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/change-wifi"
-                                        method="POST"
-                                        onsubmit="return confirm('Yakin ingin mengubah kredensial WiFi?')">
-
-                                        <div class="border-t border-gray-100 my-4"></div>
-                                        <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                                            <i class="fas fa-edit text-indigo-500"></i> Ganti Password Baru
-                                        </h4>
-
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                    <i class="fas fa-network-wired mr-1"></i> SSID Baru
-                                                </label>
-                                                <input type="text" name="ssid" required
-                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                                    placeholder="Nama WiFi">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                    <i class="fas fa-key mr-1"></i> Password Baru
-                                                </label>
-                                                <input type="text" name="password" required minlength="8"
-                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                                    placeholder="Min 8 karakter">
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <button type="submit"
-                                                style="background-color: #4f46e5 !important; color: white !important;"
-                                                class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold shadow-md cursor-pointer flex items-center justify-center">
-                                                <i class="fas fa-save mr-2"></i>SIMPAN PERUBAHAN
-                                            </button>
-                                        </div>
-                                    </form>
-                        </div>
-
-                        <!-- PPPoE Settings -->
-                        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                <i class="fas fa-network-wired text-blue-600"></i>
-                                PPPoE Settings
-                            </h3>
-
-                            <!-- Current PPPoE Info -->
-                            <% if (typeof pppoeSettings !=='undefined' && (pppoeSettings.username !=='-' ||
-                                pppoeSettings.password !=='-' )) { %>
-                                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                                    <h4 class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-2">Saat Ini
-                                    </h4>
-                                    <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between items-center border-b border-blue-100 pb-2">
-                                            <span class="text-gray-600 flex items-center gap-2"><i
-                                                    class="fas fa-user text-blue-400"></i> Username</span>
-                                            <span
-                                                class="font-mono font-bold text-gray-900 bg-white px-2 py-1 rounded border border-blue-100">
-                                                <%= pppoeSettings.username %>
-                                            </span>
-                                        </div>
-                                        <div class="flex justify-between items-center pt-1">
-                                            <span class="text-gray-600 flex items-center gap-2"><i
-                                                    class="fas fa-key text-blue-400"></i> Password</span>
-                                            <div class="flex items-center gap-2">
-                                                <span
-                                                    class="font-mono font-bold text-gray-900 bg-white px-2 py-1 rounded border border-blue-100">
-                                                    <%= pppoeSettings.password %>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <% } %>
-                                    <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/change-pppoe"
-                                        method="POST"
-                                        onsubmit="return confirm('Yakin ingin mengubah kredensial PPPoE?')">
-
-                                        <div class="border-t border-gray-100 my-4"></div>
-                                        <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                                            <i class="fas fa-edit text-blue-500"></i> Update PPPoE
-                                        </h4>
-
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                    <i class="fas fa-user mr-1"></i> PPPoE Username
-                                                </label>
-                                                <input type="text" name="username" required
-                                                    value="<%= typeof pppoeSettings !== 'undefined' ? pppoeSettings.username : '' %>"
-                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                    placeholder="Username PPPoE">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                    <i class="fas fa-key mr-1"></i> PPPoE Password
-                                                </label>
-                                                <input type="text" name="password" required
-                                                    value="<%= typeof pppoeSettings !== 'undefined' ? pppoeSettings.password : '' %>"
-                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                    placeholder="Password PPPoE">
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <button type="submit"
-                                                style="background-color: #2563eb !important; color: white !important;"
-                                                class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold shadow-md cursor-pointer flex items-center justify-center">
-                                                <i class="fas fa-save mr-2"></i>UPDATE PPPOE
-                                            </button>
-                                        </div>
-                                    </form>
-                        </div>
-
-                        <!-- WAN PPP Configuration (Add New/Edit WAN) -->
-                        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                <i class="fas fa-globe text-purple-600"></i>
-                                WAN PPP Configuration
-                            </h3>
-
-                            <div class="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
-                                <p class="text-xs text-purple-700">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    Konfigurasi WAN PPP Connection dengan VLAN. Gunakan untuk setup koneksi internet
-                                    baru atau edit existing connection.
-                                </p>
-                            </div>
-
-                            <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/configure-wan-ppp"
-                                method="POST"
-                                onsubmit="return confirm('Yakin ingin mengkonfigurasi WAN PPP? Pastikan VLAN ID sudah benar.')">
-
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                <i class="fas fa-layer-group mr-1 text-purple-500"></i> WAN Device Index
-                                            </label>
-                                            <select name="wanDeviceIndex"
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                                <option value="1">WAN Device 1</option>
-                                                <option value="2">WAN Device 2</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                <i class="fas fa-plug mr-1 text-purple-500"></i> Connection Index
-                                            </label>
-                                            <select name="connectionIndex"
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                                <option value="1">Connection 1</option>
-                                                <option value="2">Connection 2</option>
-                                                <option value="3">Connection 3</option>
-                                                <option value="4">Connection 4</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            <i class="fas fa-ethernet mr-1 text-purple-500"></i> VLAN ID
-                                        </label>
-                                        <input type="number" name="vlanId" required min="1" max="4094"
-                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                            placeholder="Contoh: 100, 200, 300">
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            <i class="fas fa-user mr-1 text-purple-500"></i> PPP Username
-                                        </label>
-                                        <input type="text" name="pppUsername" required
-                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                            placeholder="username@isp.com">
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            <i class="fas fa-key mr-1 text-purple-500"></i> PPP Password
-                                        </label>
-                                        <input type="text" name="pppPassword" required
-                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                            placeholder="Password PPP">
-                                    </div>
-
-                                    <div class="flex items-center gap-2 mt-2">
-                                        <input type="checkbox" name="enableConnection" id="enableConnection" value="1"
-                                            checked
-                                            class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
-                                        <label for="enableConnection" class="text-sm text-gray-700">
-                                            Enable Connection (Aktifkan koneksi)
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="mt-4">
-                                    <button type="submit"
-                                        style="background-color: #7c3aed !important; color: white !important;"
-                                        class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-bold shadow-md cursor-pointer flex items-center justify-center">
-                                        <i class="fas fa-cog mr-2"></i>CONFIGURE WAN PPP
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-            </div>
-
-            <!-- RIGHT COLUMN: Signal Info -->
-            <div class="lg:col-span-2">
-                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-signal text-orange-600"></i>
-                            Informasi Sinyal & Redaman
-                        </div>
-                        <button type="button"
-                            onclick="document.getElementById('debug-modal').classList.remove('hidden')"
-                            class="text-xs text-gray-500 hover:text-gray-700 bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
-                            <i class="fas fa-bug"></i> Debug
-                        </button>
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- RX Power -->
-                        <div
-                            class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">RX Power (Terima)</span>
-                                <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-arrow-down text-white"></i>
-                                </div>
-                            </div>
-                            <p class="text-3xl font-bold text-green-700 mb-1">
-                                <% if (signalInfo.rxPower && signalInfo.rxPower !=='N/A' ) { %>
-                                    <%= signalInfo.rxPower %>
-                                        <span class="text-base font-normal text-green-600">dBm</span>
-                                        <% } else { %>
-                                            N/A
-                                            <% } %>
-                            </p>
-                            <p class="text-xs text-gray-500">Standar: -18 s.d -27 dBm</p>
-                        </div>
-
-                        <!-- TX Power -->
-                        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6 border border-blue-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">TX Power (Kirim)</span>
-                                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-arrow-up text-white"></i>
-                                </div>
-                            </div>
-                            <p class="text-3xl font-bold text-blue-700 mb-1">
-                                <% if (signalInfo.txPower && signalInfo.txPower !=='N/A' ) { %>
-                                    <%= signalInfo.txPower %>
-                                        <span class="text-base font-normal text-blue-600">dBm</span>
-                                        <% } else { %>
-                                            N/A
-                                            <% } %>
-                            </p>
-                            <p class="text-xs text-gray-500">Standar: +2 s.d +7 dBm</p>
-                        </div>
-
-                        <!-- Temperature -->
-                        <div class="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6 border border-orange-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">Suhu (Temp)</span>
-                                <div class="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-thermometer-half text-white"></i>
-                                </div>
-                            </div>
-                            <p class="text-3xl font-bold text-orange-700 mb-1">
-                                <% if (signalInfo.temperature && signalInfo.temperature !=='N/A' ) { %>
-                                    <%= signalInfo.temperature %>
-                                        <span class="text-base font-normal text-orange-600">°C</span>
-                                        <% } else { %>
-                                            N/A
-                                            <% } %>
-                            </p>
-                            <p class="text-xs text-gray-500">Batas Aman: < 60°C</p>
-                        </div>
-
-                        <!-- WiFi Clients -->
-                        <div
-                            class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-medium text-gray-600">WiFi Clients</span>
-                                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-users text-white"></i>
-                                </div>
-                            </div>
-                            <p class="text-3xl font-bold text-indigo-700 mb-1">
-                                <% if (signalInfo.wifiClients && signalInfo.wifiClients !=='N/A' ) { %>
-                                    <%= signalInfo.wifiClients %>
-                                        <span class="text-base font-normal text-indigo-600">user</span>
-                                        <% } else { %>
-                                            0
-                                            <% } %>
-                            </p>
-                            <p class="text-xs text-gray-500">Perangkat Terhubung</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Device Info -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Basic Info -->
-            <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="fas fa-info-circle text-blue-600"></i>
-                    Informasi Device
-                </h3>
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span class="text-gray-600 font-medium">Serial Number</span>
-                        <span class="text-gray-900 font-semibold">
-                            <%= deviceInfo.serialNumber %>
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span class="text-gray-600 font-medium">Manufacturer</span>
-                        <span class="text-gray-900">
-                            <%= deviceInfo.manufacturer %>
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span class="text-gray-600 font-medium">Model</span>
-                        <span class="text-gray-900">
-                            <%= deviceInfo.model %>
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span class="text-gray-600 font-medium">Product Class</span>
-                        <span class="text-gray-900">
-                            <%= deviceInfo.productClass %>
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                        <span class="text-gray-600 font-medium">Software Version</span>
-                        <span class="text-gray-900 font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                            <%= deviceInfo.softwareVersion %>
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center py-3">
-                        <span class="text-gray-600 font-medium">Last Inform</span>
-                        <span class="text-gray-900">
-                            <% if (deviceInfo.lastInform) { %>
-                                <%= new Date(deviceInfo.lastInform).toLocaleString('id-ID') %>
-                                    <% } else { %>
-                                        -
-                                        <% } %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Device ID -->
-            <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <i class="fas fa-fingerprint text-purple-600"></i>
-                    Identitas TR-069
-                </h3>
-                <div class="space-y-4">
-                    <div class="py-3 border-b border-gray-100">
-                        <span class="text-gray-600 font-medium block mb-1">Device ID</span>
-                        <code class="text-sm bg-gray-100 px-3 py-2 rounded-lg block break-all"><%= device._id %></code>
-                    </div>
-                    <% if (device._deviceId) { %>
-                        <div class="py-3 border-b border-gray-100">
-                            <span class="text-gray-600 font-medium block mb-1">OUI</span>
-                            <span class="text-gray-900">
-                                <%= device._deviceId._OUI || '-' %>
-                            </span>
-                        </div>
-                        <% } %>
-                            <div class="py-3 border-b border-gray-100">
-                                <span class="text-gray-600 font-medium block mb-1">Registered</span>
-                                <span class="text-gray-900">
-                                    <% if (device._registered) { %>
-                                        <%= new Date(device._registered).toLocaleString('id-ID') %>
-                                            <% } else { %>
-                                                -
-                                                <% } %>
-                                </span>
-                            </div>
-                            <% if (device._tags && device._tags.length> 0) { %>
-                                <div class="py-3">
-                                    <span class="text-gray-600 font-medium block mb-2">Tags</span>
-                                    <div class="flex flex-wrap gap-2">
-                                        <% device._tags.forEach(tag=> { %>
-                                            <span
-                                                class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                                                <%= tag %>
-                                            </span>
-                                            <% }); %>
-                                    </div>
-                                </div>
-                                <% } %>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tasks -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <i class="fas fa-tasks text-orange-600"></i>
-                Recent Tasks
-            </h3>
-            <% if (tasks.length===0) { %>
-                <div class="text-center py-8 text-gray-500">
-                    <i class="fas fa-inbox text-3xl mb-2 opacity-50"></i>
-                    <p>Tidak ada task untuk device ini</p>
-                </div>
-                <% } else { %>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                                        Task
-                                        Name</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                                        Status
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                                        Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                <% tasks.forEach(task=> { %>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 font-medium text-gray-900">
-                                            <%= task.name %>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <% if (task.status==='done' || task.status==='completed' ) { %>
-                                                <span
-                                                    class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">Completed</span>
-                                                <% } else if (task.fault) { %>
-                                                    <span
-                                                        class="px-2 py-1 bg-red-100 text-red-700 rounded text-sm">Failed</span>
-                                                    <% } else { %>
-                                                        <span
-                                                            class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-sm">Pending</span>
-                                                        <% } %>
-                                        </td>
-                                        <td class="px-4 py-3 text-gray-600 text-sm">
-                                            <%= task.timestamp ? new Date(task.timestamp).toLocaleString('id-ID') : '-'
-                                                %>
-                                        </td>
-                                    </tr>
-                                    <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
-                    <% } %>
-        </div>
-    </div>
-
-    <!-- Debug Modal -->
-    <div id="debug-modal"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl animate-fade-in-up">
-            <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                <div>
-                    <h3 class="font-bold text-gray-900">Device Raw Data</h3>
-                    <p class="text-xs text-gray-500">Gunakan data ini untuk mencari path parameter yang tepat</p>
-                </div>
-                <button onclick="document.getElementById('debug-modal').classList.add('hidden')"
-                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition">
-                    <i class="fas fa-times text-gray-500"></i>
+        <!-- Navigation Tabs -->
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button onclick="switchTab('overview')" id="tab-overview"
+                    class="tab-btn w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm border-blue-500 text-blue-600">
+                    <i class="fas fa-chart-pie mr-2"></i>Overview
                 </button>
+                <button onclick="switchTab('config')" id="tab-config"
+                    class="tab-btn w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i class="fas fa-sliders-h mr-2"></i>Configuration
+                </button>
+                <button onclick="switchTab('system')" id="tab-system"
+                    class="tab-btn w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i class="fas fa-hdd mr-2"></i>System & Logs
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Contents -->
+
+        <!-- 1. OVERVIEW TAB -->
+        <div id="content-overview" class="tab-content space-y-6">
+            <!-- Key Metrics Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Signal RX -->
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div class="text-sm text-gray-500 mb-1">Optical RX Power</div>
+                    <div
+                        class="text-xl font-bold <%= (parseFloat(signalInfo.rxPower) > -27 && parseFloat(signalInfo.rxPower) < -10) ? 'text-green-600' : 'text-red-600' %>">
+                        <%= signalInfo.rxPower %> <span class="text-sm font-normal text-gray-400">dBm</span>
+                    </div>
+                </div>
+                <!-- Signal TX -->
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div class="text-sm text-gray-500 mb-1">Optical TX Power</div>
+                    <div class="text-xl font-bold text-gray-800">
+                        <%= signalInfo.txPower %> <span class="text-sm font-normal text-gray-400">dBm</span>
+                    </div>
+                </div>
+                <!-- Temperature -->
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div class="text-sm text-gray-500 mb-1">Temperature</div>
+                    <div class="text-xl font-bold text-gray-800">
+                        <%= signalInfo.temperature %> <span class="text-sm font-normal text-gray-400">°C</span>
+                    </div>
+                </div>
+                <!-- WiFi Clients -->
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div class="text-sm text-gray-500 mb-1">Active WiFi Clients</div>
+                    <div class="text-xl font-bold text-blue-600">
+                        <%= signalInfo.wifiClients %>
+                    </div>
+                </div>
             </div>
-            <div
-                class="p-4 flex-1 overflow-auto bg-gray-900 text-green-400 font-mono text-xs rounded-b-xl custom-scrollbar">
-                <pre><%= JSON.stringify(device, null, 2) %></pre>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Device Info Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Information</h3>
+                    <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">Manufacturer</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <%= deviceInfo.manufacturer %>
+                            </dd>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">Product Class</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <%= deviceInfo.productClass %>
+                            </dd>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">Hardware Version</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <%= deviceInfo.hardwareVersion %>
+                            </dd>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">Software Version</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <%= deviceInfo.softwareVersion %>
+                            </dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">Uptime</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <%= Math.floor(deviceInfo.uptime / 3600) %> jam <%= Math.floor((deviceInfo.uptime %
+                                        3600) / 60) %> menit
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Customer Info or WAN Summar -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Connection Summary</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500">WAN Status</span>
+                            <span class="font-medium text-green-600">
+                                <%= wanStatus.status %>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500">Mode</span>
+                            <span class="font-medium">
+                                <%= wanStatus.mode %> (VLAN <%= wanStatus.vlan %>)
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500">IP Address</span>
+                            <span class="font-medium font-mono">
+                                <%= wanStatus.ip %>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500">SSID</span>
+                            <span class="font-medium">
+                                <%= wifiSettings.ssid %>
+                            </span>
+                        </div>
+                        <% if (customer) { %>
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-900">
+                                            <%= customer.name %>
+                                        </p>
+                                        <p class="text-xs text-gray-500">
+                                            <%= customer.phone %> | <%= customer.address %>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <% } %>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- 2. CONFIGURATION TAB -->
+        <div id="content-config" class="tab-content space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- WAN Configuration Form -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-4 border-b pb-2">
+                        <h3 class="text-lg font-bold text-gray-900"><i
+                                class="fas fa-network-wired mr-2 text-blue-500"></i>WAN Configuration</h3>
+                        <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">Current: <%= wanStatus.mode %>
+                                </span>
+                    </div>
+
+                    <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/configure-wan" method="POST">
+                        <div class="space-y-4">
+                            <!-- Mode Selection -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Connection Mode</label>
+                                <select name="wanMode" id="wanMode" onchange="toggleWanFields()"
+                                    class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="pppoe" <%=wanStatus.mode==='PPPoE' ? 'selected' : '' %>>PPPoE (Route)
+                                    </option>
+                                    <option value="bridge" <%=wanStatus.mode==='Bridge' ? 'selected' : '' %>>Bridge
+                                    </option>
+                                    <option value="static" <%=wanStatus.mode==='Static IP' ? 'selected' : '' %>>Static
+                                        IP</option>
+                                    <option value="dhcp" <%=wanStatus.mode==='DHCP' ? 'selected' : '' %>>DHCP (Dynamic
+                                        IP)</option>
+                                </select>
+                            </div>
+
+                            <!-- Common: VLAN -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">VLAN ID</label>
+                                <input type="number" name="vlanId" required min="1" max="4094"
+                                    value="<%= wanStatus.vlan !== '-' ? wanStatus.vlan : '' %>"
+                                    class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g. 100">
+                            </div>
+
+                            <!-- PPPoE Fields -->
+                            <div id="field-pppoe" class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">PPP Username</label>
+                                    <input type="text" name="pppUsername"
+                                        value="<%= wanStatus.username !== '-' ? wanStatus.username : '' %>"
+                                        class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">PPP Password</label>
+                                    <input type="password" name="pppPassword"
+                                        class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+
+                            <!-- Static IP Fields -->
+                            <div id="field-static"
+                                class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3 hidden">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">IP Address</label>
+                                    <input type="text" name="ipAddress" placeholder="192.168.1.200"
+                                        class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Subnet Mask</label>
+                                    <input type="text" name="subnetMask" placeholder="255.255.255.0"
+                                        class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Gateway</label>
+                                    <input type="text" name="gateway" placeholder="192.168.1.1"
+                                        class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">DNS Servers</label>
+                                    <input type="text" name="dnsServers" placeholder="8.8.8.8, 8.8.4.4"
+                                        class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+
+                            <!-- Enable Checkbox -->
+                            <div class="flex items-center">
+                                <input type="checkbox" name="enableConnection" id="enableConnection" checked
+                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="enableConnection" class="ml-2 block text-sm text-gray-900">
+                                    Enable This Connection
+                                </label>
+                            </div>
+
+                            <button type="submit"
+                                class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition">
+                                Apply Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- WiFi Configuration -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 h-fit">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 border-b pb-2"><i
+                            class="fas fa-wifi mr-2 text-blue-500"></i>WiFi Settings</h3>
+                    <form action="/genieacs/devices/<%= encodeURIComponent(device._id) %>/change-wifi" method="POST">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">SSID (Name)</label>
+                                <input type="text" name="ssid" value="<%= wifiSettings.ssid %>" required
+                                    class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="text" name="password" value="<%= wifiSettings.password %>" required
+                                    minlength="8"
+                                    class="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm">
+                                <i class="fas fa-info-circle mr-1"></i> Changing WiFi settings may disconnect devices
+                                temporarily.
+                            </div>
+                            <button type="submit"
+                                class="w-full py-2 px-4 bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-lg shadow transition">
+                                Update WiFi
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. SYSTEM TAB -->
+        <div id="content-system" class="tab-content space-y-6 hidden">
+            <!-- Tasks List -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-900">Recent Tasks</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-500 font-medium">
+                            <tr>
+                                <th class="px-6 py-3">Task Name</th>
+                                <th class="px-6 py-3">Status</th>
+                                <th class="px-6 py-3">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <% if (tasks.length===0) { %>
+                                <tr>
+                                    <td colspan="3" class="px-6 py-4 text-center text-gray-500">No active tasks</td>
+                                </tr>
+                                <% } else { %>
+                                    <% tasks.forEach(task=> { %>
+                                        <tr>
+                                            <td class="px-6 py-3 text-gray-900 font-medium">
+                                                <%= task.name %>
+                                            </td>
+                                            <td class="px-6 py-3">
+                                                <span
+                                                    class="px-2 py-1 rounded-full text-xs font-semibold 
+                                            <%= task.status === 'fault' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600' %>">
+                                                    <%= task.status %>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-3 text-gray-500">
+                                                <%= new Date(task.timestamp).toLocaleString() %>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Raw Params Preview (Optional, helpful for debug) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Debug Info</h3>
+                <pre
+                    class="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto"><%= JSON.stringify(wanStatus, null, 2) %></pre>
+            </div>
+        </div>
+
     </div>
+
+    <script>
+        function switchTab(tabId) {
+            // Buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.getElementById('tab-' + tabId).classList.add('border-blue-500', 'text-blue-600');
+            document.getElementById('tab-' + tabId).classList.remove('border-transparent', 'text-gray-500');
+
+            // Content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById('content-' + tabId).classList.remove('hidden');
+        }
+
+        function toggleWanFields() {
+            const mode = document.getElementById('wanMode').value;
+            const pppoe = document.getElementById('field-pppoe');
+            const staticIp = document.getElementById('field-static');
+
+            if (mode === 'pppoe') {
+                pppoe.classList.remove('hidden');
+                staticIp.classList.add('hidden');
+            } else if (mode === 'static') {
+                pppoe.classList.add('hidden');
+                staticIp.classList.remove('hidden');
+            } else {
+                pppoe.classList.add('hidden');
+                staticIp.classList.add('hidden');
+            }
+        }
+
+        // Initialize fields
+        toggleWanFields();
+    </script>

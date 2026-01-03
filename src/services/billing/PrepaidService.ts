@@ -167,16 +167,24 @@ Terima kasih atas pengertiannya! 🙏`;
     static async generatePaymentRequest(
         customerId: number,
         packageId: number,
-        durationDays: number
+        durationDays: number,
+        options: {
+            voucherCode?: string;
+            paymentMethodId?: number;
+        } = {}
     ): Promise<{
         success: boolean;
         paymentRequest?: any;
         message?: string;
     }> {
         const conn = await databasePool.getConnection();
+        const { voucherCode, paymentMethodId } = options;
 
         try {
             await conn.beginTransaction();
+
+            // Dynamic imports
+            const { VoucherService } = await import('./VoucherService');
 
             // Get package price
             const [packages] = await conn.query<RowDataPacket[]>(
@@ -201,6 +209,64 @@ Terima kasih atas pengertiannya! 🙏`;
                 throw new Error(`Package price not configured for ${durationDays} days`);
             }
 
+            // Voucher Logic
+            let voucherId: number | null = null;
+            let discountAmount = 0;
+
+            if (voucherCode) {
+                const validation = await VoucherService.validateVoucher(voucherCode, customerId, baseAmount);
+                if (validation.valid && validation.voucher) {
+                    voucherId = validation.voucher.id;
+
+                    if (validation.voucher.discount_type === 'percentage') {
+                        discountAmount = (baseAmount * validation.voucher.discount_value) / 100;
+                    } else if (validation.voucher.discount_type === 'fixed') {
+                        discountAmount = validation.voucher.discount_value;
+                    }
+                    // Free days is handled after payment? Or just bonus days?
+                    // Usually free days doesn't reduce price.
+
+                    // Cap discount at baseAmount (no negative price)
+                    if (discountAmount > baseAmount) {
+                        discountAmount = baseAmount;
+                    }
+                } else {
+                    // Optional: Fail if voucher invalid, or just ignore?
+                    // User expectation: If I enter invalid code, tell me.
+                    throw new Error(validation.message || 'Invalid voucher code');
+                }
+            }
+
+            // Get Settings for PPN and Device Rental
+            const { SettingsService } = await import('../SettingsService');
+            const ppnEnabled = await SettingsService.getBoolean('ppn_enabled');
+            const ppnRate = ppnEnabled ? await SettingsService.getNumber('ppn_rate') : 0;
+            const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
+            const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
+
+            // Check if customer has device rental
+            const [custRows] = await conn.query<RowDataPacket[]>(
+                'SELECT use_device_rental FROM customers WHERE id = ?',
+                [customerId]
+            );
+            const useDeviceRental = custRows.length > 0 && custRows[0].use_device_rental;
+
+            // Calculate Components
+            let appliedDeviceFee = 0;
+            if (deviceRentalEnabled && useDeviceRental) {
+                appliedDeviceFee = deviceRentalFee;
+            }
+
+            let amountAfterDiscount = baseAmount - discountAmount;
+            if (amountAfterDiscount < 0) amountAfterDiscount = 0;
+
+            const subtotal = amountAfterDiscount + appliedDeviceFee;
+
+            let ppnAmount = 0;
+            if (ppnEnabled && ppnRate > 0) {
+                ppnAmount = Math.floor(subtotal * (ppnRate / 100));
+            }
+
             // Generate unique 3-digit code (100-999)
             let uniqueCode: number;
             let attempts = 0;
@@ -208,15 +274,24 @@ Terima kasih atas pengertiannya! 🙏`;
 
             while (attempts < maxAttempts) {
                 uniqueCode = Math.floor(Math.random() * 900) + 100; // 100-999
-                const totalAmount = baseAmount + (uniqueCode / 100); // Add as decimal
 
-                // Check if this code already exists (active within last 2 hours)
+                // Calculate total amount (Base - Discount + UniqueCode)
+                // Unique code is decimal part (e.g. 500 -> 500.00, need .500?)
+                // Original logic: totalAmount = baseAmount + (uniqueCode / 100);
+                // If uniqueCode is 123, added is 1.23 ?? No 100-999 / 100 = 1.00 - 9.99
+                // Wait, unique code logic in original: `(uniqueCode / 100)`.
+                // If base is 50000. Code 123. Total 50001.23.
+
+                // Total = Subtotal + PPN + UniqueCode
+                const finalTotal = subtotal + ppnAmount + uniqueCode;
+
+                // Check collision
                 const [existing] = await conn.query<RowDataPacket[]>(
                     `SELECT id FROM payment_requests 
                      WHERE total_amount = ? 
                      AND status = 'pending' 
                      AND expires_at > NOW()`,
-                    [totalAmount.toFixed(2)]
+                    [finalTotal.toFixed(2)] // Assuming total_amount is DECIMAL
                 );
 
                 if (!existing || existing.length === 0) {
@@ -226,9 +301,26 @@ Terima kasih atas pengertiannya! 🙏`;
 
                     const [result] = await conn.query<ResultSetHeader>(
                         `INSERT INTO payment_requests 
-                         (customer_id, package_id, duration_days, base_amount, unique_code, total_amount, expires_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                        [customerId, packageId, durationDays, baseAmount, uniqueCode, totalAmount.toFixed(2), expiresAt]
+                         (customer_id, package_id, duration_days, base_amount, unique_code, total_amount, 
+                          expires_at, voucher_id, voucher_discount, payment_method_id,
+                          ppn_rate, ppn_amount, device_fee, subtotal_amount)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            customerId,
+                            packageId,
+                            durationDays,
+                            baseAmount,
+                            uniqueCode,
+                            finalTotal.toFixed(2),
+                            expiresAt,
+                            voucherId,
+                            discountAmount,
+                            paymentMethodId || null,
+                            ppnRate,
+                            ppnAmount,
+                            appliedDeviceFee,
+                            subtotal
+                        ]
                     );
 
                     await conn.commit();
@@ -311,10 +403,10 @@ Terima kasih atas pengertiannya! 🙏`;
                 [paymentRequestId]
             );
 
-            // Update customer expiry date
+            // Update customer expiry date and un-isolate
             await conn.query(
                 `UPDATE customers 
-                 SET expiry_date = ?
+                 SET expiry_date = ?, is_isolated = 0
                  WHERE id = ?`,
                 [newExpiryDate, request.customer_id]
             );
@@ -323,8 +415,9 @@ Terima kasih atas pengertiannya! 🙏`;
             await conn.query(
                 `INSERT INTO prepaid_transactions 
                  (customer_id, payment_request_id, package_id, duration_days, amount, 
-                  payment_method, previous_expiry_date, new_expiry_date, verified_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  payment_method, previous_expiry_date, new_expiry_date, verified_by,
+                  ppn_amount, device_fee)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     request.customer_id,
                     paymentRequestId,
@@ -334,11 +427,80 @@ Terima kasih atas pengertiannya! 🙏`;
                     paymentMethod,
                     request.current_expiry,
                     newExpiryDate,
-                    verifiedBy
+                    verifiedBy,
+                    request.ppn_amount || 0,
+                    request.device_fee || 0
                 ]
             );
 
+            // Log Voucher Usage
+            if (request.voucher_id) {
+                const { VoucherService } = await import('./VoucherService');
+                await VoucherService.logVoucherUsage(
+                    request.voucher_id,
+                    request.customer_id,
+                    paymentRequestId,
+                    request.voucher_discount,
+                    request.base_amount,
+                    request.total_amount
+                );
+            }
+
+            // Check Referral
+            const { ReferralService } = await import('./ReferralService');
+            const referral = await ReferralService.getReferralByReferredId(request.customer_id);
+            if (referral && referral.status === 'pending') {
+                await ReferralService.completeReferral(referral.id);
+            }
+
             await conn.commit();
+
+            // Re-enable in Mikrotik asynchronously
+            try {
+                if (request.customer_code) { // Assuming we can look up username if needed, or query it
+                    // We need customer details for Mikrotik
+                    const [custRows] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT pppoe_username, phone, name FROM customers WHERE id = ?',
+                        [request.customer_id]
+                    );
+
+                    if (custRows.length > 0 && custRows[0].pppoe_username) {
+                        const { MikrotikService } = await import('../mikrotik/MikrotikService');
+                        const mikrotik = await MikrotikService.getInstance();
+                        await mikrotik.updatePPPoEUserByUsername(custRows[0].pppoe_username, { disabled: false });
+
+                        // Send WhatsApp Notification
+                        if (custRows[0].phone) {
+                            const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+
+                            const base = parseFloat(request.base_amount || 0);
+                            const disc = parseFloat(request.voucher_discount || 0);
+                            const device = parseFloat(request.device_fee || 0);
+                            const ppn = parseFloat(request.ppn_amount || 0);
+                            const total = parseFloat(request.total_amount || 0);
+
+                            let msg = `✅ *PEMBAYARAN DITERIMA*\n\n`;
+                            msg += `Halo *${custRows[0].name}*,\n`;
+                            msg += `Pembayaran Anda telah kami terima.\n\n`;
+
+                            msg += `*RINCIAN TRANSAKSI:* \n`;
+                            msg += `Paket: Rp ${base.toLocaleString('id-ID')}\n`;
+                            if (disc > 0) msg += `Diskon: -Rp ${disc.toLocaleString('id-ID')}\n`;
+                            if (device > 0) msg += `Sewa Perangkat: Rp ${device.toLocaleString('id-ID')}\n`;
+                            if (ppn > 0) msg += `PPN: Rp ${ppn.toLocaleString('id-ID')}\n`;
+                            msg += `Total: Rp ${total.toLocaleString('id-ID')}\n\n`;
+
+                            msg += `Layanan internet Anda telah *DIAKTIFKAN KEMBALI*.\n`;
+                            msg += `Aktif sampai: ${newExpiryDate.toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}\n\n`;
+                            msg += `Terima kasih!`;
+
+                            await WhatsAppServiceBaileys.sendMessage(custRows[0].phone, msg);
+                        }
+                    }
+                }
+            } catch (mtError) {
+                console.error('Failed to reactivate Mikrotik user:', mtError);
+            }
 
             return {
                 success: true,
@@ -377,5 +539,59 @@ Terima kasih atas pengertiannya! 🙏`;
         } finally {
             conn.release();
         }
+    }
+
+    /**
+     * Process expired customers: Isolate them + Notify
+     */
+    static async processExpiredCustomers(): Promise<{ isolatedCount: number; errors: string[] }> {
+        const customers = await this.getExpiredCustomers();
+        let isolatedCount = 0;
+        const errors: string[] = [];
+
+        if (customers.length === 0) return { isolatedCount: 0, errors: [] };
+
+        const { MikrotikService } = await import('../mikrotik/MikrotikService');
+        const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+
+        let mikrotik = null;
+        try {
+            mikrotik = await MikrotikService.getInstance();
+        } catch (e) {
+            console.error('Mikrotik service not available for isolation');
+        }
+
+        for (const customer of customers) {
+            const conn = await databasePool.getConnection();
+            try {
+                await conn.beginTransaction();
+
+                // 1. Mark as isolated in DB
+                await conn.query('UPDATE customers SET is_isolated = 1 WHERE id = ?', [customer.id]);
+
+                // 2. Disable in Mikrotik
+                if (mikrotik && customer.pppoe_username) {
+                    await mikrotik.updatePPPoEUserByUsername(customer.pppoe_username, { disabled: true });
+                    await mikrotik.disconnectPPPoEUser(customer.pppoe_username); // Kick
+                }
+
+                await conn.commit();
+                isolatedCount++;
+
+                // 3. Notify
+                if (customer.phone) {
+                    const message = `⚠️ *LAYANAN INTERNET BERAKHIR*\n\nHalo ${customer.name},\nMasa aktif paket internet Anda telah *HABIS*.\n\nLayanan internet Anda sementara dinonaktifkan.\nUntuk mengaktifkan kembali, silakan lakukan pembelian paket.\n\nKetik */menu* untuk membeli paket.\n\nTerima kasih.`;
+                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message).catch(err => console.error('WA Error:', err));
+                }
+
+            } catch (error: any) {
+                await conn.rollback();
+                errors.push(`Failed to isolate ${customer.name}: ${error.message}`);
+            } finally {
+                conn.release();
+            }
+        }
+
+        return { isolatedCount, errors };
     }
 }

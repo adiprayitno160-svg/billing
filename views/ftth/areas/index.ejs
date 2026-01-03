@@ -1,69 +1,125 @@
-<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h2 class="text-lg font-semibold">Data Master Area</h2>
-            <p class="text-xs text-slate-500">Kelola data wilayah/area untuk pengelompokan ODC & ODP</p>
+            <h1
+                class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                Data Master Area
+            </h1>
+            <p class="text-slate-500 mt-1">Kelola data wilayah/area untuk pengelompokan ODC & ODP</p>
         </div>
         <a href="/ftth/areas/create"
-            class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">
+            class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:scale-[1.02] transition-all font-medium flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
             Tambah Area
         </a>
+    </div>
+
+    <!-- Stats Review (Optional/Placeholder) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.447-.894L15 7m0 13V7m0 0L9 4">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Area</p>
+                <div class="flex items-baseline gap-2">
+                    <h3 class="text-2xl font-bold text-slate-800">
+                        <%= areas ? areas.length : 0 %>
+                    </h3>
+                    <span class="text-xs text-slate-400">Wilayah</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Alert -->
     <%- include('../../partials/flash') %>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="text-left text-slate-600 bg-slate-50/50">
-                    <tr>
-                        <th class="py-2 px-3 font-medium">Kode</th>
-                        <th class="py-2 px-3 font-medium">Nama Area</th>
-                        <th class="py-2 px-3 font-medium">Deskripsi</th>
-                        <th class="py-2 px-3 font-medium text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% if (areas.length===0) { %>
-                        <tr>
-                            <td colspan="4" class="py-6 text-center text-slate-500 border-t border-slate-100">
-                                Belum ada data area. Silakan tambah area baru.
-                            </td>
+        <!-- Table Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50/50 border-b border-slate-100">
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Kode Wilayah</th>
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Nama Area</th>
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Deskripsi</th>
+                            <th class="py-4 px-6 text-right font-semibold text-slate-600">Aksi</th>
                         </tr>
-                        <% } else { %>
-                            <% areas.forEach(area=> { %>
-                                <tr class="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
-                                    <td class="py-2 px-3">
-                                        <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
-                                            <%= area.code %>
-                                        </span>
-                                    </td>
-                                    <td class="py-2 px-3 font-medium text-slate-700">
-                                        <%= area.name %>
-                                    </td>
-                                    <td class="py-2 px-3 text-slate-500">
-                                        <%= area.description || '-' %>
-                                    </td>
-                                    <td class="py-2 px-3 text-right">
-                                        <div class="flex justify-end gap-2">
-                                            <a href="/ftth/areas/<%= area.id %>/edit"
-                                                class="px-2 py-1 text-xs rounded border border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-800 bg-white transition-colors">
-                                                Edit
-                                            </a>
-                                            <form action="/ftth/areas/<%= area.id %>/delete" method="POST"
-                                                onsubmit="return confirm('Yakin ingin menghapus area ini? Data ODC terkait mungkin akan kehilangan referensi area.');"
-                                                class="inline">
-                                                <button type="submit"
-                                                    class="px-2 py-1 text-xs rounded border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition-colors">
-                                                    Hapus
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <% }); %>
-                                    <% } %>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <% if (areas.length===0) { %>
+                            <tr>
+                                <td colspan="4" class="py-8 text-center text-slate-500">
+                                    <div class="flex flex-col items-center justify-center gap-2">
+                                        <svg class="w-10 h-10 text-slate-300" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.447-.894L15 7m0 13V7m0 0L9 4">
+                                            </path>
+                                        </svg>
+                                        <p>Belum ada data area. Silakan tambah area baru.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% } else { %>
+                                <% areas.forEach(area=> { %>
+                                    <tr class="hover:bg-slate-50/80 transition-colors group">
+                                        <td class="py-4 px-6">
+                                            <div class="flex items-center gap-3">
+                                                <div
+                                                    class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold font-mono border border-indigo-100">
+                                                    <%= area.code %>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 px-6 font-medium text-slate-700">
+                                            <%= area.name %>
+                                        </td>
+                                        <td class="py-4 px-6 text-slate-500">
+                                            <%= area.description || '-' %>
+                                        </td>
+                                        <td class="py-4 px-6 text-right">
+                                            <div
+                                                class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <a href="/ftth/areas/<%= area.id %>/edit"
+                                                    class="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                        </path>
+                                                    </svg>
+                                                </a>
+                                                <form action="/ftth/areas/<%= area.id %>/delete" method="POST"
+                                                    onsubmit="return confirm('Yakin ingin menghapus area ini? Data ODC terkait mungkin akan kehilangan referensi area.');"
+                                                    class="inline">
+                                                    <button type="submit"
+                                                        class="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
+                                        <% } %>
+                    </tbody>
+                </table>
+            </div>
         </div>
 </div>

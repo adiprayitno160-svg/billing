@@ -1,0 +1,172 @@
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1
+                class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                Data Master ONT
+            </h1>
+            <p class="text-slate-500 mt-1">Kelola perangkat Optical Network Terminal pelanggan</p>
+        </div>
+        <a href="/ftth/ont/create"
+            class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:scale-[1.02] transition-all font-medium flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Tambah ONT
+        </a>
+    </div>
+
+    <!-- Alert -->
+    <%- include('../../partials/flash') %>
+
+        <!-- Table Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50/50 border-b border-slate-100">
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Perangkat</th>
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Pelanggan</th>
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Jalur Distribusi</th>
+                            <th class="py-4 px-6 text-left font-semibold text-slate-600">Status</th>
+                            <th class="py-4 px-6 text-right font-semibold text-slate-600">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <% if (!onts || onts.length===0) { %>
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-slate-500">
+                                    <div class="flex flex-col items-center justify-center gap-2">
+                                        <svg class="w-10 h-10 text-slate-300" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                                            </path>
+                                        </svg>
+                                        <p>Belum ada data ONT. Silakan tambah perangkat baru.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% } else { %>
+                                <% onts.forEach(ont=> {
+                                    let metadata = {};
+                                    try { metadata = JSON.parse(ont.metadata || '{}'); } catch(e) {}
+                                    %>
+                                    <tr class="hover:bg-slate-50/80 transition-colors group">
+                                        <td class="py-4 px-6">
+                                            <div class="flex flex-col">
+                                                <span class="font-bold text-slate-700 font-mono">
+                                                    <%= ont.genieacs_serial || ont.serial_number || 'N/A' %>
+                                                </span>
+                                                <span class="text-xs text-slate-500">
+                                                    <%= metadata.model || 'Model Unknown' %>
+                                                </span>
+                                                <% if(ont.mac_address) { %>
+                                                    <span class="text-[10px] text-slate-400 font-mono">
+                                                        <%= ont.mac_address %>
+                                                    </span>
+                                                    <% } %>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 px-6">
+                                            <% if(ont.customer_name) { %>
+                                                <div class="flex items-center gap-2">
+                                                    <div
+                                                        class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                                                        <%= ont.customer_name.substring(0,1).toUpperCase() %>
+                                                    </div>
+                                                    <span class="font-medium text-slate-700">
+                                                        <%= ont.customer_name %>
+                                                    </span>
+                                                </div>
+                                                <% } else { %>
+                                                    <span class="text-slate-400 italic">Unassigned</span>
+                                                    <% } %>
+                                        </td>
+                                        <td class="py-4 px-6 text-slate-500">
+                                            <div class="flex flex-col gap-1 text-xs">
+                                                <% if(ont.olt_name) { %>
+                                                    <span class="flex items-center gap-1">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                                                        OLT: <%= ont.olt_name %>
+                                                            <% if(metadata.olt_port) { %> (Port <%= metadata.olt_port %>
+                                                                    ) <% } %>
+                                                    </span>
+                                                    <% } %>
+                                                        <% if(ont.odc_name) { %>
+                                                            <span class="flex items-center gap-1">
+                                                                <span
+                                                                    class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                                                ODC: <%= ont.odc_name %>
+                                                            </span>
+                                                            <% } %>
+                                                                <% if(ont.odp_name) { %>
+                                                                    <span class="flex items-center gap-1">
+                                                                        <span
+                                                                            class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                                                                        ODP: <%= ont.odp_name %>
+                                                                    </span>
+                                                                    <% } %>
+                                            </div>
+                                        </td>
+                                        <td class="py-4 px-6">
+                                            <% if (ont.status==='online' ) { %>
+                                                <span
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                    <span
+                                                        class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                    Online
+                                                </span>
+                                                <% } else if (ont.status==='offline' ) { %>
+                                                    <span
+                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                                        Offline
+                                                    </span>
+                                                    <% } else { %>
+                                                        <span
+                                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            <%= ont.status %>
+                                                        </span>
+                                                        <% } %>
+                                        </td>
+                                        <td class="py-4 px-6 text-right">
+                                            <div
+                                                class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <a href="/ftth/ont/<%= ont.id %>/edit"
+                                                    class="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                        </path>
+                                                    </svg>
+                                                </a>
+                                                <form action="/ftth/ont/<%= ont.id %>/delete" method="POST"
+                                                    onsubmit="return confirm('Yakin ingin menghapus ONT ini?');"
+                                                    class="inline">
+                                                    <button type="submit"
+                                                        class="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
+                                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination if needed -->
+        </div>
+</div>

@@ -7,6 +7,9 @@ export interface InvoiceData {
     due_date: string;
     subtotal: number;
     discount_amount?: number;
+    ppn_rate?: number;
+    ppn_amount?: number;
+    device_fee?: number;
     total_amount: number;
     paid_amount?: number;
     notes?: string;
@@ -57,9 +60,9 @@ export class InvoiceService {
             const invoiceQuery = `
                 INSERT INTO invoices (
                     invoice_number, customer_id, subscription_id, period, 
-                    due_date, subtotal, discount_amount, total_amount, 
+                    due_date, subtotal, discount_amount, ppn_rate, ppn_amount, device_fee, total_amount, 
                     paid_amount, remaining_amount, status, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             const paidAmount = invoiceData.paid_amount || 0;
@@ -74,6 +77,9 @@ export class InvoiceService {
                 invoiceData.due_date || new Date().toISOString().split('T')[0],
                 invoiceData.subtotal || 0,
                 invoiceData.discount_amount || 0,
+                invoiceData.ppn_rate || 0,
+                invoiceData.ppn_amount || 0,
+                invoiceData.device_fee || 0,
                 invoiceData.total_amount || 0,
                 paidAmount,
                 remainingAmount,
@@ -243,12 +249,19 @@ export class InvoiceService {
                 throw new Error(`Periode tidak valid: ${period}`);
             }
 
+            // Get System Settings
+            const { SettingsService } = await import('../../services/SettingsService');
+            const ppnEnabled = await SettingsService.getBoolean('ppn_enabled');
+            const ppnRate = ppnEnabled ? await SettingsService.getNumber('ppn_rate') : 0;
+            const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
+            const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
+
             // Coba dengan tabel subscriptions terlebih dahulu
             // Generate invoice berdasarkan DAY(start_date) untuk billing mengikuti tanggal daftar
             let subscriptionQuery = `
                 SELECT s.id as subscription_id, s.customer_id, s.package_name, s.price,
                        c.name as customer_name, c.email, c.phone, s.start_date,
-                       DAY(s.start_date) as billing_day, c.account_balance
+                       DAY(s.start_date) as billing_day, c.account_balance, c.use_device_rental
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
@@ -293,7 +306,21 @@ export class InvoiceService {
                             carryOverAmount = 0;
                         }
 
-                        const totalAmount = (subscription.price || 0) + carryOverAmount;
+                        const subtotal = subscription.price || 0;
+
+                        let deviceFee = 0;
+                        if (deviceRentalEnabled && subscription.use_device_rental) {
+                            deviceFee = deviceRentalFee;
+                        }
+
+                        let ppnAmount = 0;
+                        if (ppnEnabled && ppnRate > 0) {
+                            // Tax Base = Subtotal + Device Fee
+                            const taxBase = subtotal + deviceFee;
+                            ppnAmount = Math.round(taxBase * (ppnRate / 100));
+                        }
+
+                        const totalAmount = subtotal + deviceFee + ppnAmount + carryOverAmount;
 
                         // Apply balance deduction
                         let accountBalance = parseFloat(subscription.account_balance || 0);
@@ -307,7 +334,10 @@ export class InvoiceService {
                             subscription_id: subscription.subscription_id || subscription.id || 0,
                             period: period,
                             due_date: dueDate.toISOString().split('T')[0] as string,
-                            subtotal: subscription.price || 0,
+                            subtotal: subtotal,
+                            ppn_rate: ppnEnabled ? ppnRate : 0,
+                            ppn_amount: ppnAmount,
+                            device_fee: deviceFee,
                             total_amount: totalAmount,
                             paid_amount: amountFromBalance,
                             discount_amount: 0,
@@ -317,9 +347,18 @@ export class InvoiceService {
                         const items: InvoiceItem[] = [{
                             description: `Paket ${subscription.package_name || 'Unknown Package'} - ${period}`,
                             quantity: 1,
-                            unit_price: subscription.price || 0,
-                            total_price: subscription.price || 0
+                            unit_price: subtotal,
+                            total_price: subtotal
                         }];
+
+                        if (deviceFee > 0) {
+                            items.push({
+                                description: `Sewa Perangkat - ${period}`,
+                                quantity: 1,
+                                unit_price: deviceFee,
+                                total_price: deviceFee
+                            });
+                        }
 
                         // Add carry over item if exists
                         if (carryOverAmount > 0) {
@@ -380,7 +419,7 @@ export class InvoiceService {
                 // Coba query dengan kolom status terlebih dahulu
                 try {
                     const customerQueryWithStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.use_device_rental
                         FROM customers c
                         WHERE c.status = 'active'
                         AND c.id NOT IN (
@@ -398,7 +437,7 @@ export class InvoiceService {
                 // Jika hasil masih kosong, coba tanpa filter status
                 if (!Array.isArray(customerResult) || customerResult.length === 0) {
                     const customerQueryNoStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, c.use_device_rental
                         FROM customers c
                         WHERE c.id NOT IN (
                             SELECT DISTINCT customer_id 
@@ -435,15 +474,33 @@ export class InvoiceService {
                             console.warn(`[InvoiceService] Customer ${customer.customer_name} has no subscription/price. Using default: ${price}`);
                         }
 
+                        const subtotal = price;
+
+                        let deviceFee = 0;
+                        if (deviceRentalEnabled && customer.use_device_rental) {
+                            deviceFee = deviceRentalFee;
+                        }
+
+                        let ppnAmount = 0;
+                        if (ppnEnabled && ppnRate > 0) {
+                            const taxBase = subtotal + deviceFee;
+                            ppnAmount = Math.round(taxBase * (ppnRate / 100));
+                        }
+
+                        const totalAmount = subtotal + deviceFee + ppnAmount;
+
                         const customerBalance = parseFloat(customer.account_balance || 0);
-                        const amountFromBalance = Math.min(customerBalance, price);
+                        const amountFromBalance = Math.min(customerBalance, totalAmount);
 
                         const invoiceData: InvoiceData = {
                             customer_id: customer.customer_id || 0,
                             period: period,
                             due_date: dueDate.toISOString().split('T')[0] as string,
-                            subtotal: price,
-                            total_amount: price,
+                            subtotal: subtotal,
+                            ppn_rate: ppnEnabled ? ppnRate : 0,
+                            ppn_amount: ppnAmount,
+                            device_fee: deviceFee,
+                            total_amount: totalAmount,
                             paid_amount: amountFromBalance,
                             discount_amount: 0,
                             notes: 'Tagihan bulanan manual (Fallback)'
@@ -452,9 +509,18 @@ export class InvoiceService {
                         const items: InvoiceItem[] = [{
                             description: `${packageName} - ${period}`,
                             quantity: 1,
-                            unit_price: price,
-                            total_price: price
+                            unit_price: subtotal,
+                            total_price: subtotal
                         }];
+
+                        if (deviceFee > 0) {
+                            items.push({
+                                description: `Sewa Perangkat - ${period}`,
+                                quantity: 1,
+                                unit_price: deviceFee,
+                                total_price: deviceFee
+                            });
+                        }
 
                         const invoiceId = await this.createInvoice(invoiceData, items);
                         console.log(`[InvoiceService] Created manual invoice for customer ${customer.customer_name} (${customer.customer_id}) with ID: ${invoiceId}`);

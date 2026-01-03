@@ -201,39 +201,56 @@
                                 <tr>
                                     <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Subtotal</td>
                                     <td class="px-6 py-4 text-right font-medium text-gray-900">Rp <%= new
-                                            Intl.NumberFormat('id-ID').format(invoice.subtotal) %>
+                                            Intl.NumberFormat('id-ID').format((invoice.subtotal || 0) +
+                                            (invoice.device_fee || 0)) %>
                                     </td>
                                 </tr>
-                                <% if (invoice.discount_amount> 0) { %>
+                                <% if (invoice.ppn_amount> 0) { %>
                                     <tr>
-                                        <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Diskon
-                                        </td>
-                                        <td class="px-6 py-4 text-right font-medium text-red-600">- Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
+                                        <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">PPN (<%=
+                                                invoice.ppn_rate %>%)</td>
+                                        <td class="px-6 py-4 text-right font-medium text-gray-900">Rp <%= new
+                                                Intl.NumberFormat('id-ID').format(invoice.ppn_amount) %>
                                         </td>
                                     </tr>
                                     <% } %>
-                                        <tr class="border-t-2 border-gray-300">
-                                            <td colspan="3" class="px-6 py-4 text-right font-bold text-gray-900">Total
-                                            </td>
-                                            <td class="px-6 py-4 text-right font-bold text-xl text-gray-900">Rp <%= new
-                                                    Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">
-                                                Dibayar</td>
-                                            <td class="px-6 py-4 text-right font-medium text-green-600">Rp <%= new
-                                                    Intl.NumberFormat('id-ID').format(invoice.paid_amount) %>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">Sisa
-                                            </td>
-                                            <td class="px-6 py-4 text-right font-medium text-red-600">Rp <%= new
-                                                    Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %>
-                                            </td>
-                                        </tr>
+                                        <% if (invoice.discount_amount> 0) { %>
+                                            <tr>
+                                                <td colspan="3" class="px-6 py-4 text-right font-medium text-gray-700">
+                                                    Diskon
+                                                </td>
+                                                <td class="px-6 py-4 text-right font-medium text-red-600">- Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
+                                                </td>
+                                            </tr>
+                                            <% } %>
+                                                <tr class="border-t-2 border-gray-300">
+                                                    <td colspan="3"
+                                                        class="px-6 py-4 text-right font-bold text-gray-900">Total
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right font-bold text-xl text-gray-900">Rp
+                                                        <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount)
+                                                            %>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3"
+                                                        class="px-6 py-4 text-right font-medium text-gray-700">
+                                                        Dibayar</td>
+                                                    <td class="px-6 py-4 text-right font-medium text-green-600">Rp <%=
+                                                            new Intl.NumberFormat('id-ID').format(invoice.paid_amount)
+                                                            %>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3"
+                                                        class="px-6 py-4 text-right font-medium text-gray-700">Sisa
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right font-medium text-red-600">Rp <%= new
+                                                            Intl.NumberFormat('id-ID').format(invoice.remaining_amount)
+                                                            %>
+                                                    </td>
+                                                </tr>
                             </tfoot>
                         </table>
                     </div>

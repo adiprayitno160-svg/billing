@@ -490,6 +490,239 @@ export class InvoiceSchedulerService {
     }
 
     /**
+     * Trigger manual invoice generation
+     * @param period Period in YYYY-MM format
+     * @param dueDateOffset Optional custom due date offset (days)
+     * @param sendWhatsapp Whether to send WhatsApp notification
+     * @param customerIds Optional array of specific customer IDs to generate for
+     */
+    async triggerManualGeneration(
+        period: string,
+        dueDateOffset?: number,
+        sendWhatsapp: boolean = false,
+        customerIds?: number[]
+    ): Promise<{
+        success: boolean;
+        message: string;
+        created_count: number;
+        skipped_count: number;
+        error_count: number;
+        errors: any[];
+    }> {
+        const conn = await databasePool.getConnection();
+
+        try {
+            await conn.beginTransaction();
+            console.log(`📋 [Manual Generation] Starting for period: ${period}`);
+
+            let created_count = 0;
+            let skipped_count = 0;
+            let error_count = 0;
+            const errors: any[] = [];
+
+            // Get scheduler settings for due date if not provided
+            const [settingsRows] = await conn.query<RowDataPacket[]>(
+                `SELECT * FROM scheduler_settings WHERE setting_key = 'invoice_generation' LIMIT 1`
+            );
+
+            let settings: any = {
+                due_date_offset: 7,
+                due_date_fixed_day: null,
+                enable_due_date: true
+            };
+
+            if (settingsRows.length > 0) {
+                settings = JSON.parse(settingsRows[0].setting_value);
+            }
+
+            // Override with custom due date offset if provided
+            const effectiveDueDateOffset = dueDateOffset !== undefined ? dueDateOffset : settings.due_date_offset || 7;
+
+            console.log(`⚙️  [Manual Generation] Using due date offset: ${effectiveDueDateOffset} days`);
+            console.log(`⚙️  [Manual Generation] Fixed day: ${settings.due_date_fixed_day || 'none'}`);
+
+            // Build customer query
+            let customerQuery = `
+                SELECT DISTINCT 
+                    s.id, 
+                    s.customer_id, 
+                    s.package_id,
+                    s.price,
+                    c.name as customer_name,
+                    c.phone,
+                    CASE 
+                        WHEN c.connection_type = 'pppoe' THEN pp.name
+                        WHEN c.connection_type = 'static_ip' THEN sp.name
+                        ELSE 'Unknown Package'
+                    END as package_name
+                FROM subscriptions s
+                INNER JOIN customers c ON s.customer_id = c.id
+                LEFT JOIN pppoe_packages pp ON c.connection_type = 'pppoe' AND s.package_id = pp.id
+                LEFT JOIN static_ip_packages sp ON c.connection_type = 'static_ip' AND s.package_id = sp.id
+                WHERE s.status = 'active' AND c.status = 'active'
+            `;
+
+            const queryParams: any[] = [];
+
+            // Filter by specific customers if provided
+            if (customerIds && customerIds.length > 0) {
+                customerQuery += ` AND s.customer_id IN (${customerIds.map(() => '?').join(',')})`;
+                queryParams.push(...customerIds);
+                console.log(`👥 [Manual Generation] Filtering for ${customerIds.length} specific customers`);
+            }
+
+            const [subscriptions] = await conn.query<RowDataPacket[]>(customerQuery, queryParams);
+
+            console.log(`📊 [Manual Generation] Found ${subscriptions.length} active subscriptions`);
+
+            // Process each subscription
+            for (const subscription of subscriptions) {
+                try {
+                    // Check if invoice already exists for this period
+                    const [existingInvoices] = await conn.query<RowDataPacket[]>(
+                        'SELECT id FROM invoices WHERE customer_id = ? AND period = ?',
+                        [subscription.customer_id, period]
+                    );
+
+                    if (existingInvoices.length > 0) {
+                        console.log(`⏭️  [Manual Generation] Invoice already exists for customer ${subscription.customer_name} - ${period}`);
+                        skipped_count++;
+                        continue;
+                    }
+
+                    // Calculate due date
+                    let dueDateStr: string | null = null;
+                    if (settings.enable_due_date !== false) {
+                        const periodDate = new Date(period + '-01');
+                        const dueDate = new Date(periodDate);
+
+                        // Use Fixed Day if configured
+                        if (settings.due_date_fixed_day && settings.due_date_fixed_day >= 1 && settings.due_date_fixed_day <= 28) {
+                            dueDate.setDate(settings.due_date_fixed_day);
+                            if (dueDate < periodDate) {
+                                dueDate.setMonth(dueDate.getMonth() + 1);
+                            }
+                        } else {
+                            // Use offset
+                            dueDate.setDate(dueDate.getDate() + effectiveDueDateOffset);
+                        }
+                        dueDateStr = dueDate.toISOString().slice(0, 10);
+                    }
+
+                    // Generate invoice number
+                    const invoiceNumber = await InvoiceSchedulerService.generateInvoiceNumber(period, conn);
+
+                    const price = parseFloat(subscription.price);
+
+                    // Insert invoice
+                    const invoiceInsertQuery = `
+                        INSERT INTO invoices (
+                            invoice_number, customer_id, subscription_id, period, due_date,
+                            subtotal, discount_amount, total_amount, paid_amount, remaining_amount,
+                            status, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, 'sent', NOW(), NOW())
+                    `;
+
+                    const [invoiceResult] = await conn.execute<ResultSetHeader>(invoiceInsertQuery, [
+                        invoiceNumber,
+                        subscription.customer_id,
+                        subscription.id,
+                        period,
+                        dueDateStr,
+                        price,
+                        price,
+                        price
+                    ]);
+
+                    const invoiceId = invoiceResult.insertId;
+
+                    // Insert invoice item
+                    const itemInsertQuery = `
+                        INSERT INTO invoice_items (
+                            invoice_id, description, quantity, unit_price, total_price, created_at
+                        ) VALUES (?, ?, 1, ?, ?, NOW())
+                    `;
+
+                    const description = `Paket ${subscription.package_name} - ${period}`;
+
+                    await conn.execute(itemInsertQuery, [
+                        invoiceId,
+                        description,
+                        price,
+                        price
+                    ]);
+
+                    created_count++;
+                    console.log(`✅ [Manual Generation] Created invoice ${invoiceNumber} for ${subscription.customer_name}`);
+
+                    // Queue WhatsApp notification if requested
+                    if (sendWhatsapp && subscription.phone) {
+                        try {
+                            const formattedAmount = new Intl.NumberFormat('id-ID').format(price);
+                            const formattedDueDate = dueDateStr
+                                ? new Date(dueDateStr).toLocaleDateString('id-ID', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                })
+                                : 'Tidak ditentukan';
+
+                            const message = `🔔 *TAGIHAN BARU*\n\n` +
+                                `Yth. Bapak/Ibu *${subscription.customer_name}*,\n\n` +
+                                `Tagihan internet Anda telah tersedia:\n\n` +
+                                `📄 Invoice: *${invoiceNumber}*\n` +
+                                `📅 Periode: *${period}*\n` +
+                                `💰 Nominal: *Rp ${formattedAmount}*\n` +
+                                `📆 Jatuh Tempo: *${formattedDueDate}*\n\n` +
+                                `Mohon melakukan pembayaran sebelum jatuh tempo.\n\n` +
+                                `Terima kasih.`;
+
+                            await conn.query(`
+                                INSERT INTO notification_queue (customer_id, type, message, priority, status)
+                                VALUES (?, 'whatsapp', ?, 'medium', 'pending')
+                            `, [subscription.customer_id, message]);
+
+                            console.log(`📱 [Manual Generation] WhatsApp notification queued for ${subscription.customer_name}`);
+                        } catch (notifError) {
+                            console.error(`⚠️  [Manual Generation] Failed to queue notification:`, notifError);
+                        }
+                    }
+
+                } catch (error: any) {
+                    error_count++;
+                    errors.push({
+                        customer: subscription.customer_name,
+                        error: error.message
+                    });
+                    console.error(`❌ [Manual Generation] Error for customer ${subscription.customer_name}:`, error.message);
+                }
+            }
+
+            await conn.commit();
+
+            const message = `Generate selesai: ${created_count} dibuat, ${skipped_count} dilewati${error_count > 0 ? `, ${error_count} error` : ''}`;
+            console.log(`✅ [Manual Generation] ${message}`);
+
+            return {
+                success: true,
+                message,
+                created_count,
+                skipped_count,
+                error_count,
+                errors
+            };
+
+        } catch (error: any) {
+            await conn.rollback();
+            console.error('❌ [Manual Generation] Critical error:', error);
+            throw error;
+        } finally {
+            conn.release();
+        }
+    }
+
+    /**
      * Generate unique invoice number
      */
     private static async generateInvoiceNumber(period: string, conn: any): Promise<string> {

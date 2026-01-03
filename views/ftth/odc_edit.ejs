@@ -1,107 +1,207 @@
-<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Edit ODC</h2>
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                Edit Data ODC
+            </h1>
+            <p class="text-slate-500 mt-1">Perbarui informasi Optical Distribution Cabinet</p>
+        </div>
         <a href="/ftth/odc<%= item.olt_id ? ('?olt_id=' + item.olt_id) : '' %>"
-            class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
+            class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Kembali
+        </a>
     </div>
-    <form method="post" action="/ftth/odc/<%= item.id %>" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Pilih OLT</label>
-            <select name="olt_id" required class="w-full rounded border border-slate-300 px-2 py-1.5">
-                <% (olts || []).forEach(function(olt){ %>
-                    <option value="<%= olt.id %>" <%=(item.olt_id==olt.id) ? 'selected' : '' %>><%= olt.name %>
-                    </option>
-                    <% }) %>
-            </select>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800">Edit ODC: <%= item.name %>
+                </h3>
+                <p class="text-xs text-slate-500">Update data teknis & lokasi</p>
+            </div>
         </div>
 
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Pilih Area (Opsional)</label>
-            <select name="area_id" class="w-full rounded border border-slate-300 px-2 py-1.5">
-                <option value="">-- Pilih Area --</option>
-                <% if (typeof areas !=='undefined' && areas.length> 0) { %>
-                    <% areas.forEach(function(area){ %>
-                        <option value="<%= area.id %>" <%=(item.area_id==area.id) ? 'selected' : '' %>>
-                            <%= area.name %> (<%= area.code %>)
-                        </option>
-                        <% }) %>
-                            <% } else { %>
-                                <option value="" disabled>Belum ada area (Buat di Master Area)</option>
-                                <% } %>
-            </select>
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Nama</label>
-            <input name="name" value="<%= item.name %>" required
-                class="w-full rounded border border-slate-300 px-2 py-1.5" />
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Lokasi</label>
-            <input name="location" value="<%= item.location || '' %>"
-                class="w-full rounded border border-slate-300 px-2 py-1.5" />
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Latitude</label>
-            <input name="latitude" type="number" step="0.0000001" value="<%= item.latitude || '' %>"
-                class="w-full rounded border border-slate-300 px-2 py-1.5" />
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Longitude</label>
-            <input name="longitude" type="number" step="0.0000001" value="<%= item.longitude || '' %>"
-                class="w-full rounded border border-slate-300 px-2 py-1.5" />
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Total Port</label>
-            <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required
-                class="w-full rounded border border-slate-300 px-2 py-1.5" />
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Terpakai (Otomatis)</label>
-            <input name="used_ports" type="number" min="0" value="<%= item.used_ports %>" readonly
-                class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-100 text-slate-500 cursor-not-allowed" />
-        </div>
-        <div>
-            <label class="block text-xs text-slate-600 mb-1">Baris Kartu OLT</label>
-            <select name="olt_card" class="w-full rounded border border-slate-300 px-2 py-1.5">
-                <option value="">-- Pilih Baris --</option>
-                <% (olts || []).forEach(function(olt){ %>
-                    <% const maxCards=(olt.line_cards || 0); %>
-                        <% for (var c=1; c <=maxCards; c++) { %>
-                            <option value="<%= c %>" <%=(item.olt_card==c) ? 'selected' : '' %>>Baris <%= c %> - <%=
-                                        olt.name %>
-                            </option>
-                            <% } %>
+        <form method="post" action="/ftth/odc/<%= item.id %>" class="p-6 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Data Source Selection -->
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-slate-700">Pilih OLT Utama <span
+                                class="text-red-500">*</span></label>
+                        <select name="olt_id" required
+                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer">
+                            <% (olts || []).forEach(function(olt){ %>
+                                <option value="<%= olt.id %>" <%=(item.olt_id==olt.id) ? 'selected' : '' %>><%= olt.name
+                                        %>
+                                </option>
                                 <% }) %>
-            </select>
-        </div>
-        <div class="sm:col-span-2">
-            <label class="block text-xs text-slate-600 mb-1">Catatan</label>
-            <textarea name="notes"
-                class="w-full rounded border border-slate-300 px-2 py-1.5"><%= item.notes || '' %></textarea>
-        </div>
+                        </select>
+                        <p class="text-xs text-slate-500">ODC akan mengambil sumber sinyal dari OLT ini.</p>
+                    </div>
 
-        <div class="sm:col-span-2">
-            <label class="block text-xs text-slate-600 mb-1">Peta Lokasi</label>
-            <div id="mapOdc" class="h-64 w-full rounded border border-slate-200"></div>
-            <button type="button" id="btnGetLocation"
-                class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">Ambil Lokasi Saat
-                Ini</button>
-        </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-slate-700">Area Layanan <span
+                                class="text-xs font-normal text-slate-400">(Opsional)</span></label>
+                        <select name="area_id"
+                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer">
+                            <option value="">-- Pilih Area --</option>
+                            <% if (typeof areas !=='undefined' && areas.length> 0) { %>
+                                <% areas.forEach(function(area){ %>
+                                    <option value="<%= area.id %>" <%=(item.area_id==area.id) ? 'selected' : '' %>>
+                                        <%= area.name %> (<%= area.code %>)
+                                    </option>
+                                    <% }) %>
+                                        <% } else { %>
+                                            <option value="" disabled>Belum ada area tersedia</option>
+                                            <% } %>
+                        </select>
+                    </div>
+                </div>
 
-        <div class="sm:col-span-2 flex justify-end gap-2">
-            <a href="/ftth/odc<%= item.olt_id ? ('?olt_id=' + item.olt_id) : '' %>"
-                class="px-3 py-1.5 rounded border border-slate-300">Batal</a>
-            <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
-        </div>
-    </form>
+                <!-- ODC Details -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Nama ODC <span
+                            class="text-red-500">*</span></label>
+                    <input name="name" value="<%= item.name %>" required
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium font-mono" />
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Kapasitas (Total Port) <span
+                            class="text-red-500">*</span></label>
+                    <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" />
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Port Terpakai (Otomatis)</label>
+                    <input name="used_ports" type="number" min="0" value="<%= item.used_ports %>" readonly
+                        class="w-full px-4 py-2.5 bg-slate-100 border border-slate-300 rounded-xl text-slate-500 cursor-not-allowed" />
+                </div>
+
+                <div class="col-span-1 md:col-span-2 space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Lokasi Fisik</label>
+                    <div class="relative">
+                        <div
+                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <input name="location" value="<%= item.location || '' %>"
+                            class="w-full pl-10 px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            placeholder="Alamat lengkap..." />
+                    </div>
+                </div>
+
+                <!-- Technical Details -->
+                <div class="col-span-1 md:col-span-2">
+                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                        <label class="block text-sm font-medium text-blue-800 mb-2">Konfigurasi Sambungan OLT</label>
+                        <select name="olt_card"
+                            class="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
+                            <option value="">-- Pilih Line Card / Port OLT --</option>
+                            <% (olts || []).forEach(function(olt){ %>
+                                <% const maxCards=(olt.line_cards || 0); %>
+                                    <% if (maxCards> 0) { %>
+                                        <% for (var c=1; c <=maxCards; c++) { %>
+                                            <option value="<%= c %>" <%=(item.olt_card==c) ? 'selected' : '' %>>Baris
+                                                <%= c %> - <%= olt.name %>
+                                            </option>
+                                            <% } %>
+                                                <% } else { %>
+                                                    <!-- Fallback if line_cards not set -->
+                                                    <option value="1" <%=(item.olt_card==1) ? 'selected' : '' %>><%=
+                                                            olt.name %> - Port Default</option>
+                                                    <% } %>
+                                                        <% }) %>
+                        </select>
+                        <p class="text-xs text-blue-600 mt-1">Pilih Port/Card dari OLT yang terhubung ke ODC ini.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Section -->
+            <div class="space-y-2 pt-4 border-t border-slate-100">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Koordinat Maps</label>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label
+                                class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 block">Latitude</label>
+                            <input name="latitude" type="number" step="0.0000001" value="<%= item.latitude || '' %>"
+                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono" />
+                        </div>
+                        <div>
+                            <label
+                                class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 block">Longitude</label>
+                            <input name="longitude" type="number" step="0.0000001" value="<%= item.longitude || '' %>"
+                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono" />
+                        </div>
+                    </div>
+
+                    <div id="mapOdc"
+                        class="h-64 w-full rounded-lg border border-slate-300 shadow-inner z-0 overflow-hidden bg-slate-200 relative">
+                    </div>
+
+                    <button type="button" id="btnGetLocation"
+                        class="mt-3 w-full py-2 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Ambil Lokasi Saya Saat Ini
+                    </button>
+
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Catatan</label>
+                        <textarea name="notes"
+                            class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
+                            rows="2"><%= item.notes || '' %></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-6 border-t border-slate-100">
+                <button type="submit"
+                    class="flex-1 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg shadow-blue-500/30">
+                    Simpan Perubahan
+                </button>
+                <a href="/ftth/odc<%= item.olt_id ? ('?olt_id=' + item.olt_id) : '' %>"
+                    class="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium transition-all">
+                    Batal
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         let map, marker;
-        const initialLat = <%= item.latitude || -6.2 %>;
-        const initialLng = <%= item.longitude || 106.8 %>;
-        const hasLocation = <%= (item.latitude && item.longitude) ? 'true' : 'false' %>;
+        const initialLat = Number('<%= item.latitude || -6.2 %>');
+        const initialLng = Number('<%= item.longitude || 106.8 %>');
+        const hasLocation = '<%= (item.latitude && item.longitude) ? "true" : "false" %>' === 'true';
 
         function waitForLeaflet() {
             return new Promise((resolve, reject) => {

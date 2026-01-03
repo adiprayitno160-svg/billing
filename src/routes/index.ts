@@ -11,6 +11,7 @@ import { getOltList, getOltEdit, postOltCreate, postOltDelete, postOltUpdate } f
 import { getOdcList, getOdcAdd, getOdcEdit, postOdcCreate, postOdcDelete, postOdcUpdate } from '../controllers/ftth/odcController';
 import { getOdpList, getOdpAdd, getOdpEdit, postOdpCreate, postOdpDelete, postOdpUpdate } from '../controllers/ftth/odpController';
 import { AreaController } from '../controllers/ftth/AreaController';
+import { OntViewController } from '../controllers/ftth/OntViewController';
 import {
     getProfileList,
     postSyncProfiles,
@@ -64,6 +65,7 @@ import settingsRoutes from './settings';
 import whatsappRoutes from './whatsapp';
 import prepaidRoutes from './prepaid';
 import prepaidDashboardRoutes from './prepaidDashboard';
+import toolsRoutes from './tools';
 
 import { pageRouter as notificationPageRouter, apiRouter as notificationApiRouter } from './notification';
 import genieacsRoutes from './genieacs';
@@ -630,6 +632,9 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
 // Settings routes - MUST be registered BEFORE specific /settings routes to avoid conflicts
 router.use('/settings', settingsRoutes);
 
+// Tools routes (Database Migration, etc.)
+router.use('/tools', toolsRoutes);
+
 // Mount API router for notification
 console.log('[ROUTE REGISTRATION] Registering /api/notification routes...');
 router.use('/api/notification', notificationApiRouter);
@@ -695,6 +700,15 @@ router.post('/ftth/areas', AreaController.store);
 router.get('/ftth/areas/:id/edit', AreaController.edit);
 router.post('/ftth/areas/:id/update', AreaController.update);
 router.post('/ftth/areas/:id/delete', AreaController.delete);
+
+// FTTH ONT
+router.get('/ftth/ont', OntViewController.index);
+router.get('/ftth/ont/create', OntViewController.create);
+router.post('/ftth/ont', OntViewController.store);
+router.get('/ftth/ont/:id/edit', OntViewController.edit);
+router.post('/ftth/ont/:id/update', OntViewController.update);
+router.post('/ftth/ont/:id/delete', OntViewController.delete);
+
 
 
 // Paket Internet -> PPPOE

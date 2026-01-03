@@ -128,9 +128,267 @@ export class GenieacsService {
         }
     }
 
-    async getDevices(limit: number = 100, skip: number = 0): Promise<GenieacsDevice[]> {
-        const response = await this.client.get('/devices/', { params: { limit, skip } });
+    async getDevices(limit: number = 100, skip: number = 0, projection: string[] = [], query: any = null): Promise<GenieacsDevice[]> {
+        const params: any = { limit, skip };
+        if (query) {
+            params.query = JSON.stringify(query);
+        }
+        if (projection.length > 0) {
+            params.projection = projection.join(',');
+        } else {
+            // Default projection useful for listing
+            params.projection = '_id,_deviceId,_lastInform,_registered,_tags,VirtualParameters.pppoeUsername,VirtualParameters.pppoePassword,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower';
+        }
+
+        const response = await this.client.get('/devices/', { params });
         return response.data || [];
+    }
+
+    /**
+     * Extract normalized device info
+     */
+    extractDeviceInfo(device: any): any {
+        if (!device) return {};
+
+        const id = device._id;
+        const serialNumber = device._deviceId?._SerialNumber;
+        const manufacturer = device._deviceId?._Manufacturer;
+        const productClass = device._deviceId?._ProductClass;
+
+        // IP Address (Try WANIPP or WANPPP)
+        let ipAddress = '-';
+        const wanIp = this.getDeviceParameter(device, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress');
+        const wanPpp = this.getDeviceParameter(device, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.ExternalIPAddress');
+
+        if (wanIp && wanIp !== '-') ipAddress = wanIp;
+        else if (wanPpp && wanPpp !== '-') ipAddress = wanPpp;
+
+        // Uptime
+        const uptimeVal = this.getDeviceParameter(device, 'InternetGatewayDevice.DeviceInfo.UpTime');
+        const uptime = uptimeVal ? parseInt(uptimeVal, 10) : 0;
+
+        // Versions
+        const softwareVersion = this.getDeviceParameter(device, 'InternetGatewayDevice.DeviceInfo.SoftwareVersion');
+        const hardwareVersion = this.getDeviceParameter(device, 'InternetGatewayDevice.DeviceInfo.HardwareVersion');
+
+        // Online Status logic
+        const lastInform = device._lastInform ? new Date(device._lastInform) : null;
+        let isOnline = false;
+        if (lastInform) {
+            const diff = Date.now() - lastInform.getTime();
+            isOnline = diff < (5 * 60 * 1000); // 5 minutes threshold
+        }
+
+        return {
+            id,
+            serialNumber,
+            manufacturer,
+            productClass,
+            model: productClass, // Use product class as model
+            ipAddress,
+            uptime,
+            softwareVersion: softwareVersion || '-',
+            hardwareVersion: hardwareVersion || '-',
+            lastInform,
+            online: isOnline,
+            isOnline // Alias
+        };
+    }
+
+    /**
+    * Configure WAN IP Connection (Bridge/Static/DHCP)
+    */
+    async configureWanIP(
+        deviceId: string,
+        options: {
+            wanDeviceIndex?: number;
+            connectionDeviceIndex?: number;
+            ipConnectionIndex?: number;
+            connectionType: 'IP_Routed' | 'IP_Bridged';
+            addressingType: 'Static' | 'DHCP';
+            ipAddress?: string;
+            subnetMask?: string;
+            gateway?: string;
+            dnsServers?: string;
+            vlanId: number;
+            enable?: boolean;
+        }
+    ): Promise<{ success: boolean; taskId?: string; message: string }> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+            const {
+                wanDeviceIndex = 1,
+                connectionDeviceIndex = 1,
+                ipConnectionIndex = 1,
+                connectionType,
+                addressingType,
+                ipAddress,
+                subnetMask,
+                gateway,
+                dnsServers,
+                vlanId,
+                enable = true
+            } = options;
+
+            // Clear task queue
+            try {
+                const tasks = await this.getDeviceTasks(deviceId);
+                for (const t of tasks) {
+                    await this.deleteTask(t._id);
+                }
+            } catch (e) { }
+
+            // Base path
+            const basePath = `InternetGatewayDevice.WANDevice.${wanDeviceIndex}.WANConnectionDevice.${connectionDeviceIndex}.WANIPConnection.${ipConnectionIndex}`;
+
+            // Also need to set VLAN which is often X_HW_VLAN on the WANIPConnection or WANConnectionDevice
+            // For Huawei HG8245H, X_HW_VLAN can be on WANIPConnection instance
+
+            const parameterValues: Array<[string, any, string]> = [
+                [`${basePath}.Enable`, enable ? '1' : '0', 'xsd:boolean'],
+                [`${basePath}.ConnectionType`, connectionType, 'xsd:string'],
+                [`${basePath}.AddressingType`, addressingType, 'xsd:string'],
+                [`${basePath}.X_HW_VLAN`, vlanId.toString(), 'xsd:unsignedInt']
+            ];
+
+            if (addressingType === 'Static') {
+                if (ipAddress) parameterValues.push([`${basePath}.ExternalIPAddress`, ipAddress, 'xsd:string']);
+                if (subnetMask) parameterValues.push([`${basePath}.SubnetMask`, subnetMask, 'xsd:string']);
+                if (gateway) parameterValues.push([`${basePath}.DefaultGateway`, gateway, 'xsd:string']);
+                if (dnsServers) parameterValues.push([`${basePath}.DNSServers`, dnsServers, 'xsd:string']);
+            }
+
+            // Disable PPP if switching to IP (Conflict avoidance)
+            // We blindly try to disable PPP connection 1 just in case
+            // Note: This might fail if PPP connection 1 doesn't exist, but usually fine
+
+            // Send task
+            const response = await this.client.post(`/devices/${encodedId}/tasks?connection_request`, {
+                name: 'setParameterValues',
+                parameterValues
+            });
+
+            return {
+                success: true,
+                taskId: response.data._id,
+                message: `WAN IP Configured: ${connectionType} ${addressingType} (VLAN ${vlanId})`
+            };
+        } catch (error: any) {
+            console.error('[GenieACS] Error configuring WAN IP:', error.message);
+            return { success: false, message: error.message };
+        }
+    }
+
+    /**
+     * Get generic WAN Status
+     */
+    getWanStatus(device: any): any {
+        const basePathPPP = `InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1`;
+        const basePathIP = `InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1`;
+
+        const pppEnable = this.getDeviceParameter(device, `${basePathPPP}.Enable`);
+        const ipEnable = this.getDeviceParameter(device, `${basePathIP}.Enable`);
+
+        // Prefer PPP if enabled, otherwise IP, otherwise whichever exists
+        let activePath = basePathPPP;
+        let mode = 'PPP';
+
+        if (String(pppEnable) === '1' || String(pppEnable) === 'true') {
+            activePath = basePathPPP;
+            mode = 'PPPoE';
+        } else if (String(ipEnable) === '1' || String(ipEnable) === 'true') {
+            activePath = basePathIP;
+            mode = 'IP'; // Bridge or Static
+        } else if (this.getDeviceParameter(device, `${basePathIP}.ConnectionType`)) {
+            activePath = basePathIP;
+            mode = 'IP';
+        }
+
+        const connType = this.getDeviceParameter(device, `${activePath}.ConnectionType`) || '-';
+        const vlan = this.getDeviceParameter(device, `${activePath}.X_HW_VLAN`) || '-';
+        const ip = this.getDeviceParameter(device, `${activePath}.ExternalIPAddress`) || '-';
+        const user = this.getDeviceParameter(device, `${activePath}.Username`) || '-';
+
+        // Determine friendly mode
+        let friendlyMode = mode;
+        if (mode === 'IP') {
+            if (connType === 'IP_Bridged') friendlyMode = 'Bridge';
+            else if (connType === 'IP_Routed') {
+                const addrType = this.getDeviceParameter(device, `${activePath}.AddressingType`);
+                friendlyMode = addrType === 'Static' ? 'Static IP' : 'DHCP';
+            }
+        }
+
+        return {
+            mode: friendlyMode, // PPPoE, Bridge, Static IP, DHCP
+            vlan,
+            ip,
+            username: user,
+            connectionType: connType,
+            status: this.getDeviceParameter(device, `${activePath}.ConnectionStatus`) || 'Unknown'
+        };
+    }
+
+    // ... (keep getSignalInfo and helpers) ...
+    getSignalInfo(device: any): any {
+        const findVal = (paths: string[]) => {
+            for (const path of paths) {
+                const val = this.getDeviceParameter(device, path);
+                if (val !== null && val !== undefined && val !== '') return val;
+            }
+            return null;
+        };
+
+        const rx = findVal([
+            'VirtualParameters.RXPower',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower',
+            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RXPower',
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower',
+            'Device.Optical.Interface.1.Stats.RxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.OpticalRxPower'
+        ]);
+
+        const tx = findVal([
+            'VirtualParameters.TXPower',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower',
+            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TXPower',
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower',
+            'Device.Optical.Interface.1.Stats.TxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.OpticalTxPower'
+        ]);
+
+        const temp = findVal([
+            'VirtualParameters.gettemp',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TransceiverTemperature',
+            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TransceiverTemperature',
+            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature',
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.Temperature',
+            'Device.Optical.Interface.1.Stats.Temperature'
+        ]);
+
+        const clients = findVal([
+            'VirtualParameters.activedevices',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDeviceNumberOfEntities',
+            'Device.WiFi.SSID.1.Stats.TotalAssociations'
+        ]);
+
+        const formatPower = (val: any) => {
+            if (val === null || val === undefined || val === '') return 'N/A';
+            const num = parseFloat(val);
+            if (isNaN(num)) return val;
+            if (num < -100 || num > 100) return (num / 100).toFixed(2);
+            return num.toString();
+        };
+
+        return {
+            rxPower: formatPower(rx),
+            txPower: formatPower(tx),
+            temperature: temp || 'N/A',
+            wifiClients: clients !== null ? clients : '0'
+        };
     }
 
     async getDevice(deviceId: string): Promise<GenieacsDevice | null> {
@@ -140,9 +398,13 @@ export class GenieacsService {
         return (response.data && response.data.length > 0) ? response.data[0] : null;
     }
 
-    async getDeviceCount(): Promise<number> {
+    async getDeviceCount(query: any = null): Promise<number> {
         try {
-            const response = await this.client.head('/devices/');
+            const params: any = {};
+            if (query) {
+                params.query = JSON.stringify(query);
+            }
+            const response = await this.client.head('/devices/', { params });
             return parseInt(response.headers['x-total-count'] || '0', 10);
         } catch (e) { return 0; }
     }
@@ -310,73 +572,7 @@ export class GenieacsService {
         return { ssid, password };
     }
 
-    getSignalInfo(device: any): any {
-        const findVal = (paths: string[]) => {
-            for (const path of paths) {
-                const val = this.getDeviceParameter(device, path);
-                if (val !== null && val !== undefined && val !== '') return val;
-            }
-            return null;
-        };
 
-        // Aggressive optical info paths for Huawei, common ZTE & TR-181 standard
-        const rx = findVal([
-            'VirtualParameters.RXPower', // GenieACS Virtual Parameter (usually normalized)
-            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower',
-            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.RXPower',
-            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower',
-            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.RxOpticalPower',
-            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower',
-            'Device.Optical.Interface.1.Stats.RxOpticalPower',
-            'Device.Optical.Interface.1.RXPower'
-        ]);
-
-        const tx = findVal([
-            'VirtualParameters.TXPower',
-            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower',
-            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TXPower',
-            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
-            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.TxOpticalPower',
-            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower',
-            'Device.Optical.Interface.1.Stats.TxOpticalPower',
-            'Device.Optical.Interface.1.TXPower'
-        ]);
-
-        const temp = findVal([
-            'VirtualParameters.gettemp',
-            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TransceiverTemperature',
-            'InternetGatewayDevice.WANDevice.1.X_GponInterafceConfig.TransceiverTemperature',
-            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.Temperature',
-            'InternetGatewayDevice.WANDevice.1.X_HUAWEI_PONInterfaceConfig.RxOpticalInfo.Temperature',
-            'Device.Optical.Interface.1.Stats.Temperature',
-            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.Temperature'
-        ]);
-
-        const clients = findVal([
-            'VirtualParameters.activedevices',
-            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations',
-            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.AssociatedDeviceNumberOfEntities',
-            'Device.WiFi.SSID.1.Stats.TotalAssociations',
-            'Device.WiFi.AccessPoint.1.AssociatedDeviceNumberOfEntities'
-        ]);
-
-        // Helper to format power values (some report -2705 for -27.05 dBm)
-        const formatPower = (val: any) => {
-            if (val === null || val === undefined || val === '') return 'N/A';
-            const num = parseFloat(val);
-            if (isNaN(num)) return val;
-            // If value is like -2500, it's likely -25.00 dBm
-            if (num < -100 || num > 100) return (num / 100).toFixed(2);
-            return num.toString();
-        };
-
-        return {
-            rxPower: formatPower(rx),
-            txPower: formatPower(tx),
-            temperature: temp || 'N/A',
-            wifiClients: clients !== null ? clients : '0'
-        };
-    }
 
     getDeviceParameter(device: any, path: string): any {
         if (!device) return null;
@@ -539,56 +735,38 @@ export class GenieacsService {
     /**
      * Get current WAN PPP Connection details
      */
-    getWanPPPDetails(device: any, wanDeviceIndex: number = 1, connectionDeviceIndex: number = 1, pppConnectionIndex: number = 1): {
-        username: string;
-        vlanId: string;
-        enabled: string;
-        connectionType: string;
-        externalIP: string;
-    } {
-        const basePath = `InternetGatewayDevice.WANDevice.${wanDeviceIndex}.WANConnectionDevice.${connectionDeviceIndex}.WANPPPConnection.${pppConnectionIndex}`;
 
-        const findValue = (suffix: string) => {
-            const val = this.getDeviceParameter(device, `${basePath}.${suffix}`);
-            if (val && typeof val !== 'object') return String(val);
-            return '-';
-        };
 
-        return {
-            username: findValue('Username'),
-            vlanId: this.getDeviceParameter(device, `${basePath}.X_HW_VLAN`) || '-',
-            enabled: findValue('Enable'),
-            connectionType: findValue('ConnectionType'),
-            externalIP: findValue('ExternalIPAddress')
-        };
+    /**
+     * Add a tag to a device
+     */
+    async addDeviceTag(deviceId: string, tagName: string): Promise<boolean> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+            const encodedTag = encodeURIComponent(tagName);
+            await this.client.post(`/devices/${encodedId}/tags/${encodedTag}`);
+            return true;
+        } catch (error) {
+            console.error('[GenieACS] Failed to add tag:', error);
+            return false;
+        }
     }
 
     /**
-     * Status Online Threshold: 10 Menit (lebih responsif)
+     * Remove a tag from a device
      */
-    extractDeviceInfo(device: GenieacsDevice) {
-        const lastInform = device._lastInform ? new Date(device._lastInform) : null;
-        // Threshold 10 menit (600000 ms). Jika last inform > 10 menit lalu, anggap offline
-        const isOnline = lastInform ? (Date.now() - lastInform.getTime()) < 10 * 60 * 1000 : false;
-
-        const signalInfo = this.getSignalInfo(device);
-
-        // Get IP Addr
-        const ip = this.getDeviceParameter(device, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress') ||
-            this.getDeviceParameter(device, 'Device.IP.Interface.1.IPv4Address.1.IPAddress');
-
-        return {
-            serialNumber: device._deviceId?._SerialNumber || 'Unknown',
-            manufacturer: device._deviceId?._Manufacturer || 'Unknown',
-            productClass: device._deviceId?._ProductClass || 'Unknown',
-            model: device._deviceId?._ProductClass || 'Unknown',
-            softwareVersion: 'Unknown',
-            ipAddress: ip,
-            lastInform,
-            isOnline,
-            signal: signalInfo
-        };
+    async removeDeviceTag(deviceId: string, tagName: string): Promise<boolean> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+            const encodedTag = encodeURIComponent(tagName);
+            await this.client.delete(`/devices/${encodedId}/tags/${encodedTag}`);
+            return true;
+        } catch (error) {
+            console.error('[GenieACS] Failed to remove tag:', error);
+            return false;
+        }
     }
+
 }
 
 export default GenieacsService;

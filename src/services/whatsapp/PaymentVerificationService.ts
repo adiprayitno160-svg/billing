@@ -36,6 +36,22 @@ export class PaymentVerificationService {
         try {
             console.log(`[PaymentVerification] Auto-verifying payment proof for customer ${customerId}`);
 
+            // Check customer billing mode
+            const [customerRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT billing_mode FROM customers WHERE id = ?',
+                [customerId]
+            );
+
+            if (!customerRows || customerRows.length === 0) {
+                return {
+                    success: false,
+                    error: 'Customer tidak ditemukan'
+                };
+            }
+
+            const billingMode = customerRows[0].billing_mode;
+            console.log(`[PaymentVerification] Customer billing mode: ${billingMode}`);
+
             // 1. Extract data from image using AI/OCR
             const extractedData = await this.extractPaymentData(media);
 
@@ -48,8 +64,13 @@ export class PaymentVerificationService {
 
             const transferAmount = extractedData.amount;
 
-            // 2. Match with pending payments (Postpaid only)
-            return await this.verifyPostpaidPayment(customerId, media, transferAmount, extractedData);
+            // 2. Route to appropriate verification based on billing mode
+            if (billingMode === 'prepaid') {
+                return await this.verifyPrepaidPayment(customerId, media, transferAmount, extractedData);
+            } else {
+                // Default to postpaid
+                return await this.verifyPostpaidPayment(customerId, media, transferAmount, extractedData);
+            }
 
         } catch (error: any) {
             console.error('[PaymentVerification] Error:', error);
@@ -184,6 +205,134 @@ export class PaymentVerificationService {
             return {
                 success: false,
                 error: error.message || 'Gagal memverifikasi pembayaran postpaid'
+            };
+        }
+    }
+
+    /**
+     * Verify prepaid payment (Top-up with unique code)
+     */
+    private static async verifyPrepaidPayment(
+        customerId: number,
+        media: MediaMessage,
+        transferAmount: number,
+        extractedData: any
+    ): Promise<VerificationResult> {
+        try {
+            console.log(`[PaymentVerification] Verifying prepaid payment for customer ${customerId}, amount: ${transferAmount}`);
+
+            // Find pending payment request by unique code (last 3 digits)
+            const uniqueCode = transferAmount % 1000; // Get last 3 digits
+
+            const [paymentRequests] = await databasePool.query<RowDataPacket[]>(
+                `SELECT * FROM prepaid_payment_requests
+                 WHERE customer_id = ?
+                 AND status = 'pending'
+                 AND expires_at > NOW()
+                 AND unique_code = ?
+                 ORDER BY created_at DESC
+                 LIMIT 1`,
+                [customerId, uniqueCode]
+            );
+
+            let paymentRequest: any = null;
+
+            if (paymentRequests.length === 0) {
+                // Try to find by amount match (without unique code)
+                const [requestsByAmount] = await databasePool.query<RowDataPacket[]>(
+                    `SELECT * FROM prepaid_payment_requests
+                     WHERE customer_id = ?
+                     AND status = 'pending'
+                     AND expires_at > NOW()
+                     AND ABS(total_amount - ?) <= 1000
+                     ORDER BY created_at DESC
+                     LIMIT 1`,
+                    [customerId, transferAmount]
+                );
+
+                if (requestsByAmount.length === 0) {
+                    return {
+                        success: false,
+                        error: `Tidak ada permintaan pembayaran yang sesuai.\n\nJumlah transfer: Rp ${transferAmount.toLocaleString('id-ID')}\n\nPastikan:\n• Transfer tepat sampai 3 digit terakhir\n• Kode pembayaran belum kadaluarsa (max 1 jam)\n\nKetik */beli* untuk membuat kode pembayaran baru.`
+                    };
+                }
+
+                paymentRequest = requestsByAmount[0];
+            } else {
+                paymentRequest = paymentRequests[0];
+            }
+
+            if (!paymentRequest) {
+                return {
+                    success: false,
+                    error: 'Kode pembayaran tidak valid atau sudah kedaluarsa.\nKetik */beli* untuk membuat kode baru.'
+                };
+            }
+
+            // Verify amount matches
+            const expectedAmount = parseFloat(paymentRequest.total_amount.toString());
+            const amountDiff = Math.abs(transferAmount - expectedAmount);
+
+            if (amountDiff > 10) { // Allow 10 rupiah tolerance
+                return {
+                    success: false,
+                    error: `Jumlah transfer tidak sesuai.\n\nYang dibayar: Rp ${transferAmount.toLocaleString('id-ID')}\nSeharusnya: Rp ${expectedAmount.toLocaleString('id-ID')}\n\nSelisih: Rp ${amountDiff.toLocaleString('id-ID')}`
+                };
+            }
+
+            // Verify with AI if enabled
+            const imageBuffer = typeof media.data === 'string'
+                ? Buffer.from(media.data, 'base64')
+                : media.data;
+            const geminiEnabled = await GeminiService.isEnabled();
+
+            if (geminiEnabled) {
+                const geminiResult = await GeminiService.analyzePaymentProof(
+                    imageBuffer,
+                    expectedAmount,
+                    undefined,
+                    'prepaid'
+                );
+
+                if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
+                    return {
+                        success: false,
+                        error: 'Verifikasi AI gagal. Bukti transfer tidak valid atau tidak jelas.'
+                    };
+                }
+            }
+
+            // Process prepaid top-up using PrepaidService.confirmPayment
+            const { PrepaidService } = await import('../billing/PrepaidService');
+
+            const processingResult = await PrepaidService.confirmPayment(
+                paymentRequest.id,
+                null, // verified_by (auto verification)
+                'transfer' // payment method
+            );
+
+            if (!processingResult.success) {
+                return {
+                    success: false,
+                    error: processingResult.message || 'Gagal memproses pembayaran prepaid'
+                };
+            }
+
+            console.log(`[PaymentVerification] ✅ Prepaid payment verified and processed for customer ${customerId}`);
+
+            return {
+                success: true,
+                invoiceNumber: `PREPAID-${paymentRequest.id}`,
+                invoiceStatus: 'Sukses',
+                amount: transferAmount,
+                confidence: 0.9
+            };
+
+        } catch (error: any) {
+            console.error('[PaymentVerification] Error verifying prepaid:', error);
+            return {
+                success: false,
+                error: error.message || 'Gagal memverifikasi pembayaran prepaid'
             };
         }
     }

@@ -39,6 +39,9 @@ export class MonitoringScheduler {
         // 5. Monthly SLA Calculation - 1st day of month at 2:00 AM
         this.startMonthlySLACalculation();
 
+        // 6. Prepaid Expiry Check - Every 1 hour
+        this.startPrepaidCheck();
+
         this.isRunning = true;
         console.log('[MonitoringScheduler] All schedulers started successfully');
     }
@@ -153,6 +156,33 @@ export class MonitoringScheduler {
     }
 
     /**
+     * 6. Prepaid Expiry Check - Every hour
+     */
+    private startPrepaidCheck(): void {
+        // Run every hour at minute 0
+        const job = cron.schedule('0 * * * *', async () => {
+            try {
+                console.log('[PrepaidCheck] Checking for expired prepaid customers...');
+                const { PrepaidService } = await import('../services/billing/PrepaidService');
+                const result = await PrepaidService.processExpiredCustomers();
+
+                if (result.isolatedCount > 0) {
+                    console.log(`[PrepaidCheck] Isolated ${result.isolatedCount} expired customers.`);
+                }
+
+                if (result.errors.length > 0) {
+                    console.error('[PrepaidCheck] Errors occurred during isolation:', result.errors);
+                }
+            } catch (error) {
+                console.error('[PrepaidCheck] Error:', error);
+            }
+        });
+
+        this.jobs.set('prepaid-check', job);
+        console.log('[MonitoringScheduler] ✓ Prepaid Expiry Check scheduled (every 1 hour)');
+    }
+
+    /**
      * Run specific scheduler manually
      */
     async runManually(jobName: string): Promise<void> {
@@ -183,6 +213,11 @@ export class MonitoringScheduler {
                         1
                     );
                     await slaMonitoringService.calculateMonthlySLA(previousMonth);
+                    break;
+
+                case 'prepaid-check':
+                    const { PrepaidService } = await import('../services/billing/PrepaidService');
+                    await PrepaidService.processExpiredCustomers();
                     break;
 
                 default:

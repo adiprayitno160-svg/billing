@@ -74,8 +74,14 @@ export class WhatsAppServiceBaileys {
     private static async startSocket() {
         try {
             // Fetch latest version of Baileys
-            const { version, isLatest } = await fetchLatestBaileysVersion();
-            console.log(`📱 Using Baileys version ${version.join('.')}, isLatest: ${isLatest}`);
+            let version: [number, number, number] = [2, 3000, 1015901307];
+            try {
+                const v = await fetchLatestBaileysVersion();
+                version = v.version;
+                console.log(`📱 Using Baileys version ${version.join('.')}, isLatest: ${v.isLatest}`);
+            } catch (e) {
+                console.warn('⚠️ Failed to fetch latest Baileys version, using default:', e);
+            }
 
             // Use multi-file auth state
             const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
@@ -126,7 +132,9 @@ export class WhatsAppServiceBaileys {
 
                     if (shouldReconnect) {
                         console.log('🔄 Reconnecting...');
-                        setTimeout(() => this.startSocket(), 3000);
+                        setTimeout(() => {
+                            this.startSocket().catch(err => console.error('❌ Reconnection failed:', err));
+                        }, 3000);
                     } else {
                         console.log('🔌 Logged out, please scan QR code again');
                         this.isConnected = false;
@@ -388,6 +396,78 @@ export class WhatsAppServiceBaileys {
                 options.customerId,
                 phone,
                 message,
+                'failed',
+                errorMessage,
+                options.template
+            );
+
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }
+
+    /**
+     * Send image message via WhatsApp
+     */
+    static async sendImage(
+        phone: string,
+        imagePath: string,
+        caption?: string,
+        options: WhatsAppMessageOptions = {}
+    ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+        if (!this.isClientReady()) {
+            const error = 'WhatsApp client is not ready. Please scan QR code first.';
+            console.error('❌', error);
+            return { success: false, error };
+        }
+
+        try {
+            // Check if phone already has JID suffix
+            let formattedPhone = phone;
+            if (!phone.includes('@')) {
+                formattedPhone = this.formatPhoneNumber(phone);
+            }
+
+            if (!formattedPhone) {
+                return { success: false, error: 'Invalid phone number format' };
+            }
+
+            // Read image file
+            const imageBuffer = fs.readFileSync(imagePath);
+
+            console.log(`📱 [WhatsApp Baileys] Sending image to ${formattedPhone}`);
+
+            // Send image with Baileys
+            const result = await this.sock.sendMessage(formattedPhone, {
+                image: imageBuffer,
+                caption: caption || ''
+            });
+
+            console.log(`✅ WhatsApp image sent to ${phone}`);
+
+            await this.logNotification(
+                options.customerId,
+                phone,
+                caption || '[Image sent]',
+                'sent',
+                undefined,
+                options.template
+            );
+
+            return {
+                success: true,
+                messageId: result?.key?.id || 'unknown'
+            };
+        } catch (error: any) {
+            const errorMessage = error.message || 'Unknown error';
+            console.error(`❌ Failed to send image:`, errorMessage);
+
+            await this.logNotification(
+                options.customerId,
+                phone,
+                caption || '[Image failed]',
                 'failed',
                 errorMessage,
                 options.template

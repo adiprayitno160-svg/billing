@@ -1,67 +1,213 @@
-﻿<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Daftar ODP <%= odcId ? ('(ODC #' + odcId + ')' ) : '' %>
-        </h2>
-        <a href="/ftth/odp/add<%= odcId ? ('?odc_id=' + odcId) : '' %>"
-            class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Tambah ODP</a>
+﻿<div class="space-y-6">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Total ODP</p>
+                <h3 class="text-2xl font-bold text-slate-800">
+                    <%= items.length %>
+                </h3>
+            </div>
+            <div class="p-3 bg-pink-50 rounded-lg text-pink-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Total Port</p>
+                <h3 class="text-2xl font-bold text-slate-800">
+                    <%= items.reduce((acc, curr)=> acc + (curr.total_ports || 0), 0) %>
+                </h3>
+            </div>
+            <div class="p-3 bg-blue-50 rounded-lg text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Terpakai</p>
+                <h3 class="text-2xl font-bold text-orange-600">
+                    <%= items.reduce((acc, curr)=> acc + (curr.used_ports || 0), 0) %>
+                </h3>
+            </div>
+            <div class="p-3 bg-orange-50 rounded-lg text-orange-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-500">Tersedia</p>
+                <h3 class="text-2xl font-bold text-emerald-600">
+                    <%= items.reduce((acc, curr)=> acc + (curr.total_ports - curr.used_ports || 0), 0) %>
+                </h3>
+            </div>
+            <div class="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
     </div>
-    <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-            <thead class="text-left text-slate-600 bg-slate-50/50">
-                <tr>
-                    <th class="py-2 px-3">Nama ODP</th>
-                    <th class="py-2 px-3">Parent ODC</th>
-                    <th class="py-2 px-3">Lokasi</th>
-                    <th class="py-2 px-3">Port (T/U/S)</th>
-                    <th class="py-2 px-3 text-right">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% (items || []).forEach(function(odp){ %>
-                    <tr class="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
-                        <td class="py-2 px-3 font-medium text-slate-700">
-                            <%= odp.name %>
-                        </td>
-                        <td class="py-2 px-3 text-slate-500">
-                            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">
-                                <%= odp.odc_name || ('#' + odp.odc_id) %>
-                            </span>
-                        </td>
-                        <td class="py-2 px-3 text-slate-500 text-xs">
-                            <%= odp.location || '-' %>
-                        </td>
-                        <td class="py-2 px-3">
-                            <span class="font-semibold text-blue-600">
-                                <%= odp.total_ports %>
-                            </span> /
-                            <span class="font-semibold text-orange-600">
-                                <%= odp.used_ports %>
-                            </span> /
-                            <span class="font-semibold text-green-600">
-                                <%= (odp.total_ports - odp.used_ports) %>
-                            </span>
-                        </td>
-                        <td class="py-2 px-3 text-right">
-                            <div class="flex justify-end gap-2 text-xs">
-                                <a href="/ftth/odp/<%= odp.id %>"
-                                    class="px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-white">Edit</a>
-                                <form method="post" action="/ftth/odp/<%= odp.id %>/delete"
-                                    onsubmit="return confirm('Hapus ODP ini?');" class="inline">
-                                    <button type="submit"
-                                        class="px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Hapus</button>
-                                </form>
-                            </div>
-                        </td>
+
+    <!-- Main Content -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">
+                    Daftar ODP <%= odcId ? ('(Filter: ODC #' + odcId + ')' ) : '' %>
+                </h2>
+                <p class="text-sm text-slate-500">Optical Distribution Point</p>
+            </div>
+            <div class="flex gap-2">
+                <% if(odcId) { %>
+                    <a href="/ftth/odp"
+                        class="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm font-medium">
+                        Reset Filter
+                    </a>
+                    <% } %>
+                        <a href="/ftth/odp/add<%= odcId ? ('?odc_id=' + odcId) : '' %>"
+                            class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Tambah ODP
+                        </a>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-100">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            ODP Info</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Parent ODC</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Lokasi</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Kapasitas Port</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Aksi</th>
                     </tr>
-                    <% }) %>
-                        <% if (!items || items.length===0) { %>
-                            <tr>
-                                <td colspan="5" class="py-6 text-center text-slate-500">Belum ada data ODP</td>
-                            </tr>
-                            <% } %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-100">
+                    <% (items || []).forEach(function(odp){ const percentage=odp.total_ports> 0 ?
+                        Math.round((odp.used_ports / odp.total_ports) * 100) : 0;
+                        let barColor = 'bg-blue-600';
+                        if(percentage > 90) barColor = 'bg-red-500';
+                        else if(percentage > 80) barColor = 'bg-orange-500';
+                        %>
+                        <tr class="hover:bg-slate-50 transition-colors duration-150">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div
+                                        class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-pink-100 text-pink-600">
+                                        <span class="font-bold text-xs">ODP</span>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-bold text-slate-900">
+                                            <%= odp.name %>
+                                        </div>
+                                        <div class="text-xs text-slate-500">ID: <%= odp.id %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="px-2 py-1 rounded bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100">
+                                        ODC: <%= odp.odc_name %>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                <%= odp.location || '-' %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap align-middle">
+                                <div class="w-full max-w-xs">
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-xs font-medium text-slate-700">
+                                            <%= odp.used_ports %> / <%= odp.total_ports %>
+                                        </span>
+                                        <span class="text-xs font-medium text-slate-500">
+                                            <%= percentage %>%
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2">
+                                        <div class="<%= barColor %> h-2 rounded-full" style="width: <%= percentage %>%">
+                                        </div>
+                                    </div>
+                                    <div class="mt-1 flex gap-2 text-[10px] text-slate-400">
+                                        <span>Avail: <%= (odp.total_ports - odp.used_ports) %></span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="/ftth/odp/<%= odp.id %>"
+                                        class="text-slate-400 hover:text-blue-600 transition p-1" title="Edit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </a>
+                                    <form method="post" action="/ftth/odp/<%= odp.id %>/delete"
+                                        onsubmit="return confirm('Hapus ODP ini?');" class="inline">
+                                        <button type="submit" class="text-slate-400 hover:text-rose-600 transition p-1"
+                                            title="Hapus">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
+                            <% if (!items || items.length===0) { %>
+                                <tr>
+                                    <td colspan="5" class="px-6 py-10 text-center text-slate-500">
+                                        <div class="flex flex-col items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                class="h-12 w-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24"
+                                                stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                            </svg>
+                                            <p class="text-base font-medium">Belum ada data ODP</p>
+                                            <p class="text-sm mt-1">Silakan tambah ODP baru.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <% } %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
-
-<!-- Dialihkan ke halaman tambah khusus: /ftth/odp/add -->

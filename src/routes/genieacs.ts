@@ -17,7 +17,9 @@ router.post('/devices/:id/reboot', GenieacsController.rebootDevice);
 router.post('/devices/:id/refresh', GenieacsController.refreshDevice);
 router.post('/devices/:id/change-wifi', GenieacsController.changeWiFiCredentials);
 router.post('/devices/:id/change-pppoe', GenieacsController.changePPPoECredentials);
-router.post('/devices/:id/configure-wan-ppp', GenieacsController.configureWanPPP);
+router.post('/devices/:id/configure-wan', GenieacsController.configureWan);
+router.post('/devices/:id/sync-tag', GenieacsController.syncCustomerTag);
+router.post('/devices/sync-tags', GenieacsController.syncAllTags);
 
 // API endpoints
 router.get('/api/devices', GenieacsController.apiGetDevices);

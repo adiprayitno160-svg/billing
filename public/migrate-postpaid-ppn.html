@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Migration - Postpaid PPN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            padding: 5px 0;
+            color: #555;
+        }
+
+        .info-box li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .result h3 {
+            margin-bottom: 10px;
+        }
+
+        .result pre {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, .3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔧 Database Migration</h1>
+        <p class="subtitle">Postpaid PPN & Device Rental</p>
+
+        <div class="info-box">
+            <h3>Migration akan melakukan:</h3>
+            <ul>
+                <li>Menambahkan kolom <code>ppn_rate</code>, <code>ppn_amount</code>, <code>device_fee</code> ke tabel
+                    invoices</li>
+                <li>Setup PPN enabled (11%)</li>
+                <li>Setup Device Rental enabled (Rp 50,000)</li>
+            </ul>
+        </div>
+
+        <button class="btn" id="migrateBtn" onclick="runMigration()">
+            Jalankan Migration
+        </button>
+
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const result = document.getElementById('result');
+
+            // Disable button
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Running migration...';
+
+            // Hide previous result
+            result.style.display = 'none';
+            result.className = 'result';
+
+            try {
+                const response = await fetch('/tools/migrate/postpaid-ppn', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h3>✅ Migration Berhasil!</h3>
+                        <pre>${data.details}</pre>
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h3>❌ Migration Gagal</h3>
+                        <p><strong>Error:</strong> ${data.error || data.message}</p>
+                        ${data.details ? `<pre>${data.details}</pre>` : ''}
+                    `;
+                }
+
+                result.style.display = 'block';
+
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                    <p><small>Pastikan aplikasi sedang berjalan dan Anda sudah login.</small></p>
+                `;
+                result.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Jalankan Migration';
+            }
+        }
+    </script>
+</body>
+
+</html>

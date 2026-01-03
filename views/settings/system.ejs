@@ -32,8 +32,10 @@
                         , 'auto_restore_enabled' : 'Aktifkan Auto Restore' , 'auto_notifications_enabled'
                         : 'Aktifkan Auto Notifications' , 'auto_logout_enabled' : 'Aktifkan Auto Logout (10 Menit)'
                         , 'domain_url' : 'URL Domain' , 'local_url' : 'URL Lokal' , 'domain_mode_enabled'
-                        : 'Aktifkan Domain Mode' , 'local_mode_enabled' : 'Aktifkan Local Mode' }; return labels[key] ||
-                        key.replace(/_/g, ' ' ).replace(/\b\w/g, l=> l.toUpperCase());
+                        : 'Aktifkan Domain Mode' , 'local_mode_enabled' : 'Aktifkan Local Mode' , 'ppn_enabled'
+                        : 'Aktifkan PPN' , 'ppn_rate' : 'Rate PPN (%)' , 'device_rental_enabled'
+                        : 'Aktifkan Sewa Perangkat' , 'device_rental_fee' : 'Biaya Sewa Perangkat' }; return labels[key]
+                        || key.replace(/_/g, ' ' ).replace(/\b\w/g, l=> l.toUpperCase());
                         }
                         %>
 

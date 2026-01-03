@@ -154,8 +154,21 @@ export class PrepaidBotHandler {
             // Build payment instruction message
             let message = `✅ *INSTRUKSI PEMBAYARAN*\n\n`;
             message += `📦 Paket: ${pkg.name} (${duration} hari)\n`;
-            message += `💰 *Total Bayar: Rp ${parseFloat(pr.total_amount).toLocaleString('id-ID')}*\n`;
-            message += `   (Termasuk kode unik: ${pr.unique_code})\n\n`;
+
+            const base = parseFloat(pr.base_amount || 0);
+            const disc = parseFloat(pr.voucher_discount || 0);
+            const device = parseFloat(pr.device_fee || 0);
+            const ppn = parseFloat(pr.ppn_amount || 0);
+            const unique = parseFloat(pr.unique_code || 0);
+
+            message += `   Harga Paket: Rp ${base.toLocaleString('id-ID')}\n`;
+            if (disc > 0) message += `   Diskon: -Rp ${disc.toLocaleString('id-ID')}\n`;
+            if (device > 0) message += `   Sewa Perangkat: Rp ${device.toLocaleString('id-ID')}\n`;
+            if (ppn > 0) message += `   PPN: Rp ${ppn.toLocaleString('id-ID')}\n`;
+            message += `   Kode Unik: ${unique}\n`;
+
+            message += `~~~~~~~~~~~~~~~~~~~~~~\n`;
+            message += `💰 *TOTAL BAYAR: Rp ${parseFloat(pr.total_amount).toLocaleString('id-ID')}*\n\n`;
 
             message += `⏰ *Berlaku hingga:* ${new Date(pr.expires_at).toLocaleString('id-ID', {
                 dateStyle: 'medium',
@@ -191,22 +204,20 @@ export class PrepaidBotHandler {
             const qrisPath = path.join(process.cwd(), 'public', 'images', 'payments', 'qris.png');
             if (fs.existsSync(qrisPath)) {
                 try {
-                    // TODO: Re-enable after fixing media format
-                    // Send QRIS image
-                    // const imageData = fs.readFileSync(qrisPath, { encoding: 'base64' });
-                    // await WhatsAppService.sendMessage(
-                    //     customerPhone,
-                    //     '',
-                    //     {
-                    //         mimetype: 'image/png',
-                    //         data: imageData,
-                    //         filename: 'qris.png'
-                    //     }
-                    // );
-                    console.log('[PrepaidBotHandler] ⏭️  QRIS image sending temporarily disabled');
+                    console.log('[PrepaidBotHandler] 📤 Sending QRIS image...');
+
+                    await WhatsAppService.sendImage(
+                        customerPhone,
+                        qrisPath,
+                        '📱 Scan QR Code ini untuk pembayaran via QRIS'
+                    );
+
+                    console.log('[PrepaidBotHandler] ✅ QRIS image sent successfully');
                 } catch (qrisError) {
-                    console.error('[PrepaidBotHandler] Error sending QRIS:', qrisError);
+                    console.error('[PrepaidBotHandler] ❌ Error sending QRIS:', qrisError);
                 }
+            } else {
+                console.log('[PrepaidBotHandler] ⚠️ QRIS image not found at:', qrisPath);
             }
 
             return ''; // Message already sent above

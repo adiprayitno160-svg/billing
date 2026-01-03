@@ -1,0 +1,283 @@
+<%- include('../partials/header') %>
+    <%- include('../partials/sidebar') %>
+
+        <div class="content-wrapper">
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0"><i class="fas fa-chart-line"></i> Prepaid Reports</h1>
+                        </div>
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li class="breadcrumb-item active">Prepaid Reports</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="content">
+                <div class="container-fluid">
+
+                    <!-- Filters -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="btn-group">
+                                <a href="/prepaid/reports?period=today"
+                                    class="btn btn-<%= period === 'today' ? 'primary' : 'default' %>">Today</a>
+                                <a href="/prepaid/reports?period=week"
+                                    class="btn btn-<%= period === 'week' ? 'primary' : 'default' %>">This Week</a>
+                                <a href="/prepaid/reports?period=month"
+                                    class="btn btn-<%= period === 'month' ? 'primary' : 'default' %>">This Month</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Revenue Cards -->
+                    <div class="row">
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-success">
+                                <div class="inner">
+                                    <h3>Rp <%= (revenueStats.total_revenue || 0).toLocaleString('id-ID') %>
+                                    </h3>
+                                    <p>Total Revenue</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-info">
+                                <div class="inner">
+                                    <h3>
+                                        <%= revenueStats.total_transactions || 0 %>
+                                    </h3>
+                                    <p>Transactions</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-warning">
+                                <div class="inner">
+                                    <h3>
+                                        <%= revenueStats.unique_customers || 0 %>
+                                    </h3>
+                                    <p>Unique Customers</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-danger">
+                                <div class="inner">
+                                    <h3>Rp <%= (revenueStats.total_discounts || 0).toLocaleString('id-ID') %>
+                                    </h3>
+                                    <p>Discount Given</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-tags"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Package Distribution -->
+                        <div class="col-md-6">
+                            <div class="card card-primary">
+                                <div class="card-header">
+                                    <h3 class="card-title">Top Packages Sales</h3>
+                                </div>
+                                <div class="card-body p-0">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Package</th>
+                                                <th style="width: 40px">Sold</th>
+                                                <th style="width: 120px">Revenue</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (packageStats && packageStats.length> 0) { %>
+                                                <% packageStats.forEach(function(pkg) { %>
+                                                    <tr>
+                                                        <td>
+                                                            <%= pkg.package_name %>
+                                                        </td>
+                                                        <td><span class="badge badge-primary">
+                                                                <%= pkg.count %>
+                                                            </span></td>
+                                                        <td>Rp <%= (pkg.revenue || 0).toLocaleString('id-ID') %>
+                                                        </td>
+                                                    </tr>
+                                                    <% }); %>
+                                                        <% } else { %>
+                                                            <tr>
+                                                                <td colspan="3" class="text-center">No data available
+                                                                </td>
+                                                            </tr>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Voucher Usage -->
+                        <div class="col-md-6">
+                            <div class="card card-info">
+                                <div class="card-header">
+                                    <h3 class="card-title">Top Vouchers Used</h3>
+                                </div>
+                                <div class="card-body p-0">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Code</th>
+                                                <th>Uses</th>
+                                                <th>Total Discount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (voucherStats && voucherStats.length> 0) { %>
+                                                <% voucherStats.forEach(function(v) { %>
+                                                    <tr>
+                                                        <td>
+                                                            <strong>
+                                                                <%= v.code %>
+                                                            </strong><br>
+                                                            <small>
+                                                                <%= v.name %>
+                                                            </small>
+                                                        </td>
+                                                        <td><span class="badge badge-info">
+                                                                <%= v.usage_count %>
+                                                            </span></td>
+                                                        <td>Rp <%= (v.total_discount || 0).toLocaleString('id-ID') %>
+                                                        </td>
+                                                    </tr>
+                                                    <% }); %>
+                                                        <% } else { %>
+                                                            <tr>
+                                                                <td colspan="3" class="text-center">No vouchers used
+                                                                </td>
+                                                            </tr>
+                                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Trend Chart -->
+                    <div class="card card-success">
+                        <div class="card-header">
+                            <h3 class="card-title">30 Days Sales Trend</h3>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="salesChart"
+                                style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+
+        <!-- ChartJS -->
+        <script src="/plugins/chart.js/Chart.min.js"></script>
+
+        <script>
+            $(function () {
+                const dailyData = <% - JSON.stringify(dailyTrend || []) %>;
+
+                const labels = dailyData.map(d => new Date(d.date).toLocaleDateString('id-ID'));
+                const revenues = dailyData.map(d => d.revenue);
+                const transactions = dailyData.map(d => d.transactions);
+
+                const salesChartCanvas = $('#salesChart').get(0).getContext('2d');
+
+                new Chart(salesChartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Revenue (Rp)',
+                                backgroundColor: 'rgba(60,141,188,0.9)',
+                                borderColor: 'rgba(60,141,188,0.8)',
+                                pointRadius: false,
+                                pointColor: '#3b8bba',
+                                pointStrokeColor: 'rgba(60,141,188,1)',
+                                pointHighlightFill: '#fff',
+                                pointHighlightStroke: 'rgba(60,141,188,1)',
+                                data: revenues,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                label: 'Transactions',
+                                backgroundColor: 'rgba(210, 214, 222, 1)',
+                                borderColor: 'rgba(210, 214, 222, 1)',
+                                pointRadius: false,
+                                pointColor: 'rgba(210, 214, 222, 1)',
+                                pointStrokeColor: '#c1c7d1',
+                                pointHighlightFill: '#fff',
+                                pointHighlightStroke: 'rgba(220,220,220,1)',
+                                data: transactions,
+                                yAxisID: 'y2',
+                                borderDash: [5, 5]
+                            }
+                        ]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        legend: {
+                            display: true
+                        },
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            xAxes: [{
+                                gridLines: {
+                                    display: false,
+                                }
+                            }],
+                            yAxes: [
+                                {
+                                    id: 'y1',
+                                    type: 'linear',
+                                    position: 'left',
+                                    ticks: {
+                                        callback: function (value) {
+                                            return 'Rp ' + value.toLocaleString('id-ID');
+                                        }
+                                    }
+                                },
+                                {
+                                    id: 'y2',
+                                    type: 'linear',
+                                    position: 'right',
+                                    gridLines: {
+                                        drawOnChartArea: false
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                });
+            });
+        </script>
+
+        <%- include('../partials/footer') %>

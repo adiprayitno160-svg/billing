@@ -410,6 +410,7 @@ router.get('/tagihan/export/pdf', async (req, res) => {
 // Update invoice status
 router.post('/tagihan/:id/status', invoiceController.updateInvoiceStatus.bind(invoiceController));
 router.post('/tagihan/:id/notes', invoiceController.updateInvoiceNotes.bind(invoiceController));
+router.post('/tagihan/:id/due-date', invoiceController.updateDueDate.bind(invoiceController));
 
 // Print invoice (A4)
 router.get('/tagihan/:id/print', async (req, res) => {
@@ -1177,5 +1178,29 @@ router.post('/logs/api/anomalies/:id/resolve', SystemLogController.resolveAnomal
 
 // API: Export logs
 router.get('/logs/api/export', SystemLogController.exportLogs.bind(SystemLogController));
+
+// ========================================
+// PREPAID MANAGEMENT
+// ========================================
+
+import { PrepaidAdminController } from '../controllers/billing/PrepaidAdminController';
+
+// Payment Monitoring
+router.get('/prepaid/payments', PrepaidAdminController.paymentMonitoring.bind(PrepaidAdminController));
+router.get('/prepaid/payments/:id', PrepaidAdminController.viewPaymentRequest.bind(PrepaidAdminController));
+router.post('/prepaid/payments/:id/approve', PrepaidAdminController.approvePayment.bind(PrepaidAdminController));
+router.post('/prepaid/payments/:id/reject', PrepaidAdminController.rejectPayment.bind(PrepaidAdminController));
+
+// Reports & Analytics
+router.get('/prepaid/reports', PrepaidAdminController.reports.bind(PrepaidAdminController));
+
+// Voucher Management
+router.get('/prepaid/vouchers', PrepaidAdminController.listVouchers.bind(PrepaidAdminController));
+router.post('/prepaid/vouchers', PrepaidAdminController.createVoucher.bind(PrepaidAdminController));
+router.put('/prepaid/vouchers/:id', PrepaidAdminController.updateVoucher.bind(PrepaidAdminController));
+router.delete('/prepaid/vouchers/:id', PrepaidAdminController.deleteVoucher.bind(PrepaidAdminController));
+
+// Referral Tracking
+router.get('/prepaid/referrals', PrepaidAdminController.referralTracking.bind(PrepaidAdminController));
 
 export default router;

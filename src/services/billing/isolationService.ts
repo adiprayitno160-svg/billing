@@ -499,6 +499,7 @@ export class IsolationService {
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.period = ?
             AND i.status != 'paid'
+            AND (i.due_date IS NULL OR i.due_date < CURDATE())
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE
             AND c.status = 'active'

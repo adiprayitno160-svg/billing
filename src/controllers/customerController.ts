@@ -702,6 +702,23 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 }
             }
 
+            // Handle Device Rental flag
+            // Checkbox behavior: sent as '1' if checked, missing if unchecked
+            // We only update if billing_mode is also present (implying a form submission or full update)
+            if (req.body.billing_mode !== undefined) {
+                if (req.body.use_device_rental) {
+                    updateFields.push('use_device_rental = ?');
+                    updateValues.push(1);
+                } else {
+                    updateFields.push('use_device_rental = ?');
+                    updateValues.push(0);
+                }
+            } else if (req.body.use_device_rental !== undefined) {
+                // Partial update explicitly targeting this field
+                updateFields.push('use_device_rental = ?');
+                updateValues.push(req.body.use_device_rental === '1' || req.body.use_device_rental === true ? 1 : 0);
+            }
+
             // Handle billing mode change (Prepaid/Postpaid)
             const { billing_mode, prepaid_bonus_days } = req.body;
             let billingModeChanged = false;

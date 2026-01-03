@@ -197,6 +197,22 @@
                         </p>
                     </div>
 
+                    <!-- Device Rental Checkbox -->
+                    <div id="device_rental_container"
+                        class="<%= customer.billing_mode === 'prepaid' ? '' : 'hidden' %>">
+                        <label class="relative inline-flex items-center cursor-pointer mt-6">
+                            <input type="checkbox" name="use_device_rental" value="1" class="sr-only peer"
+                                <%=customer.use_device_rental ? 'checked' : '' %>>
+                            <div
+                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                            </div>
+                            <span class="ml-3 text-sm font-medium text-modern-indigo-700">Gunakan Sewa Perangkat?</span>
+                        </label>
+                        <p class="text-xs text-modern-indigo-600 mt-1">
+                            Jika aktif, biaya sewa perangkat akan ditambahkan ke tagihan prabayar.
+                        </p>
+                    </div>
+
                     <!-- Expiry Date Display (for Prepaid) -->
                     <% if (customer.billing_mode==='prepaid' && customer.expiry_date) { %>
                         <div class="md:col-span-2">
@@ -880,13 +896,16 @@
         // Billing Mode toggle handler
         const billingModeSelect = document.getElementById('billing_mode');
         const prepaidBonusContainer = document.getElementById('prepaid_bonus_container');
+        const deviceRentalContainer = document.getElementById('device_rental_container');
 
-        if (billingModeSelect && prepaidBonusContainer) {
+        if (billingModeSelect) {
             billingModeSelect.addEventListener('change', function () {
                 if (this.value === 'prepaid') {
-                    prepaidBonusContainer.classList.remove('hidden');
+                    if (prepaidBonusContainer) prepaidBonusContainer.classList.remove('hidden');
+                    if (deviceRentalContainer) deviceRentalContainer.classList.remove('hidden');
                 } else {
-                    prepaidBonusContainer.classList.add('hidden');
+                    if (prepaidBonusContainer) prepaidBonusContainer.classList.add('hidden');
+                    if (deviceRentalContainer) deviceRentalContainer.classList.add('hidden');
                 }
             });
         }

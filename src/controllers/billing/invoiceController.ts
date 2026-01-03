@@ -776,6 +776,98 @@ export class InvoiceController {
 
 
     /**
+     * Update invoice due date (Janji Bayar)
+     */
+    async updateDueDate(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const { due_date } = req.body;
+
+            if (!due_date) {
+                res.status(400).json({ success: false, message: 'Tanggal jatuh tempo wajib diisi' });
+                return;
+            }
+
+            // Get Invoice and Customer details
+            const [rows] = await databasePool.query<RowDataPacket[]>(`
+                SELECT 
+                    i.invoice_number, i.status, i.paid_amount, i.total_amount, i.period,
+                    c.id as customer_id, c.name as customer_name, c.phone
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
+                WHERE i.id = ?
+            `, [id]);
+
+            if (rows.length === 0) {
+                res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
+                return;
+            }
+
+            const invoice = rows[0];
+            let newStatus = invoice.status;
+
+            // If currently overdue and new date is in the future/today, change status back to sent/partial
+            const newDate = new Date(due_date);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); // Normalize today
+
+            if (invoice.status === 'overdue' && newDate >= now) {
+                newStatus = invoice.paid_amount > 0 ? 'partial' : 'sent';
+            }
+
+            // Update invoice
+            await databasePool.query(
+                'UPDATE invoices SET due_date = ?, status = ?, updated_at = NOW() WHERE id = ?',
+                [due_date, newStatus, id]
+            );
+
+            // Send WhatsApp notification
+            try {
+                const formattedDate = newDate.toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                const message = `🔔 *PERPANJANGAN WAKTU PEMBAYARAN*\n\n` +
+                    `Yth. Bapak/Ibu *${invoice.customer_name}*,\n\n` +
+                    `Kami informasikan bahwa tanggal jatuh tempo untuk:\n\n` +
+                    `📄 Invoice: *${invoice.invoice_number}*\n` +
+                    `📅 Periode: *${invoice.period}*\n` +
+                    `💰 Nominal: *Rp ${new Intl.NumberFormat('id-ID').format(invoice.total_amount)}*\n\n` +
+                    `Telah diperpanjang hingga:\n` +
+                    `📆 *${formattedDate}*\n\n` +
+                    `⚠️ *PERHATIAN:*\n` +
+                    `Mohon melakukan pembayaran sebelum tanggal tersebut untuk menghindari isolir otomatis.\n\n` +
+                    `Terima kasih atas perhatiannya.`;
+
+                // Queue notification
+                await databasePool.query(`
+                    INSERT INTO notification_queue (customer_id, type, message, priority, status)
+                    VALUES (?, 'whatsapp', ?, 'high', 'pending')
+                `, [invoice.customer_id, message]);
+
+                console.log(`✅ Notification queued for customer ${invoice.customer_name} (${invoice.phone}) - Due date extended to ${formattedDate}`);
+            } catch (notifError) {
+                console.error('⚠️ Failed to queue WhatsApp notification:', notifError);
+                // Don't fail the request if notification fails
+            }
+
+            res.json({
+                success: true,
+                message: 'Tanggal jatuh tempo (Janji Bayar) berhasil diperbarui'
+            });
+        } catch (error: any) {
+            console.error('Error updating invoice due date:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    /**
      * Generate unique invoice number
      */
     private async generateInvoiceNumber(period: string, conn?: any): Promise<string> {

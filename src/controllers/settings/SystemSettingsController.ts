@@ -65,7 +65,10 @@ export class SystemSettingsController {
 
         'domain_mode_enabled',
         'local_mode_enabled',
-        'auto_logout_enabled'
+        'auto_logout_enabled',
+
+        'ppn_enabled',
+        'device_rental_enabled'
       ];
 
       // Define boolean settings that use '1'/'0'
@@ -418,7 +421,11 @@ export class SystemSettingsController {
           ('auto_isolate_enabled', 'false', 'Enable/disable auto isolation untuk customer yang telat bayar', 'billing'),
           ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar', 'billing'),
           ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing', 'billing'),
-          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas', 'general')
+          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas', 'general'),
+          ('ppn_enabled', 'false', 'Enable PPN (VAT)', 'billing'),
+          ('ppn_rate', '11', 'PPN Percentage (%)', 'billing'),
+          ('device_rental_enabled', 'false', 'Enable Device Rental', 'billing'),
+          ('device_rental_fee', '0', 'Default Device Rental Fee', 'billing')
         `);
       } else {
         // Insert without category column (backward compatible)
@@ -440,7 +447,11 @@ export class SystemSettingsController {
           ('auto_isolate_enabled', 'false', 'Enable/disable auto isolation untuk customer yang telat bayar'),
           ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar'),
           ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing'),
-          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas')
+          ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas'),
+          ('ppn_enabled', 'false', 'Enable PPN (VAT)'),
+          ('ppn_rate', '11', 'PPN Percentage (%)'),
+          ('device_rental_enabled', 'false', 'Enable Device Rental'),
+          ('device_rental_fee', '0', 'Default Device Rental Fee')
         `);
       }
     } catch (error) {

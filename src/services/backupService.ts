@@ -55,16 +55,16 @@ export class BackupService {
         // Use gzip compression by default
         const filename = `database_backup_${timestamp}.sql.gz`;
         const filepath = path.join(this.backupDir, filename);
-        
+
         const config = await this.getDatabaseConfig();
-        
+
         // Command mysqldump
         let command = `mysqldump -h ${config.host} -P ${config.port} -u ${config.user}`;
-        
+
         if (config.password) {
             command += ` -p${config.password}`;
         }
-        
+
         // Pipe to gzip for compression
         command += ` ${config.database} | gzip > "${filepath}"`;
 
@@ -106,36 +106,62 @@ export class BackupService {
 
     /**
      * Backup source code (zip folder project)
+     * Cross-platform support for Windows (PowerShell) and Linux (zip)
      */
     async backupSourceCode(): Promise<string> {
         const timestamp = this.getTimestamp();
         const filename = `source_backup_${timestamp}.zip`;
         const filepath = path.join(this.backupDir, filename);
-        
         const projectRoot = process.cwd();
-        
-        // Gunakan PowerShell untuk compress (Windows)
-        // Exclude node_modules, backups, logs, dist, dan file-file temporary
-        const excludeDirs = [
+
+        // Items to exclude
+        const excludeList = [
             'node_modules',
-            'backups', 
+            'backups',
             'logs',
             'dist',
             'whatsapp-session',
             'test-session',
-            '.git'
-        ].join(',');
+            '.git',
+            '.env', // Safety: don't backup env file with secrets
+            'package-lock.json',
+            'yarn.lock'
+        ];
 
         try {
-            // PowerShell command untuk compress
-            const command = `powershell -Command "Get-ChildItem -Path '${projectRoot}' -Exclude ${excludeDirs} | Compress-Archive -DestinationPath '${filepath}' -CompressionLevel Optimal -Force"`;
-            
+            let command: string;
+
+            if (process.platform === 'win32') {
+                // Windows: Use PowerShell Compress-Archive
+                const exclusions = excludeList.join(',');
+                command = `powershell -Command "Get-ChildItem -Path '${projectRoot}' -Exclude ${exclusions} | Compress-Archive -DestinationPath '${filepath}' -CompressionLevel Optimal -Force"`;
+            } else {
+                // Linux/Unix: Use zip command
+                // -r: recursive
+                // -q: quiet
+                // -x: exclude
+                const exclusions = excludeList.map(item => `'*/${item}/*'`).join(' ');
+                // We run zip from the parent directory of projectRoot to mimic "zip folder" but often 
+                // we want to zip the CONTENTS of the current dir into the archive.
+                // Assuming we are IN projectRoot (process.cwd()), we zip '.' into the Archive.
+
+                // Construct exclusion pattern for zip
+                // -x matches patterns relative to current directory
+                const zipExcludes = excludeList.map(item => `"${item}*"`).join(' '); // Simple pattern matching
+
+                command = `zip -r -q "${filepath}" . -x ${zipExcludes}`;
+            }
+
+            console.log(`Executing backup command: ${command}`);
             await execPromise(command);
+
             console.log(`Source code backup created: ${filename}`);
             return filename;
         } catch (error) {
             console.error('Source backup error:', error);
-            throw new Error(`Gagal membuat backup source code: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            // Fallback hint for Linux user if zip is missing
+            const extraHint = process.platform !== 'win32' ? ' (Make sure "zip" is installed on the server: sudo apt install zip)' : '';
+            throw new Error(`Gagal membuat backup source code: ${error instanceof Error ? error.message : 'Unknown error'}${extraHint}`);
         }
     }
 
@@ -168,7 +194,7 @@ export class BackupService {
 
             if (stats.isFile()) {
                 let type: 'database' | 'source' | 'full';
-                
+
                 if (file.startsWith('database_backup_')) {
                     type = 'database';
                 } else if (file.startsWith('source_backup_')) {
@@ -198,20 +224,20 @@ export class BackupService {
      */
     async restoreDatabase(filename: string): Promise<void> {
         const filepath = path.join(this.backupDir, filename);
-        
+
         if (!fs.existsSync(filepath)) {
             throw new Error('File backup tidak ditemukan');
         }
 
         const config = await this.getDatabaseConfig();
-        
+
         // Command mysql untuk restore
         let command = `mysql -h ${config.host} -P ${config.port} -u ${config.user}`;
-        
+
         if (config.password) {
             command += ` -p${config.password}`;
         }
-        
+
         command += ` ${config.database} < "${filepath}"`;
 
         try {
@@ -228,7 +254,7 @@ export class BackupService {
      */
     async deleteBackup(filename: string): Promise<void> {
         const filepath = path.join(this.backupDir, filename);
-        
+
         if (!fs.existsSync(filepath)) {
             throw new Error('File backup tidak ditemukan');
         }

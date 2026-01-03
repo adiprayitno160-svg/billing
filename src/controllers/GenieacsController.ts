@@ -70,23 +70,68 @@ export class GenieacsController {
             const page = parseInt(req.query.page as string) || 1;
             const limit = 20;
             const skip = (page - 1) * limit;
+            const statusFilter = req.query.status as string || '';
 
-            const devices = await genieacs.getDevices(limit, skip);
-            const totalCount = await genieacs.getDeviceCount();
+            // 1. Prepare Filter Query
+            const query: any = {};
+            const fiveMinutes = 5 * 60 * 1000;
+            const thresholdTime = new Date(Date.now() - fiveMinutes).toISOString();
+
+            if (statusFilter === 'online') {
+                query._lastInform = { $gt: thresholdTime };
+            } else if (statusFilter === 'offline') {
+                query._lastInform = { $lt: thresholdTime };
+            }
+
+            // 2. Get List for View (Filtered)
+            const devices = await genieacs.getDevices(limit, skip, [], query);
+            const totalCount = await genieacs.getDeviceCount(query);
             const totalPages = Math.ceil(totalCount / limit);
 
-            // Get all customers with device_id from billing
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, phone, device_id FROM customers WHERE device_id IS NOT NULL'
-            );
+            // 3. Calculate Global Stats (Unaffected by filter)
+            // Note: In production with thousands of devices, use MongoDB count queries internally.
+            const allDevicesStats = await genieacs.getDevices(1000, 0, ['_id', '_lastInform']);
+            const now = Date.now();
 
-            // Create a map of device_id to customer
-            const customerMap = new Map();
-            customers.forEach((customer: any) => {
-                customerMap.set(customer.device_id, customer);
+            let onlineCount = 0;
+            let offlineCount = 0;
+
+            allDevicesStats.forEach(d => {
+                const lastInform = d._lastInform ? new Date(d._lastInform).getTime() : 0;
+                if ((now - lastInform) < fiveMinutes) onlineCount++;
+                else offlineCount++;
             });
 
-            // Extract device info and add customer name
+            const stats = {
+                total: allDevicesStats.length,
+                online: onlineCount,
+                offline: offlineCount
+            };
+
+            // 4. Get Customers for Matching
+            const [customers] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, name, phone, pppoe_username FROM customers'
+            );
+
+            // Map by PPPoE Username (lowercase)
+            const customerByPPPoE = new Map();
+            const customerById = new Map();
+            customers.forEach((c: any) => {
+                customerById.set(c.id, c);
+                if (c.pppoe_username) customerByPPPoE.set(c.pppoe_username.toLowerCase(), c);
+            });
+
+            // 5. Get Network Devices
+            const [netDevices] = await databasePool.query<RowDataPacket[]>(
+                'SELECT customer_id, genieacs_serial FROM network_devices WHERE device_type="ont" AND genieacs_serial IS NOT NULL'
+            );
+            const customerBySerial = new Map();
+            netDevices.forEach((nd: any) => {
+                const c = customerById.get(nd.customer_id);
+                if (c) customerBySerial.set(nd.genieacs_serial, c);
+            });
+
+            // 6. Extract device info & Match
             const devicesList = devices.map(device => {
                 const deviceInfo = {
                     id: device._id,
@@ -95,8 +140,15 @@ export class GenieacsController {
                     customer: null as any
                 };
 
-                // Try to match customer by device serial number
-                const customer = customerMap.get(deviceInfo.serialNumber);
+                // Match Customer
+                let customer = customerBySerial.get(deviceInfo.serialNumber);
+                if (!customer) {
+                    const pppoe = genieacs.getPPPoEDetails(device);
+                    if (pppoe.username && pppoe.username !== '-') {
+                        customer = customerByPPPoE.get(pppoe.username.toLowerCase());
+                    }
+                }
+
                 if (customer) {
                     deviceInfo.customer = {
                         id: customer.id,
@@ -112,18 +164,21 @@ export class GenieacsController {
                 title: 'Daftar Devices - GenieACS',
                 currentPath: '/genieacs/devices',
                 devices: devicesList,
+                stats,
+                statusFilter,
                 pagination: {
                     currentPage: page,
                     totalPages,
                     totalCount,
-                    hasNext: page < totalPages,
-                    hasPrev: page > 1
+                    limit
                 }
             });
         } catch (error: any) {
-            console.error('Error loading devices:', error);
-            req.flash('error', `Gagal memuat daftar devices: ${error.message}`);
-            res.redirect('/genieacs');
+            console.error('Error getting devices:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: error.message
+            });
         }
     }
 
@@ -145,15 +200,38 @@ export class GenieacsController {
             const tasks = await genieacs.getDeviceTasks(id);
             const signalInfo = genieacs.getSignalInfo(device);
             const wifiSettings = genieacs.getWiFiDetails(device);
-            const pppoeSettings = genieacs.getPPPoEDetails(device);
 
-            // Get customer info from billing
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, phone, address FROM customers WHERE device_id = ? LIMIT 1',
+            // Use generic WAN Status instead of just PPPoE
+            const wanStatus = genieacs.getWanStatus(device);
+
+            // Legacy support for view (can be removed if view is updated completely)
+            const pppoeSettings = { username: wanStatus.username, password: '' };
+
+            // Robust Customer Fetching
+            let customer = null;
+
+            // 1. Try via network_devices (Serial)
+            const [netDevices] = await databasePool.query<RowDataPacket[]>(
+                'SELECT customer_id FROM network_devices WHERE device_type="ont" AND genieacs_serial = ? LIMIT 1',
                 [deviceInfo.serialNumber]
             );
 
-            const customer = customers.length > 0 ? customers[0] : null;
+            if (netDevices.length > 0 && netDevices[0].customer_id) {
+                const [custs] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT id, name, phone, address FROM customers WHERE id = ?',
+                    [netDevices[0].customer_id]
+                );
+                if (custs.length > 0) customer = custs[0];
+            }
+
+            // 2. Try via PPPoE Username
+            if (!customer && wanStatus.username && wanStatus.username !== '-') {
+                const [custs] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT id, name, phone, address FROM customers WHERE pppoe_username = ?',
+                    [wanStatus.username]
+                );
+                if (custs.length > 0) customer = custs[0];
+            }
 
             res.render('genieacs/device-detail', {
                 title: `Device ${deviceInfo.serialNumber} - GenieACS`,
@@ -163,6 +241,7 @@ export class GenieacsController {
                 tasks,
                 signalInfo,
                 wifiSettings,
+                wanStatus, // Pass full WAN status
                 pppoeSettings,
                 customer
             });
@@ -332,53 +411,234 @@ export class GenieacsController {
     }
 
     /**
-     * Configure WAN PPP Connection with VLAN
+     * Configure WAN Connection (PPPoE/Bridge/Static/DHCP)
      */
-    static async configureWanPPP(req: Request, res: Response) {
+    static async configureWan(req: Request, res: Response) {
         try {
             const { id } = req.params;
             const {
-                wanDeviceIndex,
-                connectionIndex,
+                wanMode, // 'pppoe', 'bridge', 'static', 'dhcp'
                 vlanId,
                 pppUsername,
                 pppPassword,
+                ipAddress,
+                subnetMask,
+                gateway,
+                dnsServers,
                 enableConnection
             } = req.body;
 
-            // Validation
-            if (!vlanId || !pppUsername || !pppPassword) {
-                req.flash('error', 'VLAN ID, PPP Username, dan Password wajib diisi');
-                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
-            }
-
-            const vlanIdNum = parseInt(vlanId, 10);
-            if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
-                req.flash('error', 'VLAN ID harus antara 1 dan 4094');
-                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
-            }
-
             const genieacs = await GenieacsService.getInstanceFromDb();
-            const result = await genieacs.configureWanPPP(id, {
-                wanDeviceIndex: parseInt(wanDeviceIndex, 10) || 1,
-                connectionDeviceIndex: parseInt(connectionIndex, 10) || 1,
-                pppConnectionIndex: 1, // Usually 1 for PPP connection
-                username: pppUsername,
-                password: pppPassword,
-                vlanId: vlanIdNum,
-                enable: enableConnection === '1' || enableConnection === 'on' || enableConnection === true
-            });
+            const vlanIdNum = parseInt(vlanId, 10);
+
+            if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
+                req.flash('error', 'VLAN ID harus valid (1-4094)');
+                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+            }
+
+            const enable = enableConnection === '1' || enableConnection === 'on' || enableConnection === true;
+            let result;
+
+            if (wanMode === 'pppoe') {
+                if (!pppUsername || !pppPassword) {
+                    req.flash('error', 'Username & Password wajib untuk PPPoE');
+                    return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+                }
+                result = await genieacs.configureWanPPP(id, {
+                    wanDeviceIndex: 1,
+                    connectionDeviceIndex: 1,
+                    pppConnectionIndex: 1,
+                    username: pppUsername,
+                    password: pppPassword,
+                    vlanId: vlanIdNum,
+                    enable
+                });
+            } else if (wanMode === 'bridge') {
+                result = await genieacs.configureWanIP(id, {
+                    connectionType: 'IP_Bridged',
+                    addressingType: 'DHCP', // Usually irrelevant for Bridge but required by schema
+                    vlanId: vlanIdNum,
+                    enable
+                });
+            } else if (wanMode === 'static') {
+                if (!ipAddress || !subnetMask) {
+                    req.flash('error', 'IP Address & Subnet Mask wajib untuk Static IP');
+                    return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+                }
+                result = await genieacs.configureWanIP(id, {
+                    connectionType: 'IP_Routed',
+                    addressingType: 'Static',
+                    ipAddress,
+                    subnetMask,
+                    gateway,
+                    dnsServers,
+                    vlanId: vlanIdNum,
+                    enable
+                });
+            } else if (wanMode === 'dhcp') {
+                result = await genieacs.configureWanIP(id, {
+                    connectionType: 'IP_Routed',
+                    addressingType: 'DHCP',
+                    vlanId: vlanIdNum,
+                    enable
+                });
+            } else {
+                req.flash('error', 'Mode WAN tidak valid');
+                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+            }
 
             if (result.success) {
-                req.flash('success', `WAN PPP berhasil dikonfigurasi! VLAN: ${vlanIdNum}, Username: ${pppUsername}`);
+                req.flash('success', `Konfigurasi WAN (${wanMode.toUpperCase()}) berhasil dikirim!`);
             } else {
-                req.flash('error', `Gagal konfigurasi WAN PPP: ${result.message}`);
+                req.flash('error', `Gagal konfigurasi WAN: ${result.message}`);
             }
 
             res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
         } catch (error: any) {
-            console.error('Error configuring WAN PPP:', error);
-            req.flash('error', `Gagal konfigurasi WAN PPP: ${error.message}`);
+            console.error('Error configuring WAN:', error);
+            req.flash('error', `Gagal konfigurasi WAN: ${error.message}`);
+            res.redirect('/genieacs/devices');
+        }
+    }
+
+    /**
+     * Sync All Tags (Bulk)
+     */
+    static async syncAllTags(req: Request, res: Response) {
+        try {
+            const genieacs = await GenieacsService.getInstanceFromDb();
+            // Fetch up to 200 devices for sync to avoid timeout
+            const devices = await genieacs.getDevices(200, 0);
+
+            // 1. Get Customers
+            const [customers] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, name, pppoe_username FROM customers'
+            );
+            const customerByPPPoE = new Map();
+            const customerById = new Map();
+            customers.forEach((c: any) => {
+                customerById.set(c.id, c);
+                if (c.pppoe_username) customerByPPPoE.set(c.pppoe_username.toLowerCase(), c);
+            });
+
+            // 2. Get Network Devices
+            const [netDevices] = await databasePool.query<RowDataPacket[]>(
+                'SELECT customer_id, genieacs_serial FROM network_devices WHERE device_type="ont" AND genieacs_serial IS NOT NULL'
+            );
+            const customerBySerial = new Map();
+            netDevices.forEach((nd: any) => {
+                const c = customerById.get(nd.customer_id);
+                if (c) customerBySerial.set(nd.genieacs_serial, c);
+            });
+
+            let syncedCount = 0;
+            const updates = [];
+
+            for (const device of devices) {
+                const serialNumber = device._deviceId?._SerialNumber;
+                if (!serialNumber) continue;
+
+                let customer = customerBySerial.get(serialNumber);
+                if (!customer) {
+                    const pppoe = genieacs.getPPPoEDetails(device);
+                    if (pppoe.username && pppoe.username !== '-') {
+                        customer = customerByPPPoE.get(pppoe.username.toLowerCase());
+                    }
+                }
+
+                if (customer) {
+                    const tagName = customer.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+                    // Check if tag already exists
+                    if (!device._tags || !device._tags.includes(tagName)) {
+                        updates.push(genieacs.addDeviceTag(device._id, tagName));
+                        syncedCount++;
+                    }
+                }
+            }
+
+            // Process in chunks of 10 to avoid overwhelming GenieACS
+            for (let i = 0; i < updates.length; i += 10) {
+                const chunk = updates.slice(i, i + 10);
+                await Promise.all(chunk);
+            }
+
+            req.flash('success', `Berhasil sinkronisasi tag untuk ${syncedCount} devices.`);
+            res.redirect('/genieacs/devices');
+
+        } catch (error: any) {
+            console.error('Error syncing all tags:', error);
+            req.flash('error', `Gagal sync tags: ${error.message}`);
+            res.redirect('/genieacs/devices');
+        }
+    }
+
+    /**
+     * Sync Customer Name as Tag to GenieACS
+     */
+    static async syncCustomerTag(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const genieacs = await GenieacsService.getInstanceFromDb();
+
+            // 1. Get device first to get Serial Number
+            const device = await genieacs.getDevice(id);
+            if (!device) {
+                req.flash('error', 'Device tidak ditemukan');
+                return res.redirect('/genieacs/devices');
+            }
+            const serialNumber = device._deviceId._SerialNumber;
+
+            // 2. Find Customer (Robust Match)
+            let customerName = null;
+
+            // A. Try via network_devices (Serial)
+            const [netDevices] = await databasePool.query<RowDataPacket[]>(
+                'SELECT customer_id FROM network_devices WHERE device_type="ont" AND genieacs_serial = ? LIMIT 1',
+                [serialNumber]
+            );
+
+            if (netDevices.length > 0 && netDevices[0].customer_id) {
+                const [custs] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT name FROM customers WHERE id = ?',
+                    [netDevices[0].customer_id]
+                );
+                if (custs.length > 0) customerName = custs[0].name;
+            }
+
+            // B. Try via PPPoE Username (if needed)
+            if (!customerName) {
+                const pppoe = genieacs.getPPPoEDetails(device);
+                if (pppoe.username && pppoe.username !== '-') {
+                    const [custs] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT name FROM customers WHERE pppoe_username = ?',
+                        [pppoe.username]
+                    );
+                    if (custs.length > 0) customerName = custs[0].name;
+                }
+            }
+
+            if (!customerName) {
+                req.flash('error', 'Tidak ada customer yang terhubung dengan device ini (Serial/PPPoE mismatch).');
+                return res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+            }
+
+            // 3. Sanitize Tag Name (GenieACS tags might have restrictions, keeping it alphanumeric + simple chars)
+            // Replace spaces with underscores, remove weird chars
+            const tagName = customerName.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+            // 4. Push Tag
+            const success = await genieacs.addDeviceTag(id, tagName);
+
+            if (success) {
+                req.flash('success', `Tag berhasil ditambahkan: ${tagName}`);
+            } else {
+                req.flash('error', 'Gagal menambahkan tag ke GenieACS.');
+            }
+
+            res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+        } catch (error: any) {
+            console.error('Error syncing customer tag:', error);
+            req.flash('error', `Error system: ${error.message}`);
             res.redirect('/genieacs/devices');
         }
     }

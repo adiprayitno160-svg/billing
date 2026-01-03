@@ -13,6 +13,13 @@
                     class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-semibold">
                     <i class="fas fa-arrow-left mr-2"></i>Kembali
                 </a>
+                <form action="/genieacs/devices/sync-tags" method="POST" class="inline-block"
+                    onsubmit="return confirm('Proses ini akan mengirim tag nama pelanggan ke semua device di GenieACS. Lanjutkan?');">
+                    <button type="submit"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        <i class="fas fa-tags mr-2"></i>Sync Tags
+                    </button>
+                </form>
                 <button onclick="location.reload()"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold">
                     <i class="fas fa-sync-alt mr-2"></i>Refresh
@@ -20,189 +27,251 @@
             </div>
         </div>
 
-        <!-- Search Box -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
-            <div class="flex gap-3">
-                <div class="flex-1 relative">
-                    <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                    <input type="text" id="searchInput" placeholder="Cari serial number, manufacturer, atau model..."
-                        class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                </div>
-                <select id="statusFilter"
-                    class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="all">Semua Status</option>
-                    <option value="online">Online</option>
-                    <option value="offline">Offline</option>
-                </select>
+
+
+        <!-- Stats Summary -->
+        <% if (locals.stats) { %>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <a href="/genieacs/devices"
+                    class="group block bg-white rounded-xl shadow-sm p-6 border <%= !locals.statusFilter ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-100 hover:border-blue-300' %> transition duration-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 group-hover:text-blue-600 transition">Total
+                                Devices</p>
+                            <p class="text-2xl font-bold text-gray-900 group-hover:text-blue-700 transition">
+                                <%= stats.total %>
+                            </p>
+                        </div>
+                        <div
+                            class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition">
+                            <i class="fas fa-server text-xl"></i>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="/genieacs/devices?status=online"
+                    class="group block bg-white rounded-xl shadow-sm p-6 border <%= locals.statusFilter === 'online' ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-100 hover:border-green-300' %> transition duration-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 group-hover:text-green-600 transition">Online
+                            </p>
+                            <p class="text-2xl font-bold text-green-600 group-hover:text-green-700 transition">
+                                <%= stats.online %>
+                            </p>
+                        </div>
+                        <div
+                            class="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center text-green-600 group-hover:bg-green-100 transition">
+                            <i class="fas fa-signal text-xl"></i>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="/genieacs/devices?status=offline"
+                    class="group block bg-white rounded-xl shadow-sm p-6 border <%= locals.statusFilter === 'offline' ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-100 hover:border-red-300' %> transition duration-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 group-hover:text-red-600 transition">Offline</p>
+                            <p class="text-2xl font-bold text-red-600 group-hover:text-red-700 transition">
+                                <%= stats.offline %>
+                            </p>
+                        </div>
+                        <div
+                            class="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-600 group-hover:bg-red-100 transition">
+                            <i class="fas fa-ban text-xl"></i>
+                        </div>
+                    </div>
+                </a>
             </div>
-        </div>
+            <% } %>
 
-        <!-- Device Table -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                        <tr>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Pelanggan
-                            </th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Serial Number</th>
+                <!-- Search Box -->
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
+                    <div class="flex gap-3">
+                        <div class="flex-1 relative">
+                            <i
+                                class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="searchInput"
+                                placeholder="Cari serial number, manufacturer, atau model..."
+                                class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <select id="statusFilter"
+                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="all">Semua Status</option>
+                            <option value="online">Online</option>
+                            <option value="offline">Offline</option>
+                        </select>
+                    </div>
+                </div>
 
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Model</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Last Inform</th>
-                            <th
-                                class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100" id="deviceTableBody">
-                        <% if (devices.length===0) { %>
-                            <tr>
-                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                                    <i class="fas fa-inbox text-4xl mb-3 block opacity-50"></i>
-                                    Tidak ada device ditemukan
-                                </td>
-                            </tr>
-                            <% } else { %>
-                                <% devices.forEach((device, index)=> { %>
-                                    <tr class="hover:bg-blue-50/50 transition device-row"
-                                        data-serial="<%= device.serialNumber.toLowerCase() %>"
-                                        data-manufacturer="<%= device.manufacturer.toLowerCase() %>"
-                                        data-model="<%= (typeof device.model === 'string' ? device.model : JSON.stringify(device.model)).toLowerCase() %>"
-                                        data-online="<%= device.isOnline %>">
+                <!-- Device Table -->
+                <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                                <tr>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Pelanggan
+                                    </th>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Serial Number</th>
 
-                                        <!-- Pelanggan -->
-                                        <td class="px-6 py-4">
-                                            <% if (device.customer) { %>
-                                                <div class="flex items-center gap-2">
-                                                    <div
-                                                        class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                                        <i class="fas fa-user text-blue-600 text-xs"></i>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-sm font-semibold text-gray-900">
-                                                            <%= device.customer.name %>
-                                                        </div>
-                                                        <div class="text-xs text-gray-500">
-                                                            <%= device.customer.phone %>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <% } else { %>
-                                                    <span class="text-gray-400 text-sm italic">Tidak terdaftar</span>
-                                                    <% } %>
-                                        </td>
-
-                                        <!-- Status -->
-                                        <td class="px-6 py-4">
-                                            <% if (device.isOnline) { %>
-                                                <span
-                                                    class="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                                                    <span
-                                                        class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                                    Online
-                                                </span>
-                                                <% } else { %>
-                                                    <span
-                                                        class="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
-                                                        <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                                                        Offline
-                                                    </span>
-                                                    <% } %>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <a href="/genieacs/devices/<%= encodeURIComponent(device.id) %>"
-                                                class="text-blue-600 hover:text-blue-800 font-semibold hover:underline">
-                                                <%= device.serialNumber %>
-                                            </a>
-                                        </td>
-
-                                        <td class="px-6 py-4 text-gray-700">
-                                            <%= typeof device.model==='string' ? device.model : (device.model._value
-                                                || 'Unknown' ) %>
-                                        </td>
-
-                                        <td class="px-6 py-4 text-gray-600">
-                                            <% if (device.lastInform) { %>
-                                                <div class="text-sm">
-                                                    <%= new Date(device.lastInform).toLocaleDateString('id-ID') %>
-                                                </div>
-                                                <div class="text-xs text-gray-400">
-                                                    <%= new Date(device.lastInform).toLocaleTimeString('id-ID') %>
-                                                </div>
-                                                <% } else { %>
-                                                    <span class="text-gray-400">-</span>
-                                                    <% } %>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <div class="flex gap-2">
-                                                <a href="/genieacs/devices/<%= encodeURIComponent(device.id) %>"
-                                                    class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
-                                                    title="Detail">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <form
-                                                    action="/genieacs/devices/<%= encodeURIComponent(device.id) %>/refresh"
-                                                    method="POST" style="display:inline;">
-                                                    <button type="submit"
-                                                        class="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition"
-                                                        title="Refresh">
-                                                        <i class="fas fa-sync-alt"></i>
-                                                    </button>
-                                                </form>
-                                                <form
-                                                    action="/genieacs/devices/<%= encodeURIComponent(device.id) %>/reboot"
-                                                    method="POST" style="display:inline;"
-                                                    onsubmit="return confirm('Yakin ingin mereboot device ini?')">
-                                                    <button type="submit"
-                                                        class="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition flex items-center gap-2 text-sm font-medium"
-                                                        title="Reboot Device">
-                                                        <i class="fas fa-power-off"></i> Reboot
-                                                    </button>
-                                                </form>
-                                            </div>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Model</th>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Last Inform</th>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100" id="deviceTableBody">
+                                <% if (devices.length===0) { %>
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                            <i class="fas fa-inbox text-4xl mb-3 block opacity-50"></i>
+                                            Tidak ada device ditemukan
                                         </td>
                                     </tr>
-                                    <% }); %>
-                                        <% } %>
-                    </tbody>
-                </table>
-            </div>
+                                    <% } else { %>
+                                        <% devices.forEach((device, index)=> { %>
+                                            <tr class="hover:bg-blue-50/50 transition device-row"
+                                                data-serial="<%= device.serialNumber.toLowerCase() %>"
+                                                data-manufacturer="<%= device.manufacturer.toLowerCase() %>"
+                                                data-model="<%= (typeof device.model === 'string' ? device.model : JSON.stringify(device.model)).toLowerCase() %>"
+                                                data-online="<%= device.isOnline %>">
 
-            <!-- Pagination -->
-            <% if (pagination.totalPages> 1) { %>
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                    <div class="text-sm text-gray-600">
-                        Halaman <%= pagination.currentPage %> dari <%= pagination.totalPages %>
+                                                <!-- Pelanggan -->
+                                                <td class="px-6 py-4">
+                                                    <% if (device.customer) { %>
+                                                        <div class="flex items-center gap-2">
+                                                            <div
+                                                                class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                                                <i class="fas fa-user text-blue-600 text-xs"></i>
+                                                            </div>
+                                                            <div>
+                                                                <div class="text-sm font-semibold text-gray-900">
+                                                                    <%= device.customer.name %>
+                                                                </div>
+                                                                <div class="text-xs text-gray-500">
+                                                                    <%= device.customer.phone %>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <% } else { %>
+                                                            <span class="text-gray-400 text-sm italic">Tidak
+                                                                terdaftar</span>
+                                                            <% } %>
+                                                </td>
+
+                                                <!-- Status -->
+                                                <td class="px-6 py-4">
+                                                    <% if (device.isOnline) { %>
+                                                        <span
+                                                            class="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                                                            <span
+                                                                class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                                            Online
+                                                        </span>
+                                                        <% } else { %>
+                                                            <span
+                                                                class="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                                                                <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                                                                Offline
+                                                            </span>
+                                                            <% } %>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <a href="/genieacs/devices/<%= encodeURIComponent(device.id) %>"
+                                                        class="text-blue-600 hover:text-blue-800 font-semibold hover:underline">
+                                                        <%= device.serialNumber %>
+                                                    </a>
+                                                </td>
+
+                                                <td class="px-6 py-4 text-gray-700">
+                                                    <%= typeof device.model==='string' ? device.model :
+                                                        (device.model._value || 'Unknown' ) %>
+                                                </td>
+
+                                                <td class="px-6 py-4 text-gray-600">
+                                                    <% if (device.lastInform) { %>
+                                                        <div class="text-sm">
+                                                            <%= new Date(device.lastInform).toLocaleDateString('id-ID')
+                                                                %>
+                                                        </div>
+                                                        <div class="text-xs text-gray-400">
+                                                            <%= new Date(device.lastInform).toLocaleTimeString('id-ID')
+                                                                %>
+                                                        </div>
+                                                        <% } else { %>
+                                                            <span class="text-gray-400">-</span>
+                                                            <% } %>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="flex gap-2">
+                                                        <a href="/genieacs/devices/<%= encodeURIComponent(device.id) %>"
+                                                            class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
+                                                            title="Detail">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <form
+                                                            action="/genieacs/devices/<%= encodeURIComponent(device.id) %>/refresh"
+                                                            method="POST" style="display:inline;">
+                                                            <button type="submit"
+                                                                class="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition"
+                                                                title="Refresh">
+                                                                <i class="fas fa-sync-alt"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form
+                                                            action="/genieacs/devices/<%= encodeURIComponent(device.id) %>/reboot"
+                                                            method="POST" style="display:inline;"
+                                                            onsubmit="return confirm('Yakin ingin mereboot device ini?')">
+                                                            <button type="submit"
+                                                                class="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition flex items-center gap-2 text-sm font-medium"
+                                                                title="Reboot Device">
+                                                                <i class="fas fa-power-off"></i> Reboot
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
+                                                <% } %>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="flex gap-2">
-                        <% if (pagination.hasPrev) { %>
-                            <a href="?page=<%= pagination.currentPage - 1 %>"
-                                class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
-                                <i class="fas fa-chevron-left mr-1"></i> Prev
-                            </a>
-                            <% } %>
-                                <% if (pagination.hasNext) { %>
-                                    <a href="?page=<%= pagination.currentPage + 1 %>"
+
+                    <!-- Pagination -->
+                    <% if (pagination.totalPages> 1) { %>
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                            <div class="text-sm text-gray-600">
+                                Halaman <%= pagination.currentPage %> dari <%= pagination.totalPages %>
+                            </div>
+                            <div class="flex gap-2">
+                                <% if (pagination.hasPrev) { %>
+                                    <a href="?page=<%= pagination.currentPage - 1 %>"
                                         class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
-                                        Next <i class="fas fa-chevron-right ml-1"></i>
+                                        <i class="fas fa-chevron-left mr-1"></i> Prev
                                     </a>
                                     <% } %>
-                    </div>
+                                        <% if (pagination.hasNext) { %>
+                                            <a href="?page=<%= pagination.currentPage + 1 %>"
+                                                class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+                                                Next <i class="fas fa-chevron-right ml-1"></i>
+                                            </a>
+                                            <% } %>
+                            </div>
+                        </div>
+                        <% } %>
                 </div>
-                <% } %>
-        </div>
     </div>
 
     <script>

@@ -1,95 +1,172 @@
-﻿<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="mb-4">
-        <h2 class="text-lg font-semibold">Edit OLT</h2>
+﻿<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                Edit Data OLT
+            </h1>
+            <p class="text-slate-500 mt-1">Perbarui informasi Optical Line Terminal</p>
+        </div>
+        <a href="/ftth/olt"
+            class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Kembali
+        </a>
     </div>
 
-    <form method="post" action="/ftth/olt/<%= olt.id %>" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Nama OLT</label>
-                <input type="text" name="name" required value="<%= olt.name %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <!-- Main Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                    </path>
+                </svg>
             </div>
-
             <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">IP Address</label>
-                <input type="text" name="ip_address" value="<%= olt.ip_address %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Lokasi</label>
-                <input type="text" name="location" value="<%= olt.location %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                <select name="status"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="online" <%=(olt.status==='online' ) ? 'selected' : '' %>>Online</option>
-                    <option value="offline" <%=(olt.status==='offline' ) ? 'selected' : '' %>>Offline</option>
-                    <option value="maintenance" <%=(olt.status==='maintenance' ) ? 'selected' : '' %>>Maintenance
-                    </option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Total Ports</label>
-                <input type="number" name="total_ports" min="1" value="<%= olt.total_ports %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Used Ports</label>
-                <input type="number" name="used_ports" min="0" value="<%= olt.used_ports %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
-                <input type="number" step="0.0000001" name="latitude" value="<%= olt.latitude || '' %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
-                <input type="number" step="0.0000001" name="longitude" value="<%= olt.longitude || '' %>"
-                    class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <h3 class="font-bold text-slate-800">Edit Perangkat: <%= olt.name %>
+                </h3>
+                <p class="text-xs text-slate-500">Update data teknis & lokasi</p>
             </div>
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label>
-            <textarea name="description" rows="3"
-                class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"><%= olt.description %></textarea>
-        </div>
+        <form method="post" action="/ftth/olt/<%= olt.id %>" class="p-6 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Nama OLT <span
+                            class="text-red-500">*</span></label>
+                    <input type="text" name="name" required value="<%= olt.name %>"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                        placeholder="Contoh: OLT-Wisma-A">
+                </div>
 
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Peta Lokasi</label>
-            <div id="mapOlt" class="h-64 w-full rounded border border-slate-200 z-10"></div>
-            <button type="button" id="btnGetLocation"
-                class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">Ambil Lokasi Saat
-                Ini</button>
-        </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">IP Address</label>
+                    <input type="text" name="ip_address" value="<%= olt.ip_address %>"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium font-mono"
+                        placeholder="192.168.1.100">
+                </div>
 
-        <div class="flex gap-2 pt-4">
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Update
-            </button>
-            <a href="/ftth/olt" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50">
-                Batal
-            </a>
-        </div>
-    </form>
+                <div class="col-span-1 md:col-span-2 space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Lokasi Fisik</label>
+                    <div class="relative">
+                        <div
+                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <input type="text" name="location" value="<%= olt.location %>"
+                            class="w-full pl-10 px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            placeholder="Contoh: Gedung Server Utama, Rack 2, Unit 5">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Status Perangkat</label>
+                    <select name="status"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer">
+                        <option value="online" <%=(olt.status==='online' ) ? 'selected' : '' %>>🟢 Online</option>
+                        <option value="offline" <%=(olt.status==='offline' ) ? 'selected' : '' %>>🔴 Offline</option>
+                        <option value="maintenance" <%=(olt.status==='maintenance' ) ? 'selected' : '' %>>🟠 Maintenance
+                        </option>
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Kapasitas (Total Ports)</label>
+                    <input type="number" name="total_ports" min="1" value="<%= olt.total_ports %>"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Port Terpakai</label>
+                    <input type="number" name="used_ports" min="0" value="<%= olt.used_ports %>"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                </div>
+            </div>
+
+            <!-- Location Picker -->
+            <div class="space-y-2 pt-4 border-t border-slate-100">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Koordinat Maps <span
+                        class="text-xs font-normal text-slate-500 ml-1">(Klik peta atau gunakan tombol)</span></label>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label
+                                class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 block">Latitude</label>
+                            <input type="number" step="0.0000001" name="latitude" value="<%= olt.latitude || '' %>"
+                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono"
+                                placeholder="-6.xxxxxx">
+                        </div>
+                        <div>
+                            <label
+                                class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 block">Longitude</label>
+                            <input type="number" step="0.0000001" name="longitude" value="<%= olt.longitude || '' %>"
+                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono"
+                                placeholder="106.xxxxxx">
+                        </div>
+                    </div>
+
+                    <div id="mapOlt"
+                        class="h-64 w-full rounded-lg border border-slate-300 shadow-inner z-0 overflow-hidden bg-slate-200 relative">
+                        <!-- Map Container -->
+                    </div>
+
+                    <button type="button" id="btnGetLocation"
+                        class="mt-3 w-full py-2 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Ambil Lokasi Saya Saat Ini
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Catatan Tambahan</label>
+                <textarea name="description" rows="3"
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                    placeholder="Contoh: Terhubung ke Backbone Link A..."><%= olt.description %></textarea>
+            </div>
+
+            <div class="flex gap-3 pt-6 border-t border-slate-100">
+                <button type="submit"
+                    class="flex-1 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Simpan Perubahan
+                </button>
+                <a href="/ftth/olt"
+                    class="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium transition-all">
+                    Batal
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         let map, marker;
-        const initialLat = <%= olt.latitude || -6.2 %>;
-        const initialLng = <%= olt.longitude || 106.8 %>;
-        const hasLocation = <%= (olt.latitude && olt.longitude) ? 'true' : 'false' %>;
+        const initialLat = Number('<%= olt.latitude || -6.2 %>');
+        const initialLng = Number('<%= olt.longitude || 106.8 %>');
+        const hasLocation = '<%= (olt.latitude && olt.longitude) ? "true" : "false" %>' === 'true';
 
         function waitForLeaflet() {
             return new Promise((resolve, reject) => {
