@@ -1,20 +1,20 @@
 # 🏢 Billing System
-**Version:** 2.4.3  
-**Release Date:** 2025-01-22
+**Version:** 2.4.10  
+**Release Date:** 2026-01-04
 
 Sistem Billing untuk ISP/Provider Internet dengan integrasi GenieACS, MikroTik, WhatsApp Bot, AI-Powered Verification, dan berbagai Payment Gateway.
 
-## ✨ Fitur Utama (v2.4.3)
+## ✨ Fitur Utama (v2.4.10)
 
 ### 1. **Customer Management & Deferment**
 - ✅ CRUD pelanggan dengan status tracking
-- ✅ **🆕 Payment Deferment System** (Permintaan penundaan bayar)
+- ✅ **Payment Deferment System** (Permintaan penundaan bayar)
 - ✅ Auto-block pelanggan yang melewati batas penundaan
 - ✅ Late Payment Tracking dengan auto-suspend
 
 ### 2. **Monitoring & Service Status**
-- ✅ **🆕 Server Health Monitoring** (Temperature & Voltage MikroTik)
-- ✅ **🆕 Premium Monitoring UI** (Dashboard, PPPoE, Static IP, Trouble)
+- ✅ **Server Health Monitoring** (Temperature & Voltage MikroTik)
+- ✅ **Premium Monitoring UI** (Dashboard, PPPoE, Static IP, Trouble)
 - ✅ Real-time status monitoring & active sessions
 
 ### 3. **Invoice & Payment Management**
@@ -26,9 +26,10 @@ Sistem Billing untuk ISP/Provider Internet dengan integrasi GenieACS, MikroTik, 
 
 ### 4. **GenieACS Integration (TR-069)**
 - ✅ ONT/CPE device management
-- ✅ Real-time status monitoring
-- ✅ Remote WiFi management
+- ✅ **🆕 WiFi Credential Visibility** (SSID & Password in Dashboard)
+- ✅ **🆕 Auto-sync WiFi Credentials** to Customer Database
 - ✅ Device reboot & parameter configuration
+- ✅ Real-time signal & status monitoring
 
 ### 5. **MikroTik Integration**
 - ✅ Hotspot & PPPoE management
@@ -38,9 +39,11 @@ Sistem Billing untuk ISP/Provider Internet dengan integrasi GenieACS, MikroTik, 
 
 ### 6. **WhatsApp Bot** 🤖
 - ✅ Customer self-service (`/menu`, `/tagihan`)
+- ✅ **🆕 WiFi Management**:
+    - Lihat password WiFi tersimpan (`/mywifi`) ✅
+    - Ganti SSID & Password via WA (`/wifi`) ✅
 - ✅ AI payment verification
 - ✅ Automated notifications
-- ✅ WiFi password requests
 
 ### 7. **SLA & Monitoring**
 - ✅ Real-time uptime tracking
