@@ -135,109 +135,73 @@
                                                 class="block text-sm font-medium text-slate-700 mb-2">Longitude</label>
                                             <input name="longitude" type="number" step="any" placeholder="106.816666"
                                                 class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                        </div>
-                                        <div class="text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                                            💡 <strong>Tips:</strong> Masukkan koordinat yang akurat untuk menampilkan
-                                            lokasi di peta
-                                        </div>
-                                    </div>
 
-                                    <!-- Maps Preview -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Peta Lokasi</label>
-                                        <div id="map"
-                                            style="height: 220px; width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;"
-                                            class="rounded-lg shadow-sm"></div>
-                                        <button type="button" id="btnGetLocation"
-                                            class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">📍
-                                            Ambil Lokasi Saat Ini</button>
-                                        <p class="text-xs text-slate-500 mt-2 flex items-center">
-                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd"
-                                                    d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                                                    clip-rule="evenodd" />
-                                            </svg>
-                                            Klik pada peta untuk memilih koordinat atau isi manual
-                                        </p>
+                                        </div>
+
+                                        <!-- Maps Preview -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">Peta
+                                                Lokasi</label>
+                                            <div id="map"
+                                                style="height: 220px; width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;"
+                                                class="rounded-lg shadow-sm"></div>
+                                            <button type="button" id="btnGetLocation"
+                                                class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">📍
+                                                Ambil Lokasi Saat Ini</button>
+                                            <p class="text-xs text-slate-500 mt-2 flex items-center">
+                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd"
+                                                        d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                                        clip-rule="evenodd" />
+                                                </svg>
+                                                Klik pada peta untuk memilih koordinat atau isi manual
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- OLT, ODC, ODP -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">🏗️
-                                Infrastruktur FTTH</h3>
+                            <!-- OLT, ODC, ODP -->
+                            <div class="sm:col-span-2">
+                                <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">🏗️
+                                    Infrastruktur FTTH</h3>
 
-                            <!-- Container dengan background dan border -->
-                            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">OLT (View
-                                            Only)</label>
-                                        <input name="olt_display" readonly
-                                            class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
-                                            placeholder="Akan muncul setelah memilih ODP" />
-                                        <input name="olt_id" type="hidden" />
+                                <!-- Container dengan background dan border -->
+                                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">OLT (View
+                                                Only)</label>
+                                            <input name="olt_display" readonly
+                                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
+                                                placeholder="Akan muncul setelah memilih ODP" />
+                                            <input name="olt_id" type="hidden" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">ODC (View
+                                                Only)</label>
+                                            <input name="odc_display" readonly
+                                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
+                                                placeholder="Akan muncul setelah memilih ODP" />
+                                            <input name="odc_id" type="hidden" />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">ODC (View
-                                            Only)</label>
-                                        <input name="odc_display" readonly
-                                            class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
-                                            placeholder="Akan muncul setelah memilih ODP" />
-                                        <input name="odc_id" type="hidden" />
-                                    </div>
-                                </div>
 
-                                <div class="mt-4">
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">ODP *</label>
-                                    <select name="odp_id" required
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        id="odp-select">
-                                        <option value="">Pilih ODP</option>
-                                        <% if (odpData && odpData.length> 0) { %>
-                                            <% odpData.forEach(function(odp){ %>
-                                                <option value="<%= odp.id %>">
-                                                    <%= odp.odp_name %> - <%= odp.odc_name %>
-                                                </option>
-                                                <% }); %>
-                                                    <% } else { %>
-                                                        <option value="" disabled>Data ODP tidak tersedia</option>
-                                                        <% } %>
-                                    </select>
-                                    <p class="text-xs text-slate-500 mt-2 flex items-center">
-                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd"
-                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                                clip-rule="evenodd" />
-                                        </svg>
-                                        Pilih ODP untuk mengisi OLT dan ODC secara otomatis
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Paket PPPOE -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📦 Paket
-                                PPPOE</h3>
-
-                            <!-- Container dengan background dan border -->
-                            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Paket PPPOE
-                                            *</label>
-                                        <select name="package_id" required
-                                            class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="">-- Pilih Paket --</option>
-                                            <% (packages || []).forEach(function(pkg){ %>
-                                                <option value="<%= pkg.id %>"
-                                                    data-profile="<%= pkg.profile_name || '' %>">
-                                                    <%= pkg.name %> (Max Client: <%= pkg.max_clients %>)
-                                                </option>
-                                                <% }) %>
+                                    <div class="mt-4">
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">ODP *</label>
+                                        <select name="odp_id" required
+                                            class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            id="odp-select">
+                                            <option value="">Pilih ODP</option>
+                                            <% if (odpData && odpData.length> 0) { %>
+                                                <% odpData.forEach(function(odp){ %>
+                                                    <option value="<%= odp.id %>">
+                                                        <%= odp.odp_name %> - <%= odp.odc_name %>
+                                                    </option>
+                                                    <% }); %>
+                                                        <% } else { %>
+                                                            <option value="" disabled>Data ODP tidak tersedia</option>
+                                                            <% } %>
                                         </select>
                                         <p class="text-xs text-slate-500 mt-2 flex items-center">
                                             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -245,86 +209,157 @@
                                                     d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                                                     clip-rule="evenodd" />
                                             </svg>
-                                            Paket sudah termasuk konfigurasi profil PPPOE
+                                            Pilih ODP untuk mengisi OLT dan ODC secara otomatis
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
+                            <!-- Paket PPPOE -->
+                            <div class="sm:col-span-2">
+                                <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📦
+                                    Paket
+                                    PPPOE</h3>
 
-
-
-                        <!-- Billing Mode Options -->
-                        <div class="sm:col-span-2">
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
-                                    💰 Mode Pembayaran (Billing Mode)
-                                </h3>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <!-- Billing Mode Selection -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Metode
-                                            Penagihan</label>
-                                        <select name="billing_mode" id="billing_mode"
-                                            class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            onchange="toggleBillingOptions()">
-                                            <option value="postpaid" selected>📅 Pascabayar (Tagihan Bulanan)</option>
-                                            <option value="prepaid">🎟️ Prabayar (Sistem Voucher/Topup)</option>
-                                        </select>
-                                        <p class="text-xs text-slate-500 mt-2" id="billing_desc">
-                                            Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.
-                                        </p>
-                                    </div>
-
-                                    <!-- Prepaid Option: Initial Bonus -->
-                                    <div id="prepaid_options" class="hidden">
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Masa Aktif Awal
-                                            (Bonus)</label>
-                                        <div class="flex items-center gap-2">
-                                            <input type="number" name="initial_validity_days" value="0" min="0"
+                                <!-- Container dengan background dan border -->
+                                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+                                    <div class="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">Paket PPPOE
+                                                *</label>
+                                            <select name="package_id" required
                                                 class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <span class="text-sm text-slate-600">Hari</span>
+                                                <option value="">-- Pilih Paket --</option>
+                                                <% (packages || []).forEach(function(pkg){ %>
+                                                    <option value="<%= pkg.id %>"
+                                                        data-profile="<%= pkg.profile_name || '' %>">
+                                                        <%= pkg.name %> (Max Client: <%= pkg.max_clients %>)
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                            <p class="text-xs text-slate-500 mt-2 flex items-center">
+                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd"
+                                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                        clip-rule="evenodd" />
+                                                </svg>
+                                                Paket sudah termasuk konfigurasi profil PPPOE
+                                            </p>
                                         </div>
-                                        <p class="text-xs text-slate-500 mt-2">
-                                            Jumlah hari aktif gratis saat akun dibuat. Isi 0 jika tidak ada bonus.
-                                        </p>
                                     </div>
-
-                                    <!-- Hidden enable_billing for backward compatibility -->
-                                    <input type="hidden" name="enable_billing" id="enable_billing_hidden" value="1">
                                 </div>
                             </div>
-                        </div>
 
-                        <script>
-                            function toggleBillingOptions() {
-                                const mode = document.getElementById('billing_mode').value;
-                                const prepaidOptions = document.getElementById('prepaid_options');
-                                const desc = document.getElementById('billing_desc');
-                                const enableBilling = document.getElementById('enable_billing_hidden');
 
-                                if (mode === 'prepaid') {
-                                    prepaidOptions.classList.remove('hidden');
-                                    desc.innerHTML = "❌ <strong>Tidak ada tagihan bulanan.</strong> Pelanggan harus beli paket lewat WA Bot agar internet aktif.";
-                                    desc.className = "text-xs text-orange-600 mt-2";
-                                    // For prepaid, we might technically disable 'enable_billing' logic in backend or handle it differently
-                                    // But generating invoice is strictly for postpaid.
-                                } else {
-                                    prepaidOptions.classList.add('hidden');
-                                    desc.innerHTML = "✅ <strong>Tagihan Otomatis.</strong> Tagihan dibuat tiap bulan, auto-isolir jika telat bayar.";
-                                    desc.className = "text-xs text-blue-600 mt-2";
+
+
+                            <!-- Billing Mode Options -->
+                            <div class="sm:col-span-2">
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
+                                        💰 Mode Pembayaran (Billing Mode)
+                                    </h3>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <!-- Billing Mode Selection -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">Metode
+                                                Penagihan</label>
+                                            <select name="billing_mode" id="billing_mode"
+                                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                onchange="toggleBillingOptions()">
+                                                <option value="postpaid" selected>📅 Pascabayar (Tagihan Bulanan)
+                                                </option>
+                                                <option value="prepaid">🎟️ Prabayar (Sistem Voucher/Topup)</option>
+                                            </select>
+                                            <p class="text-xs text-slate-500 mt-2" id="billing_desc">
+                                                Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan
+                                                reguler.
+                                            </p>
+                                        </div>
+
+                                        <!-- Prepaid Option: Initial Bonus -->
+                                        <div id="prepaid_options" class="hidden">
+                                            <label class="block text-sm font-medium text-slate-700 mb-2">Masa Aktif Awal
+                                                (Bonus)</label>
+                                            <div class="flex items-center gap-2">
+                                                <input type="number" name="initial_validity_days" value="0" min="0"
+                                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <span class="text-sm text-slate-600">Hari</span>
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2">
+                                                Jumlah hari aktif gratis saat akun dibuat. Isi 0 jika tidak ada bonus.
+                                            </p>
+                                        </div>
+
+                                        <!-- Tax & Rental Settings -->
+                                        <div
+                                            class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-blue-200">
+                                            <div>
+                                                <label class="relative inline-flex items-center cursor-pointer group">
+                                                    <input type="checkbox" name="is_taxable" value="1"
+                                                        class="sr-only peer">
+                                                    <div
+                                                        class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 transition-all duration-300">
+                                                    </div>
+                                                    <span
+                                                        class="ml-3 text-sm font-bold text-slate-700 group-hover:text-blue-700">Kena
+                                                        PPN?</span>
+                                                </label>
+                                                <p class="text-[10px] text-slate-500 mt-1">
+                                                    Aktifkan jika pelanggan ini dikenakan pajak PPN.
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <label class="relative inline-flex items-center cursor-pointer group">
+                                                    <input type="checkbox" name="use_device_rental" value="1"
+                                                        class="sr-only peer">
+                                                    <div
+                                                        class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 transition-all duration-300">
+                                                    </div>
+                                                    <span
+                                                        class="ml-3 text-sm font-bold text-slate-700 group-hover:text-blue-700">Sewa
+                                                        Alat?</span>
+                                                </label>
+                                                <p class="text-[10px] text-slate-500 mt-1">
+                                                    Aktifkan jika pelanggan ini menyewa perangkat.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Hidden enable_billing for backward compatibility -->
+                                        <input type="hidden" name="enable_billing" id="enable_billing_hidden" value="1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <script>
+                                function toggleBillingOptions() {
+                                    const mode = document.getElementById('billing_mode').value;
+                                    const prepaidOptions = document.getElementById('prepaid_options');
+                                    const desc = document.getElementById('billing_desc');
+                                    const enableBilling = document.getElementById('enable_billing_hidden');
+
+                                    if (mode === 'prepaid') {
+                                        prepaidOptions.classList.remove('hidden');
+                                        desc.innerHTML = "❌ <strong>Tidak ada tagihan bulanan.</strong> Pelanggan harus beli paket lewat WA Bot agar internet aktif.";
+                                        desc.className = "text-xs text-orange-600 mt-2";
+                                        // For prepaid, we might technically disable 'enable_billing' logic in backend or handle it differently
+                                        // But generating invoice is strictly for postpaid.
+                                    } else {
+                                        prepaidOptions.classList.add('hidden');
+                                        desc.innerHTML = "✅ <strong>Tagihan Otomatis.</strong> Tagihan dibuat tiap bulan, auto-isolir jika telat bayar.";
+                                        desc.className = "text-xs text-blue-600 mt-2";
+                                    }
                                 }
-                            }
-                        </script>
+                            </script>
 
-                        <div class="sm:col-span-2 flex justify-end gap-3">
-                            <a href="/customers/list"
-                                class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
-                            <button type="submit"
-                                class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
-                        </div>
+                            <div class="sm:col-span-2 flex justify-end gap-3">
+                                <a href="/customers/list"
+                                    class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
+                                <button type="submit"
+                                    class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+                            </div>
                     </form>
 
                     <script type="application/json" id="odp-data-store"><%- JSON.stringify(odpData || []) %></script>
@@ -922,6 +957,28 @@
                                     emailInput.value = local ? `${local}@id.net` : '';
                                 }
                             }
+
+                            // Initial trigger
+                            toggleBillingOptions();
                         });
+
+                        function toggleBillingOptions() {
+                            const modeInput = document.getElementById('billing_mode');
+                            if (!modeInput) return;
+
+                            const mode = modeInput.value;
+                            const prepaidOptions = document.getElementById('prepaid_options');
+                            const billingDesc = document.getElementById('billing_desc');
+
+                            if (mode === 'prepaid') {
+                                if (prepaidOptions) prepaidOptions.classList.remove('hidden');
+                                if (billingDesc) billingDesc.textContent = 'Pelanggan membayar di depan. Internet otomatis terisolasi jika masa aktif habis.';
+                            } else {
+                                if (prepaidOptions) prepaidOptions.classList.add('hidden');
+                                if (billingDesc) billingDesc.textContent = 'Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.';
+                            }
+                        }
+                        // Make globally available
+                        window.toggleBillingOptions = toggleBillingOptions;
                     </script>
 </div>

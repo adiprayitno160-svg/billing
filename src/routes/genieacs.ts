@@ -20,6 +20,8 @@ router.post('/devices/:id/change-pppoe', GenieacsController.changePPPoECredentia
 router.post('/devices/:id/configure-wan', GenieacsController.configureWan);
 router.post('/devices/:id/sync-tag', GenieacsController.syncCustomerTag);
 router.post('/devices/sync-tags', GenieacsController.syncAllTags);
+router.post('/devices/:id/assign-customer', GenieacsController.assignCustomer);
+router.post('/devices/:id/unlink-customer', GenieacsController.unlinkCustomer);
 
 // API endpoints
 router.get('/api/devices', GenieacsController.apiGetDevices);

@@ -55,14 +55,53 @@ export class MigrationController {
                 }
             }
 
-            // Step 2: Setup system settings
+            // Step 2: Add columns to prepaid tables
+            results.push('');
+            results.push('🔧 Adding columns to prepaid tables...');
+
+            // payment_requests columns
+            const prColumns = [
+                { name: 'ppn_rate', def: 'DECIMAL(5,2) DEFAULT 0' },
+                { name: 'ppn_amount', def: 'DECIMAL(15,2) DEFAULT 0' },
+                { name: 'device_fee', def: 'DECIMAL(15,2) DEFAULT 0' },
+                { name: 'subtotal_amount', def: 'DECIMAL(15,2) DEFAULT 0' }
+            ];
+
+            for (const col of prColumns) {
+                try {
+                    await databasePool.execute(`ALTER TABLE payment_requests ADD COLUMN ${col.name} ${col.def}`);
+                    results.push(`   ✓ payment_requests.${col.name} added`);
+                } catch (error: any) {
+                    if (error.code === 'ER_DUP_FIELDNAME') results.push(`   ℹ payment_requests.${col.name} exists`);
+                    else results.push(`   ❌ Error adding ${col.name}: ${error.message}`);
+                }
+            }
+
+            // prepaid_transactions columns
+            const ptColumns = [
+                { name: 'ppn_amount', def: 'DECIMAL(15,2) DEFAULT 0' },
+                { name: 'device_fee', def: 'DECIMAL(15,2) DEFAULT 0' },
+                { name: 'invoice_id', def: 'INT NULL' }
+            ];
+
+            for (const col of ptColumns) {
+                try {
+                    await databasePool.execute(`ALTER TABLE prepaid_transactions ADD COLUMN ${col.name} ${col.def}`);
+                    results.push(`   ✓ prepaid_transactions.${col.name} added`);
+                } catch (error: any) {
+                    if (error.code === 'ER_DUP_FIELDNAME') results.push(`   ℹ prepaid_transactions.${col.name} exists`);
+                    else results.push(`   ❌ Error adding ${col.name}: ${error.message}`);
+                }
+            }
+
+            // Step 3: Setup system settings
             results.push('');
             results.push('⚙️ Setting up system settings...');
 
             await databasePool.execute(`
-                INSERT INTO system_settings (setting_key, setting_value, setting_category, setting_description, created_at, updated_at)
+                INSERT INTO system_settings (setting_key, setting_value, category, setting_description, created_at, updated_at)
                 VALUES 
-                    ('ppn_enabled', 'true', 'billing', 'Aktifkan perhitungan PPN pada invoice postpaid', NOW(), NOW()),
+                    ('ppn_enabled', 'true', 'billing', 'Aktifkan perhitungan PPN pada invoice', NOW(), NOW()),
                     ('ppn_rate', '11', 'billing', 'Rate PPN dalam persen (%)', NOW(), NOW()),
                     ('device_rental_enabled', 'true', 'billing', 'Aktifkan biaya sewa perangkat', NOW(), NOW()),
                     ('device_rental_fee', '50000', 'billing', 'Biaya sewa perangkat per bulan (Rupiah)', NOW(), NOW())

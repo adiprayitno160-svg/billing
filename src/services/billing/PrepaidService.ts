@@ -246,10 +246,11 @@ Terima kasih atas pengertiannya! 🙏`;
 
             // Check if customer has device rental
             const [custRows] = await conn.query<RowDataPacket[]>(
-                'SELECT use_device_rental FROM customers WHERE id = ?',
+                'SELECT use_device_rental, is_taxable FROM customers WHERE id = ?',
                 [customerId]
             );
             const useDeviceRental = custRows.length > 0 && custRows[0].use_device_rental;
+            const isTaxable = custRows.length > 0 && custRows[0].is_taxable;
 
             // Calculate Components
             let appliedDeviceFee = 0;
@@ -263,7 +264,7 @@ Terima kasih atas pengertiannya! 🙏`;
             const subtotal = amountAfterDiscount + appliedDeviceFee;
 
             let ppnAmount = 0;
-            if (ppnEnabled && ppnRate > 0) {
+            if (ppnEnabled && ppnRate > 0 && isTaxable) {
                 ppnAmount = Math.floor(subtotal * (ppnRate / 100));
             }
 
@@ -412,7 +413,7 @@ Terima kasih atas pengertiannya! 🙏`;
             );
 
             // Log transaction
-            await conn.query(
+            const [txResult] = await conn.query<ResultSetHeader>(
                 `INSERT INTO prepaid_transactions 
                  (customer_id, payment_request_id, package_id, duration_days, amount, 
                   payment_method, previous_expiry_date, new_expiry_date, verified_by,
@@ -432,6 +433,63 @@ Terima kasih atas pengertiannya! 🙏`;
                     request.device_fee || 0
                 ]
             );
+
+            const transactionId = txResult.insertId;
+
+            // Generate Invoice for Prepaid Purchase (for official bookkeeping)
+            try {
+                const { InvoiceService } = await import('./invoiceService');
+                const period = new Date().toISOString().substring(0, 7); // Use current month YYYY-MM
+
+                const invoiceData = {
+                    customer_id: request.customer_id,
+                    period: period,
+                    due_date: new Date().toISOString().split('T')[0],
+                    subtotal: parseFloat(request.subtotal_amount || 0),
+                    discount_amount: parseFloat(request.voucher_discount || 0),
+                    ppn_rate: parseFloat(request.ppn_rate || 0),
+                    ppn_amount: parseFloat(request.ppn_amount || 0),
+                    device_fee: parseFloat(request.device_fee || 0),
+                    total_amount: parseFloat(request.total_amount || 0),
+                    paid_amount: parseFloat(request.total_amount || 0), // Prepaid is already paid
+                    status: 'paid',
+                    notes: `Prepaid Purchase - Package: ${request.package_name || 'N/A'} (${request.duration_days} Days)`
+                };
+
+                const invoiceItems = [
+                    {
+                        description: `Paket ${request.package_name || 'Internet'} - ${request.duration_days} Hari`,
+                        quantity: 1,
+                        unit_price: parseFloat(request.base_amount || 0),
+                        total_price: parseFloat(request.base_amount || 0)
+                    }
+                ];
+
+                // Add Device Fee as invoice item if applicable
+                if (parseFloat(request.device_fee || 0) > 0) {
+                    invoiceItems.push({
+                        description: 'Sewa Perangkat (Prepaid)',
+                        quantity: 1,
+                        unit_price: parseFloat(request.device_fee),
+                        total_price: parseFloat(request.device_fee)
+                    });
+                }
+
+                // Create the invoice
+                const invoiceId = await InvoiceService.createInvoice(invoiceData as any, invoiceItems);
+
+                // Link invoice back to transaction
+                await conn.query(
+                    'UPDATE prepaid_transactions SET invoice_id = ? WHERE id = ?',
+                    [invoiceId, transactionId]
+                );
+
+                console.log(`✅ Invoice ${invoiceId} created for prepaid transaction ${transactionId}`);
+            } catch (invoiceError) {
+                console.error('⚠️ Failed to create invoice for prepaid transaction:', invoiceError);
+                // We don't rollback the whole thing if invoice creation fails, 
+                // but we should log it. The customer already has their expiry extended.
+            }
 
             // Log Voucher Usage
             if (request.voucher_id) {

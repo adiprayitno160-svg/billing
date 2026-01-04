@@ -68,8 +68,24 @@ export class CompanyController {
                 font_size,
                 paper_size,
                 orientation,
-                logo_url
+                logo_url: manual_logo_url, // Rename to distinguish from file upload
+                qris_image_url: manual_qris_url
             } = req.body;
+
+            let final_logo_url = manual_logo_url;
+            let final_qris_url = manual_qris_url;
+
+            // Handle File Uploads
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+            if (files) {
+                if (files['company_logo'] && files['company_logo'][0]) {
+                    final_logo_url = `/uploads/company/${files['company_logo'][0].filename}`;
+                }
+                if (files['qris_image'] && files['qris_image'][0]) {
+                    final_qris_url = `/uploads/company/${files['qris_image'][0].filename}`;
+                }
+            }
 
             // Cek apakah sudah ada pengaturan
             const [existingSettings] = await databasePool.query(
@@ -91,6 +107,7 @@ export class CompanyController {
                      paper_size = ?, 
                      orientation = ?,
                      logo_url = ?,
+                     qris_image_url = ?,
                      updated_at = CURRENT_TIMESTAMP
                      WHERE id = ?`,
                     [
@@ -104,7 +121,8 @@ export class CompanyController {
                         font_size,
                         paper_size,
                         orientation,
-                        logo_url,
+                        final_logo_url,
+                        final_qris_url,
                         (existingSettings as any[])[0].id
                     ]
                 );
@@ -114,8 +132,8 @@ export class CompanyController {
                     `INSERT INTO company_settings (
                         company_name, company_address, company_phone, 
                         company_email, company_website, template_header, 
-                        template_footer, font_size, paper_size, orientation, logo_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        template_footer, font_size, paper_size, orientation, logo_url, qris_image_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         company_name,
                         company_address,
@@ -127,7 +145,8 @@ export class CompanyController {
                         font_size,
                         paper_size,
                         orientation,
-                        logo_url
+                        final_logo_url,
+                        final_qris_url
                     ]
                 );
             }
@@ -145,7 +164,7 @@ export class CompanyController {
     static async uploadLogo(req: Request, res: Response) {
         try {
             const uploadSingle = upload.single('company_logo');
-            
+
             uploadSingle(req, res, async (err) => {
                 if (err) {
                     req.flash('error', 'Gagal upload logo: ' + err.message);
@@ -250,7 +269,7 @@ export class CompanyController {
             }
 
             const settingsData = JSON.parse(req.file.buffer.toString());
-            
+
             if (!settingsData.company_settings) {
                 req.flash('error', 'Format file tidak valid');
                 return res.redirect('/settings/company');

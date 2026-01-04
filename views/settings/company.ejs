@@ -1,340 +1,452 @@
 ﻿<div class="container-fluid">
     <!-- Flash Messages -->
-    <% if (typeof success !== 'undefined' && success && success.length > 0) { %>
+    <% if (typeof success !=='undefined' && success && success.length> 0) { %>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <%= success %>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    <% } %>
-    <% if (typeof error !== 'undefined' && error && error.length > 0) { %>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <%= error %>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <% } %>
+        <% } %>
+            <% if (typeof error !=='undefined' && error && error.length> 0) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <%= error %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <% } %>
 
-    <!-- Header Section -->
-    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-6 text-white shadow-lg">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-3xl font-bold mb-2">
-                    <i class="fas fa-building mr-3"></i>Pengaturan Perusahaan
-                </h1>
-                <p class="text-blue-100">Kelola informasi perusahaan untuk template print tagihan dan footer aplikasi</p>
-            </div>
-            <div>
-                <button class="bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition" onclick="window.open('/settings/company/preview', '_blank')">
-                    <i class="fas fa-eye mr-2"></i>Preview Template
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-blue-100 text-sm mb-1">Data Perusahaan</p>
-                    <h3 class="text-2xl font-bold">Info Dasar</h3>
-                </div>
-                <div class="bg-white rounded-full p-4">
-                    <i class="fas fa-building text-3xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-green-100 text-sm mb-1">Logo Perusahaan</p>
-                    <h3 class="text-2xl font-bold">Upload</h3>
-                </div>
-                <div class="bg-white rounded-full p-4">
-                    <i class="fas fa-image text-3xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-yellow-100 text-sm mb-1">Template Print</p>
-                    <h3 class="text-2xl font-bold">Kustomisasi</h3>
-                </div>
-                <div class="bg-white rounded-full p-4">
-                    <i class="fas fa-file-alt text-3xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-purple-100 text-sm mb-1">Pengaturan</p>
-                    <h3 class="text-2xl font-bold">Sistem</h3>
-                </div>
-                <div class="bg-white rounded-full p-4">
-                    <i class="fas fa-cog text-3xl"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Form -->
-    <form id="companyForm" method="POST" action="/settings/company" enctype="multipart/form-data">
-        <!-- Data Perusahaan Section -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div class="border-b border-gray-200 pb-4 mb-4">
-                <h4 class="text-xl font-bold text-gray-800">
-                    <i class="fas fa-building text-blue-500 mr-2"></i>Data Perusahaan
-                </h4>
-                <p class="text-gray-600 text-sm mt-1">Informasi dasar perusahaan yang akan ditampilkan di sistem</p>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Nama Perusahaan <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                           name="company_name" 
-                           value="<%= company?.company_name || 'PT. Internet Provider' %>" required>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Email Perusahaan</label>
-                    <input type="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                           name="company_email" 
-                           value="<%= company?.company_email || 'info@internetprovider.com' %>">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Telepon</label>
-                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                           name="company_phone" 
-                           value="<%= company?.company_phone || '(021) 123-4567' %>">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                    <input type="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                           name="company_website" 
-                           value="<%= company?.company_website || 'www.internetprovider.com' %>">
-                </div>
-            </div>
-            
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Alamat Lengkap <span class="text-red-500">*</span>
-                </label>
-                <textarea class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                          name="company_address" rows="3" required><%= company?.company_address || 'Jl. Contoh No. 123\nJakarta Selatan, 12345' %></textarea>
-            </div>
-        </div>
-
-        <!-- Logo Perusahaan Section -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div class="border-b border-gray-200 pb-4 mb-4">
-                <h4 class="text-xl font-bold text-gray-800">
-                    <i class="fas fa-image text-green-500 mr-2"></i>Logo Perusahaan
-                </h4>
-                <p class="text-gray-600 text-sm mt-1">Upload logo untuk ditampilkan di header dan footer</p>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload Logo (Max 5MB)</label>
-                    <input type="file" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" 
-                           name="company_logo" accept="image/*" onchange="previewLogo(this)">
-                    <p class="text-xs text-gray-500 mt-1">Format: JPG, PNG, SVG (Ukuran optimal: 200x100px)</p>
-                    
-                    <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">URL Logo (Alternatif)</label>
-                        <input type="url" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" 
-                               name="logo_url" 
-                               value="<%= company?.logo_url || '' %>" 
-                               placeholder="https://example.com/logo.png">
+                    <!-- Header Section -->
+                    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-6 text-white shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-3xl font-bold mb-2">
+                                    <i class="fas fa-building mr-3"></i>Pengaturan Perusahaan
+                                </h1>
+                                <p class="text-blue-100">Kelola informasi perusahaan untuk template print tagihan dan
+                                    footer aplikasi</p>
+                            </div>
+                            <div>
+                                <button class="bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
+                                    onclick="window.open('/settings/company/preview', '_blank')">
+                                    <i class="fas fa-eye mr-2"></i>Preview Template
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Preview Logo</label>
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50" id="logoPreview">
-                        <% if (company?.logo_url) { %>
-                            <img src="<%= company.logo_url %>" alt="Logo Preview" class="mx-auto max-w-full max-h-32 object-contain">
-                        <% } else { %>
-                            <i class="fas fa-image text-gray-400 text-5xl mb-3"></i>
-                            <p class="text-gray-500">Logo akan muncul di sini</p>
-                        <% } %>
+
+                    <!-- Quick Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div
+                            class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-blue-100 text-sm mb-1">Data Perusahaan</p>
+                                    <h3 class="text-2xl font-bold">Info Dasar</h3>
+                                </div>
+                                <div class="bg-white rounded-full p-4">
+                                    <i class="fas fa-building text-3xl"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-green-100 text-sm mb-1">Logo Perusahaan</p>
+                                    <h3 class="text-2xl font-bold">Upload</h3>
+                                </div>
+                                <div class="bg-white rounded-full p-4">
+                                    <i class="fas fa-image text-3xl"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-yellow-100 text-sm mb-1">Template Print</p>
+                                    <h3 class="text-2xl font-bold">Kustomisasi</h3>
+                                </div>
+                                <div class="bg-white rounded-full p-4">
+                                    <i class="fas fa-file-alt text-3xl"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-purple-100 text-sm mb-1">Pengaturan</p>
+                                    <h3 class="text-2xl font-bold">Sistem</h3>
+                                </div>
+                                <div class="bg-white rounded-full p-4">
+                                    <i class="fas fa-cog text-3xl"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Template Print Section -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div class="border-b border-gray-200 pb-4 mb-4">
-                <h4 class="text-xl font-bold text-gray-800">
-                    <i class="fas fa-file-alt text-orange-500 mr-2"></i>Template Print Tagihan
-                </h4>
-                <p class="text-gray-600 text-sm mt-1">Kustomisasi tampilan template invoice yang akan dicetak</p>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Header Template</label>
-                    <textarea class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm" 
-                              name="template_header" rows="4"><%= company?.template_header || 'PT. INTERNET PROVIDER\nJl. Contoh No. 123\nTelp: (021) 123-4567' %></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Footer Template</label>
-                    <textarea class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm" 
-                              name="template_footer" rows="4"><%= company?.template_footer || 'Terima kasih atas kepercayaan Anda\nHubungi kami untuk informasi lebih lanjut' %></textarea>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
-                    <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" name="font_size">
-                        <option value="12" <%= company?.font_size == '12' ? 'selected' : '' %>>12px</option>
-                        <option value="14" <%= company?.font_size == '14' ? 'selected' : '' %>>14px (Default)</option>
-                        <option value="16" <%= company?.font_size == '16' ? 'selected' : '' %>>16px</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Paper Size</label>
-                    <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" name="paper_size">
-                        <option value="A4" <%= company?.paper_size == 'A4' ? 'selected' : '' %>>A4</option>
-                        <option value="A5" <%= company?.paper_size == 'A5' ? 'selected' : '' %>>A5</option>
-                        <option value="Letter" <%= company?.paper_size == 'Letter' ? 'selected' : '' %>>Letter</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Orientation</label>
-                    <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" name="orientation">
-                        <option value="portrait" <%= company?.orientation == 'portrait' ? 'selected' : '' %>>Portrait</option>
-                        <option value="landscape" <%= company?.orientation == 'landscape' ? 'selected' : '' %>>Landscape</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+                    <!-- Form -->
+                    <form id="companyForm" method="POST" action="/settings/company" enctype="multipart/form-data">
+                        <!-- Data Perusahaan Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                            <div class="border-b border-gray-200 pb-4 mb-4">
+                                <h4 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-building text-blue-500 mr-2"></i>Data Perusahaan
+                                </h4>
+                                <p class="text-gray-600 text-sm mt-1">Informasi dasar perusahaan yang akan ditampilkan
+                                    di sistem</p>
+                            </div>
 
-        <!-- Preview Template Section -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div class="border-b border-gray-200 pb-4 mb-4">
-                <h4 class="text-xl font-bold text-gray-800">
-                    <i class="fas fa-eye text-purple-500 mr-2"></i>Preview Template
-                </h4>
-                <p class="text-gray-600 text-sm mt-1">Pratinjau tampilan invoice dengan data contoh</p>
-            </div>
-            
-            <div class="border border-gray-300 rounded-lg p-6 bg-gray-50" id="templatePreview">
-                <div class="text-center mb-4">
-                    <% if (company?.logo_url) { %>
-                        <img src="<%= company.logo_url %>" alt="Logo" class="mx-auto max-h-20 mb-3">
-                    <% } %>
-                    <h5 class="text-xl font-bold text-gray-800"><%= company?.company_name || 'PT. INTERNET PROVIDER' %></h5>
-                    <p class="text-sm text-gray-600 mt-1"><%= company?.company_address || 'Jl. Contoh No. 123' %></p>
-                    <p class="text-sm text-gray-600">Telp: <%= company?.company_phone || '(021) 123-4567' %></p>
-                </div>
-                
-                <hr class="my-4 border-gray-300">
-                
-                <div class="text-center mb-4">
-                    <h4 class="text-2xl font-bold text-gray-800">INVOICE TAGIHAN</h4>
-                    <p class="text-sm text-gray-600 mt-2">
-                        <span class="mr-4">15 Februari 2024</span>
-                        <span class="font-semibold">INV-001-2024</span>
-                    </p>
-                    <p class="text-sm text-gray-600">Jatuh Tempo: <span class="text-red-600 font-semibold">22 Februari 2024</span></p>
-                </div>
-                
-                <hr class="my-4 border-gray-300">
-                
-                <div class="mb-4">
-                    <h6 class="font-bold text-gray-700 mb-2">KEPADA:</h6>
-                    <div class="bg-white p-3 rounded">
-                        <p class="text-sm"><strong>John Doe</strong></p>
-                        <p class="text-sm">Jl. Pelanggan No. 456</p>
-                        <p class="text-sm">RT/RW: 001/002, Kelurahan: Contoh</p>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h6 class="font-bold text-gray-700 mb-2">DETAIL TAGIHAN:</h6>
-                    <div class="bg-white rounded overflow-hidden">
-                        <table class="w-full text-sm">
-                            <tr class="border-b">
-                                <td class="p-2">Periode Billing</td>
-                                <td class="p-2 text-right">Februari 2024</td>
-                            </tr>
-                            <tr class="border-b">
-                                <td class="p-2">Paket Internet</td>
-                                <td class="p-2 text-right">50 Mbps</td>
-                            </tr>
-                            <tr class="border-b">
-                                <td class="p-2">Harga</td>
-                                <td class="p-2 text-right">Rp 150,000</td>
-                            </tr>
-                            <tr class="bg-blue-50 font-bold">
-                                <td class="p-2">TOTAL TAGIHAN</td>
-                                <td class="p-2 text-right text-blue-600">Rp 150,000</td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-                
-                <hr class="my-4 border-gray-300">
-                
-                <div class="text-center text-sm text-gray-600">
-                    <p><%= company?.template_footer || 'Terima kasih atas kepercayaan Anda' %></p>
-                </div>
-            </div>
-        </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Nama Perusahaan <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        name="company_name"
+                                        value="<%= company?.company_name || 'PT. Internet Provider' %>" required>
+                                </div>
 
-        <!-- Action Buttons -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <div class="flex flex-wrap gap-3 justify-between">
-                <div class="flex gap-3">
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200">
-                        <i class="fas fa-save mr-2"></i>Simpan Pengaturan
-                    </button>
-                    <button type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200" onclick="resetForm()">
-                        <i class="fas fa-undo mr-2"></i>Reset
-                    </button>
-                </div>
-                
-                <div class="flex gap-3">
-                    <button type="button" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200" onclick="testPrint()">
-                        <i class="fas fa-print mr-2"></i>Test Print
-                    </button>
-                    <button type="button" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200" onclick="exportSettings()">
-                        <i class="fas fa-download mr-2"></i>Export
-                    </button>
-                    <button type="button" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200" onclick="document.getElementById('importFile').click()">
-                        <i class="fas fa-upload mr-2"></i>Import
-                    </button>
-                </div>
-            </div>
-        </div>
-    </form>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Email Perusahaan</label>
+                                    <input type="email"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        name="company_email"
+                                        value="<%= company?.company_email || 'info@internetprovider.com' %>">
+                                </div>
 
-    <!-- Hidden import file input -->
-    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importSettings(this)">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Telepon</label>
+                                    <input type="text"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        name="company_phone" value="<%= company?.company_phone || '(021) 123-4567' %>">
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                                    <input type="url"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        name="company_website"
+                                        value="<%= company?.company_website || 'www.internetprovider.com' %>">
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Alamat Lengkap <span class="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    name="company_address" rows="3"
+                                    required><%= company?.company_address || 'Jl. Contoh No. 123\nJakarta Selatan, 12345' %></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Logo Perusahaan Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                            <div class="border-b border-gray-200 pb-4 mb-4">
+                                <h4 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-image text-green-500 mr-2"></i>Logo Perusahaan
+                                </h4>
+                                <p class="text-gray-600 text-sm mt-1">Upload logo untuk ditampilkan di header dan footer
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload Logo (Max
+                                        5MB)</label>
+                                    <input type="file"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        name="company_logo" accept="image/*" onchange="previewLogo(this)">
+                                    <p class="text-xs text-gray-500 mt-1">Format: JPG, PNG, SVG (Ukuran optimal:
+                                        200x100px)</p>
+
+                                    <div class="mt-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">URL Logo
+                                            (Alternatif)</label>
+                                        <input type="url"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            name="logo_url" value="<%= company?.logo_url || '' %>"
+                                            placeholder="https://example.com/logo.png">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Preview Logo</label>
+                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50"
+                                        id="logoPreview">
+                                        <% if (company?.logo_url) { %>
+                                            <img src="<%= company.logo_url %>" alt="Logo Preview"
+                                                class="mx-auto max-w-full max-h-32 object-contain">
+                                            <% } else { %>
+                                                <i class="fas fa-image text-gray-400 text-5xl mb-3"></i>
+                                                <p class="text-gray-500">Logo akan muncul di sini</p>
+                                                <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- QRIS Perusahaan Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                            <div class="border-b border-gray-200 pb-4 mb-4">
+                                <h4 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-qrcode text-purple-500 mr-2"></i>QRIS Pembayaran
+                                </h4>
+                                <p class="text-gray-600 text-sm mt-1">Upload QRIS statis perusahaan untuk ditampilkan di
+                                    invoice/halaman pembayaran.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload QRIS (Max
+                                        5MB)</label>
+                                    <input type="file"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        name="qris_image" accept="image/*" onchange="previewQRIS(this)">
+                                    <p class="text-xs text-gray-500 mt-1">Format: JPG, PNG. Pastikan kode QR terbaca
+                                        jelas.</p>
+
+                                    <div class="mt-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">URL QRIS
+                                            (Alternatif)</label>
+                                        <input type="url"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            name="qris_image_url" value="<%= company?.qris_image_url || '' %>"
+                                            placeholder="https://example.com/qris.png">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Preview QRIS</label>
+                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50"
+                                        id="qrisPreview">
+                                        <% if (company?.qris_image_url) { %>
+                                            <img src="<%= company.qris_image_url %>" alt="QRIS Preview"
+                                                class="mx-auto max-w-full max-h-48 object-contain">
+                                            <% } else { %>
+                                                <i class="fas fa-qrcode text-gray-400 text-5xl mb-3"></i>
+                                                <p class="text-gray-500">QRIS akan muncul di sini</p>
+                                                <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Template Print Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                            <div class="border-b border-gray-200 pb-4 mb-4">
+                                <h4 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-file-alt text-orange-500 mr-2"></i>Template Print Tagihan
+                                </h4>
+                                <p class="text-gray-600 text-sm mt-1">Kustomisasi tampilan template invoice yang akan
+                                    dicetak</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Header Template</label>
+                                    <textarea
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
+                                        name="template_header"
+                                        rows="4"><%= company?.template_header || 'PT. INTERNET PROVIDER\nJl. Contoh No. 123\nTelp: (021) 123-4567' %></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Footer Template</label>
+                                    <textarea
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
+                                        name="template_footer"
+                                        rows="4"><%= company?.template_footer || 'Terima kasih atas kepercayaan Anda\nHubungi kami untuk informasi lebih lanjut' %></textarea>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
+                                    <select
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                        name="font_size">
+                                        <option value="12" <%=company?.font_size=='12' ? 'selected' : '' %>>12px
+                                        </option>
+                                        <option value="14" <%=company?.font_size=='14' ? 'selected' : '' %>>14px
+                                            (Default)</option>
+                                        <option value="16" <%=company?.font_size=='16' ? 'selected' : '' %>>16px
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Paper Size</label>
+                                    <select
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                        name="paper_size">
+                                        <option value="A4" <%=company?.paper_size=='A4' ? 'selected' : '' %>>A4</option>
+                                        <option value="A5" <%=company?.paper_size=='A5' ? 'selected' : '' %>>A5</option>
+                                        <option value="Letter" <%=company?.paper_size=='Letter' ? 'selected' : '' %>
+                                            >Letter</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Orientation</label>
+                                    <select
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                        name="orientation">
+                                        <option value="portrait" <%=company?.orientation=='portrait' ? 'selected' : ''
+                                            %>>Portrait</option>
+                                        <option value="landscape" <%=company?.orientation=='landscape' ? 'selected' : ''
+                                            %>>Landscape</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview Template Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                            <div class="border-b border-gray-200 pb-4 mb-4">
+                                <h4 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-eye text-purple-500 mr-2"></i>Preview Template
+                                </h4>
+                                <p class="text-gray-600 text-sm mt-1">Pratinjau tampilan invoice dengan data contoh</p>
+                            </div>
+
+                            <div class="border border-gray-300 rounded-lg p-6 bg-gray-50" id="templatePreview">
+                                <div class="text-center mb-4">
+                                    <% if (company?.logo_url) { %>
+                                        <img src="<%= company.logo_url %>" alt="Logo" class="mx-auto max-h-20 mb-3">
+                                        <% } %>
+                                            <h5 class="text-xl font-bold text-gray-800">
+                                                <%= company?.company_name || 'PT. INTERNET PROVIDER' %>
+                                            </h5>
+                                            <p class="text-sm text-gray-600 mt-1">
+                                                <%= company?.company_address || 'Jl. Contoh No. 123' %>
+                                            </p>
+                                            <p class="text-sm text-gray-600">Telp: <%= company?.company_phone
+                                                    || '(021) 123-4567' %>
+                                            </p>
+                                </div>
+
+                                <hr class="my-4 border-gray-300">
+
+                                <div class="text-center mb-4">
+                                    <h4 class="text-2xl font-bold text-gray-800">INVOICE TAGIHAN</h4>
+                                    <p class="text-sm text-gray-600 mt-2">
+                                        <span class="mr-4">15 Februari 2024</span>
+                                        <span class="font-semibold">INV-001-2024</span>
+                                    </p>
+                                    <p class="text-sm text-gray-600">Jatuh Tempo: <span
+                                            class="text-red-600 font-semibold">22 Februari 2024</span></p>
+                                </div>
+
+                                <hr class="my-4 border-gray-300">
+
+                                <div class="mb-4">
+                                    <h6 class="font-bold text-gray-700 mb-2">KEPADA:</h6>
+                                    <div class="bg-white p-3 rounded">
+                                        <p class="text-sm"><strong>John Doe</strong></p>
+                                        <p class="text-sm">Jl. Pelanggan No. 456</p>
+                                        <p class="text-sm">RT/RW: 001/002, Kelurahan: Contoh</p>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <h6 class="font-bold text-gray-700 mb-2">DETAIL TAGIHAN:</h6>
+                                    <div class="bg-white rounded overflow-hidden">
+                                        <table class="w-full text-sm">
+                                            <tr class="border-b">
+                                                <td class="p-2">Periode Billing</td>
+                                                <td class="p-2 text-right">Februari 2024</td>
+                                            </tr>
+                                            <tr class="border-b">
+                                                <td class="p-2">Paket Internet</td>
+                                                <td class="p-2 text-right">50 Mbps</td>
+                                            </tr>
+                                            <tr class="border-b">
+                                                <td class="p-2">Harga</td>
+                                                <td class="p-2 text-right">Rp 150,000</td>
+                                            </tr>
+                                            <tr class="bg-blue-50 font-bold">
+                                                <td class="p-2">TOTAL TAGIHAN</td>
+                                                <td class="p-2 text-right text-blue-600">Rp 150,000</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4 border-gray-300">
+
+                                <div class="text-center text-sm text-gray-600">
+                                    <p>
+                                        <%= company?.template_footer || 'Terima kasih atas kepercayaan Anda' %>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="bg-white rounded-xl shadow-lg p-6">
+                            <div class="flex flex-wrap gap-3 justify-between">
+                                <div class="flex gap-3">
+                                    <button type="submit"
+                                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200">
+                                        <i class="fas fa-save mr-2"></i>Simpan Pengaturan
+                                    </button>
+                                    <button type="button"
+                                        class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+                                        onclick="resetForm()">
+                                        <i class="fas fa-undo mr-2"></i>Reset
+                                    </button>
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button type="button"
+                                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+                                        onclick="testPrint()">
+                                        <i class="fas fa-print mr-2"></i>Test Print
+                                    </button>
+                                    <button type="button"
+                                        class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+                                        onclick="exportSettings()">
+                                        <i class="fas fa-download mr-2"></i>Export
+                                    </button>
+                                    <button type="button"
+                                        class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+                                        onclick="document.getElementById('importFile').click()">
+                                        <i class="fas fa-upload mr-2"></i>Import
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Hidden import file input -->
+                    <input type="file" id="importFile" accept=".json" style="display: none;"
+                        onchange="importSettings(this)">
 </div>
 
 <script>
     function previewLogo(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('logoPreview').innerHTML = 
+            reader.onload = function (e) {
+                document.getElementById('logoPreview').innerHTML =
                     `<img src="${e.target.result}" alt="Logo Preview" class="mx-auto max-w-full max-h-32 object-contain">`;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function previewQRIS(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('qrisPreview').innerHTML =
+                    `<img src="${e.target.result}" alt="QRIS Preview" class="mx-auto max-w-full max-h-48 object-contain">`;
             }
             reader.readAsDataURL(input.files[0]);
         }
@@ -359,23 +471,23 @@
         if (input.files && input.files[0]) {
             const formData = new FormData();
             formData.append('settings_file', input.files[0]);
-            
+
             fetch('/settings/company/import', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => {
-                if (response.ok) {
-                    alert('Pengaturan berhasil diimport!');
-                    location.reload();
-                } else {
-                    alert('Gagal import pengaturan!');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan saat import!');
-            });
+                .then(response => {
+                    if (response.ok) {
+                        alert('Pengaturan berhasil diimport!');
+                        location.reload();
+                    } else {
+                        alert('Gagal import pengaturan!');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Terjadi kesalahan saat import!');
+                });
         }
     }
 
@@ -392,7 +504,7 @@
     }, 30000);
 
     // Load draft on page load
-    window.addEventListener('load', function() {
+    window.addEventListener('load', function () {
         const draft = localStorage.getItem('companySettingsDraft');
         if (draft && confirm('Ada draft yang tersimpan. Muat draft tersebut?')) {
             try {

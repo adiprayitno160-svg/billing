@@ -1,0 +1,158 @@
+<%- contentFor('body') %>
+
+    <div class="space-y-6">
+        <!-- Header -->
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Backup & Restore Database</h1>
+            <p class="text-gray-600 mt-1">Kelola pencadangan otomatis database ke Google Drive</p>
+        </div>
+
+        <% if (locals.error) { %>
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-red-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-red-700">
+                            <%= error %>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <% } %>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- Google Drive Config -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <i class="fab fa-google-drive text-green-600"></i> Konfigurasi Google Drive
+                        </h2>
+
+                        <div class="mb-6">
+                            <div
+                                class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <span class="text-sm font-medium text-gray-700">Status Kredensial</span>
+                                <% if (hasDriveKey) { %>
+                                    <span
+                                        class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                                        <i class="fas fa-check-circle"></i> Terhubung
+                                    </span>
+                                    <% } else { %>
+                                        <span
+                                            class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                                            <i class="fas fa-times-circle"></i> Belum Dikonfigurasi
+                                        </span>
+                                        <% } %>
+                            </div>
+                        </div>
+
+                        <form action="/settings/backup/upload-key" method="POST" enctype="multipart/form-data"
+                            class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Service Account Key
+                                    (JSON)</label>
+                                <input type="file" name="keyFile" accept=".json" required class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-indigo-50 file:text-indigo-700
+                            hover:file:bg-indigo-100">
+                                <p class="text-xs text-gray-500 mt-1">Upload file JSON kredensial Service Account Google
+                                    Cloud Anda.</p>
+                            </div>
+                            <button type="submit"
+                                class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                                Upload Key
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Local Backup Config -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <i class="fas fa-database text-blue-600"></i> Konfigurasi Database
+                        </h2>
+
+                        <form action="/settings/backup/config" method="POST" class="space-y-4">
+                            <div>
+                                <label for="mysqldumpPath" class="block text-sm font-medium text-gray-700 mb-1">Path
+                                    Mysqldump</label>
+                                <input type="text" id="mysqldumpPath" name="mysqldumpPath" value="<%= mysqldumpPath %>"
+                                    required placeholder="C:\laragon\bin\mysql\mysql-8.0.30-winx64\bin\mysqldump.exe"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <p class="text-xs text-gray-500 mt-1">Lokasi file executable mysqldump di server Anda.
+                                </p>
+                            </div>
+                            <button type="submit"
+                                class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                Simpan Konfigurasi
+                            </button>
+                        </form>
+
+                        <div class="mt-8 pt-6 border-t border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-900 mb-3">Backup Manual</h3>
+                            <form action="/settings/backup/run" method="POST"
+                                onsubmit="return confirm('Mulai proses backup sekarang?');">
+                                <button type="submit"
+                                    class="w-full px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-cloud-upload-alt"></i> Backup Sekaran ke Google Drive
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="mt-8 pt-6 border-t border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-900 mb-3">Local Backups (.sql)</h3>
+                            <div id="backup-list-container" class="space-y-2">
+                                <p class="text-xs text-gray-500 italic">Memuat daftar backup...</p>
+                            </div>
+                        </div>
+
+                        <script>
+                            async function loadBackups() {
+                                try {
+                                    const response = await fetch('/settings/backup/list');
+                                    const files = await response.json();
+                                    const container = document.getElementById('backup-list-container');
+
+                                    if (files.length === 0) {
+                                        container.innerHTML = '<p class="text-xs text-gray-500 italic">Tidak ada file backup lokal.</p>';
+                                        return;
+                                    }
+
+                                    container.innerHTML = files.map(file => `
+                                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+                                            <div class="overflow-hidden">
+                                                <div class="text-xs font-medium text-gray-700 truncate">${file.filename}</div>
+                                                <div class="text-[10px] text-gray-500">${new Date(file.createdAt).toLocaleString()} - ${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                                            </div>
+                                            <a href="/settings/backup/download/${file.filename}" class="text-indigo-600 hover:text-indigo-800 p-1">
+                                                <i class="fas fa-download text-sm"></i>
+                                            </a>
+                                        </div>
+                                    `).join('');
+                                } catch (error) {
+                                    console.error('Error loading backups:', error);
+                                }
+                            }
+                            loadBackups();
+                        </script>
+                    </div>
+
+                </div>
+
+                <!-- Instructions -->
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-6">
+                    <h3 class="font-semibold text-blue-900 mb-2">Panduan Singkat</h3>
+                    <ol class="list-decimal list-inside text-sm text-blue-800 space-y-1">
+                        <li>Buat Project di Google Cloud Console.</li>
+                        <li>Aktifkan <strong>Google Drive API</strong>.</li>
+                        <li>Buat <strong>Service Account</strong> dan download KEY (JSON).</li>
+                        <li>Upload file JSON di kolom kiri atas.</li>
+                        <li>Pastikan Path Mysqldump sudah benar (sesuaikan veris MySQL di Laragon Anda).</li>
+                        <li>Klik "Backup Sekarang" untuk mengetes.</li>
+                        <li>Sistem akan melakukan backup otomatis setiap hari pukul 02:00 (Cron Job).</li>
+                    </ol>
+                </div>
+    </div>

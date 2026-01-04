@@ -466,6 +466,9 @@ export class WhatsAppBotService {
             await this.showInvoices(senderJid);
         } else if (cmd === '/wifi' || cmd === '/ubahwifi') {
             await this.showWiFiMenu(senderJid);
+        } else if (cmd === '/mywifi' || cmd === '/passwordwifi' || cmd === '/lihatwifi') {
+            // NEW: Show saved WiFi credentials from database
+            await this.showSavedWiFiCredentials(senderJid);
         } else if (cmd.startsWith('/wifi_ssid ')) {
             const newSSID = command.substring(11).trim();
             await this.changeWiFiSSID(senderJid, newSSID);
@@ -512,6 +515,7 @@ export class WhatsAppBotService {
                 'Gunakan salah satu command berikut:\n' +
                 '*/menu* - Tampilkan menu utama\n' +
                 '*/tagihan* - Lihat tagihan\n' +
+                '*/mywifi* - Lihat password WiFi\n' +
                 '*/lapor* - Lapor gangguan (Start SLA)\n' +
                 '*/selesai* - Laporan selesai (Stop SLA)\n' +
                 '*/wifi* - Ubah WiFi\n' +
@@ -538,6 +542,9 @@ export class WhatsAppBotService {
             await this.showHelp(senderJid);
         } else if (cmd === '6' || cmd === 'gantinama' || cmd === 'nama' || cmd === '10') {
             await this.sendMessage(senderJid, '📝 *GANTI NAMA PELANGGAN*\n\nSilakan balas pesan ini dengan format:\n*/nama [Nama Baru]*\n\nContoh:\n*/nama Budi Santoso*');
+        } else if (cmd === '7' || cmd === 'mywifi' || cmd === 'lihatwifi' || cmd === 'passwordwifi') {
+            // NEW: Show saved WiFi credentials
+            await this.showSavedWiFiCredentials(senderJid);
         } else {
             console.log(`[WhatsAppBot] Menu command fallthrough for "${cmd}". Sending hint.`);
             await this.sendMessage(senderJid, '❓ Perintah tidak dikenali.\nSilakan ketik */menu* untuk kembali ke menu utama.');
@@ -590,10 +597,9 @@ export class WhatsAppBotService {
      * Check if command is menu navigation
      */
     private static isMenuCommand(command: string): boolean {
-        const menuCommands = ['1', '2', '3', '4', '5', '6', '10', 'tagihan', 'invoice', 'bantuan', 'help', 'menu', 'wifi', 'ubahwifi', 'reboot', 'restart', 'gantinama', 'nama'];
+        const menuCommands = ['1', '2', '3', '4', '5', '6', '7', '10', 'tagihan', 'invoice', 'bantuan', 'help', 'menu', 'wifi', 'ubahwifi', 'reboot', 'restart', 'gantinama', 'nama', 'mywifi', 'lihatwifi', 'passwordwifi'];
         return menuCommands.includes(command.toLowerCase());
     }
-
     /**
      * Show main menu
      */
@@ -629,8 +635,11 @@ ${statusIcon} Status: *${statusText}*${statusNote}
 4️⃣ *Reboot* - Restart Modem
 5️⃣ *Bantuan* - Tanya CS
 6️⃣ *Ganti Nama* - Ubah Nama Pelanggan
+7️⃣ *Password WiFi* - Lihat Password WiFi
 
-_Ketik angka (1-6) untuk memilih menu._
+_Ketik angka (1-7) atau command:_
+_/mywifi - Lihat password WiFi_
+_/wifi - Ubah WiFi_
 _Anda juga bisa chat langsung dengan AI Assistant kami._`;
 
         await this.sendMessage(phone, menu);
@@ -811,6 +820,74 @@ Ketik /menu untuk kembali ke menu utama.`;
     }
 
     /**
+     * Show saved WiFi credentials from database
+     * Pelanggan bisa melihat password WiFi yang sudah diset operator
+     */
+    private static async showSavedWiFiCredentials(phone: string): Promise<void> {
+        try {
+            // Validate customer access first
+            const customer = await this.validateCustomer(phone);
+            if (!customer) return;
+
+            // Get WiFi credentials from database
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                `SELECT wifi_ssid, wifi_password FROM customers WHERE id = ?`,
+                [customer.id]
+            );
+
+            if (rows.length === 0) {
+                await this.sendMessage(phone, '❌ Data tidak ditemukan.');
+                return;
+            }
+
+            const wifiSSID = rows[0].wifi_ssid;
+            const wifiPassword = rows[0].wifi_password;
+
+            if (!wifiSSID && !wifiPassword) {
+                await this.sendMessage(
+                    phone,
+                    `📶 *INFORMASI WIFI*\n\n` +
+                    `Hai ${customer.name},\n\n` +
+                    `⚠️ SSID dan Password WiFi Anda belum tersimpan di sistem.\n\n` +
+                    `Silakan hubungi customer service untuk mendapatkan informasi WiFi Anda, ` +
+                    `atau gunakan perintah /wifi untuk mengubah password WiFi.\n\n` +
+                    `Ketik /menu untuk kembali ke menu utama.`
+                );
+                return;
+            }
+
+            // Build response message
+            let message = `📶 *INFORMASI WIFI ANDA*\n\n`;
+            message += `Hai *${customer.name}*,\n\n`;
+            message += `Berikut adalah informasi WiFi Anda:\n\n`;
+
+            if (wifiSSID) {
+                message += `📡 *SSID:* ${wifiSSID}\n`;
+            }
+            if (wifiPassword) {
+                message += `🔑 *Password:* ${wifiPassword}\n`;
+            }
+
+            message += `\n💡 *Tips:*\n`;
+            message += `• Pastikan password diketik dengan benar (huruf besar/kecil berbeda)\n`;
+            message += `• Jika tidak bisa konek, coba restart perangkat dengan perintah /reboot\n`;
+            message += `• Untuk mengubah password, ketik /wifi\n\n`;
+            message += `⚠️ *Jaga kerahasiaan password Anda!*\n\n`;
+            message += `Ketik /menu untuk kembali ke menu utama.`;
+
+            await this.sendMessage(phone, message);
+
+        } catch (error: any) {
+            console.error('[WhatsAppBot] Error showing saved WiFi credentials:', error);
+            await this.sendMessage(
+                phone,
+                '❌ Gagal mengambil informasi WiFi.\n' +
+                'Silakan coba lagi atau hubungi customer service.'
+            );
+        }
+    }
+
+    /**
      * Reboot ONT
      */
     private static async rebootOnt(phone: string): Promise<void> {
@@ -987,12 +1064,17 @@ Ketik /menu untuk kembali ke menu utama.`;
             });
 
             if (result.success) {
+                // Auto-reboot
+                const rebootRes = await wifiService.rebootCustomerDevice(customer.id);
+                const rebootMsg = rebootRes.success ? "\n🔄 Perangkat sedang direboot otomatis." : "\n⚠️ Gagal auto-reboot, silakan ketik /reboot manual.";
+
                 await this.sendMessage(
                     phone,
                     `✅ *SSID WiFi Berhasil Diubah!*\n\n` +
                     `SSID Baru: *${newSSID}*\n\n` +
                     `Perubahan akan diterapkan dalam beberapa saat.\n` +
-                    `Silakan sambungkan ulang perangkat Anda dengan SSID baru.`
+                    `Silakan sambungkan ulang perangkat Anda dengan SSID baru.` +
+                    rebootMsg
                 );
             } else {
                 await this.sendMessage(
@@ -1065,13 +1147,18 @@ Ketik /menu untuk kembali ke menu utama.`;
             });
 
             if (result.success) {
+                // Auto-reboot
+                const rebootRes = await wifiService.rebootCustomerDevice(customer.id);
+                const rebootMsg = rebootRes.success ? "\n🔄 Perangkat sedang direboot otomatis." : "\n⚠️ Gagal auto-reboot, silakan ketik /reboot manual.";
+
                 await this.sendMessage(
                     phone,
                     `✅ *Password WiFi Berhasil Diubah!*\n\n` +
                     `Password Baru: *${newPassword}*\n\n` +
                     `⚠️ PENTING: Simpan password ini dengan aman!\n\n` +
                     `Perubahan akan diterapkan dalam beberapa saat.\n` +
-                    `Silakan sambungkan ulang perangkat Anda dengan password baru.`
+                    `Silakan sambungkan ulang perangkat Anda dengan password baru.` +
+                    rebootMsg
                 );
             } else {
                 await this.sendMessage(
@@ -1151,6 +1238,10 @@ Ketik /menu untuk kembali ke menu utama.`;
             });
 
             if (result.success) {
+                // Auto-reboot
+                const rebootRes = await wifiService.rebootCustomerDevice(customer.id);
+                const rebootMsg = rebootRes.success ? "\n🔄 Perangkat sedang direboot otomatis." : "\n⚠️ Gagal auto-reboot, silakan ketik /reboot manual.";
+
                 await this.sendMessage(
                     phone,
                     `✅ *WiFi Berhasil Diubah!*\n\n` +
@@ -1158,7 +1249,8 @@ Ketik /menu untuk kembali ke menu utama.`;
                     `Password Baru: *${newPassword}*\n\n` +
                     `⚠️ PENTING: Simpan kredensial ini dengan aman!\n\n` +
                     `Perubahan akan diterapkan dalam beberapa saat.\n` +
-                    `Silakan sambungkan ulang perangkat Anda dengan kredensial baru.`
+                    `Silakan sambungkan ulang perangkat Anda dengan kredensial baru.` +
+                    rebootMsg
                 );
             } else {
                 await this.sendMessage(

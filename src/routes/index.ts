@@ -97,10 +97,12 @@ import {
     getCustomerDetail,
     getCustomerEdit,
     updateCustomer,
+    syncAllCustomersToGenieacs,
     // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
     // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
     testMikrotikAddressLists
 } from '../controllers/customerController';
+import { GenieacsService } from '../services/genieacs/GenieacsService';
 import {
     exportCustomersToExcel,
     importCustomersFromExcel,
@@ -1363,6 +1365,7 @@ router.get('/debug-queue-test', async (req, res) => {
 
 
 // Pelanggan - routes harus diurutkan dari yang paling spesifik ke yang paling umum
+router.post('/api/customers/sync-genieacs', syncAllCustomersToGenieacs);
 router.get('/customers/list', getCustomerList);
 router.get('/customers/', getCustomerList);
 router.get('/customers', getCustomerList);
@@ -1683,7 +1686,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
             olt_id,
             odc_id,
             odp_id,
-            enable_billing
+            enable_billing,
+            billing_mode,
+            ppn_mode,
+            rental_mode,
+            serial_number,
+            initial_validity_days
         } = req.body;
 
         console.log('Parsed data:', {
@@ -1725,6 +1733,10 @@ router.post('/customers/new-pppoe', async (req, res) => {
             const billing_mode_value = req.body.billing_mode || (enable_billing ? 'postpaid' : 'prepaid'); // Default fallback
             let expiry_date_val = null;
 
+            // Handle both legacy (radio) and new (checkbox) formats
+            const is_taxable = (req.body.is_taxable === '1' || ppn_mode === 'plus' || ppn_mode === 'include') ? 1 : 0;
+            const use_device_rental = (req.body.use_device_rental === '1' || rental_mode === 'plus' || rental_mode === 'include') ? 1 : 0;
+
             if (billing_mode_value === 'prepaid') {
                 const initialDays = parseInt(req.body.initial_validity_days || '0');
                 if (initialDays > 0) {
@@ -1743,8 +1755,9 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     customer_code, name, phone, email, address, odc_id, odp_id,
                     connection_type, status, latitude, longitude,
                     pppoe_username, created_at, updated_at,
-                    billing_mode, expiry_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW(), ?, ?)
+                    billing_mode, expiry_date, is_taxable, use_device_rental,
+                    serial_number
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW(), ?, ?, ?, ?, ?)
             `;
 
             console.log('Inserting customer with data:', {
@@ -1763,8 +1776,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
             const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null,
                 odc_id || null, odp_id, latitude || null, longitude || null,
-                billing_mode_value, expiry_date_val
+                billing_mode_value, expiry_date_val, is_taxable, use_device_rental,
+                serial_number || null
             ]);
+
+            // Log for debugging
+            console.log('PPN/Rental values:', { is_taxable, use_device_rental, serial_number });
 
             console.log('Insert result:', result);
             const customerId = (result as any)?.insertId;
@@ -2110,6 +2127,29 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     customerId: customerId
                 });
                 // Non-critical, don't block customer creation
+            }
+
+            // GenieACS Sync Integration
+            if (serial_number) {
+                try {
+                    console.log(`[GenieACS] Syncing tag for new customer: ${client_name}`);
+                    const genieacs = await GenieacsService.getInstanceFromDb();
+                    // Sanitize tag: Customer Name
+                    const tagName = client_name.replace(/[^\x20-\x7E]/g, '').replace(/[",]/g, '').trim();
+
+                    // Match by serial
+                    const devices = await genieacs.getDevicesBySerial(serial_number);
+                    if (devices && devices.length > 0) {
+                        for (const device of devices) {
+                            await genieacs.addDeviceTag(device._id, tagName);
+                            console.log(`[GenieACS] Tag "${tagName}" added to device ${device._id}`);
+                        }
+                    } else {
+                        console.warn(`[GenieACS] No device found with serial ${serial_number}`);
+                    }
+                } catch (gerr) {
+                    console.error('[GenieACS] Sync error:', gerr);
+                }
             }
 
             // Redirect ke halaman sukses atau list pelanggan
@@ -2465,6 +2505,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
             olt_id,
             odc_id,
             odp_id,
+            billing_mode,
+            ppn_mode,
+            rental_mode,
+            serial_number,
             enable_billing
         } = req.body;
         console.log('Parsed data:', { client_name, customer_code, ip_address, package_id, interface: iface });
@@ -2493,6 +2537,12 @@ router.post('/customers/new-static-ip', async (req, res) => {
 
         const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
         if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
+
+        // Handle both legacy (radio) and new (checkbox) formats
+        const is_taxable = (req.body.is_taxable === '1' || ppn_mode === 'plus' || ppn_mode === 'include') ? 1 : 0;
+        const use_device_rental = (req.body.use_device_rental === '1' || rental_mode === 'plus' || rental_mode === 'include') ? 1 : 0;
+        const billing_mode_value = billing_mode || (enable_billing === '0' ? 'prepaid' : 'postpaid');
+
         const pkgId = Number(package_id);
         const full = await isPackageFull(pkgId);
         if (full) throw new Error('Paket sudah penuh');
@@ -2526,7 +2576,11 @@ router.post('/customers/new-static-ip', async (req, res) => {
             longitude: longitude ? Number(longitude) : null,
             olt_id: olt_id ? Number(olt_id) : null,
             odc_id: odc_id ? Number(odc_id) : null,
-            odp_id: odp_id ? Number(odp_id) : null
+            odp_id: odp_id ? Number(odp_id) : null,
+            is_taxable,
+            use_device_rental,
+            serial_number: serial_number || null,
+            billing_mode: billing_mode_value
         });
         // MikroTik: tambah IP address, mangle + child queues
         const cfg = await getMikrotikConfig();
@@ -2738,6 +2792,29 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 customerId: customerId
             });
             // Non-critical, don't block customer creation
+        }
+
+        // GenieACS Sync Integration
+        if (serial_number) {
+            try {
+                console.log(`[GenieACS] Syncing tag for new customer: ${client_name}`);
+                const genieacs = await GenieacsService.getInstanceFromDb();
+                // Sanitize tag: Customer Name
+                const tagName = client_name.replace(/[^\x20-\x7E]/g, '').replace(/[",]/g, '').trim();
+
+                // Match by serial
+                const devices = await genieacs.getDevicesBySerial(serial_number);
+                if (devices && devices.length > 0) {
+                    for (const device of devices) {
+                        await genieacs.addDeviceTag(device._id, tagName);
+                        console.log(`[GenieACS] Tag "${tagName}" added to device ${device._id}`);
+                    }
+                } else {
+                    console.warn(`[GenieACS] No device found with serial ${serial_number}`);
+                }
+            } catch (gerr) {
+                console.error('[GenieACS] Sync error:', gerr);
+            }
         }
 
         res.redirect('/customers/list?success=static_ip_customer_created');
@@ -5494,29 +5571,14 @@ router.post('/database/migrate/late-payment-tracking', runLatePaymentTrackingMig
 router.get('/database/logs', getDatabaseLogs);
 
 // Backup & Restore routes
-const backupController = new BackupController();
-const backupUpload = multer({
-    dest: 'uploads/backups/',
-    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
-    fileFilter: (req, file, cb) => {
-        if (file.originalname.endsWith('.sql') || file.originalname.endsWith('.zip')) {
-            cb(null, true);
-        } else {
-            cb(new Error('File harus berformat .sql atau .zip'));
-        }
-    }
-});
-
-router.get('/backup', backupController.getBackupPage);
-router.post('/backup/database', backupController.createDatabaseBackup);
-router.post('/backup/source', backupController.createSourceBackup);
-router.post('/backup/full', backupController.createFullBackup);
-router.post('/backup/restore', backupController.restoreDatabase);
-router.post('/backup/delete', backupController.deleteBackup);
-router.get('/backup/download/:filename', backupController.downloadBackup);
-router.post('/backup/upload', backupUpload.single('backupFile'), backupController.uploadAndRestore);
-router.get('/api/backup/list', backupController.getBackupsAPI);
-router.get('/api/backup/stats', backupController.getStatsAPI);
+// Backup & Restore routes
+router.get('/backup', (req, res) => res.redirect('/settings/backup'));
+router.get('/settings/backup', BackupController.index);
+router.post('/settings/backup/config', BackupController.saveConfig);
+router.post('/settings/backup/upload-key', upload.single('keyFile'), BackupController.uploadKey);
+router.post('/settings/backup/run', BackupController.runBackup);
+router.get('/settings/backup/list', BackupController.listBackups);
+router.get('/settings/backup/download/:filename', BackupController.downloadBackup);
 
 
 

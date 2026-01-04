@@ -76,6 +76,12 @@ export async function ensureInitialSchema(): Promise<void> {
 			latitude DECIMAL(10,7) NULL,
 			longitude DECIMAL(10,7) NULL,
 			pppoe_username VARCHAR(191) NULL,
+			pppoe_password VARCHAR(255) NULL,
+			serial_number VARCHAR(191) NULL,
+			is_taxable TINYINT(1) DEFAULT 0,
+			use_device_rental TINYINT(1) DEFAULT 0,
+			billing_mode ENUM('postpaid', 'prepaid') DEFAULT 'postpaid',
+			expiry_date DATETIME NULL,
 			area VARCHAR(191) NULL,
 			odc_location VARCHAR(191) NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -83,7 +89,8 @@ export async function ensureInitialSchema(): Promise<void> {
 			INDEX idx_customer_code (customer_code),
 			INDEX idx_status (status),
 			INDEX idx_connection_type (connection_type),
-			INDEX idx_pppoe_username (pppoe_username)
+			INDEX idx_pppoe_username (pppoe_username),
+			INDEX idx_billing_mode (billing_mode)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 		await conn.query(`CREATE TABLE IF NOT EXISTS mikrotik_settings (
@@ -453,6 +460,15 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Add pppoe_password column to customers table (for storing PPPoE password)
 		await addCol(`ALTER TABLE customers ADD COLUMN pppoe_password VARCHAR(255) NULL COMMENT 'Password untuk koneksi PPPoE' AFTER pppoe_username`);
 
+		// Add serial_number for GenieACS integration
+		await addCol(`ALTER TABLE customers ADD COLUMN serial_number VARCHAR(191) NULL COMMENT 'Serial Number Perangkat (GenieACS)' AFTER pppoe_password`);
+
+		// Add billing settings
+		await addCol(`ALTER TABLE customers ADD COLUMN is_taxable TINYINT(1) DEFAULT 0 AFTER serial_number`);
+		await addCol(`ALTER TABLE customers ADD COLUMN use_device_rental TINYINT(1) DEFAULT 0 AFTER is_taxable`);
+		await addCol(`ALTER TABLE customers ADD COLUMN billing_mode ENUM('postpaid', 'prepaid') DEFAULT 'postpaid' AFTER use_device_rental`);
+		await addCol(`ALTER TABLE customers ADD COLUMN expiry_date DATETIME NULL AFTER billing_mode`);
+
 		// Create notification_logs table for notification channels
 		await conn.query(`CREATE TABLE IF NOT EXISTS notification_logs (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -627,6 +643,16 @@ export async function ensureInitialSchema(): Promise<void> {
 			UNIQUE KEY unique_customer_period (customer_id, period),
 			CONSTRAINT fk_sla_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create app_settings table for general configuration
+		await conn.query(`CREATE TABLE IF NOT EXISTS app_settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            setting_key VARCHAR(191) UNIQUE NOT NULL,
+            setting_value TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_setting_key (setting_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 	} finally {
 		conn.release();

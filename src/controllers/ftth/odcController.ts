@@ -6,7 +6,7 @@ export async function getOdcList(req: Request, res: Response, next: NextFunction
 	try {
 		const oltId = req.query.olt_id ? Number(req.query.olt_id) : undefined;
 		const items = await listOdcs(oltId);
-		res.render('ftth/odc', { title: 'FTTH - ODC', items, oltId });
+		res.render('ftth/odc', { title: 'FTTH - ODC', items, oltId, layout: 'layouts/main' });
 	} catch (err) { next(err); }
 }
 
@@ -23,11 +23,11 @@ export async function getOdcAdd(req: Request, res: Response): Promise<void> {
 		// Load Areas
 		const [areas] = await databasePool.query('SELECT * FROM ftth_areas ORDER BY name ASC');
 
-		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts, areas });
+		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts, areas, layout: 'layouts/main' });
 	} catch (error) {
 		console.error('Error loading OLTs for ODC add page:', error);
 		const oltId = req.query.olt_id ? Number(req.query.olt_id) : undefined;
-		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts: [], areas: [] });
+		res.render('ftth/odc_add', { title: 'Tambah ODC', oltId, olts: [], areas: [], layout: 'layouts/main' });
 	}
 }
 
@@ -44,7 +44,7 @@ export async function getOdcEdit(req: Request, res: Response, next: NextFunction
 		// Load Areas
 		const [areas] = await databasePool.query('SELECT * FROM ftth_areas ORDER BY name ASC');
 
-		res.render('ftth/odc_edit', { title: 'Edit ODC', item, olts, areas });
+		res.render('ftth/odc_edit', { title: 'Edit ODC', item, olts, areas, layout: 'layouts/main' });
 	} catch (err) { next(err); }
 }
 

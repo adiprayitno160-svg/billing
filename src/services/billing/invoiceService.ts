@@ -236,12 +236,13 @@ export class InvoiceService {
     /**
      * Generate invoice otomatis untuk semua subscription aktif dengan carry over
      */
-    static async generateMonthlyInvoices(period: string): Promise<number[]> {
+    static async generateMonthlyInvoices(period: string, customerId?: number, forceAll: boolean = false): Promise<number[]> {
         const periodDate = new Date(period + '-01');
         const invoiceIds: number[] = [];
 
         console.log(`[InvoiceService] Starting generateMonthlyInvoices for period: ${period}`);
-        console.log(`[InvoiceService] Period date: ${periodDate.toISOString()}`);
+        if (customerId) console.log(`[InvoiceService] Filtering for customer ID: ${customerId}`);
+        if (forceAll) console.log(`[InvoiceService] Force all mode enabled`);
 
         try {
             // Cek apakah periode valid
@@ -261,21 +262,38 @@ export class InvoiceService {
             let subscriptionQuery = `
                 SELECT s.id as subscription_id, s.customer_id, s.package_name, s.price,
                        c.name as customer_name, c.email, c.phone, s.start_date,
-                       DAY(s.start_date) as billing_day, c.account_balance, c.use_device_rental
+                       DAY(s.start_date) as billing_day, c.account_balance, c.use_device_rental, c.is_taxable,
+                       c.customer_code
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
                 AND (s.end_date IS NULL OR s.end_date >= CURDATE())
-                AND DAY(s.start_date) = DAY(CURDATE())  -- Generate invoice pada tanggal yang sama dengan tanggal daftar
-                AND s.customer_id NOT IN (
-                    SELECT DISTINCT customer_id 
-                    FROM invoices 
-                    WHERE period = ?
-                )
             `;
 
+            const queryParams: any[] = [];
+
+            // Jika tidak dipaksa dan tidak ada customerId spesifik, cek tanggal billing
+            if (!forceAll && !customerId) {
+                subscriptionQuery += ` AND DAY(s.start_date) = DAY(CURDATE()) `;
+            }
+
+            // Filter customerId jika ada
+            if (customerId) {
+                subscriptionQuery += ` AND s.customer_id = ? `;
+                queryParams.push(customerId);
+            }
+
+            subscriptionQuery += `
+                AND s.id NOT IN (
+                    SELECT DISTINCT subscription_id 
+                    FROM invoices 
+                    WHERE period = ? AND subscription_id IS NOT NULL
+                )
+            `;
+            queryParams.push(period);
+
             console.log(`[InvoiceService] Executing subscription query for period: ${period}`);
-            const [subscriptionResult] = await databasePool.query(subscriptionQuery, [period]);
+            const [subscriptionResult] = await databasePool.query(subscriptionQuery, queryParams);
             console.log(`[InvoiceService] Found ${(subscriptionResult as any[]).length} subscriptions`);
 
             if ((subscriptionResult as any[]).length > 0) {
@@ -314,7 +332,7 @@ export class InvoiceService {
                         }
 
                         let ppnAmount = 0;
-                        if (ppnEnabled && ppnRate > 0) {
+                        if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
                             // Tax Base = Subtotal + Device Fee
                             const taxBase = subtotal + deviceFee;
                             ppnAmount = Math.round(taxBase * (ppnRate / 100));
@@ -419,7 +437,7 @@ export class InvoiceService {
                 // Coba query dengan kolom status terlebih dahulu
                 try {
                     const customerQueryWithStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.use_device_rental
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.use_device_rental, c.is_taxable
                         FROM customers c
                         WHERE c.status = 'active'
                         AND c.id NOT IN (
@@ -437,7 +455,7 @@ export class InvoiceService {
                 // Jika hasil masih kosong, coba tanpa filter status
                 if (!Array.isArray(customerResult) || customerResult.length === 0) {
                     const customerQueryNoStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, c.use_device_rental
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, c.use_device_rental, c.is_taxable
                         FROM customers c
                         WHERE c.id NOT IN (
                             SELECT DISTINCT customer_id 
@@ -482,7 +500,7 @@ export class InvoiceService {
                         }
 
                         let ppnAmount = 0;
-                        if (ppnEnabled && ppnRate > 0) {
+                        if (ppnEnabled && ppnRate > 0 && customer.is_taxable) {
                             const taxBase = subtotal + deviceFee;
                             ppnAmount = Math.round(taxBase * (ppnRate / 100));
                         }

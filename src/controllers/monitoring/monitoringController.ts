@@ -53,12 +53,54 @@ export class MonitoringController {
                     console.error('Error fetching MikroTik data:', error);
                 }
 
+                let serverInfo = {
+                    cpuUsage: 0,
+                    memUsage: 0,
+                    uptime: 0,
+                    hostname: 'Unknown',
+                    platform: 'Unknown',
+                    arch: 'Unknown',
+                    temperature: 'N/A'
+                };
+
+                try {
+                    const os = await import('os');
+                    const { exec } = await import('child_process');
+                    const { promisify } = await import('util');
+                    const execAsync = promisify(exec);
+
+                    // Get CPU and Memory
+                    serverInfo.cpuUsage = Math.round(os.loadavg()[0] * 10) % 100;
+                    serverInfo.memUsage = Math.round((1 - os.freemem() / os.totalmem()) * 100);
+                    serverInfo.uptime = Math.round(os.uptime() / 3600);
+                    serverInfo.hostname = os.hostname();
+                    serverInfo.platform = os.platform();
+                    serverInfo.arch = os.arch();
+
+                    // Try to get Temperature (Windows specific)
+                    if (os.platform() === 'win32') {
+                        try {
+                            const { stdout } = await execAsync('powershell -Command "Get-CimInstance -Namespace root/wmi -ClassName MsAcpi_ThermalZoneTemperature | Select-Object -ExpandProperty CurrentTemperature"', { timeout: 2000 });
+                            const tempK = parseFloat(stdout.trim());
+                            if (!isNaN(tempK)) {
+                                serverInfo.temperature = ((tempK / 10) - 273.15).toFixed(1) + '°C';
+                            }
+                        } catch (tempErr) {
+                            // Silently fail if WMI is not accessible
+                        }
+                    }
+                } catch (osError) {
+                    console.error('Error fetching OS stats:', osError);
+                }
+
                 res.render('monitoring/dashboard', {
                     title: 'Monitor Pelanggan',
-                    pppoeStats: pppoeStats[0],
-                    staticIpStats: staticIpStats[0],
+                    pppoeStats: pppoeStats[0] || { total: 0, online: 0 },
+                    staticIpStats: staticIpStats[0] || { total: 0, online: 0 },
                     onlinePPPoE,
-                    healthInfo
+                    healthInfo,
+                    serverInfo,
+                    layout: 'layouts/main'
                 });
             } finally {
                 conn.release();
@@ -124,9 +166,9 @@ export class MonitoringController {
                 queryParams.push(status);
             }
 
-            if (odc_id) {
-                whereConditions.push('c.odc_id = ?');
-                queryParams.push(odc_id);
+            if (req.query.odp_id) {
+                whereConditions.push('c.odp_id = ?');
+                queryParams.push(req.query.odp_id);
             }
 
             const whereClause = 'WHERE ' + whereConditions.join(' AND ');
@@ -140,12 +182,14 @@ export class MonitoringController {
                     pp.rate_limit_rx,
                     pp.rate_limit_tx,
                     s.price,
-                    odc.name as odc_name,
-                    odc.location as odc_location
+                    odp.name as odp_name,
+                    odp.location as odp_location,
+                    (SELECT ROUND(SUM(bytes_in) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as usage_rx_gb,
+                    (SELECT ROUND(SUM(bytes_out) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as usage_tx_gb
                 FROM customers c
                 LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
                 LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
-                LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
+                LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
                 ${whereClause}
                 ORDER BY c.created_at DESC
                 LIMIT ? OFFSET ?
@@ -165,10 +209,10 @@ export class MonitoringController {
             const totalCount = countResult[0]?.total || 0;
             console.log('Total count:', totalCount);
 
-            // Get ODC list for filter
-            console.log('Fetching ODC list...');
-            const [odcList] = await databasePool.query('SELECT id, name FROM ftth_odc ORDER BY name') as [RowDataPacket[], any];
-            console.log(`Found ${odcList.length} ODC entries`);
+            // Get ODP list for filter
+            console.log('Fetching ODP list...');
+            const [odpList] = await databasePool.query('SELECT id, name FROM ftth_odp ORDER BY name') as [RowDataPacket[], any];
+            console.log(`Found ${odpList.length} ODP entries`);
 
             // Get online sessions from MikroTik
             let onlineSessions: any[] = [];
@@ -199,14 +243,14 @@ export class MonitoringController {
                 title: 'Monitor PPPoE',
                 currentPath: '/monitoring/pppoe',
                 customers: customersWithStatus,
-                odcList: odcList || [],
+                odpList: odpList || [],
                 pagination: {
                     currentPage: page,
                     totalPages: Math.ceil(totalCount / limit),
                     totalCount,
                     limit
                 },
-                filters: { search, status, odc_id }
+                filters: { search, status, odp_id: req.query.odp_id }
             });
             console.log('✅ View rendered successfully');
         } catch (error: any) {
@@ -260,6 +304,11 @@ export class MonitoringController {
                 }
             }
 
+            if (req.query.odp_id) {
+                whereConditions.push('c.odp_id = ?');
+                queryParams.push(req.query.odp_id);
+            }
+
             const whereClause = whereConditions.length > 0
                 ? 'WHERE ' + whereConditions.join(' AND ')
                 : '';
@@ -272,8 +321,9 @@ export class MonitoringController {
                     pkg.price,
                     pkg.max_limit_download,
                     pkg.max_limit_upload,
-                    odc.name as odc_name,
+                    odp.name as odp_name,
                     c.is_isolated,
+                    c.serial_number,
                     sips.status as ping_status,
                     sips.response_time_ms,
                     sips.packet_loss_percent,
@@ -281,11 +331,13 @@ export class MonitoringController {
                     sips.last_check as ping_last_check,
                     sips.last_online_at as ping_last_online,
                     sips.last_offline_at as ping_last_offline,
-                    sips.uptime_percent_24h
+                    sips.uptime_percent_24h,
+                    (SELECT ROUND(SUM(bytes_in) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as usage_rx_gb,
+                    (SELECT ROUND(SUM(bytes_out) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as usage_tx_gb
                 FROM static_ip_clients sic
                 LEFT JOIN static_ip_packages pkg ON sic.package_id = pkg.id
-                LEFT JOIN ftth_odc odc ON sic.odc_id = odc.id
                 LEFT JOIN customers c ON sic.customer_id = c.id
+                LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
                 LEFT JOIN static_ip_ping_status sips ON c.id = sips.customer_id
                 ${whereClause}
                 ORDER BY sic.created_at DESC
@@ -376,18 +428,22 @@ export class MonitoringController {
                 unknown: clientsWithStatus.filter(c => c.actual_status === 'unknown').length
             };
 
+            // Get ODP list for filter
+            const [odpList] = await databasePool.query('SELECT id, name FROM ftth_odp ORDER BY name') as [RowDataPacket[], any];
+
             res.render('monitoring/static-ip', {
                 currentPath: '/monitoring/static-ip',
                 title: 'Monitor Static IP',
                 clients: filteredClients,
                 stats,
+                odpList: odpList || [],
                 pagination: {
                     currentPage: page,
                     totalPages: Math.ceil(totalCount / limit),
                     totalCount,
                     limit
                 },
-                filters: { search, status, ping_status: pingStatus },
+                filters: { search, status, ping_status: pingStatus, odp_id: req.query.odp_id },
                 layout: 'layouts/main'
             });
         } catch (error) {

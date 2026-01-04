@@ -228,4 +228,78 @@ export class PrepaidDashboardController {
             });
         }
     }
+
+    /**
+     * Show prepaid reports page
+     */
+    static async getReports(req: Request, res: Response): Promise<void> {
+        try {
+            const period = (req.query.period as string) || 'month';
+            const conn = await databasePool.getConnection();
+
+            try {
+                let dateCondition = "pt.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
+                if (period === 'today') dateCondition = "DATE(pt.created_at) = CURDATE()";
+                else if (period === 'week') dateCondition = "pt.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)";
+
+                // Get revenue statistics
+                const [revenueStatsRows] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        SUM(pt.amount) as total_revenue,
+                        COUNT(pt.id) as total_transactions,
+                        COUNT(DISTINCT pt.customer_id) as unique_customers,
+                        0 as total_discounts
+                    FROM prepaid_transactions pt
+                    WHERE ${dateCondition}
+                `);
+
+                // Get package distribution
+                const [packageStats] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        pp.name as package_name,
+                        COUNT(pt.id) as count,
+                        SUM(pt.amount) as revenue
+                    FROM prepaid_transactions pt
+                    LEFT JOIN pppoe_packages pp ON pt.package_id = pp.id
+                    WHERE ${dateCondition}
+                    GROUP BY pt.package_id
+                    ORDER BY count DESC
+                `);
+
+                // Get 30-day daily trend for chart
+                const [dailyTrend] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        DATE(created_at) as date,
+                        SUM(amount) as revenue,
+                        COUNT(id) as transactions
+                    FROM prepaid_transactions
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    GROUP BY DATE(created_at)
+                    ORDER BY date ASC
+                `);
+
+                res.render('prepaid/reports', {
+                    title: 'Laporan Prabayar',
+                    period,
+                    revenueStats: revenueStatsRows[0] || { total_revenue: 0, total_transactions: 0, unique_customers: 0, total_discounts: 0 },
+                    packageStats,
+                    voucherStats: [], // Vouchers removed
+                    dailyTrend,
+                    currentPath: req.path,
+                    layout: 'layouts/main'
+                });
+
+            } finally {
+                conn.release();
+            }
+
+        } catch (error: any) {
+            console.error('Error loading prepaid reports:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat laporan prabayar',
+                error: error.message
+            });
+        }
+    }
 }

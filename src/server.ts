@@ -34,7 +34,9 @@ import { pppoeStatsMiddleware } from './middlewares/pppoeStatsMiddleware';
 dotenv.config({ override: false });
 
 const app = express();
-const port = Number(process.env.PORT ?? 3000);
+// AntiGravity: Force 3001 if 3000 is detected (conflict with GenieACS), otherwise respect env
+const envPort = process.env.PORT ? Number(process.env.PORT) : 3001;
+const port = envPort === 3000 ? 3001 : envPort;
 
 // CommonJS build: __dirname is available from TS transpilation
 
@@ -298,6 +300,10 @@ async function start() {
 		await ensureNotificationTemplates();
 		NotificationScheduler.initialize();
 		console.log('Notification scheduler initialized');
+
+		// Initialize Backup Scheduler
+		const { BackupScheduler } = await import('./services/backup/BackupScheduler');
+		BackupScheduler.init();
 
 		// Initialize WhatsApp Business service
 		// Can be disabled via DISABLE_WHATSAPP=true environment variable

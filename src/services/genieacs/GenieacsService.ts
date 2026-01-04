@@ -17,6 +17,7 @@ export interface GenieacsDevice {
     _tags?: string[];
     InternetGatewayDevice?: any;
     Device?: any;
+    VirtualParameters?: any;
 }
 
 export interface GenieacsTask {
@@ -145,6 +146,13 @@ export class GenieacsService {
     }
 
     /**
+     * Get devices by Serial Number
+     */
+    async getDevicesBySerial(serialNumber: string): Promise<GenieacsDevice[]> {
+        return this.getDevices(100, 0, [], { "_deviceId._SerialNumber": serialNumber });
+    }
+
+    /**
      * Extract normalized device info
      */
     extractDeviceInfo(device: any): any {
@@ -191,7 +199,9 @@ export class GenieacsService {
             hardwareVersion: hardwareVersion || '-',
             lastInform,
             online: isOnline,
-            isOnline // Alias
+            isOnline, // Alias
+            signal: this.getSignalInfo(device),
+            wifi: this.getWiFiDetails(device)
         };
     }
 
@@ -356,7 +366,10 @@ export class GenieacsService {
             'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
             'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower',
             'Device.Optical.Interface.1.Stats.TxOpticalPower',
-            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.OpticalTxPower'
+            'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.OpticalTxPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_PON.OpticalTxPower',
+            'InternetGatewayDevice.WANDevice.1.X_HW_PON.TxOpticalPower',
+            'InternetGatewayDevice.WANDevice.1.InterfaceConfig.OpticalTxPower'
         ]);
 
         const temp = findVal([

@@ -8,9 +8,9 @@ export type StaticIpClientWithPackage = StaticIpClient & {
 
 // Fungsi untuk mengecek apakah paket sudah penuh
 export async function isPackageFull(packageId: number): Promise<boolean> {
-	const conn = await databasePool.getConnection();
-	try {
-		const [rows] = await conn.execute(`
+    const conn = await databasePool.getConnection();
+    try {
+        const [rows] = await conn.execute(`
 			SELECT 
 				sip.max_clients,
 				COUNT(sic.id) as current_clients
@@ -19,14 +19,14 @@ export async function isPackageFull(packageId: number): Promise<boolean> {
 			WHERE sip.id = ?
 			GROUP BY sip.id
 		`, [packageId]);
-		
-		const result = Array.isArray(rows) ? rows[0] as any : null;
-		if (!result) return true;
-		
-		return result.current_clients >= result.max_clients;
-	} finally {
-		conn.release();
-	}
+
+        const result = Array.isArray(rows) ? rows[0] as any : null;
+        if (!result) return true;
+
+        return result.current_clients >= result.max_clients;
+    } finally {
+        conn.release();
+    }
 }
 
 // Fungsi untuk menambahkan client ke paket
@@ -44,27 +44,31 @@ export async function addClientToPackage(packageId: number, clientData: {
     odc_id?: number | null;
     odp_id?: number | null;
     customer_code?: string | null;
+    is_taxable?: number | null;
+    use_device_rental?: number | null;
+    serial_number?: string | null;
+    billing_mode?: string | null;
 }): Promise<{ customerId: number, clientId: number }> {
-	const conn = await databasePool.getConnection();
-	try {
-		// Cek apakah paket penuh
-		const isFull = await isPackageFull(packageId);
-		if (isFull) {
-			throw new Error('Paket sudah penuh, tidak bisa menambah client baru');
-		}
-		
-		// Cek apakah IP sudah digunakan
-		const [existingIp] = await conn.execute(
-			'SELECT id FROM static_ip_clients WHERE ip_address = ? AND status = "active"',
-			[clientData.ip_address]
-		);
-		
-		if (Array.isArray(existingIp) && existingIp.length > 0) {
-			throw new Error('IP address sudah digunakan oleh client lain');
-		}
-		
-		await conn.beginTransaction();
-		
+    const conn = await databasePool.getConnection();
+    try {
+        // Cek apakah paket penuh
+        const isFull = await isPackageFull(packageId);
+        if (isFull) {
+            throw new Error('Paket sudah penuh, tidak bisa menambah client baru');
+        }
+
+        // Cek apakah IP sudah digunakan
+        const [existingIp] = await conn.execute(
+            'SELECT id FROM static_ip_clients WHERE ip_address = ? AND status = "active"',
+            [clientData.ip_address]
+        );
+
+        if (Array.isArray(existingIp) && existingIp.length > 0) {
+            throw new Error('IP address sudah digunakan oleh client lain');
+        }
+
+        await conn.beginTransaction();
+
         // Generate customer code dengan format YYYYMMDDHHMMSS
         const customerCode = CustomerIdGenerator.generateCustomerId();
 
@@ -79,13 +83,14 @@ export async function addClientToPackage(packageId: number, clientData: {
             latitude: clientData.latitude || null,
             longitude: clientData.longitude || null
         });
-        
+
         const [customerResult] = await conn.execute(`
             INSERT INTO customers (
                 customer_code, name, phone, email, address, odc_id, odp_id,
                 connection_type, status, latitude, longitude,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', ?, ?, NOW(), NOW())
+                created_at, updated_at,
+                is_taxable, use_device_rental, serial_number, billing_mode
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', ?, ?, NOW(), NOW(), ?, ?, ?, ?)
         `, [
             customerCode,
             clientData.client_name,
@@ -95,7 +100,11 @@ export async function addClientToPackage(packageId: number, clientData: {
             clientData.odc_id || null,
             clientData.odp_id || null,
             clientData.latitude || null,
-            clientData.longitude || null
+            clientData.longitude || null,
+            clientData.is_taxable || 0,
+            clientData.use_device_rental || 0,
+            clientData.serial_number || null,
+            clientData.billing_mode || 'postpaid'
         ]);
 
         const customerId = (customerResult as any).insertId;
@@ -120,53 +129,53 @@ export async function addClientToPackage(packageId: number, clientData: {
             clientData.odp_id ?? null,
             customerCode
         ]);
-		
-		await conn.commit();
-		const insertResult = result as any;
-		return { customerId, clientId: insertResult.insertId };
-	} catch (error) {
-		await conn.rollback();
-		throw error;
-	} finally {
-		conn.release();
-	}
+
+        await conn.commit();
+        const insertResult = result as any;
+        return { customerId, clientId: insertResult.insertId };
+    } catch (error) {
+        await conn.rollback();
+        throw error;
+    } finally {
+        conn.release();
+    }
 }
 
 // Fungsi untuk menghapus client dari paket
 export async function removeClientFromPackage(clientId: number): Promise<void> {
-	const conn = await databasePool.getConnection();
-	try {
-		// Hapus dari tabel static_ip_clients
-		await conn.execute(
-			'DELETE FROM static_ip_clients WHERE id = ?',
-			[clientId]
-		);
-		
-		// Hapus dari tabel customers juga jika ada
-		await conn.execute(
-			'DELETE FROM customers WHERE id IN (SELECT customer_id FROM static_ip_clients WHERE id = ?)',
-			[clientId]
-		);
-		
-		console.log(`Client with ID ${clientId} deleted from database`);
-	} finally {
-		conn.release();
-	}
+    const conn = await databasePool.getConnection();
+    try {
+        // Hapus dari tabel static_ip_clients
+        await conn.execute(
+            'DELETE FROM static_ip_clients WHERE id = ?',
+            [clientId]
+        );
+
+        // Hapus dari tabel customers juga jika ada
+        await conn.execute(
+            'DELETE FROM customers WHERE id IN (SELECT customer_id FROM static_ip_clients WHERE id = ?)',
+            [clientId]
+        );
+
+        console.log(`Client with ID ${clientId} deleted from database`);
+    } finally {
+        conn.release();
+    }
 }
 
 // Fungsi untuk mendapatkan daftar client dalam paket
 export async function getPackageClients(packageId: number): Promise<StaticIpClient[]> {
-	const conn = await databasePool.getConnection();
-	try {
-		const [rows] = await conn.execute(`
+    const conn = await databasePool.getConnection();
+    try {
+        const [rows] = await conn.execute(`
 			SELECT * FROM static_ip_clients 
 			WHERE package_id = ? AND status = 'active'
 			ORDER BY created_at DESC
 		`, [packageId]);
-		return Array.isArray(rows) ? rows as StaticIpClient[] : [];
-	} finally {
-		conn.release();
-	}
+        return Array.isArray(rows) ? rows as StaticIpClient[] : [];
+    } finally {
+        conn.release();
+    }
 }
 
 export async function getClientById(clientId: number): Promise<StaticIpClient | null> {
@@ -233,16 +242,16 @@ export async function updateClient(clientId: number, data: {
 
 // Fungsi untuk menghitung shared limit per client
 export function calculateSharedLimit(maxLimit: string, maxClients: number): string {
-	if (maxClients <= 1) return maxLimit;
-	
-	// Extract numeric value from limit (e.g., "10M" -> 10)
-	const numericValue = parseInt(maxLimit.replace(/[^0-9]/g, ''));
-	const unit = maxLimit.replace(/[0-9]/g, '');
-	
-	if (isNaN(numericValue)) return maxLimit;
-	
-	const sharedValue = Math.floor(numericValue / maxClients);
-	return `${sharedValue}${unit}`;
+    if (maxClients <= 1) return maxLimit;
+
+    // Extract numeric value from limit (e.g., "10M" -> 10)
+    const numericValue = parseInt(maxLimit.replace(/[^0-9]/g, ''));
+    const unit = maxLimit.replace(/[0-9]/g, '');
+
+    if (isNaN(numericValue)) return maxLimit;
+
+    const sharedValue = Math.floor(numericValue / maxClients);
+    return `${sharedValue}${unit}`;
 }
 
 // Fungsi untuk mendapatkan semua client aktif lintas semua paket

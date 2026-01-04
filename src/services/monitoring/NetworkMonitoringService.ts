@@ -114,7 +114,8 @@ export class NetworkMonitoringService {
                         software_version: deviceInfo.softwareVersion,
                         product_class: deviceInfo.productClass,
                         ip_address: deviceInfo.ipAddress,
-                        signal: deviceInfo.signal
+                        signal: deviceInfo.signal,
+                        genieacs: deviceInfo.wifi
                     })
                 };
 
@@ -542,6 +543,67 @@ export class NetworkMonitoringService {
             }
         } catch (e) {
             console.error('Error injecting live PPPoE status:', e);
+        }
+
+        // Inject GenieACS Signal Data into Customer Devices (Robust Matching)
+        try {
+            // Create maps for ONT metadata matching
+            const ontByIp = new Map<string, any>();
+            const ontBySerial = new Map<string, any>();
+
+            devices.forEach(d => {
+                if (d.device_type === 'ont' && d.metadata) {
+                    if (d.ip_address && d.ip_address !== '-') ontByIp.set(d.ip_address, d.metadata);
+                    if (d.metadata.ip_address && d.metadata.ip_address !== '-') ontByIp.set(d.metadata.ip_address, d.metadata);
+                    if (d.genieacs_serial) ontBySerial.set(d.genieacs_serial, d.metadata);
+                }
+            });
+
+            // Fetch customer serial numbers for matching
+            const [custLinks] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, serial_number FROM customers WHERE serial_number IS NOT NULL'
+            );
+            const customerToSerialMap = new Map(custLinks.map(c => [c.id, c.serial_number]));
+
+            devices = devices.map(device => {
+                if (device.device_type === 'customer') {
+                    let ontData = null;
+
+                    // 1. Match by Serial Number (Linked in Billing)
+                    const serial = customerToSerialMap.get(device.customer_id);
+                    if (serial) {
+                        ontData = ontBySerial.get(serial);
+                    }
+
+                    // 2. Match by IP Address (Dynamic fallback)
+                    if (!ontData) {
+                        let ip = device.ip_address;
+                        if (device.metadata && device.metadata.session_info && device.metadata.session_info.address) {
+                            ip = device.metadata.session_info.address;
+                        }
+                        if (ip && ip !== '-') ontData = ontByIp.get(ip);
+                    }
+
+                    if (ontData && ontData.signal) {
+                        return {
+                            ...device,
+                            metadata: {
+                                ...device.metadata,
+                                signal: ontData.signal,
+                                genieacs: {
+                                    ...(device.metadata.genieacs || {}),
+                                    ...(ontData.genieacs || {}),
+                                    model: ontData.model,
+                                    manufacturer: ontData.manufacturer
+                                }
+                            }
+                        };
+                    }
+                }
+                return device;
+            });
+        } catch (e) {
+            console.error('Error injecting GenieACS data into topology:', e);
         }
 
         // Auto-sync checks:

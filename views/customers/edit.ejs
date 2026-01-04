@@ -198,18 +198,34 @@
                     </div>
 
                     <!-- Device Rental Checkbox -->
-                    <div id="device_rental_container"
-                        class="<%= customer.billing_mode === 'prepaid' ? '' : 'hidden' %>">
-                        <label class="relative inline-flex items-center cursor-pointer mt-6">
+                    <div id="device_rental_container">
+                        <label class="relative inline-flex items-center cursor-pointer mt-6 group">
                             <input type="checkbox" name="use_device_rental" value="1" class="sr-only peer"
                                 <%=customer.use_device_rental ? 'checked' : '' %>>
                             <div
-                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 transition-all duration-300">
                             </div>
-                            <span class="ml-3 text-sm font-medium text-modern-indigo-700">Gunakan Sewa Perangkat?</span>
+                            <span class="ml-3 text-sm font-bold text-modern-indigo-700 group-hover:text-indigo-900">Sewa
+                                Alat?</span>
                         </label>
                         <p class="text-xs text-modern-indigo-600 mt-1">
-                            Jika aktif, biaya sewa perangkat akan ditambahkan ke tagihan prabayar.
+                            Jika aktif, biaya sewa perangkat akan ditambahkan ke tagihan.
+                        </p>
+                    </div>
+
+                    <!-- Taxable (PPN) Checkbox -->
+                    <div id="taxable_container" class="mt-4 md:mt-0">
+                        <label class="relative inline-flex items-center cursor-pointer md:mt-6 group">
+                            <input type="checkbox" name="is_taxable" value="1" class="sr-only peer"
+                                <%=customer.is_taxable ? 'checked' : '' %>>
+                            <div
+                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 transition-all duration-300">
+                            </div>
+                            <span class="ml-3 text-sm font-bold text-modern-indigo-700 group-hover:text-indigo-900">Kena
+                                PPN?</span>
+                        </label>
+                        <p class="text-xs text-modern-indigo-600 mt-1">
+                            Jika aktif, tagihan akan dikenakan PPN sesuai rate global.
                         </p>
                     </div>
 

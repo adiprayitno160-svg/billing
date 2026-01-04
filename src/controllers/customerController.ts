@@ -6,6 +6,7 @@ import { listPackages as listPppoePackages } from '../services/pppoeService';
 import { listStaticIpPackages } from '../services/staticIpPackageService';
 import { getInterfaces } from '../services/mikrotikService';
 import { calculateCustomerIP } from '../utils/ipHelper';
+import GenieacsService from '../services/genieacs/GenieacsService';
 
 /**
  * Get customer list page
@@ -421,6 +422,49 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
             invoices = [];
         }
 
+        // Initialize device details
+        let deviceDetails = null;
+
+        // Debug: Log serial number from customer data
+        console.log('[getCustomerDetail] Customer serial_number:', customer.serial_number);
+        console.log('[getCustomerDetail] Customer connection_type:', customer.connection_type);
+
+        // Fetch GenieACS info if serial number exists
+        if (customer.serial_number) {
+            console.log('[getCustomerDetail] Serial number found, attempting GenieACS fetch...');
+            try {
+                const genieacs = await GenieacsService.getInstanceFromDb();
+                console.log('[getCustomerDetail] GenieACS instance created');
+
+                const devices = await genieacs.getDevicesBySerial(customer.serial_number);
+                console.log('[getCustomerDetail] Devices found:', devices?.length || 0);
+
+                if (devices && devices.length > 0) {
+                    const device = devices[0];
+                    const info = genieacs.extractDeviceInfo(device);
+                    const signal = genieacs.getSignalInfo(device);
+                    const wan = genieacs.getWanStatus(device);
+                    const wifi = genieacs.getWiFiDetails(device);
+
+                    deviceDetails = {
+                        ...info,
+                        signal,
+                        wan,
+                        wifi
+                    };
+                    console.log('[getCustomerDetail] Device details compiled:', Object.keys(deviceDetails));
+                } else {
+                    console.log('[getCustomerDetail] No devices found in GenieACS for SN:', customer.serial_number);
+                }
+            } catch (genieError) {
+                console.error('[getCustomerDetail] Error fetching GenieACS data:', genieError);
+            }
+        } else {
+            console.log('[getCustomerDetail] No serial number found for customer');
+        }
+
+        console.log('[getCustomerDetail] Rendering template with deviceDetails:', deviceDetails ? 'PRESENT' : 'NULL');
+
         res.render('customers/detail', {
             title: `Detail Pelanggan - ${customer.name}`,
             customer: {
@@ -429,6 +473,7 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
                 static_ip_package: customer.connection_type === 'static_ip' ? packageData : null
             },
             invoices: invoices || [],
+            deviceDetails,
             currentPath: `/customers/${customerId}`
         });
 
@@ -610,7 +655,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
             odp_id,
             odc_id,
             custom_payment_deadline,
-            custom_isolate_days_after_deadline
+            custom_isolate_days_after_deadline,
+            serial_number
         } = req.body;
 
         const conn = await databasePool.getConnection();
@@ -619,7 +665,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             // Check if customer exists and get old data
             const [customers] = await conn.query<RowDataPacket[]>(
-                'SELECT id, name, pppoe_username, connection_type, pppoe_password FROM customers WHERE id = ?',
+                'SELECT id, name, pppoe_username, connection_type, pppoe_password, serial_number FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -678,6 +724,27 @@ export const updateCustomer = async (req: Request, res: Response) => {
             if (odc_id !== undefined) {
                 updateFields.push('odc_id = ?');
                 updateValues.push(odc_id || null);
+            }
+            if (serial_number !== undefined) {
+                updateFields.push('serial_number = ?');
+                updateValues.push(serial_number || null);
+            }
+
+            // Handle PPN Taxable flag
+            // Checkbox behavior: sent as '1' if checked, missing if unchecked
+            // We only update if billing_mode is also present (implying a form submission or full update)
+            if (req.body.billing_mode !== undefined) {
+                if (req.body.is_taxable) {
+                    updateFields.push('is_taxable = ?');
+                    updateValues.push(1);
+                } else {
+                    updateFields.push('is_taxable = ?');
+                    updateValues.push(0);
+                }
+            } else if (req.body.is_taxable !== undefined) {
+                // Partial update explicitly targeting this field
+                updateFields.push('is_taxable = ?');
+                updateValues.push(req.body.is_taxable === '1' || req.body.is_taxable === true ? 1 : 0);
             }
 
             // Handle custom deadline fields
@@ -756,6 +823,49 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
                     updateValues
                 );
+            }
+
+            // Sync with GenieACS logic
+            const targetSerial = serial_number || oldCustomer.serial_number;
+            const targetName = name || oldName;
+            const targetPppoe = pppoe_username || oldPppoeUsername;
+
+            if (targetSerial || targetPppoe) {
+                // Execute async without waiting to speed up response
+                (async () => {
+                    try {
+                        const genieacs = await GenieacsService.getInstanceFromDb();
+                        let device = null;
+
+                        // 1. Try match by Serial
+                        if (targetSerial) {
+                            const devices = await genieacs.getDevices(1, 0, ['_id', '_tags'], { "_deviceId._SerialNumber": targetSerial });
+                            if (devices && devices.length > 0) device = devices[0];
+                        }
+
+                        // 2. Try match by PPPoE if no serial match
+                        if (!device && targetPppoe) {
+                            // This is a bit heavier as we search by pppoeUsername virtual parameter or standard path
+                            const devices = await genieacs.getDevices(1, 0, ['_id', '_tags'], {
+                                $or: [
+                                    { "VirtualParameters.pppoeUsername": targetPppoe },
+                                    { "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username": targetPppoe }
+                                ]
+                            });
+                            if (devices && devices.length > 0) device = devices[0];
+                        }
+
+                        if (device) {
+                            const deviceId = device._id;
+                            const tagName = targetName.replace(/[^a-zA-Z0-9.\s_-]/g, '').trim();
+
+                            console.log(`[GenieACS] Found device for sync, tagging: ${tagName}`);
+                            await genieacs.addDeviceTag(deviceId, tagName);
+                        }
+                    } catch (err) {
+                        console.error('[GenieACS] Sync on update failed:', err);
+                    }
+                })();
             }
 
             // Handle connection type specific updates (basic fields only, password will be handled after MikroTik sync)
@@ -1905,6 +2015,114 @@ export const switchToPrepaid = async (req: Request, res: Response) => {
             success: false,
             error: error.message || 'Failed to switch to prepaid mode'
         });
+    }
+};
+
+/**
+ * Sync all customers to GenieACS (One-way: Billing -> GenieACS)
+ * Updates Tags on GenieACS based on Serial Number in Billing
+ */
+export const syncAllCustomersToGenieacs = async (req: Request, res: Response) => {
+    try {
+        console.log('[Sync GenieACS] Starting full sync...');
+        const genieacs = await GenieacsService.getInstanceFromDb();
+
+        // 1. Get all customers with serial number
+        const val: any[] = [];
+        const [customers] = await databasePool.query<RowDataPacket[]>(
+            "SELECT id, name, serial_number FROM customers WHERE serial_number IS NOT NULL AND serial_number != ''",
+            val
+        );
+
+        console.log(`[Sync GenieACS] Found ${customers.length} customers with Serial Number`);
+
+        let syncedCount = 0;
+        let failedCount = 0;
+        let notFoundCount = 0; // Device not found in GenieACS
+
+        // Process in chunks or parallel with limit? 
+        // For safety, sequential or small batches. sequential is fine for background job feel
+
+        // We'll return a stream/progress or just wait? If many, it might timeout.
+        // Better to send response immediately and process in background?
+        // User asked for a button, usually expects feedback. 
+        // If < 1000 customers, might be OK to wait 30s. If more, background is better.
+        // I'll do synchronous for now but with a faster check standard.
+
+        // Projection includes common PPPoE paths
+        const projection = [
+            '_id',
+            '_deviceId._SerialNumber',
+            '_tags',
+            'VirtualParameters.pppoeUsername',
+            'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username'
+        ];
+
+        const allDevices = await genieacs.getDevices(5000, 0, projection);
+
+        // Build maps for efficient matching
+        const deviceBySerial = new Map<string, any>();
+        const deviceByPPPoE = new Map<string, any>();
+
+        allDevices.forEach(d => {
+            if (d._deviceId?._SerialNumber) {
+                deviceBySerial.set(d._deviceId._SerialNumber, d);
+            }
+
+            // Use GenieacsService helper if available or manual extraction
+            // Since we are in CustomerController, we'll do manual extraction for simplicity or assume service has it
+            const tags = d._tags || [];
+
+            // PPPoE Extraction logic similar to service
+            let pppoeUsername = d.VirtualParameters?.pppoeUsername?._value;
+            if (!pppoeUsername) {
+                pppoeUsername = d.InternetGatewayDevice?.WANDevice?.['1']?.WANConnectionDevice?.['1']?.WANPPPConnection?.['1']?.Username?._value;
+            }
+
+            if (pppoeUsername && pppoeUsername !== '-') {
+                deviceByPPPoE.set(pppoeUsername.toLowerCase(), d);
+            }
+        });
+
+        console.log(`[Sync GenieACS] Loaded ${allDevices.length} devices from GenieACS`);
+
+        for (const customer of customers) {
+            let device = null;
+
+            // A. Match by Serial
+            if (customer.serial_number && deviceBySerial.has(customer.serial_number)) {
+                device = deviceBySerial.get(customer.serial_number);
+            }
+            // B. Match by PPPoE
+            else if (customer.pppoe_username && deviceByPPPoE.has(customer.pppoe_username.toLowerCase())) {
+                device = deviceByPPPoE.get(customer.pppoe_username.toLowerCase());
+            }
+
+            if (device) {
+                try {
+                    const tagName = customer.name.replace(/[^a-zA-Z0-9.\s_-]/g, '').trim();
+                    if (!(device._tags || []).includes(tagName)) {
+                        await genieacs.addDeviceTag(device._id, tagName);
+                        syncedCount++;
+                    }
+                } catch (e) {
+                    console.error(`[Sync GenieACS] Failed to tag ${customer.name}:`, e);
+                    failedCount++;
+                }
+            } else {
+                notFoundCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Sync Selesai. Dimperbarui: ${syncedCount}, Gagal: ${failedCount}, Tidak ditemukan di ACS: ${notFoundCount}`,
+            data: { syncedCount, failedCount, notFoundCount }
+        });
+
+    } catch (error: any) {
+        console.error('[Sync GenieACS] Error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 

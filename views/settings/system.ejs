@@ -23,25 +23,87 @@
                 </div>
                 <% } %>
 
-                    <% // Helper function to convert setting_key to readable label function getReadableLabel(key) {
-                        const labels={ 'app_version' : 'Versi Aplikasi' , 'grace_period_days' : 'Hari Grace Period'
-                        , 'late_payment_threshold' : 'Batas Late Payment' , 'late_payment_rolling_months'
-                        : 'Bulan Rolling Period' , 'consecutive_on_time_reset' : 'Reset Pembayaran Tepat Waktu'
-                        , 'late_payment_warning_at_3' : 'Peringatan di 3x Late Payment' , 'late_payment_warning_at_4'
-                        : 'Peringatan Final di 4x Late Payment' , 'auto_isolate_enabled' : 'Aktifkan Auto Isolate'
-                        , 'auto_restore_enabled' : 'Aktifkan Auto Restore' , 'auto_notifications_enabled'
-                        : 'Aktifkan Auto Notifications' , 'auto_logout_enabled' : 'Aktifkan Auto Logout (10 Menit)'
-                        , 'domain_url' : 'URL Domain' , 'local_url' : 'URL Lokal' , 'domain_mode_enabled'
-                        : 'Aktifkan Domain Mode' , 'local_mode_enabled' : 'Aktifkan Local Mode' , 'ppn_enabled'
-                        : 'Aktifkan PPN' , 'ppn_rate' : 'Rate PPN (%)' , 'device_rental_enabled'
-                        : 'Aktifkan Sewa Perangkat' , 'device_rental_fee' : 'Biaya Sewa Perangkat' }; return labels[key]
-                        || key.replace(/_/g, ' ' ).replace(/\b\w/g, l=> l.toUpperCase());
+                    <% // Flatten all settings for easy lookup in Quick Access const
+                        allSettings=Object.values(groupedSettings || {}).flat(); const findValue=(key, def)=> {
+                        const found = allSettings.find(s => s.setting_key === key);
+                        return found ? found.setting_value : def;
+                        };
+
+                        // Helper function to convert setting_key to readable label
+                        function getReadableLabel(key) {
+                        const labels = {
+                        'app_version': 'Versi Aplikasi',
+                        'grace_period_days': 'Hari Grace Period',
+                        'late_payment_threshold': 'Batas Late Payment',
+                        'late_payment_rolling_months': 'Bulan Rolling Period',
+                        'consecutive_on_time_reset': 'Reset Pembayaran Tepat Waktu',
+                        'late_payment_warning_at_3': 'Peringatan di 3x Late Payment',
+                        'late_payment_warning_at_4': 'Peringatan Final di 4x Late Payment',
+                        'auto_isolate_enabled': 'Aktifkan Auto Isolate',
+                        'auto_restore_enabled': 'Aktifkan Auto Restore',
+                        'auto_notifications_enabled': 'Aktifkan Auto Notifications',
+                        'auto_logout_enabled': 'Aktifkan Auto Logout (10 Menit)',
+                        'domain_url': 'URL Domain',
+                        'local_url': 'URL Lokal',
+                        'domain_mode_enabled': 'Aktifkan Domain Mode',
+                        'local_mode_enabled': 'Aktifkan Local Mode',
+                        'ppn_enabled': 'Aktifkan PPN',
+                        'ppn_rate': 'Rate PPN (%)',
+                        'device_rental_enabled': 'Aktifkan Sewa Perangkat',
+                        'device_rental_fee': 'Biaya Sewa Perangkat'
+                        };
+                        return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         }
                         %>
 
                         <!-- Form -->
                         <form action="/settings/system" method="POST">
                             <div class="space-y-6">
+
+                                <!-- Quick Access: Billing & Tax -->
+                                <div
+                                    class="bg-gradient-to-r from-orange-500 to-red-600 rounded-xl shadow-lg overflow-hidden border border-orange-400">
+                                    <div class="px-5 py-3 flex items-center justify-between text-white">
+                                        <h3 class="text-lg font-bold flex items-center">
+                                            <i class="fas fa-bolt mr-2 text-yellow-300"></i>
+                                            Pengaturan Cepat: Pajak & Sewa Alat
+                                        </h3>
+                                        <span class="text-xs bg-white/20 px-2 py-1 rounded">Update Harga & PPN</span>
+                                    </div>
+                                    <div class="p-5 bg-orange-50/50 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- PPN Quick Setting -->
+                                        <div class="bg-white p-4 rounded-lg shadow-sm border border-orange-200">
+                                            <label class="block text-sm font-bold text-gray-700 mb-2">Rate PPN
+                                                (%)</label>
+                                            <div class="relative">
+                                                <input type="number" name="ppn_rate"
+                                                    value="<%= findValue('ppn_rate', '11') %>"
+                                                    class="w-full pl-3 pr-10 py-2 border-2 border-orange-100 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg font-bold text-gray-800">
+                                                <div
+                                                    class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                    <span class="text-gray-500 font-bold">%</span>
+                                                </div>
+                                            </div>
+                                            <p class="text-[10px] text-gray-500 mt-1 italic">* Contoh: 11 untuk 11%</p>
+                                        </div>
+
+                                        <!-- Device Rental Quick Setting -->
+                                        <div class="bg-white p-4 rounded-lg shadow-sm border border-orange-200">
+                                            <label class="block text-sm font-bold text-gray-700 mb-2">Harga Sewa Alat
+                                                (Rp)</label>
+                                            <div class="relative">
+                                                <div
+                                                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span class="text-gray-500 font-bold">Rp</span>
+                                                </div>
+                                                <input type="number" name="device_rental_fee"
+                                                    value="<%= findValue('device_rental_fee', '0') %>"
+                                                    class="w-full pl-10 pr-3 py-2 border-2 border-orange-100 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg font-bold text-gray-800">
+                                            </div>
+                                            <p class="text-[10px] text-gray-500 mt-1 italic">* Contoh: 50000</p>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <!-- General Settings -->
                                 <% if (groupedSettings && groupedSettings.general) { %>
@@ -276,15 +338,15 @@
                                                     </div>
                                                     <% } %>
 
-                                                        <!-- Auto Actions Settings -->
+                                                        <!-- Billing Settings -->
                                                         <% if (groupedSettings && groupedSettings.billing) { %>
                                                             <div
                                                                 class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                                                                 <div
                                                                     class="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-4">
                                                                     <h3 class="text-lg font-bold flex items-center">
-                                                                        <i class="fas fa-robot mr-2"></i>
-                                                                        Auto Actions
+                                                                        <i class="fas fa-file-invoice-dollar mr-2"></i>
+                                                                        Billing, Pajak & Biaya Alat
                                                                     </h3>
                                                                 </div>
                                                                 <div class="p-5">

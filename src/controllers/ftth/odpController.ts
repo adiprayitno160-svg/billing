@@ -7,7 +7,7 @@ export async function getOdpList(req: Request, res: Response, next: NextFunction
     try {
         const odcId = req.query.odc_id ? Number(req.query.odc_id) : undefined;
         const items = await listOdps(odcId);
-        res.render('ftth/odp', { title: 'FTTH - ODP', items, odcId });
+        res.render('ftth/odp', { title: 'FTTH - ODP', items, odcId, layout: 'layouts/main' });
     } catch (err) { next(err); }
 }
 
@@ -26,7 +26,7 @@ export async function getOdpAdd(req: Request, res: Response): Promise<void> {
         };
         return acc;
     }, {} as Record<string, any>);
-    res.render('ftth/odp_add', { title: 'Tambah ODP', odcId, odcs, odcToOlt });
+    res.render('ftth/odp_add', { title: 'Tambah ODP', odcId, odcs, odcToOlt, layout: 'layouts/main' });
 }
 
 export async function getOdpEdit(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -49,7 +49,7 @@ export async function getOdpEdit(req: Request, res: Response, next: NextFunction
             };
             return acc;
         }, {} as Record<string, any>);
-        res.render('ftth/odp_edit', { title: 'Edit ODP', item, odcs, odcToOlt });
+        res.render('ftth/odp_edit', { title: 'Edit ODP', item, odcs, odcToOlt, layout: 'layouts/main' });
     } catch (err) { next(err); }
 }
 

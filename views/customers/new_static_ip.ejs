@@ -90,9 +90,17 @@
                                     <input name="longitude" type="number" step="any" placeholder="106.816666"
                                         class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Serial Number
+                                        (GenieACS)</label>
+                                    <input name="serial_number" placeholder="Contoh: 48575443..."
+                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                    <p class="text-xs text-slate-500 mt-1">Serial Number modem untuk sync otomatis ke
+                                        GenieACS</p>
+                                </div>
                                 <div class="text-xs text-slate-500 bg-blue-50 p-2 rounded">
                                     💡 <strong>Tips:</strong> Masukkan koordinat yang akurat untuk menampilkan lokasi di
-                                    peta
+                                    peta. Isi Serial Number untuk integrasi GenieACS.
                                 </div>
                             </div>
 
@@ -225,26 +233,75 @@
                     </div>
                 </div>
 
-                <!-- Billing Options -->
+                <!-- Billing Mode Options -->
                 <div class="sm:col-span-2">
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
-                            📅 Pengaturan Tagihan
+                            💰 Mode Pembayaran (Billing Mode)
                         </h3>
 
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" name="enable_billing" id="enable_billing" value="1"
-                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <label for="enable_billing" class="text-sm font-medium text-slate-700 cursor-pointer">
-                                Aktifkan Sistem Billing Postpaid
-                            </label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Billing Mode Selection -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Metode Penagihan</label>
+                                <select name="billing_mode" id="billing_mode"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    onchange="toggleBillingOptions()">
+                                    <option value="postpaid" selected>📅 Pascabayar (Tagihan Bulanan)</option>
+                                    <option value="prepaid">🎟️ Prabayar (Sistem Voucher/Topup)</option>
+                                </select>
+                                <p class="text-xs text-slate-500 mt-2" id="billing_desc">
+                                    Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.
+                                </p>
+                            </div>
+
+                            <!-- Prepaid Option: Initial Bonus -->
+                            <div id="prepaid_options" class="hidden">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Masa Aktif Awal
+                                    (Bonus)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" name="initial_validity_days" value="0" min="0"
+                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Hari</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-2">
+                                    Jumlah hari aktif gratis saat akun dibuat. Isi 0 jika tidak ada bonus.
+                                </p>
+                            </div>
+
+                            <!-- Tax & Rental Settings -->
+                            <div
+                                class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-blue-200">
+                                <div>
+                                    <label class="relative inline-flex items-center cursor-pointer group">
+                                        <input type="checkbox" name="is_taxable" value="1" class="sr-only peer">
+                                        <div
+                                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 transition-all duration-300">
+                                        </div>
+                                        <span
+                                            class="ml-3 text-sm font-bold text-slate-700 group-hover:text-blue-700">Kena
+                                            PPN?</span>
+                                    </label>
+                                    <p class="text-[10px] text-slate-500 mt-1">
+                                        Aktifkan jika pelanggan ini dikenakan pajak PPN.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label class="relative inline-flex items-center cursor-pointer group">
+                                        <input type="checkbox" name="use_device_rental" value="1" class="sr-only peer">
+                                        <div
+                                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 transition-all duration-300">
+                                        </div>
+                                        <span
+                                            class="ml-3 text-sm font-bold text-slate-700 group-hover:text-blue-700">Sewa
+                                            Alat?</span>
+                                    </label>
+                                    <p class="text-[10px] text-slate-500 mt-1">
+                                        Aktifkan jika pelanggan ini menyewa perangkat.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <p class="text-xs text-slate-600 mt-2 ml-7">
-                            ✅ Default aktif: Tagihan akan mengikuti tanggal daftar setiap bulan<br>
-                            📌 Contoh: Daftar tanggal 12 Oktober → Tagihan bulanan setiap tanggal 12 → Jatuh tempo
-                            tanggal 13 → Auto-isolir jika tidak dibayar<br>
-                            ❌ Uncheck untuk menggunakan sistem billing lama
-                        </p>
                     </div>
                 </div>
 
@@ -636,6 +693,9 @@
                     // Initialize OLT/ODC display on page load
                     updateOLTODC();
 
+                    // Initial trigger
+                    toggleBillingOptions();
+
                     // Tombol manual untuk mengambil lokasi saat ini
                     const getLocationBtn = document.getElementById('btnGetLocation');
                     if (getLocationBtn) {
@@ -658,6 +718,25 @@
                         });
                     }
                 })();
+
+                function toggleBillingOptions() {
+                    const modeInput = document.getElementById('billing_mode');
+                    if (!modeInput) return;
+
+                    const mode = modeInput.value;
+                    const prepaidOptions = document.getElementById('prepaid_options');
+                    const billingDesc = document.getElementById('billing_desc');
+
+                    if (mode === 'prepaid') {
+                        if (prepaidOptions) prepaidOptions.classList.remove('hidden');
+                        if (billingDesc) billingDesc.textContent = 'Pelanggan membayar di depan. Internet otomatis terisolasi jika masa aktif habis.';
+                    } else {
+                        if (prepaidOptions) prepaidOptions.classList.add('hidden');
+                        if (billingDesc) billingDesc.textContent = 'Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.';
+                    }
+                }
+                // Make globally available
+                window.toggleBillingOptions = toggleBillingOptions;
             </script>
 
             <!-- Default Template dari Paket (readonly, untuk referensi) -->

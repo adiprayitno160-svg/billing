@@ -77,3 +77,22 @@ READY_TO_PUSH.md
 
 # PM2
 .pm2/
+
+# Gemini/Claude AI artifacts
+.gemini/
+.agent/
+
+# Package lock (optional - some prefer to include)
+# package-lock.json
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Test files
+*.test.js
+*.spec.js
+__tests__/
+
+# Migration SQL files (sudah ada di TypeScript)
+migrations/*.sql

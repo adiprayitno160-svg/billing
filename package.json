@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.4.9",
+  "version": "2.4.10",
   "description": "",
   "main": "index.js",
   "engines": {
@@ -53,6 +53,7 @@
     "express": "^5.1.0",
     "express-ejs-layouts": "^2.5.1",
     "express-session": "^1.18.2",
+    "googleapis": "^169.0.0",
     "helmet": "^8.1.0",
     "midtrans-client": "^1.4.3",
     "mikronode": "^2.3.11",

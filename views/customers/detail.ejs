@@ -229,16 +229,132 @@
 				</div>
 				<% } %>
 
-					<!-- Address Information -->
-					<% if (customer.address) { %>
+					<!-- ONT / Device Status (GenieACS) -->
+					<% if (typeof deviceDetails !=='undefined' && deviceDetails) { %>
 						<div
-							class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-white to-modern-orange-50/30 p-6 shadow-lg">
-							<h2 class="text-lg font-bold text-modern-orange-900 mb-4">Alamat</h2>
-							<div class="text-lg text-modern-orange-800">
-								<%= customer.address %>
+							class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-white to-modern-blue-50/30 p-6 shadow-lg">
+							<div class="flex items-center justify-between mb-4">
+								<h2 class="text-lg font-bold text-modern-blue-900">Status ONT / Perangkat</h2>
+								<span
+									class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium <%= deviceDetails.online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+									<span
+										class="mr-1 h-2 w-2 rounded-full <%= deviceDetails.online ? 'bg-green-500' : 'bg-red-500' %> animate-pulse"></span>
+									<%= deviceDetails.online ? 'Online' : 'Offline' %>
+								</span>
+							</div>
+
+							<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+								<!-- Signal Info -->
+								<div class="space-y-3">
+									<h3 class="text-xs font-bold text-modern-blue-400 uppercase tracking-wider">
+										Informasi Sinyal</h3>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">RX Power:</span>
+										<span
+											class="font-mono font-bold <%= parseFloat(deviceDetails.signal.rxPower) < -27 ? 'text-red-600' : 'text-modern-blue-800' %>">
+											<%= deviceDetails.signal.rxPower %> dBm
+										</span>
+									</div>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">TX Power:</span>
+										<span class="font-mono text-modern-blue-800">
+											<%= deviceDetails.signal.txPower %> dBm
+										</span>
+									</div>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">Suhu:</span>
+										<span class="text-modern-blue-800">
+											<%= deviceDetails.signal.temperature %> °C
+										</span>
+									</div>
+								</div>
+
+								<!-- Connection Info -->
+								<div class="space-y-3 border-l border-modern-blue-100 pl-6">
+									<h3 class="text-xs font-bold text-modern-blue-400 uppercase tracking-wider">Koneksi
+										WAN</h3>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">Mode:</span>
+										<span class="font-bold text-modern-blue-800">
+											<%= deviceDetails.wan.mode %>
+										</span>
+									</div>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">VLAN:</span>
+										<span class="text-modern-blue-800">
+											<%= deviceDetails.wan.vlan %>
+										</span>
+									</div>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">IP WAN:</span>
+										<span class="font-mono text-modern-blue-800">
+											<%= deviceDetails.wan.ip %>
+										</span>
+									</div>
+								</div>
+
+								<!-- WiFi Info -->
+								<div class="space-y-3 border-l border-modern-blue-100 pl-6">
+									<h3 class="text-xs font-bold text-modern-blue-400 uppercase tracking-wider">WiFi
+										Status</h3>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">SSID:</span>
+										<span class="font-bold text-modern-blue-800">
+											<%= deviceDetails.wifi.ssid %>
+										</span>
+									</div>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">Password:</span>
+										<div class="flex items-center gap-2">
+											<span class="font-mono text-modern-blue-800 password-masked">••••••••</span>
+											<span class="font-mono text-modern-blue-800 hidden password-text">
+												<%= deviceDetails.wifi.password %>
+											</span>
+											<button onclick="togglePassword(this)"
+												class="text-modern-blue-400 hover:text-modern-blue-600">
+												<svg class="h-4 w-4" fill="none" stroke="currentColor"
+													viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+												</svg>
+											</button>
+										</div>
+									</div>
+									<div class="flex justify-between items-center text-sm">
+										<span class="text-modern-blue-600">Active Clients:</span>
+										<span class="font-bold text-emerald-600">
+											<%= deviceDetails.signal.wifiClients %> Perangkat
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="mt-6 pt-4 border-t border-modern-blue-100 flex gap-3">
+								<button onclick="refreshONT('<%= deviceDetails.id %>')"
+									class="flex items-center gap-2 text-xs font-bold text-modern-blue-600 hover:text-modern-blue-800 bg-modern-blue-100 px-3 py-1.5 rounded-lg transition-all">
+									🔄 Refresh Data
+								</button>
+								<button onclick="rebootONT('<%= deviceDetails.id %>')"
+									class="flex items-center gap-2 text-xs font-bold text-modern-red-600 hover:text-modern-red-800 bg-modern-red-100 px-3 py-1.5 rounded-lg transition-all">
+									🔌 Reboot ONT
+								</button>
 							</div>
 						</div>
 						<% } %>
+
+							<!-- Address Information -->
+							<% if (customer.address) { %>
+								<div
+									class="rounded-2xl border border-modern-orange-200 bg-gradient-to-br from-white to-modern-orange-50/30 p-6 shadow-lg">
+									<h2 class="text-lg font-bold text-modern-orange-900 mb-4">Alamat</h2>
+									<div class="text-lg text-modern-orange-800">
+										<%= customer.address %>
+									</div>
+								</div>
+								<% } %>
 
 		</div>
 
@@ -425,6 +541,43 @@
 </div>
 
 <script>
+	function togglePassword(btn) {
+		const parent = btn.parentElement;
+		const masked = parent.querySelector('.password-masked');
+		const text = parent.querySelector('.password-text');
+		if (masked.classList.contains('hidden')) {
+			masked.classList.remove('hidden');
+			text.classList.add('hidden');
+			btn.innerHTML = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>';
+		} else {
+			masked.classList.add('hidden');
+			text.classList.remove('hidden');
+			btn.innerHTML = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>';
+		}
+	}
+
+	function refreshONT(deviceId) {
+		if (confirm('Refresh data ONT? Ini akan meminta GenieACS untuk mengambil parameter terbaru.')) {
+			fetch(`/genieacs/devices/${encodeURIComponent(deviceId)}/refresh`, { method: 'POST' })
+				.then(res => res.json())
+				.then(data => {
+					if (data.success) alert('Perintah refresh terkirim!');
+					else alert('Gagal: ' + data.message);
+				});
+		}
+	}
+
+	function rebootONT(deviceId) {
+		if (confirm('Yakin ingin me-reboot ONT pelanggan ini? Koneksi akan terputus sementara.')) {
+			fetch(`/genieacs/devices/${encodeURIComponent(deviceId)}/reboot`, { method: 'POST' })
+				.then(res => res.json())
+				.then(data => {
+					if (data.success) alert('Perintah reboot terkirim!');
+					else alert('Gagal: ' + data.message);
+				});
+		}
+	}
+
 	function deleteCustomer(id, name) {
 		if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
 			fetch(`/customers/${id}`, {

@@ -6,7 +6,7 @@ const router = Router();
 const authMiddleware = new AuthMiddleware();
 
 // All routes require authentication
-router.use(authMiddleware.isAuthenticated);
+router.use(authMiddleware.requireAuth);
 
 // Migration routes
 router.post('/migrate/postpaid-ppn', MigrationController.runPostpaidPpnMigration);

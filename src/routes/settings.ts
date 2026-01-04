@@ -18,7 +18,10 @@ const upload = multer({
 
 // Routes untuk pengaturan perusahaan
 router.get('/company', CompanyController.showSettings);
-router.post('/company', upload.single('company_logo'), CompanyController.saveSettings);
+router.post('/company', upload.fields([
+    { name: 'company_logo', maxCount: 1 },
+    { name: 'qris_image', maxCount: 1 }
+]), CompanyController.saveSettings);
 router.post('/company/upload-logo', upload.single('company_logo'), CompanyController.uploadLogo);
 router.get('/company/preview', CompanyController.previewTemplate);
 router.get('/company/export', CompanyController.exportSettings);
@@ -48,5 +51,12 @@ router.get('/whatsapp', WhatsAppSettingsController.showSettings);
 router.get('/whatsapp/status', WhatsAppSettingsController.getStatus);
 router.post('/whatsapp/regenerate-qr', WhatsAppSettingsController.regenerateQR);
 router.post('/whatsapp/test-send', WhatsAppSettingsController.testSendMessage);
+
+// Routes untuk Backup & Restore
+import { BackupController } from '../controllers/backupController';
+router.get('/backup', BackupController.index);
+router.post('/backup/config', BackupController.saveConfig);
+router.post('/backup/upload-key', upload.single('keyFile'), BackupController.uploadKey);
+router.post('/backup/run', BackupController.runBackup);
 
 export default router;

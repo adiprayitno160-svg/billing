@@ -161,7 +161,7 @@ export const checkDeviceStatus = async (req: Request, res: Response) => {
 export const renderPublicNetworkMap = async (req: Request, res: Response) => {
     try {
         res.render('monitoring/public-network-map', {
-            title: 'Network Monitoring',
+            title: 'Network Monitoring v2.4.9',
             layout: false // No layout, standalone page
         });
     } catch (error) {

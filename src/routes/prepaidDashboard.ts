@@ -9,6 +9,12 @@ const authMiddleware = new AuthMiddleware();
 router.use(authMiddleware.requireAuth.bind(authMiddleware));
 
 /**
+ * GET /prepaid
+ * Redirect to customers list (default dashboard)
+ */
+router.get('/', (req, res) => res.redirect('/prepaid/customers'));
+
+/**
  * GET /prepaid/customers
  * Show prepaid customers list with expiry status
  */
@@ -25,5 +31,11 @@ router.get('/transactions', PrepaidDashboardController.listTransactions);
  * Show pending payment requests
  */
 router.get('/payment-requests', PrepaidDashboardController.listPaymentRequests);
+
+/**
+ * GET /prepaid/reports
+ * Show prepaid transactions report
+ */
+router.get('/reports', PrepaidDashboardController.getReports);
 
 export default router;
