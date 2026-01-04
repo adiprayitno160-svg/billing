@@ -63,7 +63,11 @@ Sistem Billing untuk ISP/Provider Internet dengan integrasi GenieACS, MikroTik, 
 - **Styling**: TailwindCSS
 - **Process Manager**: PM2
 
-## 🌐 Deployment & Update (Ubuntu Server)
+## 🌐 Deployment
+
+### Ubuntu Server (Production)
+Untuk panduan instalasi lengkap di Ubuntu Server menggunakan Nginx, PM2, dan SSL, silakan baca:
+👉 **[Panduan Instalasi Ubuntu Server (Lengkap)](INSTALL_UBUNTU.md)**
 
 ### Update via SSH (Simple)
 Jika Anda sudah memiliki sistem yang terinstall, gunakan script update otomatis:
