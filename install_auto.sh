@@ -75,6 +75,7 @@ npm install -g pm2 ts-node typescript
 # Setup .env
 cp .env.example .env
 # Replace config in .env using sed
+sed -i "s/PORT=.*/PORT=3001/" .env
 sed -i "s/DB_USER=.*/DB_USER=billing/" .env
 sed -i "s/DB_PASS=.*/DB_PASS=$DB_PASS/" .env
 sed -i "s/DB_NAME=.*/DB_NAME=billing_db/" .env
@@ -92,7 +93,7 @@ server {
 
     # Aplikasi Billing (Node.js)
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001; # Port 3001 (Port 3000 used by GenieACS)
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';

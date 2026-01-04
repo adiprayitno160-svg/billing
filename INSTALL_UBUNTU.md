@@ -90,7 +90,7 @@ nano .env
 Sesuaikan konfigurasi penting di `.env`:
 ```ini
 NODE_ENV=production
-PORT=3000
+PORT=3001  <-- PENTING: Ganti ke 3001 (GenieACS pakai 3000)
 DB_HOST=localhost
 DB_USER=billing_user
 DB_PASS=password_db_anda
@@ -141,7 +141,7 @@ server {
     server_name billing.domainanda.com;
 
     location / {
-        proxy_pass http://localhost:3000; # Sesuaikan port dengan .env
+        proxy_pass http://localhost:3001; # Port 3001
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
