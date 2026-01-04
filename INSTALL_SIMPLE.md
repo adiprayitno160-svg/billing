@@ -31,8 +31,13 @@ EXIT;
 
 ## 3. Install Aplikasi
 ```bash
+# Buat folder khusus (jika belum ada)
+sudo mkdir -p /var/www
 cd /var/www
+
+# Download Source Code
 sudo git clone https://github.com/adiprayitno160-svg/billing.git
+# Ubah permission (opsional jika root)
 sudo chown -R $USER:$USER billing
 cd billing
 
