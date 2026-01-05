@@ -82,6 +82,22 @@ export class BackupController {
         }
     }
 
+    static async runLocalBackup(req: Request, res: Response) {
+        try {
+            const backupService = new DatabaseBackupService();
+            // We only need the dump part, not the upload
+            const filePath = await backupService.dumpDatabase();
+            const fileName = path.basename(filePath);
+
+            req.flash('success', `Backup Lokal Berhasil! File disimpan: ${fileName}`);
+            res.redirect('/settings/backup');
+        } catch (error: any) {
+            console.error('Local Backup Error:', error);
+            req.flash('error', 'Backup Lokal Gagal: ' + error.message);
+            res.redirect('/settings/backup');
+        }
+    }
+
     static async listBackups(req: Request, res: Response) {
         try {
             const backupDir = path.join(process.cwd(), 'storage', 'backups');
@@ -89,19 +105,22 @@ export class BackupController {
                 return res.json([]);
             }
 
-            const files = fs.readdirSync(backupDir)
-                .filter(f => f.endsWith('.sql'))
-                .map(f => {
-                    const stats = fs.statSync(path.join(backupDir, f));
-                    return {
-                        filename: f,
-                        size: stats.size,
-                        createdAt: stats.birthtime
-                    };
-                })
-                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            const files = await fs.promises.readdir(backupDir);
 
-            res.json(files);
+            const fileStats = await Promise.all(
+                files
+                    .filter(f => f.endsWith('.sql'))
+                    .map(async f => {
+                        const stats = await fs.promises.stat(path.join(backupDir, f));
+                        return {
+                            filename: f,
+                            size: stats.size,
+                            createdAt: stats.birthtime
+                        };
+                    })
+            );
+
+            res.json(fileStats.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
         } catch (error: any) {
             res.status(500).json({ error: error.message });
         }
@@ -119,6 +138,57 @@ export class BackupController {
             res.download(filePath);
         } catch (error: any) {
             res.status(500).send(error.message);
+        }
+    }
+
+    static async restoreBackup(req: Request, res: Response) {
+        try {
+            const { filename } = req.params;
+            const filePath = path.join(process.cwd(), 'storage', 'backups', filename);
+            const backupService = new DatabaseBackupService();
+
+            await backupService.restoreDatabase(filePath);
+
+            req.flash('success', 'Database berhasil direstore');
+            res.redirect('/settings/backup');
+        } catch (error: any) {
+            console.error('Restore Error:', error);
+            req.flash('error', 'Restore Gagal: ' + error.message);
+            res.redirect('/settings/backup');
+        }
+    }
+
+    static async restoreFromUpload(req: Request, res: Response) {
+        try {
+            if (!req.file) {
+                req.flash('error', 'File SQL tidak ditemukan');
+                return res.redirect('/settings/backup');
+            }
+
+            if (!req.file.originalname.endsWith('.sql')) {
+                req.flash('error', 'Hanya file .sql yang diperbolehkan');
+                return res.redirect('/settings/backup');
+            }
+
+            // Move uploaded file from buffer/temp to storage/backups
+            const backupDir = path.join(process.cwd(), 'storage', 'backups');
+            if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `restore-upload-${timestamp}-${req.file.originalname}`;
+            const targetPath = path.join(backupDir, filename);
+
+            fs.writeFileSync(targetPath, req.file.buffer);
+
+            const backupService = new DatabaseBackupService();
+            await backupService.restoreDatabase(targetPath);
+
+            req.flash('success', 'Database berhasil direstore dari file upload');
+            res.redirect('/settings/backup');
+        } catch (error: any) {
+            console.error('Restore Upload Error:', error);
+            req.flash('error', 'Restore Gagal: ' + error.message);
+            res.redirect('/settings/backup');
         }
     }
 }

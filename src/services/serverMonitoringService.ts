@@ -66,10 +66,26 @@ export class ServerMonitoringService {
             // Get CPU load average (1 minute)
             const loadAvg = os.loadavg();
             const cpuCores = os.cpus().length;
-            
+
             // Calculate CPU usage percentage (load average / cores * 100)
-            // Load average represents the average system load over 1, 5, and 15 minutes
-            const cpuLoadPercent = cpuCores > 0 ? (loadAvg[0] / cpuCores) * 100 : 0;
+            // Get proper CPU load for Windows
+            let cpuLoadPercent = 0;
+            if (os.platform() === 'win32') {
+                try {
+                    const { execSync } = require('child_process');
+                    const output = execSync('wmic cpu get loadpercentage').toString();
+                    const match = output.match(/\d+/);
+                    if (match) {
+                        cpuLoadPercent = parseInt(match[0], 10);
+                    }
+                } catch (e) {
+                    console.warn('[ServerMonitoring] Failed to get Windows CPU load:', e);
+                }
+            } else {
+                // Unix/Linux: Load average represents the average system load over 1, 5, and 15 minutes
+                // Normalized by core count for percentage
+                cpuLoadPercent = cpuCores > 0 ? (loadAvg[0] / cpuCores) * 100 : 0;
+            }
 
             // Get database status
             const dbStatus = await getDatabaseStatus();
@@ -123,7 +139,7 @@ export class ServerMonitoringService {
             return status;
         } catch (error) {
             console.error('[ServerMonitoring] Error getting server status:', error);
-            
+
             // Return error status
             const errorStatus: ServerMonitoringStatus = {
                 server: {

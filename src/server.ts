@@ -213,7 +213,7 @@ process.on('uncaughtException', (error) => {
 
 async function start() {
 	try {
-		console.log('🔄 Restarting server due to code updates (AntiGravity trigger)...');
+		console.log(`🔄 Restarting server due to code updates (AntiGravity trigger) at ${new Date().toISOString()}...`);
 		console.log('Starting server initialization...');
 		console.log(`Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
 

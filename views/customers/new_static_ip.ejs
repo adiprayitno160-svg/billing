@@ -213,18 +213,21 @@
                                             <%=(typeof interfaceError !=='undefined' && interfaceError) ? 'disabled'
                                             : '' %>>
                                             <option value="">-- Pilih Interface --</option>
-                                            <% if (interfaces && interfaces.length> 0) { %>
+                                            <% if (typeof interfaces !=='undefined' && interfaces && interfaces.length>
+                                                0) { %>
                                                 <% interfaces.forEach(function(ifc){ %>
                                                     <option value="<%= ifc.name %>">
                                                         <%= ifc.name %>
                                                             <% if (ifc.type) { %>(<%= ifc.type %>)<% } %>
                                                     </option>
                                                     <% }) %>
-                                                        <% } else if (!interfaceError) { %>
+                                                        <% } else if (typeof interfaceError==='undefined' ||
+                                                            !interfaceError) { %>
                                                             <option value="" disabled>Belum ada interface</option>
                                                             <% } %>
                                         </select>
-                                        <% if (interfaces && interfaces.length===0 && !interfaceError) { %>
+                                        <% if (typeof interfaces !=='undefined' && interfaces && interfaces.length===0
+                                            && (typeof interfaceError==='undefined' || !interfaceError)) { %>
                                             <p class="text-xs text-slate-500 mt-1">Interface tidak tersedia. Pastikan
                                                 MikroTik terhubung.</p>
                                             <% } %>

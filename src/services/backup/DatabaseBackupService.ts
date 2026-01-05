@@ -27,8 +27,8 @@ export class DatabaseBackupService {
             if (rows.length > 0 && rows[0].setting_value) {
                 return rows[0].setting_value;
             }
-            // Default fallback assumption for Laragon (user might need to adjust)
-            return 'C:\\laragon\\bin\\mysql\\mysql-8.0.30-winx64\\bin\\mysqldump.exe';
+            // Default fallback assumption for Laragon (Updated to detected version)
+            return 'C:\\laragon\\bin\\mysql\\mysql-8.4.3-winx64\\bin\\mysqldump.exe';
         } catch (error) {
             return 'mysqldump'; // Hope it's in PATH
         }
@@ -71,6 +71,41 @@ export class DatabaseBackupService {
                     return reject(new Error(`Mysqldump failed: ${stderr || error.message}. Check path configuration.`));
                 }
                 resolve(filePath);
+            });
+        });
+    }
+
+    /**
+     * Perform Database Restore
+     */
+    async restoreDatabase(filePath: string): Promise<void> {
+        if (!fs.existsSync(filePath)) {
+            throw new Error('Backup file not found');
+        }
+
+        const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME } = process.env;
+        const mysqldumpCmd = await this.getMysqldumpPath(); // This returns mysqldump path. We need mysql path.
+
+        // Infer mysql path from mysqldump path if possible, or assume 'mysql' is in PATH
+        let mysqlCmd = 'mysql';
+        if (mysqldumpCmd.includes('mysqldump')) {
+            mysqlCmd = mysqldumpCmd.replace('mysqldump', 'mysql');
+        }
+
+        // Construct command
+        const passwordPart = DB_PASSWORD ? `-p"${DB_PASSWORD}"` : '';
+        const command = `"${mysqlCmd}" -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} < "${filePath}"`;
+
+        console.log(`[Restore] Restoring from ${filePath}...`);
+
+        return new Promise((resolve, reject) => {
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('[Restore] Error:', stderr);
+                    return reject(new Error(`Restore failed: ${stderr || error.message}`));
+                }
+                console.log('[Restore] Success');
+                resolve();
             });
         });
     }

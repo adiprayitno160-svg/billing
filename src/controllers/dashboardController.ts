@@ -188,171 +188,238 @@ async function getTroubleCustomers(): Promise<any[]> {
 }
 
 export async function getDashboard(req: Request, res: Response): Promise<void> {
-	// Check if late_payment_count column exists once (optimization)
-	let hasLatePaymentCount = false;
 	try {
-		const [cols] = await databasePool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'late_payment_count'") as any;
-		hasLatePaymentCount = cols.length > 0;
-	} catch {
-		hasLatePaymentCount = false;
-	}
-
-	// Parallel queries
-	const [
-		activeCustomersP,
-		totalCustomersP,
-		inactiveCustomersP,
-		suspendedCustomersP,
-		pppoeCustomersP,
-		staticIpCustomersP,
-		pppoePackagesP,
-		pppoeProfilesP,
-		newRequests7dP,
-		recentRequestsP,
-		chartRawP,
-		oltCountP,
-		odcCountP,
-		odpCountP,
-		mtSettingsP,
-		troubleCustomersP,
-		latePaymentHighRiskP,
-		latePaymentWarning4P
-	] = await Promise.all([
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='inactive'"),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='suspended'"),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='pppoe'"),
-		databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='static_ip'"),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_packages'),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_profiles'),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_new_requests WHERE created_at >= (CURDATE() - INTERVAL 7 DAY)'),
-		databasePool.query('SELECT customer_name, phone, package_id, created_at FROM pppoe_new_requests ORDER BY created_at DESC LIMIT 5'),
-		databasePool.query("SELECT DATE(created_at) AS d, COUNT(*) AS c FROM pppoe_new_requests WHERE created_at >= (CURDATE() - INTERVAL 6 DAY) GROUP BY DATE(created_at)"),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_olt'),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odc'),
-		databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odp'),
-		databasePool.query('SELECT id, host, port, username, password, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
-		getTroubleCustomers(),
-		(async () => {
-			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
-			try {
-				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 3") as any;
-				return result;
-			} catch { return [[{ cnt: 0 }]]; }
-		})(),
-		(async () => {
-			if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
-			try {
-				const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 4") as any;
-				return result;
-			} catch { return [[{ cnt: 0 }]]; }
-		})()
-	]);
-
-	const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
-	const pppoePackages = (pppoePackagesP[0] as any)[0]?.cnt ?? 0;
-	const pppoeProfiles = (pppoeProfilesP[0] as any)[0]?.cnt ?? 0;
-	const totalCustomers = (totalCustomersP[0] as any)[0]?.cnt ?? 0;
-	const inactiveCustomers = (inactiveCustomersP[0] as any)[0]?.cnt ?? 0;
-	const suspendedCustomers = (suspendedCustomersP[0] as any)[0]?.cnt ?? 0;
-	const pppoeCustomers = (pppoeCustomersP[0] as any)[0]?.cnt ?? 0;
-	const staticIpCustomers = (staticIpCustomersP[0] as any)[0]?.cnt ?? 0;
-	const oltCount = (oltCountP[0] as any)[0]?.cnt ?? 0;
-	const odcCount = (odcCountP[0] as any)[0]?.cnt ?? 0;
-	const odpCount = (odpCountP[0] as any)[0]?.cnt ?? 0;
-	const newRequests = (newRequests7dP[0] as any)[0]?.cnt ?? 0;
-	const recentRequests = (recentRequestsP[0] as any) ?? [];
-	// Ensure troubleCustomers is always an array
-	const troubleCustomers = Array.isArray(troubleCustomersP) ? troubleCustomersP : [];
-	const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
-	const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
-
-	const labels = getLastNDatesLabels(7);
-	const pointsMap: Record<string, number> = Object.create(null);
-	for (const row of (chartRawP[0] as any)) {
-		const k = new Date(row.d).toISOString().slice(0, 10);
-		pointsMap[k] = Number(row.c) || 0;
-	}
-	const dataPoints = labels.map((label) => pointsMap[label] ?? 0);
-
-	const mtSettings = Array.isArray(mtSettingsP[0]) && (mtSettingsP[0] as any[]).length ? (mtSettingsP[0] as any[])[0] : null;
-
-	// Get MikroTik information if settings exist
-	let mikrotikInfo: any = null;
-	let interfaces: any[] = [];
-	let connectionStatus = { connected: false, error: null };
-
-	if (mtSettings) {
+		// Check if late_payment_count column exists once (optimization)
+		let hasLatePaymentCount = false;
 		try {
-			// Validate that password exists
-			if (!mtSettings.password) {
-				throw new Error('Password MikroTik tidak ditemukan. Silakan konfigurasi ulang di Settings > MikroTik');
-			}
-
-			const config: MikroTikConfig = {
-				host: mtSettings.host,
-				port: mtSettings.port,
-				username: mtSettings.username,
-				password: mtSettings.password,
-				use_tls: mtSettings.use_tls
-			};
-
-			console.log(`[Dashboard] Attempting to connect to MikroTik at ${config.host}:${config.port}...`);
-			mikrotikInfo = await getMikrotikInfo(config);
-			console.log(`[Dashboard] ✅ MikroTik info retrieved successfully`);
-
-			interfaces = await getInterfaces(config);
-			console.log(`[Dashboard] ✅ Retrieved ${interfaces.length} interfaces`);
-
-			connectionStatus = { connected: true, error: null };
-		} catch (error: any) {
-			const errorMessage = error?.message || 'Gagal mengambil data MikroTik';
-			console.error(`[Dashboard] ❌ Error connecting to MikroTik:`, errorMessage);
-			connectionStatus = { connected: false, error: errorMessage };
-			// Set empty arrays to prevent undefined errors in view
-			mikrotikInfo = null;
-			interfaces = [];
+			const [cols] = await databasePool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'late_payment_count'") as any;
+			hasLatePaymentCount = cols.length > 0;
+		} catch {
+			hasLatePaymentCount = false;
 		}
-	}
 
-	// Get server monitoring status
-	let serverMonitoring = null;
-	try {
-		serverMonitoring = await ServerMonitoringService.getServerStatus();
+		// Parallel queries
+		const [
+			activeCustomersP,
+			totalCustomersP,
+			inactiveCustomersP,
+			suspendedCustomersP,
+			pppoeCustomersP,
+			staticIpCustomersP,
+			pppoePackagesP,
+			pppoeProfilesP,
+			newRequests7dP,
+			recentRequestsP,
+			chartRawP,
+			oltCountP,
+			odcCountP,
+			odpCountP,
+			mtSettingsP,
+			troubleCustomersP,
+			latePaymentHighRiskP,
+			latePaymentWarning4P
+		] = await Promise.all([
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='inactive'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='suspended'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='pppoe'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='static_ip'"),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_packages'),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_profiles'),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_new_requests WHERE created_at >= (CURDATE() - INTERVAL 7 DAY)'),
+			databasePool.query('SELECT customer_name, phone, package_id, created_at FROM pppoe_new_requests ORDER BY created_at DESC LIMIT 5'),
+			databasePool.query("SELECT DATE(created_at) AS d, COUNT(*) AS c FROM pppoe_new_requests WHERE created_at >= (CURDATE() - INTERVAL 6 DAY) GROUP BY DATE(created_at)"),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_olt'),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odc'),
+			databasePool.query('SELECT COUNT(*) AS cnt FROM ftth_odp'),
+			databasePool.query('SELECT id, host, port, username, password, use_tls, created_at, updated_at FROM mikrotik_settings ORDER BY id DESC LIMIT 1'),
+			getTroubleCustomers(),
+			(async () => {
+				if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
+				try {
+					const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 3") as any;
+					return result;
+				} catch { return [[{ cnt: 0 }]]; }
+			})(),
+			(async () => {
+				if (!hasLatePaymentCount) return [[{ cnt: 0 }]];
+				try {
+					const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 4") as any;
+					return result;
+				} catch { return [[{ cnt: 0 }]]; }
+			})()
+		]);
+
+		const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
+		const pppoePackages = (pppoePackagesP[0] as any)[0]?.cnt ?? 0;
+		const pppoeProfiles = (pppoeProfilesP[0] as any)[0]?.cnt ?? 0;
+		const totalCustomers = (totalCustomersP[0] as any)[0]?.cnt ?? 0;
+		const inactiveCustomers = (inactiveCustomersP[0] as any)[0]?.cnt ?? 0;
+		const suspendedCustomers = (suspendedCustomersP[0] as any)[0]?.cnt ?? 0;
+		const pppoeCustomers = (pppoeCustomersP[0] as any)[0]?.cnt ?? 0;
+		const staticIpCustomers = (staticIpCustomersP[0] as any)[0]?.cnt ?? 0;
+		const oltCount = (oltCountP[0] as any)[0]?.cnt ?? 0;
+		const odcCount = (odcCountP[0] as any)[0]?.cnt ?? 0;
+		const odpCount = (odpCountP[0] as any)[0]?.cnt ?? 0;
+		const newRequests = (newRequests7dP[0] as any)[0]?.cnt ?? 0;
+		const recentRequests = (recentRequestsP[0] as any) ?? [];
+		// Ensure troubleCustomers is always an array
+		const troubleCustomers = Array.isArray(troubleCustomersP) ? troubleCustomersP : [];
+		const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
+		const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
+
+		const labels = getLastNDatesLabels(7);
+		const pointsMap: Record<string, number> = Object.create(null);
+		for (const row of (chartRawP[0] as any)) {
+			const k = new Date(row.d).toISOString().slice(0, 10);
+			pointsMap[k] = Number(row.c) || 0;
+		}
+		const dataPoints = labels.map((label) => pointsMap[label] ?? 0);
+
+		const mtSettings = Array.isArray(mtSettingsP[0]) && (mtSettingsP[0] as any[]).length ? (mtSettingsP[0] as any[])[0] : null;
+
+		// Get MikroTik information if settings exist
+		let mikrotikInfo: any = null;
+		let interfaces: any[] = [];
+		let connectionStatus = { connected: false, error: null };
+
+		if (mtSettings) {
+			try {
+				// Validate that password exists
+				if (!mtSettings.password) {
+					throw new Error('Password MikroTik tidak ditemukan. Silakan konfigurasi ulang di Settings > MikroTik');
+				}
+
+				const config: MikroTikConfig = {
+					host: mtSettings.host,
+					port: mtSettings.port,
+					username: mtSettings.username,
+					password: mtSettings.password,
+					use_tls: mtSettings.use_tls
+				};
+
+				console.log(`[Dashboard] Attempting to connect to MikroTik at ${config.host}:${config.port}...`);
+
+				// Perform requests in parallel with a short timeout (2s) to prevent blocking page load
+				const timeoutMs = 2000;
+				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('MikroTik connection timeout')), timeoutMs));
+
+				// Helper to catch errors individually
+				const fetchInfo = getMikrotikInfo(config).catch(err => {
+					console.error('[Dashboard] MikroTik Info fetch failed:', err.message);
+					return null;
+				});
+
+				const fetchInterfaces = getInterfaces(config).catch(err => {
+					console.error('[Dashboard] MikroTik Interface fetch failed:', err.message);
+					return [];
+				});
+
+				// Wait for both or timeout
+				// We use Promise.all to fire both, but wrap the whole thing in a race with timeout
+				// However, individual catches above ensure one failure doesn't stop the other from "completing" (returning null)
+				// The timeout protects against BOTH hanging.
+				const [infoResult, interfacesResult] = await Promise.race([
+					Promise.all([fetchInfo, fetchInterfaces]),
+					timeoutPromise
+				]) as [any, any[]];
+
+				mikrotikInfo = infoResult;
+				interfaces = interfacesResult || [];
+
+				// Check connection status based on info result
+				if (mikrotikInfo) {
+					console.log(`[Dashboard] ✅ MikroTik info retrieved successfully`);
+					connectionStatus = { connected: true, error: null };
+				} else {
+					console.warn(`[Dashboard] ⚠️ MikroTik info missing (timeout or error)`);
+					connectionStatus = { connected: false, error: 'Connection timeout or error' };
+				}
+
+				if (interfaces.length > 0) {
+					console.log(`[Dashboard] ✅ Retrieved ${interfaces.length} interfaces`);
+				} else {
+					console.warn(`[Dashboard] ⚠️ No interfaces retrieved (timeout or error)`);
+				}
+
+			} catch (error: any) {
+				const errorMessage = error?.message || 'Gagal mengambil data MikroTik';
+				console.error(`[Dashboard] ❌ Error connecting to MikroTik:`, errorMessage);
+				connectionStatus = { connected: false, error: errorMessage };
+				// Set empty arrays to prevent undefined errors in view
+				mikrotikInfo = null;
+				interfaces = [];
+			}
+		}
+
+		// Get server monitoring status
+		let serverMonitoring = null;
+		try {
+			serverMonitoring = await ServerMonitoringService.getServerStatus();
+		} catch (error: any) {
+			console.error(`[Dashboard] ❌ Error getting server monitoring:`, error);
+		}
+
+		res.render('dashboard/index', {
+			title: 'Dashboard',
+			stats: {
+				activeCustomers,
+				inactiveCustomers,
+				suspendedCustomers,
+				totalCustomers,
+				pppoeCustomers,
+				staticIpCustomers,
+				pppoePackages,
+				pppoeProfiles,
+				newRequests,
+				oltCount,
+				odcCount,
+				odpCount
+			},
+			latePaymentStats: {
+				highRisk: latePaymentHighRisk,
+				warning4: latePaymentWarning4
+			},
+			recentRequests,
+			troubleCustomers,
+			chart: { labels, data: dataPoints },
+			settings: mtSettings,
+			mikrotikInfo,
+			interfaces,
+			connectionStatus,
+			serverMonitoring
+		});
 	} catch (error: any) {
-		console.error(`[Dashboard] ❌ Error getting server monitoring:`, error);
+		console.error('CRITICAL DASHBOARD ERROR:', error);
+		// Render fallback dashboard
+		res.render('dashboard/index', {
+			title: 'Dashboard (Recovery Mode)',
+			stats: {
+				activeCustomers: 0,
+				inactiveCustomers: 0,
+				suspendedCustomers: 0,
+				totalCustomers: 0,
+				pppoeCustomers: 0,
+				staticIpCustomers: 0,
+				pppoePackages: 0,
+				pppoeProfiles: 0,
+				newRequests: 0,
+				oltCount: 0,
+				odcCount: 0,
+				odpCount: 0
+			},
+			latePaymentStats: { highRisk: 0, warning4: 0 },
+			recentRequests: [],
+			troubleCustomers: [],
+			chart: { labels: [], data: [] },
+			settings: null,
+			mikrotikInfo: null,
+			interfaces: [],
+			connectionStatus: { connected: false, error: error.message },
+			serverMonitoring: null
+		});
 	}
-
-	res.render('dashboard/index', {
-		title: 'Dashboard',
-		stats: {
-			activeCustomers,
-			inactiveCustomers,
-			suspendedCustomers,
-			totalCustomers,
-			pppoeCustomers,
-			staticIpCustomers,
-			pppoePackages,
-			pppoeProfiles,
-			newRequests,
-			oltCount,
-			odcCount,
-			odpCount
-		},
-		latePaymentStats: {
-			highRisk: latePaymentHighRisk,
-			warning4: latePaymentWarning4
-		},
-		recentRequests,
-		troubleCustomers,
-		chart: { labels, data: dataPoints },
-		settings: mtSettings,
-		mikrotikInfo,
-		interfaces,
-		connectionStatus,
-		serverMonitoring
-	});
 }
 
 // Cache untuk interface stats (5 detik)

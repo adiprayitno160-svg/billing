@@ -216,14 +216,14 @@ export async function listProfiles(): Promise<PppoeProfile[]> {
 	const conn = await databasePool.getConnection();
 	try {
 		const [rows] = await conn.execute(`
-			SELECT id, name, local_address, remote_address, remote_address_pool, dns_server, 
-			       rate_limit, rate_limit_rx, rate_limit_tx,
-			       burst_limit_rx, burst_limit_tx, 
-			       burst_threshold_rx, burst_threshold_tx,
-			       burst_time_rx, burst_time_tx,
-			       only_one, change_tcp_mss, use_compression, use_encryption, 
-			       use_mpls, use_upnp, comment, session_timeout, idle_timeout,
-			       keepalive_timeout, status, created_at, updated_at
+			SELECT id, name, local_address, remote_address_pool, dns_server, 
+			rate_limit, rate_limit_rx, rate_limit_tx,
+			burst_limit_rx, burst_limit_tx, 
+			burst_threshold_rx, burst_threshold_tx,
+			burst_time_rx, burst_time_tx,
+			only_one, change_tcp_mss, use_compression, use_encryption, 
+			use_mpls, use_upnp, comment, session_timeout, idle_timeout,
+			keepalive_timeout, status, created_at, updated_at
 			FROM pppoe_profiles 
 			ORDER BY name ASC
 		`);
@@ -251,16 +251,16 @@ export async function listPackages(): Promise<PppoePackage[]> {
 	const conn = await databasePool.getConnection();
 	try {
 		const [rows] = await conn.execute(`
-			SELECT p.*, 
-				pr.name as profile_name, 
-				pr.remote_address_pool, 
-				pr.local_address,
-				pr.rate_limit_rx as profile_rate_limit_rx,
-				pr.rate_limit_tx as profile_rate_limit_tx
+			SELECT p.*,
+			pr.name as profile_name,
+			pr.remote_address_pool,
+			pr.local_address,
+			pr.rate_limit_rx as profile_rate_limit_rx,
+			pr.rate_limit_tx as profile_rate_limit_tx
 			FROM pppoe_packages p
 			LEFT JOIN pppoe_profiles pr ON p.profile_id = pr.id
 			ORDER BY p.name ASC
-		`);
+			`);
 		const packages = Array.isArray(rows) ? rows as PppoePackage[] : [];
 
 		// Update rate limit dari profile untuk setiap paket yang punya profile_id
@@ -281,22 +281,22 @@ export async function getPackageById(id: number): Promise<PppoePackage | null> {
 	const conn = await databasePool.getConnection();
 	try {
 		const [rows] = await conn.execute(`
-			SELECT p.*, 
-				pr.name as profile_name, 
-				pr.remote_address_pool, 
-				pr.local_address,
-				pr.rate_limit_rx as profile_rate_limit_rx,
-				pr.rate_limit_tx as profile_rate_limit_tx,
-				pr.burst_limit_rx as profile_burst_limit_rx,
-				pr.burst_limit_tx as profile_burst_limit_tx,
-				pr.burst_threshold_rx as profile_burst_threshold_rx,
-				pr.burst_threshold_tx as profile_burst_threshold_tx,
-				pr.burst_time_rx as profile_burst_time_rx,
-				pr.burst_time_tx as profile_burst_time_tx
+			SELECT p.*,
+			pr.name as profile_name,
+			pr.remote_address_pool,
+			pr.local_address,
+			pr.rate_limit_rx as profile_rate_limit_rx,
+			pr.rate_limit_tx as profile_rate_limit_tx,
+			pr.burst_limit_rx as profile_burst_limit_rx,
+			pr.burst_limit_tx as profile_burst_limit_tx,
+			pr.burst_threshold_rx as profile_burst_threshold_rx,
+			pr.burst_threshold_tx as profile_burst_threshold_tx,
+			pr.burst_time_rx as profile_burst_time_rx,
+			pr.burst_time_tx as profile_burst_time_tx
 			FROM pppoe_packages p
 			LEFT JOIN pppoe_profiles pr ON p.profile_id = pr.id
 			WHERE p.id = ?
-		`, [id]);
+			`, [id]);
 		const result = Array.isArray(rows) && rows.length ? rows[0] as PppoePackage : null;
 
 		// Jika paket punya profile_id, gunakan rate limit dari profile (data terbaru)
@@ -341,12 +341,12 @@ export async function createPackage(data: {
 
 		// Insert package to database
 		const [result] = await conn.execute(`
-			INSERT INTO pppoe_packages 
+			INSERT INTO pppoe_packages
 			(name, profile_id, price, duration_days, auto_activation, status, description,
-			 rate_limit_rx, rate_limit_tx, burst_limit_rx, burst_limit_tx,
-			 burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, [
+				rate_limit_rx, rate_limit_tx, burst_limit_rx, burst_limit_tx,
+				burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`, [
 			data.name,
 			data.profile_id || null,
 			data.price,
@@ -408,26 +408,26 @@ export async function updatePackage(id: number, data: {
 
 		// Update database
 		await conn.execute(`
-			UPDATE pppoe_packages SET 
-				name = COALESCE(?, name),
-				profile_id = COALESCE(?, profile_id),
-				price = COALESCE(?, price),
-				duration_days = COALESCE(?, duration_days),
-				status = COALESCE(?, status),
-				description = COALESCE(?, description),
-				rate_limit_rx = COALESCE(?, rate_limit_rx),
-				rate_limit_tx = COALESCE(?, rate_limit_tx),
-				burst_limit_rx = COALESCE(?, burst_limit_rx),
-				burst_limit_tx = COALESCE(?, burst_limit_tx),
-				burst_threshold_rx = COALESCE(?, burst_threshold_rx),
-				burst_threshold_tx = COALESCE(?, burst_threshold_tx),
-				burst_time_rx = COALESCE(?, burst_time_rx),
-				burst_time_tx = COALESCE(?, burst_time_tx),
-				price_7_days = COALESCE(?, price_7_days),
-				price_30_days = COALESCE(?, price_30_days),
-				updated_at = NOW()
+			UPDATE pppoe_packages SET
+		name = COALESCE(?, name),
+			profile_id = COALESCE(?, profile_id),
+			price = COALESCE(?, price),
+			duration_days = COALESCE(?, duration_days),
+			status = COALESCE(?, status),
+			description = COALESCE(?, description),
+			rate_limit_rx = COALESCE(?, rate_limit_rx),
+			rate_limit_tx = COALESCE(?, rate_limit_tx),
+			burst_limit_rx = COALESCE(?, burst_limit_rx),
+			burst_limit_tx = COALESCE(?, burst_limit_tx),
+			burst_threshold_rx = COALESCE(?, burst_threshold_rx),
+			burst_threshold_tx = COALESCE(?, burst_threshold_tx),
+			burst_time_rx = COALESCE(?, burst_time_rx),
+			burst_time_tx = COALESCE(?, burst_time_tx),
+			price_7_days = COALESCE(?, price_7_days),
+			price_30_days = COALESCE(?, price_30_days),
+			updated_at = NOW()
 			WHERE id = ?
-		`, [
+			`, [
 			data.name || null, data.profile_id || null, data.price || null, data.duration_days || null, data.status || null,
 			data.description || null, data.rate_limit_rx || null, data.rate_limit_tx || null, data.burst_limit_rx || null,
 			data.burst_limit_tx || null, data.burst_threshold_rx || null, data.burst_threshold_tx || null,
@@ -469,7 +469,7 @@ export async function updatePackage(id: number, data: {
 					}
 				}
 			} catch (syncError: any) {
-				console.error(`⚠️ Gagal sync nama profil ke MikroTik untuk paket ${newPackageName}:`, syncError.message);
+				console.error(`⚠️ Gagal sync nama profil ke MikroTik untuk paket ${newPackageName}: `, syncError.message);
 				// Don't throw - package was updated in DB
 			}
 		}
@@ -509,11 +509,11 @@ export async function createProfile(data: {
 	const conn = await databasePool.getConnection();
 	try {
 		const [result] = await conn.execute(`
-			INSERT INTO pppoe_profiles 
+			INSERT INTO pppoe_profiles
 			(name, local_address, remote_address_pool, dns_server,
-			 rate_limit_rx, rate_limit_tx, burst_limit_rx, burst_limit_tx,
-			 burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx, comment)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				rate_limit_rx, rate_limit_tx, burst_limit_rx, burst_limit_tx,
+				burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx, comment)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, [
 			data.name,
 			data.local_address || null,
@@ -551,10 +551,10 @@ export async function createProfile(data: {
 					'burst-time-rx': data.burst_time_rx,
 					'burst-time-tx': data.burst_time_tx
 				});
-				console.log(`✅ Profile ${data.name} berhasil di-sync ke MikroTik`);
+				console.log(`✅ Profile ${data.name} berhasil di - sync ke MikroTik`);
 			}
 		} catch (syncError: any) {
-			console.error(`⚠️ Gagal sync profile ${data.name} ke MikroTik:`, syncError.message);
+			console.error(`⚠️ Gagal sync profile ${data.name} ke MikroTik: `, syncError.message);
 			// Don't throw - profile was created in DB, sync failure is logged
 		}
 
@@ -630,7 +630,7 @@ export async function updateProfile(id: number, data: {
 			try {
 				const config = await getMikrotikConfig();
 				if (!config) {
-					console.warn(`⚠️ MikroTik config tidak ditemukan, skip sync untuk profile ${oldProfileName}`);
+					console.warn(`⚠️ MikroTik config tidak ditemukan, skip sync untuk profile ${oldProfileName} `);
 					return;
 				}
 
@@ -676,13 +676,13 @@ export async function updateProfile(id: number, data: {
 					rateLimitTx = rateLimitTx + 'M';
 				}
 
-				console.log(`📊 [updateProfile] Final rate limit values - RX: ${rateLimitRx}, TX: ${rateLimitTx}`);
+				console.log(`📊[updateProfile] Final rate limit values - RX: ${rateLimitRx}, TX: ${rateLimitTx} `);
 
 				if (mikrotikId) {
 					// Profile ditemukan di MikroTik, UPDATE
-					console.log(`🔄 [updateProfile] Updating profile di MikroTik: ${oldProfileName} -> ${newProfileName} (ID: ${mikrotikId})`);
-					console.log(`📊 [updateProfile] Rate Limit RX: ${rateLimitRx}, TX: ${rateLimitTx}`);
-					console.log(`📊 [updateProfile] Data yang akan dikirim:`, {
+					console.log(`🔄[updateProfile] Updating profile di MikroTik: ${oldProfileName} -> ${newProfileName} (ID: ${mikrotikId})`);
+					console.log(`📊[updateProfile] Rate Limit RX: ${rateLimitRx}, TX: ${rateLimitTx} `);
+					console.log(`📊[updateProfile] Data yang akan dikirim: `, {
 						rate_limit_rx: data.rate_limit_rx,
 						rate_limit_tx: data.rate_limit_tx,
 						name: data.name
@@ -695,7 +695,7 @@ export async function updateProfile(id: number, data: {
 					const finalDnsServer = data.dns_server !== undefined ? data.dns_server : updatedProfile.dns_server;
 					const finalComment = data.comment !== undefined ? data.comment : updatedProfile.comment;
 
-					console.log(`📤 [updateProfile] Calling updatePppProfile with:`, {
+					console.log(`📤[updateProfile] Calling updatePppProfile with: `, {
 						name: finalName,
 						'rate-limit-rx': rateLimitRx,
 						'rate-limit-tx': rateLimitTx
@@ -741,7 +741,7 @@ export async function updateProfile(id: number, data: {
 								: undefined)
 					});
 
-					console.log(`✅ Profile "${updatedProfile.name}" berhasil di-update di MikroTik dengan rate-limit: ${rateLimitRx}/${rateLimitTx}`);
+					console.log(`✅ Profile "${updatedProfile.name}" berhasil di - update di MikroTik dengan rate - limit: ${rateLimitRx}/${rateLimitTx}`);
 				} else {
 					// Profile tidak ditemukan di MikroTik, CREATE baru
 					console.log(`➕ Profile "${oldProfileName}" tidak ditemukan di MikroTik, membuat profile baru...`);

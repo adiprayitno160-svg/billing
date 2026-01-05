@@ -351,9 +351,9 @@ export async function ensureInitialSchema(): Promise<void> {
 
 
 
-		// Ensure mikrotik_address_list_items has required columns
-		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN customer_id INT NULL AFTER id`);
-		await addCol(`ALTER TABLE mikrotik_address_list_items ADD COLUMN list_name VARCHAR(191) NULL AFTER customer_id`);
+		// Ensure address_list_items has required columns
+		await addCol(`ALTER TABLE address_list_items ADD COLUMN customer_id INT NULL AFTER id`);
+		await addCol(`ALTER TABLE address_list_items ADD COLUMN list_name VARCHAR(191) NULL AFTER customer_id`);
 
 		// Ensure ftth_odc has area_id column
 		try {
@@ -463,6 +463,10 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Add serial_number for GenieACS integration
 		await addCol(`ALTER TABLE customers ADD COLUMN serial_number VARCHAR(191) NULL COMMENT 'Serial Number Perangkat (GenieACS)' AFTER pppoe_password`);
 
+		// Add WiFi credentials columns
+		await addCol(`ALTER TABLE customers ADD COLUMN wifi_ssid VARCHAR(191) NULL COMMENT 'Nama WiFi (SSID)' AFTER serial_number`);
+		await addCol(`ALTER TABLE customers ADD COLUMN wifi_password VARCHAR(191) NULL COMMENT 'Password WiFi' AFTER wifi_ssid`);
+
 		// Add billing settings
 		await addCol(`ALTER TABLE customers ADD COLUMN is_taxable TINYINT(1) DEFAULT 0 AFTER serial_number`);
 		await addCol(`ALTER TABLE customers ADD COLUMN use_device_rental TINYINT(1) DEFAULT 0 AFTER is_taxable`);
@@ -527,6 +531,26 @@ export async function ensureInitialSchema(): Promise<void> {
 			INDEX idx_notification_type (notification_type),
 			INDEX idx_channel (channel),
 			INDEX idx_is_active (is_active)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+
+		// Create invoices table (referenced by notifications)
+		await conn.query(`CREATE TABLE IF NOT EXISTS invoices (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			invoice_number VARCHAR(50) NOT NULL UNIQUE,
+			customer_id INT NULL,
+			period VARCHAR(7) NOT NULL,
+			amount DECIMAL(12,2) DEFAULT 0,
+			status ENUM('paid','unpaid','partial','overdue') DEFAULT 'unpaid',
+			due_date DATETIME NULL,
+			paid_at DATETIME NULL,
+			payment_method VARCHAR(50) NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer (customer_id),
+			INDEX idx_period (period),
+			INDEX idx_status (status),
+			CONSTRAINT fk_invoice_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 		// Create unified_notifications_queue table for all notification types
@@ -652,6 +676,59 @@ export async function ensureInitialSchema(): Promise<void> {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_setting_key (setting_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create company_settings table (missing in original schema)
+		await conn.query(`CREATE TABLE IF NOT EXISTS company_settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_name VARCHAR(191) DEFAULT 'Billing System',
+            company_address TEXT NULL,
+            company_phone VARCHAR(50) NULL,
+            company_email VARCHAR(191) NULL,
+            company_website VARCHAR(191) NULL,
+            logo_url VARCHAR(255) NULL,
+            template_header TEXT NULL,
+            template_footer TEXT NULL,
+            font_size VARCHAR(10) DEFAULT '14',
+            paper_size VARCHAR(20) DEFAULT 'A4',
+            orientation ENUM('portrait', 'landscape') DEFAULT 'portrait',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Ensure default company settings exist
+		const [companyRows] = await conn.query('SELECT COUNT(*) as count FROM company_settings');
+		if ((companyRows as any)[0].count === 0) {
+			await conn.query("INSERT INTO company_settings (company_name) VALUES ('My Access Point')");
+		}
+
+		// Create system_settings table (missing in original schema)
+		await conn.query(`CREATE TABLE IF NOT EXISTS system_settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            setting_key VARCHAR(191) UNIQUE NOT NULL,
+            setting_value TEXT NULL,
+            description TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Ensure default system settings exist
+		await conn.query("INSERT IGNORE INTO system_settings (setting_key, setting_value, description) VALUES ('auto_logout_enabled', 'true', 'Enable auto logout after inactivity')");
+
+		// Create pppoe_new_requests table (missing in original schema)
+		await conn.query(`CREATE TABLE IF NOT EXISTS pppoe_new_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            customer_name VARCHAR(191) NOT NULL,
+            phone VARCHAR(50) NULL,
+            email VARCHAR(191) NULL,
+            address TEXT NULL,
+            package_id INT NULL,
+            status ENUM('pending', 'approved', 'rejected', 'processed') DEFAULT 'pending',
+            notes TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_created_at (created_at),
+            INDEX idx_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 	} finally {

@@ -88,6 +88,27 @@ export class MonitoringController {
                         } catch (tempErr) {
                             // Silently fail if WMI is not accessible
                         }
+                    } else if (os.platform() === 'linux') {
+                        try {
+                            // Try lm-sensors
+                            const { stdout } = await execAsync('sensors', { timeout: 2000 });
+                            // Look for "Core 0: +45.0°C" or "temp1: +45.0°C"
+                            const match = stdout.match(/(?:Core\s+\d+|temp\d+):\s+[+]?(\d+\.\d+)°C/);
+                            if (match && match[1]) {
+                                serverInfo.temperature = match[1] + '°C';
+                            }
+                        } catch (e) {
+                            // If sensors command fails, try reading thermal_zone0
+                            try {
+                                const { stdout } = await execAsync('cat /sys/class/thermal/thermal_zone0/temp');
+                                const temp = parseInt(stdout.trim());
+                                if (!isNaN(temp)) {
+                                    serverInfo.temperature = (temp / 1000).toFixed(1) + '°C';
+                                }
+                            } catch (err) {
+                                // Ignore
+                            }
+                        }
                     }
                 } catch (osError) {
                     console.error('Error fetching OS stats:', osError);

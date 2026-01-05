@@ -580,8 +580,18 @@ export class GenieacsService {
             }
             return '-';
         };
-        const ssid = findValue(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID', 'Device.WiFi.SSID.1.SSID']);
-        const password = findValue(['InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase', 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase']);
+        const ssid = findValue([
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+            'Device.WiFi.SSID.1.SSID',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.2.SSID', // Sometimes on index 2
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID'  // Sometimes on index 5 for 5GHz
+        ]);
+        const password = findValue([
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase',
+            'Device.WiFi.AccessPoint.1.Security.KeyPassphrase',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.WPA.KeyPassphrase'
+        ]);
         return { ssid, password };
     }
 
