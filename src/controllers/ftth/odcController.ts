@@ -33,19 +33,37 @@ export async function getOdcAdd(req: Request, res: Response): Promise<void> {
 
 export async function getOdcEdit(req: Request, res: Response, next: NextFunction): Promise<void> {
 	try {
-		const id = Number(req.params.id);
-		const item = await getOdcById(id);
-		if (!item) {
-			res.status(404).send('ODC tidak ditemukan');
+		console.log('=== GET ODC EDIT REQUEST ===');
+		const idString = req.params.id;
+		console.log('Requested ID:', idString);
+
+		const id = Number(idString);
+		if (isNaN(id)) {
+			console.error('Invalid ODC ID:', idString);
+			res.status(400).send(`Invalid ODC ID: ${idString}`);
 			return;
 		}
+
+		const item = await getOdcById(id);
+		if (!item) {
+			console.error('ODC Not Found:', id);
+			res.status(404).send('ODC tidak ditemukan di database');
+			return;
+		}
+		console.log('ODC Found:', item.name);
+
 		const olts = await OltService.listOlts();
+		console.log('OLT List loaded:', olts.length);
 
 		// Load Areas
 		const [areas] = await databasePool.query('SELECT * FROM ftth_areas ORDER BY name ASC');
+		console.log('Areas loaded:', (areas as any[]).length);
 
 		res.render('ftth/odc_edit', { title: 'Edit ODC', item, olts, areas, layout: 'layouts/main' });
-	} catch (err) { next(err); }
+	} catch (err) {
+		console.error('Error in getOdcEdit:', err);
+		next(err);
+	}
 }
 
 export async function postOdcCreate(req: Request, res: Response, next: NextFunction) {
