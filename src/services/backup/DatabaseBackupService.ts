@@ -83,7 +83,7 @@ export class DatabaseBackupService {
         // --hex-blob: Handles binary data correctly
         // --default-character-set=utf8mb4: Ensures encoding compatibility
         const passwordPart = DB_PASSWORD ? `-p"${DB_PASSWORD}"` : '';
-        const command = `"${mysqldumpCmd}" --add-drop-table --hex-blob --default-character-set=utf8mb4 -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} > "${filePath}"`;
+        const command = `"${mysqldumpCmd}" --add-drop-table --hex-blob --default-character-set=utf8mb4 --ignore-table=${DB_NAME || 'billing'}.system_logs --ignore-table=${DB_NAME || 'billing'}.whatsapp_qr_codes --ignore-table=${DB_NAME || 'billing'}.whatsapp_connection_logs -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} > "${filePath}"`;
 
         return new Promise((resolve, reject) => {
             exec(command, async (error, stdout, stderr) => {
