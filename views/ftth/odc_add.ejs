@@ -148,12 +148,22 @@
                 </div>
             </div>
         </div>
+        <!-- Submit Button for Form -->
+        <div class="mt-6 flex justify-end">
+            <button type="submit"
+                class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                SIMPAN DATA
+            </button>
+        </div>
     </form>
 </div>
 
-<!-- PERMANENT FIXED BOTTOM BAR (Square, Solid) -->
+<!-- PERMANENT FOOTER BAR (Sticky Strategy) -->
 <div
-    class="fixed bottom-0 right-0 left-0 md:left-64 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 flex justify-end gap-3">
+    class="sticky bottom-0 -mx-4 md:-mx-6 lg:-mx-8 -mb-6 p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-[100] flex justify-end gap-3 rounded-none">
     <a href="/ftth/odc"
         class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-bold transition-colors">Batal</a>
     <button type="submit" form="addOdcForm"
