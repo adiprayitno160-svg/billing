@@ -1,7 +1,7 @@
-<div class="space-y-6">
+<div class="pb-24"> <!-- Added padding-bottom to prevent content from being hidden behind fixed footer -->
     <!-- Header Page -->
     <div
-        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center p-2">
@@ -14,52 +14,37 @@
             </h1>
             <p class="text-slate-500 mt-1 ml-13">Update konfigurasi dan lokasi Optical Distribution Cabinet</p>
         </div>
-
-        <div class="flex items-center gap-3">
-            <button type="submit" form="editOdcForm"
-                class="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                Simpan
-            </button>
-            <a href="/ftth/odc<%= item.olt_id ? ('?olt_id=' + item.olt_id) : '' %>"
-                class="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-all font-medium flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Batal
-            </a>
-        </div>
     </div>
 
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Technical Configuration Card -->
-        <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
-                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                        </svg>
-                    </div>
-                    <h3 class="font-bold text-slate-800 text-lg">Konfigurasi ODC</h3>
-                </div>
+    <form id="editOdcForm" method="post" action="/ftth/odc/<%= item.id %>">
 
-                <form id="editOdcForm" method="post" action="/ftth/odc/<%= item.id %>" class="p-6 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- TWO COLUMN LAYOUT (Tablets+) or STACKED (Mobile) -->
+        <div class="flex flex-col lg:flex-row gap-6">
+
+            <!-- LEFT COLUMN: Main Form -->
+            <div class="flex-1 space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-lg">Informasi Utama</h3>
+                    </div>
+
+                    <div class="space-y-6">
                         <!-- OLT Selection -->
                         <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">Pilih OLT Utama <span
+                            <label class="block text-sm font-semibold text-slate-700">Driver OLT (Uplink) <span
                                     class="text-rose-500">*</span></label>
                             <select name="olt_id" required
                                 class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer">
                                 <% (olts || []).forEach(function(olt){ %>
-                                    <option value="<%= olt.id %>" <%=(item.olt_id==olt.id) ? 'selected' : '' %>>
-                                        <%= olt.name %>
+                                    <option value="<%= olt.id %>" <%=(item.olt_id==olt.id) ? 'selected' : '' %>><%=
+                                            olt.name %>
                                     </option>
                                     <% }) %>
                             </select>
@@ -74,218 +59,199 @@
                                 <% if (typeof areas !=='undefined' && areas.length> 0) { %>
                                     <% areas.forEach(function(area){ %>
                                         <option value="<%= area.id %>" <%=(item.area_id==area.id) ? 'selected' : '' %>>
-                                            <%= area.name %> (<%= area.code %>)
-                                        </option>
+                                            <%= area.name %> (<%= area.code %>)</option>
                                         <% }) %>
                                             <% } %>
                             </select>
                         </div>
 
-                        <!-- ODC Basic Info -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">Nama ODC <span
-                                    class="text-rose-500">*</span></label>
-                            <input name="name" value="<%= item.name %>" required
-                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium" />
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- ODC Basic Info -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Nama ODC <span
+                                        class="text-rose-500">*</span></label>
+                                <input name="name" value="<%= item.name %>" required
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium" />
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">Kapasitas Port <span
+                                        class="text-rose-500">*</span></label>
+                                <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium" />
+                            </div>
                         </div>
 
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">Kapasitas (Total Port) <span
-                                    class="text-rose-500">*</span></label>
-                            <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required
-                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium" />
-                        </div>
-
-                        <!-- OLT Port Selection -->
-                        <div class="col-span-1 md:col-span-2 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                        <!-- OLT Port Configuration -->
+                        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                             <label
                                 class="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2">Konfigurasi
-                                Sambungan OLT</label>
+                                Sambungan Fisik (Uplink)</label>
                             <select name="olt_card"
-                                class="w-full px-4 py-2.5 bg-white border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm">
-                                <option value="">-- Pilih Line Card / Port OLT --</option>
+                                class="w-full px-4 py-2.5 bg-white border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm mb-2">
+                                <option value="">-- Pilih Line Card / Module --</option>
                                 <% (olts || []).forEach(function(olt){ %>
                                     <% const maxCards=(olt.line_cards || 0); %>
                                         <% if (maxCards> 0) { %>
                                             <% for (var c=1; c <=maxCards; c++) { %>
-                                                <option value="<%= c %>" <%=(item.olt_card==c) ? 'selected' : '' %>>
-                                                    Baris <%= c %> - <%= olt.name %>
+                                                <option value="<%= c %>" <%=(item.olt_card==c) ? 'selected' : '' %>>Slot
+                                                    <%= c %> - <%= olt.name %>
                                                 </option>
                                                 <% } %>
                                                     <% } else { %>
                                                         <option value="1" <%=(item.olt_card==1) ? 'selected' : '' %>><%=
-                                                                olt.name %> - Port Default</option>
+                                                                olt.name %> - Default Port</option>
                                                         <% } %>
                                                             <% }) %>
                             </select>
-                            <p class="text-xs text-emerald-600 mt-2 font-medium">Pilih Port/Card dari OLT yang terhubung
-                                langsung ke ODC ini.</p>
-                        </div>
-
-                        <div class="col-span-1 md:col-span-2 space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">Alamat Lengkap</label>
-                            <div class="relative">
-                                <div
-                                    class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                </div>
-                                <input name="location" value="<%= item.location || '' %>"
-                                    class="w-full pl-11 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                                    placeholder="Lokasi fisik cabinet..." />
+                            <div class="flex gap-2 items-center">
+                                <span class="text-xs text-emerald-700 font-bold whitespace-nowrap">PON Port:</span>
+                                <input name="olt_port" type="number" placeholder="Contoh: 1"
+                                    value="<%= item.olt_port || '' %>"
+                                    class="w-24 px-3 py-1.5 text-sm bg-white border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                             </div>
                         </div>
 
-                        <div class="col-span-1 md:col-span-2 space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">Catatan & Keterangan</label>
-                            <textarea name="notes" rows="3"
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Alamat Lengkap</label>
+                            <textarea name="location" rows="2"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none shadow-inner"><%= item.location || '' %></textarea>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Catatan</label>
+                            <textarea name="notes" rows="2"
                                 class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none shadow-inner"><%= item.notes || '' %></textarea>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Hidden but required fields -->
-                    <input type="hidden" name="latitude" id="latInput" value="<%= item.latitude || '' %>">
-                    <input type="hidden" name="longitude" id="lngInput" value="<%= item.longitude || '' %>">
+            <!-- RIGHT COLUMN: Maps & Stats -->
+            <div class="w-full lg:w-1/3 space-y-6">
 
-                    <div class="flex items-center gap-4 pt-4">
-                        <button type="submit"
-                            class="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl hover:from-emerald-700 hover:to-teal-700 transition-all font-bold shadow-xl shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M5 13l4 4L19 7" />
-                            </svg>
-                            Simpan Perubahan ODC
+                <!-- Stats Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h4 class="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Status Port
+                    </h4>
+                    <% const percentage=item.total_ports> 0 ? Math.round((item.used_ports / item.total_ports) * 100) :
+                        0; %>
+                        <div class="flex items-end gap-2 mb-2">
+                            <span class="text-3xl font-bold text-slate-800">
+                                <%= item.used_ports %>
+                            </span>
+                            <span class="text-sm text-slate-500 font-medium mb-1">/ <%= item.total_ports %>
+                                    Terpakai</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 mb-2 overflow-hidden">
+                            <div class="bg-emerald-500 h-full rounded-full" style="width: <%= percentage %>%"></div>
+                        </div>
+                </div>
+
+                <!-- Map Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase">Pin Lokasi</h4>
+                        <button type="button" id="btnGetLocation"
+                            class="text-xs bg-white border border-slate-200 px-2 py-1 rounded hover:bg-slate-50 text-slate-600 font-medium">
+                            📍 Lokasi Saya
                         </button>
                     </div>
-                </form>
+                    <div id="mapOdc" class="h-64 w-full bg-slate-200 relative z-0"></div>
+                    <!-- z-0 to not overlap fixed elements -->
+
+                    <!-- Lat/Lng Inputs (Read-only visually but editable) -->
+                    <div class="grid grid-cols-2 gap-px bg-slate-100 border-t border-slate-200">
+                        <input type="text" name="latitude" id="latInput" value="<%= item.latitude || '' %>"
+                            placeholder="Latitude"
+                            class="w-full px-3 py-2 text-xs text-center bg-white focus:outline-none" readonly>
+                        <input type="text" name="longitude" id="lngInput" value="<%= item.longitude || '' %>"
+                            placeholder="Longitude"
+                            class="w-full px-3 py-2 text-xs text-center bg-white focus:outline-none" readonly>
+                    </div>
+                </div>
             </div>
         </div>
+    </form>
 
-        <!-- Maps & Info -->
-        <div class="space-y-6">
-            <!-- Port Status Card -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <h4 class="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">Status Port ODC</h4>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-slate-500">Terpakai (oleh ODP)</span>
-                    <span class="text-lg font-bold text-slate-800">
-                        <%= item.used_ports %> / <%= item.total_ports %> Port
-                    </span>
-                </div>
-                <% const percentage=item.total_ports> 0 ? Math.round((item.used_ports / item.total_ports) * 100) : 0; %>
-                    <div class="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden">
-                        <div class="bg-gradient-to-r <%= percentage > 90 ? 'from-rose-500 to-red-600' : 'from-emerald-500 to-teal-600' %> h-full transition-all duration-700"
-                            style="width: <%= percentage %>%"></div>
-                    </div>
-                    <div class="flex justify-between items-center text-xs font-bold">
-                        <span class="<%= percentage > 90 ? 'text-rose-600' : 'text-emerald-600' %>">
-                            <%= percentage %>% Terpakai
-                        </span>
-                        <span class="text-slate-400">
-                            <%= item.total_ports - item.used_ports %> Port Kosong
-                        </span>
-                    </div>
-            </div>
-
-            <!-- Maps Card -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Lokasi ODC (Pin Peta)</h4>
-                    <button type="button" id="btnGetLocation"
-                        class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all"
-                        title="Gunakan Lokasi Saat Ini">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </button>
-                </div>
-                <div id="mapOdc" class="h-64 w-full bg-slate-100"></div>
-                <div class="p-4 bg-slate-50 text-center">
-                    <p class="text-[10px] text-slate-400 font-bold">KLIK PADA PETA UNTUK PIN LOKASI ODC</p>
-                </div>
-            </div>
+    <!-- FIXED BOTTOM ACTION BAR (FAIL-SAFE) -->
+    <div
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 flex items-center justify-between md:justify-end gap-4">
+        <div class="hidden md:block text-slate-500 text-sm font-medium">
+            Pastikan perubahan sudah benar sebelum menyimpan.
+        </div>
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <a href="/ftth/odc"
+                class="flex-1 md:flex-none px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-bold text-center">
+                Batal
+            </a>
+            <button type="submit" form="editOdcForm"
+                class="flex-1 md:flex-none px-8 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                SIMPAN PERUBAHAN
+            </button>
         </div>
     </div>
 
-    <!-- Map Logic -->
+    <!-- Map Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            let map, marker;
-            const initialLat = Number('<%= item.latitude || -6.2 %>');
-            const initialLng = Number('<%= item.longitude || 106.8 %>');
-            const hasLocation = '<%= (item.latitude && item.longitude) ? "true" : "false" %>' === 'true';
+            // Fix Leaflet container issue
+            const mapContainer = document.getElementById('mapOdc');
+            if (mapContainer && typeof L !== 'undefined') {
+                const initialLat = Number('<%= item.latitude || -6.2 %>');
+                const initialLng = Number('<%= item.longitude || 106.8 %>');
+                const hasLocation = '<%= (item.latitude && item.longitude) ? "true" : "false" %>' === 'true';
 
-            function initMap() {
-                const mapEl = document.getElementById('mapOdc');
-                if (!mapEl) return;
+                const map = L.map('mapOdc', { scrollWheelZoom: false }).setView([initialLat, initialLng], hasLocation ? 16 : 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
 
-                map = L.map('mapOdc').setView([initialLat, initialLng], hasLocation ? 16 : 12);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
-                }).addTo(map);
+                const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
 
-                marker = L.marker([initialLat, initialLng]).addTo(map);
-
+                // Update input on click
                 map.on('click', function (e) {
-                    const lat = e.latlng.lat;
-                    const lng = e.latlng.lng;
+                    const { lat, lng } = e.latlng;
                     marker.setLatLng([lat, lng]);
                     document.getElementById('latInput').value = lat.toFixed(7);
-                    // document.getElementById('longitude').value = lng.toFixed(7); // Removed invalid ID reference
                     document.getElementById('lngInput').value = lng.toFixed(7);
                 });
-            }
 
-            // Start Map with Delay to ensure Leaflet is loaded
-            if (typeof L !== 'undefined') {
-                setTimeout(initMap, 500);
-            }
+                // Update input on drag
+                marker.on('dragend', function (e) {
+                    const { lat, lng } = e.target.getLatLng();
+                    document.getElementById('latInput').value = lat.toFixed(7);
+                    document.getElementById('lngInput').value = lng.toFixed(7);
+                });
 
-            // Location Service
-            const locBtn = document.getElementById('btnGetLocation');
-            if (locBtn) {
-                locBtn.onclick = function () {
-                    if (!navigator.geolocation) {
-                        alert('Geolocation tidak didukung oleh browser Anda atau koneksi tidak aman (HTTPS required).');
-                        return;
+                // Geolocation
+                const btnLoc = document.getElementById('btnGetLocation');
+                if (btnLoc) {
+                    btnLoc.onclick = function () {
+                        if (!navigator.geolocation) return alert('Geolocation not supported');
+                        btnLoc.innerText = '...';
+                        navigator.geolocation.getCurrentPosition(pos => {
+                            const { latitude, longitude } = pos.coords;
+                            map.setView([latitude, longitude], 16);
+                            marker.setLatLng([latitude, longitude]);
+                            document.getElementById('latInput').value = latitude.toFixed(7);
+                            document.getElementById('lngInput').value = longitude.toFixed(7);
+                            btnLoc.innerText = '📍 Lokasi Saya';
+                        }, err => {
+                            alert('Gagal mengambil lokasi: ' + err.message);
+                            btnLoc.innerText = '📍 Lokasi Saya';
+                        });
                     }
+                }
 
-                    // Check for insecure context (HTTP on non-localhost)
-                    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                        const confirmHttp = confirm('Fitur Lokasi biasanya memerlukan HTTPS. Anda mengakses via HTTP (' + window.location.hostname + '). Browser mungkin memblokir ini. Coba lanjutkan?');
-                        if (!confirmHttp) return;
-                    }
-
-                    locBtn.innerHTML = '⏳';
-                    navigator.geolocation.getCurrentPosition(pos => {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        map.setView([lat, lng], 16);
-                        marker.setLatLng([lat, lng]);
-                        document.getElementById('latInput').value = lat.toFixed(7);
-                        document.getElementById('lngInput').value = lng.toFixed(7);
-                        locBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>';
-                    }, (err) => {
-                        console.error(err);
-                        locBtn.innerHTML = '❌';
-                        let msg = 'Gagal mendapatkan lokasi.';
-                        if (err.code === 1) msg += ' Izin lokasi ditolak.';
-                        else if (err.code === 2) msg += ' Lokasi tidak tersedia.';
-                        else if (err.code === 3) msg += ' Timeout.';
-                        alert(msg + ' Pastikan GPS aktif dan browser diizinkan.');
-                    }, {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
-                    });
-                };
+                // Force resize map after load to prevent grey area
+                setTimeout(() => { map.invalidateSize(); }, 500);
             }
         });
     </script>
