@@ -6238,6 +6238,14 @@ router.get('/fix-sla-views', async (req, res) => {
     }
 });
 
+// FTTH Routes (Explicit Registration)
+router.get('/ftth/odc', getOdcList);
+router.get('/ftth/odc/add', getOdcAdd);
+router.post('/ftth/odc', postOdcCreate);
+router.get('/ftth/odc/:id', getOdcEdit); // Edit page
+router.post('/ftth/odc/:id', postOdcUpdate); // Update action
+router.post('/ftth/odc/:id/delete', postOdcDelete);
+
 export default router;
 
 

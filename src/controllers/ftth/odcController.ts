@@ -68,6 +68,9 @@ export async function postOdcCreate(req: Request, res: Response, next: NextFunct
 
 export async function postOdcUpdate(req: Request, res: Response, next: NextFunction) {
 	try {
+		console.log('=== UPDATE ODC REQUEST ===');
+		console.log('ID:', req.params.id);
+		console.log('Body:', req.body);
 		const id = Number(req.params.id);
 		const { area_id, olt_id, name, location, latitude, longitude, total_ports, used_ports, olt_card, olt_port, notes } = req.body;
 		const total = Number(total_ports ?? 0);
