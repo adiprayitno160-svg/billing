@@ -196,7 +196,16 @@ export class BackupController {
             const filename = `restore-upload-${timestamp}-${safeName}`;
             const targetPath = path.join(backupDir, filename);
 
-            fs.writeFileSync(targetPath, req.file.buffer);
+            if (req.file.path) {
+                // Disk storage case (Large files)
+                // Move/Rename the temp file to the target backup directory
+                fs.renameSync(req.file.path, targetPath);
+            } else if (req.file.buffer) {
+                // Memory storage case (Small files)
+                fs.writeFileSync(targetPath, req.file.buffer);
+            } else {
+                throw new Error('File upload failed: No data received');
+            }
 
             const backupService = new DatabaseBackupService();
             await backupService.restoreDatabase(targetPath);
@@ -205,6 +214,10 @@ export class BackupController {
             res.redirect('/settings/backup');
         } catch (error: any) {
             console.error('Restore Upload Error:', error);
+            // Cleanup temp file if it exists and wasn't moved
+            if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+                try { fs.unlinkSync(req.file.path); } catch (e) { }
+            }
             req.flash('error', 'Restore Gagal: ' + error.message);
             res.redirect('/settings/backup');
         }

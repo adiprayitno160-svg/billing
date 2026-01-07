@@ -63,6 +63,27 @@ router.get('/backup/list', BackupController.listBackups);
 router.get('/backup/download/:filename', BackupController.downloadBackup);
 router.post('/backup/restore/:filename', BackupController.restoreBackup);
 router.post('/backup/delete/:filename', BackupController.deleteBackup);
-router.post('/backup/restore-upload', upload.single('sqlFile'), BackupController.restoreFromUpload);
+// Konfigurasi multer khusus untuk backup (Large file support via Disk Storage)
+import fs from 'fs';
+import path from 'path';
+const backupStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const tempDir = path.join(process.cwd(), 'storage', 'temp');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+        cb(null, tempDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, 'upload-restore-' + Date.now() + '.sql');
+    }
+});
+
+const uploadBackup = multer({
+    storage: backupStorage,
+    limits: {
+        fileSize: 1024 * 1024 * 1024 // 1GB limit
+    }
+});
+
+router.post('/backup/restore-upload', uploadBackup.single('sqlFile'), BackupController.restoreFromUpload);
 
 export default router;
