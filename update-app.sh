@@ -27,5 +27,5 @@ echo "🔄 Reloading PM2..."
 pm2 reload billing-app || pm2 start ecosystem.config.js --env production
 
 echo "==================================="
-echo "✅ Update Complete! (v2.4.13)"
+echo "✅ Update Complete! (v2.4.14)"
 echo "==================================="
