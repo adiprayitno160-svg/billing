@@ -134,7 +134,8 @@
                         </div>
 
                         <div class="mt-8 pt-6 border-t border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-900 mb-3">Local Backups (.sql)</h3>
+                            <h3 class="text-sm font-semibold text-gray-900 mb-3">Local Backups (.sql) - (Disimpan
+                                Maksimal 5 File Terbaru)</h3>
                             <div id="backup-list-container" class="space-y-2">
                                 <p class="text-xs text-gray-500 italic">Memuat daftar backup...</p>
                             </div>
@@ -163,13 +164,18 @@
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <form action="/settings/backup/restore/${file.filename}" method="POST" onsubmit="return confirm('PERINGATAN: Restore akan menimpa database saat ini. Lanjutkan?')">
-                                                    <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="Restore Database">
+                                                    <button type="submit" class="text-indigo-600 hover:text-indigo-800 p-1" title="Restore Database">
                                                        <i class="fas fa-history text-sm"></i>
                                                     </button>
                                                 </form>
-                                                <a href="/settings/backup/download/${file.filename}" class="text-indigo-600 hover:text-indigo-800 p-1" title="Download Backup">
+                                                <a href="/settings/backup/download/${file.filename}" class="text-blue-600 hover:text-blue-800 p-1" title="Download Backup">
                                                     <i class="fas fa-download text-sm"></i>
                                                 </a>
+                                                <form action="/settings/backup/delete/${file.filename}" method="POST" onsubmit="return confirm('Hapus file backup ini?')">
+                                                    <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="Hapus Backup">
+                                                       <i class="fas fa-trash text-sm"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </div>
                                     `).join('');

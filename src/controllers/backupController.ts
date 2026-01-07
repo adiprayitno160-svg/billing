@@ -190,4 +190,24 @@ export class BackupController {
             res.redirect('/settings/backup');
         }
     }
+
+    static async deleteBackup(req: Request, res: Response) {
+        try {
+            const { filename } = req.params;
+            const filePath = path.join(process.cwd(), 'storage', 'backups', filename);
+
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+                req.flash('success', 'File backup berhasil dihapus');
+            } else {
+                req.flash('error', 'File tidak ditemukan');
+            }
+
+            res.redirect('/settings/backup');
+        } catch (error: any) {
+            console.error('Delete Backup Error:', error);
+            req.flash('error', 'Gagal menghapus file: ' + error.message);
+            res.redirect('/settings/backup');
+        }
+    }
 }

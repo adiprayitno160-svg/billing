@@ -62,6 +62,7 @@ router.post('/backup/run-local', BackupController.runLocalBackup);
 router.get('/backup/list', BackupController.listBackups);
 router.get('/backup/download/:filename', BackupController.downloadBackup);
 router.post('/backup/restore/:filename', BackupController.restoreBackup);
+router.post('/backup/delete/:filename', BackupController.deleteBackup);
 router.post('/backup/restore-upload', upload.single('sqlFile'), BackupController.restoreFromUpload);
 
 export default router;

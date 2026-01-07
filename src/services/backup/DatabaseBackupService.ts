@@ -95,9 +95,46 @@ export class DatabaseBackupService {
                     console.error('[Backup] Dump Error:', stderr);
                     return reject(new Error(`Mysqldump failed: ${stderr || error.message}. Check path configuration.`));
                 }
+
+                // Auto-rotate backups (Keep max 5)
+                try {
+                    await this.rotateLocalBackups(5);
+                } catch (rotError) {
+                    console.warn('[Backup] Warning: Failed to rotate backups:', rotError);
+                }
+
                 resolve(filePath);
             });
         });
+    }
+
+    /**
+     * Delete files leaving only the N most recent ones
+     */
+    async rotateLocalBackups(maxFiles: number = 5): Promise<void> {
+        try {
+            if (!fs.existsSync(this.backupDir)) return;
+
+            const files = fs.readdirSync(this.backupDir)
+                .filter(f => f.endsWith('.sql'))
+                .map(f => ({
+                    name: f,
+                    path: path.join(this.backupDir, f),
+                    time: fs.statSync(path.join(this.backupDir, f)).birthtime.getTime()
+                }))
+                .sort((a, b) => b.time - a.time); // Newest first
+
+            if (files.length > maxFiles) {
+                const filesToDelete = files.slice(maxFiles);
+                for (const file of filesToDelete) {
+                    fs.unlinkSync(file.path);
+                    console.log(`[Backup] Rotated/Deleted old backup: ${file.name}`);
+                }
+            }
+        } catch (error) {
+            console.error('[Backup] Rotation failed:', error);
+            throw error;
+        }
     }
 
     /**
