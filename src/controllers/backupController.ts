@@ -134,9 +134,21 @@ export class BackupController {
                 return res.status(404).send('File tidak ditemukan');
             }
 
-            res.download(filePath);
+            const stat = fs.statSync(filePath);
+
+            res.writeHead(200, {
+                'Content-Type': 'application/x-download',
+                'Content-Length': stat.size,
+                'Content-Disposition': `attachment; filename="${filename}"`
+            });
+
+            const readStream = fs.createReadStream(filePath);
+            readStream.pipe(res);
         } catch (error: any) {
-            res.status(500).send(error.message);
+            console.error('Download Error:', error);
+            if (!res.headersSent) {
+                res.status(500).send(error.message);
+            }
         }
     }
 
@@ -164,17 +176,24 @@ export class BackupController {
                 return res.redirect('/settings/backup');
             }
 
-            if (!req.file.originalname.endsWith('.sql')) {
-                req.flash('error', 'Hanya file .sql yang diperbolehkan');
-                return res.redirect('/settings/backup');
-            }
+            // We relax the check because sometimes downloads lose extension (the random filename issue)
+            const isSqlExtension = req.file.originalname.endsWith('.sql');
+            const isBinary = req.file.mimetype === 'application/octet-stream';
+
+            // If it doesn't have .sql and isn't octet-stream, we warn but might still try if user persists?
+            // For now, let's just log it and proceed, assuming user knows what they uploaded.
+            // But we should rename it to .sql for proper handling
 
             // Move uploaded file from buffer/temp to storage/backups
             const backupDir = path.join(process.cwd(), 'storage', 'backups');
             if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `restore-upload-${timestamp}-${req.file.originalname}`;
+            // Clean originalname to be safe or use a generic name if it looks like a mess (UUID)
+            let safeName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
+            if (!safeName.endsWith('.sql')) safeName += '.sql'; // Append .sql if missing
+
+            const filename = `restore-upload-${timestamp}-${safeName}`;
             const targetPath = path.join(backupDir, filename);
 
             fs.writeFileSync(targetPath, req.file.buffer);

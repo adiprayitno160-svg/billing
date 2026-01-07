@@ -41,6 +41,10 @@ router.get('/analytics/health', (req, res) => controller.getNetworkHealth(req, r
 router.get('/analytics/anomalies', (req, res) => controller.getAnomalies(req, res));
 router.get('/analytics/incident/:id', (req, res) => controller.getIncidentAnalysis(req, res));
 
+// SLA Monitoring
+router.get('/sla', (req, res) => controller.getSLAAnalyticsPage(req, res));
+router.get('/sla/analysis/:customerId', (req, res) => controller.getCustomerSLAAnalysis(req, res));
+
 // Monitoring AI page
 // Usage monitoring
 router.get('/usage/:customerId/graph', (req, res) => controller.getBandwidthTrend(req, res));

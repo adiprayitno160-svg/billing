@@ -196,11 +196,20 @@
     // Dummy populate for now - in real app, fetch from API
     document.addEventListener('DOMContentLoaded', () => {
         const select = document.getElementById('customerSelect');
-        // Example only
-        const option = document.createElement('option');
-        option.value = "1";
-        option.text = "Demo Customer (ID: 1)";
-        select.appendChild(option);
+
+        // Remove dummy option
+        select.innerHTML = '<option value="">-- Select Customer --</option>';
+
+        // Populate with customers passed from server
+        <% if (customers && customers.length > 0) { %>
+            const customers = <% - JSON.stringify(customers) %>;
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.text = `${c.name} (${c.customer_code})`;
+                select.appendChild(opt);
+            });
+        <% } %>
     });
 
     async function loadCustomerAnalysis(customerId) {

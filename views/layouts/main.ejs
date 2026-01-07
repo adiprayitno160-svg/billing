@@ -492,6 +492,28 @@
 			z-index: 1 !important;
 		}
 	</style>
+	<!-- ANTI-EXTENSION OVERLAY: Force hide known browser extensions that inject sidebars/popups -->
+	<style>
+		/* Block Sider, Monica, and other common AI sidebars from overlaying this app */
+		#sider-sidebar-root,
+		#check-sidebar-root,
+		#monica-root-host,
+		#monica-content-root,
+		.sider-sidebar-container,
+		#__chsidebar,
+		div[id^="sider-"],
+		div[id^="monica-"],
+		div[class*="chatgpt-sidebar"],
+		div[id*="ai-sidebar"] {
+			display: none !important;
+			visibility: hidden !important;
+			width: 0 !important;
+			height: 0 !important;
+			opacity: 0 !important;
+			pointer-events: none !important;
+			z-index: -9999 !important;
+		}
+	</style>
 </head>
 
 <body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased">

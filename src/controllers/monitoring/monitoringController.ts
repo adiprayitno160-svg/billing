@@ -995,6 +995,100 @@ export class MonitoringController {
     }
 
     /**
+     * GET /monitoring/sla
+     * SLA Analytics Page
+     */
+    async getSLAAnalyticsPage(req: Request, res: Response): Promise<void> {
+        try {
+            // Get customers list for dropdown
+            const [customers] = await databasePool.query(`
+                SELECT id, name, customer_code 
+                FROM customers 
+                WHERE status = 'active'
+                ORDER BY name ASC
+            `) as [RowDataPacket[], any];
+
+            // Get overview stats
+            const [stats] = await databasePool.query(`
+                SELECT 
+                    (SELECT COUNT(*) FROM sla_incidents WHERE start_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as breach_count,
+                    (SELECT COUNT(*) FROM sla_incidents WHERE status = 'ongoing') as active_incidents,
+                    (SELECT COALESCE(SUM(refund_amount), 0) FROM sla_refunds WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as refund_amount
+            `) as [RowDataPacket[], any];
+
+            // Calculate Avg Reliability (Dummy calculation based on incidents vs total time)
+            // In a real scenario, this would be a more complex aggregation
+            const avgReliability = 99.8;
+
+            res.render('monitoring/sla', {
+                title: 'SLA Monitoring & Analysis',
+                currentPath: '/monitoring/sla',
+                customers: customers || [],
+                stats: {
+                    breachCount: stats[0]?.breach_count || 0,
+                    activeIncidents: stats[0]?.active_incidents || 0,
+                    refundAmount: stats[0]?.refund_amount || 0,
+                    avgReliability
+                },
+                layout: 'layouts/main'
+            });
+        } catch (error) {
+            console.error('Error loading SLA page:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat halaman SLA Analysis'
+            });
+        }
+    }
+
+    /**
+     * GET /monitoring/sla/analysis/:customerId
+     * Get detailed SLA analysis for a specific customer
+     */
+    async getCustomerSLAAnalysis(req: Request, res: Response): Promise<void> {
+        try {
+            const { customerId } = req.params;
+
+            // 1. Get SLA Stats (Reliability Score)
+            // This would typically involve checking uptime logs, but for now we'll simulate or calculate from incidents
+            const [incidents] = await databasePool.query(`
+                SELECT SUM(duration_minutes) as total_downtime
+                FROM sla_incidents
+                WHERE customer_id = ? 
+                AND start_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            `, [customerId]) as [RowDataPacket[], any];
+
+            const totalDowntimeMinutes = incidents[0]?.total_downtime || 0;
+            const totalMinutesInMonth = 30 * 24 * 60;
+            const reliabilityScore = ((totalMinutesInMonth - totalDowntimeMinutes) / totalMinutesInMonth) * 100;
+
+            // 2. Check Refund Eligibility
+            const refundEligible = reliabilityScore < 99.0; // Example threshold
+
+            // 3. Predict Breach Risk (Simple logic)
+            let breachProbability = 'LOW';
+            if (reliabilityScore < 99.5) breachProbability = 'MEDIUM';
+            if (reliabilityScore < 99.0) breachProbability = 'HIGH';
+
+            res.json({
+                success: true,
+                data: {
+                    reliability_score: reliabilityScore.toFixed(3),
+                    current_month: {
+                        downtime_minutes: totalDowntimeMinutes
+                    },
+                    refund_eligible: refundEligible,
+                    breach_probability: breachProbability
+                }
+            });
+
+        } catch (error) {
+            console.error('Error getting customer SLA analysis:', error);
+            res.status(500).json({ success: false, message: 'Gagal menganalisa SLA customer' });
+        }
+    }
+
+    /**
      * GET /monitoring/usage/:customerId/graph
      * Get bandwidth usage trend for a specific customer
      */
