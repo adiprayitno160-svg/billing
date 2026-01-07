@@ -27,32 +27,11 @@ type SSHOLTSettings = {
 export async function getMikrotikSettingsForm(req: Request, res: Response): Promise<void> {
 	const [rows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
 	const settings = Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : null;
-	let status: { connected: boolean; info?: any; error?: string } = { connected: false };
-	if (settings) {
-		try {
-			const testResult = await testMikrotikConnection({
-				host: settings.host,
-				port: Number(settings.port || 8728),
-				username: settings.username,
-				password: settings.password,
-				use_tls: !!settings.use_tls
-			});
-			if (testResult.connected) {
-				const info = await getMikrotikInfo({
-					host: settings.host,
-					port: Number(settings.port || 8728),
-					username: settings.username,
-					password: settings.password,
-					use_tls: !!settings.use_tls
-				});
-				status = { connected: true, info };
-			} else {
-				status = { connected: false, error: testResult.error || 'Gagal terhubung' };
-			}
-		} catch (e: any) {
-			status = { connected: false, error: e?.message || 'Gagal mengambil info' };
-		}
-	}
+
+	// Don't auto-test connection on page load to prevent timeout and socket exhaustion
+	// User can manually test using the "Test Connection" button
+	const status: { connected: boolean; info?: any; error?: string } | undefined = undefined;
+
 	res.render('settings/mikrotik', { title: 'Pengaturan MikroTik', settings, status });
 }
 
@@ -73,7 +52,7 @@ export async function postMikrotikSettings(req: Request, res: Response): Promise
 		   AND TABLE_NAME = 'mikrotik_settings' 
 		   AND COLUMN_NAME = 'is_active'`
 	);
-	
+
 	const hasIsActiveColumn = Array.isArray(columnCheck) && columnCheck.length > 0;
 
 	const [rows] = await databasePool.query('SELECT id FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
@@ -140,7 +119,7 @@ export async function postMikrotikTest(req: Request, res: Response): Promise<voi
 			let info: any = undefined;
 			try {
 				info = await getMikrotikInfo(cfg);
-			} catch {}
+			} catch { }
 			res.status(200).json({ ok: true, info });
 		} else {
 			res.status(500).json({ ok: false, error: testResult.error || 'Failed to connect' });
@@ -156,7 +135,7 @@ export async function getSSHOLTSettingsForm(req: Request, res: Response): Promis
 		// Get settings from database or use defaults
 		const [rows] = await databasePool.query('SELECT * FROM ssh_olt_settings ORDER BY id DESC LIMIT 1');
 		let settings = Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : null;
-		
+
 		// If no settings in database, use environment variables or defaults
 		if (!settings) {
 			settings = {
@@ -170,16 +149,16 @@ export async function getSSHOLTSettingsForm(req: Request, res: Response): Promis
 			};
 		}
 
-		res.render('settings/ssh-olt', { 
-			title: 'Pengaturan SSH OLT', 
-			settings 
+		res.render('settings/ssh-olt', {
+			title: 'Pengaturan SSH OLT',
+			settings
 		});
 	} catch (error: any) {
 		console.error('Error getting SSH OLT settings:', error);
-		res.render('settings/ssh-olt', { 
-			title: 'Pengaturan SSH OLT', 
+		res.render('settings/ssh-olt', {
+			title: 'Pengaturan SSH OLT',
 			settings: null,
-			error: error.message 
+			error: error.message
 		});
 	}
 }
@@ -242,14 +221,14 @@ export async function postSSHOLTSettings(req: Request, res: Response): Promise<v
 export async function testSSHOLTConnection(req: Request, res: Response): Promise<void> {
 	try {
 		// SSHService temporarily disabled
-		res.status(500).json({ 
-			success: false, 
-			message: 'SSH Service tidak tersedia' 
+		res.status(500).json({
+			success: false,
+			message: 'SSH Service tidak tersedia'
 		});
 	} catch (error: any) {
-		res.status(500).json({ 
-			success: false, 
-			message: error?.message || 'Gagal menguji koneksi SSH' 
+		res.status(500).json({
+			success: false,
+			message: error?.message || 'Gagal menguji koneksi SSH'
 		});
 	}
 }
@@ -257,17 +236,17 @@ export async function testSSHOLTConnection(req: Request, res: Response): Promise
 export async function getSSHOLTStatus(req: Request, res: Response): Promise<void> {
 	try {
 		// SSHService temporarily disabled
-		res.status(200).json({ 
-			success: true, 
-			data: { 
+		res.status(200).json({
+			success: true,
+			data: {
 				enabled: false,
 				status: 'disabled'
 			}
 		});
 	} catch (error: any) {
-		res.status(500).json({ 
-			success: false, 
-			message: error?.message || 'Gagal mendapatkan status SSH' 
+		res.status(500).json({
+			success: false,
+			message: error?.message || 'Gagal mendapatkan status SSH'
 		});
 	}
 }
@@ -275,14 +254,14 @@ export async function getSSHOLTStatus(req: Request, res: Response): Promise<void
 export async function getSSHOLTStatistics(req: Request, res: Response): Promise<void> {
 	try {
 		// SSHService temporarily disabled
-		res.status(500).json({ 
-			success: false, 
-			message: 'SSH Service tidak tersedia' 
+		res.status(500).json({
+			success: false,
+			message: 'SSH Service tidak tersedia'
 		});
 	} catch (error: any) {
-		res.status(500).json({ 
-			success: false, 
-			message: error?.message || 'Gagal mendapatkan statistik OLT' 
+		res.status(500).json({
+			success: false,
+			message: error?.message || 'Gagal mendapatkan statistik OLT'
 		});
 	}
 }

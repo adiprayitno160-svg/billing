@@ -1,6 +1,6 @@
 {
   "name": "billing",
-  "version": "2.4.11",
+  "version": "2.4.12",
   "description": "",
   "main": "index.js",
   "engines": {
@@ -29,7 +29,8 @@
     "rebuild:restart": "npm run build && npm run pm2:restart",
     "monitoring:init": "ts-node src/scripts/initNetworkMonitoring.ts",
     "monitoring:daemon": "ts-node src/scripts/monitoringDaemon.ts",
-    "release": "ts-node src/scripts/release.ts"
+    "release": "ts-node src/scripts/release.ts",
+    "setup:db": "ts-node src/scripts/setup-db.ts"
   },
   "keywords": [],
   "author": "",

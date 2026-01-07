@@ -173,6 +173,20 @@ export class SchedulerService {
             timezone: "Asia/Jakarta"
         });
 
+        // Auto migrate arrears customers (3x arrears -> Prepaid) - daily at 05:00
+        cron.schedule('0 5 * * *', async () => {
+            console.log('Running auto migration check for arrears customers...');
+            try {
+                const { AutoMigrationService } = await import('./billing/AutoMigrationService');
+                await AutoMigrationService.runDailyArrearsCheck();
+            } catch (error) {
+                console.error('Error running auto migration check:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
         // Weekly database backup with 90-day retention - every Sunday at 04:00 Asia/Jakarta
         cron.schedule('0 4 * * 0', async () => {
             console.log('[Scheduler] Running weekly database backup...');

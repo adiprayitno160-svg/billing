@@ -5,18 +5,18 @@ export class BackupScheduler {
     static init() {
         console.log('[BackupScheduler] Initializing backup scheduler...');
 
-        // Schedule: daily at 02:00
-        cron.schedule('0 2 * * *', async () => {
-            console.log('[BackupScheduler] Running scheduled backup...');
+        // Schedule: weekly on Sunday at 02:00
+        cron.schedule('0 2 * * 0', async () => {
+            console.log('[BackupScheduler] Running scheduled weekly backup...');
             try {
                 const backupService = new DatabaseBackupService();
                 await backupService.backupNow();
-                console.log('[BackupScheduler] Scheduled backup completed successfully');
+                console.log('[BackupScheduler] Scheduled weekly backup completed successfully');
             } catch (error) {
-                console.error('[BackupScheduler] Scheduled backup failed:', error);
+                console.error('[BackupScheduler] Scheduled weekly backup failed:', error);
             }
         });
 
-        console.log('[BackupScheduler] Backup scheduled for 02:00 daily');
+        console.log('[BackupScheduler] Backup scheduled for 02:00 every Sunday (Weekly)');
     }
 }

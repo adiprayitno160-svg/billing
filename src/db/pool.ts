@@ -18,13 +18,13 @@ export const databasePool = mysql.createPool({
 	password: databasePassword,
 	database: databaseName,
 	waitForConnections: true,
-	connectionLimit: 20, // Increased from 10 for better concurrency
+	connectionLimit: 30, // Increased for better concurrency with many schedulers
 	queueLimit: 0,
 	enableKeepAlive: true,
 	keepAliveInitialDelay: 0,
 	// Connection pool optimization
-	idleTimeout: 300000, // 5 minutes
-	maxIdle: 10
+	idleTimeout: 30000, // 30 seconds
+	maxIdle: 30 // Synchronized with connectionLimit to prevent constant close/open
 });
 
 export async function checkDatabaseConnection(): Promise<void> {

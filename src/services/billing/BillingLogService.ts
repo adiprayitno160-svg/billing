@@ -40,6 +40,7 @@ export interface LogEntry {
     ipAddress?: string;
     userAgent?: string;
     error?: Error;
+    isInternal?: boolean; // New flag to prevent recursion
 }
 
 export class BillingLogService {
@@ -68,6 +69,11 @@ export class BillingLogService {
      * Main logging method
      */
     static async log(entry: LogEntry): Promise<void> {
+        // Skip internal logs to prevent potential recursion and reduce DB load
+        if (entry.isInternal) {
+            return;
+        }
+
         try {
             // Generate request ID if not provided
             if (!entry.requestId) {
@@ -113,11 +119,15 @@ export class BillingLogService {
         const logLine = `[${timestamp}] [${entry.level.toUpperCase()}] [${entry.type}] [${entry.service}] ${entry.message}${entry.context ? ' ' + JSON.stringify(entry.context) : ''}${entry.error ? '\n' + entry.error.stack : ''}\n`;
 
         // Write to combined log
-        fs.appendFileSync(logFile, logLine, 'utf8');
+        fs.appendFile(logFile, logLine, (err) => {
+            if (err) console.error('Error writing to log file:', err);
+        });
 
         // Write errors to error log
         if (entry.level === 'error' || entry.level === 'critical') {
-            fs.appendFileSync(errorLogFile, logLine, 'utf8');
+            fs.appendFile(errorLogFile, logLine, (err) => {
+                if (err) console.error('Error writing to error log file:', err);
+            });
         }
     }
 
@@ -125,8 +135,9 @@ export class BillingLogService {
      * Write log to database
      */
     private static async writeToDatabase(entry: LogEntry): Promise<number> {
-        const conn = await databasePool.getConnection();
+        let conn;
         try {
+            conn = await databasePool.getConnection();
             const [result] = await conn.execute(`
                 INSERT INTO system_logs (
                     log_level, log_type, service_name, message, context,
@@ -150,8 +161,11 @@ export class BillingLogService {
             ]);
 
             return (result as any).insertId;
+        } catch (err) {
+            // If DB write fails, it's already caught in log() but we rethrow for consistency
+            throw err;
         } finally {
-            conn.release();
+            if (conn) conn.release();
         }
     }
 
@@ -195,7 +209,8 @@ export class BillingLogService {
                 anomalyType: anomaly.type,
                 analysis: anomaly.analysis
             },
-            requestId: entry.requestId
+            requestId: entry.requestId,
+            isInternal: true // Mark as internal to prevent recursion
         };
 
         await this.log(anomalyEntry);

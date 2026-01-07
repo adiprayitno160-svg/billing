@@ -72,8 +72,7 @@ export class BackupController {
         try {
             const backupService = new DatabaseBackupService();
             const result = await backupService.backupNow();
-
-            req.flash('success', `Backup Berhasil! File ID: ${result.fileId}`);
+            req.flash('success', result.message);
             res.redirect('/settings/backup');
         } catch (error: any) {
             console.error('Manual Backup Error:', error);

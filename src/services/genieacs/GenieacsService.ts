@@ -138,7 +138,7 @@ export class GenieacsService {
             params.projection = projection.join(',');
         } else {
             // Default projection useful for listing
-            params.projection = '_id,_deviceId,_lastInform,_registered,_tags,VirtualParameters.pppoeUsername,VirtualParameters.pppoePassword,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower';
+            params.projection = '_id,_deviceId,_lastInform,_registered,_tags,VirtualParameters.pppoeUsername,VirtualParameters.pppoePassword,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower,InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID,InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations,InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower,InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower,VirtualParameters.RXPower,VirtualParameters.TXPower,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower';
         }
 
         const response = await this.client.get('/devices/', { params });
@@ -389,17 +389,32 @@ export class GenieacsService {
         ]);
 
         const formatPower = (val: any) => {
-            if (val === null || val === undefined || val === '') return 'N/A';
+            // Check if value is null, undefined, empty string, or whitespace
+            if (val === null || val === undefined || val === '' || (typeof val === 'string' && val.trim() === '')) {
+                return '-';
+            }
             const num = parseFloat(val);
-            if (isNaN(num)) return val;
+            if (isNaN(num)) return '-';
+            // If value is in dBm*100 format (e.g., -2500 means -25.00 dBm)
             if (num < -100 || num > 100) return (num / 100).toFixed(2);
-            return num.toString();
+            return num.toFixed(2);
+        };
+
+        const formatTemp = (val: any) => {
+            // Check if value is null, undefined, empty string, or whitespace
+            if (val === null || val === undefined || val === '' || (typeof val === 'string' && val.trim() === '')) {
+                return '-';
+            }
+            const num = parseFloat(val);
+            if (isNaN(num)) return '-';
+            // Temperature is usually in Celsius, no conversion needed
+            return num.toFixed(1);
         };
 
         return {
             rxPower: formatPower(rx),
             txPower: formatPower(tx),
-            temperature: temp || 'N/A',
+            temperature: formatTemp(temp),
             wifiClients: clients !== null ? clients : '0'
         };
     }

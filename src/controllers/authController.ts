@@ -11,15 +11,21 @@ export class AuthController {
 
     // Halaman login portal
     public async loginForm(req: Request, res: Response): Promise<void> {
+        console.log('[Controller] AuthController.loginForm start ' + req.url);
         try {
             // Handle session timeout - destroy session if timeout parameter exists
             // Handle session timeout - destroy session if timeout parameter exists
-            // if (req.query.timeout === '1') {
-            //    req.session?.destroy(() => {
-            //        console.log('Session destroyed due to inactivity timeout');
-            //    });
-            //    req.flash('error', 'Session Anda telah berakhir karena tidak ada aktivitas selama 10 menit. Silakan login kembali.');
-            // }
+            if (req.query.timeout === '1') {
+                // if (req.session) {
+                //     await new Promise<void>((resolve) => {
+                //         req.session.destroy((err) => {
+                //             if (err) console.error('Error causing session destroy:', err);
+                //             console.log('Session destroyed due to inactivity timeout');
+                //             resolve();
+                //         });
+                //     });
+                // }
+            }
 
             // Tangkap pesan dari query string
             const successMessage = req.query.success as string;

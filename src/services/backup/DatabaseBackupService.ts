@@ -20,6 +20,7 @@ export class DatabaseBackupService {
      */
     async getMysqldumpPath(): Promise<string> {
         try {
+            // 1. Check database setting first
             const [rows] = await databasePool.query<RowDataPacket[]>(
                 'SELECT setting_value FROM app_settings WHERE setting_key = ?',
                 ['backup_mysqldump_path']
@@ -27,10 +28,32 @@ export class DatabaseBackupService {
             if (rows.length > 0 && rows[0].setting_value) {
                 return rows[0].setting_value;
             }
-            // Default fallback assumption for Laragon (Updated to detected version)
-            return 'C:\\laragon\\bin\\mysql\\mysql-8.4.3-winx64\\bin\\mysqldump.exe';
+
+            // 2. Dynamic check for Laragon MySQL version
+            const laragonMysqlBase = 'C:\\laragon\\bin\\mysql';
+            if (fs.existsSync(laragonMysqlBase)) {
+                const dirs = fs.readdirSync(laragonMysqlBase);
+                // Filter for directories starting with mysql- and sort to get latest/likely active
+                const mysqlDirs = dirs.filter(d => d.startsWith('mysql-') && fs.statSync(path.join(laragonMysqlBase, d)).isDirectory());
+
+                if (mysqlDirs.length > 0) {
+                    // Sort descending might give newer version, but usually there's only one active or one folder.
+                    // Just pick the first one valid that has bin/mysqldump.exe
+                    for (const dir of mysqlDirs) {
+                        const candidate = path.join(laragonMysqlBase, dir, 'bin', 'mysqldump.exe');
+                        if (fs.existsSync(candidate)) {
+                            console.log(`[Backup] Auto-detected mysqldump at: ${candidate}`);
+                            return candidate;
+                        }
+                    }
+                }
+            }
+
+            // 3. Fallback to system PATH
+            return 'mysqldump';
         } catch (error) {
-            return 'mysqldump'; // Hope it's in PATH
+            console.error('[Backup] Path detection error:', error);
+            return 'mysqldump';
         }
     }
 
@@ -55,10 +78,12 @@ export class DatabaseBackupService {
         const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME } = process.env;
         const mysqldumpCmd = await this.getMysqldumpPath();
 
-        // Construct command
-        // Note: DB_PASSWORD logic handles empty password
+        // Construct command with robust options for cross-platform compatibility
+        // --add-drop-table: Ensures tables are reset before restore (Good for overwriting)
+        // --hex-blob: Handles binary data correctly
+        // --default-character-set=utf8mb4: Ensures encoding compatibility
         const passwordPart = DB_PASSWORD ? `-p"${DB_PASSWORD}"` : '';
-        const command = `"${mysqldumpCmd}" -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} > "${filePath}"`;
+        const command = `"${mysqldumpCmd}" --add-drop-table --hex-blob --default-character-set=utf8mb4 -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} > "${filePath}"`;
 
         return new Promise((resolve, reject) => {
             exec(command, async (error, stdout, stderr) => {
@@ -118,37 +143,35 @@ export class DatabaseBackupService {
         try {
             console.log('[Backup] Starting database dump...');
             filePath = await this.dumpDatabase();
+            console.log('[Backup] Dump success at:', filePath);
 
-            console.log('[Backup] Dump success, uploading to Drive...');
-            // Check if drive creds exist
+            // If drive creds don't exist, we still have the local backup
             if (!this.driveService.hasCredentials()) {
-                throw new Error('Google Drive credentials not configured');
+                console.warn('[Backup] Google Drive credentials not configured. Skipping upload.');
+                return {
+                    success: true,
+                    message: 'Backup lokal berhasil, namun gagal upload ke Drive karena kredensial belum diatur.',
+                    localPath: filePath
+                };
             }
 
+            console.log('[Backup] Uploading to Drive...');
             const fileName = path.basename(filePath);
             const uploadResult = await this.driveService.uploadFile(filePath, fileName);
 
             console.log('[Backup] Upload success:', uploadResult.id);
 
-            /* Keeping local file for manual download as well
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
-            */
-
             return {
                 success: true,
-                message: 'Backup completed and uploaded to Google Drive',
+                message: 'Backup berhasil dicadangkan ke lokal dan Google Drive',
                 fileId: uploadResult.id,
                 webViewLink: uploadResult.webViewLink
             };
 
         } catch (error: any) {
-            console.error('[Backup] Process failed:', error);
-            // Cleanup on error
-            if (filePath && fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
+            console.error('[Backup] Process failed:', error.message);
+            // We DON'T delete the local file here because it might be useful even if upload failed
+            // Only delete if it's empty (handled in dumpDatabase)
             throw error;
         }
     }

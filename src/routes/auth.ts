@@ -7,7 +7,9 @@ const authController = new AuthController();
 const authMiddleware = new AuthMiddleware();
 
 // Login routes
+// Login routes
 router.get('/login', authMiddleware.redirectIfAuthenticated.bind(authMiddleware), authController.loginForm.bind(authController));
+// router.get('/login', authController.loginForm.bind(authController));
 router.post('/login', authController.login.bind(authController));
 router.get('/logout', authController.logout.bind(authController));
 

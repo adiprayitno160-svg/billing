@@ -1080,6 +1080,69 @@
     <!-- Map Container -->
     <div id="map"></div>
 
+    <!-- Sync Button (Fixed Position) -->
+    <button id="btn-sync-data" onclick="syncData()" style="
+        position: absolute;
+        bottom: 80px; 
+        left: 20px;
+        z-index: 9999;
+        background: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        font-weight: 600;
+        color: #2563EB;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+    ">
+        <i class="fas fa-sync-alt"></i> Sync Data
+    </button>
+
+    <script>
+        async function syncData() {
+            const btn = document.getElementById('btn-sync-data');
+            const icon = btn.querySelector('i');
+            const originalText = btn.innerHTML;
+
+            if (confirm('Jalankan SINKRONISASI Data? \n\nAksi ini akan:\n1. Mengambil data OLT/ODC/ODP terbaru.\n2. Update data Customer (termasuk referensi ke ODP).\n3. Membuat link koneksi otomatis.\n\nLanjutkan?')) {
+                try {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                    icon.classList.add('fa-spin');
+                    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Memproses...';
+
+                    console.log('Starting sync process...');
+
+                    // 1. Sync FTTH
+                    console.log('Syncing FTTH...');
+                    await fetch('/monitoring/api/sync/ftth', { method: 'POST' });
+
+                    // 2. Sync Customers
+                    console.log('Syncing Customers...');
+                    await fetch('/monitoring/api/sync/customers', { method: 'POST' });
+
+                    // 3. Sync Links
+                    console.log('Syncing Links...');
+                    await fetch('/monitoring/api/sync/links', { method: 'POST' });
+
+                    alert('✅ Sinkronisasi Berhasil!\nHalaman akan dimuat ulang untuk menampilkan data terbaru.');
+                    location.reload();
+                } catch (e) {
+                    console.error('Sync failed:', e);
+                    alert('❌ Gagal melakukan sinkronisasi: ' + e.message);
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.innerHTML = originalText;
+                }
+            }
+        }
+    </script>
+
     <!-- ODC Sidebar -->
     <div id="odcSidebar" class="odc-sidebar">
         <div class="odc-header">
@@ -1248,6 +1311,7 @@
                     currentLinks = result.data.links;
 
                     // Build deviceMap first for distance calculation  
+                    deviceMap = {}; // Reset map to ensure no stale data
                     result.data.devices.forEach(d => { deviceMap[d.id] = d; });
 
                     // Auto-center map to OLT location
@@ -1303,10 +1367,7 @@
                 }
             });
 
-            deviceMap = {};
-
             devices.forEach(device => {
-                deviceMap[device.id] = device;
 
                 const lat = parseFloat(device.latitude);
                 const lng = parseFloat(device.longitude);
@@ -1545,6 +1606,7 @@
                             <span class="device-popup-label">Status:</span>
                             <span class="status-badge ${statusClass}">${device.status}</span>
                         </div>
+
             `;
 
             // Address for customer
@@ -1557,6 +1619,7 @@
                 `;
             }
 
+            // SSID, Signal, and Distance for customer
             // SSID, Signal, and Distance for customer
             if (device.device_type === 'customer') {
                 // WiFi SSID
@@ -1588,13 +1651,104 @@
                             </span>
                         </div>
                     `;
-                    if (metadata.signal.txPower) {
-                        content += `
-                            <div class="device-popup-row">
-                                <span class="device-popup-label">Tx Power:</span>
-                                <span class="device-popup-value">${metadata.signal.txPower}</span>
-                            </div>
-                        `;
+                    // Tx Power removed as requested ("ganti dengan jarak")
+                }
+
+                // --- SIMPLE DISTANCE CALCULATION (SAFE) ---
+                // --- SMART DISTANCE CALCULATION (LINKED & NEAREST) ---
+                if (typeof map !== 'undefined') {
+                    const lat1 = parseFloat(device.latitude);
+                    const lng1 = parseFloat(device.longitude);
+
+                    if (!isNaN(lat1) && !isNaN(lng1)) {
+                        let targetDevice = null;
+                        let minDist = Infinity;
+                        let foundMethod = '';
+
+                        // 1. HIGHEST PRIORITY: Check actual map links (currentLinks)
+                        // Ensure we compare IDs carefully (number vs string)
+                        const activeLink = currentLinks.find(l => {
+                            const srcId = String(l.source_device_id);
+                            const tgtId = String(l.target_device_id);
+                            const devId = String(device.id);
+
+                            if (srcId === devId) {
+                                const target = deviceMap[l.target_device_id];
+                                return target && (String(target.device_type).toLowerCase() === 'odp' || String(target.device_type).toLowerCase() === 'odc');
+                            }
+                            if (tgtId === devId) {
+                                const source = deviceMap[l.source_device_id];
+                                return source && (String(source.device_type).toLowerCase() === 'odp' || String(source.device_type).toLowerCase() === 'odc');
+                            }
+                            return false;
+                        });
+
+                        if (activeLink) {
+                            const linkedId = String(activeLink.source_device_id) === String(device.id) ? activeLink.target_device_id : activeLink.source_device_id;
+                            targetDevice = deviceMap[linkedId];
+                            if (targetDevice) {
+                                foundMethod = `Terhubung ke ${targetDevice.device_type.toUpperCase()} (Map):`;
+                            }
+                        }
+
+                        // 2. SECONDARY: Check Explicit Linked Device IDs (Database fields)
+                        if (!targetDevice) {
+                            if (device.odp_id) {
+                                targetDevice = Object.values(deviceMap).find(d =>
+                                    String(d.device_type).toLowerCase() === 'odp' && d.odp_id == device.odp_id
+                                );
+                                if (targetDevice) foundMethod = 'Terhubung ke ODP (Data):';
+                            }
+
+                            if (!targetDevice && device.odc_id) {
+                                targetDevice = Object.values(deviceMap).find(d =>
+                                    String(d.device_type).toLowerCase() === 'odc' && d.odc_id == device.odc_id
+                                );
+                                if (targetDevice) foundMethod = 'Terhubung ke ODC (Data):';
+                            }
+                        }
+
+                        // 2. FALLBACK: Nearest ODP or ODC
+                        if (!targetDevice) {
+                            Object.values(deviceMap).forEach(d => {
+                                const dtype = String(d.device_type || '').toLowerCase();
+                                if ((dtype === 'odp' || dtype === 'odc') && d.latitude) {
+                                    const lat2 = parseFloat(d.latitude);
+                                    const lng2 = parseFloat(d.longitude);
+                                    if (!isNaN(lat2) && !isNaN(lng2)) {
+                                        const dist = map.distance([lat1, lng1], [lat2, lng2]);
+                                        if (dist < minDist) {
+                                            minDist = dist;
+                                            targetDevice = d;
+                                            foundMethod = dtype.toUpperCase() + ' Terdekat:';
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            // Recalculate distance for Linked Device
+                            if (targetDevice.latitude && !isNaN(parseFloat(targetDevice.latitude))) {
+                                minDist = map.distance([lat1, lng1], [parseFloat(targetDevice.latitude), parseFloat(targetDevice.longitude)]);
+                            } else { targetDevice = null; }
+                        }
+
+                        if (targetDevice) {
+                            const distText = minDist > 1000 ? (minDist / 1000).toFixed(2) + ' km' : Math.round(minDist) + ' m';
+                            content += `
+                                <div class="device-popup-row">
+                                    <span class="device-popup-label">${foundMethod}</span>
+                                    <span class="device-popup-value" style="color: #ec4899; font-weight: 500;">${targetDevice.name}</span>
+                                </div>
+                                <div class="device-popup-row">
+                                    <span class="device-popup-label">Jarak:</span>
+                                    <span class="device-popup-value" style="color: #3b82f6; font-weight: bold;">
+                                        <i class="fas fa-route" style="font-size: 10px; margin-right: 4px;"></i>${distText}
+                                    </span>
+                                </div>
+                             `;
+                        } else {
+                            content += `<div class="device-popup-row"><span class="device-popup-label">Info:</span><span>Tidak ada Link/ODP di Map</span></div>`;
+                        }
                     }
                 }
 
@@ -1608,39 +1762,6 @@
                             </span>
                         </div>
                     `;
-                }
-
-                // Find linked ODP and calculate distance
-                const link = currentLinks.find(l =>
-                    (l.source_device_id === device.id && deviceMap[l.target_device_id]?.device_type === 'odp') ||
-                    (l.target_device_id === device.id && deviceMap[l.source_device_id]?.device_type === 'odp')
-                );
-                if (link) {
-                    const odpId = link.source_device_id === device.id ? link.target_device_id : link.source_device_id;
-                    const odp = deviceMap[odpId];
-                    if (odp) {
-                        let distText = 'N/A';
-                        const lat1 = parseFloat(device.latitude);
-                        const lng1 = parseFloat(device.longitude);
-                        const lat2 = parseFloat(odp.latitude);
-                        const lng2 = parseFloat(odp.longitude);
-                        if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
-                            const dist = map.distance([lat1, lng1], [lat2, lng2]);
-                            distText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
-                        }
-                        content += `
-                            <div class="device-popup-row">
-                                <span class="device-popup-label">ODP:</span>
-                                <span class="device-popup-value" style="color: #ec4899; font-weight: 500;">${odp.name}</span>
-                            </div>
-                            <div class="device-popup-row">
-                                <span class="device-popup-label">Jarak ke ODP:</span>
-                                <span class="device-popup-value" style="color: #3b82f6; font-weight: bold;">
-                                    <i class="fas fa-route" style="font-size: 10px; margin-right: 4px;"></i>${distText}
-                                </span>
-                            </div>
-                        `;
-                    }
                 }
             }
 
@@ -1663,34 +1784,7 @@
                 `;
             }
 
-            // Signal Info (Redaman)
-            if (metadata.signal) {
-                const sig = metadata.signal;
-                if (sig.rxPower) {
-                    let rxColor = '#1e293b';
-                    const rxVal = parseFloat(sig.rxPower);
-                    if (!isNaN(rxVal)) {
-                        if (rxVal < -27) rxColor = '#ef4444'; // Red (Bad)
-                        else if (rxVal < -24) rxColor = '#f59e0b'; // Warning
-                        else rxColor = '#10b981'; // Good
-                    }
-
-                    content += `
-                        <div class="device-popup-row">
-                            <span class="device-popup-label">Redaman (Rx):</span>
-                            <span class="device-popup-value" style="color: ${rxColor}; font-weight: bold;">${sig.rxPower}</span>
-                        </div>
-                    `;
-                }
-                if (sig.txPower) {
-                    content += `
-                        <div class="device-popup-row">
-                            <span class="device-popup-label">Tx Power:</span>
-                            <span class="device-popup-value">${sig.txPower}</span>
-                        </div>
-                    `;
-                }
-            }
+            // Signal Info (Redaman) - REMOVED DUPLICATE (Handled in Customer Block)
 
             // Model Info
             if (metadata.model) {
@@ -1706,13 +1800,7 @@
             if (metadata.genieacs) {
                 const genie = metadata.genieacs;
                 if (genie) {
-                    const ssidVal = genie.ssid || 'No WiFi';
-                    content += `
-                       <div class="device-popup-row">
-                           <span class="device-popup-label">WiFi SSID:</span>
-                           <span class="device-popup-value" style="color: #6366f1; font-weight: 500;">${ssidVal}</span>
-                       </div>
-                   `;
+                    // WiFi SSID displayed in earlier block
                 }
                 if (genie.hosts_count !== undefined) {
                     content += `
@@ -1774,9 +1862,10 @@
                         if (childType === 'customer') {
                             const cmeta = child.metadata || {};
                             // Wifi info
-                            if (cmeta.genieacs && cmeta.genieacs.ssid) {
-                                extraInfo += `<br><i class="fas fa-wifi" style="font-size:9px"></i> ${cmeta.genieacs.ssid}`;
-                            }
+                            // Wifi info removed as requested
+                            // if (cmeta.genieacs && cmeta.genieacs.ssid) {
+                            //    extraInfo += `<br><i class="fas fa-wifi" style="font-size:9px"></i> ${cmeta.genieacs.ssid}`;
+                            // }
                             // Connected devices
                             if (cmeta.genieacs && cmeta.genieacs.hosts_count !== undefined) {
                                 extraInfo += ` | <i class="fas fa-users" style="font-size:9px"></i> ${cmeta.genieacs.hosts_count}`;
@@ -1802,41 +1891,7 @@
             }
 
 
-            // Calculate Distance to ODP (if customer)
-            if (device.device_type === 'customer' || device.device_type === 'ont') {
-                // Cari link ke ODP
-                const deviceId = device.id;
-                const link = currentLinks.find(l => (l.source_device_id === deviceId && deviceMap[l.target_device_id]?.device_type === 'odp') ||
-                    (l.target_device_id === deviceId && deviceMap[l.source_device_id]?.device_type === 'odp'));
-
-                if (link) {
-                    const otherId = link.source_device_id === deviceId ? link.target_device_id : link.source_device_id;
-                    const odpDevice = deviceMap[otherId];
-
-                    if (odpDevice) {
-                        const lat1 = parseFloat(device.latitude);
-                        const lng1 = parseFloat(device.longitude);
-                        const lat2 = parseFloat(odpDevice.latitude);
-                        const lng2 = parseFloat(odpDevice.longitude);
-
-                        if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
-                            const dist = map.distance([lat1, lng1], [lat2, lng2]); // in meters
-                            const distText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
-
-                            content += `
-                                <div class="device-popup-row">
-                                    <span class="device-popup-label">Terhubung ke:</span>
-                                    <span class="device-popup-value">${odpDevice.name}</span>
-                                </div>
-                                <div class="device-popup-row">
-                                    <span class="device-popup-label">Jarak ke ODP:</span>
-                                    <span class="device-popup-value" style="color: #3b82f6; font-weight: bold;">${distText}</span>
-                                </div>
-                            `;
-                        }
-                    }
-                }
-            }
+            // Calculate Distance to ODP - REMOVED DUPLICATE (Handled in Customer Block)
 
 
             if (device.ip_address || (metadata.ip_address)) {
@@ -2322,7 +2377,62 @@
         document.head.appendChild(pulseStyle);
 
         // Initialize on page load
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+
+    <!-- Sync Button -->
+    <button id="btn-sync-data" onclick="syncData()" style="
+        position: absolute;
+        bottom: 70px; /* Above live indicator */
+        left: 20px;
+        z-index: 1000;
+        background: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 30px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        cursor: pointer;
+        font-weight: 600;
+        color: #2563EB;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    ">
+        <i class="fas fa-sync-alt"></i> Sync Data
+    </button>
+
+    <script>
+        async function syncData() {
+            const btn = document.getElementById('btn-sync-data');
+            const icon = btn.querySelector('i');
+            const originalText = btn.innerHTML;
+
+            if (confirm('Sinkronisasi data (Customer & Infrastructure)? Ini akan memperbarui data ODP dan Link. Mungkin memakan waktu beberapa detik.')) {
+                try {
+                    btn.disabled = true;
+                    icon.classList.add('fa-spin');
+                    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Syncing...';
+
+                    // 1. Sync FTTH (OLT/ODC/ODP)
+                    await fetch('/monitoring/api/sync/ftth', { method: 'POST' });
+                    // 2. Sync Customers (Update ODP IDs)
+                    await fetch('/monitoring/api/sync/customers', { method: 'POST' });
+                    // 3. Sync Links (Create links based on IDs)
+                    await fetch('/monitoring/api/sync/links', { method: 'POST' });
+
+                    alert('Sinkronisasi selesai! Halaman akan dimuat ulang.');
+                    location.reload();
+                } catch (e) {
+                    console.error('Sync failed:', e);
+                    alert('Gagal melakukan sinkronisasi: ' + e.message);
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    icon.classList.remove('fa-spin');
+                }
+            }
+        }
     </script>
 </body>
 

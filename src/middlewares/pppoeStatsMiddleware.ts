@@ -13,6 +13,9 @@ export async function pppoeStatsMiddleware(req: Request, res: Response, next: Ne
             online: 0
         };
 
+        // DISABLED: This was causing timeout on every request
+        // TODO: Implement caching or background job for stats
+        /*
         // Get MikroTik service instance
         const mikrotikService = await MikrotikService.getInstance();
 
@@ -43,6 +46,7 @@ export async function pppoeStatsMiddleware(req: Request, res: Response, next: Ne
                 online: onlineCount
             };
         }
+        */
     } catch (error) {
         console.error('Error in pppoeStatsMiddleware:', error);
         // Keep default values on error

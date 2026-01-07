@@ -38,16 +38,20 @@ async function getTroubleCustomers(): Promise<any[]> {
 			hasIsolated = false;
 		}
 
-		// Check if issue_type column exists in maintenance_schedules
+		// Check if issue_type and customer_id columns exist in maintenance_schedules
 		let hasIssueType = false;
+		let hasCustomerId = false;
 		if (hasMaintenance) {
 			try {
 				const [cols] = await databasePool.query(
-					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME = 'issue_type'"
+					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME IN ('issue_type', 'customer_id')"
 				) as any[];
-				hasIssueType = Array.isArray(cols) && cols.length > 0;
+				const columnNames = (cols as any[]).map(c => c.COLUMN_NAME);
+				hasIssueType = columnNames.includes('issue_type');
+				hasCustomerId = columnNames.includes('customer_id');
 			} catch {
 				hasIssueType = false;
+				hasCustomerId = false;
 			}
 		}
 
@@ -58,18 +62,39 @@ async function getTroubleCustomers(): Promise<any[]> {
 		// 1. Customers with maintenance schedules
 		if (hasMaintenance) {
 			const issueTypeColumn = hasIssueType ? "COALESCE(m.issue_type, 'Maintenance')" : "'Maintenance'";
-			queries.push(`
-				SELECT DISTINCT
-					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-					m.status as maintenance_status, 
-					${issueTypeColumn} as issue_type, 
-					m.created_at as trouble_since,
-					'maintenance' as trouble_type
-				FROM customers c
-				INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
-				WHERE m.status IN ('scheduled', 'in_progress')
-					AND c.status IN ('active', 'suspended')
-			`);
+
+			// If customer_id exists, use simple JOIN. If not, use JSON_CONTAINS on affected_customers
+			if (hasCustomerId) {
+				queries.push(`
+					SELECT DISTINCT
+						c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+						m.status as maintenance_status, 
+						${issueTypeColumn} as issue_type, 
+						m.created_at as trouble_since,
+						'maintenance' as trouble_type
+					FROM customers c
+					INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
+					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
+						AND c.status IN ('active', 'suspended')
+				`);
+			} else {
+				// Fallback if table uses affected_customers (JSON) instead of customer_id
+				queries.push(`
+					SELECT DISTINCT
+						c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+						m.status as maintenance_status, 
+						${issueTypeColumn} as issue_type, 
+						m.created_at as trouble_since,
+						'maintenance' as trouble_type
+					FROM customers c
+					INNER JOIN maintenance_schedules m ON (
+						JSON_CONTAINS(m.affected_customers, CAST(c.id AS JSON))
+						OR m.affected_area = c.address
+					)
+					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
+						AND c.status IN ('active', 'suspended')
+				`);
+			}
 		}
 
 		// 2. Static IP customers who are offline (not isolated)
@@ -302,7 +327,7 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				console.log(`[Dashboard] Attempting to connect to MikroTik at ${config.host}:${config.port}...`);
 
 				// Perform requests in parallel with a short timeout (2s) to prevent blocking page load
-				const timeoutMs = 2000;
+				const timeoutMs = 10000; // increased timeout to avoid premature abort
 				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('MikroTik connection timeout')), timeoutMs));
 
 				// Helper to catch errors individually

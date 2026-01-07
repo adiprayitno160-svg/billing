@@ -80,6 +80,7 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(morgan('dev'));
+app.use(loggingMiddleware);
 
 // Session with 10 minute inactivity timeout
 app.use(session({
@@ -150,8 +151,8 @@ app.use(autoLogoutMiddleware);
 // Version middleware - provides app version to all views
 app.use(injectAppVersion);
 
-// Logging middleware - must be before routes
-app.use(loggingMiddleware);
+// Logging middleware - moved up
+// app.use(loggingMiddleware);
 
 // PPPoE Stats middleware - for sidebar
 app.use(pppoeStatsMiddleware);
@@ -214,7 +215,6 @@ process.on('uncaughtException', (error) => {
 async function start() {
 	try {
 		console.log(`🔄 Restarting server due to code updates (AntiGravity trigger) at ${new Date().toISOString()}...`);
-		console.log('Starting server initialization...');
 		console.log(`Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
 
 		console.log('Ensuring initial schema...');
@@ -331,11 +331,11 @@ async function start() {
 		const server = createServer(app);
 
 
-		server.listen(port, '0.0.0.0', () => {
+		// Listen on all interfaces (IPv4 and IPv6)
+		server.listen(port, () => {
 			console.log(`Server running on http://localhost:${port}`);
 			console.log(`Server also accessible on http://0.0.0.0:${port}`);
 			console.log(`WebSocket available at ws://localhost:${port}/ws`);
-
 		});
 	} catch (err) {
 		console.error('Failed to start server:', err);

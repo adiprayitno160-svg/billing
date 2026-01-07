@@ -5579,6 +5579,9 @@ router.post('/settings/backup/upload-key', upload.single('keyFile'), BackupContr
 router.post('/settings/backup/run', BackupController.runBackup);
 router.get('/settings/backup/list', BackupController.listBackups);
 router.get('/settings/backup/download/:filename', BackupController.downloadBackup);
+router.post('/settings/backup/run-local', BackupController.runLocalBackup);
+router.post('/settings/backup/restore/:filename', BackupController.restoreBackup);
+router.post('/settings/backup/restore-upload', upload.single('sqlFile'), BackupController.restoreFromUpload);
 
 
 

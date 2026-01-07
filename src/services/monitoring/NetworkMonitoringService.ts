@@ -8,6 +8,9 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { GenieacsService } from '../genieacs/GenieacsService';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { WhatsAppServiceBaileys } from '../whatsapp/WhatsAppServiceBaileys';
+import { getMikrotikConfig } from '../pppoeService';
+import { getPppoeActiveConnections } from '../mikrotikService';
 
 const execAsync = promisify(exec);
 
@@ -1073,11 +1076,12 @@ export class NetworkMonitoringService {
                         WHEN 'ticket' THEN 3
                         WHEN 'sla_incident' THEN 4
                         ELSE 5
-                    END) as priority_type
+                    END) as priority_type,
+                    trouble.trouble_type
                 FROM (
                     ${queries.join(' UNION ALL ')}
                 ) as trouble
-                GROUP BY trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, trouble.status, trouble.connection_type, trouble.odc_id, trouble.odp_id, trouble.address, trouble.phone
+                GROUP BY trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, trouble.status, trouble.connection_type, trouble.odc_id, trouble.odp_id, trouble.address, trouble.phone, trouble.trouble_type
                 ORDER BY 
                     priority_type,
                     MAX(trouble.trouble_since) DESC
@@ -1085,6 +1089,34 @@ export class NetworkMonitoringService {
             `;
 
             const [rows] = await databasePool.query(unionQuery);
+
+            // ---- Real-time Mikrotik status injection ----
+            let activeSessions: any[] = [];
+            try {
+                const mikrotikConfig = await getMikrotikConfig();
+                if (mikrotikConfig) {
+                    activeSessions = await getPppoeActiveConnections(mikrotikConfig);
+                }
+            } catch (e) {
+                console.error('Error fetching Mikrotik active sessions for trouble customers:', e);
+            }
+            const onlineUsernames = new Set(activeSessions.map(s => s.name));
+
+            // Send notifications for newly offline customers (offline trouble_type)
+            for (const cust of rows as any[]) {
+                if (cust.trouble_type === 'offline') {
+                    const isOnline = onlineUsernames.has(cust.pppoe_username);
+                    if (!isOnline && cust.phone) {
+                        const message = `⚠️ *Pemberitahuan Gangguan*\n\nPelanggan ${cust.name} (${cust.customer_code}) terdeteksi offline. Tim kami sedang menindaklanjuti.`;
+                        try {
+                            await WhatsAppServiceBaileys.sendMessage(cust.phone, message);
+                        } catch (err) {
+                            console.error('Failed to send trouble notification to', cust.phone, err);
+                        }
+                    }
+                }
+            }
+
             return rows as any[];
 
         } catch (error) {

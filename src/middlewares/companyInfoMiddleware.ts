@@ -7,6 +7,7 @@ import { databasePool } from '../db/pool';
  */
 export async function companyInfoMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
+        console.log('[Middleware] companyInfoMiddleware start');
         // Query company settings dari database
         const [companySettings] = await databasePool.query(
             'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
@@ -14,9 +15,9 @@ export async function companyInfoMiddleware(req: Request, res: Response, next: N
 
         // Set companyInfo di res.locals agar tersedia di semua view
         const company = (companySettings as any[])[0] || null;
-        
+
         res.locals.companyInfo = company;
-        
+
         // Set default values jika tidak ada data
         if (!company) {
             res.locals.companyInfo = {
@@ -33,11 +34,12 @@ export async function companyInfoMiddleware(req: Request, res: Response, next: N
                 orientation: 'portrait'
             };
         }
-        
+
         next();
+        console.log('[Middleware] companyInfoMiddleware end');
     } catch (error) {
         console.error('Error loading company info:', error);
-        
+
         // Set default values jika terjadi error
         res.locals.companyInfo = {
             company_name: 'Billing System',
@@ -52,7 +54,7 @@ export async function companyInfoMiddleware(req: Request, res: Response, next: N
             paper_size: 'A4',
             orientation: 'portrait'
         };
-        
+
         next();
     }
 }
