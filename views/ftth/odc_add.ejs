@@ -1,195 +1,187 @@
-<div class="max-w-4xl mx-auto">
+<div class="space-y-6 pb-24">
     <!-- Header -->
-    <div class="mb-6 flex items-center justify-between">
+    <div
+        class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+            <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </span>
                 Tambah ODC Baru
             </h1>
-            <p class="text-slate-500 mt-1">Konfigurasi Optical Distribution Cabinet baru</p>
+            <p class="text-slate-500 mt-1 ml-13">Konfigurasi Optical Distribution Cabinet baru</p>
         </div>
-        <a href="/ftth/odc<%= oltId ? ('?olt_id=' + oltId) : '' %>"
-            class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm flex items-center gap-2 font-medium">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
-                </path>
-            </svg>
-            Kembali
-        </a>
+
+        <!-- Top Action (ALWAYS VISIBLE) -->
+        <div>
+            <button type="submit" form="addOdcForm"
+                class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold flex items-center gap-2 shadow-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                SIMPAN
+            </button>
+        </div>
     </div>
 
-    <!-- Main Card -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                    </path>
-                </svg>
-            </div>
-            <div>
-                <h3 class="font-bold text-slate-800">Informasi ODC</h3>
-                <p class="text-xs text-slate-500">Hubungkan ODC ke OLT yang sesuai</p>
-            </div>
-        </div>
+    <!-- Main Form -->
+    <form id="addOdcForm" method="post" action="/ftth/odc">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <form method="post" action="/ftth/odc" class="p-6 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Data Source Selection -->
-                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-slate-700">Pilih OLT Utama <span
-                                class="text-red-500">*</span></label>
-                        <select name="olt_id" required
-                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer">
-                            <option value="">-- Pilih OLT --</option>
-                            <% (olts || []).forEach(function(olt){ %>
-                                <option value="<%= olt.id %>" <%=(oltId && oltId==olt.id) ? 'selected' : '' %>>
-                                    <%= olt.name %> (Sisa: <%= olt.total_ports - olt.used_ports %> port)
-                                </option>
-                                <% }) %>
-                        </select>
-                        <p class="text-xs text-slate-500">ODC akan mengambil sumber sinyal dari OLT ini.</p>
+            <!-- Left Column: Form Inputs -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Data Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="p-4 border-b border-slate-100 bg-slate-50 rounded-t-xl">
+                        <h3 class="font-bold text-slate-800">Informasi ODC</h3>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-slate-700">Area Layanan <span
-                                class="text-xs font-normal text-slate-400">(Opsional)</span></label>
-                        <select name="area_id"
-                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer">
-                            <option value="">-- Pilih Area --</option>
-                            <% if (typeof areas !=='undefined' && areas.length> 0) { %>
-                                <% areas.forEach(function(area){ %>
-                                    <option value="<%= area.id %>">
-                                        <%= area.name %> (<%= area.code %>)
+                    <div class="p-6 space-y-4">
+                        <!-- OLT Select -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">OLT Utama <span
+                                    class="text-red-500">*</span></label>
+                            <select name="olt_id" required
+                                class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Pilih OLT --</option>
+                                <% (olts || []).forEach(o=> { %>
+                                    <option value="<%= o.id %>" <%=(typeof oltId !=='undefined' && oltId==o.id)
+                                        ? 'selected' : '' %>><%= o.name %> (Sisa: <%= o.total_ports - o.used_ports %>
+                                                port)</option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Sumber sinyal uplink untuk ODC ini.</p>
+                        </div>
+
+                        <!-- Area Select -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Area Layanan</label>
+                            <select name="area_id"
+                                class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Pilih Area --</option>
+                                <% (typeof areas !=='undefined' ? areas : []).forEach(a=> { %>
+                                    <option value="<%= a.id %>">
+                                        <%= a.name %> (<%= a.code %>)
                                     </option>
                                     <% }) %>
-                                        <% } else { %>
-                                            <option value="" disabled>Belum ada area tersedia</option>
-                                            <% } %>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- ODC Details -->
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-slate-700">Nama ODC <span
-                            class="text-red-500">*</span></label>
-                    <input name="name" required
-                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
-                        placeholder="Contoh: ODC-Area-A-01" />
-                </div>
-
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-slate-700">Kapasitas (Total Port) <span
-                            class="text-red-500">*</span></label>
-                    <input name="total_ports" type="number" min="0" value="0" required
-                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" />
-                </div>
-
-                <div class="col-span-1 md:col-span-2 space-y-2">
-                    <label class="block text-sm font-medium text-slate-700">Lokasi Fisik</label>
-                    <div class="relative">
-                        <div
-                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
-                                </path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
+                            </select>
                         </div>
-                        <input name="location"
-                            class="w-full pl-10 px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                            placeholder="Alamat lengkap lokasi pemasangan ODC" />
-                    </div>
-                </div>
 
-                <!-- Technical Details -->
-                <div class="col-span-1 md:col-span-2">
-                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                        <label class="block text-sm font-medium text-blue-800 mb-2">Konfigurasi Sambungan OLT</label>
-                        <select name="olt_card"
-                            class="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer">
-                            <option value="">-- Pilih Line Card / Port OLT --</option>
-                            <% (olts || []).forEach(function(olt){ %>
-                                <% const maxCards=(olt.line_cards || 0); %>
-                                    <% if (maxCards> 0) { %>
-                                        <% for (var c=1; c <=maxCards; c++) { %>
-                                            <option value="<%= c %>">
-                                                <%= olt.name %> - Card/Port <%= c %>
-                                            </option>
-                                            <% } %>
-                                                <% } else { %>
-                                                    <!-- Fallback if line_cards not set, maybe assume 1 or show nothing -->
-                                                    <option value="1">
-                                                        <%= olt.name %> - Port Default
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Nama ODC <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" name="name" required
+                                    class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
+                                    placeholder="Contoh: ODC-Area-A-01">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Total Port <span
+                                        class="text-red-500">*</span></label>
+                                <input type="number" name="total_ports" value="8" required
+                                    class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    min="0">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Lokasi Fisik</label>
+                            <input type="text" name="location"
+                                class="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                placeholder="Alamat lengkap lokasi pemasangan">
+                        </div>
+
+                        <!-- Uplink Config -->
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <h4 class="text-xs font-bold text-blue-800 uppercase mb-2">Konfigurasi Sambungan OLT</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="md:col-span-2">
+                                    <select name="olt_card"
+                                        class="w-full px-3 py-2 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500">
+                                        <option value="">-- Pilih Line Card / Port OLT --</option>
+                                        <% (olts || []).forEach(o=> { %>
+                                            <% if((o.line_cards || 0)> 0) { %>
+                                                <% for(let i=1; i<=o.line_cards; i++) { %>
+                                                    <option value="<%= i %>">
+                                                        <%= o.name %> - Card/Slot <%= i %>
                                                     </option>
                                                     <% } %>
-                                                        <% }) %>
-                        </select>
-                        <p class="text-xs text-blue-600 mt-1">Pilih Port/Card dari OLT yang terhubung ke ODC ini.</p>
+                                                        <% } else { %>
+                                                            <option value="1">
+                                                                <%= o.name %> - Default Port
+                                                            </option>
+                                                            <% } %>
+                                                                <% }) %>
+                                    </select>
+                                </div>
+                                <div>
+                                    <input type="number" name="olt_port" placeholder="Port No"
+                                        class="w-full px-3 py-2 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STATIC FALLBACK BUTTON INSIDE FORM -->
+                        <div class="pt-4 border-t border-slate-100">
+                            <button type="submit"
+                                class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-900 transition-all">
+                                SIMPAN ODC (Form Button)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Map Section -->
-            <div class="space-y-2 pt-4 border-t border-slate-100">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Koordinat Maps</label>
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div class="grid grid-cols-2 gap-4 mb-4">
+            <!-- Right Column: Map -->
+            <div class="space-y-6">
+                <!-- Map Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 text-sm">Koordinat Peta</h3>
+                        <button type="button" id="btnGetLocation"
+                            class="text-xs bg-white border px-2 py-1 rounded shadow-sm hover:bg-slate-50">📍 Lokasi
+                            Saya</button>
+                    </div>
+                    <!-- Map Container -->
+                    <div id="mapOdc" class="w-full h-64 bg-slate-100 relative z-0"></div>
+
+                    <div class="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
                         <div>
-                            <label
-                                class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 block">Latitude</label>
-                            <input name="latitude" type="number" step="0.0000001"
-                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono" />
+                            <label class="text-[10px] uppercase font-bold text-slate-500">Latitude</label>
+                            <input type="number" step="0.0000001" name="latitude" id="latInput"
+                                class="w-full text-xs text-center border p-1 rounded bg-white" placeholder="Lat">
                         </div>
                         <div>
-                            <label
-                                class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 block">Longitude</label>
-                            <input name="longitude" type="number" step="0.0000001"
-                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono" />
+                            <label class="text-[10px] uppercase font-bold text-slate-500">Longitude</label>
+                            <input type="number" step="0.0000001" name="longitude" id="lngInput"
+                                class="w-full text-xs text-center border p-1 rounded bg-white" placeholder="Lng">
                         </div>
                     </div>
-
-                    <div id="mapOdc"
-                        class="h-64 w-full rounded-lg border border-slate-300 shadow-inner z-0 overflow-hidden bg-slate-200 relative">
-                    </div>
-
-                    <button type="button" id="btnGetLocation"
-                        class="mt-3 w-full py-2 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm">
-                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
-                            </path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        Ambil Lokasi Saya Saat Ini
-                    </button>
-
-                    <div class="mt-4">
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Catatan</label>
-                        <textarea name="notes"
-                            class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
-                            rows="2" placeholder="Catatan tambahan..."></textarea>
+                    <div class="p-4 border-t border-slate-100">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Catatan</label>
+                        <textarea name="notes" rows="2"
+                            class="w-full px-3 py-2 bg-white border border-slate-300 rounded text-sm resize-none"></textarea>
                     </div>
                 </div>
             </div>
+        </div>
+    </form>
+</div>
 
-            <div class="flex gap-3 pt-6 border-t border-slate-100">
-                <button type="submit"
-                    class="flex-1 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg shadow-blue-500/30">
-                    Simpan ODC
-                </button>
-                <a href="/ftth/odc<%= oltId ? ('?olt_id=' + oltId) : '' %>"
-                    class="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium transition-all">
-                    Batal
-                </a>
-            </div>
-        </form>
-    </div>
+<!-- STICKY BOTTOM BAR -->
+<div
+    class="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 p-4 shadow-lg z-40 flex justify-end md:gap-4 gap-2 -mx-4 md:-mx-8 -mb-8 mt-auto rounded-t-xl">
+    <a href="/ftth/odc"
+        class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-bold">Batal</a>
+    <button type="submit" form="addOdcForm"
+        class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        SIMPAN (Sticky)
+    </button>
 </div>
 
 <!-- Leaflet di-load global dari layout utama -->
