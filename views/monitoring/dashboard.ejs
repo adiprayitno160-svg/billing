@@ -26,9 +26,16 @@
             <div class="flex items-center justify-between relative z-10">
                 <div>
                     <p class="text-sm font-medium text-gray-500 mb-1">PPPoE Customers</p>
-                    <h3 class="text-2xl font-bold text-gray-900">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-1">
                         <%= onlinePPPoE %> / <%= pppoeStats?.total || 0 %>
                     </h3>
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>
+                            <%= onlinePPPoE %> Live Sesi
+                        </span>
+                    </div>
                 </div>
                 <div
                     class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
