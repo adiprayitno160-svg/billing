@@ -149,63 +149,81 @@ export class DatabaseBackupService {
     /**
      * Perform Database Restore
      */
+    /**
+     * Perform Database Restore
+     */
     async restoreDatabase(filePath: string): Promise<void> {
         if (!fs.existsSync(filePath)) {
-            throw new Error('Backup file not found');
+            throw new Error('Backup file not found at: ' + filePath);
         }
 
         const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME } = process.env;
-        const mysqldumpCmd = await this.getMysqldumpPath(); // This returns mysqldump path. We need mysql path.
+        const mysqldumpCmd = await this.getMysqldumpPath();
 
-        // Infer mysql path from mysqldump path if possible, or assume 'mysql' is in PATH
-        // Infer mysql path from mysqldump path if possible, or assume 'mysql' is in PATH
-        let mysqlCmd = 'mysql';
+        // --- 1. Determine MySQL Command Path ---
+        let mysqlCmd = 'mysql'; // Default for Linux
 
-        // Fix: If running on Windows and path is full path, replace exe name
-        // If running on Linux/Mac, usually it's just 'mysqldump' -> 'mysql'
-        if (mysqldumpCmd.toLowerCase().endsWith('mysqldump.exe')) {
-            mysqlCmd = mysqldumpCmd.replace(/mysqldump\.exe$/i, 'mysql.exe');
-        } else if (mysqldumpCmd.endsWith('mysqldump')) {
-            mysqlCmd = mysqldumpCmd.replace(/mysqldump$/, 'mysql');
-        }
-
-        // Final fallback: check if the derived path exists, if not, fallback to global 'mysql'
-        if (path.isAbsolute(mysqlCmd) && !fs.existsSync(mysqlCmd)) {
-            console.warn(`[Restore] Derived mysql path '${mysqlCmd}' not found. Falling back to global 'mysql'.`);
+        // Naive but effective check: if we are NOT on Windows, just force 'mysql'
+        // This obeys the user's request to prioritize Ubuntu server logic
+        if (process.platform !== 'win32') {
             mysqlCmd = 'mysql';
+        } else {
+            // Windows logic (Keep existing for dev envs)
+            if (mysqldumpCmd.toLowerCase().endsWith('mysqldump.exe')) {
+                mysqlCmd = mysqldumpCmd.replace(/mysqldump\.exe$/i, 'mysql.exe');
+            } else if (mysqldumpCmd.endsWith('mysqldump')) {
+                mysqlCmd = mysqldumpCmd.replace(/mysqldump$/, 'mysql');
+            }
         }
 
-        // Construct command
-        const passwordPart = DB_PASSWORD ? `-p"${DB_PASSWORD}"` : '';
-        const command = `"${mysqlCmd}" -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} < "${filePath}"`;
+        console.log(`[Restore] Target Database: ${DB_NAME} on ${DB_HOST}`);
+        console.log(`[Restore] Using Tool: ${mysqlCmd}`);
 
-        console.log(`[Restore] Restoring from ${filePath}...`);
-        console.log(`[Restore] Using command: ${mysqlCmd} (Hidden Password)`);
+        // --- 2. Construct Command & Env ---
+        // Use MYSQL_PWD env var prevents special character issues in password
+        // and keeps it slightly more secure from command line logging
+        const env = { ...process.env, MYSQL_PWD: DB_PASSWORD };
+
+        // Command strictly uses env for auth
+        // Added --force to ignore errors and continue? No, we want to fail on criticals.
+        // Added --verbose for debugging log? Too noisy.
+        const command = `"${mysqlCmd}" -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${DB_NAME || 'billing'} < "${filePath}"`;
 
         return new Promise((resolve, reject) => {
-            exec(command, (error, stdout, stderr) => {
+            exec(command, { env, maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
                 if (error) {
-                    console.warn('[Restore] Primary command failed:', stderr || error.message);
+                    const errStr = (stderr || error.message || '').toString();
 
-                    // Fallback: Try global 'mysql' command if the specific path failed
-                    // This creates a "Plan B" if the config path (C:/...) is wrong on Linux
-                    if (mysqlCmd !== 'mysql') {
-                        console.log('[Restore] Attempting fallback with global "mysql" command...');
-                        const fallbackCommand = `mysql -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} < "${filePath}"`;
+                    console.error('[Restore] Failure Trace:', errStr);
 
-                        exec(fallbackCommand, (fbError, fbStdout, fbStderr) => {
-                            if (fbError) {
-                                console.error('[Restore] Fallback failed:', fbStderr);
-                                return reject(new Error(`Restore failed (including fallback): ${fbStderr || fbError.message}`));
-                            }
-                            console.log('[Restore] Fallback Success');
-                            resolve();
-                        });
-                        return;
+                    // Analyze Common Errors to give user friendly feedback
+                    if (errStr.includes('Access denied')) {
+                        return reject(new Error('Akses Ditolak (Access Denied). Cek username/password database di file .env'));
+                    }
+                    if (errStr.includes('Unknown database')) {
+                        return reject(new Error(`Database '${DB_NAME}' tidak ditemukan. Pastikan nama database benar.`));
+                    }
+                    if (errStr.includes('command not found') || errStr.includes('is not recognized')) {
+                        // Fallback attempt is still good to keep, but let's make it smarter
+                        // Logic below tries global 'mysql' if the specific path failed
+                        if (mysqlCmd !== 'mysql') {
+                            console.warn('[Restore] Custom path failed. Retrying with global "mysql"...');
+                            const fbCommand = `mysql -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${DB_NAME || 'billing'} < "${filePath}"`;
+
+                            exec(fbCommand, { env }, (fbErr, fbOut, fbStderr) => {
+                                if (fbErr) {
+                                    return reject(new Error(`Gagal restore (Fallback): ${fbStderr}`));
+                                }
+                                resolve();
+                            });
+                            return;
+                        }
+                        return reject(new Error('Perintah MySQL tidak ditemukan di server. Pastikan mysql-client terinstall (apt install mysql-client).'));
                     }
 
-                    return reject(new Error(`Restore failed: ${stderr || error.message}`));
+                    return reject(new Error(`MySQL Error: ${errStr.substring(0, 200)}...`));
                 }
+
                 console.log('[Restore] Success');
                 resolve();
             });
