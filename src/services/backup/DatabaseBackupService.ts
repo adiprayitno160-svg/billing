@@ -180,11 +180,30 @@ export class DatabaseBackupService {
         const command = `"${mysqlCmd}" -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} < "${filePath}"`;
 
         console.log(`[Restore] Restoring from ${filePath}...`);
+        console.log(`[Restore] Using command: ${mysqlCmd} (Hidden Password)`);
 
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {
                 if (error) {
-                    console.error('[Restore] Error:', stderr);
+                    console.warn('[Restore] Primary command failed:', stderr || error.message);
+
+                    // Fallback: Try global 'mysql' command if the specific path failed
+                    // This creates a "Plan B" if the config path (C:/...) is wrong on Linux
+                    if (mysqlCmd !== 'mysql') {
+                        console.log('[Restore] Attempting fallback with global "mysql" command...');
+                        const fallbackCommand = `mysql -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} < "${filePath}"`;
+
+                        exec(fallbackCommand, (fbError, fbStdout, fbStderr) => {
+                            if (fbError) {
+                                console.error('[Restore] Fallback failed:', fbStderr);
+                                return reject(new Error(`Restore failed (including fallback): ${fbStderr || fbError.message}`));
+                            }
+                            console.log('[Restore] Fallback Success');
+                            resolve();
+                        });
+                        return;
+                    }
+
                     return reject(new Error(`Restore failed: ${stderr || error.message}`));
                 }
                 console.log('[Restore] Success');
