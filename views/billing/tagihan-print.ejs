@@ -387,45 +387,61 @@
             <table class="totals-table">
                 <tr>
                     <td>Subtotal</td>
-                    <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format((invoice.subtotal || 0) +
-                            (invoice.device_fee || 0)) %>
+                    <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.subtotal || 0) %>
                     </td>
                 </tr>
-                <% if (invoice.ppn_amount> 0) { %>
-                    <tr>
-                        <td>PPN (<%= invoice.ppn_rate %>%)</td>
-                        <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.ppn_amount) %>
-                        </td>
-                    </tr>
-                    <% } %>
-                        <% if (invoice.discount_amount> 0) { %>
-                            <tr>
-                                <td>Diskon</td>
-                                <td class="text-right">- Rp <%= new
-                                        Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
-                                </td>
-                            </tr>
-                            <% } %>
-                                <tr class="total-row">
-                                    <td>TOTAL</td>
+                <% const hasRentalItem=items && items.some(item=>
+                    item.description && (
+                    item.description.toLowerCase().includes('sewa') ||
+                    item.description.toLowerCase().includes('rental') ||
+                    item.description.toLowerCase().includes('device')
+                    )
+                    );
+                    %>
+                    <% if (invoice.device_fee> 0 && !hasRentalItem) { %>
+                        <tr>
+                            <td>Sewa Perangkat</td>
+                            <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.device_fee) %>
+                            </td>
+                        </tr>
+                        <% } %>
+                            <% if (invoice.ppn_amount> 0) { %>
+                                <tr>
+                                    <td>PPN (<%= invoice.ppn_rate %>%)</td>
                                     <td class="text-right">Rp <%= new
-                                            Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
+                                            Intl.NumberFormat('id-ID').format(invoice.ppn_amount) %>
                                     </td>
                                 </tr>
-                                <% if (invoice.paid_amount> 0) { %>
-                                    <tr>
-                                        <td>Terbayar</td>
-                                        <td class="text-right">Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(invoice.paid_amount) %>
-                                        </td>
-                                    </tr>
-                                    <tr style="background: #fee2e2;">
-                                        <td><strong>Sisa</strong></td>
-                                        <td class="text-right"><strong>Rp <%= new
-                                                    Intl.NumberFormat('id-ID').format(invoice.remaining_amount ||
-                                                    (invoice.total_amount - invoice.paid_amount)) %></strong></td>
-                                    </tr>
-                                    <% } %>
+                                <% } %>
+                                    <% if (invoice.discount_amount> 0) { %>
+                                        <tr>
+                                            <td>Diskon</td>
+                                            <td class="text-right">- Rp <%= new
+                                                    Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
+                                            </td>
+                                        </tr>
+                                        <% } %>
+                                            <tr class="total-row">
+                                                <td>TOTAL</td>
+                                                <td class="text-right">Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
+                                                </td>
+                                            </tr>
+                                            <% if (invoice.paid_amount> 0) { %>
+                                                <tr>
+                                                    <td>Terbayar</td>
+                                                    <td class="text-right">Rp <%= new
+                                                            Intl.NumberFormat('id-ID').format(invoice.paid_amount) %>
+                                                    </td>
+                                                </tr>
+                                                <tr style="background: #fee2e2;">
+                                                    <td><strong>Sisa</strong></td>
+                                                    <td class="text-right"><strong>Rp <%= new
+                                                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount
+                                                                || (invoice.total_amount - invoice.paid_amount)) %>
+                                                                </strong></td>
+                                                </tr>
+                                                <% } %>
             </table>
         </div>
 
