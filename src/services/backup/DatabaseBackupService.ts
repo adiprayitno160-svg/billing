@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { databasePool } from '../../db/pool';
@@ -216,42 +216,87 @@ export class DatabaseBackupService {
         // 1. Detect Binary
         const mysqlCmd = await this.detectMysqlBinary();
 
-        console.log(`[Restore] Target Database: ${DB_NAME} on ${DB_HOST}`);
+        // 2. Security: Create a temporary cnf file for credentials
+        // This avoids passing password in command line (unsafe) or env var (sometimes unreliable)
+        const timestamp = Date.now();
+        const cnfPath = path.join(this.backupDir, `.temp-restore-${timestamp}.cnf`);
+
+        // Ensure strictly private permissions for security
+        const cnfContent = `[client]
+user="${DB_USER || 'root'}"
+password="${DB_PASSWORD || ''}"
+host="${DB_HOST || 'localhost'}"
+`;
+        try {
+            fs.writeFileSync(cnfPath, cnfContent, { mode: 0o600 });
+        } catch (e) {
+            console.error('[Restore] Failed to write temp config file:', e);
+            throw new Error('Gagal menyiapkan kredensial database sementara.');
+        }
+
+        console.log(`[Restore] Starting restore using config file integration...`);
+        console.log(`[Restore] Target DB: ${DB_NAME}`);
         console.log(`[Restore] Using Tool: ${mysqlCmd}`);
 
-        // 2. Construct Command & Env
-        // Use MYSQL_PWD env var for security and handling special chars
-        const env = { ...process.env, MYSQL_PWD: DB_PASSWORD };
+        try {
+            // 3. Use spawn for better stdio handling and large file support
+            // spawn is imported from top level
 
-        // Note: Using 'cat file | mysql' can sometimes be more robust vs '< file' regarding shell permissions, 
-        // strictly if the user running node is different from user running mysql, 
-        // but 'mysql < file' is standard. Let's stick to standard but add verbose flag if needed? No, silent is better.
-        const command = `"${mysqlCmd}" -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${DB_NAME || 'billing'} < "${filePath}"`;
+            // Construct arguments: mysql --defaults-extra-file=... dbname
+            // Note: We cannot easily do "< file" in spawn args. We must stream it to stdin.
+            const fileStream = fs.createReadStream(filePath);
 
-        return new Promise((resolve, reject) => {
-            exec(command, { env, maxBuffer: 1024 * 1024 * 20 }, (error, stdout, stderr) => {
-                if (error) {
-                    const errStr = (stderr || error.message || '').toString();
-                    console.error('[Restore] Failure Trace:', errStr);
+            await new Promise<void>((resolve, reject) => {
+                const child = spawn(mysqlCmd, [
+                    `--defaults-extra-file=${cnfPath}`,
+                    DB_NAME || 'billing' // Database name must be last arg usually
+                ]);
 
-                    // User Friendly Diagnostic
-                    let friendlyMsg = `System Error: ${errStr.substring(0, 150)}`;
+                // Pipe the SQL file to stdin of the mysql process
+                fileStream.pipe(child.stdin);
 
-                    if (errStr.includes('Access denied')) {
-                        friendlyMsg = 'Login Database Gagal. Cek password DB di .env';
-                    } else if (errStr.includes('Unknown database')) {
-                        friendlyMsg = `Database '${DB_NAME}' tidak ada.`;
-                    } else if (errStr.includes('not found') || errStr.includes('no such file')) {
-                        friendlyMsg = `Tool MySQL tidak ditemukan di server (${mysqlCmd}). Jalankan 'apt install mysql-client'.`;
+                let stderrData = '';
+
+                child.stderr.on('data', (data: any) => {
+                    stderrData += data.toString();
+                });
+
+                child.on('error', (err: any) => {
+                    reject(new Error(`Failed to start subprocess: ${err.message}`));
+                });
+
+                child.on('close', (code: number) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        console.error(`[Restore] MySQL Process exited with code ${code}. Stderr: ${stderrData}`);
+
+                        // Analyze error for friendly message
+                        let friendlyMsg = stderrData;
+                        if (stderrData.includes('Access denied')) {
+                            friendlyMsg = 'Akses Ditolak (Access Denied). Cek username/password di .env dan pastikan user memiliki akses.';
+                        } else if (stderrData.includes('Unknown database')) {
+                            friendlyMsg = `Database '${DB_NAME}' tidak ditemukan.`;
+                        } else if (stderrData.includes('command not found')) {
+                            friendlyMsg = `Tool '${mysqlCmd}' tidak ditemukan. Mohon install mysql-client.`;
+                        }
+
+                        reject(new Error(`Restore Failed (Code ${code}): ${friendlyMsg}`));
                     }
-
-                    return reject(new Error(friendlyMsg + ` | [Debug: ${mysqlCmd}]`));
-                }
-
-                console.log('[Restore] Success');
-                resolve();
+                });
             });
-        });
+
+            console.log('[Restore] Success');
+        } catch (error) {
+            console.error('[Restore] Error:', error);
+            throw error;
+        } finally {
+            // 4. Cleanup security file
+            if (fs.existsSync(cnfPath)) {
+                fs.unlinkSync(cnfPath);
+            }
+        }
+
     }
 
     /**
