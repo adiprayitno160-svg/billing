@@ -200,8 +200,8 @@
                     <!-- Device Rental Checkbox -->
                     <div id="device_rental_container">
                         <label class="relative inline-flex items-center cursor-pointer mt-6 group">
-                            <input type="checkbox" name="use_device_rental" value="1" class="sr-only peer"
-                                <%=customer.use_device_rental ? 'checked' : '' %>>
+                            <input type="checkbox" name="use_device_rental" id="use_device_rental" value="1"
+                                class="sr-only peer" <%=customer.use_device_rental ? 'checked' : '' %>>
                             <div
                                 class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 transition-all duration-300">
                             </div>
@@ -211,6 +211,83 @@
                         <p class="text-xs text-modern-indigo-600 mt-1">
                             Jika aktif, biaya sewa perangkat akan ditambahkan ke tagihan.
                         </p>
+
+                        <!-- Rental Options -->
+                        <div id="rental_options"
+                            class="mt-4 pl-4 border-l-2 border-indigo-200 ml-1 space-y-3 transition-all duration-300 <%= customer.use_device_rental ? '' : 'hidden' %>">
+                            <div class="grid grid-cols-1 gap-3">
+                                <div>
+                                    <label for="rental_mode"
+                                        class="block text-xs font-semibold text-modern-indigo-700 mb-1">Mode Perhitungan
+                                        Sewa</label>
+                                    <select name="rental_mode" id="rental_mode"
+                                        class="w-full px-3 py-2 text-sm border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-1 focus:ring-modern-indigo-200 bg-white">
+                                        <option value="flat" <%=(!customer.rental_mode || customer.rental_mode==='flat'
+                                            ) ? 'selected' : '' %>>💰 Flat / Bulanan (Tetap)</option>
+                                        <option value="daily" <%=customer.rental_mode==='daily' ? 'selected' : '' %>>📅
+                                            Harian (Harga x Jumlah Hari)</option>
+                                    </select>
+                                    <p class="text-[10px] text-modern-indigo-600 mt-1" id="rental_mode_desc">
+                                        <span
+                                            class="flat-desc <%= (!customer.rental_mode || customer.rental_mode === 'flat') ? '' : 'hidden' %>">Biaya
+                                            tetap setiap bulan (contoh: 50.000/bulan).</span>
+                                        <span
+                                            class="daily-desc <%= customer.rental_mode === 'daily' ? '' : 'hidden' %>">Biaya
+                                            dihitung: Harga x Jumlah Hari dalam bulan invoice (contoh: 2.000 x 30
+                                            hari).</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <label for="rental_cost"
+                                        class="block text-xs font-semibold text-modern-indigo-700 mb-1">
+                                        Biaya Sewa (Rp)
+                                    </label>
+                                    <div class="relative">
+                                        <span
+                                            class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
+                                        <input type="text" name="rental_cost" id="rental_cost"
+                                            value="<%= customer.rental_cost ? Number(customer.rental_cost).toLocaleString('id-ID') : '' %>"
+                                            placeholder="Gunakan Default Global"
+                                            class="w-full pl-10 pr-3 py-2 text-sm border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-1 focus:ring-modern-indigo-200"
+                                            onkeyup="this.value = this.value.replace(/[^0-9]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');">
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 mt-1">Kosongkan untuk menggunakan harga default
+                                        global.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                const checkbox = document.getElementById('use_device_rental');
+                                const options = document.getElementById('rental_options');
+                                const modeSelect = document.getElementById('rental_mode');
+                                const flatDesc = document.querySelector('.flat-desc');
+                                const dailyDesc = document.querySelector('.daily-desc');
+
+                                if (checkbox && options) {
+                                    checkbox.addEventListener('change', function () {
+                                        if (this.checked) {
+                                            options.classList.remove('hidden');
+                                        } else {
+                                            options.classList.add('hidden');
+                                        }
+                                    });
+                                }
+
+                                if (modeSelect) {
+                                    modeSelect.addEventListener('change', function () {
+                                        if (this.value === 'flat') {
+                                            flatDesc.classList.remove('hidden');
+                                            dailyDesc.classList.add('hidden');
+                                        } else {
+                                            flatDesc.classList.add('hidden');
+                                            dailyDesc.classList.remove('hidden');
+                                        }
+                                    });
+                                }
+                            });
+                        </script>
                     </div>
 
                     <!-- Taxable (PPN) Checkbox -->

@@ -263,7 +263,7 @@ export class InvoiceService {
                 SELECT s.id as subscription_id, s.customer_id, s.package_name, s.price,
                        c.name as customer_name, c.email, c.phone, s.start_date,
                        DAY(s.start_date) as billing_day, c.account_balance, c.use_device_rental, c.is_taxable,
-                       c.customer_code
+                       c.customer_code, c.rental_mode, c.rental_cost
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
@@ -328,7 +328,23 @@ export class InvoiceService {
 
                         let deviceFee = 0;
                         if (deviceRentalEnabled && subscription.use_device_rental) {
-                            deviceFee = deviceRentalFee;
+                            // Determine rental cost: prioritize custom cost, fallback to global
+                            const rentalCost = subscription.rental_cost !== null && subscription.rental_cost !== undefined
+                                ? Number(subscription.rental_cost)
+                                : Number(deviceRentalFee);
+
+                            const rentalMode = subscription.rental_mode || 'flat';
+
+                            if (rentalMode === 'daily') {
+                                // Calculate days in the invoice period
+                                const [pYear, pMonth] = period.split('-').map(Number);
+                                const daysInMonth = new Date(pYear, pMonth, 0).getDate();
+                                deviceFee = rentalCost * daysInMonth;
+                                console.log(`[InvoiceService] Daily rental for ${subscription.customer_name}: ${rentalCost} x ${daysInMonth} days = ${deviceFee}`);
+                            } else {
+                                // Flat rate
+                                deviceFee = rentalCost;
+                            }
                         }
 
                         let ppnAmount = 0;
@@ -437,7 +453,7 @@ export class InvoiceService {
                 // Coba query dengan kolom status terlebih dahulu
                 try {
                     const customerQueryWithStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.use_device_rental, c.is_taxable
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost
                         FROM customers c
                         WHERE c.status = 'active'
                         AND c.id NOT IN (
@@ -455,7 +471,7 @@ export class InvoiceService {
                 // Jika hasil masih kosong, coba tanpa filter status
                 if (!Array.isArray(customerResult) || customerResult.length === 0) {
                     const customerQueryNoStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, c.use_device_rental, c.is_taxable
+                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost
                         FROM customers c
                         WHERE c.id NOT IN (
                             SELECT DISTINCT customer_id 
@@ -496,7 +512,23 @@ export class InvoiceService {
 
                         let deviceFee = 0;
                         if (deviceRentalEnabled && customer.use_device_rental) {
-                            deviceFee = deviceRentalFee;
+                            // Determine rental cost: prioritize custom cost, fallback to global
+                            const rentalCost = customer.rental_cost !== null && customer.rental_cost !== undefined
+                                ? Number(customer.rental_cost)
+                                : Number(deviceRentalFee);
+
+                            const rentalMode = customer.rental_mode || 'flat';
+
+                            if (rentalMode === 'daily') {
+                                // Calculate days in the invoice period
+                                const [pYear, pMonth] = period.split('-').map(Number);
+                                const daysInMonth = new Date(pYear, pMonth, 0).getDate();
+                                deviceFee = rentalCost * daysInMonth;
+                                console.log(`[InvoiceService] Daily rental for ${customer.customer_name}: ${rentalCost} x ${daysInMonth} days = ${deviceFee}`);
+                            } else {
+                                // Flat rate
+                                deviceFee = rentalCost;
+                            }
                         }
 
                         let ppnAmount = 0;

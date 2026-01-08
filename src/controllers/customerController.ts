@@ -665,7 +665,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
             odc_id,
             custom_payment_deadline,
             custom_isolate_days_after_deadline,
-            serial_number
+            custom_isolate_days_after_deadline,
+            serial_number,
+            rental_mode,
+            rental_cost
         } = req.body;
 
         const conn = await databasePool.getConnection();
@@ -793,6 +796,21 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 // Partial update explicitly targeting this field
                 updateFields.push('use_device_rental = ?');
                 updateValues.push(req.body.use_device_rental === '1' || req.body.use_device_rental === true ? 1 : 0);
+            }
+
+            // Handle Rental Mode and Cost
+            if (rental_mode !== undefined) {
+                updateFields.push('rental_mode = ?');
+                updateValues.push(rental_mode);
+            }
+            if (rental_cost !== undefined) {
+                // If empty screen, set to null. If value provided, ensure numeric.
+                let costVal = null;
+                if (rental_cost !== null && rental_cost !== '') {
+                    costVal = parseFloat(String(rental_cost).replace(/[^0-9.]/g, ''));
+                }
+                updateFields.push('rental_cost = ?');
+                updateValues.push(costVal);
             }
 
             // Handle billing mode change (Prepaid/Postpaid)
