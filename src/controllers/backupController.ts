@@ -172,8 +172,7 @@ export class BackupController {
     static async restoreFromUpload(req: Request, res: Response) {
         try {
             if (!req.file) {
-                req.flash('error', 'File SQL tidak ditemukan');
-                return res.redirect('/settings/backup');
+                return res.status(400).json({ success: false, error: 'File SQL tidak ditemukan' });
             }
 
             // We relax the check because sometimes downloads lose extension (the random filename issue)
@@ -211,10 +210,10 @@ export class BackupController {
             const backupService = new DatabaseBackupService();
             await backupService.restoreDatabase(targetPath);
 
-            // Clean up temp file
-            if (fs.existsSync(targetPath)) {
-                try { fs.unlinkSync(targetPath); } catch (e) { }
-            }
+            // Clean up temp file? NO. Keep it as a record in storage/backups since it's a valid backup now.
+            // if (fs.existsSync(targetPath)) {
+            //    try { fs.unlinkSync(targetPath); } catch (e) { }
+            // }
 
             res.json({ success: true, message: 'Database berhasil direstore' });
 
