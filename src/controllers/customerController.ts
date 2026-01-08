@@ -551,7 +551,7 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
             packages = [];
         }
 
-        // Get MikroTik interfaces
+        // Get MikroTik interfaces with timeout
         let interfaces: any[] = [];
         let interfaceError: string | null = null;
         try {
@@ -561,7 +561,16 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
                     ...mikrotikConfig,
                     use_tls: mikrotikConfig.use_tls ?? false
                 };
-                interfaces = await getInterfaces(configWithTls);
+
+                // Add timeout to interface fetching (3 seconds)
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('MikroTik connection timeout')), 3000)
+                );
+
+                interfaces = await Promise.race([
+                    getInterfaces(configWithTls),
+                    timeoutPromise
+                ]) as any[];
             } else {
                 interfaceError = 'MikroTik tidak dikonfigurasi';
             }

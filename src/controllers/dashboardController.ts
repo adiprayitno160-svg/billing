@@ -327,7 +327,7 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				console.log(`[Dashboard] Attempting to connect to MikroTik at ${config.host}:${config.port}...`);
 
 				// Perform requests in parallel with a short timeout (2s) to prevent blocking page load
-				const timeoutMs = 10000; // increased timeout to avoid premature abort
+				const timeoutMs = 2000; // reduced timeout to avoid long loading times
 				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('MikroTik connection timeout')), timeoutMs));
 
 				// Helper to catch errors individually
