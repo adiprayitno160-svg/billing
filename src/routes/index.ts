@@ -2456,7 +2456,22 @@ router.get('/api/pppoe/secrets', async (req, res) => {
             console.warn('PPPoE secrets requested but MikroTik config is missing');
             return res.json([]);
         }
-        const secrets = await getPppoeSecrets(cfg);
+        // Wrap MikroTik call with timeout
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('MikroTik connection timeout')), 3000)
+        );
+
+        let secrets: any[] = [];
+        try {
+            secrets = await Promise.race([
+                getPppoeSecrets(cfg),
+                timeoutPromise
+            ]) as any[];
+        } catch (err: any) {
+            console.error('Error or Timeout fetching PPPoE secrets:', err.message);
+            // Return empty array on timeout so UI doesn't hang
+            return res.json([]);
+        }
 
         // Get all used usernames from database
         const [usedRows] = await databasePool.execute(
