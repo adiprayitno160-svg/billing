@@ -26,7 +26,16 @@ export class DatabaseBackupService {
                 ['backup_mysqldump_path']
             );
             if (rows.length > 0 && rows[0].setting_value) {
-                return rows[0].setting_value;
+                const dbPath = rows[0].setting_value;
+                // AntiGravity Fix: Detect OS mismatch (e.g. User restored Windows DB on Linux)
+                // If we are on Linux (non-Windows) but path looks like Windows (C:\...), ignore it.
+                const isWindowsPath = dbPath.includes('\\') || /^[a-zA-Z]:/.test(dbPath);
+                const isRunningOnWindows = process.platform === 'win32';
+
+                if (isRunningOnWindows || !isWindowsPath) {
+                    return dbPath;
+                }
+                console.warn(`[Backup] Ignoring configured path '${dbPath}' due to OS mismatch. using default.`);
             }
 
             // 2. Dynamic check for Laragon MySQL version
@@ -149,9 +158,21 @@ export class DatabaseBackupService {
         const mysqldumpCmd = await this.getMysqldumpPath(); // This returns mysqldump path. We need mysql path.
 
         // Infer mysql path from mysqldump path if possible, or assume 'mysql' is in PATH
+        // Infer mysql path from mysqldump path if possible, or assume 'mysql' is in PATH
         let mysqlCmd = 'mysql';
-        if (mysqldumpCmd.includes('mysqldump')) {
-            mysqlCmd = mysqldumpCmd.replace('mysqldump', 'mysql');
+
+        // Fix: If running on Windows and path is full path, replace exe name
+        // If running on Linux/Mac, usually it's just 'mysqldump' -> 'mysql'
+        if (mysqldumpCmd.toLowerCase().endsWith('mysqldump.exe')) {
+            mysqlCmd = mysqldumpCmd.replace(/mysqldump\.exe$/i, 'mysql.exe');
+        } else if (mysqldumpCmd.endsWith('mysqldump')) {
+            mysqlCmd = mysqldumpCmd.replace(/mysqldump$/, 'mysql');
+        }
+
+        // Final fallback: check if the derived path exists, if not, fallback to global 'mysql'
+        if (path.isAbsolute(mysqlCmd) && !fs.existsSync(mysqlCmd)) {
+            console.warn(`[Restore] Derived mysql path '${mysqlCmd}' not found. Falling back to global 'mysql'.`);
+            mysqlCmd = 'mysql';
         }
 
         // Construct command
