@@ -207,19 +207,24 @@ export class BackupController {
                 throw new Error('File upload failed: No data received');
             }
 
+            // Perform restore
             const backupService = new DatabaseBackupService();
             await backupService.restoreDatabase(targetPath);
 
-            req.flash('success', 'Database berhasil direstore dari file upload');
-            res.redirect('/settings/backup');
+            // Clean up temp file
+            if (fs.existsSync(targetPath)) {
+                try { fs.unlinkSync(targetPath); } catch (e) { }
+            }
+
+            res.json({ success: true, message: 'Database berhasil direstore' });
+
         } catch (error: any) {
             console.error('Restore Upload Error:', error);
             // Cleanup temp file if it exists and wasn't moved
             if (req.file && req.file.path && fs.existsSync(req.file.path)) {
                 try { fs.unlinkSync(req.file.path); } catch (e) { }
             }
-            req.flash('error', 'Restore Gagal: ' + error.message);
-            res.redirect('/settings/backup');
+            res.status(500).json({ success: false, error: 'Restore Gagal: ' + error.message });
         }
     }
 

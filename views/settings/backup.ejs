@@ -114,23 +114,126 @@
 
                         <div class="mt-8 pt-6 border-t border-gray-100">
                             <h3 class="text-sm font-semibold text-gray-900 mb-3">Restore Database (Upload SQL)</h3>
-                            <form action="/settings/backup/restore-upload" method="POST" enctype="multipart/form-data"
-                                onsubmit="return confirm('PERINGATAN KERAS: Proses ini akan MENGHAPUS semua data saat ini dan menggantinya dengan data dari file backup. Pastikan Anda tahu apa yang Anda lakukan. Lanjutkan?');">
-                                <div class="flex gap-2">
-                                    <input type="file" name="sqlFile" accept=".sql" required class="block w-full text-sm text-gray-500
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded-full file:border-0
-                                        file:text-sm file:font-semibold
-                                        file:bg-red-50 file:text-red-700
-                                        hover:file:bg-red-100">
-                                    <button type="submit"
-                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex-shrink-0">
-                                        <i class="fas fa-upload mr-1"></i> Restore
+                            <form id="restoreForm" class="space-y-4">
+                                <div class="flex flex-col gap-4">
+                                    <div class="relative">
+                                        <input type="file" id="sqlFile" name="sqlFile" accept=".sql" required class="block w-full text-sm text-gray-500
+                                            file:mr-4 file:py-2 file:px-4
+                                            file:rounded-full file:border-0
+                                            file:text-sm file:font-semibold
+                                            file:bg-red-50 file:text-red-700
+                                            hover:file:bg-red-100 cursor-pointer">
+                                    </div>
+
+                                    <!-- Progress Bar Container -->
+                                    <div id="restoreProgressContainer" class="hidden space-y-2">
+                                        <div class="flex justify-between text-sm font-medium text-gray-700">
+                                            <span id="restoreStatusText">Mengupload backup...</span>
+                                            <span id="restorePercent">0%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                            <div id="restoreProgressBar"
+                                                class="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+                                                style="width: 0%"></div>
+                                        </div>
+                                        <p class="text-xs text-gray-500 italic">Mohon jangan tutup halaman ini sampai
+                                            proses selesai.</p>
+                                    </div>
+
+                                    <button type="submit" id="btnRestore"
+                                        class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-sm">
+                                        <i class="fas fa-upload"></i> Mulai Restore Database
                                     </button>
                                 </div>
-                                <p class="text-xs text-red-500 mt-2 font-semibold">*) Gunakan fitur ini jika Anda baru
-                                    install ulang billing dan ingin mengembalikan data lama.</p>
+                                <p class="text-xs text-red-500 mt-2 font-semibold">*) PERINGATAN: Fitur ini akan
+                                    MENGHAPUS seluruh data database saat ini dan menggantinya dengan data backup.
+                                    Gunakan dengan hati-hati khusus di Server Ubuntu.</p>
                             </form>
+
+                            <script>
+                                document.getElementById('restoreForm').addEventListener('submit', async function (e) {
+                                    e.preventDefault();
+
+                                    if (!confirm('PERINGATAN KERAS: Proses ini akan MENIMPA database. Lanjutkan?')) return;
+
+                                    const fileInput = document.getElementById('sqlFile');
+                                    const file = fileInput.files[0];
+                                    if (!file) {
+                                        alert('Pilih file backup (.sql) terlebih dahulu!');
+                                        return;
+                                    }
+
+                                    const formData = new FormData();
+                                    formData.append('sqlFile', file);
+
+                                    // UI Elements
+                                    const progressContainer = document.getElementById('restoreProgressContainer');
+                                    const progressBar = document.getElementById('restoreProgressBar');
+                                    const statusText = document.getElementById('restoreStatusText');
+                                    const percentText = document.getElementById('restorePercent');
+                                    const btnRestore = document.getElementById('btnRestore');
+
+                                    // Reset UI
+                                    progressContainer.classList.remove('hidden');
+                                    btnRestore.disabled = true;
+                                    btnRestore.classList.add('opacity-50', 'cursor-not-allowed');
+                                    progressBar.style.width = '0%';
+
+                                    // Simulated Progress (Since we use fetch)
+                                    // 1. Upload Phase (0-30%)
+                                    let progress = 0;
+                                    const uploadInterval = setInterval(() => {
+                                        if (progress < 30) {
+                                            progress += 5;
+                                            updateUI(progress, 'Mengupload file backup...');
+                                        }
+                                    }, 200);
+
+                                    try {
+                                        updateUI(10, 'Mengupload file backup...');
+
+                                        const response = await fetch('/settings/backup/restore-upload', {
+                                            method: 'POST',
+                                            body: formData
+                                        });
+
+                                        clearInterval(uploadInterval);
+
+                                        // 2. Processing Phase (30-90%)
+                                        // Since the server waits for restore to finish, we see this after it's done or if streamed.
+                                        // IMPORTANT: The fetch awaits the server response. 
+                                        // If server takes 10s, we sit here. So we can't truly animate 30->90 accurately without real events.
+                                        // But we can just jump to processing state visually.
+
+                                        updateUI(50, 'Sedang memproses restore di server...');
+
+                                        const result = await response.json(); // Explicitly expect JSON now
+
+                                        if (result.success) {
+                                            updateUI(100, 'Restore Berhasil!');
+                                            alert('✅ SUKSES: Database berhasil direstore! Halaman akan dimuat ulang.');
+                                            window.location.reload();
+                                        } else {
+                                            throw new Error(result.error || 'Terjadi kesalahan tidak diketahui');
+                                        }
+
+                                    } catch (error) {
+                                        clearInterval(uploadInterval);
+                                        progressBar.classList.remove('bg-blue-600');
+                                        progressBar.classList.add('bg-red-600');
+                                        updateUI(100, 'Gagal!');
+                                        alert('❌ ERROR:Restore Gagal. ' + error.message);
+                                        btnRestore.disabled = false;
+                                        btnRestore.classList.remove('opacity-50', 'cursor-not-allowed');
+                                    }
+
+                                    function updateUI(percent, text) {
+                                        progressBar.style.width = `${percent}%`;
+                                        percentText.innerText = `${percent}%`;
+                                        statusText.innerText = text;
+                                    }
+                                });
+                            </script>
                         </div>
 
                         <div class="mt-8 pt-6 border-t border-gray-100">
