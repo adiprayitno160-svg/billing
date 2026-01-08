@@ -480,6 +480,14 @@
             cursor: pointer;
         }
 
+        /* Disable animation when Live Traffic is off */
+        .live-traffic-disabled path.leaflet-interactive {
+            animation: none !important;
+            stroke-dasharray: 0 !important;
+            /* Make solid */
+            filter: none !important;
+        }
+
         .link-distance-bg {
             fill: rgba(0, 0, 0, 0.6);
             rx: 4;
@@ -1059,6 +1067,28 @@
                 (Gunakan jika ODP/ODC belum muncul)
             </div>
 
+            <!-- Live Traffic Toggle -->
+            <div class="filter-group" style="border-top: none; margin-top: 5px; padding-top: 5px;">
+                <div class="filter-item" onclick="toggleLiveTraffic()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #ef4444; color: white;">
+                            <i class="fas fa-bolt animate-pulse"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #ef4444;">Live Traffic</span>
+                    </div>
+                    <!-- Toggle Switch -->
+                    <div
+                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="live-traffic-toggle" checked
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            style="right: 0; top: 0; transition: all 0.3s; transform: translateX(0); border-color: #ef4444; background: #ef4444;" />
+                        <label for="live-traffic-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-red-100 cursor-pointer"
+                            style="transition: all 0.3s;"></label>
+                    </div>
+                </div>
+            </div>
+
             <div class="filter-group">
                 <h3><i class="fas fa-filter"></i> Filters</h3>
 
@@ -1369,7 +1399,7 @@
         // Load network topology data
         async function loadNetworkData() {
             try {
-                const response = await fetch('/monitoring/api/network-topology');
+                const response = await fetch('/monitoring/api/network-topology?_t=' + new Date().getTime());
                 const result = await response.json();
 
                 if (result.success) {
@@ -1445,6 +1475,9 @@
                 const lat = parseFloat(device.latitude);
                 const lng = parseFloat(device.longitude);
                 if (isNaN(lat) || isNaN(lng)) return;
+
+                // Hapus OLT icon di monitoring map
+                if (device.device_type === 'olt') return;
 
                 if (!activeFilters[device.device_type]) {
                     if (markers[device.id]) {
@@ -2051,8 +2084,8 @@
                 let color = '#10b981'; // Default green
 
                 if (isOltOdc) {
-                    linkClass += ' link-olt-odc';
-                    color = '#8B5CF6';
+                    // Skip rendering OLT-ODC links as per user request
+                    return;
                 } else if (isOdcOdp) {
                     linkClass += ' link-odc-odp';
                     color = '#3B82F6';
@@ -2450,63 +2483,135 @@
         document.head.appendChild(pulseStyle);
 
         // Initialize on page load
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', initMap);
-    </script>
+        // Toggle Live Traffic
+        function toggleLiveTraffic() {
+            const checkbox = document.getElementById('live-traffic-toggle');
+            const isChecked = !checkbox.checked; // Toggle state because click triggered on parent div usually, or we handle the input click event
 
-    <!-- Sync Button -->
-    <button id="btn-sync-data" onclick="syncData()" style="
-        position: absolute;
-        bottom: 70px; /* Above live indicator */
-        left: 20px;
-        z-index: 1000;
-        background: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 30px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        cursor: pointer;
-        font-weight: 600;
-        color: #2563EB;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s;
-    ">
-        <i class="fas fa-sync-alt"></i> Sync Data
-    </button>
+            // If the user clicked the div, we manually toggle the checkbox
+            // If the user clicked the checkbox directly, it already toggled.
+            // Let's rely on checking the current state after the event or just force consistency.
 
-    <script>
-        async function syncData() {
-            const btn = document.getElementById('btn-sync-data');
-            const icon = btn.querySelector('i');
-            const originalText = btn.innerHTML;
+            // To be safe, let's just check the current state of body and invert it
+            const body = document.body;
+            const isTrafficEnabled = !body.classList.contains('live-traffic-disabled');
 
-            if (confirm('Sinkronisasi data (Customer & Infrastructure)? Ini akan memperbarui data ODP dan Link. Mungkin memakan waktu beberapa detik.')) {
-                try {
-                    btn.disabled = true;
-                    icon.classList.add('fa-spin');
-                    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Syncing...';
+            if (isTrafficEnabled) {
+                // Turn OFF
+                body.classList.add('live-traffic-disabled');
+                checkbox.checked = false;
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e2e8f0'; // Label gray
 
-                    // 1. Sync FTTH (OLT/ODC/ODP)
-                    await fetch('/monitoring/api/sync/ftth', { method: 'POST' });
-                    // 2. Sync Customers (Update ODP IDs)
-                    await fetch('/monitoring/api/sync/customers', { method: 'POST' });
-                    // 3. Sync Links (Create links based on IDs)
-                    await fetch('/monitoring/api/sync/links', { method: 'POST' });
-
-                    alert('Sinkronisasi selesai! Halaman akan dimuat ulang.');
-                    location.reload();
-                } catch (e) {
-                    console.error('Sync failed:', e);
-                    alert('Gagal melakukan sinkronisasi: ' + e.message);
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                    icon.classList.remove('fa-spin');
+                // Icon styling
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#94a3b8';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt"></i>';
                 }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#64748b';
+
+                localStorage.setItem('liveTrafficEnabled', 'false');
+            } else {
+                // Turn ON
+                body.classList.remove('live-traffic-disabled');
+                checkbox.checked = true;
+                checkbox.style.borderColor = '#ef4444';
+                checkbox.style.background = '#ef4444';
+                checkbox.nextElementSibling.style.background = '#fee2e2'; // Label light red
+
+                // Icon styling
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#ef4444';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt animate-pulse"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#ef4444';
+
+                localStorage.setItem('liveTrafficEnabled', 'true');
             }
         }
+
+        // Initialize Live Traffic State
+        function initLiveTrafficState() {
+            const savedState = localStorage.getItem('liveTrafficEnabled');
+            // Default to true if not set
+            const shouldEnable = savedState === null || savedState === 'true';
+
+            const checkbox = document.getElementById('live-traffic-toggle');
+            if (checkbox.checked !== shouldEnable) {
+                // If checkbox state doesn't match saved state, toggle it
+                // We manually trigger the logic to ensure UI consistency
+                // If saved is false and checkbox is true (default), we need to disable
+                if (!shouldEnable) {
+                    document.body.classList.add('live-traffic-disabled');
+                    checkbox.checked = false;
+                    checkbox.style.borderColor = '#ccc';
+                    checkbox.style.background = 'white';
+                    checkbox.nextElementSibling.style.background = '#e2e8f0';
+
+                    const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                    if (iconDiv) {
+                        iconDiv.style.background = '#94a3b8';
+                        iconDiv.innerHTML = '<i class="fas fa-bolt"></i>';
+                    }
+                    const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                    if (labelSpan) labelSpan.style.color = '#64748b';
+                }
+            } else if (!shouldEnable) {
+                // Even if checkbox is correct, ensure body class is correct
+                document.body.classList.add('live-traffic-disabled');
+            }
+        }
+
+        // Handle checkbox change directly if clicked
+        document.getElementById('live-traffic-toggle').addEventListener('click', function (e) {
+            e.stopPropagation(); // Stop bubbling to div onclick
+
+            const checkbox = e.target;
+            const body = document.body;
+
+            if (!checkbox.checked) {
+                // Turn OFF
+                body.classList.add('live-traffic-disabled');
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e2e8f0';
+
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#94a3b8';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#64748b';
+            } else {
+                // Turn ON
+                body.classList.remove('live-traffic-disabled');
+                checkbox.style.borderColor = '#ef4444';
+                checkbox.style.background = '#ef4444';
+                checkbox.nextElementSibling.style.background = '#fee2e2';
+
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#ef4444';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt animate-pulse"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#ef4444';
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initLiveTrafficState();
+            initMap();
+        });
     </script>
+
 </body>
 
 </html>

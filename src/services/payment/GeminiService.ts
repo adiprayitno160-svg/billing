@@ -66,7 +66,7 @@ export class GeminiService {
 
         // Get settings for model name
         const settings = await AISettingsService.getSettings();
-        const modelName = settings?.model || 'gemini-1.5-pro';
+        const modelName = settings?.model || 'gemini-2.5-flash';
 
         try {
             this.genAI = new GoogleGenerativeAI(apiKey);

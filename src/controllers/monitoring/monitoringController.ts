@@ -483,19 +483,22 @@ export class MonitoringController {
         try {
             const { customerId } = req.params;
 
-            // Get customer data with package info through subscriptions
+            // Get customer data with package info through subscriptions OR pppoe_profiles
             const [customers] = await databasePool.query(
                 `SELECT c.*, 
-                        s.package_name, 
-                        pp.rate_limit_rx, 
-                        pp.rate_limit_tx,
-                        s.price,
+                        COALESCE(s.package_name, pp_profile.name) as package_name, 
+                        COALESCE(pp_sub.rate_limit_rx, pp_profile.rate_limit_rx) as rate_limit_rx, 
+                        COALESCE(pp_sub.rate_limit_tx, pp_profile.rate_limit_tx) as rate_limit_tx,
+                        COALESCE(s.price, pp_profile.price, 0) as price,
                         odc.name as odc_name,
-                        odc.location as odc_location
+                        odc.location as odc_location,
+                        odp.name as odp_name
                  FROM customers c
                  LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
-                 LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
+                 LEFT JOIN pppoe_packages pp_sub ON s.package_id = pp_sub.id
+                 LEFT JOIN pppoe_profiles pp_profile ON c.pppoe_profile_id = pp_profile.id
                  LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
+                 LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
                  WHERE c.id = ?`,
                 [customerId]
             ) as [RowDataPacket[], any];
@@ -518,6 +521,11 @@ export class MonitoringController {
                 if (mikrotikConfig) {
                     const activeSessions = await getPppoeActiveConnections(mikrotikConfig);
                     sessionInfo = activeSessions.find((s: any) => s.name === customer.pppoe_username);
+
+                    // If online, try to get profile/rate-limit from session if not from DB
+                    if (sessionInfo && !customer.package_name) {
+                        customer.package_name = sessionInfo.profile || sessionInfo.service || null;
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching session info:', error);

@@ -1,19 +1,114 @@
 import { Request, Response } from 'express';
 import SLAMonitoringService from '../../services/slaMonitoringService';
+import pool from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 
 export default class SLAController {
     /**
-     * Render SLA Dashboard
+     * Render SLA Dashboard with customer list
      */
     async dashboard(req: Request, res: Response): Promise<void> {
         try {
+            // Fetch all active customers for the dropdown
+            const [customers] = await pool.query<RowDataPacket[]>(`
+                SELECT 
+                    c.id, 
+                    c.name, 
+                    c.customer_code,
+                    c.connection_type
+                FROM customers c
+                WHERE c.status = 'active'
+                ORDER BY c.name ASC
+            `);
+
+            // Get SLA stats for KPI cards
+            const stats = await this.getSLAStats();
+
             res.render('monitoring/sla', {
                 title: 'SLA Monitoring',
-                layout: 'layouts/main'
+                layout: 'layouts/main',
+                customers: customers || [],
+                stats: stats
             });
         } catch (error) {
             console.error('Error rendering SLA page:', error);
             res.status(500).send('Error loading SLA page');
+        }
+    }
+
+    /**
+     * Get SLA statistics for KPI cards
+     */
+    private async getSLAStats(): Promise<any> {
+        try {
+            const currentMonth = new Date();
+            const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const periodStr = startOfMonth.toISOString().slice(0, 7);
+
+            // Average reliability score (from sla_records)
+            const [reliabilityResult] = await pool.query<RowDataPacket[]>(`
+                SELECT AVG(sla_percentage) as avg_reliability
+                FROM sla_records
+                WHERE period = ?
+            `, [periodStr]);
+
+            // Count SLA breaches this month (where sla_percentage < sla_target)
+            const [breachResult] = await pool.query<RowDataPacket[]>(`
+                SELECT COUNT(*) as breach_count
+                FROM sla_records
+                WHERE period = ?
+                AND sla_percentage < sla_target
+            `, [periodStr]);
+
+            // Active/ongoing incidents
+            const [incidentResult] = await pool.query<RowDataPacket[]>(`
+                SELECT COUNT(*) as active_incidents
+                FROM sla_incidents
+                WHERE status = 'ongoing'
+            `);
+
+            // Total refund/discount amount this month
+            const [refundResult] = await pool.query<RowDataPacket[]>(`
+                SELECT COALESCE(SUM(discount_amount), 0) as total_refund
+                FROM sla_records
+                WHERE period = ?
+                AND discount_approved = 1
+            `, [periodStr]);
+
+            // Recent breaches with customer info
+            const [recentBreaches] = await pool.query<RowDataPacket[]>(`
+                SELECT 
+                    sr.id,
+                    sr.customer_id,
+                    c.name as customer_name,
+                    c.customer_code,
+                    sr.sla_percentage,
+                    sr.sla_target,
+                    sr.downtime_minutes,
+                    sr.period
+                FROM sla_records sr
+                JOIN customers c ON sr.customer_id = c.id
+                WHERE sr.sla_percentage < sr.sla_target
+                ORDER BY sr.calculated_at DESC
+                LIMIT 10
+            `);
+
+            return {
+                avgReliability: reliabilityResult[0]?.avg_reliability || null,
+                breachCount: breachResult[0]?.breach_count || 0,
+                activeIncidents: incidentResult[0]?.active_incidents || 0,
+                totalRefund: refundResult[0]?.total_refund || 0,
+                recentBreaches: recentBreaches || []
+            };
+        } catch (error) {
+            console.error('[SLAController] Error getting SLA stats:', error);
+            return {
+                avgReliability: null,
+                breachCount: 0,
+                activeIncidents: 0,
+                totalRefund: 0,
+                recentBreaches: []
+            };
         }
     }
 

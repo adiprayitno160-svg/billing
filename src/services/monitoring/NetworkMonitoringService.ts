@@ -229,6 +229,24 @@ export class NetworkMonitoringService {
             }
 
             console.log(`✅ Customer sync complete: ${added} added, ${updated} updated`);
+
+            // Cleanup orphaned customers (those that were deleted or lost coordinates)
+            if (customers.length > 0) {
+                const customerIds = customers.map(c => c.id).join(',');
+                const [result] = await databasePool.query<ResultSetHeader>(
+                    `DELETE FROM network_devices 
+                     WHERE device_type = 'customer' 
+                     AND (customer_id NOT IN (${customerIds}) OR customer_id IS NULL)`
+                );
+                if (result.affectedRows > 0) {
+                    console.log(`🧹 Cleaned up ${result.affectedRows} orphaned customer devices`);
+                }
+            } else {
+                // If no customers found, delete all customer devices? 
+                // Careful, maybe query failed. But if we are here, query succeeded.
+                // await databasePool.query("DELETE FROM network_devices WHERE device_type = 'customer'");
+            }
+
             return { added, updated };
 
         } catch (error) {
@@ -336,6 +354,25 @@ export class NetworkMonitoringService {
             }
 
             console.log(`✅ FTTH infrastructure sync complete: ${added} added, ${updated} updated`);
+
+            // Cleanup orphaned OLTs
+            if (olts.length > 0) {
+                const ids = olts.map(o => o.id).join(',');
+                await databasePool.query(`DELETE FROM network_devices WHERE device_type = 'olt' AND olt_id NOT IN (${ids})`);
+            }
+
+            // Cleanup orphaned ODCs
+            if (odcs.length > 0) {
+                const ids = odcs.map(o => o.id).join(',');
+                await databasePool.query(`DELETE FROM network_devices WHERE device_type = 'odc' AND odc_id NOT IN (${ids})`);
+            }
+
+            // Cleanup orphaned ODPs
+            if (odps.length > 0) {
+                const ids = odps.map(o => o.id).join(',');
+                await databasePool.query(`DELETE FROM network_devices WHERE device_type = 'odp' AND odp_id NOT IN (${ids})`);
+            }
+
             return { added, updated };
 
         } catch (error) {
@@ -508,10 +545,19 @@ export class NetworkMonitoringService {
             const { getPppoeActiveConnections } = await import('../mikrotikService');
 
             const config = await getMikrotikConfig();
+            console.log(`[NetworkMonitoring] 🔌 MikroTik Config: ${config ? 'FOUND' : 'NOT FOUND'}`);
+
             if (config) {
                 const activeSessions = await getPppoeActiveConnections(config);
                 const activeUsernames = new Set(activeSessions.map(s => s.name));
                 const sessionMap = new Map(activeSessions.map(s => [s.name, s]));
+
+                console.log(`[NetworkMonitoring] 📡 Active PPPoE Sessions: ${activeSessions.length}`);
+                console.log(`[NetworkMonitoring] 👥 Active usernames: ${Array.from(activeUsernames).slice(0, 10).join(', ')}${activeUsernames.size > 10 ? '...' : ''}`);
+
+                let onlineCount = 0;
+                let offlineCount = 0;
+                let noUsernameCount = 0;
 
                 devices = devices.map(device => {
                     if (device.device_type === 'customer') {
@@ -523,6 +569,12 @@ export class NetworkMonitoringService {
                             // If isOnline is true, set status to online. 
                             // If false, set to offline (override DB status which might be 'active' but offline)
                             const newStatus = isOnline ? 'online' : 'offline';
+
+                            // Debug: Log which customer gets which status
+                            console.log(`[NetworkMonitoring] 🔍 Customer "${device.name}" (${username}) → ${newStatus.toUpperCase()}`);
+
+                            if (isOnline) onlineCount++;
+                            else offlineCount++;
 
                             // Optional: Inject session details
                             const session = sessionMap.get(username);
@@ -539,13 +591,21 @@ export class NetworkMonitoringService {
                                     } : null
                                 }
                             };
+                        } else {
+                            // No PPPoE username set - cannot track live status
+                            noUsernameCount++;
+                            // Keep original status from database (don't assume offline as could be static IP)
                         }
                     }
                     return device;
                 });
+
+                console.log(`[NetworkMonitoring] ✅ PPPoE Status Updated: ${onlineCount} online, ${offlineCount} offline, ${noUsernameCount} without username`);
+            } else {
+                console.warn('[NetworkMonitoring] ⚠️ No MikroTik config found - cannot check live PPPoE status!');
             }
         } catch (e) {
-            console.error('Error injecting live PPPoE status:', e);
+            console.error('[NetworkMonitoring] ❌ Error injecting live PPPoE status:', e);
         }
 
         // Inject GenieACS Signal Data into Customer Devices (Robust Matching)
@@ -610,57 +670,47 @@ export class NetworkMonitoringService {
         }
 
         // Auto-sync checks:
-        // 1. Check if we display any customers. If 0, and we have customers with lat/long, sync them!
+        // 1. Check if we display any customers.
         const [customerCountResult] = await databasePool.query<RowDataPacket[]>(
             "SELECT COUNT(*) as count FROM network_devices WHERE device_type = 'customer'"
         );
         const existingCustomerCount = (customerCountResult as any)[0]?.count || 0;
 
-        // If we have very few customers, it might be an indication of missing sync
-        if (existingCustomerCount === 0) {
-            // Check if we DO have customers with coordinates
-            const [potentialCustomers] = await databasePool.query<RowDataPacket[]>(
-                "SELECT COUNT(*) as count FROM customers WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
-            );
-            const potentialCount = (potentialCustomers as any)[0]?.count || 0;
+        // Check source customers count (with coordinates)
+        const [potentialCustomers] = await databasePool.query<RowDataPacket[]>(
+            "SELECT COUNT(*) as count FROM customers WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
+        );
+        const potentialCount = (potentialCustomers as any)[0]?.count || 0;
 
-            if (potentialCount > 0) {
-                console.log('📍 Topology request detected missing customers. Triggering auto-sync...');
-                await this.syncCustomerDevices();
-                // Re-fetch devices after sync
-                devices = await this.getAllDevices();
-            }
+        // If mismatch, rely on sync
+        if (existingCustomerCount !== potentialCount) {
+            console.log(`📍 Topology request detected customer count mismatch (Network: ${existingCustomerCount}, Source: ${potentialCount}). Triggering auto-sync...`);
+            await this.syncCustomerDevices();
+            // Re-fetch devices after sync logic
+            devices = await this.getAllDevices();
         }
 
-        // 2. Check if we display any FTTH infrastructure (OLT, ODC, ODP). If missing, sync them!
+        // 2. Check FTTH infrastructure (OLT, ODC, ODP).
         const [ftthCountResult] = await databasePool.query<RowDataPacket[]>(
             "SELECT COUNT(*) as count FROM network_devices WHERE device_type IN ('olt', 'odc', 'odp')"
         );
         const existingFtthCount = (ftthCountResult as any)[0]?.count || 0;
 
-        if (existingFtthCount === 0) {
-            // Check if we have FTTH infrastructure in the ftth_* tables
-            const [potentialOlt] = await databasePool.query<RowDataPacket[]>(
-                "SELECT COUNT(*) as count FROM ftth_olt"
-            );
-            const [potentialOdc] = await databasePool.query<RowDataPacket[]>(
-                "SELECT COUNT(*) as count FROM ftth_odc"
-            );
-            const [potentialOdp] = await databasePool.query<RowDataPacket[]>(
-                "SELECT COUNT(*) as count FROM ftth_odp"
-            );
+        // Check source table counts
+        const [potentialOlt] = await databasePool.query<RowDataPacket[]>(`SELECT COUNT(*) as count FROM ftth_olt`);
+        const [potentialOdc] = await databasePool.query<RowDataPacket[]>(`SELECT COUNT(*) as count FROM ftth_odc`);
+        const [potentialOdp] = await databasePool.query<RowDataPacket[]>(`SELECT COUNT(*) as count FROM ftth_odp`);
 
-            const oltCount = (potentialOlt as any)[0]?.count || 0;
-            const odcCount = (potentialOdc as any)[0]?.count || 0;
-            const odpCount = (potentialOdp as any)[0]?.count || 0;
-            const potentialFtthCount = oltCount + odcCount + odpCount;
+        const oltCount = (potentialOlt as any)[0]?.count || 0;
+        const odcCount = (potentialOdc as any)[0]?.count || 0;
+        const odpCount = (potentialOdp as any)[0]?.count || 0;
+        const potentialFtthCount = oltCount + odcCount + odpCount;
 
-            if (potentialFtthCount > 0) {
-                console.log(`🏗️ Topology request detected missing FTTH infrastructure (${oltCount} OLT, ${odcCount} ODC, ${odpCount} ODP). Triggering auto-sync...`);
-                await this.syncFTTHInfrastructure();
-                // Re-fetch devices after sync
-                devices = await this.getAllDevices();
-            }
+        if (existingFtthCount !== potentialFtthCount) {
+            console.log(`🏗️ Topology request detected FTTH count mismatch (Network: ${existingFtthCount}, Source: ${potentialFtthCount}). Triggering auto-sync...`);
+            await this.syncFTTHInfrastructure();
+            // Re-fetch devices after sync
+            devices = await this.getAllDevices();
         }
 
         const [links] = await databasePool.query<RowDataPacket[]>(
@@ -702,10 +752,60 @@ export class NetworkMonitoringService {
              FROM network_devices`
         );
 
+        // FINAL: Re-inject Live PPPoE Status (after all syncs to ensure correct status)
+        try {
+            const { getMikrotikConfig } = await import('../pppoeService');
+            const { getPppoeActiveConnections } = await import('../mikrotikService');
+
+            const config = await getMikrotikConfig();
+            if (config) {
+                const activeSessions = await getPppoeActiveConnections(config);
+                const activeUsernames = new Set(activeSessions.map(s => s.name));
+                const sessionMap = new Map(activeSessions.map(s => [s.name, s]));
+
+                devices = devices.map(device => {
+                    if (device.device_type === 'customer') {
+                        const metadata = device.metadata || {};
+                        const username = metadata.pppoe_username;
+
+                        if (username) {
+                            const isOnline = activeUsernames.has(username);
+                            const newStatus = isOnline ? 'online' : 'offline';
+
+                            const session = sessionMap.get(username);
+                            return {
+                                ...device,
+                                status: newStatus as any,
+                                metadata: {
+                                    ...metadata,
+                                    session_info: session ? {
+                                        uptime: session.uptime,
+                                        address: session.address,
+                                        mac: session['caller-id']
+                                    } : null
+                                }
+                            };
+                        }
+                    }
+                    return device;
+                });
+            }
+        } catch (e) {
+            console.error('[NetworkMonitoring] ❌ Error in final PPPoE status injection:', e);
+        }
+
+        // Recalculate statistics based on actual device status in memory
+        const finalStats = {
+            total_devices: devices.length,
+            online_devices: devices.filter(d => d.status === 'online').length,
+            offline_devices: devices.filter(d => d.status === 'offline').length,
+            warning_devices: devices.filter(d => d.status === 'warning').length
+        };
+
         return {
             devices,
             links: links as NetworkLink[],
-            statistics: stats[0] as any
+            statistics: finalStats
         };
     }
 

@@ -82,14 +82,37 @@ app.use(compression());
 app.use(morgan('dev'));
 app.use(loggingMiddleware);
 
-// Session with 10 minute inactivity timeout
+// Session with MySQL store (persists across server restarts)
+// Using require for express-mysql-session due to its CommonJS nature
+const MySQLStore = require('express-mysql-session')(session);
+
+const sessionStoreOptions = {
+	host: process.env.DB_HOST || '127.0.0.1',
+	port: parseInt(process.env.DB_PORT || '3306'),
+	user: process.env.DB_USER || 'root',
+	password: process.env.DB_PASSWORD || '',
+	database: process.env.DB_NAME || 'billing',
+	createDatabaseTable: true,
+	schema: {
+		tableName: 'sessions',
+		columnNames: {
+			session_id: 'session_id',
+			expires: 'expires',
+			data: 'data'
+		}
+	}
+};
+
+const sessionStore = new MySQLStore(sessionStoreOptions);
+
 app.use(session({
 	secret: process.env.SESSION_SECRET || 'billing-secret-key',
 	resave: false,
 	saveUninitialized: false,
+	store: sessionStore,
 	cookie: {
 		secure: false,
-		maxAge: 5 * 60 * 1000 // 5 minutes in milliseconds
+		maxAge: 5 * 60 * 1000 // 5 minutes inactivity timeout
 	},
 	rolling: true // Reset expiry time on each request
 }));

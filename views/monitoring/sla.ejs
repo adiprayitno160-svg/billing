@@ -24,7 +24,13 @@
                     <span class="text-sm font-medium text-gray-500">Avg. Reliability</span>
                     <i class="fas fa-check-circle text-green-500 bg-green-50 p-2 rounded-lg"></i>
                 </div>
-                <div class="text-3xl font-bold text-gray-800" id="avgReliability">--%</div>
+                <div class="text-3xl font-bold text-gray-800" id="avgReliability">
+                    <% if (typeof stats !=='undefined' && stats && stats.avgReliability !==null) { %>
+                        <%= parseFloat(stats.avgReliability).toFixed(2) %>%
+                            <% } else { %>
+                                N/A
+                                <% } %>
+                </div>
                 <div class="text-xs text-green-600 mt-2 flex items-center gap-1">
                     <i class="fas fa-arrow-up"></i>
                     <span>Top 10% Industry</span>
@@ -36,7 +42,9 @@
                     <span class="text-sm font-medium text-gray-500">SLA Breaches</span>
                     <i class="fas fa-exclamation-triangle text-red-500 bg-red-50 p-2 rounded-lg"></i>
                 </div>
-                <div class="text-3xl font-bold text-gray-800" id="breachCount">--</div>
+                <div class="text-3xl font-bold text-gray-800" id="breachCount">
+                    <%= (typeof stats !=='undefined' && stats) ? stats.breachCount : 0 %>
+                </div>
                 <div class="text-xs text-gray-500 mt-2">This Month</div>
             </div>
 
@@ -45,7 +53,10 @@
                     <span class="text-sm font-medium text-gray-500">Refunds Given</span>
                     <i class="fas fa-money-bill-wave text-yellow-500 bg-yellow-50 p-2 rounded-lg"></i>
                 </div>
-                <div class="text-3xl font-bold text-gray-800" id="refundAmount">Rp 0</div>
+                <div class="text-3xl font-bold text-gray-800" id="refundAmount">
+                    Rp <%= (typeof stats !=='undefined' && stats && stats.totalRefund) ? new
+                        Intl.NumberFormat('id-ID').format(stats.totalRefund) : '0' %>
+                </div>
                 <div class="text-xs text-gray-500 mt-2">Auto-applied</div>
             </div>
 
@@ -54,7 +65,9 @@
                     <span class="text-sm font-medium text-gray-500">Active Incidents</span>
                     <i class="fas fa-bolt text-purple-500 bg-purple-50 p-2 rounded-lg"></i>
                 </div>
-                <div class="text-3xl font-bold text-gray-800" id="activeIncidents">--</div>
+                <div class="text-3xl font-bold text-gray-800" id="activeIncidents">
+                    <%= (typeof stats !=='undefined' && stats) ? stats.activeIncidents : 0 %>
+                </div>
                 <div class="text-xs text-purple-600 mt-2">Investigating</div>
             </div>
         </div>
@@ -66,7 +79,7 @@
                 <div class="p-5 border-b border-gray-100 flex justify-between items-center">
                     <h3 class="font-semibold text-gray-800">Customer SLA Analysis</h3>
                     <div class="relative">
-                        <input type="text" placeholder="Search customer..."
+                        <input type="text" placeholder="Search customer..." id="customerSearch"
                             class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64">
                         <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
                     </div>
@@ -79,7 +92,13 @@
                                 class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
                                 onchange="loadCustomerAnalysis(this.value)">
                                 <option value="">-- Select Customer --</option>
-                                <!-- Populated by JS -->
+                                <% if (typeof customers !=='undefined' && customers && customers.length> 0) { %>
+                                    <% customers.forEach(function(c) { %>
+                                        <option value="<%= c.id %>">
+                                            <%= c.name %> (<%= c.customer_code %>)
+                                        </option>
+                                        <% }); %>
+                                            <% } %>
                             </select>
                         </div>
                         <div class="flex-1">
@@ -149,43 +168,47 @@
                 </div>
                 <div class="p-0">
                     <ul class="divide-y divide-gray-100">
-                        <!-- Example Items -->
-                        <li class="p-4 hover:bg-gray-50 transition-colors">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="text-sm font-medium text-gray-800">Customer #1023</h4>
-                                    <p class="text-xs text-red-500 mt-1">92.5% Availability (Target 99%)</p>
-                                </div>
-                                <span
-                                    class="px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full font-medium">Critical</span>
-                            </div>
-                        </li>
-                        <li class="p-4 hover:bg-gray-50 transition-colors">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="text-sm font-medium text-gray-800">Customer #8841</h4>
-                                    <p class="text-xs text-orange-500 mt-1">94.8% Availability (Target 95%)</p>
-                                </div>
-                                <span
-                                    class="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full font-medium">Warning</span>
-                            </div>
-                        </li>
-                        <li class="p-4 hover:bg-gray-50 transition-colors">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="text-sm font-medium text-gray-800">Customer #9921</h4>
-                                    <p class="text-xs text-gray-500 mt-1">Maintenance Window Exceeded</p>
-                                </div>
-                                <span
-                                    class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">Review</span>
-                            </div>
-                        </li>
+                        <% if (typeof stats !=='undefined' && stats && stats.recentBreaches &&
+                            stats.recentBreaches.length> 0) { %>
+                            <% stats.recentBreaches.forEach(function(breach) { %>
+                                <% var diff=parseFloat(breach.sla_target) - parseFloat(breach.sla_percentage); var
+                                    severity=diff>= 5 ? 'critical' : (diff >= 2 ? 'warning' : 'review');
+                                    var badgeClass = severity === 'critical' ? 'bg-red-100 text-red-600' : (severity ===
+                                    'warning' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-600');
+                                    var textClass = severity === 'critical' ? 'text-red-500' : (severity === 'warning' ?
+                                    'text-orange-500' : 'text-gray-500');
+                                    %>
+                                    <li class="p-4 hover:bg-gray-50 transition-colors">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-gray-800">
+                                                    <%= breach.customer_name %> (<%= breach.customer_code %>)
+                                                </h4>
+                                                <p class="text-xs <%= textClass %> mt-1">
+                                                    <%= parseFloat(breach.sla_percentage).toFixed(1) %>% Availability
+                                                        (Target <%= parseFloat(breach.sla_target).toFixed(0) %>%)
+                                                </p>
+                                            </div>
+                                            <span
+                                                class="px-2 py-1 <%= badgeClass %> text-xs rounded-full font-medium capitalize">
+                                                <%= severity %>
+                                            </span>
+                                        </div>
+                                    </li>
+                                    <% }); %>
+                                        <% } else { %>
+                                            <li class="p-6 text-center text-gray-400">
+                                                <i class="fas fa-check-circle text-green-400 text-2xl mb-2"></i>
+                                                <p>No SLA breaches recorded</p>
+                                            </li>
+                                            <% } %>
                     </ul>
                 </div>
                 <div class="p-4 border-t border-gray-100">
                     <button
-                        class="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">View
-                        All Breaches</button>
+                        class="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">
+                        View All Breaches
+                    </button>
                 </div>
             </div>
         </div>
@@ -193,23 +216,27 @@
 </div>
 
 <script>
-    // Dummy populate for now - in real app, fetch from API
+    // Search functionality for customer dropdown
     document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('customerSearch');
         const select = document.getElementById('customerSelect');
+        const options = Array.from(select.options);
 
-        // Remove dummy option
-        select.innerHTML = '<option value="">-- Select Customer --</option>';
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
 
-        // Populate with customers passed from server
-        <% if (customers && customers.length > 0) { %>
-            const customers = <% - JSON.stringify(customers) %>;
-            customers.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.text = `${c.name} (${c.customer_code})`;
-                select.appendChild(opt);
+                // Clear current options except the first one
+                select.innerHTML = '<option value="">-- Select Customer --</option>';
+
+                // Filter and re-add matching options
+                options.slice(1).forEach(opt => {
+                    if (opt.text.toLowerCase().includes(searchTerm)) {
+                        select.appendChild(opt.cloneNode(true));
+                    }
+                });
             });
-        <% } %>
+        }
     });
 
     async function loadCustomerAnalysis(customerId) {
@@ -229,7 +256,7 @@
             if (data.success) {
                 const results = data.data;
                 document.getElementById('customerReliability').textContent = parseFloat(results.reliability_score).toFixed(2) + '%';
-                document.getElementById('customerDowntime').textContent = results.current_month.downtime_minutes;
+                document.getElementById('customerDowntime').textContent = results.current_month.downtime_minutes || 0;
 
                 const refundEl = document.getElementById('customerRefund');
                 refundEl.textContent = results.refund_eligible ? 'YES' : 'NO';
@@ -237,10 +264,11 @@
 
                 document.getElementById('breachProb').textContent = results.breach_probability;
                 document.getElementById('breachRiskText').textContent = results.breach_probability.toLowerCase();
+            } else {
+                console.error('Failed to load analysis:', data.message);
             }
         } catch (error) {
             console.error('Error fetching analysis:', error);
-            // Handle error UI
         }
     }
 

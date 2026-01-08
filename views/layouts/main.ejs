@@ -865,75 +865,7 @@
 				}, 30000); // Check every 30 seconds
 			})();
 		</script>
-		<!-- Auto Update Notification Script -->
-		<script>
-			(function () {
-				// Delay check to not block initial load
-				setTimeout(function () {
-					// Check if we are on the update page itself to avoid redundancy
-					if (window.location.pathname.includes('/settings/system-update')) return;
 
-					fetch('/settings/system-update/check')
-						.then(response => response.json())
-						.then(data => {
-							if (data.success && data.hasUpdates) {
-								showUpdateNotification(data);
-							}
-						})
-						.catch(err => {
-							// Silent fail for update check
-							console.debug('Update check silent fail:', err);
-						});
-				}, 5000);
-
-				function showUpdateNotification(data) {
-					// Check if dismissed for this session
-					const storageKey = 'update_dismissed_' + (data.latestCommit ? data.latestCommit.substring(0, 7) : 'unknown');
-					if (sessionStorage.getItem(storageKey)) return;
-
-					const notification = document.createElement('div');
-					notification.className = 'fixed bottom-6 right-6 z-[9999] bg-white border-l-4 border-blue-600 rounded-lg shadow-2xl p-5 flex items-start max-w-sm transform transition-all duration-500 ease-out translate-y-10 opacity-0';
-					notification.id = 'update-notification';
-					notification.innerHTML = `
-						<div class="flex-shrink-0 text-blue-600">
-							<i class="fas fa-sparkles text-2xl animate-pulse"></i>
-						</div>
-						<div class="ml-4 flex-1">
-							<h3 class="text-sm font-bold text-gray-900">Update Tersedia!</h3>
-							<p class="text-xs text-gray-600 mt-1 mb-3">
-								Sistem versi terbaru tersedia. 
-								<span class="font-mono bg-gray-100 px-1 rounded">${data.commitsBehind} commit</span> di belakang.
-							</p>
-							<div class="flex space-x-3">
-								<a href="/settings/system-update" class="flex-1 text-center text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-3 py-2 rounded-md shadow-md transition-all transform hover:scale-105">
-									Update Sekarang
-								</a>
-								<button onclick="dismissUpdate('${storageKey}')" class="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700">
-									Nanti
-								</button>
-							</div>
-						</div>
-					`;
-
-					document.body.appendChild(notification);
-
-					// Animate in
-					requestAnimationFrame(() => {
-						notification.classList.remove('translate-y-10', 'opacity-0');
-					});
-				}
-
-				// Global function to dismiss
-				window.dismissUpdate = function (key) {
-					const el = document.getElementById('update-notification');
-					if (el) {
-						el.classList.add('translate-y-10', 'opacity-0');
-						setTimeout(() => el.remove(), 500);
-					}
-					sessionStorage.setItem(key, 'true');
-				};
-			})();
-		</script>
 </body>
 
 </html>

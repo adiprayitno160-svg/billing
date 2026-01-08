@@ -232,7 +232,7 @@
                 <tbody class="bg-white divide-y divide-gray-100">
                     <% if (customers.length===0) { %>
                         <tr>
-                            <td colspan="7" class="px-6 py-16 text-center">
+                            <td colspan="9" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center justify-center">
                                     <div
                                         class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -335,6 +335,23 @@
                                                 <% } %>
                                     </td>
 
+                                    <!-- Usage (24h) -->
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-600">
+                                            <% if (customer.usage_24h) { %>
+                                                <span class="text-green-600"><i class="fas fa-download mr-1"></i>
+                                                    <%= customer.usage_24h.rx || '-' %>
+                                                </span>
+                                                <span class="text-gray-300 mx-1">|</span>
+                                                <span class="text-blue-600"><i class="fas fa-upload mr-1"></i>
+                                                    <%= customer.usage_24h.tx || '-' %>
+                                                </span>
+                                                <% } else { %>
+                                                    <span class="text-gray-400">-</span>
+                                                    <% } %>
+                                        </div>
+                                    </td>
+
                                     <!-- Session Info -->
                                     <td class="px-6 py-4">
                                         <% if (customer.session_info) { %>
@@ -358,7 +375,7 @@
                                         <div class="flex items-center gap-2">
                                             <% if (customer.is_online && customer.session_info) { %>
                                                 <button
-                                                    onclick="disconnectSession('<%= customer.session_info['.id'] %>')"
+                                                    onclick="disconnectSession('<%= customer.session_info['.id'] %>', event)"
                                                     class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium border border-red-200"
                                                     title="Putus Koneksi">
                                                     <i class="fas fa-plug-circle-xmark mr-1.5"></i>
@@ -452,10 +469,11 @@
 </div>
 
 <script>
-    async function disconnectSession(sessionId) {
+    async function disconnectSession(sessionId, evt) {
         if (!confirm('⚠️ Yakin ingin memutus koneksi session ini?\n\nPelanggan akan terputus dari jaringan.')) return;
 
-        const button = event.target.closest('button');
+        const button = (evt && evt.target) ? evt.target.closest('button') : document.activeElement;
+        if (!button) return;
         const originalHTML = button.innerHTML;
         button.disabled = true;
         button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Memutus...';
@@ -500,25 +518,35 @@
     // Show countdown in console
     console.log('Auto-refresh enabled. Page will refresh in 60 seconds.');
 
-    // Modal Constants
-    const modal = document.getElementById('detailModal');
-    const modalContent = document.getElementById('modalContent');
-    let trafficInterval;
+    // Modal variables - initialized after DOM is ready
+    let modal, modalContent, trafficInterval;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        modal = document.getElementById('detailModal');
+        modalContent = document.getElementById('modalContent');
+
+        // Close modal on ESC and outside click
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target.id === 'detailModal') closeModal();
+            });
+        }
+    });
 
     function closeModal() {
-        modal.classList.add('hidden');
+        if (modal) modal.classList.add('hidden');
         if (trafficInterval) clearInterval(trafficInterval);
     }
 
-    // Close modal on ESC and outside click
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
-    modal.addEventListener('click', (e) => {
-        if (e.target.id === 'detailModal') closeModal();
-    });
-
     async function showCustomerDetail(customerId) {
+        if (!modal || !modalContent) {
+            console.error('Modal elements not found');
+            return;
+        }
         modal.classList.remove('hidden');
         modalContent.innerHTML = `
             <div class="flex items-center justify-center py-12">
