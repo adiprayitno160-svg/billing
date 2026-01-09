@@ -1,0 +1,434 @@
+<div class="space-y-6">
+    <!-- Header Section -->
+    <div class="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-orange-900">Import Pelanggan dari MikroTik</h1>
+                <p class="text-orange-600 mt-1">Adopsi pelanggan IP Statis yang sudah ada di MikroTik ke sistem Billing
+                </p>
+            </div>
+            <a href="/customers/list"
+                class="px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 transition-all font-medium flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Kembali
+            </a>
+        </div>
+    </div>
+
+    <!-- Grid Container -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left Column: Main Form (2/3) -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Source MikroTik Card -->
+            <div class="rounded-xl border border-blue-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-blue-100">
+                    <h3 class="text-lg font-bold text-blue-900 flex items-center gap-2">
+                        <span class="p-1.5 bg-blue-100 rounded-lg">📡</span> Sumber Data MikroTik
+                    </h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-blue-800 mb-2">Pilih Queue / Pelanggan di
+                            MikroTik *</label>
+                        <div class="flex gap-2">
+                            <select id="selectSource"
+                                class="flex-1 rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                                <option value="">-- Sedang memindai MikroTik... --</option>
+                            </select>
+                            <button type="button" id="btnRescan"
+                                class="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                                Scan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Source Details - EXPANDED -->
+                    <div id="sourceDetails" class="hidden bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Queue Name</span>
+                                <p class="font-bold text-slate-800 font-mono text-sm" id="detailId">-</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-semibold text-slate-500 uppercase">IP Pelanggan</span>
+                                <p class="font-bold text-green-600 font-mono text-sm" id="detailIp">-</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Gateway MikroTik</span>
+                                <p class="font-bold text-purple-600 font-mono text-sm" id="detailGateway">-</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Limit</span>
+                                <p class="font-bold text-blue-600 font-mono text-sm" id="detailLimit">-</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 pt-2 border-t border-slate-200">
+                            <div>
+                                <span class="text-xs font-semibold text-slate-500 uppercase">Interface</span>
+                                <p class="font-bold text-cyan-600 font-mono text-sm" id="detailInterface">-</p>
+                            </div>
+                            <div id="isolirInfo" class="hidden ml-auto">
+                                <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium">
+                                    ✅ Siap untuk Isolir Otomatis
+                                </span>
+                            </div>
+                            <div id="noIsolirInfo" class="hidden ml-auto">
+                                <span class="px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-700 font-medium">
+                                    ⚠️ Gateway tidak terdeteksi - Isolir manual
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form id="formImport" class="space-y-6">
+                <!-- Hidden Fields -->
+                <input type="hidden" name="queueId" id="inputQueueId">
+                <input type="hidden" name="mangleId" id="inputMangleId">
+                <input type="hidden" name="gatewayIp" id="inputGatewayIp">
+                <input type="hidden" name="gatewayIpId" id="inputGatewayIpId">
+                <input type="hidden" name="interface" id="inputInterface">
+
+                <!-- Identity Card -->
+                <div class="rounded-xl border border-indigo-200 bg-white shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-indigo-50 to-white border-b border-indigo-100">
+                        <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                            <span class="p-1.5 bg-indigo-100 rounded-lg">👤</span> Identitas Pelanggan
+                        </h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-indigo-800 mb-1">Nama Lengkap *</label>
+                                <input name="name" id="inputName" required placeholder="Contoh: Budi Santoso"
+                                    class="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all font-medium text-slate-800" />
+                                <p class="text-xs text-slate-500 mt-1">Sesuaikan nama ini agar rapi di database</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Nomor WhatsApp</label>
+                                <input name="phone" id="inputPhone" placeholder="08xxxxxxxxxx"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Alamat Pemasangan</label>
+                                <input name="address" id="inputAddress" placeholder="Alamat lengkap..."
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IP & Package Card -->
+                <div class="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-green-50 to-white border-b border-green-100">
+                        <h3 class="text-lg font-bold text-green-900 flex items-center gap-2">
+                            <span class="p-1.5 bg-green-100 rounded-lg">🌐</span> Paket & IP Address
+                        </h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-green-800 mb-1">IP Address (Pelanggan)
+                                    *</label>
+                                <input name="ipAddress" id="inputIp" required readonly
+                                    class="w-full rounded-lg border border-green-300 px-4 py-2.5 bg-slate-50 font-mono text-slate-700 cursor-not-allowed" />
+                                <p class="text-xs text-amber-600 mt-1" id="ipWarning"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-green-800 mb-1">Pilih Paket Billing
+                                    *</label>
+                                <select name="packageId" id="inputPackage" required
+                                    class="w-full rounded-lg border border-green-300 px-4 py-2.5 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 bg-white">
+                                    <option value="">-- Pilih Paket --</option>
+                                    <% packages.forEach(p=> { %>
+                                        <option value="<%= p.id %>" data-limit="<%= p.max_limit_download %>"
+                                            data-price="<%= p.price %>">
+                                            <%= p.name %> (<%= p.max_limit_download %>) - Rp <%= parseInt(p.price ||
+                                                        0).toLocaleString('id-ID') %>
+                                        </option>
+                                        <% }) %>
+                                </select>
+                                <p class="text-xs text-green-600 mt-1 hidden" id="packageMatchInfo">
+                                    ✅ Paket otomatis dicocokkan berdasarkan limit bandwidth
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Actions -->
+                <div
+                    class="sticky bottom-0 bg-white/80 backdrop-blur-md p-4 border-t border-slate-200 flex items-center justify-end gap-4 rounded-xl shadow-lg z-20">
+                    <a href="/customers/list"
+                        class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-all">
+                        Batal
+                    </a>
+                    <button type="submit" id="btnSave"
+                        class="px-8 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold shadow-md hover:shadow-lg hover:from-orange-600 hover:to-red-600 transform hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10">
+                            </path>
+                        </svg>
+                        Simpan & Sinkronkan
+                    </button>
+                </div>
+            </form>
+
+        </div>
+
+        <!-- Right Column: Info Cards (1/3) -->
+        <div class="space-y-6">
+            <!-- What Happens Card -->
+            <div class="rounded-xl border border-purple-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-white border-b border-purple-100">
+                    <h3 class="text-lg font-bold text-purple-900 flex items-center gap-2">
+                        <span class="p-1.5 bg-purple-100 rounded-lg">✨</span> Apa yang Terjadi?
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-0.5">✓</span>
+                            <span class="text-slate-600">Data Pelanggan <strong>baru</strong> dibuat di database</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-0.5">✓</span>
+                            <span class="text-slate-600">IP Address & Gateway <strong>disimpan</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-0.5">✓</span>
+                            <span class="text-slate-600">Nama Queue di MikroTik di-<strong>rename</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-0.5">✓</span>
+                            <span class="text-slate-600"><strong>Auto Isolir</strong> bisa berjalan otomatis</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Isolir Info Card -->
+            <div
+                class="rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-rose-50 shadow-sm overflow-hidden">
+                <div class="px-6 py-4">
+                    <h3 class="text-base font-bold text-red-900 flex items-center gap-2 mb-3">
+                        🔒 Cara Kerja Isolir
+                    </h3>
+                    <ul class="space-y-2 text-sm text-red-800">
+                        <li>• <strong>PPPoE:</strong> Disable PPPoE Secret</li>
+                        <li>• <strong>Static IP:</strong> Disable Gateway IP di <code
+                                class="bg-red-100 px-1 rounded">/ip/address</code></li>
+                        <li>• Gateway terdeteksi otomatis dari network yang sama</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            <div
+                class="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 shadow-sm overflow-hidden">
+                <div class="px-6 py-4">
+                    <h3 class="text-base font-bold text-amber-900 flex items-center gap-2 mb-3">
+                        ⚠️ Catatan Penting
+                    </h3>
+                    <ul class="space-y-2 text-sm text-amber-800">
+                        <li>• IP Gateway harus di <code class="bg-amber-100 px-1 rounded">/ip/address</code></li>
+                        <li>• Network mask harus sama (misal /30)</li>
+                        <li>• Contoh: Pelanggan <code class="bg-amber-100 px-1 rounded">192.168.1.2</code> → Gateway
+                            <code class="bg-amber-100 px-1 rounded">192.168.1.1/30</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    console.log('=== IMPORT MIKROTIK SCRIPT LOADED ===');
+
+    document.addEventListener('DOMContentLoaded', function () {
+        let candidatesData = [];
+
+        // Load Candidates from MikroTik
+        function loadCandidates() {
+            const select = document.getElementById('selectSource');
+            select.innerHTML = '<option value="">⏳ Sedang memindai MikroTik...</option>';
+            select.disabled = true;
+
+            fetch('/api/static-ip/import/scan')
+                .then(res => res.json())
+                .then(response => {
+                    if (response.success) {
+                        candidatesData = response.data.filter(c => !c.isRegistered);
+
+                        select.innerHTML = '<option value="">-- Pilih Queue MikroTik (' + candidatesData.length + ' tersedia) --</option>';
+
+                        candidatesData.forEach((item, index) => {
+                            const opt = document.createElement('option');
+                            opt.value = index;
+                            let label = item.queueName + ' (' + item.maxLimit + ')';
+                            if (item.ipAddress) label += ' - ' + item.ipAddress;
+                            if (item.gatewayIp) label += ' [GW: ' + item.gatewayIp + ']';
+                            opt.textContent = label;
+                            select.appendChild(opt);
+                        });
+
+                        select.disabled = false;
+
+                        if (candidatesData.length === 0) {
+                            alert('Info: Semua pelanggan di MikroTik tampaknya sudah terdaftar di Billing!');
+                        }
+                    } else {
+                        select.innerHTML = '<option value="">❌ Gagal scan: ' + (response.message || 'Unknown error') + '</option>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Scan error:', err);
+                    select.innerHTML = '<option value="">❌ Gagal mengambil data</option>';
+                });
+        }
+
+        // Initial load
+        loadCandidates();
+
+        // Rescan button
+        document.getElementById('btnRescan').addEventListener('click', loadCandidates);
+
+        // On Source Selection
+        document.getElementById('selectSource').addEventListener('change', function () {
+            const index = this.value;
+            if (index === "" || index === null) return;
+
+            const data = candidatesData[index];
+            if (!data) return;
+
+            // Show details
+            const detailsEl = document.getElementById('sourceDetails');
+            detailsEl.classList.remove('hidden');
+            document.getElementById('detailId').textContent = data.queueName;
+            document.getElementById('detailIp').textContent = data.ipAddress || 'Tidak Terdeteksi';
+            document.getElementById('detailGateway').textContent = data.gatewayIp || 'Tidak Terdeteksi';
+            document.getElementById('detailInterface').textContent = data.interface || '-';
+            document.getElementById('detailLimit').textContent = data.maxLimit;
+
+            // Show isolir status
+            const isolirInfo = document.getElementById('isolirInfo');
+            const noIsolirInfo = document.getElementById('noIsolirInfo');
+            if (data.gatewayIp && data.gatewayIpId) {
+                isolirInfo.classList.remove('hidden');
+                noIsolirInfo.classList.add('hidden');
+            } else {
+                isolirInfo.classList.add('hidden');
+                noIsolirInfo.classList.remove('hidden');
+            }
+
+            // Fill form
+            document.getElementById('inputQueueId').value = data.queueId;
+            document.getElementById('inputMangleId').value = data.mangleId || '';
+            document.getElementById('inputGatewayIp').value = data.gatewayIp || '';
+            document.getElementById('inputGatewayIpId').value = data.gatewayIpId || '';
+            document.getElementById('inputInterface').value = data.interface || '';
+
+            // Clean name
+            let cleanName = data.queueName.replace(/[_\-\.]/g, ' ').trim();
+            document.getElementById('inputName').value = cleanName;
+
+            // IP
+            const ipInput = document.getElementById('inputIp');
+            const ipWarning = document.getElementById('ipWarning');
+            if (data.ipAddress) {
+                ipInput.value = data.ipAddress;
+                ipWarning.textContent = '';
+            } else {
+                ipInput.value = '';
+                ipWarning.textContent = '⚠️ IP tidak ditemukan. Pastikan Mangle memiliki src/dst-address.';
+            }
+
+            // Auto-match package
+            const currentLimit = data.maxLimit || '';
+            const pkgSelect = document.getElementById('inputPackage');
+            const matchInfo = document.getElementById('packageMatchInfo');
+
+            pkgSelect.value = '';
+            matchInfo.classList.add('hidden');
+
+            Array.from(pkgSelect.options).forEach(opt => {
+                const pkgLimit = opt.dataset.limit;
+                if (pkgLimit && currentLimit.includes(pkgLimit)) {
+                    pkgSelect.value = opt.value;
+                    matchInfo.classList.remove('hidden');
+                }
+            });
+        });
+
+        // Form Submit
+        document.getElementById('formImport').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const ipVal = document.getElementById('inputIp').value;
+            if (!ipVal) {
+                alert('Error: IP Address wajib ada! Pastikan settingan Mangle di MikroTik benar.');
+                return;
+            }
+
+            const pkgVal = document.getElementById('inputPackage').value;
+            if (!pkgVal) {
+                alert('Error: Silakan pilih Paket terlebih dahulu!');
+                return;
+            }
+
+            const formData = new URLSearchParams({
+                queueId: document.getElementById('inputQueueId').value,
+                mangleId: document.getElementById('inputMangleId').value,
+                name: document.getElementById('inputName').value,
+                phone: document.getElementById('inputPhone').value,
+                address: document.getElementById('inputAddress').value,
+                ipAddress: ipVal,
+                packageId: pkgVal,
+                gatewayIp: document.getElementById('inputGatewayIp').value,
+                gatewayIpId: document.getElementById('inputGatewayIpId').value,
+                interface: document.getElementById('inputInterface').value
+            });
+
+            const btn = document.getElementById('btnSave');
+            const originalContent = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menyimpan...';
+
+            fetch('/api/static-ip/import/create-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        alert('✅ Berhasil! Pelanggan berhasil disimpan dan disinkronisasi.');
+                        window.location.href = '/customers/list';
+                    } else {
+                        alert('❌ Gagal: ' + (res.message || 'Terjadi kesalahan'));
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                    }
+                })
+                .catch(err => {
+                    console.error('Submit error:', err);
+                    alert('❌ Gagal: Terjadi kesalahan jaringan');
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                });
+        });
+    });
+</script>

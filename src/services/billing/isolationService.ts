@@ -1,6 +1,8 @@
 import { databasePool } from '../../db/pool';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 import { RowDataPacket } from 'mysql2';
+import { mikrotikPool } from '../MikroTikConnectionPool';
+import { getMikrotikConfig } from '../../utils/mikrotikConfigHelper';
 
 export interface IsolationData {
     customer_id: number;
@@ -9,9 +11,248 @@ export interface IsolationData {
     performed_by?: string;
 }
 
+interface MikrotikIsolateResult {
+    success: boolean;
+    method: 'pppoe' | 'static_ip' | 'none';
+    detail: string;
+}
+
 export class IsolationService {
     /**
-     * Isolir pelanggan
+     * Execute MikroTik isolation based on customer connection type
+     * PPPoE: Disable/Enable PPPoE secret
+     * Static IP: Disable/Enable IP Address (gateway)
+     */
+    private static async executeMikrotikIsolation(
+        customer: any,
+        action: 'isolate' | 'restore'
+    ): Promise<MikrotikIsolateResult> {
+        try {
+            const mikrotikConfig = await getMikrotikConfig();
+            if (!mikrotikConfig) {
+                return { success: false, method: 'none', detail: 'MikroTik config not found' };
+            }
+
+            const config = {
+                host: mikrotikConfig.host,
+                port: mikrotikConfig.port || mikrotikConfig.api_port || 8728,
+                username: mikrotikConfig.username,
+                password: mikrotikConfig.password
+            };
+
+            const connectionType = customer.connection_type;
+
+            if (connectionType === 'pppoe') {
+                // ============== PPPoE ISOLATION ==============
+                // Get PPPoE secret by username (usually customer_code or phone)
+                const pppoeUsername = customer.pppoe_username || customer.customer_code || customer.phone;
+
+                if (!pppoeUsername) {
+                    return { success: false, method: 'pppoe', detail: 'No PPPoE username found' };
+                }
+
+                // Find the secret
+                const secrets = await mikrotikPool.execute(config, '/ppp/secret/print', [
+                    `?name=${pppoeUsername}`
+                ]);
+
+                if (!Array.isArray(secrets) || secrets.length === 0) {
+                    // Try alternative: search by comment containing customer code
+                    const allSecrets = await mikrotikPool.execute(config, '/ppp/secret/print', []);
+                    const matchedSecret = (allSecrets as any[]).find((s: any) =>
+                        s.name === pppoeUsername ||
+                        (s.comment && s.comment.includes(customer.customer_code))
+                    );
+
+                    if (!matchedSecret) {
+                        return { success: false, method: 'pppoe', detail: `PPPoE secret not found: ${pppoeUsername}` };
+                    }
+
+                    // Disable/enable the matched secret
+                    const disabled = action === 'isolate' ? 'yes' : 'no';
+                    await mikrotikPool.execute(config, '/ppp/secret/set', [
+                        `.id=${matchedSecret['.id']}`,
+                        `=disabled=${disabled}`
+                    ]);
+
+                    // Force disconnect active session if isolating
+                    if (action === 'isolate') {
+                        try {
+                            const activeSessions = await mikrotikPool.execute(config, '/ppp/active/print', [
+                                `?name=${matchedSecret.name}`
+                            ]);
+                            for (const session of (activeSessions as any[])) {
+                                await mikrotikPool.execute(config, '/ppp/active/remove', [
+                                    `.id=${session['.id']}`
+                                ]);
+                            }
+                        } catch (e) {
+                            console.log('[Isolation] Could not disconnect active PPPoE session:', e);
+                        }
+                    }
+
+                    return {
+                        success: true,
+                        method: 'pppoe',
+                        detail: `PPPoE ${matchedSecret.name} ${action === 'isolate' ? 'disabled' : 'enabled'}`
+                    };
+                }
+
+                // Disable/enable the secret
+                const secret = secrets[0];
+                const disabled = action === 'isolate' ? 'yes' : 'no';
+                await mikrotikPool.execute(config, '/ppp/secret/set', [
+                    `.id=${secret['.id']}`,
+                    `=disabled=${disabled}`
+                ]);
+
+                // Force disconnect if isolating
+                if (action === 'isolate') {
+                    try {
+                        const activeSessions = await mikrotikPool.execute(config, '/ppp/active/print', [
+                            `?name=${pppoeUsername}`
+                        ]);
+                        for (const session of (activeSessions as any[])) {
+                            await mikrotikPool.execute(config, '/ppp/active/remove', [
+                                `.id=${session['.id']}`
+                            ]);
+                        }
+                    } catch (e) {
+                        console.log('[Isolation] Could not disconnect active PPPoE session:', e);
+                    }
+                }
+
+                return {
+                    success: true,
+                    method: 'pppoe',
+                    detail: `PPPoE ${pppoeUsername} ${action === 'isolate' ? 'disabled' : 'enabled'}`
+                };
+
+            } else if (connectionType === 'static_ip') {
+                // ============== STATIC IP ISOLATION ==============
+                // Get static IP client info
+                const [staticIpRows] = await databasePool.execute(
+                    `SELECT ip_address, gateway_ip, gateway_ip_id, interface 
+                     FROM static_ip_clients 
+                     WHERE customer_id = ? 
+                     ORDER BY id DESC LIMIT 1`,
+                    [customer.id]
+                );
+
+                const staticIpClient = (staticIpRows as any[])[0];
+
+                if (!staticIpClient) {
+                    return { success: false, method: 'static_ip', detail: 'Static IP client data not found' };
+                }
+
+                // Strategy 1: Use stored gateway_ip_id
+                if (staticIpClient.gateway_ip_id) {
+                    const disabled = action === 'isolate' ? 'yes' : 'no';
+                    try {
+                        await mikrotikPool.execute(config, '/ip/address/set', [
+                            `.id=${staticIpClient.gateway_ip_id}`,
+                            `=disabled=${disabled}`
+                        ]);
+
+                        return {
+                            success: true,
+                            method: 'static_ip',
+                            detail: `Gateway ${staticIpClient.gateway_ip} ${action === 'isolate' ? 'disabled' : 'enabled'} (ID: ${staticIpClient.gateway_ip_id})`
+                        };
+                    } catch (e) {
+                        console.log('[Isolation] Gateway ID failed, trying by address...');
+                    }
+                }
+
+                // Strategy 2: Find gateway by IP address
+                if (staticIpClient.gateway_ip) {
+                    const ipAddresses = await mikrotikPool.execute(config, '/ip/address/print', []);
+                    const matchedGateway = (ipAddresses as any[]).find((ip: any) =>
+                        ip.address === staticIpClient.gateway_ip
+                    );
+
+                    if (matchedGateway) {
+                        const disabled = action === 'isolate' ? 'yes' : 'no';
+                        await mikrotikPool.execute(config, '/ip/address/set', [
+                            `.id=${matchedGateway['.id']}`,
+                            `=disabled=${disabled}`
+                        ]);
+
+                        // Update stored gateway_ip_id
+                        await databasePool.execute(
+                            'UPDATE static_ip_clients SET gateway_ip_id = ? WHERE customer_id = ?',
+                            [matchedGateway['.id'], customer.id]
+                        );
+
+                        return {
+                            success: true,
+                            method: 'static_ip',
+                            detail: `Gateway ${staticIpClient.gateway_ip} ${action === 'isolate' ? 'disabled' : 'enabled'}`
+                        };
+                    }
+                }
+
+                // Strategy 3: Find by customer IP and matching network
+                if (staticIpClient.ip_address) {
+                    const customerIp = staticIpClient.ip_address;
+                    const ipAddresses = await mikrotikPool.execute(config, '/ip/address/print', []);
+
+                    // Find gateway in same network
+                    const matchedGateway = (ipAddresses as any[]).find((ipEntry: any) => {
+                        const address = ipEntry.address;
+                        if (!address || !address.includes('/')) return false;
+
+                        const [gwIp, cidrStr] = address.split('/');
+                        const cidr = parseInt(cidrStr, 10);
+
+                        // Calculate if in same network
+                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                        const mask = cidr === 0 ? 0 : (0xFFFFFFFF << (32 - cidr)) >>> 0;
+                        const custNetwork = ipToInt(customerIp) & mask;
+                        const gwNetwork = ipToInt(gwIp) & mask;
+
+                        return custNetwork === gwNetwork && gwIp !== customerIp;
+                    });
+
+                    if (matchedGateway) {
+                        const disabled = action === 'isolate' ? 'yes' : 'no';
+                        await mikrotikPool.execute(config, '/ip/address/set', [
+                            `.id=${matchedGateway['.id']}`,
+                            `=disabled=${disabled}`
+                        ]);
+
+                        // Store for future use
+                        await databasePool.execute(
+                            'UPDATE static_ip_clients SET gateway_ip = ?, gateway_ip_id = ? WHERE customer_id = ?',
+                            [matchedGateway.address, matchedGateway['.id'], customer.id]
+                        );
+
+                        return {
+                            success: true,
+                            method: 'static_ip',
+                            detail: `Gateway ${matchedGateway.address} ${action === 'isolate' ? 'disabled' : 'enabled'} (auto-detected)`
+                        };
+                    }
+                }
+
+                return { success: false, method: 'static_ip', detail: 'Gateway IP not found in MikroTik' };
+
+            } else {
+                return { success: false, method: 'none', detail: `Unknown connection type: ${connectionType}` };
+            }
+
+        } catch (error) {
+            console.error('[Isolation] MikroTik execution error:', error);
+            return {
+                success: false,
+                method: 'none',
+                detail: `Error: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Isolir pelanggan (PPPoE atau Static IP)
      */
     static async isolateCustomer(isolationData: IsolationData): Promise<boolean> {
         const connection = await databasePool.getConnection();
@@ -46,26 +287,24 @@ export class IsolationService {
                 throw new Error('Customer not found');
             }
 
-            // Get MikroTik username (assuming it's stored in customer data or subscription)
-            const mikrotikUsername = customer.phone || customer.email; // Adjust based on your setup
-            let mikrotikResponse = '';
-            let success = false;
+            // Execute MikroTik isolation based on connection type
+            console.log(`[Isolation] Processing ${isolationData.action} for customer ${customer.name} (type: ${customer.connection_type})`);
 
-            try {
-                if (isolationData.action === 'isolate') {
-                    // Move user to isolation profile or set queue limit to 0
-                    // mikrotikResponse = await mikrotikService.isolateUser(mikrotikUsername);
-                    mikrotikResponse = 'Simulated isolation';
-                } else {
-                    // Restore user to normal profile
-                    // mikrotikResponse = await mikrotikService.restoreUser(mikrotikUsername);
-                    mikrotikResponse = 'Simulated restoration';
-                }
+            const mikrotikResult = await this.executeMikrotikIsolation(customer, isolationData.action);
 
-                success = true;
-            } catch (error) {
-                mikrotikResponse = `Error: ${error instanceof Error ? error.message : String(error)}`;
-                success = false;
+            console.log(`[Isolation] MikroTik result: ${mikrotikResult.success ? '✅' : '❌'} ${mikrotikResult.method} - ${mikrotikResult.detail}`);
+
+            // Determine MikroTik username for logging
+            let mikrotikUsername = '';
+            if (customer.connection_type === 'pppoe') {
+                mikrotikUsername = customer.pppoe_username || customer.customer_code || customer.phone || '';
+            } else if (customer.connection_type === 'static_ip') {
+                const [staticRows] = await connection.execute(
+                    'SELECT ip_address, gateway_ip FROM static_ip_clients WHERE customer_id = ? LIMIT 1',
+                    [isolationData.customer_id]
+                );
+                const staticClient = (staticRows as any[])[0];
+                mikrotikUsername = staticClient ? `IP:${staticClient.ip_address} GW:${staticClient.gateway_ip}` : '';
             }
 
             // Log isolation action
@@ -82,25 +321,25 @@ export class IsolationService {
                 isolationData.reason,
                 isolationData.performed_by || 'system',
                 mikrotikUsername,
-                mikrotikResponse
+                `[${mikrotikResult.method}] ${mikrotikResult.detail}`
             ]);
 
             // Update customer isolation status
             if (isolationData.action === 'isolate') {
                 await connection.execute(
-                    'UPDATE customers SET is_isolated = TRUE WHERE id = ?',
+                    'UPDATE customers SET is_isolated = TRUE, isolated_at = NOW() WHERE id = ?',
                     [isolationData.customer_id]
                 );
             } else {
                 await connection.execute(
-                    'UPDATE customers SET is_isolated = FALSE WHERE id = ?',
+                    'UPDATE customers SET is_isolated = FALSE, isolated_at = NULL WHERE id = ?',
                     [isolationData.customer_id]
                 );
             }
 
             await connection.commit();
 
-            // Send notification to customer using template system
+            // Send notification to customer
             try {
                 if (customer.phone) {
                     if (isolationData.action === 'isolate') {
@@ -114,6 +353,7 @@ export class IsolationService {
                         );
 
                         let details = `Kode Pelanggan: ${customer.customer_code}`;
+                        details += `\nTipe Koneksi: ${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}`;
                         if (invoiceRows.length > 0) {
                             details += `\n⚠️ LAYANAN DIBLOKIR SEMENTARA\n`;
                             details += `Terdeteksi tunggakan ${invoiceRows.length} tagihan belum lunas.\n`;
@@ -149,8 +389,8 @@ export class IsolationService {
                         );
 
                         let details = `Kode Pelanggan: ${customer.customer_code}`;
+                        details += `\nTipe Koneksi: ${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}`;
                         if (invoiceRows.length > 0) {
-                            const invoice = invoiceRows[0];
                             details += `\n✅ Pembayaran diterima & Terverifikasi AI.\nLayanan internet Anda telah AKTIF kembali.`;
                         } else {
                             details += `\n✅ Layanan telah diaktifkan kembali`;
@@ -174,7 +414,7 @@ export class IsolationService {
                 console.error('[IsolationService] Failed to send notification (non-critical):', notifError);
             }
 
-            return success;
+            return mikrotikResult.success;
 
         } catch (error) {
             await connection.rollback();
@@ -207,6 +447,7 @@ export class IsolationService {
                     c.name, 
                     c.phone, 
                     c.customer_code,
+                    c.connection_type,
                     i.id as invoice_id,
                     i.invoice_number,
                     i.total_amount,
@@ -245,7 +486,7 @@ export class IsolationService {
                     const today = new Date();
                     const daysRemaining = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-                    console.log(`[IsolationService] 📱 Sending isolation warning to customer ${customer.name} (${daysRemaining} days remaining)...`);
+                    console.log(`[IsolationService] 📱 Sending isolation warning to customer ${customer.name} (${daysRemaining} days remaining, type: ${customer.connection_type})...`);
 
                     const notificationIds = await UnifiedNotificationService.queueNotification({
                         customer_id: customer.id,
@@ -318,6 +559,7 @@ export class IsolationService {
                     c.name, 
                     c.phone, 
                     c.customer_code,
+                    c.connection_type,
                     i.id as invoice_id,
                     i.invoice_number,
                     i.total_amount,
@@ -355,7 +597,7 @@ export class IsolationService {
                     // Calculate days until blocking
                     const daysUntilBlock = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-                    console.log(`[Pre-Block Warning] 📱 Sending warning to ${customer.name} - ${daysUntilBlock} days until block...`);
+                    console.log(`[Pre-Block Warning] 📱 Sending warning to ${customer.name} (${customer.connection_type}) - ${daysUntilBlock} days until block...`);
 
                     const notificationIds = await UnifiedNotificationService.queueNotification({
                         customer_id: customer.id,
@@ -404,11 +646,12 @@ export class IsolationService {
 
     /**
      * Auto isolir pelanggan dengan 2x tagihan belum lunas
+     * Supports both PPPoE and Static IP customers
      */
     static async autoIsolateOverdueCustomers(): Promise<{ isolated: number, failed: number }> {
         // Get customers with >= 2 overdue/unpaid invoices
         const query = `
-            SELECT c.id, c.name, c.phone, c.email, COUNT(i.id) as unpaid_count
+            SELECT c.id, c.name, c.phone, c.email, c.connection_type, COUNT(i.id) as unpaid_count
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.status != 'paid' 
@@ -428,17 +671,22 @@ export class IsolationService {
 
         for (const customer of customers) {
             try {
+                console.log(`[Auto Isolation] Processing: ${customer.name} (${customer.connection_type}, ${customer.unpaid_count} unpaid)`);
+
                 const isolationData: IsolationData = {
                     customer_id: customer.id || 0,
                     action: 'isolate',
-                    reason: `Auto Lock system: Terdeteksi ${customer.unpaid_count} tagihan belum lunas (Min 2)`
+                    reason: `Auto Lock system: Terdeteksi ${customer.unpaid_count} tagihan belum lunas (Min 2)`,
+                    performed_by: 'system'
                 };
 
                 const success = await this.isolateCustomer(isolationData);
                 if (success) {
                     isolated++;
+                    console.log(`[Auto Isolation] ✅ ${customer.name} isolated successfully`);
                 } else {
                     failed++;
+                    console.log(`[Auto Isolation] ❌ ${customer.name} isolation failed`);
                 }
             } catch (error) {
                 console.error(`Failed to isolate customer ${customer.id || 0}:`, error);
@@ -452,6 +700,7 @@ export class IsolationService {
     /**
      * Auto isolir pelanggan dengan tagihan bulan sebelumnya yang belum lunas
      * Dipanggil setiap hari untuk isolir berdasarkan tanggal yang ditentukan
+     * Supports both PPPoE and Static IP customers
      */
     static async autoIsolatePreviousMonthUnpaid(): Promise<{ isolated: number, failed: number }> {
         // Get previous month period (YYYY-MM)
@@ -494,6 +743,7 @@ export class IsolationService {
                 c.name, 
                 c.phone, 
                 c.email,
+                c.connection_type,
                 i.due_date
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
@@ -514,16 +764,19 @@ export class IsolationService {
 
         for (const customer of (result as any)) {
             try {
+                console.log(`[Auto Isolation] Processing: ${customer.name} (${customer.connection_type})`);
+
                 const isolationData: IsolationData = {
                     customer_id: customer.id || 0,
                     action: 'isolate',
-                    reason: `Auto isolation: Unpaid invoice for period ${previousPeriod}`
+                    reason: `Auto isolation: Unpaid invoice for period ${previousPeriod}`,
+                    performed_by: 'system'
                 };
 
                 const success = await this.isolateCustomer(isolationData);
                 if (success) {
                     isolated++;
-                    console.log(`[Auto Isolation] ✓ Isolated customer: ${customer.name} (ID: ${customer.id})`);
+                    console.log(`[Auto Isolation] ✓ Isolated customer: ${customer.name} (ID: ${customer.id}, Type: ${customer.connection_type})`);
                 } else {
                     failed++;
                     console.log(`[Auto Isolation] ✗ Failed to isolate customer: ${customer.name} (ID: ${customer.id})`);
@@ -540,35 +793,47 @@ export class IsolationService {
 
     /**
      * Auto restore pelanggan yang sudah lunas
+     * Supports both PPPoE and Static IP customers
      */
     static async autoRestorePaidCustomers(): Promise<{ restored: number, failed: number }> {
-        // Get isolated customers with paid invoices
+        // Get isolated customers with all invoices paid
         const query = `
-            SELECT DISTINCT c.id, c.name, c.phone, c.email
+            SELECT DISTINCT c.id, c.name, c.phone, c.email, c.connection_type
             FROM customers c
-            JOIN invoices i ON c.id = i.customer_id
-            WHERE i.status = 'paid'
-            AND i.period = DATE_FORMAT(CURRENT_DATE, '%Y-%m')
-            AND c.is_isolated = TRUE
+            WHERE c.is_isolated = TRUE
+            AND c.status = 'active'
+            AND NOT EXISTS (
+                SELECT 1 FROM invoices i 
+                WHERE i.customer_id = c.id 
+                AND i.status != 'paid'
+                AND i.remaining_amount > 0
+            )
         `;
 
         const [result] = await databasePool.execute(query);
         let restored = 0;
         let failed = 0;
 
+        console.log(`[Auto Restore] Found ${(result as any[]).length} isolated customers with all invoices paid`);
+
         for (const customer of (result as any)) {
             try {
+                console.log(`[Auto Restore] Processing: ${customer.name} (${customer.connection_type})`);
+
                 const isolationData: IsolationData = {
                     customer_id: customer.id || 0,
                     action: 'restore',
-                    reason: 'Auto restore due to payment completion'
+                    reason: 'Auto restore: All invoices paid',
+                    performed_by: 'system'
                 };
 
                 const success = await this.isolateCustomer(isolationData);
                 if (success) {
                     restored++;
+                    console.log(`[Auto Restore] ✅ Restored: ${customer.name} (${customer.connection_type})`);
                 } else {
                     failed++;
+                    console.log(`[Auto Restore] ❌ Failed to restore: ${customer.name}`);
                 }
             } catch (error) {
                 console.error(`Failed to restore customer ${customer.id || 0}:`, error);
@@ -584,7 +849,7 @@ export class IsolationService {
      */
     static async getIsolationHistory(customerId?: number, limit: number = 50) {
         let query = `
-            SELECT il.*, c.name as customer_name, c.phone
+            SELECT il.*, c.name as customer_name, c.phone, c.connection_type
             FROM isolation_logs il
             JOIN customers c ON il.customer_id = c.id
         `;
@@ -625,7 +890,7 @@ export class IsolationService {
      */
     static async bulkIsolateByOdc(odcId: number, reason: string): Promise<{ isolated: number, failed: number }> {
         const query = `
-            SELECT id FROM customers 
+            SELECT id, connection_type FROM customers 
             WHERE odc_id = ? AND is_isolated = FALSE AND status = 'active'
         `;
 
@@ -638,7 +903,8 @@ export class IsolationService {
                 const isolationData: IsolationData = {
                     customer_id: customer.id || 0,
                     action: 'isolate',
-                    reason: reason
+                    reason: reason,
+                    performed_by: 'admin'
                 };
 
                 const success = await this.isolateCustomer(isolationData);
@@ -655,6 +921,21 @@ export class IsolationService {
 
         return { isolated, failed };
     }
+
+    /**
+     * Manual isolate/restore from admin UI
+     */
+    static async manualIsolate(customerId: number, action: 'isolate' | 'restore', reason: string, performedBy: string): Promise<boolean> {
+        const isolationData: IsolationData = {
+            customer_id: customerId,
+            action: action,
+            reason: reason,
+            performed_by: performedBy
+        };
+
+        return await this.isolateCustomer(isolationData);
+    }
+
     /**
      * Auto delete (soft delete) customers blocked > 7 days
      */
@@ -664,17 +945,8 @@ export class IsolationService {
         let failed = 0;
 
         try {
-            // Find customers isolated > 7 days ago
-            // We use isolation_logs to find the last isolation date
-            // OR checks customers table if we had an 'isolated_at' column.
-            // Using isolation_logs is safer if we don't trust a single column.
-            // However, for performance, let's assume we can query customers who are isolated.
-
-            // Note: In `isolateCustomer` we don't update `isolated_at` on the customer table (only `is_isolated`).
-            // We should use `isolation_logs` to find when they were isolated.
-
             const query = `
-                SELECT c.id, c.name, MAX(il.created_at) as last_isolation_date
+                SELECT c.id, c.name, c.connection_type, MAX(il.created_at) as last_isolation_date
                 FROM customers c
                 JOIN isolation_logs il ON c.id = il.customer_id
                 WHERE c.is_isolated = 1
@@ -701,12 +973,12 @@ export class IsolationService {
                     // Log action
                     await connection.query(`
                         INSERT INTO customer_logs (customer_id, action, description, created_by, created_at)
-                        VALUES (?, 'auto_delete', 'Auto deleted after 7 days of isolation', 0, NOW())
+                        VALUES (?, 'auto_delete', 'Auto deleted after 7 days of isolation (${customer.connection_type})', 0, NOW())
                     `, [customer.id]);
 
                     await connection.commit();
 
-                    // Send notification (Fire and forget)
+                    // Send notification
                     try {
                         const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
                         await UnifiedNotificationService.queueNotification({
@@ -724,7 +996,7 @@ export class IsolationService {
                     }
 
                     deleted++;
-                    console.log(`[AutoDelete] Soft deleted customer ${customer.name} (${customer.id})`);
+                    console.log(`[AutoDelete] Soft deleted customer ${customer.name} (${customer.id}, ${customer.connection_type})`);
 
                 } catch (err) {
                     await connection.rollback();
@@ -741,5 +1013,27 @@ export class IsolationService {
         } finally {
             connection.release();
         }
+    }
+
+    /**
+     * Get isolation statistics
+     */
+    static async getStatistics(): Promise<{
+        total_isolated: number,
+        pppoe_isolated: number,
+        static_ip_isolated: number,
+        isolated_today: number,
+        restored_today: number
+    }> {
+        const [result] = await databasePool.query<RowDataPacket[]>(`
+            SELECT 
+                (SELECT COUNT(*) FROM customers WHERE is_isolated = TRUE) as total_isolated,
+                (SELECT COUNT(*) FROM customers WHERE is_isolated = TRUE AND connection_type = 'pppoe') as pppoe_isolated,
+                (SELECT COUNT(*) FROM customers WHERE is_isolated = TRUE AND connection_type = 'static_ip') as static_ip_isolated,
+                (SELECT COUNT(*) FROM isolation_logs WHERE action = 'isolate' AND DATE(created_at) = CURDATE()) as isolated_today,
+                (SELECT COUNT(*) FROM isolation_logs WHERE action = 'restore' AND DATE(created_at) = CURDATE()) as restored_today
+        `);
+
+        return result[0] as any;
     }
 }

@@ -45,12 +45,21 @@ router.post('/system-update/rollback', SystemUpdateController.rollbackUpdate);
 router.get('/ai', AISettingsController.index);
 router.post('/ai', AISettingsController.updateSettings);
 router.post('/ai/test', AISettingsController.testAPIKey);
+router.get('/ai/stats', AISettingsController.getStatistics);
 
 // Routes untuk WhatsApp Settings
 router.get('/whatsapp', WhatsAppSettingsController.showSettings);
 router.get('/whatsapp/status', WhatsAppSettingsController.getStatus);
 router.post('/whatsapp/regenerate-qr', WhatsAppSettingsController.regenerateQR);
 router.post('/whatsapp/test-send', WhatsAppSettingsController.testSendMessage);
+
+// WhatsApp Monitor - Message Log & Manual Verification
+router.get('/whatsapp/monitor', WhatsAppSettingsController.showMonitor);
+router.get('/whatsapp/messages', WhatsAppSettingsController.getMessages);
+router.get('/whatsapp/pending-verifications', WhatsAppSettingsController.getPendingVerifications);
+router.get('/whatsapp/verification/:id', WhatsAppSettingsController.getVerificationDetail);
+router.get('/whatsapp/customer-invoices/:customerId', WhatsAppSettingsController.getCustomerInvoices);
+router.post('/whatsapp/verify-payment', WhatsAppSettingsController.processVerification);
 
 // Routes untuk Backup & Restore
 import { BackupController } from '../controllers/backupController';

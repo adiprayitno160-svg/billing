@@ -256,3 +256,33 @@ export async function postStaticIpPackageDeleteQueues(req: Request, res: Respons
 		res.redirect('/packages/static-ip');
 	}
 }
+
+// API: Delete package with option to delete queues
+export async function apiDeletePackage(req: Request, res: Response) {
+	try {
+		const id = Number(req.params.id);
+		const deleteQueues = req.body.deleteQueues === 'true' || req.body.deleteQueues === true;
+
+		// Jika opsi hapus queue dicentang, hapus queue dulu
+		if (deleteQueues) {
+			try {
+				await deleteMikrotikQueuesOnly(id);
+				console.log(`[Delete Package] Queue MikroTik untuk paket ${id} berhasil dihapus`);
+			} catch (queueErr) {
+				console.error(`[Delete Package] Gagal hapus queue: ${queueErr}`);
+				// Lanjutkan hapus paket meskipun queue gagal dihapus
+			}
+		}
+
+		// Hapus paket dari database
+		await deleteStaticIpPackage(id);
+
+		res.json({ success: true, message: 'Paket berhasil dihapus' + (deleteQueues ? ' beserta Queue MikroTik' : '') });
+	} catch (err) {
+		res.status(500).json({
+			success: false,
+			message: err instanceof Error ? err.message : 'Gagal menghapus paket'
+		});
+	}
+}
+

@@ -1,0 +1,398 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-rose-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-red-900 flex items-center gap-3">
+                    <span class="p-2 bg-red-100 rounded-xl">🔒</span>
+                    Pelanggan Terisolasi
+                </h1>
+                <p class="text-red-600 mt-1">Daftar pelanggan yang sedang dalam status isolasi (blokir)</p>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" id="btnRefresh"
+                    class="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-all font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
+                    Refresh
+                </button>
+                <a href="/billing/dashboard"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Kembali
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="statsCards">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m0 0v2m0-2h2m-2 0H10m8-6V9a4 4 0 00-8 0v2m-2 0h12a2 2 0 012 2v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5a2 2 0 012-2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Total Terisolasi</p>
+                    <p class="text-2xl font-bold text-red-600" id="statTotal">-</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">PPPoE</p>
+                    <p class="text-2xl font-bold text-blue-600" id="statPppoe">-</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-purple-100 rounded-lg">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Static IP</p>
+                    <p class="text-2xl font-bold text-purple-600" id="statStaticIp">-</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Restore Hari Ini</p>
+                    <p class="text-2xl font-bold text-green-600" id="statRestored">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span class="p-1.5 bg-red-100 rounded-lg">📋</span> Daftar Pelanggan Terisolasi
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Pelanggan</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Tipe</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Tanggal Isolir</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Alasan</th>
+                        <th class="px-4 py-3 text-center font-semibold text-slate-700">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-slate-100">
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                            <svg class="animate-spin w-8 h-8 mx-auto mb-2 text-slate-400" fill="none"
+                                viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                            Memuat data...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-amber-50 to-white border-b border-amber-100">
+            <h3 class="text-lg font-bold text-amber-900 flex items-center gap-2">
+                <span class="p-1.5 bg-amber-100 rounded-lg">📜</span> Riwayat Isolasi (Terbaru)
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Waktu</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Pelanggan</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Tipe</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Aksi</th>
+                        <th class="px-4 py-3 text-left font-semibold text-slate-700">Detail MikroTik</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody" class="divide-y divide-slate-100">
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">Memuat riwayat...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Confirmation Modal -->
+<div id="restoreModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="px-6 py-4 bg-gradient-to-r from-green-100 to-green-50 border-b border-green-200">
+            <h3 class="text-lg font-bold text-green-800 flex items-center gap-2">
+                <span>🔓</span> Konfirmasi Buka Blokir
+            </h3>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-slate-700">Apakah Anda yakin ingin membuka blokir pelanggan:</p>
+            <p class="font-bold text-lg text-slate-900" id="restoreCustomerName">-</p>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                <strong>⚠️ Peringatan:</strong> Sistem akan mencoba mengaktifkan kembali koneksi di MikroTik.
+                Pastikan pelanggan sudah melunasi tagihan.
+            </div>
+            <input type="hidden" id="restoreCustomerId" value="">
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+            <button type="button" id="cancelRestore"
+                class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium">
+                Batal
+            </button>
+            <button type="button" id="confirmRestore"
+                class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z">
+                    </path>
+                </svg>
+                Buka Blokir
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tableBody = document.getElementById('tableBody');
+        const historyBody = document.getElementById('historyBody');
+        const restoreModal = document.getElementById('restoreModal');
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const res = await fetch('/billing/customer/isolation/stats');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('statTotal').textContent = data.data.total_isolated || 0;
+                    document.getElementById('statPppoe').textContent = data.data.pppoe_isolated || 0;
+                    document.getElementById('statStaticIp').textContent = data.data.static_ip_isolated || 0;
+                    document.getElementById('statRestored').textContent = data.data.restored_today || 0;
+                }
+            } catch (e) {
+                console.error('Error loading stats:', e);
+            }
+        }
+
+        // Load isolated customers
+        async function loadIsolatedCustomers() {
+            try {
+                const res = await fetch('/billing/customer/isolation/list');
+                const data = await res.json();
+
+                if (data.success && data.data.length > 0) {
+                    tableBody.innerHTML = data.data.map(customer => `
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-800">${customer.name}</div>
+                                <div class="text-xs text-slate-500">${customer.customer_code || '-'} | ${customer.phone || '-'}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 text-xs rounded-full font-medium ${customer.connection_type === 'pppoe'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-purple-100 text-purple-700'}">
+                                    ${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-600">
+                                ${customer.isolated_at ? new Date(customer.isolated_at).toLocaleString('id-ID') : '-'}
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-xs text-slate-600 max-w-xs truncate" title="${customer.reason || '-'}">
+                                    ${customer.reason || '-'}
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <button type="button" onclick="showRestoreModal(${customer.id}, '${customer.name}')"
+                                    class="px-3 py-1.5 text-xs rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-all">
+                                    🔓 Buka Blokir
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                                <div class="flex flex-col items-center gap-2">
+                                    <svg class="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="text-green-600 font-medium">Tidak ada pelanggan terisolasi</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (e) {
+                console.error('Error loading customers:', e);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-red-500">
+                            Gagal memuat data: ${e.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load history
+        async function loadHistory() {
+            try {
+                const res = await fetch('/billing/customer/isolation/history?limit=20');
+                const data = await res.json();
+
+                if (data.success && data.data.length > 0) {
+                    historyBody.innerHTML = data.data.map(log => `
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 text-slate-600 text-xs">
+                                ${new Date(log.created_at).toLocaleString('id-ID')}
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-800">${log.customer_name}</div>
+                                <div class="text-xs text-slate-500">${log.phone || '-'}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 text-xs rounded-full font-medium ${log.connection_type === 'pppoe'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-purple-100 text-purple-700'}">
+                                    ${log.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 text-xs rounded-full font-medium ${log.action === 'isolate'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-green-100 text-green-700'}">
+                                    ${log.action === 'isolate' ? '🔒 Isolir' : '🔓 Restore'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-xs text-slate-600 max-w-xs truncate font-mono" title="${log.mikrotik_response || '-'}">
+                                    ${log.mikrotik_response || '-'}
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    historyBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+                                Belum ada riwayat isolasi
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (e) {
+                console.error('Error loading history:', e);
+            }
+        }
+
+        // Refresh all data
+        function refreshAll() {
+            loadStats();
+            loadIsolatedCustomers();
+            loadHistory();
+        }
+
+        // Modal functions
+        window.showRestoreModal = function (customerId, customerName) {
+            document.getElementById('restoreCustomerId').value = customerId;
+            document.getElementById('restoreCustomerName').textContent = customerName;
+            restoreModal.classList.remove('hidden');
+        };
+
+        document.getElementById('cancelRestore').addEventListener('click', function () {
+            restoreModal.classList.add('hidden');
+        });
+
+        document.getElementById('confirmRestore').addEventListener('click', async function () {
+            const customerId = document.getElementById('restoreCustomerId').value;
+            const btn = this;
+            const originalContent = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...';
+
+            try {
+                const res = await fetch('/billing/customer/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customerId: customerId,
+                        reason: 'Manual restore from isolation list'
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('✅ Berhasil! Pelanggan telah dibuka blokirnya.');
+                    restoreModal.classList.add('hidden');
+                    refreshAll();
+                } else {
+                    alert('❌ Gagal: ' + (data.message || 'Terjadi kesalahan'));
+                }
+            } catch (e) {
+                alert('❌ Error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        });
+
+        // Click outside to close
+        restoreModal.addEventListener('click', function (e) {
+            if (e.target === restoreModal) {
+                restoreModal.classList.add('hidden');
+            }
+        });
+
+        // Refresh button
+        document.getElementById('btnRefresh').addEventListener('click', refreshAll);
+
+        // Initial load
+        refreshAll();
+    });
+</script>

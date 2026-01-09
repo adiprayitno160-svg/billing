@@ -38,7 +38,8 @@ import {
     postStaticIpPackageUpdate,
     postStaticIpPackageDelete,
     postStaticIpPackageCreateQueues,
-    postStaticIpPackageDeleteQueues
+    postStaticIpPackageDeleteQueues,
+    apiDeletePackage
 } from '../controllers/staticIpPackageController';
 import {
     getStaticIpClientList,
@@ -50,6 +51,7 @@ import {
     testMikrotikIpAdd,
     autoDebugIpStatic
 } from '../controllers/staticIpClientController';
+import staticIpImportRoutes from './staticIpImportRoutes';
 import { ReportingController } from '../controllers/reportingController';
 import paymentRoutes from './payment';
 
@@ -1184,6 +1186,8 @@ router.post('/packages/pppoe/packages/:id/update', postPackageUpdate);
 router.post('/packages/pppoe/packages/:id/delete', postPackageDelete);
 
 // Paket Internet -> Static IP
+router.use('/', staticIpImportRoutes); // Routes: /settings/static-ip/import, /api/static-ip/import/*
+
 router.get('/packages/static-ip', getStaticIpPackageList);
 router.get('/packages/static-ip/add', getStaticIpPackageAdd);
 router.post('/packages/static-ip', postStaticIpPackageCreate);
@@ -1191,6 +1195,7 @@ router.get('/packages/static-ip/:id/edit', getStaticIpPackageEdit);
 router.post('/packages/static-ip/:id/delete', postStaticIpPackageDelete);
 router.post('/packages/static-ip/:id/update', postStaticIpPackageUpdate);
 router.post('/packages/static-ip/:id/delete-queues', postStaticIpPackageDeleteQueues);
+router.delete('/api/packages/static-ip/:id', apiDeletePackage);
 // Test route first
 router.post('/test-route', (req, res) => {
     console.log('=== TEST ROUTE HIT ===');

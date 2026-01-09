@@ -283,8 +283,11 @@
                                 var download = document.querySelector('input[name="child_download_name"]');
                                 function sync() {
                                     var raw = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
-                                    if (upload) upload.value = raw ? 'UP-' + raw : '';
-                                    if (download) download.value = raw;
+                                    // Make it safe for MikroTik names (no spaces, special chars)
+                                    var safeRaw = raw.replace(/[^a-zA-Z0-9-]/g, '_');
+
+                                    if (upload) upload.value = safeRaw ? safeRaw + '_UPLOAD' : '';
+                                    if (download) download.value = safeRaw ? safeRaw + '_DOWNLOAD' : '';
                                 }
                                 if (nameInput) {
                                     nameInput.addEventListener('input', sync);

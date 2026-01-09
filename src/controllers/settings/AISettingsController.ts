@@ -114,5 +114,34 @@ export class AISettingsController {
             });
         }
     }
+
+    /**
+     * Get AI verification statistics
+     */
+    static async getStatistics(req: Request, res: Response): Promise<void> {
+        try {
+            const { AdvancedPaymentVerificationService } = await import('../../services/ai/AdvancedPaymentVerificationService');
+            const stats = await AdvancedPaymentVerificationService.getVerificationStatistics();
+
+            res.json({
+                success: true,
+                data: stats
+            });
+        } catch (error: any) {
+            console.error('Error getting AI stats:', error);
+            res.json({
+                success: false,
+                message: error.message || 'Gagal memuat statistik AI',
+                data: {
+                    total: 0,
+                    autoApproved: 0,
+                    manualReview: 0,
+                    rejected: 0,
+                    avgConfidence: 0,
+                    avgProcessingTime: 0
+                }
+            });
+        }
+    }
 }
 

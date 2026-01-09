@@ -76,6 +76,14 @@ router.get('/dashboard', async (req, res) => {
     }
 });
 
+// Isolated Customers Page
+router.get('/isolated-customers', async (req, res) => {
+    res.render('billing/isolated-customers', {
+        title: 'Pelanggan Terisolasi',
+        layout: 'layouts/main'
+    });
+});
+
 // ========================================
 // INVOICE / TAGIHAN ROUTES
 // ========================================
@@ -594,6 +602,78 @@ router.post('/customer/restore', async (req, res) => {
             success: false,
             message: error.message || 'Terjadi kesalahan saat memulihkan pelanggan'
         });
+    }
+});
+
+// Get isolation statistics
+router.get('/customer/isolation/stats', async (req, res) => {
+    try {
+        const { IsolationService } = await import('../services/billing/isolationService');
+        const stats = await IsolationService.getStatistics();
+        res.json({ success: true, data: stats });
+    } catch (error: any) {
+        console.error('Error getting isolation stats:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Get isolation history
+router.get('/customer/isolation/history', async (req, res) => {
+    try {
+        const { customerId, limit } = req.query;
+        const { IsolationService } = await import('../services/billing/isolationService');
+        const history = await IsolationService.getIsolationHistory(
+            customerId ? parseInt(customerId as string) : undefined,
+            limit ? parseInt(limit as string) : 50
+        );
+        res.json({ success: true, data: history });
+    } catch (error: any) {
+        console.error('Error getting isolation history:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Get isolated customers list
+router.get('/customer/isolation/list', async (req, res) => {
+    try {
+        const { IsolationService } = await import('../services/billing/isolationService');
+        const customers = await IsolationService.getIsolatedCustomers();
+        res.json({ success: true, data: customers });
+    } catch (error: any) {
+        console.error('Error getting isolated customers:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Trigger auto isolation manually (for testing)
+router.post('/customer/isolation/trigger-auto', async (req, res) => {
+    try {
+        const { IsolationService } = await import('../services/billing/isolationService');
+        const result = await IsolationService.autoIsolateOverdueCustomers();
+        res.json({
+            success: true,
+            message: `Auto-isolation complete: ${result.isolated} isolated, ${result.failed} failed`,
+            data: result
+        });
+    } catch (error: any) {
+        console.error('Error triggering auto isolation:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Trigger auto restore manually (for testing)
+router.post('/customer/isolation/trigger-restore', async (req, res) => {
+    try {
+        const { IsolationService } = await import('../services/billing/isolationService');
+        const result = await IsolationService.autoRestorePaidCustomers();
+        res.json({
+            success: true,
+            message: `Auto-restore complete: ${result.restored} restored, ${result.failed} failed`,
+            data: result
+        });
+    } catch (error: any) {
+        console.error('Error triggering auto restore:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

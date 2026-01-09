@@ -1,0 +1,259 @@
+<div class="main-content">
+    <div class="page-content">
+        <div class="container-fluid">
+
+            <!-- Page Title -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                        <h4 class="mb-sm-0 font-size-18">Import & Link Static IP</h4>
+                        <div class="page-title-right">
+                            <ol class="breadcrumb m-0">
+                                <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="/settings/mikrotik">MikroTik</a></li>
+                                <li class="breadcrumb-item active">Import Static IP</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Card -->
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header bg-soft-primary d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title mb-0">Sinkronisasi Data MikroTik ke Billing</h5>
+                                <p class="card-title-desc mb-0 text-muted small">
+                                    Fitur ini untuk "menyelamatkan" pelanggan static IP lama yang ada di MikroTik agar
+                                    terdata di Billing tanpa memutus koneksi.
+                                </p>
+                            </div>
+                            <button id="btnScan" class="btn btn-primary waves-effect waves-light">
+                                <i class="bx bx-radar me-1"></i> Scan MikroTik Sekarang
+                            </button>
+                        </div>
+                        <div class="card-body">
+
+                            <div id="scanLoading" class="text-center py-5 d-none">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Sedang memindai Queue Tree & Mangle...</p>
+                            </div>
+
+                            <div id="scanResult" class="table-responsive d-none">
+                                <table class="table table-bordered table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Queue Name (MikroTik)</th>
+                                            <th>IP Address (Mangle)</th>
+                                            <th>Current Limit</th>
+                                            <th style="width: 250px;">Link Customer (Billing)</th>
+                                            <th style="width: 200px;">Set Package</th>
+                                            <th style="width: 100px;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="candidateList">
+                                        <!-- Data will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div id="scanEmpty" class="text-center py-5 d-none">
+                                <i class="bx bx-ghost display-4 text-muted"></i>
+                                <p class="mt-3 text-muted">Tidak ada data Queue Tree yang ditemukan, atau semua data
+                                    sudah sinkron.</p>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- TEMPLATE ROW -->
+<template id="rowTemplate">
+    <tr class="candidate-row">
+        <td>
+            <span class="fw-bold queue-name"></span>
+            <div class="small text-muted fst-italic comment"></div>
+        </td>
+        <td>
+            <span class="badge bg-success font-size-12 ip-address"></span>
+        </td>
+        <td>
+            <span class="badge bg-info max-limit"></span>
+        </td>
+        <td>
+            <select class="form-select select2-customer customer-select">
+                <option value="">-- Pilih Customer --</option>
+                <% customers.forEach(c=> { %>
+                    <option value="<%= c.id %>" data-code="<%= c.customer_code %>">
+                        <%= c.name %> (<%= c.customer_code %>)
+                    </option>
+                    <% }) %>
+            </select>
+        </td>
+        <td>
+            <select class="form-select package-select">
+                <option value="">-- Sesuai Limit --</option>
+                <% packages.forEach(p=> { %>
+                    <option value="<%= p.id %>" data-limit="<%= p.max_limit_download %>">
+                        <%= p.name %> (<%= p.max_limit_download %>)
+                    </option>
+                    <% }) %>
+            </select>
+        </td>
+        <td>
+            <button class="btn btn-sm btn-success btn-link-action" title="Tautkan & Rapikan">
+                <i class="bx bx-link"></i> Link
+            </button>
+        </td>
+    </tr>
+</template>
+
+<%- contentFor('BottomJs') %>
+    <script>
+        $(document).ready(function () {
+
+            // Inisialisasi Select2 untuk dropdown customer yang mungkin banyak
+            function initSelect2() {
+                $('.select2-customer').select2({
+                    placeholder: "Cari Customer...",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+
+            // Tombol Scan
+            $('#btnScan').on('click', function () {
+                const btn = $(this);
+                btn.prop('disabled', true).html('<i class="bx bx-loader bx-spin me-1"></i> Scanning...');
+
+                $('#scanResult, #scanEmpty').addClass('d-none');
+                $('#scanLoading').removeClass('d-none');
+
+                $.ajax({
+                    url: '/api/static-ip/import/scan',
+                    method: 'GET',
+                    success: function (response) {
+                        renderCandidates(response.data);
+                    },
+                    error: function (xhr) {
+                        Swal.fire('Error', xhr.responseJSON?.message || 'Gagal melakukan scan', 'error');
+                    },
+                    complete: function () {
+                        btn.prop('disabled', false).html('<i class="bx bx-radar me-1"></i> Scan Ulang');
+                        $('#scanLoading').addClass('d-none');
+                    }
+                });
+            });
+
+            function renderCandidates(candidates) {
+                const tbody = $('#candidateList');
+                tbody.empty();
+
+                if (candidates.length === 0) {
+                    $('#scanEmpty').removeClass('d-none');
+                    return;
+                }
+
+                $('#scanResult').removeClass('d-none');
+                const template = document.getElementById('rowTemplate');
+
+                candidates.forEach(curr => {
+                    // Skip jika sudah terdaftar (opsional: bisa ditampilkan tapi disabled)
+                    if (curr.isRegistered) return;
+
+                    const clone = template.content.cloneNode(true);
+                    const row = $(clone).find('tr');
+
+                    row.data('queue-id', curr.queueId);
+                    row.data('mangle-id', curr.mangleId);
+
+                    row.find('.queue-name').text(curr.queueName);
+                    row.find('.comment').text(curr.comment);
+
+                    if (curr.ipAddress) {
+                        row.find('.ip-address').text(curr.ipAddress);
+                    } else {
+                        row.find('.ip-address').removeClass('bg-success').addClass('bg-warning text-dark').text('No IP Found / Mangle Missing');
+                        // Disable row if no IP found, as we need IP to link
+                        row.addClass('table-warning');
+                        row.find('button').prop('disabled', true);
+                    }
+
+                    row.find('.max-limit').text(curr.maxLimit);
+
+                    // Auto-select package based on limit matching (Simple Logic)
+                    // Logic: Cari paket yang limit download-nya SAMA dengan max-limit queue
+                    const limitStr = curr.maxLimit.split('/')[1] || curr.maxLimit; // ambil download part or full
+                    // Ini akan butuh logic parsing yang lebih canggih, sementara biarkan manual atau match exact string
+
+                    // Event Listener tombol LINK
+                    row.find('.btn-link-action').on('click', function () {
+                        handleLinkAction(row, curr);
+                    });
+
+                    tbody.append(row);
+                });
+
+                // Re-init select2 for new elements
+                initSelect2();
+            }
+
+            function handleLinkAction(rowElement, data) {
+                const customerId = rowElement.find('.customer-select').val();
+                const packageId = rowElement.find('.package-select').val();
+
+                if (!customerId) {
+                    Swal.fire('Perhatian', 'Silakan pilih Customer terlebih dahulu!', 'warning');
+                    return;
+                }
+                if (!packageId) {
+                    Swal.fire('Perhatian', 'Silakan pilih Paket terlebih dahulu!', 'warning');
+                    return;
+                }
+
+                const btn = rowElement.find('.btn-link-action');
+                const originalContent = btn.html();
+                btn.prop('disabled', true).html('<i class="bx bx-loader bx-spin"></i>');
+
+                $.ajax({
+                    url: '/api/static-ip/import/link',
+                    method: 'POST',
+                    data: {
+                        queueId: data.queueId,
+                        mangleId: data.mangleId,
+                        ipAddress: data.ipAddress, // IP didapat dari scan sebelumnya
+                        currentQueueName: data.queueName, // untuk log
+                        customerId: customerId,
+                        packageId: packageId
+                    },
+                    success: function (res) {
+                        if (res.success) {
+                            Swal.fire({
+                                title: 'Berhasil!',
+                                text: res.message,
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                            // Hapus baris dari tabel
+                            rowElement.fadeOut(500, function () { $(this).remove(); });
+                        }
+                    },
+                    error: function (xhr) {
+                        Swal.fire('Gagal', xhr.responseJSON?.message || 'Terjadi kesalahan sistem', 'error');
+                        btn.prop('disabled', false).html(originalContent);
+                    }
+                });
+            }
+
+        });
+    </script>

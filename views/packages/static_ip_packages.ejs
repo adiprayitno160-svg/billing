@@ -7,13 +7,13 @@
         </a>
     </div>
 
-    <% if (success && success.length> 0) { %>
+    <% if (success && success.length>0) { %>
         <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
             <%= success[0] %>
         </div>
         <% } %>
 
-            <% if (error && error.length> 0) { %>
+            <% if (error && error.length>0) { %>
                 <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
                     <%= error[0] %>
                 </div>
@@ -35,7 +35,6 @@
                                     <th class="py-2 pr-4">Shared Upload</th>
                                     <th class="py-2 pr-4">Shared Download</th>
                                     <th class="py-2 pr-4">Harga</th>
-
                                     <th class="py-2 pr-4">Status</th>
                                     <th class="py-2 pr-4">Aksi</th>
                                 </tr>
@@ -108,21 +107,21 @@
                                                     class="px-2 py-1 text-xs rounded border border-slate-300 text-slate-700 hover:bg-slate-50 inline-block">
                                                     Edit
                                                 </a>
-                                                <form method="post" action="/packages/static-ip/<%= pkg.id %>/delete"
-                                                    onsubmit="return confirm('Hapus paket ini beserta data terkait?');"
-                                                    class="inline">
-                                                    <button type="submit"
-                                                        class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50">
-                                                        Hapus Paket
-                                                    </button>
-                                                </form>
+                                                <button type="button"
+                                                    class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50 btn-delete"
+                                                    data-id="<%= pkg.id %>" data-name="<%= pkg.name %>"
+                                                    data-child-upload="<%= pkg.child_upload_name %>"
+                                                    data-child-download="<%= pkg.child_download_name %>">
+                                                    Hapus Paket
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
                                     <% }) %>
                                         <% if (!packages || packages.length===0) { %>
                                             <tr>
-                                                <td colspan="8" class="py-6 text-center text-slate-500">Belum ada paket.
+                                                <td colspan="14" class="py-6 text-center text-slate-500">Belum ada
+                                                    paket.
                                                     Klik "Tambah Paket" untuk membuat paket baru.</td>
                                             </tr>
                                             <% } %>
@@ -130,3 +129,132 @@
                         </table>
                     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-red-500 to-rose-500 text-white">
+            <h3 class="text-lg font-bold">⚠️ Konfirmasi Hapus</h3>
+        </div>
+        <div class="p-6">
+            <p class="text-slate-700 mb-4">
+                Anda akan menghapus paket: <br>
+                <strong class="text-lg" id="deletePackageName">-</strong>
+            </p>
+
+            <div class="bg-slate-50 rounded-lg p-4 mb-4">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" id="deleteQueuesCheckbox"
+                        class="w-5 h-5 mt-0.5 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                    <div>
+                        <span class="font-semibold text-slate-800">Hapus Queue Tree di MikroTik</span>
+                        <p class="text-sm text-slate-500 mt-1">
+                            Jika dicentang, queue berikut akan dihapus dari MikroTik:
+                        </p>
+                        <ul class="text-sm text-slate-600 mt-2 space-y-1" id="queueToDeleteList">
+                            <li class="flex items-center gap-1">
+                                <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                Queue Upload: <code class="bg-blue-100 px-1 rounded" id="childUploadQueue">-</code>
+                            </li>
+                            <li class="flex items-center gap-1">
+                                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                Queue Download: <code class="bg-green-100 px-1 rounded" id="childDownloadQueue">-</code>
+                            </li>
+                        </ul>
+                    </div>
+                </label>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                <strong>⚠️ Peringatan:</strong> Data yang dihapus tidak dapat dikembalikan!
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+            <button type="button" id="cancelDelete"
+                class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium">
+                Batal
+            </button>
+            <button type="button" id="confirmDelete"
+                class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                </svg>
+                Hapus Paket
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('deleteModal');
+        const cancelBtn = document.getElementById('cancelDelete');
+        const confirmBtn = document.getElementById('confirmDelete');
+        const deleteQueuesCheckbox = document.getElementById('deleteQueuesCheckbox');
+        let currentPackageId = null;
+
+        // Open modal on delete button click
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', function () {
+                currentPackageId = this.dataset.id;
+                document.getElementById('deletePackageName').textContent = this.dataset.name;
+                document.getElementById('childUploadQueue').textContent = this.dataset.childUpload || '-';
+                document.getElementById('childDownloadQueue').textContent = this.dataset.childDownload || '-';
+                deleteQueuesCheckbox.checked = false;
+                modal.classList.remove('hidden');
+            });
+        });
+
+        // Close modal
+        cancelBtn.addEventListener('click', function () {
+            modal.classList.add('hidden');
+            currentPackageId = null;
+        });
+
+        // Click outside to close
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+                currentPackageId = null;
+            }
+        });
+
+        // Confirm delete
+        confirmBtn.addEventListener('click', async function () {
+            if (!currentPackageId) return;
+
+            const deleteQueues = deleteQueuesCheckbox.checked;
+            const originalContent = confirmBtn.innerHTML;
+
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Menghapus...';
+
+            try {
+                const response = await fetch(`/api/packages/static-ip/${currentPackageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ deleteQueues: deleteQueues })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    window.location.reload();
+                } else {
+                    alert('❌ Gagal: ' + result.message);
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = originalContent;
+                }
+            } catch (err) {
+                alert('❌ Terjadi kesalahan: ' + err.message);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalContent;
+            }
+        });
+    });
+</script>
