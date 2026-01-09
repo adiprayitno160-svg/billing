@@ -1,48 +1,32 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
-  "exclude": [
-    "backup_hotspot/**/*",
-    "backups/**/*",
-    "uploads/**/*",
-    "node_modules/**/*",
-    "dist/**/*",
-    "scripts/**/*",
-    "src/controllers/ftth/**/*",
-    "src/services/mikrotik/**/*",
-    "src/controllers/excelController.ts",
-    "check_*.ts",
-    "*.ts"
-  ],
   "compilerOptions": {
-    // File Layout
     "rootDir": "src",
     "outDir": "dist",
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
     "module": "commonjs",
     "target": "es2020",
-    "types": [
-      "node"
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
     ],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
-    // Other Outputs
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    // Stricter Typechecking Options
     "noUncheckedIndexedAccess": false,
-    // Recommended Options
     "strict": false,
     "verbatimModuleSyntax": false,
     "isolatedModules": false,
     "noUncheckedSideEffectImports": false,
     "moduleDetection": "auto",
     "skipLibCheck": true,
-    "noEmitOnError": false, // Allow build even with errors
+    "noEmitOnError": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-  }
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
