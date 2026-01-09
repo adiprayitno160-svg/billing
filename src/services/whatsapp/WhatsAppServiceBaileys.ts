@@ -272,21 +272,21 @@ export class WhatsAppServiceBaileys {
                 msg.message?.documentMessage
             );
 
-            // STRICT FILTER: If empty text AND no media, ignore it
+            // STRICT FILTER REMOVED: It was blocking valid messages with complex structures (viewOnce, etc)
+            // if (!messageText && !hasMedia) { ... }
+
+            // Just log if it looks empty but let it pass to handler which has its own checks
             if (!messageText && !hasMedia) {
-                console.log('[Baileys] ⏭️ Skipping empty message (no text, no media)');
-                // Log content for debugging
-                // console.log('[DEBUG] Empty Message Content:', JSON.stringify(msg.message));
-                return;
+                console.log('[Baileys] ⚠️ Received message with empty text and no standard media. Content keys:', Object.keys(msg.message || {}));
             }
 
             console.log('[WhatsAppBaileys] From:', from);
-            console.log('[WhatsAppBaileys] Body:', messageText?.substring(0, 100));
-            console.log('[WhatsAppBaileys] Has Media:', hasMedia);
+            // console.log('[WhatsAppBaileys] Body:', messageText?.substring(0, 100)); // verbose
+            // console.log('[WhatsAppBaileys] Has Media:', hasMedia);
             console.log('[WhatsAppBaileys] Type:', messageType);
 
             // DEBUG: Log raw message for investigation
-            console.log('[DEBUG] Raw message key:', JSON.stringify(msg.key));
+            // console.log('[DEBUG] Raw message key:', JSON.stringify(msg.key));
             console.log('[DEBUG] Message fromMe:', msg.key.fromMe);
 
             // Create adapter for bot service
