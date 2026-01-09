@@ -260,17 +260,38 @@
                                         <div>
                                             <label class="block text-sm font-semibold text-cyan-800 mb-1">ODP (Optical
                                                 Distribution Point) *</label>
-                                            <select name="odp_id" required id="odp-select"
-                                                class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200">
-                                                <option value="">-- Pilih ODP --</option>
-                                                <% if (odpData && odpData.length> 0) { %>
-                                                    <% odpData.forEach(function(odp){ %>
-                                                        <option value="<%= odp.id %>">
-                                                            <%= odp.odp_name %> - <%= odp.odc_name %>
-                                                        </option>
-                                                        <% }); %>
-                                                            <% } %>
-                                            </select>
+                                            <div class="relative">
+                                                <div class="flex gap-2">
+                                                    <div class="relative w-full">
+                                                        <input type="text" id="odp_search"
+                                                            placeholder="Ketik nama kemnudian cari ODP..."
+                                                            autocomplete="off"
+                                                            class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 font-medium">
+                                                        <input type="hidden" name="odp_id" id="odp_id" required>
+
+                                                        <!-- Search Results Dropdown -->
+                                                        <div id="odp_search_results"
+                                                            class="absolute z-10 w-full mt-1 bg-white border border-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
+                                                            <div class="p-3 text-sm text-slate-500 text-center">Ketik
+                                                                minimal 2 karakter...</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Optional: Reload/Sync Button if needed -->
+                                                    <button type="button" id="reload_odp_btn"
+                                                        class="px-3 py-2 bg-cyan-50 text-cyan-600 rounded-lg border border-cyan-200 hover:bg-cyan-100 transition-colors"
+                                                        title="Refresh ODP">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <p class="text-xs text-cyan-600 mt-1" id="selected_odp_info"></p>
+                                            </div>
                                         </div>
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
@@ -733,49 +754,127 @@
         loadSecrets();
     });
 
-    function updateOLTODC() {
-        console.log('updateOLTODC called');
+    // === ODP SEARCH LOGIC ===
+    const odpSearch = document.getElementById('odp_search');
+    const odpIdInput = document.getElementById('odp_id');
+    const odpResults = document.getElementById('odp_search_results');
+    const odpInfo = document.getElementById('selected_odp_info');
+    let searchTimeout;
 
-        const odpSelect = document.getElementById('odp-select');
+    // Helper to populate OLT/ODC fields
+    function populateOltOdc(data) {
         const oltDisplay = document.querySelector('input[name="olt_display"]');
         const odcDisplay = document.querySelector('input[name="odc_display"]');
         const oltIdInput = document.querySelector('input[name="olt_id"]');
         const odcIdInput = document.querySelector('input[name="odc_id"]');
 
-        if (!odpSelect || !oltDisplay || !odcDisplay || !oltIdInput || !odcIdInput) {
-            console.error('Required elements not found');
-            return;
-        }
+        if (data) {
+            // If we have API data structure (slightly diff from EJS dump)
+            // API keys: id, name, odc_id, odc_name (olt might need to be fetched separately or included later)
+            // Simulating auto-fill based on context if available
 
-        const selectedOdpId = odpSelect.value;
+            // For now, let's use what we have. 
+            // Note: The /api/ftth/odp/search only returns ODC info, we might need OLT info too 
+            // but user request is just "search ODP". 
 
-        console.log('Selected ODP ID:', selectedOdpId);
-        console.log('ODP Data:', odpData);
+            odcDisplay.value = data.odc_name || 'Auto';
+            odcIdInput.value = data.odc_id || '';
 
-        if (selectedOdpId) {
-            const odp = odpData.find(o => o.id == selectedOdpId);
-            console.log('Found ODP:', odp);
-
-            if (odp) {
-                oltDisplay.value = odp.olt_name || 'Tidak tersedia';
-                odcDisplay.value = odp.odc_name || 'Tidak tersedia';
-                oltIdInput.value = odp.olt_id || '';
-                odcIdInput.value = odp.odc_id || '';
-
-                console.log('Updated OLT:', odp.olt_name, 'ODC:', odp.odc_name);
-            } else {
-                oltDisplay.value = 'Data tidak ditemukan';
-                odcDisplay.value = 'Data tidak ditemukan';
-                oltIdInput.value = '';
-                odcIdInput.value = '';
-            }
-        } else {
-            oltDisplay.value = '';
-            odcDisplay.value = '';
+            // In future: fetch OLT details if needed
+            oltDisplay.value = 'Auto (From ODC)';
             oltIdInput.value = '';
+        } else {
+            odcDisplay.value = '';
             odcIdInput.value = '';
+            oltDisplay.value = '';
+            oltIdInput.value = '';
         }
     }
+
+    if (odpSearch && odpResults) {
+        odpSearch.addEventListener('input', function (e) {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+
+            if (query.length < 2) {
+                odpResults.classList.add('hidden');
+                return;
+            }
+
+            // Debounce
+            searchTimeout = setTimeout(() => {
+                odpResults.innerHTML = '<div class="p-3 text-sm text-center text-slate-500">Mencari...</div>';
+                odpResults.classList.remove('hidden');
+
+                fetch('/api/ftth/odp/search?q=' + encodeURIComponent(query))
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success && res.results.length > 0) {
+                            odpResults.innerHTML = res.results.map(odp => `
+                                <div class="px-3 py-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 odp-result-item"
+                                     data-id="${odp.id}"
+                                     data-name="${odp.name}"
+                                     data-odc-id="${odp.odc_id}"
+                                     data-odc-name="${odp.odc_name}"
+                                     data-capacity="${odp.total_ports}"
+                                     data-used="${odp.used_ports}">
+                                    <div class="flex justify-between items-center">
+                                        <div class="font-medium text-slate-800">${odp.name}</div>
+                                        <div class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500 font-bold' : 'text-green-600'}">
+                                            Port: ${odp.used_ports}/${odp.total_ports}
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-slate-500">ODC: ${odp.odc_name || '-'}</div>
+                                </div>
+                            `).join('');
+                        } else {
+                            odpResults.innerHTML = '<div class="p-3 text-sm text-center text-yellow-600">ODP tidak ditemukan</div>';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Search error:', err);
+                        odpResults.innerHTML = '<div class="p-3 text-sm text-center text-red-500">Error mengambil data</div>';
+                    });
+            }, 300);
+        });
+
+        // Hide results on blur with delay
+        odpSearch.addEventListener('blur', () => { // Handle click outside 
+            setTimeout(() => odpResults.classList.add('hidden'), 200);
+        });
+
+        // Focus to show if text exists
+        odpSearch.addEventListener('focus', () => {
+            if (odpSearch.value.length >= 2) odpResults.classList.remove('hidden');
+        });
+
+        // Event Delegation for clicks
+        odpResults.addEventListener('click', function (e) {
+            const item = e.target.closest('.odp-result-item');
+            if (item) {
+                const id = item.dataset.id;
+                const name = item.dataset.name;
+                const odcName = item.dataset.odcName;
+                const portInfo = `${item.dataset.used}/${item.dataset.capacity}`;
+
+                odpIdInput.value = id;
+                odpSearch.value = name;
+                odpInfo.textContent = `✓ Terpilih: ${name} (ODC: ${odcName}, Port: ${portInfo})`;
+
+                // Populate legacy fields if they exist
+                populateOltOdc({
+                    odc_name: odcName,
+                    odc_id: item.dataset.odcId
+                });
+
+                odpResults.classList.add('hidden');
+            }
+        });
+    }
+
+    // Replace the old updateOLTODC function with a dummy or remove listeners
+    // We already replaced the HTML, so old listeners attached to 'odp-select' won't work anyway.
+    // So we don't need to define updateOLTODC anymore.
 
     // Maps integration
     let map;

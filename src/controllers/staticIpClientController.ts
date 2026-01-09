@@ -224,6 +224,32 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
             const packageUploadQueue = `UP-${pkg.name}`;
 
             // 3) Handle Queues (Smart Sync based on Packet Mark or Name)
+
+            // --- Helper: Ensure Parent Queue Exists ---
+            const ensureParentQueue = async (parentName: string, direction: 'upload' | 'download') => {
+                let pId = await findQueueTreeIdByName(cfg, parentName);
+                if (!pId) {
+                    console.log(`Parent queue "${parentName}" not found. Auto-creating...`);
+                    // Create parent queue with default settings (Max Limit from package global limit if available, or unlimited)
+                    // Note: Ideally parent should map to an interface or global parent.
+                    // For now we create it attached to 'global' with package limits.
+                    const parentData = {
+                        name: parentName,
+                        parent: 'global',
+                        queue: 'default',
+                        maxLimit: direction === 'download' ? pkg.max_limit_download : pkg.max_limit_upload,
+                        comment: `Auto-created Parent for ${pkg.name} (${direction})`
+                    };
+                    await createQueueTree(cfg, parentData);
+                    console.log(`Parent queue "${parentName}" created.`);
+                }
+            };
+
+            // Ensure Upload and Download parents exist
+            await ensureParentQueue(packageDownloadQueue, 'download');
+            await ensureParentQueue(packageUploadQueue, 'upload');
+
+
             // --- DOWNLOAD QUEUE ---
             let queueDownId = await findQueueTreeIdByPacketMark(cfg, downloadMark);
             if (!queueDownId) {
@@ -236,6 +262,10 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                 parent: packageDownloadQueue,
                 packetMarks: downloadMark,
                 maxLimit: mlDownload,
+                limitAt: (pkg as any).child_limit_at_download || undefined, // New: Limit At
+                burstLimit: (pkg as any).child_burst_download || undefined, // New: Burst
+                burstThreshold: (pkg as any).child_burst_threshold_download || undefined, // New: Burst Threshold
+                burstTime: (pkg as any).child_burst_time_download || undefined, // New: Burst Time
                 queue: (pkg as any).child_queue_type_download || 'pcq-download-default',
                 priority: (pkg as any).child_priority_download || '8',
                 comment: `Download for ${client_name}`
@@ -260,6 +290,10 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                 parent: packageUploadQueue,
                 packetMarks: uploadMark,
                 maxLimit: mlUpload,
+                limitAt: (pkg as any).child_limit_at_upload || undefined, // New: Limit At
+                burstLimit: (pkg as any).child_burst_upload || undefined, // New: Burst
+                burstThreshold: (pkg as any).child_burst_threshold_upload || undefined, // New: Burst Threshold
+                burstTime: (pkg as any).child_burst_time_upload || undefined, // New: Burst Time
                 queue: (pkg as any).child_queue_type_upload || 'pcq-upload-default',
                 priority: (pkg as any).child_priority_upload || '8',
                 comment: `Upload for ${client_name}`
