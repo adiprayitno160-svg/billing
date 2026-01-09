@@ -328,6 +328,10 @@ async function start() {
 		const { BackupScheduler } = await import('./services/backup/BackupScheduler');
 		BackupScheduler.init();
 
+		// Initialize Media Cleanup Service
+		const { MediaCleanupService } = await import('./services/cron/MediaCleanupService');
+		MediaCleanupService.startScheduler(90); // 90 days retention
+
 		// Initialize WhatsApp Business service
 		// Can be disabled via DISABLE_WHATSAPP=true environment variable
 		if (process.env.DISABLE_WHATSAPP === 'true') {
