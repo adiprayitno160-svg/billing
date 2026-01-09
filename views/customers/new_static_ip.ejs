@@ -95,13 +95,26 @@
                             </div>
                             <div class="p-6 space-y-5">
 
-                                <!-- IP Address -->
+                                <!-- IP Address Pelanggan -->
                                 <div>
-                                    <label class="block text-sm font-semibold text-blue-800 mb-1">IP Address / Subnet
+                                    <label class="block text-sm font-semibold text-blue-800 mb-1">IP Address Pelanggan
                                         *</label>
-                                    <input name="ip_address" required placeholder="192.168.1.2/30"
+                                    <input name="ip_address" id="ip_address_input" required placeholder="192.168.1.2"
                                         class="w-full rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 font-mono text-slate-700" />
-                                    <p class="text-[10px] text-slate-500 mt-1">Format CIDR: misal 10.10.10.2/30</p>
+                                    <p class="text-[10px] text-slate-500 mt-1">✅ IP pelanggan saja (tanpa /CIDR).
+                                        Contoh: 10.10.10.2</p>
+                                </div>
+
+                                <!-- Gateway IP (Optional) -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-purple-800 mb-1">Gateway IP
+                                        <span class="text-xs font-normal text-slate-500">(Opsional)</span>
+                                    </label>
+                                    <input name="gateway_ip" id="gateway_ip_input"
+                                        placeholder="192.168.1.1 atau 192.168.1.1/30"
+                                        class="w-full rounded-lg border border-purple-300 px-4 py-2.5 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 font-mono text-slate-700" />
+                                    <p class="text-[10px] text-purple-600 mt-1">🔒 Gateway di MikroTik untuk isolir
+                                        otomatis. Bisa dengan atau tanpa /CIDR</p>
                                 </div>
 
                                 <!-- Interface Selection -->
