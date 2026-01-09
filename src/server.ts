@@ -363,6 +363,11 @@ async function start() {
 			console.log(`Server running on http://localhost:${port}`);
 			console.log(`Server also accessible on http://0.0.0.0:${port}`);
 			console.log(`WebSocket available at ws://localhost:${port}/ws`);
+
+			// Signal PM2 that the app is ready (satisfied wait_ready: true)
+			if (process.send) {
+				process.send('ready');
+			}
 		});
 	} catch (err) {
 		console.error('Failed to start server:', err);
