@@ -450,3 +450,42 @@ export async function getSystemHealth(cfg: MikroTikConfig): Promise<any[]> {
     } catch { return []; }
 }
 
+
+export async function findIpAddressId(cfg: MikroTikConfig, address: string): Promise<string | null> {
+    try {
+        // Search by address exactly
+        const res = await mikrotikPool.execute<any[]>(cfg, '/ip/address/print', [`?address=${address}`], `ip_addr_check:${address}`, 1000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
+
+export async function updateIpAddress(cfg: MikroTikConfig, id: string, data: { comment?: string, interface?: string }): Promise<void> {
+    try {
+        const params = [`=.id=${id}`];
+        if (data.comment) params.push(`=comment=${data.comment}`);
+        if (data.interface) params.push(`=interface=${data.interface}`);
+
+        await mikrotikPool.execute(cfg, '/ip/address/set', params);
+    } catch { /* ignore */ }
+}
+
+export async function findQueueTreeIdByName(cfg: MikroTikConfig, name: string): Promise<string | null> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [`?name=${name}`], `qt_name:${name}`, 5000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
+
+export async function findMangleIdByComment(cfg: MikroTikConfig, comment: string): Promise<string | null> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [`?comment=${comment}`], `mangle_chk:${comment}`, 1000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
+
+export async function findQueueTreeIdByPacketMark(cfg: MikroTikConfig, packetMark: string): Promise<string | null> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [`?packet-mark=${packetMark}`], `qt_mark:${packetMark}`, 5000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}

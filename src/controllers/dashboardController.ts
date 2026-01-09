@@ -14,46 +14,75 @@ function getLastNDatesLabels(days: number): string[] {
 	return labels;
 }
 
+// Cache schema capabilities to avoid expensive INFORMATION_SCHEMA queries on every request
+let schemaCache: {
+	checked: boolean;
+	hasMaintenance: boolean;
+	hasConnectionLogs: boolean;
+	hasStaticIpStatus: boolean;
+	hasSlaIncidents: boolean;
+	hasIsolated: boolean;
+	hasIssueType: boolean;
+	hasCustomerId: boolean;
+} | null = null;
+
 async function getTroubleCustomers(): Promise<any[]> {
 	try {
-		// Check which tables exist
-		const [tables] = await databasePool.query(
-			"SHOW TABLES"
-		) as any[];
+		// Initialize cache if null
+		if (!schemaCache) {
+			const [tables] = await databasePool.query("SHOW TABLES") as any[];
+			const tableNames = Array.isArray(tables) ? tables.map((t: any) => Object.values(t)[0]) : [];
+			const hasMaintenance = tableNames.includes('maintenance_schedules');
+			const hasConnectionLogs = tableNames.includes('connection_logs');
+			const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
+			const hasSlaIncidents = tableNames.includes('sla_incidents');
 
-		const tableNames = Array.isArray(tables) ? tables.map((t: any) => Object.values(t)[0]) : [];
-		const hasMaintenance = tableNames.includes('maintenance_schedules');
-		const hasConnectionLogs = tableNames.includes('connection_logs');
-		const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
-		const hasSlaIncidents = tableNames.includes('sla_incidents');
-
-		// Check if is_isolated column exists
-		let hasIsolated = false;
-		try {
-			const [cols] = await databasePool.query(
-				"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'is_isolated'"
-			) as any[];
-			hasIsolated = Array.isArray(cols) && cols.length > 0;
-		} catch {
-			hasIsolated = false;
-		}
-
-		// Check if issue_type and customer_id columns exist in maintenance_schedules
-		let hasIssueType = false;
-		let hasCustomerId = false;
-		if (hasMaintenance) {
+			let hasIsolated = false;
 			try {
 				const [cols] = await databasePool.query(
-					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME IN ('issue_type', 'customer_id')"
+					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'is_isolated'"
 				) as any[];
-				const columnNames = (cols as any[]).map(c => c.COLUMN_NAME);
-				hasIssueType = columnNames.includes('issue_type');
-				hasCustomerId = columnNames.includes('customer_id');
-			} catch {
-				hasIssueType = false;
-				hasCustomerId = false;
+				hasIsolated = Array.isArray(cols) && cols.length > 0;
+			} catch { hasIsolated = false; }
+
+			let hasIssueType = false;
+			let hasCustomerId = false;
+			if (hasMaintenance) {
+				try {
+					const [cols] = await databasePool.query(
+						"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME IN ('issue_type', 'customer_id')"
+					) as any[];
+					const columnNames = (cols as any[]).map(c => c.COLUMN_NAME);
+					hasIssueType = columnNames.includes('issue_type');
+					hasCustomerId = columnNames.includes('customer_id');
+				} catch {
+					hasIssueType = false;
+					hasCustomerId = false;
+				}
 			}
+
+			schemaCache = {
+				checked: true,
+				hasMaintenance,
+				hasConnectionLogs,
+				hasStaticIpStatus,
+				hasSlaIncidents,
+				hasIsolated,
+				hasIssueType,
+				hasCustomerId
+			};
 		}
+
+		// Use cached values
+		const {
+			hasMaintenance,
+			hasConnectionLogs,
+			hasStaticIpStatus,
+			hasSlaIncidents,
+			hasIsolated,
+			hasIssueType,
+			hasCustomerId
+		} = schemaCache;
 
 		// Build UNION query for all trouble sources
 		const queries: string[] = [];
@@ -214,13 +243,21 @@ async function getTroubleCustomers(): Promise<any[]> {
 
 export async function getDashboard(req: Request, res: Response): Promise<void> {
 	try {
-		// Check if late_payment_count column exists once (optimization)
+		// Check if late_payment_count column exists (using cache if available)
 		let hasLatePaymentCount = false;
-		try {
-			const [cols] = await databasePool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'late_payment_count'") as any;
-			hasLatePaymentCount = cols.length > 0;
-		} catch {
-			hasLatePaymentCount = false;
+		if (schemaCache && (schemaCache as any).hasLatePaymentCount !== undefined) {
+			hasLatePaymentCount = (schemaCache as any).hasLatePaymentCount;
+		} else {
+			try {
+				const [cols] = await databasePool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'late_payment_count'") as any;
+				hasLatePaymentCount = cols.length > 0;
+				// Update cache
+				if (schemaCache) {
+					(schemaCache as any).hasLatePaymentCount = hasLatePaymentCount;
+				}
+			} catch {
+				hasLatePaymentCount = false;
+			}
 		}
 
 		// Parallel queries
@@ -304,79 +341,10 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 
 		const mtSettings = Array.isArray(mtSettingsP[0]) && (mtSettingsP[0] as any[]).length ? (mtSettingsP[0] as any[])[0] : null;
 
-		// Get MikroTik information if settings exist
+		// Client-side loading for Mikrotik Info (Faster dashboard load)
 		let mikrotikInfo: any = null;
 		let interfaces: any[] = [];
-		let connectionStatus = { connected: false, error: null };
-
-		if (mtSettings) {
-			try {
-				// Validate that password exists
-				if (!mtSettings.password) {
-					throw new Error('Password MikroTik tidak ditemukan. Silakan konfigurasi ulang di Settings > MikroTik');
-				}
-
-				const config: MikroTikConfig = {
-					host: mtSettings.host,
-					port: mtSettings.port,
-					username: mtSettings.username,
-					password: mtSettings.password,
-					use_tls: mtSettings.use_tls
-				};
-
-				console.log(`[Dashboard] Attempting to connect to MikroTik at ${config.host}:${config.port}...`);
-
-				// Perform requests in parallel with a short timeout (2s) to prevent blocking page load
-				const timeoutMs = 2000; // reduced timeout to avoid long loading times
-				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('MikroTik connection timeout')), timeoutMs));
-
-				// Helper to catch errors individually
-				const fetchInfo = getMikrotikInfo(config).catch(err => {
-					console.error('[Dashboard] MikroTik Info fetch failed:', err.message);
-					return null;
-				});
-
-				const fetchInterfaces = getInterfaces(config).catch(err => {
-					console.error('[Dashboard] MikroTik Interface fetch failed:', err.message);
-					return [];
-				});
-
-				// Wait for both or timeout
-				// We use Promise.all to fire both, but wrap the whole thing in a race with timeout
-				// However, individual catches above ensure one failure doesn't stop the other from "completing" (returning null)
-				// The timeout protects against BOTH hanging.
-				const [infoResult, interfacesResult] = await Promise.race([
-					Promise.all([fetchInfo, fetchInterfaces]),
-					timeoutPromise
-				]) as [any, any[]];
-
-				mikrotikInfo = infoResult;
-				interfaces = interfacesResult || [];
-
-				// Check connection status based on info result
-				if (mikrotikInfo) {
-					console.log(`[Dashboard] ✅ MikroTik info retrieved successfully`);
-					connectionStatus = { connected: true, error: null };
-				} else {
-					console.warn(`[Dashboard] ⚠️ MikroTik info missing (timeout or error)`);
-					connectionStatus = { connected: false, error: 'Connection timeout or error' };
-				}
-
-				if (interfaces.length > 0) {
-					console.log(`[Dashboard] ✅ Retrieved ${interfaces.length} interfaces`);
-				} else {
-					console.warn(`[Dashboard] ⚠️ No interfaces retrieved (timeout or error)`);
-				}
-
-			} catch (error: any) {
-				const errorMessage = error?.message || 'Gagal mengambil data MikroTik';
-				console.error(`[Dashboard] ❌ Error connecting to MikroTik:`, errorMessage);
-				connectionStatus = { connected: false, error: errorMessage };
-				// Set empty arrays to prevent undefined errors in view
-				mikrotikInfo = null;
-				interfaces = [];
-			}
-		}
+		let connectionStatus = { connected: false, error: null }; // Default status
 
 		// Get server monitoring status
 		let serverMonitoring = null;

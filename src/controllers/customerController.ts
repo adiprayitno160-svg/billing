@@ -665,7 +665,6 @@ export const updateCustomer = async (req: Request, res: Response) => {
             odc_id,
             custom_payment_deadline,
             custom_isolate_days_after_deadline,
-            custom_isolate_days_after_deadline,
             serial_number,
             rental_mode,
             rental_cost

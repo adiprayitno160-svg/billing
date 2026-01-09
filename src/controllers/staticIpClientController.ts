@@ -1,72 +1,72 @@
 import { Request, Response, NextFunction } from 'express';
 import { databasePool } from '../db/pool';
-import { 
-    getPackageClients, 
-    addClientToPackage, 
+import {
+    getPackageClients,
+    addClientToPackage,
     removeClientFromPackage,
     isPackageFull,
     getAllStaticIpClients,
     getClientById,
-    updateClient 
+    updateClient
 } from '../services/staticIpClientService';
 import { getStaticIpPackageById } from '../services/staticIpPackageService';
 import { getMikrotikConfig, getStaticIpPackageById as getPackageById } from '../services/staticIpPackageService';
-import { getInterfaces, addMangleRulesForClient, createQueueTree, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName } from '../services/mikrotikService';
+import { getInterfaces, addMangleRulesForClient, createQueueTree, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName, findIpAddressId, updateIpAddress, findQueueTreeIdByName, findQueueTreeIdByPacketMark, updateQueueTree } from '../services/mikrotikService';
 import { RouterOSAPI } from 'routeros-api';
 import { calculateCustomerIP } from '../utils/ipHelper';
 
 export async function getStaticIpClientList(req: Request, res: Response, next: NextFunction) {
-	try {
-		const packageId = Number(req.params.packageId);
-		const packageData = await getStaticIpPackageById(packageId);
-		
-		if (!packageData) {
-			req.flash('error', 'Paket tidak ditemukan');
-			return res.redirect('/packages/static-ip');
-		}
-		
-		const clients = await getPackageClients(packageId);
-		const isFull = await isPackageFull(packageId);
-		
-		// IMPORTANT: Proses IP address untuk setiap client
-		// IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
-		// IP yang ditampilkan ke user harus IP client (192.168.1.2)
-		const clientsWithProcessedIP = clients.map((client: any) => ({
-			...client,
-			ip_address_display: client.ip_address ? calculateCustomerIP(client.ip_address) : client.ip_address
-		}));
-		
-		res.render('packages/static_ip_clients', { 
-			title: `Client Paket ${packageData.name}`, 
-			package: packageData,
-			clients: clientsWithProcessedIP,
-			isFull,
-			success: req.flash('success'),
-			error: req.flash('error')
-		});
-	} catch (err) { 
-		next(err); 
-	}
+    try {
+        const packageId = Number(req.params.packageId);
+        const packageData = await getStaticIpPackageById(packageId);
+
+        if (!packageData) {
+            req.flash('error', 'Paket tidak ditemukan');
+            return res.redirect('/packages/static-ip');
+        }
+
+        const clients = await getPackageClients(packageId);
+        const isFull = await isPackageFull(packageId);
+
+        // IMPORTANT: Proses IP address untuk setiap client
+        // IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
+        // IP yang ditampilkan ke user harus IP client (192.168.1.2)
+        const clientsWithProcessedIP = clients.map((client: any) => ({
+            ...client,
+            ip_address_display: client.ip_address ? calculateCustomerIP(client.ip_address) : client.ip_address
+        }));
+
+        res.render('packages/static_ip_clients', {
+            title: `Client Paket ${packageData.name}`,
+            package: packageData,
+            clients: clientsWithProcessedIP,
+            isFull,
+            success: req.flash('success'),
+            error: req.flash('error')
+        });
+    } catch (err) {
+        next(err);
+    }
 }
 
 export async function getStaticIpClientAdd(req: Request, res: Response, next: NextFunction) {
-	try {
-		const packageId = Number(req.params.packageId);
-		const packageData = await getStaticIpPackageById(packageId);
-		
-		if (!packageData) {
-			req.flash('error', 'Paket tidak ditemukan');
-			return res.redirect('/packages/static-ip');
-		}
-		
+    try {
+        const packageId = Number(req.params.packageId);
+        const packageData = await getStaticIpPackageById(packageId);
+
+        if (!packageData) {
+            req.flash('error', 'Paket tidak ditemukan');
+            return res.redirect('/packages/static-ip');
+        }
+
         const isFull = await isPackageFull(packageId);
-		if (isFull) {
-			req.flash('error', 'Paket sudah penuh, tidak bisa menambah client baru');
-			return res.redirect(`/packages/static-ip/${packageId}/clients`);
-		}
+        if (isFull) {
+            req.flash('error', 'Paket sudah penuh, tidak bisa menambah client baru');
+            return res.redirect(`/packages/static-ip/${packageId}/clients`);
+        }
         const cfg = await getMikrotikConfig();
         const interfaces = cfg ? await getInterfaces(cfg) : [];
-        
+
         // Get ODP data with OLT and ODC info
         const conn = await databasePool.getConnection();
         try {
@@ -83,8 +83,8 @@ export async function getStaticIpClientAdd(req: Request, res: Response, next: Ne
                 LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
                 ORDER BY o.name
             `);
-            
-            res.render('packages/static_ip_client_add', { 
+
+            res.render('packages/static_ip_client_add', {
                 title: `Tambah Client ke Paket ${packageData.name}`,
                 package: packageData,
                 interfaces,
@@ -94,19 +94,19 @@ export async function getStaticIpClientAdd(req: Request, res: Response, next: Ne
         } finally {
             conn.release();
         }
-	} catch (err) { 
-		next(err); 
-	}
+    } catch (err) {
+        next(err);
+    }
 }
 
 
 export async function postStaticIpClientCreate(req: Request, res: Response, next: NextFunction) {
-	try {
-		const packageId = Number(req.params.packageId);
-        const { 
-            client_name, 
-            ip_address, 
-            customer_id, 
+    try {
+        const packageId = Number(req.params.packageId);
+        const {
+            client_name,
+            ip_address,
+            customer_id,
             interface: iface,
             address,
             phone_number,
@@ -117,27 +117,27 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
             odp_id
         } = req.body;
 
-		if (!client_name) throw new Error('Nama client wajib diisi');
-		if (!ip_address) throw new Error('IP address wajib diisi');
+        if (!client_name) throw new Error('Nama client wajib diisi');
+        if (!ip_address) throw new Error('IP address wajib diisi');
 
-		// Validasi format IP CIDR
-		const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
-		if (!cidrRegex.test(String(ip_address))) {
-			throw new Error('Format IP harus CIDR, contoh: 192.168.1.1/30');
-		}
+        // Validasi format IP CIDR
+        const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
+        if (!cidrRegex.test(String(ip_address))) {
+            throw new Error('Format IP harus CIDR, contoh: 192.168.1.1/30');
+        }
 
-		// Pastikan interface diisi agar IP dapat ditambahkan ke MikroTik
-		if (!iface) {
-			throw new Error('Interface MikroTik wajib dipilih untuk memasang IP address');
-		}
+        // Pastikan interface diisi agar IP dapat ditambahkan ke MikroTik
+        if (!iface) {
+            throw new Error('Interface MikroTik wajib dipilih untuk memasang IP address');
+        }
 
         // Hitung network untuk disimpan
-        const ipToInt = (ip: string) => ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0;
-        const intToIp = (int: number) => [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.');
+        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
         const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
         const ipOnly: string = ipOnlyRaw || '';
         const prefix: number = Number(prefixStrRaw || '0');
-        const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+        const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
         const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
         const network = intToIp(networkInt);
 
@@ -164,7 +164,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         console.log('Package found:', !!pkg);
         console.log('Interface:', iface);
         console.log('IP Address:', ip_address);
-        
+
         // Cek interface yang tersedia
         if (cfg) {
             try {
@@ -175,27 +175,39 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                 console.error('Error getting interfaces:', err);
             }
         }
-        
+
         if (cfg && pkg) {
             try {
-                // 1) Tambah IP address ke interface
-                console.log('Adding IP address to MikroTik...');
-                await addIpAddress(cfg, { interface: iface, address: ip_address, comment: `Client ${client_name}` });
-                console.log('IP address added successfully');
+                // 1) Handle IP Address (Smart Sync)
+                console.log('Checking if IP address exists in MikroTik...');
+                const existingIpId = await findIpAddressId(cfg, ip_address);
+
+                if (existingIpId) {
+                    console.log(`IP ${ip_address} already exists (ID: ${existingIpId}). Syncing...`);
+                    // Update comment ensuring no duplicate error
+                    await updateIpAddress(cfg, existingIpId, {
+                        comment: `Client ${client_name}`,
+                        interface: iface
+                    });
+                } else {
+                    console.log('Adding New IP address to MikroTik...');
+                    await addIpAddress(cfg, { interface: iface, address: ip_address, comment: `Client ${client_name}` });
+                    console.log('IP address added successfully');
+                }
             } catch (error: any) {
-                console.error('Failed to add IP address:', error);
-                throw new Error(`Gagal menambahkan IP ke MikroTik: ${error.message}`);
+                console.error('Failed to sync IP address:', error);
+                throw new Error(`Gagal sync IP ke MikroTik: ${error.message}`);
             }
             // 2) Hitung peer dan marks
-            const ipToInt = (ip: string) => ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0;
-            const intToIp = (int: number) => [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.');
+            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
             const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
             const ipOnly: string = ipOnlyRaw || '';
             const prefix: number = Number(prefixStrRaw || '0');
-            const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
             const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
             let peerIp = ipOnly;
-            if (prefix === 30){
+            if (prefix === 30) {
                 const firstHost = networkInt + 1;
                 const secondHost = networkInt + 2;
                 const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
@@ -207,40 +219,72 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
 
             const mlDownload = (pkg as any).child_download_limit || (pkg as any).shared_download_limit || pkg.max_limit_download;
             const mlUpload = (pkg as any).child_upload_limit || (pkg as any).shared_upload_limit || pkg.max_limit_upload;
-            
+
             const packageDownloadQueue = pkg.name;
             const packageUploadQueue = `UP-${pkg.name}`;
-            
-            await createQueueTree(cfg, {
+
+            // 3) Handle Queues (Smart Sync based on Packet Mark or Name)
+            // --- DOWNLOAD QUEUE ---
+            let queueDownId = await findQueueTreeIdByPacketMark(cfg, downloadMark);
+            if (!queueDownId) {
+                // Fallback to name check
+                queueDownId = await findQueueTreeIdByName(cfg, client_name);
+            }
+
+            const queueDownData = {
                 name: client_name,
                 parent: packageDownloadQueue,
                 packetMarks: downloadMark,
                 maxLimit: mlDownload,
-                queue: pkg.child_queue_type_download || 'pcq-download-default',
-                priority: pkg.child_priority_download || '8'
-            });
-            await createQueueTree(cfg, {
-                name: `UP-${client_name}`,
+                queue: (pkg as any).child_queue_type_download || 'pcq-download-default',
+                priority: (pkg as any).child_priority_download || '8',
+                comment: `Download for ${client_name}`
+            };
+
+            if (queueDownId) {
+                console.log(`Queue Download exists (ID: ${queueDownId}). Syncing name/limits...`);
+                await updateQueueTree(cfg, queueDownId, queueDownData);
+            } else {
+                await createQueueTree(cfg, queueDownData);
+            }
+
+            // --- UPLOAD QUEUE ---
+            const uploadName = `UP-${client_name}`;
+            let queueUpId = await findQueueTreeIdByPacketMark(cfg, uploadMark);
+            if (!queueUpId) {
+                queueUpId = await findQueueTreeIdByName(cfg, uploadName);
+            }
+
+            const queueUpData = {
+                name: uploadName,
                 parent: packageUploadQueue,
                 packetMarks: uploadMark,
                 maxLimit: mlUpload,
-                queue: pkg.child_queue_type_upload || 'pcq-upload-default',
-                priority: pkg.child_priority_upload || '8'
-            });
+                queue: (pkg as any).child_queue_type_upload || 'pcq-upload-default',
+                priority: (pkg as any).child_priority_upload || '8',
+                comment: `Upload for ${client_name}`
+            };
+
+            if (queueUpId) {
+                console.log(`Queue Upload exists (ID: ${queueUpId}). Syncing name/limits...`);
+                await updateQueueTree(cfg, queueUpId, queueUpData);
+            } else {
+                await createQueueTree(cfg, queueUpData);
+            }
         }
 
-		req.flash('success', 'Client berhasil ditambahkan ke paket');
-		res.redirect(`/packages/static-ip/${packageId}/clients`);
-	} catch (err) { 
-		req.flash('error', err instanceof Error ? err.message : 'Gagal menambahkan client');
-		res.redirect(`/packages/static-ip/${req.params.packageId}/clients`);
-	}
+        req.flash('success', 'Client berhasil ditambahkan ke paket');
+        res.redirect(`/packages/static-ip/${packageId}/clients`);
+    } catch (err) {
+        req.flash('error', err instanceof Error ? err.message : 'Gagal menambahkan client');
+        res.redirect(`/packages/static-ip/${req.params.packageId}/clients`);
+    }
 }
 
 export async function postStaticIpClientDelete(req: Request, res: Response, next: NextFunction) {
-	try {
-		const clientId = Number(req.params.clientId);
-		const packageId = Number(req.params.packageId);
+    try {
+        const clientId = Number(req.params.clientId);
+        const packageId = Number(req.params.packageId);
         // Ambil client & paket untuk data Mikrotik
         const client = await getClientById(clientId);
         const pkg = await getPackageById(packageId);
@@ -253,15 +297,15 @@ export async function postStaticIpClientDelete(req: Request, res: Response, next
                 await removeIpAddress(cfg, client.ip_address);
             }
             // Hitung peer dan marks untuk hapus mangle
-            const ipToInt = (ip: string) => ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0;
-            const intToIp = (int: number) => [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.');
+            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
             const [ipOnlyRaw, prefixStrRaw] = String(client.ip_address || '').split('/');
             const ipOnly: string = ipOnlyRaw || '';
             const prefix: number = Number(prefixStrRaw || '0');
-            const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
             const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
             let peerIp = ipOnly;
-            if (prefix === 30){
+            if (prefix === 30) {
                 const firstHost = networkInt + 1;
                 const secondHost = networkInt + 2;
                 const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
@@ -276,13 +320,13 @@ export async function postStaticIpClientDelete(req: Request, res: Response, next
 
         // Terakhir: hapus di database
         await removeClientFromPackage(clientId);
-		
-		req.flash('success', 'Client berhasil dihapus dari paket');
-		res.redirect(`/packages/static-ip/${packageId}/clients`);
-	} catch (err) { 
-		req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus client');
-		res.redirect(`/packages/static-ip/${req.params.packageId}/clients`);
-	}
+
+        req.flash('success', 'Client berhasil dihapus dari paket');
+        res.redirect(`/packages/static-ip/${packageId}/clients`);
+    } catch (err) {
+        req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus client');
+        res.redirect(`/packages/static-ip/${req.params.packageId}/clients`);
+    }
 }
 
 export async function getStaticIpClientEdit(req: Request, res: Response, next: NextFunction) {
@@ -297,7 +341,7 @@ export async function getStaticIpClientEdit(req: Request, res: Response, next: N
         }
         const cfg = await getMikrotikConfig();
         const interfaces = cfg ? await getInterfaces(cfg) : [];
-        
+
         // Get ODP data with OLT and ODC info
         const conn = await databasePool.getConnection();
         try {
@@ -314,7 +358,7 @@ export async function getStaticIpClientEdit(req: Request, res: Response, next: N
                 LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
                 ORDER BY o.name
             `);
-            
+
             res.render('packages/static_ip_client_edit', {
                 title: `Edit Client Paket ${packageData.name}`,
                 package: packageData,
@@ -336,9 +380,9 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
     try {
         const packageId = Number(req.params.packageId);
         const clientId = Number(req.params.clientId);
-        const { 
-            client_name, 
-            ip_address, 
+        const {
+            client_name,
+            ip_address,
             interface: iface,
             address,
             phone_number,
@@ -362,15 +406,15 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
                 await removeIpAddress(cfg, oldClient.ip_address);
             }
             {
-                const ipToInt = (ip: string) => ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0;
-                const intToIp = (int: number) => [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.');
+                const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
                 const [ipOnlyRaw, prefixStrRaw] = String(oldClient.ip_address || '').split('/');
                 const ipOnly: string = ipOnlyRaw || '';
                 const prefix: number = Number(prefixStrRaw || '0');
-                const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+                const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
                 const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
                 let peerIp = ipOnly;
-                if (prefix === 30){
+                if (prefix === 30) {
                     const firstHost = networkInt + 1;
                     const secondHost = networkInt + 2;
                     const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
@@ -387,15 +431,15 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
                 await addIpAddress(cfg, { interface: iface, address: ip_address, comment: `Client ${client_name}` });
             }
             {
-                const ipToInt = (ip: string) => ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0;
-                const intToIp = (int: number) => [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.');
+                const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
                 const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
                 const ipOnly: string = ipOnlyRaw || '';
                 const prefix: number = Number(prefixStrRaw || '0');
-                const mask = prefix===0 ? 0 : (0xFFFFFFFF << (32-prefix))>>>0;
+                const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
                 const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
                 let peerIp = ipOnly;
-                if (prefix === 30){
+                if (prefix === 30) {
                     const firstHost = networkInt + 1;
                     const secondHost = networkInt + 2;
                     const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
@@ -428,9 +472,9 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
         }
 
         // Update database
-        await updateClient(clientId, { 
-            client_name, 
-            ip_address, 
+        await updateClient(clientId, {
+            client_name,
+            ip_address,
             interface: iface || null,
             address: address || null,
             phone_number: phone_number || null,
@@ -452,7 +496,7 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
 export async function testMikrotikIpAdd(req: Request, res: Response, next: NextFunction) {
     try {
         const { interface: iface, address } = req.query;
-        
+
         if (!iface || !address) {
             return res.json({
                 success: false,
@@ -460,7 +504,7 @@ export async function testMikrotikIpAdd(req: Request, res: Response, next: NextF
                 example: '/test-mikrotik-ip?interface=ether2&address=192.168.1.1/30'
             });
         }
-        
+
         const cfg = await getMikrotikConfig();
         if (!cfg) {
             return res.json({
@@ -468,24 +512,24 @@ export async function testMikrotikIpAdd(req: Request, res: Response, next: NextF
                 error: 'Konfigurasi MikroTik tidak ditemukan'
             });
         }
-        
+
         console.log('=== TEST MIKROTIK IP ADD ===');
         console.log('Interface:', iface);
         console.log('Address:', address);
-        
+
         await addIpAddress(cfg, {
             interface: String(iface),
             address: String(address),
             comment: `Test-${Date.now()}`
         });
-        
+
         res.json({
             success: true,
             message: 'IP address berhasil ditambahkan ke MikroTik',
             interface: iface,
             address: address
         });
-        
+
     } catch (err: any) {
         console.error('Test MikroTik error:', err);
         res.json({
@@ -512,7 +556,7 @@ export async function autoDebugIpStatic(req: Request, res: Response, next: NextF
 
     try {
         console.log('🔍 === AUTO DEBUG IP STATIC SYSTEM ===');
-        
+
         const cfg = await getMikrotikConfig();
         if (!cfg) {
             debugResults.summary.issues.push('Konfigurasi MikroTik tidak ditemukan');
@@ -545,7 +589,7 @@ export async function autoDebugIpStatic(req: Request, res: Response, next: NextF
             await api.connect();
             const interfaces = await api.write('/interface/print');
             await api.close();
-            
+
             const interfaceNames = Array.isArray(interfaces) ? interfaces.map((i: any) => i.name) : [];
             return {
                 count: interfaceNames.length,
@@ -567,7 +611,7 @@ export async function autoDebugIpStatic(req: Request, res: Response, next: NextF
             await api.connect();
             const addresses = await api.write('/ip/address/print');
             await api.close();
-            
+
             return {
                 total: Array.isArray(addresses) ? addresses.length : 0,
                 addresses: Array.isArray(addresses) ? addresses : [],
@@ -586,7 +630,7 @@ export async function autoDebugIpStatic(req: Request, res: Response, next: NextF
                 timeout: 15000
             });
             await api.connect();
-            
+
             // Cek apakah IP sudah ada
             const existing = await api.write('/ip/address/print');
             const exists = Array.isArray(existing) && existing.some((a: any) => a.address === testIp);
@@ -594,20 +638,20 @@ export async function autoDebugIpStatic(req: Request, res: Response, next: NextF
                 await api.close();
                 return { status: 'already_exists', ip: testIp };
             }
-            
+
             // Coba tambah IP
             const result = await api.write('/ip/address/add', [
                 '=interface=ether2',
                 `=address=${testIp}`,
                 `=comment=AutoDebug-${Date.now()}`
             ]);
-            
+
             // Verifikasi
             const verify = await api.write('/ip/address/print');
             const added = Array.isArray(verify) && verify.find((a: any) => a.address === testIp);
-            
+
             await api.close();
-            
+
             return {
                 status: added ? 'success' : 'failed',
                 ip: testIp,
@@ -622,9 +666,9 @@ export async function autoDebugIpStatic(req: Request, res: Response, next: NextF
         debugResults.summary.failed = debugResults.tests.filter((t: any) => !t.success).length;
 
         console.log('✅ Auto Debug Complete:', debugResults.summary);
-        
+
         res.json(debugResults);
-        
+
     } catch (err: any) {
         console.error('Auto Debug Error:', err);
         debugResults.summary.issues.push(err.message);
@@ -640,9 +684,9 @@ async function runTest(name: string, testFn: () => Promise<any>, debugResults: a
         error: null,
         duration: 0
     };
-    
+
     const start = Date.now();
-    
+
     try {
         test.result = await testFn();
         test.success = true;
@@ -652,7 +696,7 @@ async function runTest(name: string, testFn: () => Promise<any>, debugResults: a
         test.success = false;
         console.log(`❌ ${name}: FAILED - ${error.message}`);
     }
-    
+
     test.duration = Date.now() - start;
     debugResults.tests.push(test);
 }

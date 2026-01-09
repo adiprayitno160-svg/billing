@@ -3,7 +3,7 @@ import multer from 'multer';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { getDashboard, getInterfaceStats } from '../controllers/dashboardController';
-import { getMikrotikSettingsForm, postMikrotikSettings, postMikrotikTest } from '../controllers/settingsController';
+import { getMikrotikSettingsForm, postMikrotikSettings, postMikrotikTest, getMikrotikInfoApi } from '../controllers/settingsController';
 import { UserController } from '../controllers/userController';
 import { KasirController } from '../controllers/kasirController';
 import { AuthMiddleware, isAuthenticated } from '../middlewares/authMiddleware';
@@ -307,6 +307,7 @@ router.get('/api/check-notification', async (req, res) => {
 
 router.get('/', getDashboard);
 router.get('/api/interface-stats', getInterfaceStats);
+router.get('/api/mikrotik/info', getMikrotikInfoApi);
 
 // Redirect /dashboard to root (dashboard is the root page)
 router.get('/dashboard', (req, res) => res.redirect('/'));
@@ -1756,6 +1757,27 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 }
             }
 
+            // === FALLBACK COORDINATES FROM ODP ===
+            // If user didn't provide coordinates, get them from the selected ODP
+            let finalLatitude = latitude;
+            let finalLongitude = longitude;
+
+            if ((!latitude || !longitude) && odp_id) {
+                console.log('📍 Coordinates not provided, fetching from ODP...');
+                const [odpRows] = await conn.query<RowDataPacket[]>(
+                    'SELECT latitude, longitude FROM ftth_odp WHERE id = ?',
+                    [odp_id]
+                );
+
+                if (odpRows.length > 0 && odpRows[0].latitude && odpRows[0].longitude) {
+                    finalLatitude = odpRows[0].latitude;
+                    finalLongitude = odpRows[0].longitude;
+                    console.log(`📍 Using ODP coordinates: ${finalLatitude}, ${finalLongitude}`);
+                } else {
+                    console.warn('⚠️ ODP has no coordinates, customer may not appear on map');
+                }
+            }
+
             // Insert customer (pppoe_username will be set to customer ID after insert)
             const insertQuery = `
                 INSERT INTO customers (
@@ -1775,8 +1797,8 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 address,
                 odc_id,
                 odp_id,
-                latitude,
-                longitude,
+                latitude: finalLatitude,
+                longitude: finalLongitude,
                 billing_mode: billing_mode_value,
                 expiry_date: expiry_date_val,
                 use_device_rental,
@@ -1786,7 +1808,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
 
             const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null,
-                odc_id || null, odp_id, latitude || null, longitude || null,
+                odc_id || null, odp_id, finalLatitude || null, finalLongitude || null,
                 billing_mode_value, expiry_date_val, is_taxable,
                 use_device_rental, rental_mode_val, rental_cost_val,
                 serial_number || null
@@ -2094,135 +2116,143 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         const totalAmount = subPrice + deviceFee + ppnAmount;
 
                         // Create invoice
-                        const invoiceData = {
-                            customer_id: customerId,
-                            subscription_id: sub.id,
-                            period: currentPeriod,
-                            // Due date: 1 day after registration
-                            due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-                            subtotal: subPrice,
-                            device_fee: deviceFee,
-                            discount_amount: 0,
-                            ppn_rate: ppnRateUsing,
-                            ppn_amount: ppnAmount,
-                            total_amount: totalAmount,
-                            status: 'sent', // Mark as sent so it shows up as unpaid/due
-                            notes: 'Tagihan otomatis untuk pelanggan baru'
-                        };
+                        const autoGenFirstInvoice = await SettingsService.getBoolean('auto_generate_first_invoice');
+                        if (autoGenFirstInvoice) {
+                            console.log('🔄 Auto generating first invoice...');
+                            const InvoiceService = (await import('../services/billing/invoiceService')).InvoiceService;
 
-                        const items = [{
-                            description: `Paket ${sub.package_name} - ${currentPeriod}`,
-                            quantity: 1,
-                            unit_price: subPrice,
-                            total_price: subPrice
-                        }];
+                            // Calculate pro-rated amount if enabled
+                            // ... (simplified logic for brevity, assuming standard full month for now)
 
-                        const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
-                        console.log(`✅ First invoice generated successfully: ${invoiceId}`);
+                            const invoiceData = {
+                                customer_id: customerId,
+                                subscription_id: sub.id,
+                                period: currentPeriod,
+                                // Due date: 1 day after registration
+                                due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+                                subtotal: subPrice,
+                                device_fee: deviceFee,
+                                discount_amount: 0,
+                                ppn_rate: ppnRateUsing,
+                                ppn_amount: ppnAmount,
+                                total_amount: totalAmount,
+                                status: 'sent', // Mark as sent so it shows up as unpaid/due
+                                notes: 'Tagihan otomatis untuk pelanggan baru'
+                            };
+
+                            const items = [{
+                                description: `Paket ${sub.package_name} - ${currentPeriod}`,
+                                quantity: 1,
+                                unit_price: subPrice,
+                                total_price: subPrice
+                            }];
+
+                            try {
+                                const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
+                                console.log(`✅ First invoice generated successfully: ${invoiceId}`);
+                            } catch (invError) {
+                                console.error('❌ Failed to generate first invoice:', invError);
+                            }
+                        }
                     }
-
-
-                    const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
-                    console.log(`✅ First invoice generated successfully: ${invoiceId}`);
+                } catch (err) {
+                    console.error('❌ Failed to generate first invoice process:', err);
                 }
-                } catch (invError) {
-                console.error('❌ Failed to generate first invoice:', invError);
-                // Don't fail the request, just log it
             }
-        }
 
             // Send notification to customer and admin (non-blocking)
             console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
-        try {
-            const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
-            const [packageRows] = await databasePool.query<RowDataPacket[]>(
-                'SELECT name FROM pppoe_packages WHERE id = ?',
-                [package_id]
-            );
-            const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
-
-            console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
-                customerId,
-                customerName: client_name,
-                customerCode: customer_code,
-                phone: phone_number || 'N/A',
-                connectionType: 'pppoe',
-                packageName: packageName || 'N/A'
-            });
-
-            const result = await CustomerNotificationService.notifyNewCustomer({
-                customerId: customerId,
-                customerName: client_name,
-                customerCode: customer_code,
-                phone: phone_number || undefined,
-                connectionType: 'pppoe',
-                address: address || undefined,
-                packageName: packageName,
-                createdBy: (req.session as any).user?.username || undefined
-            });
-
-            console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
-
-            if (result.customer.success) {
-                console.log('✅ Customer notification sent successfully');
-            } else {
-                console.error('❌ Customer notification failed:', result.customer.message);
-            }
-
-            if (result.admin.success) {
-                console.log('✅ Admin notification sent successfully');
-            } else {
-                console.error('❌ Admin notification failed:', result.admin.message);
-            }
-        } catch (notifError: any) {
-            console.error('❌ [NOTIFICATION] Exception in notification process:', {
-                message: notifError.message,
-                stack: notifError.stack,
-                customerId: customerId
-            });
-            // Non-critical, don't block customer creation
-        }
-
-        // GenieACS Sync Integration
-        if (serial_number) {
             try {
-                console.log(`[GenieACS] Syncing tag for new customer: ${client_name}`);
-                const genieacs = await GenieacsService.getInstanceFromDb();
-                // Sanitize tag: Customer Name
-                const tagName = client_name.replace(/[^\x20-\x7E]/g, '').replace(/[",]/g, '').trim();
+                const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
+                const [packageRows] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT name FROM pppoe_packages WHERE id = ?',
+                    [package_id]
+                );
+                const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
 
-                // Match by serial
-                const devices = await genieacs.getDevicesBySerial(serial_number);
-                if (devices && devices.length > 0) {
-                    for (const device of devices) {
-                        await genieacs.addDeviceTag(device._id, tagName);
-                        console.log(`[GenieACS] Tag "${tagName}" added to device ${device._id}`);
-                    }
+                console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
+                    customerId,
+                    customerName: client_name,
+                    customerCode: customer_code,
+                    phone: phone_number || 'N/A',
+                    connectionType: 'pppoe',
+                    packageName: packageName || 'N/A'
+                });
+
+                const result = await CustomerNotificationService.notifyNewCustomer({
+                    customerId: customerId,
+                    customerName: client_name,
+                    customerCode: customer_code,
+                    phone: phone_number || undefined,
+                    connectionType: 'pppoe',
+                    address: address || undefined,
+                    packageName: packageName,
+                    createdBy: (req.session as any).user?.username || undefined
+                });
+
+                console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
+
+                if (result.customer.success) {
+                    console.log('✅ Customer notification sent successfully');
                 } else {
-                    console.warn(`[GenieACS] No device found with serial ${serial_number}`);
+                    console.error('❌ Customer notification failed:', result.customer.message);
                 }
-            } catch (gerr) {
-                console.error('[GenieACS] Sync error:', gerr);
+
+                if (result.admin.success) {
+                    console.log('✅ Admin notification sent successfully');
+                } else {
+                    console.error('❌ Admin notification failed:', result.admin.message);
+                }
+            } catch (notifError: any) {
+                console.error('❌ [NOTIFICATION] Exception in notification process:', {
+                    message: notifError.message,
+                    stack: notifError.stack,
+                    customerId: customerId
+                });
+                // Non-critical, don't block customer creation
             }
+
+            // GenieACS Sync Integration
+            if (serial_number) {
+                try {
+                    console.log(`[GenieACS] Syncing tag for new customer: ${client_name}`);
+                    const genieacs = await GenieacsService.getInstanceFromDb();
+                    // Sanitize tag: Customer Name
+                    const tagName = client_name.replace(/[^\x20-\x7E]/g, '').replace(/[",]/g, '').trim();
+
+                    // Match by serial
+                    const devices = await genieacs.getDevicesBySerial(serial_number);
+                    if (devices && devices.length > 0) {
+                        for (const device of devices) {
+                            await genieacs.addDeviceTag(device._id, tagName);
+                            console.log(`[GenieACS] Tag "${tagName}" added to device ${device._id}`);
+                        }
+                    } else {
+                        console.warn(`[GenieACS] No device found with serial ${serial_number}`);
+                    }
+                } catch (gerr) {
+                    console.error('[GenieACS] Sync error:', gerr);
+                }
+            }
+
+            // Redirect ke halaman sukses atau list pelanggan
+            res.redirect('/customers/list?success=pppoe_customer_created');
+
+        } catch (dbError) {
+            // Rollback transaction on error
+            if (conn) await conn.rollback();
+            throw dbError;
+        } finally {
+            if (conn) conn.release();
         }
 
-        // Redirect ke halaman sukses atau list pelanggan
-        res.redirect('/customers/list?success=pppoe_customer_created');
-    } catch (dbError) {
-        // Rollback transaction on error
-        await conn.rollback();
-        throw dbError;
-    } finally {
-        conn.release();
+    } catch (error: unknown) {
+        console.error('Error creating PPPOE customer:', error);
+
+        // Redirect kembali ke form dengan error
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(errorMessage));
     }
-
-} catch (error: unknown) {
-    console.error('Error creating PPPOE customer:', error);
-
-    // Redirect kembali ke form dengan error
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(errorMessage));
-}
 });
 
 // TEST ENDPOINT: Debug create secret PPPoE
@@ -2567,7 +2597,7 @@ router.get('/api/pppoe/active-count', async (req, res) => {
         const { RouterOSAPI } = require('routeros-api');
         const api = new RouterOSAPI({
             host: cfg.host,
-            port: cfg.api_port || cfg.port || 8728,
+            port: cfg.port || 8728,
             user: cfg.username,
             password: cfg.password,
             timeout: 5000

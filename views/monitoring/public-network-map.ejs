@@ -18,9 +18,44 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-    <!-- FORCE HIDE 3RD PARTY EXTENSIONS -->
+    <!-- ULTIMATE FORCE HIDE 3RD PARTY EXTENSIONS -->
     <style>
-        /* Agressive blocking of common AI Overlay Extensions */
+        /* === VIEWPORT LOCKDOWN === */
+        /* This is the most aggressive approach possible from CSS */
+        html {
+            overflow: clip !important;
+            overflow-clip-margin: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body {
+            overflow-x: clip !important;
+            overflow-y: auto !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: relative !important;
+            isolation: isolate !important;
+        }
+
+        /* Create a clip container that hides everything outside viewport */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            right: -1px;
+            width: 400px;
+            height: 100vh;
+            background: transparent;
+            z-index: 2147483647;
+            pointer-events: none;
+        }
+
+        /* Aggressive blocking of AI Overlay Extensions */
         #sider-sidebar-root,
         #check-sidebar-root,
         #monica-root-host,
@@ -38,16 +73,43 @@
         div[id*="deepseek"],
         chat-gpt-sidebar,
         #CRX-container,
-        .chsidebar-container {
+        .chsidebar-container,
+        [class*="gpt-sidebar"],
+        [class*="gpt_sidebar"],
+        [class*="GPT"],
+        [id*="GPT"],
+        [class*="chat-gpt"],
+        [class*="ChatGPT"],
+        [id*="chat-gpt"],
+        [id*="ChatGPT"],
+        [class*="openai"],
+        [id*="openai"],
+        [class*="extension"],
+        [id*="extension"],
+        div[data-extension],
+        div[data-chatgpt],
+        div[data-gpt] {
             display: none !important;
             opacity: 0 !important;
             visibility: hidden !important;
             width: 0 !important;
             height: 0 !important;
+            max-width: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
             pointer-events: none !important;
             position: fixed !important;
             z-index: -99999 !important;
             left: -99999px !important;
+            top: -99999px !important;
+            transform: scale(0) !important;
+            clip: rect(0, 0, 0, 0) !important;
+            clip-path: inset(100%) !important;
+        }
+
+        /* Hide ANY fixed/absolute element at far right that's not ours */
+        body>div:not(#map):not(.stats-panel):not(.control-panel):not(.loading-overlay):not(.odc-sidebar):not(.leaflet-pane):not([class^="leaflet"]) {
+            /* Additional check with JS below */
         }
     </style>
 
@@ -1018,46 +1080,265 @@
 </head>
 
 <body>
-    <!-- AGGRESSIVE CLEANER SCRIPT -->
+    <!-- EXTENSION SIDEBAR BLOCKER OVERLAY -->
+    <!-- This element FORCEFULLY covers any sidebar on the right -->
+    <div id="extensionBlocker" style="
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: 400px !important;
+        height: 100vh !important;
+        background-color: #0f172a !important; /* Matches generic dark theme */
+        z-index: 2147483647 !important; /* Max 32-bit integer */
+        pointer-events: auto !important; /* Blocks clicks to the extension */
+        display: block !important;
+        transform: translateZ(9999px) !important; /* Force GPU layer on top */
+    ">
+        <div
+            style="display:flex; align-items:center; justify-content:center; height:100%; color:#334155; font-size:10px; transform: rotate(90deg);">
+            NO EXTENSIONS ALLOWED
+        </div>
+    </div>
+
+    <!-- ROOT LEVEL FORENSIC CLEANER -->
     <script>
         (function () {
-            function nuke() {
-                // 1. Selector based removal
-                const selectors = [
-                    '#sider-sidebar-root', '#monica-root-host', '#check-sidebar-root',
-                    '#chatgpt-sidebar-root', '#__chsidebar', '.sider-sidebar-container',
-                    '[id^="aiinhbfoop"]', '[class^="aiinhbfoop"]', '#CRX-container',
-                    '.chsidebar-container', 'chat-gpt-sidebar',
-                    'div[id*="gpt"]', 'div[class*="gpt"]' // Risky but necessary for "gpt"
-                ];
+            const blocker = document.getElementById('extensionBlocker');
 
-                selectors.forEach(sel => {
-                    document.querySelectorAll(sel).forEach(el => {
-                        // Whitelist safety check
-                        if (el.id === 'map' || el.id === 'loadingOverlay' || el.classList.contains('stats-panel')) return;
-                        el.remove();
-                    });
+            function enforceRootCleaning() {
+                // DOM DOMINANCE V2: Append to HTML (Parent of Body) not Body
+                // This forces our blocker to be a sibling of the extension
+                if (document.documentElement && document.documentElement.lastElementChild !== blocker) {
+                    try {
+                        document.documentElement.appendChild(blocker);
+                        // Also force style update in case extension fights back
+                        blocker.style.display = 'block';
+                        blocker.style.zIndex = '2147483647';
+                    } catch (e) {
+                        // Fallback
+                        if (document.body) document.body.appendChild(blocker);
+                    }
+                }
+
+                // ROOT SCAN
+                const children = document.documentElement.children;
+                for (let i = 0; i < children.length; i++) {
+                    const el = children[i];
+                    if (el === document.body || el === document.head || el === blocker) continue;
+
+                    const id = el.id ? el.id.toLowerCase() : '';
+                    if (id.includes('aiinhbfoop') || el.className.toString().includes('aiinhbfoop')) {
+                        try { el.remove(); } catch (e) { }
+                    }
+                }
+            }
+
+            // Continuous scanning
+            setInterval(enforceRootCleaning, 100);
+        })();
+    </script>
+
+    <style>
+        /* CSS to target siblings of body */
+        html>body~* {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            clip-path: inset(100%) !important;
+        }
+    </style>
+    <!-- ULTIMATE AGGRESSIVE CLEANER SCRIPT -->
+    <script>
+        (function () {
+            // Known extension selectors to nuke
+            const NUKE_SELECTORS = [
+                '#sider-sidebar-root', '#monica-root-host', '#check-sidebar-root',
+                '#chatgpt-sidebar-root', '#__chsidebar', '.sider-sidebar-container',
+                '[id^="aiinhbfoop"]', '[class^="aiinhbfoop"]', '#CRX-container',
+                '.chsidebar-container', 'chat-gpt-sidebar', 'side-bar',
+                '[id*="gpt"]', '[class*="gpt"]', '[id*="GPT"]', '[class*="GPT"]',
+                '[id*="openai"]', '[class*="openai"]', '[id*="chatgpt"]', '[class*="chatgpt"]',
+                '[id*="sider"]', '[class*="sider"]', '[id*="monica"]', '[class*="monica"]',
+                '[data-extension]', '[data-chatgpt]', '[data-gpt]'
+            ];
+
+            // Whitelisted elements that should never be removed
+            const WHITELIST_IDS = ['map', 'loadingOverlay', 'statsPanel', 'controlPanel', 'odcSidebar'];
+            const WHITELIST_CLASSES = ['stats-panel', 'control-panel', 'odc-sidebar', 'leaflet-control',
+                'leaflet-pane', 'popup-content', 'loading-overlay'];
+
+            function isWhitelisted(el) {
+                if (!el || !el.tagName) return true;
+                if (WHITELIST_IDS.includes(el.id)) return true;
+                for (const cls of WHITELIST_CLASSES) {
+                    if (el.classList && el.classList.contains(cls)) return true;
+                }
+                // Check if it's inside the map
+                if (el.closest('#map')) return true;
+                if (el.closest('.leaflet-container')) return true;
+                return false;
+            }
+
+            function nukeElement(el) {
+                if (isWhitelisted(el)) return;
+                try {
+                    el.remove();
+                    console.log('[EXTENSION CLEANER] Removed:', el.tagName, el.id || el.className);
+                } catch (e) { }
+            }
+
+            function nukeBySelectors() {
+                NUKE_SELECTORS.forEach(sel => {
+                    try {
+                        document.querySelectorAll(sel).forEach(el => {
+                            nukeElement(el);
+                        });
+                    } catch (e) { }
+                });
+            }
+
+            function nukeSuspiciousSidebars() {
+                // 1. Existing Logic: Find fixed/absolute positioned elements
+                const allDivs = document.querySelectorAll('body > div, body > aside, body > section, body > shadow-host');
+                allDivs.forEach(div => {
+                    if (isWhitelisted(div)) return;
+                    // Ignore built-in elements
+                    if (div.tagName === 'SCRIPT' || div.tagName === 'STYLE') return;
+
+                    const style = window.getComputedStyle(div);
+                    const rect = div.getBoundingClientRect();
+
+                    // Check if it's fixed/absolute and on the right side
+                    if ((style.position === 'fixed' || style.position === 'absolute') &&
+                        rect.right >= window.innerWidth - 30 &&
+                        rect.height > 100 &&
+                        rect.width > 20 && rect.width < 600) {
+
+                        // Check content for GPT/AI keywords or if it's just a generic container
+                        // If it's on the far right and fixed, it's likely an extension sidebar
+                        console.log('[EXTENSION CLEANER] Detected suspicious sidebar via metrics:', div.id || div.className);
+                        div.style.cssText = 'display:none!important;visibility:hidden!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;position:fixed!important;left:-99999px!important;z-index:-9999!important;';
+                        try { div.remove(); } catch (e) { }
+                    }
                 });
 
-                // 2. Text Content Heuristic (If an element contains "GPT-4o" or "Chat", hide it)
-                // This is dangerous, so we scope it to fixed/absolute containers on the right side
-                const potentialSidebars = document.querySelectorAll('div[style*="fixed"], div[style*="absolute"]');
-                potentialSidebars.forEach(div => {
-                    const rect = div.getBoundingClientRect();
-                    // If it's on the right edge and tall
-                    if (rect.left > window.innerWidth - 400 && rect.height > 300) {
-                        if (div.innerText.includes('GPT') || div.innerText.includes('Chat') || div.innerText.includes('AI')) {
-                            if (div.id !== 'controlPanel' && !div.classList.contains('leaflet-control-layers')) {
-                                div.style.display = 'none';
-                            }
+                // 2. "Seek and Destroy" Physics-Based Logic
+                // Scan the right edge of the screen to find elements physically obstructing the view
+                const screenRight = window.innerWidth - 30; // 30px from right edge
+                const screenHeight = window.innerHeight;
+
+                // Scan points from top to bottom
+                for (let y = 100; y < screenHeight - 100; y += 100) {
+                    const el = document.elementFromPoint(screenRight, y);
+                    if (el &&
+                        el.tagName !== 'BODY' &&
+                        el.tagName !== 'HTML' &&
+                        !isWhitelisted(el)) {
+
+                        // Double check it's not a child of whitelisted element
+                        if (el.closest('#map') || el.closest('.stats-panel')) continue;
+
+                        const rect = el.getBoundingClientRect();
+                        // Ensure we don't delete full-screen overlays or the map itself
+                        if (rect.width < window.innerWidth && rect.height > 50) {
+                            console.log('[EXTENSION CLEANER] Seek & Destroy hit:', el.tagName, el.id, el.className);
+                            el.style.setProperty('display', 'none', 'important');
+                            el.style.setProperty('visibility', 'hidden', 'important');
+                            try { el.remove(); } catch (e) { }
+                        }
+                    }
+                }
+            }
+
+            function nukeShadowRoots() {
+                // Try to pierce shadow roots (limited by browser security)
+                document.querySelectorAll('*').forEach(el => {
+                    if (el.shadowRoot && !isWhitelisted(el)) {
+                        const shadowContent = el.shadowRoot.innerHTML || '';
+                        if (shadowContent.includes('GPT') || shadowContent.includes('gpt') ||
+                            shadowContent.includes('chat') || shadowContent.includes('sidebar')) {
+                            console.log('[EXTENSION CLEANER] Removing element with suspicious shadow root');
+                            try { el.remove(); } catch (e) { }
                         }
                     }
                 });
             }
 
-            // Run frequently
-            setInterval(nuke, 500);
-            window.addEventListener('load', nuke);
+
+            function fullNuke() {
+                nukeBySelectors();
+                nukeSuspiciousSidebars();
+                nukeShadowRoots();
+
+                // Specifically target aiinhbfoop extension (identified as the culprit)
+                document.querySelectorAll('[id^="aiinhbfoop"], [class*="aiinhbfoop"]').forEach(el => {
+                    try { el.remove(); } catch (e) { }
+                });
+            }
+
+            // Run immediately
+            fullNuke();
+
+            // Run after DOM ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', fullNuke);
+            }
+
+            // Run after full load
+            window.addEventListener('load', () => {
+                fullNuke();
+                setTimeout(fullNuke, 50);
+                setTimeout(fullNuke, 100);
+                setTimeout(fullNuke, 200);
+                setTimeout(fullNuke, 500);
+                setTimeout(fullNuke, 1000);
+                setTimeout(fullNuke, 2000);
+                setTimeout(fullNuke, 3000);
+            });
+
+            // Run VERY frequently (every 100ms) to catch re-renders
+            setInterval(fullNuke, 100);
+
+            // Watch for new elements with MutationObserver
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if it's a known extension element
+                            const tagName = node.tagName ? node.tagName.toLowerCase() : '';
+                            const id = node.id ? node.id.toLowerCase() : '';
+                            const className = node.className ? (typeof node.className === 'string' ? node.className.toLowerCase() : '') : '';
+
+                            // Include aiinhbfoop pattern (the identified extension)
+                            if (id.includes('gpt') || id.includes('chatgpt') || id.includes('monica') ||
+                                id.includes('sider') || id.includes('openai') || id.includes('aiinhbfoop') ||
+                                className.includes('gpt') || className.includes('chatgpt') ||
+                                className.includes('monica') || className.includes('sider') || className.includes('aiinhbfoop') ||
+                                tagName.includes('chat-gpt') || tagName.includes('sidebar')) {
+                                nukeElement(node);
+                            }
+
+                            // Also run the suspicious sidebar check on new elements
+                            if (!isWhitelisted(node)) {
+                                const style = window.getComputedStyle(node);
+                                if (style.position === 'fixed' || style.position === 'absolute') {
+                                    setTimeout(() => nukeSuspiciousSidebars(), 50);
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+
+            console.log('[EXTENSION CLEANER] Ultimate protection activated');
         })();
     </script>
 
@@ -2657,6 +2938,50 @@
         });
     </script>
 
+    <!-- NUCLEAR FINAL OPTION: 60FPS CLEANER -->
+    <script>
+        (function () {
+            // Target the specific ID found by forensic analysis
+            const TARGET_ID = 'aiinhbfoop';
+
+            function kill() {
+                try {
+                    // 1. Scan Root Level (Direct children of HTML tag)
+                    // This is where the persistent sidebar hides
+                    const rootKids = document.documentElement.children;
+                    for (let i = 0; i < rootKids.length; i++) {
+                        const el = rootKids[i];
+                        if (el.tagName === 'BODY' || el.tagName === 'HEAD') continue;
+
+                        // Check ID and Class
+                        const id = el.id || '';
+                        const cls = el.className && typeof el.className === 'string' ? el.className : '';
+
+                        if (id.includes(TARGET_ID) || cls.includes(TARGET_ID)) {
+                            // Found it! Force remove.
+                            document.documentElement.removeChild(el);
+                            console.log('🚀 NUCLEAR REMOVAL: ' + id);
+                        }
+                    }
+
+                    // 2. Scan Body Level
+                    const bodyEl = document.getElementById(TARGET_ID) || document.getElementById(TARGET_ID + '-container');
+                    if (bodyEl) bodyEl.remove();
+
+                    // 3. Scan by Attribute (common in these extensions)
+                    const attributeTargets = document.querySelectorAll('[id*="' + TARGET_ID + '"], [class*="' + TARGET_ID + '"]');
+                    attributeTargets.forEach(el => el.remove());
+
+                } catch (e) { /* ignore errors to keep loop running */ }
+
+                // Run again next frame (approx 60 times per second)
+                requestAnimationFrame(kill);
+            }
+
+            // Start the loop
+            kill();
+        })();
+    </script>
 </body>
 
 </html>

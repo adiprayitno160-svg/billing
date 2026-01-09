@@ -192,64 +192,75 @@
 	<!-- MikroTik Status, Server Monitoring & Interface Speed -->
 	<div class="grid gap-6 grid-cols-1 lg:grid-cols-3">
 		<!-- Status MikroTik (Kiri) -->
-		<% if (typeof mikrotikInfo !=='undefined' && mikrotikInfo) { %>
+		<% if (typeof settings !=='undefined' && settings) { %>
 			<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
 				style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 				<div class="flex items-center justify-between mb-4">
 					<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
-					<% if (connectionStatus.connected) { %>
-						<span
-							class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
-							<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>
-							Terhubung
-						</span>
-						<% } else { %>
-							<span
-								class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
-								<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
-								Terputus
-							</span>
-							<% } %>
+					<span id="mt-connection-status"
+						class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-800">
+						<span class="h-2 w-2 rounded-full bg-gray-400 mr-2 animate-pulse"></span>
+						Connecting...
+					</span>
 				</div>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-2 gap-3" id="mt-info-grid">
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-xs text-gray-600 font-medium">Identity</div>
-						<div class="text-sm font-bold text-gray-900 truncate">
-							<%= mikrotikInfo.identity || '-' %>
-						</div>
+						<div class="text-sm font-bold text-gray-900 truncate" id="mt-identity">-</div>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-xs text-gray-600 font-medium">Version</div>
-						<div class="text-sm font-bold text-gray-900">
-							<%= mikrotikInfo.version || '-' %>
-						</div>
+						<div class="text-sm font-bold text-gray-900" id="mt-version">-</div>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-xs text-gray-600 font-medium">Uptime</div>
-						<div class="text-sm font-bold text-gray-900">
-							<%= mikrotikInfo.uptime || '-' %>
-						</div>
+						<div class="text-sm font-bold text-gray-900" id="mt-uptime">-</div>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-xs text-gray-600 font-medium">CPU Load</div>
-						<div class="text-sm font-bold text-gray-900">
-							<%= mikrotikInfo.cpuLoad || '-' %>%
-						</div>
+						<div class="text-sm font-bold text-gray-900" id="mt-cpu-load">-</div>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-xs text-gray-600 font-medium">Board</div>
-						<div class="text-sm font-bold text-gray-900">
-							<%= mikrotikInfo['board-name'] || '-' %>
-						</div>
+						<div class="text-sm font-bold text-gray-900" id="mt-board">-</div>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-xs text-gray-600 font-medium">CPU</div>
-						<div class="text-sm font-bold text-gray-900">
-							<%= mikrotikInfo.cpu || '-' %>
-						</div>
+						<div class="text-sm font-bold text-gray-900" id="mt-cpu">-</div>
 					</div>
 				</div>
 			</div>
+
+			<script>
+				document.addEventListener('DOMContentLoaded', function () {
+					const statusEl = document.getElementById('mt-connection-status');
+
+					fetch('/api/mikrotik/info')
+						.then(response => response.json())
+						.then(data => {
+							if (data.ok && data.info) {
+								// Update Status Badge
+								statusEl.className = 'inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800';
+								statusEl.innerHTML = '<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>Terhubung';
+
+								// Update Fields
+								document.getElementById('mt-identity').textContent = data.info.identity || '-';
+								document.getElementById('mt-version').textContent = data.info.version || '-';
+								document.getElementById('mt-uptime').textContent = data.info.uptime || '-';
+								document.getElementById('mt-cpu-load').textContent = (data.info.cpuLoad || '-') + '%';
+								document.getElementById('mt-board').textContent = data.info['board-name'] || '-';
+								document.getElementById('mt-cpu').textContent = data.info.cpu || '-';
+							} else {
+								throw new Error(data.error || 'Failed to connect');
+							}
+						})
+						.catch(err => {
+							console.error('Mikrotik Info Error:', err);
+							statusEl.className = 'inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800';
+							statusEl.innerHTML = '<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>Terputus';
+						});
+				});
+			</script>
 			<% } else { %>
 				<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl"
 					style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">

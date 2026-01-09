@@ -104,6 +104,38 @@ export async function postMikrotikSettings(req: Request, res: Response): Promise
 	}
 }
 
+// Export this function to be used by the API route
+export async function getMikrotikInfoApi(req: Request, res: Response): Promise<void> {
+	try {
+		const [rows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
+		const settings = Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : null;
+
+		if (!settings) {
+			res.status(404).json({ ok: false, error: 'Mikrotik settings not found' });
+			return;
+		}
+
+		const cfg: MikroTikSettings = {
+			host: settings.host,
+			port: settings.port,
+			username: settings.username,
+			password: settings.password,
+			use_tls: settings.use_tls === 1
+		};
+
+		// Add timeout (5 seconds)
+		const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 5000));
+		const infoPromise = getMikrotikInfo(cfg);
+
+		const info = await Promise.race([infoPromise, timeoutPromise]);
+
+		res.json({ ok: true, info });
+	} catch (error: any) {
+		console.error('[API] Error fetching Mikrotik info:', error);
+		res.status(500).json({ ok: false, error: error.message || 'Failed to fetch Mikrotik info' });
+	}
+}
+
 export async function postMikrotikTest(req: Request, res: Response): Promise<void> {
 	const cfg: MikroTikSettings = {
 		host: String(req.body.host ?? process.env.MT_HOST ?? '127.0.0.1'),
