@@ -137,7 +137,7 @@
                         </h3>
                     </div>
                     <div class="p-6 space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-green-800 mb-1">IP Address (Pelanggan)
                                     *</label>
@@ -145,6 +145,22 @@
                                     class="w-full rounded-lg border border-green-300 px-4 py-2.5 bg-slate-50 font-mono text-slate-700 cursor-not-allowed" />
                                 <p class="text-xs text-amber-600 mt-1" id="ipWarning"></p>
                             </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-green-800 mb-1">Gateway IP</label>
+                                <input id="inputGatewayIpDisplay" readonly
+                                    class="w-full rounded-lg border border-purple-300 px-4 py-2.5 bg-purple-50 font-mono text-purple-700 cursor-not-allowed"
+                                    placeholder="Auto dari MikroTik" />
+                                <p class="text-xs text-purple-600 mt-1">Untuk isolir otomatis</p>
+                            </div>
+                            <div>
+                                <label class="block text-m font-semibold text-green-800 mb-1">Interface</label>
+                                <input id="inputInterfaceDisplay" readonly
+                                    class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 bg-cyan-50 font-mono text-cyan-700 cursor-not-allowed"
+                                    placeholder="Auto dari MikroTik" />
+                                <p class="text-xs text-cyan-600 mt-1">Interface MikroTik</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-semibold text-green-800 mb-1">Pilih Paket Billing
                                     *</label>
@@ -246,7 +262,8 @@
                         <li>• IP Gateway harus di <code class="bg-amber-100 px-1 rounded">/ip/address</code></li>
                         <li>• Network mask harus sama (misal /30)</li>
                         <li>• Contoh: Pelanggan <code class="bg-amber-100 px-1 rounded">192.168.1.2</code> → Gateway
-                            <code class="bg-amber-100 px-1 rounded">192.168.1.1/30</code></li>
+                            <code class="bg-amber-100 px-1 rounded">192.168.1.1/30</code>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -341,8 +358,12 @@
             document.getElementById('inputGatewayIpId').value = data.gatewayIpId || '';
             document.getElementById('inputInterface').value = data.interface || '';
 
+            // Fill display fields
+            document.getElementById('inputGatewayIpDisplay').value = data.gatewayIp || 'Tidak Terdeteksi';
+            document.getElementById('inputInterfaceDisplay').value = data.interface || 'Tidak Terdeteksi';
+
             // Clean name
-            let cleanName = data.queueName.replace(/[_\-\.]/g, ' ').trim();
+            let cleanName = data.queueName.replace(/[_\\-\\.]/g, ' ').trim();
             document.getElementById('inputName').value = cleanName;
 
             // IP

@@ -143,13 +143,15 @@ export class StaticIpImportController {
             const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
             const customerCode = `CUST${timestamp}${random}`;
 
-            // 2. Insert Customer Baru
+            // 2. Insert Customer Baru (dengan gateway info)
             const [custResult] = await conn.execute(`
                 INSERT INTO customers (
-                    customer_code, name, phone, address, 
+                    customer_code, name, phone, address, ip_address,
+                    gateway_ip, gateway_ip_id, interface,
                     connection_type, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, 'static_ip', 'active', NOW(), NOW())
-            `, [customerCode, name, phone || null, address || null]);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', NOW(), NOW())
+            `, [customerCode, name, phone || null, address || null, ipAddress,
+                gatewayIp || null, gatewayIpId || null, iface || null]);
 
             const newCustomerId = (custResult as any).insertId;
             console.log(`[Import] Customer Created ID: ${newCustomerId}, Code: ${customerCode}`);
