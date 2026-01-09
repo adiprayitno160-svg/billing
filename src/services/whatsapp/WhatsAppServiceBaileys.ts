@@ -237,12 +237,32 @@ export class WhatsAppServiceBaileys {
 
             console.log('📩 New message received from:', from);
 
+            // Ignore protocol messages, updates, reaction messages, poll updates, etc.
+            const messageType = Object.keys(msg.message || {})[0];
+            const ignoredTypes = [
+                'protocolMessage',
+                'senderKeyDistributionMessage',
+                'reactionMessage',
+                'pollUpdateMessage',
+                'keepInChatMessage',
+                'pinInChatMessage'
+            ];
+
+            if (ignoredTypes.includes(messageType)) {
+                console.log(`[Baileys] ⏭️ Skipping ignored message type: ${messageType}`);
+                return;
+            }
+
             // Extract message text
             let messageText = '';
             if (msg.message?.conversation) {
                 messageText = msg.message.conversation;
             } else if (msg.message?.extendedTextMessage?.text) {
                 messageText = msg.message.extendedTextMessage.text;
+            } else if (msg.message?.imageMessage?.caption) {
+                messageText = msg.message.imageMessage.caption;
+            } else if (msg.message?.videoMessage?.caption) {
+                messageText = msg.message.videoMessage.caption;
             }
 
             // Check if has media
@@ -252,13 +272,21 @@ export class WhatsAppServiceBaileys {
                 msg.message?.documentMessage
             );
 
+            // STRICT FILTER: If empty text AND no media, ignore it
+            if (!messageText && !hasMedia) {
+                console.log('[Baileys] ⏭️ Skipping empty message (no text, no media)');
+                // Log content for debugging
+                // console.log('[DEBUG] Empty Message Content:', JSON.stringify(msg.message));
+                return;
+            }
+
             console.log('[WhatsAppBaileys] From:', from);
             console.log('[WhatsAppBaileys] Body:', messageText?.substring(0, 100));
             console.log('[WhatsAppBaileys] Has Media:', hasMedia);
+            console.log('[WhatsAppBaileys] Type:', messageType);
 
             // DEBUG: Log raw message for investigation
             console.log('[DEBUG] Raw message key:', JSON.stringify(msg.key));
-            console.log('[DEBUG] Message participant:', msg.key.participant);
             console.log('[DEBUG] Message fromMe:', msg.key.fromMe);
 
             // Create adapter for bot service
