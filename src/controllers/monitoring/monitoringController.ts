@@ -259,12 +259,34 @@ export class MonitoringController {
                 session_info: onlineSessions.find(session => session.name === customer.pppoe_username) || null
             }));
 
-            console.log('Rendering view...');
+            // Calculate Global Stats (Separate from pagination)
+            const [globalStats] = await databasePool.query(`
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_db,
+                    SUM(CASE WHEN is_isolated = 1 THEN 1 ELSE 0 END) as isolated
+                FROM customers 
+                WHERE connection_type = 'pppoe'
+            `) as [RowDataPacket[], any];
+
+            const stats = {
+                total_secret: globalStats[0].total || 0,
+                active_db: globalStats[0].active_db || 0,
+                isolated: globalStats[0].isolated || 0,
+                realtime_online: onlineSessions.length, // Raw count from MikroTik
+                // Trouble indication: Active in DB but not Online
+                // Note: This is an estimation. Exact match requires checking all rows.
+                // We use (Active DB - Realtime) as a rough indicator, or just show Realtime
+                trouble_estimation: Math.max(0, (globalStats[0].active_db || 0) - onlineSessions.length)
+            };
+
+            console.log('Rendering view with stats:', stats);
             res.render('monitoring/pppoe', {
                 title: 'Monitor PPPoE',
                 currentPath: '/monitoring/pppoe',
                 customers: customersWithStatus,
                 odpList: odpList || [],
+                stats, // Pass the new stats object
                 pagination: {
                     currentPage: page,
                     totalPages: Math.ceil(totalCount / limit),

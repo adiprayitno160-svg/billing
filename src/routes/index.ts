@@ -1813,16 +1813,16 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 }
             }
 
-            // Insert customer (pppoe_username will be set to customer ID after insert)
+            // Insert customer with pppoe_username
             const insertQuery = `
                 INSERT INTO customers (
                     customer_code, name, phone, email, address, odc_id, odp_id,
                     connection_type, status, latitude, longitude,
-                    pppoe_username, created_at, updated_at,
+                    pppoe_username, pppoe_password, created_at, updated_at,
                     billing_mode, expiry_date, is_taxable, 
                     use_device_rental, rental_mode, rental_cost,
                     serial_number
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?)
             `;
 
             console.log('Inserting customer with data:', {
@@ -1834,6 +1834,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 odp_id,
                 latitude: finalLatitude,
                 longitude: finalLongitude,
+                pppoe_username: username,
                 billing_mode: billing_mode_value,
                 expiry_date: expiry_date_val,
                 use_device_rental,
@@ -1844,6 +1845,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
             const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null,
                 odc_id || null, odp_id, finalLatitude || null, finalLongitude || null,
+                username, password, // Simpan username dan password
                 billing_mode_value, expiry_date_val, is_taxable,
                 use_device_rental, rental_mode_val, rental_cost_val,
                 serial_number || null
@@ -1866,19 +1868,15 @@ router.post('/customers/new-pppoe', async (req, res) => {
             console.log('📱 Customer phone number:', phone_number || 'NOT SET');
             console.log('📱 Phone number trimmed:', phone_number ? phone_number.trim() : 'EMPTY');
 
-            // Update pppoe_username to customer ID (within same transaction)
-            await conn.execute(
-                'UPDATE customers SET pppoe_username = ? WHERE id = ?',
-                [customerId.toString(), customerId]
-            );
-            console.log('✅ Updated pppoe_username to customer ID');
+            // HAPUS logic UPDATE pppoe_username yang lama karena sudah disimpan saat INSERT
+            // console.log('✅ Updated pppoe_username to customer ID'); <-- DISABLED
 
-            // Sync secret ke MikroTik - Name = Customer ID, Comment = Customer Name
+            // Sync secret ke MikroTik - Name = Username, Comment = Customer Name
             console.log('═══════════════════════════════════════════════════════════');
             console.log('🔄 ========== MULAI SYNC SECRET KE MIKROTIK ==========');
             console.log('═══════════════════════════════════════════════════════════');
             console.log('   Customer ID:', customerId);
-            console.log('   Secret name (Customer ID):', customerId.toString());
+            console.log('   Secret name (Username):', username);
             console.log('   Customer name:', client_name);
             console.log('   Password provided:', password ? 'YES' : 'NO');
             let profileName = 'GRATIS';
@@ -1957,10 +1955,10 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         console.error('   ⚠️ Akan lanjut tanpa cek profile');
                     }
 
-                    // Use customer ID as the name for PPPoE secret
-                    const secretName = customerId.toString();
+                    // Use USERNAME as the name for PPPoE secret regarding to user request
+                    const secretName = username;
 
-                    // Cek apakah secret sudah ada dengan customer ID
+                    // Cek apakah secret sudah ada dengan username
                     console.log('   Step 4: Cek apakah secret sudah ada...');
                     let existingSecretId = null;
                     try {
@@ -1979,7 +1977,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         console.log('   Step 5: Update secret yang sudah ada...');
                         try {
                             await updatePppoeSecret(config, secretName, {
-                                name: secretName, // Use customer ID as name
+                                name: secretName,
                                 password: password,
                                 profile: profileName,
                                 comment: client_name // Use customer name as comment
@@ -1992,18 +1990,18 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     } else {
                         console.log('   Step 5: Create secret baru...');
                         console.log('   📤 Data yang akan dikirim:', {
-                            name: secretName, // Customer ID
+                            name: secretName,
                             password: password ? '***' : 'NOT SET',
                             profile: profileName,
-                            comment: client_name // Customer name
+                            comment: client_name
                         });
 
                         try {
                             await createPppoeSecret(config, {
-                                name: secretName, // Use customer ID as name
+                                name: secretName,
                                 password: password,
                                 profile: profileName,
-                                comment: client_name // Use customer name as comment
+                                comment: client_name
                             });
                             console.log(`   ✅ PPPoE secret dengan ID "${secretName}" berhasil dibuat di MikroTik`);
                         } catch (createError: any) {
