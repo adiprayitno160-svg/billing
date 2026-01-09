@@ -34,6 +34,42 @@ export class WhatsAppBotService {
     // TODO: Add Admin Numbers here (e.g., '628123456789')
     private static readonly ADMIN_NUMBERS: string[] = [];
 
+    // Deduplication: Track recently processed messages (sender + body hash)
+    private static recentMessages: Map<string, number> = new Map();
+    private static readonly DEDUP_WINDOW_MS = 5000; // 5 seconds window
+
+    private static getMessageHash(sender: string, body: string): string {
+        // Simple hash: first 50 chars of sender + body
+        return `${sender}:${body.substring(0, 50)}`;
+    }
+
+    private static isDuplicateMessage(sender: string, body: string): boolean {
+        const hash = this.getMessageHash(sender, body);
+        const now = Date.now();
+        const lastTime = this.recentMessages.get(hash);
+
+        if (lastTime && (now - lastTime) < this.DEDUP_WINDOW_MS) {
+            console.log(`[WhatsAppBot] ⏭️ DUPLICATE DETECTED: Same message from ${sender} within ${this.DEDUP_WINDOW_MS}ms window`);
+            return true;
+        }
+
+        // Record this message
+        this.recentMessages.set(hash, now);
+
+        // Cleanup old entries (keep map small)
+        if (this.recentMessages.size > 100) {
+            const cutoff = now - this.DEDUP_WINDOW_MS;
+            for (const [key, time] of this.recentMessages.entries()) {
+                if (time < cutoff) {
+                    this.recentMessages.delete(key);
+                }
+            }
+        }
+
+        return false;
+    }
+
+
     /**
      * Check if phone number belongs to an admin
      */
@@ -119,6 +155,13 @@ export class WhatsAppBotService {
 
             // Extract phone number for DB lookup (remove @suffix)
             phone = senderJid.split('@')[0] || '';
+
+            // DEDUPLICATION CHECK: Skip if this exact message was just processed
+            if (this.isDuplicateMessage(senderJid, body)) {
+                console.log('[WhatsAppBot] ⏭️ Skipping duplicate message (dedup check)');
+                return;
+            }
+
             console.log(`[WhatsAppBot] 📨 Incoming message:`);
             console.log(`[WhatsAppBot]   From (JID): ${senderJid}`);
             console.log(`[WhatsAppBot]   Phone ID: ${phone}`);
