@@ -1301,49 +1301,58 @@ Ketik /menu untuk kembali ke menu utama.`;
     private static async getCustomerByPhone(phone: string): Promise<any | null> {
         try {
             let normalizedPhone = this.resolveLid(phone).split('@')[0].trim();
-            console.log(`[WhatsAppBot] 🔍 Looking for customer with phone: ${normalizedPhone}`);
 
-            // Try exact match first
-            console.log(`[WhatsAppBot]   → Query 1: Exact match for "${normalizedPhone}"`);
+            // AGGRESSIVE NORMALIZATION: Remove ALL non-digit characters
+            const digitsOnly = normalizedPhone.replace(/\D/g, '');
+            console.log(`[WhatsAppBot] 🔍 Looking for customer with phone: ${normalizedPhone} (Digits: ${digitsOnly})`);
+
+            // Prepare multiple formats to search
+            const phoneVariants: string[] = [];
+
+            // Add original cleaned version
+            phoneVariants.push(digitsOnly);
+
+            // Add with 62 prefix if starts with 0
+            if (digitsOnly.startsWith('0')) {
+                phoneVariants.push('62' + digitsOnly.substring(1));
+            }
+            // Add with 0 prefix if starts with 62
+            if (digitsOnly.startsWith('62')) {
+                phoneVariants.push('0' + digitsOnly.substring(2));
+            }
+            // Also add the original normalized (might have formatting)
+            phoneVariants.push(normalizedPhone);
+
+            // Remove duplicates
+            const uniqueVariants = [...new Set(phoneVariants)];
+            console.log(`[WhatsAppBot]   → Searching for variants: ${uniqueVariants.join(', ')}`);
+
+            // Try exact match first with all variants
+            const placeholders = uniqueVariants.map(() => '?').join(', ');
             const [customersExact] = await databasePool.query<RowDataPacket[]>(
-                'SELECT * FROM customers WHERE phone = ? LIMIT 1',
-                [normalizedPhone]
+                `SELECT * FROM customers WHERE REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') IN (${placeholders}) LIMIT 1`,
+                uniqueVariants
             );
 
             if (customersExact.length > 0) {
                 console.log(`[WhatsAppBot]   ✅ FOUND via exact match!`);
                 return customersExact[0];
             }
-            console.log(`[WhatsAppBot]   ❌ Not found via exact match`);
+            console.log(`[WhatsAppBot]   ❌ Not found via exact match, trying LIKE...`);
 
-            // Try with leading 0 removed (if starts with 62)
-            if (normalizedPhone.startsWith('62')) {
-                const phoneWithZero = '0' + normalizedPhone.substring(2);
-                console.log(`[WhatsAppBot]   → Query 2: Trying "${phoneWithZero}" OR "${normalizedPhone}"`);
-
-                const [customersZero] = await databasePool.query<RowDataPacket[]>(
-                    'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                    [phoneWithZero, normalizedPhone]
+            // Fallback: LIKE search with digits only (last 9 digits to avoid prefix issues)
+            const lastNineDigits = digitsOnly.slice(-9);
+            if (lastNineDigits.length >= 9) {
+                console.log(`[WhatsAppBot]   → Query 2: LIKE search for last 9 digits "%${lastNineDigits}"`);
+                const [customersLike] = await databasePool.query<RowDataPacket[]>(
+                    `SELECT * FROM customers WHERE REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ? LIMIT 1`,
+                    [`%${lastNineDigits}`]
                 );
-                if (customersZero.length > 0) {
-                    console.log(`[WhatsAppBot]   ✅ FOUND via 62→0 conversion!`);
-                    return customersZero[0];
+                if (customersLike.length > 0) {
+                    console.log(`[WhatsAppBot]   ✅ FOUND via LIKE search!`);
+                    return customersLike[0];
                 }
-                console.log(`[WhatsAppBot]   ❌ Not found via 62→0 conversion`);
-            } else if (normalizedPhone.startsWith('0')) {
-                // Try with 62 prefix
-                const phoneWith62 = '62' + normalizedPhone.substring(1);
-                console.log(`[WhatsAppBot]   → Query 3: Trying "${phoneWith62}" OR "${normalizedPhone}"`);
-
-                const [customers62] = await databasePool.query<RowDataPacket[]>(
-                    'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                    [phoneWith62, normalizedPhone]
-                );
-                if (customers62.length > 0) {
-                    console.log(`[WhatsAppBot]   ✅ FOUND via 0→62 conversion!`);
-                    return customers62[0];
-                }
-                console.log(`[WhatsAppBot]   ❌ Not found via 0→62 conversion`);
+                console.log(`[WhatsAppBot]   ❌ Not found via LIKE search`);
             }
 
             console.log(`[WhatsAppBot]   ❌ Customer NOT FOUND after all attempts (Raw: ${phone}, Norm: ${normalizedPhone})`);

@@ -696,6 +696,41 @@ router.post('/ftth/odp', postOdpCreate);
 router.post('/ftth/odp/:id', postOdpUpdate);
 router.post('/ftth/odp/:id/delete', postOdpDelete);
 
+// API: Search ODP
+router.get('/api/ftth/odp/search', async (req: Request, res: Response) => {
+    try {
+        const query = String(req.query.q || '').trim();
+        if (query.length < 2) {
+            return res.json({ success: true, results: [] });
+        }
+
+        const conn = await databasePool.getConnection();
+        try {
+            const [rows] = await conn.execute(`
+                SELECT 
+                    odp.id, 
+                    odp.name, 
+                    odp.odc_id,
+                    odp.total_ports,
+                    odp.used_ports,
+                    odc.name as odc_name
+                FROM ftth_odp odp
+                LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id
+                WHERE odp.name LIKE ?
+                ORDER BY odp.name
+                LIMIT 15
+            `, [`%${query}%`]);
+
+            res.json({ success: true, results: rows });
+        } finally {
+            conn.release();
+        }
+    } catch (error: any) {
+        console.error('ODP Search error:', error);
+        res.json({ success: false, error: error.message, results: [] });
+    }
+});
+
 // FTTH Areas
 router.get('/ftth/areas', AreaController.index);
 router.get('/ftth/areas/create', AreaController.create);
