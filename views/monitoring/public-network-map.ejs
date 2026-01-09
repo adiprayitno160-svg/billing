@@ -976,42 +976,88 @@
 
 </head>
 
+<!-- NUCLEAR ANTI-EXTENSION PROTECTION -->
+<style>
+    /* Block every known AI sidebar ID and Class */
+    #sider-sidebar-root,
+    #monica-root-host,
+    #check-sidebar-root,
+    #chatgpt-sidebar-root,
+    #__chsidebar,
+    .sider-sidebar-container,
+    .chsidebar-container,
+    #CRX-container,
+    #aiinhbfoop-sidebar,
+    [id*="sider-"],
+    [id*="monica-"],
+    [class*="chatgpt"],
+    [id*="chatgpt"],
+    [id^="ai-sidebar"],
+    [id^="aiinhbfoop"],
+    [class^="aiinhbfoop"],
+    [id*="deepseek"],
+    [class*="deepseek"],
+    chat-gpt-sidebar,
+    side-bar,
+    sidebar-component,
+    /* Specific Z-Index blockers for overlays */
+    div[style*="z-index: 2147483647"]:not(#loadingOverlay):not(.leaflet-control):not(.stats-panel),
+    div[style*="z-index: 999999"]:not(#loadingOverlay):not(.leaflet-control) {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+        z-index: -1 !important;
+    }
+</style>
+</head>
+
 <body>
-    <!-- EXTENSION CLEANER SCRIPT -->
+    <!-- AGGRESSIVE CLEANER SCRIPT -->
     <script>
         (function () {
-            // Function to safely remove known intruders without breaking the app
-            function cleanIntruders() {
-                // List of known AI sidebar patterns
+            function nuke() {
+                // 1. Selector based removal
                 const selectors = [
-                    '#sider-sidebar-root',
-                    '#monica-root-host',
-                    '#check-sidebar-root',
-                    '#chatgpt-sidebar-root',
-                    '#__chsidebar',
-                    '.sider-sidebar-container',
-                    'div[id^="aiinhbfoop"]',
-                    'div[class^="aiinhbfoop"]',
-                    '#CRX-container',
-                    '.chsidebar-container',
-                    'chat-gpt-sidebar'
+                    '#sider-sidebar-root', '#monica-root-host', '#check-sidebar-root',
+                    '#chatgpt-sidebar-root', '#__chsidebar', '.sider-sidebar-container',
+                    '[id^="aiinhbfoop"]', '[class^="aiinhbfoop"]', '#CRX-container',
+                    '.chsidebar-container', 'chat-gpt-sidebar',
+                    'div[id*="gpt"]', 'div[class*="gpt"]' // Risky but necessary for "gpt"
                 ];
 
                 selectors.forEach(sel => {
-                    const els = document.querySelectorAll(sel);
-                    els.forEach(el => {
-                        // Safety check: Don't remove our own elements
+                    document.querySelectorAll(sel).forEach(el => {
+                        // Whitelist safety check
                         if (el.id === 'map' || el.id === 'loadingOverlay' || el.classList.contains('stats-panel')) return;
                         el.remove();
                     });
                 });
+
+                // 2. Text Content Heuristic (If an element contains "GPT-4o" or "Chat", hide it)
+                // This is dangerous, so we scope it to fixed/absolute containers on the right side
+                const potentialSidebars = document.querySelectorAll('div[style*="fixed"], div[style*="absolute"]');
+                potentialSidebars.forEach(div => {
+                    const rect = div.getBoundingClientRect();
+                    // If it's on the right edge and tall
+                    if (rect.left > window.innerWidth - 400 && rect.height > 300) {
+                        if (div.innerText.includes('GPT') || div.innerText.includes('Chat') || div.innerText.includes('AI')) {
+                            if (div.id !== 'controlPanel' && !div.classList.contains('leaflet-control-layers')) {
+                                div.style.display = 'none';
+                            }
+                        }
+                    }
+                });
             }
 
-            // Run repeatedly but safely
-            setInterval(cleanIntruders, 2000);
-
-            // Clean once on load
-            window.addEventListener('load', cleanIntruders);
+            // Run frequently
+            setInterval(nuke, 500);
+            window.addEventListener('load', nuke);
         })();
     </script>
 

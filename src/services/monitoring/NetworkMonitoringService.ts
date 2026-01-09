@@ -683,12 +683,10 @@ export class NetworkMonitoringService {
         const potentialCount = (potentialCustomers as any)[0]?.count || 0;
 
         // If mismatch, rely on sync
-        if (existingCustomerCount !== potentialCount) {
-            console.log(`📍 Topology request detected customer count mismatch (Network: ${existingCustomerCount}, Source: ${potentialCount}). Triggering auto-sync...`);
-            await this.syncCustomerDevices();
-            // Re-fetch devices after sync logic
-            devices = await this.getAllDevices();
-        }
+        // Always trigger sync to ensure consistency (Fix for: Add 1 / Delete 1 count match issue)
+        await this.syncCustomerDevices();
+        // Re-fetch devices after sync logic
+        devices = await this.getAllDevices();
 
         // 2. Check FTTH infrastructure (OLT, ODC, ODP).
         const [ftthCountResult] = await databasePool.query<RowDataPacket[]>(
@@ -706,12 +704,10 @@ export class NetworkMonitoringService {
         const odpCount = (potentialOdp as any)[0]?.count || 0;
         const potentialFtthCount = oltCount + odcCount + odpCount;
 
-        if (existingFtthCount !== potentialFtthCount) {
-            console.log(`🏗️ Topology request detected FTTH count mismatch (Network: ${existingFtthCount}, Source: ${potentialFtthCount}). Triggering auto-sync...`);
-            await this.syncFTTHInfrastructure();
-            // Re-fetch devices after sync
-            devices = await this.getAllDevices();
-        }
+        // Always trigger sync for FTTH infrastructure
+        await this.syncFTTHInfrastructure();
+        // Re-fetch devices after sync
+        devices = await this.getAllDevices();
 
         const [links] = await databasePool.query<RowDataPacket[]>(
             'SELECT * FROM network_links'
