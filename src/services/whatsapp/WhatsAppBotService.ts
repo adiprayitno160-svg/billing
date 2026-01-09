@@ -231,13 +231,13 @@ export class WhatsAppBotService {
                     // Default: Guide unregistered users to register
                     // Only send this if it's NOT a command intended for registered users (to avoid spamming)
                     console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
-                    await this.sendMessage(
-                        senderJid,
-                        '❌ *Nomor Belum Terdaftar*\n\n' +
+
+                    let msgContent = '❌ *Nomor Belum Terdaftar*\n\n' +
                         'Maaf, nomor ini belum terdaftar di database kami.\n\n' +
                         'Ketik */daftar* untuk registrasi pelanggan baru.\n' +
-                        'Atau hubungi admin jika Anda sudah berlangganan.'
-                    );
+                        'Atau hubungi admin jika Anda sudah berlangganan.';
+
+                    await this.sendMessage(senderJid, msgContent);
                 } catch (unregError) {
                     console.error('[WhatsAppBot] Error in unregistered flow:', unregError);
                     // Do NOT throw to avoid global catch sending "System Error"
@@ -1425,6 +1425,8 @@ Ketik /menu untuk kembali ke menu utama.`;
                     targetJid = `${lid}@lid`;
                 }
             }
+
+
 
             await WhatsAppService.sendMessage(targetJid, message);
         } catch (error: any) {

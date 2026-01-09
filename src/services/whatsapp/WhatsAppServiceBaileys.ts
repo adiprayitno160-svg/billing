@@ -37,6 +37,11 @@ export class WhatsAppServiceBaileys {
     private static currentQRCode: string | null = null;
     private static channelColumnExists: boolean | null = null;
     private static authDir = path.join(process.cwd(), 'baileys_auth');
+    private static qrRetryCount = 0;
+    private static connectionRetryCount = 0;
+
+    // DIAGNOSTIC: Unique ID for this specific server instance
+    private static readonly INSTANCE_ID = Math.random().toString(36).substring(2, 6).toUpperCase();
 
     /**
      * Initialize WhatsApp Baileys client
@@ -75,16 +80,23 @@ export class WhatsAppServiceBaileys {
     private static processedMessages: Set<string> = new Set();
     private static readonly MESSAGE_CACHE_TIMEOUT = 30000; // 30 seconds
 
+    // OUTGOING Deduplication: Prevent sending same message twice
+    private static outgoingMessageCache: Map<string, number> = new Map();
+    private static readonly OUTGOING_DEDUP_WINDOW = 3000; // 3 seconds
+
     private static async startSocket() {
         try {
-            // Clear old event listeners if socket exists to prevent duplicates
+            // Force close old socket if exists to prevent listener leaks
             if (this.sock) {
                 try {
+                    console.log('[Baileys] 🧹 Cleaning up old socket listeners and connection...');
                     this.sock.ev.removeAllListeners('messages.upsert');
                     this.sock.ev.removeAllListeners('connection.update');
                     this.sock.ev.removeAllListeners('creds.update');
+                    this.sock.end(undefined); // Close connection
+                    this.sock = undefined;
                 } catch (e) {
-                    // Ignore if no listeners
+                    console.warn('[Baileys] ⚠️ Error cleanup old socket:', e);
                 }
             }
 
@@ -170,9 +182,18 @@ export class WhatsAppServiceBaileys {
                 for (const msg of messages) {
                     // Deduplication check using message ID
                     const messageId = msg.key?.id;
-                    if (messageId && this.processedMessages.has(messageId)) {
-                        console.log(`[Baileys] ⏭️  Skipping duplicate message: ${messageId}`);
-                        continue;
+                    if (messageId) {
+                        if (this.processedMessages.has(messageId)) {
+                            console.log(`[Baileys] ⏭️  Skipping duplicate message: ${messageId}`);
+                            continue;
+                        }
+                        // IMMEDIATE LOCK: Add to set instantly to prevent race conditions
+                        this.processedMessages.add(messageId);
+
+                        // Clean up old message IDs after timeout
+                        setTimeout(() => {
+                            this.processedMessages.delete(messageId);
+                        }, this.MESSAGE_CACHE_TIMEOUT);
                     }
 
                     console.log(`[Baileys] 🔍 Processing message:`, {
@@ -189,15 +210,6 @@ export class WhatsAppServiceBaileys {
                     if (msg.key.fromMe) {
                         console.log(`[Baileys] ⏭️  Skipping - message from self`);
                         continue;
-                    }
-
-                    // Add to processed set to prevent double processing
-                    if (messageId) {
-                        this.processedMessages.add(messageId);
-                        // Clean up old message IDs after timeout
-                        setTimeout(() => {
-                            this.processedMessages.delete(messageId);
-                        }, this.MESSAGE_CACHE_TIMEOUT);
                     }
 
                     console.log(`[Baileys] ✅ Valid message received, calling handleIncomingMessage...`);
@@ -399,6 +411,26 @@ export class WhatsAppServiceBaileys {
             if (!formattedPhone) {
                 return { success: false, error: 'Invalid phone number format' };
             }
+
+            // OUTGOING DEDUP CHECK
+            const outgoingKey = `${formattedPhone}:${message}`;
+            const now = Date.now();
+            const lastSent = this.outgoingMessageCache.get(outgoingKey);
+
+            if (lastSent && (now - lastSent) < this.OUTGOING_DEDUP_WINDOW) {
+                console.warn(`[Baileys] 🛑 BLOCKED DUPLICATE OUTGOING MESSAGE to ${formattedPhone} (Last sent ${now - lastSent}ms ago)`);
+                console.warn(`[Baileys] Content: "${message.substring(0, 50)}..."`);
+                return {
+                    success: true,
+                    messageId: 'blocked-duplicate'
+                };
+            }
+            // Update cache
+            this.outgoingMessageCache.set(outgoingKey, now);
+            // Cleanup cache periodically could be added here, but Map handles overwrites. 
+            // Better cleanup:
+            if (this.outgoingMessageCache.size > 500) this.outgoingMessageCache.clear();
+
 
             console.log(`📱 [WhatsApp Baileys] Sending message to ${formattedPhone}`);
 
