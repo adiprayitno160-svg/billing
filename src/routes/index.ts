@@ -1690,6 +1690,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
             billing_mode,
             ppn_mode,
             rental_mode,
+            rental_cost, // Add rental_cost
             serial_number,
             initial_validity_days
         } = req.body;
@@ -1698,7 +1699,9 @@ router.post('/customers/new-pppoe', async (req, res) => {
             customer_code,
             client_name,
             username,
-            package_id
+            package_id,
+            rental_mode,
+            rental_cost
         });
 
         // Validasi input
@@ -1737,6 +1740,10 @@ router.post('/customers/new-pppoe', async (req, res) => {
             const is_taxable = (req.body.is_taxable === '1' || ppn_mode === 'plus' || ppn_mode === 'include') ? 1 : 0;
             const use_device_rental = (req.body.use_device_rental === '1' || rental_mode === 'plus' || rental_mode === 'include') ? 1 : 0;
 
+            // Process rental cost and mode
+            const rental_mode_val = (use_device_rental && rental_mode) ? rental_mode : 'flat';
+            const rental_cost_val = (use_device_rental && rental_cost) ? rental_cost.replace(/\./g, '') : null;
+
             if (billing_mode_value === 'prepaid') {
                 const initialDays = parseInt(req.body.initial_validity_days || '0');
                 if (initialDays > 0) {
@@ -1755,9 +1762,10 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     customer_code, name, phone, email, address, odc_id, odp_id,
                     connection_type, status, latitude, longitude,
                     pppoe_username, created_at, updated_at,
-                    billing_mode, expiry_date, is_taxable, use_device_rental,
+                    billing_mode, expiry_date, is_taxable, 
+                    use_device_rental, rental_mode, rental_cost,
                     serial_number
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW(), ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, NULL, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?)
             `;
 
             console.log('Inserting customer with data:', {
@@ -1770,13 +1778,17 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 latitude,
                 longitude,
                 billing_mode: billing_mode_value,
-                expiry_date: expiry_date_val
+                expiry_date: expiry_date_val,
+                use_device_rental,
+                rental_mode: rental_mode_val,
+                rental_cost: rental_cost_val
             });
 
             const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null,
                 odc_id || null, odp_id, latitude || null, longitude || null,
-                billing_mode_value, expiry_date_val, is_taxable, use_device_rental,
+                billing_mode_value, expiry_date_val, is_taxable,
+                use_device_rental, rental_mode_val, rental_cost_val,
                 serial_number || null
             ]);
 
@@ -2036,6 +2048,13 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 try {
                     console.log('🧾 Generating first invoice for new customer...');
                     const { InvoiceService } = await import('../services/billing/invoiceService');
+                    const { SettingsService } = await import('../services/SettingsService');
+
+                    // Get Global Settings
+                    const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
+                    const globalDeviceRentalFee = await SettingsService.getNumber('device_rental_fee');
+                    const ppnEnabled = await SettingsService.getBoolean('ppn_enabled');
+                    const globalPpnRate = ppnEnabled ? await SettingsService.getNumber('ppn_rate') : 0;
 
                     // Get latest subscription for this customer to ensure we link correctly
                     const [subs] = await databasePool.query<RowDataPacket[]>(
@@ -2046,6 +2065,33 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     if (subs.length > 0) {
                         const sub = subs[0];
                         const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
+                        const subPrice = parseFloat(sub.price);
+
+                        // Calculate Rental Fee
+                        let deviceFee = 0;
+                        if (use_device_rental && deviceRentalEnabled) {
+                            const fee = rental_cost_val ? parseFloat(rental_cost_val) : globalDeviceRentalFee;
+                            const mode = rental_mode_val || 'flat';
+
+                            if (mode === 'daily') {
+                                // For first invoice, assume full month capacity calculation for simplicity or based on period
+                                const [year, month] = currentPeriod.split('-').map(Number);
+                                const daysInMonth = new Date(year, month, 0).getDate();
+                                deviceFee = fee * daysInMonth;
+                            } else {
+                                deviceFee = fee;
+                            }
+                        }
+
+                        // Calculate PPN
+                        let ppnAmount = 0;
+                        let ppnRateUsing = 0;
+                        if (is_taxable) {
+                            ppnRateUsing = globalPpnRate;
+                            ppnAmount = (subPrice + deviceFee) * (globalPpnRate / 100);
+                        }
+
+                        const totalAmount = subPrice + deviceFee + ppnAmount;
 
                         // Create invoice
                         const invoiceData = {
@@ -2054,9 +2100,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             period: currentPeriod,
                             // Due date: 1 day after registration
                             due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-                            subtotal: sub.price,
-                            total_amount: sub.price,
+                            subtotal: subPrice,
+                            device_fee: deviceFee,
                             discount_amount: 0,
+                            ppn_rate: ppnRateUsing,
+                            ppn_amount: ppnAmount,
+                            total_amount: totalAmount,
                             status: 'sent', // Mark as sent so it shows up as unpaid/due
                             notes: 'Tagihan otomatis untuk pelanggan baru'
                         };
@@ -2064,111 +2113,116 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         const items = [{
                             description: `Paket ${sub.package_name} - ${currentPeriod}`,
                             quantity: 1,
-                            unit_price: sub.price,
-                            total_price: sub.price
+                            unit_price: subPrice,
+                            total_price: subPrice
                         }];
 
                         const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
                         console.log(`✅ First invoice generated successfully: ${invoiceId}`);
                     }
-                } catch (invError) {
-                    console.error('❌ Failed to generate first invoice:', invError);
-                    // Don't fail the request, just log it
+
+
+                    const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
+                    console.log(`✅ First invoice generated successfully: ${invoiceId}`);
                 }
+                } catch (invError) {
+                console.error('❌ Failed to generate first invoice:', invError);
+                // Don't fail the request, just log it
             }
+        }
 
             // Send notification to customer and admin (non-blocking)
             console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
-            try {
-                const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
-                const [packageRows] = await databasePool.query<RowDataPacket[]>(
-                    'SELECT name FROM pppoe_packages WHERE id = ?',
-                    [package_id]
-                );
-                const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
+        try {
+            const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
+            const [packageRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT name FROM pppoe_packages WHERE id = ?',
+                [package_id]
+            );
+            const packageName = packageRows.length > 0 ? packageRows[0].name : undefined;
 
-                console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
-                    customerId,
-                    customerName: client_name,
-                    customerCode: customer_code,
-                    phone: phone_number || 'N/A',
-                    connectionType: 'pppoe',
-                    packageName: packageName || 'N/A'
-                });
+            console.log('📧 [NOTIFICATION] Calling notifyNewCustomer with data:', {
+                customerId,
+                customerName: client_name,
+                customerCode: customer_code,
+                phone: phone_number || 'N/A',
+                connectionType: 'pppoe',
+                packageName: packageName || 'N/A'
+            });
 
-                const result = await CustomerNotificationService.notifyNewCustomer({
-                    customerId: customerId,
-                    customerName: client_name,
-                    customerCode: customer_code,
-                    phone: phone_number || undefined,
-                    connectionType: 'pppoe',
-                    address: address || undefined,
-                    packageName: packageName,
-                    createdBy: (req.session as any).user?.username || undefined
-                });
+            const result = await CustomerNotificationService.notifyNewCustomer({
+                customerId: customerId,
+                customerName: client_name,
+                customerCode: customer_code,
+                phone: phone_number || undefined,
+                connectionType: 'pppoe',
+                address: address || undefined,
+                packageName: packageName,
+                createdBy: (req.session as any).user?.username || undefined
+            });
 
-                console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
+            console.log('📧 [NOTIFICATION] notifyNewCustomer result:', result);
 
-                if (result.customer.success) {
-                    console.log('✅ Customer notification sent successfully');
-                } else {
-                    console.error('❌ Customer notification failed:', result.customer.message);
-                }
-
-                if (result.admin.success) {
-                    console.log('✅ Admin notification sent successfully');
-                } else {
-                    console.error('❌ Admin notification failed:', result.admin.message);
-                }
-            } catch (notifError: any) {
-                console.error('❌ [NOTIFICATION] Exception in notification process:', {
-                    message: notifError.message,
-                    stack: notifError.stack,
-                    customerId: customerId
-                });
-                // Non-critical, don't block customer creation
+            if (result.customer.success) {
+                console.log('✅ Customer notification sent successfully');
+            } else {
+                console.error('❌ Customer notification failed:', result.customer.message);
             }
 
-            // GenieACS Sync Integration
-            if (serial_number) {
-                try {
-                    console.log(`[GenieACS] Syncing tag for new customer: ${client_name}`);
-                    const genieacs = await GenieacsService.getInstanceFromDb();
-                    // Sanitize tag: Customer Name
-                    const tagName = client_name.replace(/[^\x20-\x7E]/g, '').replace(/[",]/g, '').trim();
-
-                    // Match by serial
-                    const devices = await genieacs.getDevicesBySerial(serial_number);
-                    if (devices && devices.length > 0) {
-                        for (const device of devices) {
-                            await genieacs.addDeviceTag(device._id, tagName);
-                            console.log(`[GenieACS] Tag "${tagName}" added to device ${device._id}`);
-                        }
-                    } else {
-                        console.warn(`[GenieACS] No device found with serial ${serial_number}`);
-                    }
-                } catch (gerr) {
-                    console.error('[GenieACS] Sync error:', gerr);
-                }
+            if (result.admin.success) {
+                console.log('✅ Admin notification sent successfully');
+            } else {
+                console.error('❌ Admin notification failed:', result.admin.message);
             }
-
-            // Redirect ke halaman sukses atau list pelanggan
-            res.redirect('/customers/list?success=pppoe_customer_created');
-        } catch (dbError) {
-            // Rollback transaction on error
-            await conn.rollback();
-            throw dbError;
-        } finally {
-            conn.release();
+        } catch (notifError: any) {
+            console.error('❌ [NOTIFICATION] Exception in notification process:', {
+                message: notifError.message,
+                stack: notifError.stack,
+                customerId: customerId
+            });
+            // Non-critical, don't block customer creation
         }
 
-    } catch (error: unknown) {
-        console.error('Error creating PPPOE customer:', error);
+        // GenieACS Sync Integration
+        if (serial_number) {
+            try {
+                console.log(`[GenieACS] Syncing tag for new customer: ${client_name}`);
+                const genieacs = await GenieacsService.getInstanceFromDb();
+                // Sanitize tag: Customer Name
+                const tagName = client_name.replace(/[^\x20-\x7E]/g, '').replace(/[",]/g, '').trim();
 
-        // Redirect kembali ke form dengan error
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(errorMessage));
+                // Match by serial
+                const devices = await genieacs.getDevicesBySerial(serial_number);
+                if (devices && devices.length > 0) {
+                    for (const device of devices) {
+                        await genieacs.addDeviceTag(device._id, tagName);
+                        console.log(`[GenieACS] Tag "${tagName}" added to device ${device._id}`);
+                    }
+                } else {
+                    console.warn(`[GenieACS] No device found with serial ${serial_number}`);
+                }
+            } catch (gerr) {
+                console.error('[GenieACS] Sync error:', gerr);
+            }
+        }
+
+        // Redirect ke halaman sukses atau list pelanggan
+        res.redirect('/customers/list?success=pppoe_customer_created');
+    } catch (dbError) {
+        // Rollback transaction on error
+        await conn.rollback();
+        throw dbError;
+    } finally {
+        conn.release();
     }
+
+} catch (error: unknown) {
+    console.error('Error creating PPPOE customer:', error);
+
+    // Redirect kembali ke form dengan error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.redirect('/customers/new-pppoe?error=' + encodeURIComponent(errorMessage));
+}
 });
 
 // TEST ENDPOINT: Debug create secret PPPoE
@@ -2501,6 +2555,46 @@ router.get('/api/pppoe/secrets', async (req, res) => {
 // API endpoint untuk create/update PPPoE secret - MOVED TO TOP OF FILE (line ~255)
 // This route is now registered early to avoid conflicts
 // DUPLICATE ROUTE - REMOVED FROM HERE
+
+// API: Get PPPoE Active Connections Count
+router.get('/api/pppoe/active-count', async (req, res) => {
+    try {
+        const cfg = await getMikrotikConfig();
+        if (!cfg) {
+            return res.json({ success: false, error: 'MikroTik not configured' });
+        }
+
+        const { RouterOSAPI } = require('routeros-api');
+        const api = new RouterOSAPI({
+            host: cfg.host,
+            port: cfg.api_port || cfg.port || 8728,
+            user: cfg.username,
+            password: cfg.password,
+            timeout: 5000
+        });
+
+        await api.connect();
+
+        // Get active PPPoE connections
+        const activeConnections = await api.write('/ppp/active/print');
+        const activeCount = Array.isArray(activeConnections) ? activeConnections.length : 0;
+
+        // Get total secrets
+        const secrets = await api.write('/ppp/secret/print');
+        const secretCount = Array.isArray(secrets) ? secrets.length : 0;
+
+        api.close();
+
+        res.json({
+            success: true,
+            activeCount,
+            secretCount
+        });
+    } catch (e: any) {
+        console.error('Error fetching PPPoE active count:', e.message);
+        res.json({ success: false, error: e.message, activeCount: 0, secretCount: 0 });
+    }
+});
 
 router.post('/customers/new-static-ip', async (req, res) => {
     console.log('=== ROUTE HIT: POST /customers/new-static-ip ===');

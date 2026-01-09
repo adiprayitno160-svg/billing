@@ -18,6 +18,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
+    <!-- FORCE HIDE 3RD PARTY EXTENSIONS -->
+    <style>
+        /* Agressive blocking of common AI Overlay Extensions */
+        #sider-sidebar-root,
+        #check-sidebar-root,
+        #monica-root-host,
+        #monica-content-root,
+        #chatgpt-sidebar-root,
+        .sider-sidebar-container,
+        #__chsidebar,
+        [id*="sider-"],
+        [id*="monica-"],
+        [class*="chatgpt"],
+        [id*="chatgpt"],
+        [id*="ai-sidebar"],
+        div[id^="aiinhbfoop"],
+        div[class^="aiinhbfoop"],
+        div[id*="deepseek"],
+        chat-gpt-sidebar,
+        #CRX-container,
+        .chsidebar-container {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
+            position: fixed !important;
+            z-index: -99999 !important;
+            left: -99999px !important;
+        }
+    </style>
+
     <style>
         * {
             margin: 0;
@@ -940,82 +973,48 @@
             }
         }
     </style>
-    <!-- ANTI-EXTENSION OVERLAY: Force hide known browser extensions that inject sidebars/popups -->
-    <style>
-        /* Block Sider, Monica, and other common AI sidebars from overlaying this app */
-        #sider-sidebar-root,
-        #check-sidebar-root,
-        #monica-root-host,
-        #monica-content-root,
-        .sider-sidebar-container,
-        #__chsidebar,
-        div[id^="sider-"],
-        div[id^="monica-"],
-        div[class*="chatgpt-sidebar"],
-        div[id*="ai-sidebar"] {
-            display: none !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            z-index: -9999 !important;
-        }
-    </style>
+
 </head>
 
 <body>
-    <!-- AGGRESSIVE ANTI-EXTENSION SCRIPT -->
+    <!-- EXTENSION CLEANER SCRIPT -->
     <script>
         (function () {
-            // Function to check and remove known extension elements
-            function removeExtensions() {
+            // Function to safely remove known intruders without breaking the app
+            function cleanIntruders() {
+                // List of known AI sidebar patterns
                 const selectors = [
                     '#sider-sidebar-root',
-                    '#check-sidebar-root',
                     '#monica-root-host',
-                    '#monica-content-root',
-                    '.sider-sidebar-container',
+                    '#check-sidebar-root',
+                    '#chatgpt-sidebar-root',
                     '#__chsidebar',
-                    'div[id^="sider-"]',
-                    'div[id^="monica-"]',
-                    'div[class*="chatgpt-sidebar"]',
-                    'div[id*="ai-sidebar"]',
-                    '#chatgpt-sidebar-container'
+                    '.sider-sidebar-container',
+                    'div[id^="aiinhbfoop"]',
+                    'div[class^="aiinhbfoop"]',
+                    '#CRX-container',
+                    '.chsidebar-container',
+                    'chat-gpt-sidebar'
                 ];
 
-                selectors.forEach(selector => {
-                    const elements = document.querySelectorAll(selector);
-                    elements.forEach(el => {
-                        console.log('🚫 Nuking detected extension element:', el);
+                selectors.forEach(sel => {
+                    const els = document.querySelectorAll(sel);
+                    els.forEach(el => {
+                        // Safety check: Don't remove our own elements
+                        if (el.id === 'map' || el.id === 'loadingOverlay' || el.classList.contains('stats-panel')) return;
                         el.remove();
                     });
                 });
             }
 
-            // 1. Run immediately
-            removeExtensions();
+            // Run repeatedly but safely
+            setInterval(cleanIntruders, 2000);
 
-            // 2. Run on interval (in case they reinject)
-            setInterval(removeExtensions, 1000);
-
-            // 3. Watch for DOM changes (MutationObserver)
-            const observer = new MutationObserver((mutations) => {
-                let shouldCheck = false;
-                mutations.forEach((mutation) => {
-                    if (mutation.addedNodes.length) shouldCheck = true;
-                });
-                if (shouldCheck) removeExtensions();
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-
-            console.log('🛡️ Security: Anti-overlay protection active');
+            // Clean once on load
+            window.addEventListener('load', cleanIntruders);
         })();
     </script>
+
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>

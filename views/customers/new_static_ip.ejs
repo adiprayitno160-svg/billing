@@ -1,812 +1,680 @@
-﻿<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Pelanggan IP Statis Baru</h2>
-        <a href="/packages/static-ip" class="px-3 py-1.5 rounded border border-slate-300 text-sm">Kembali</a>
+﻿<div class="space-y-6">
+    <!-- Header Section -->
+    <div class="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-blue-900">Pelanggan IP Statis Baru</h1>
+                <p class="text-blue-600 mt-1">Buat akun pelanggan baru dengan koneksi IP Statis</p>
+            </div>
+            <a href="/packages/static-ip"
+                class="px-4 py-2 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-all font-medium flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Kembali
+            </a>
+        </div>
     </div>
+
+    <!-- Error Messages -->
     <% if (typeof error !=='undefined' && error) { %>
-        <div class="mb-3 px-3 py-2 text-sm rounded border border-rose-200 text-rose-700 bg-rose-50">
-            <%= error %>
+        <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center shadow-sm animate-fade-in">
+            <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <span class="text-red-800 font-bold block">Gagal Menyimpan</span>
+                <span class="text-red-700 text-sm">
+                    <%= error %>
+                </span>
+            </div>
         </div>
         <% } %>
-            <form method="post" action="/customers/new-static-ip" class="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                id="static-ip-form">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">ID Pelanggan (otomatis)</label>
-                    <input name="customer_code" readonly value="<%= (initial_customer_code || '') %>"
-                        class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
-                    <p class="text-xs text-slate-500 mt-1">Format: YYYYMMDDHHMMSS (otomatis)</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pelanggan *</label>
-                    <input name="client_name" required placeholder="Contoh: Pelanggan A"
-                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p class="text-xs text-slate-500 mt-1">Nama untuk mengidentifikasi pelanggan</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">IP Statis *</label>
-                    <input name="ip_address" required placeholder="192.168.1.1/30"
-                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p class="text-xs text-slate-500 mt-1">IP address yang akan digunakan pelanggan</p>
-                </div>
-                <!-- Email (Hidden) -->
-                <div class="hidden">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <input name="email" id="email" placeholder="static@example.com"
-                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Packet Mark (preview)</label>
-                    <input id="packetMarkPreview" readonly
-                        class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
-                </div>
 
-                <!-- Informasi Kontak -->
-                <div class="sm:col-span-2">
-                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📞 Informasi
-                        Kontak</h3>
+            <form method="post" action="/customers/new-static-ip" id="static-ip-form" class="space-y-6">
 
-                    <!-- Container dengan background dan border -->
-                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Alamat</label>
-                                <textarea name="address" placeholder="Alamat lengkap pelanggan"
-                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    rows="3"></textarea>
+                <!-- Grid Container -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- Left Column: Identity & Connection -->
+                    <div class="space-y-6">
+                        <!-- Basic Identity Card -->
+                        <div class="rounded-xl border border-indigo-200 bg-white shadow-sm overflow-hidden">
+                            <div class="px-6 py-4 bg-gradient-to-r from-indigo-50 to-white border-b border-indigo-100">
+                                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                                    <span class="p-1.5 bg-indigo-100 rounded-lg">👤</span> Identitas Pelanggan
+                                </h3>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Nomor Telepon</label>
-                                <input name="phone_number" placeholder="08123456789"
-                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                <p class="text-xs text-slate-500 mt-1 flex items-center">
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path
-                                            d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                            <div class="p-6 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-semibold text-indigo-800 mb-1">Nama Lengkap
+                                            *</label>
+                                        <input name="client_name" required placeholder="Contoh: Nama Pelanggan"
+                                            class="w-full rounded-lg border border-slate-300 px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all font-medium text-slate-800" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-1">ID Pelanggan
+                                            (Oto)</label>
+                                        <input name="customer_code" readonly
+                                            value="<%= typeof initial_customer_code !== 'undefined' ? initial_customer_code : '' %>"
+                                            class="w-full rounded-lg border border-slate-200 px-3 py-2 bg-slate-50 text-slate-500 text-sm font-mono cursor-not-allowed" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Nomor
+                                            Telepon</label>
+                                        <input name="phone_number" placeholder="08xxxxxxxxxx"
+                                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200" />
+                                    </div>
+                                </div>
+
+                                <!-- Address -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-indigo-800 mb-1">Alamat
+                                        Pemasangan</label>
+                                    <textarea name="address" placeholder="Jalan, RT/RW, Kelurahan, Kecamatan..."
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 min-h-[80px]"
+                                        rows="3"></textarea>
+                                </div>
+
+                                <!-- Email Hidden -->
+                                <div class="hidden">
+                                    <input name="email" id="email" value="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Static IP Configuration Card -->
+                        <div class="rounded-xl border border-blue-200 bg-white shadow-sm overflow-hidden">
+                            <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-blue-100">
+                                <h3 class="text-lg font-bold text-blue-900 flex items-center gap-2">
+                                    <span class="p-1.5 bg-blue-100 rounded-lg">🌐</span> Konfigurasi IP Statis
+                                </h3>
+                            </div>
+                            <div class="p-6 space-y-5">
+
+                                <!-- IP Address -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-blue-800 mb-1">IP Address / Subnet
+                                        *</label>
+                                    <input name="ip_address" required placeholder="192.168.1.2/30"
+                                        class="w-full rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 font-mono text-slate-700" />
+                                    <p class="text-[10px] text-slate-500 mt-1">Format CIDR: misal 10.10.10.2/30</p>
+                                </div>
+
+                                <!-- Interface Selection -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-blue-800 mb-1">Interface MikroTik
+                                        *</label>
+                                    <% if (typeof interfaceError !=='undefined' && interfaceError) { %>
+                                        <div
+                                            class="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                                            ⚠️ <%= interfaceError %> <a href="/settings/mikrotik" class="underline">Cek
+                                                    Koneksi</a>
+                                        </div>
+                                        <% } %>
+                                            <select name="interface" required
+                                                class="w-full rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                                                <%=(typeof interfaceError !=='undefined' && interfaceError) ? 'disabled'
+                                                : '' %>>
+                                                <option value="">-- Pilih Interface --</option>
+                                                <% if (typeof interfaces !=='undefined' && interfaces &&
+                                                    interfaces.length> 0) { %>
+                                                    <% interfaces.forEach(function(ifc){ %>
+                                                        <option value="<%= ifc.name %>">
+                                                            <%= ifc.name %>
+                                                                <% if (ifc.type) { %>(<%= ifc.type %>)<% } %>
+                                                        </option>
+                                                        <% }) %>
+                                                            <% } else { %>
+                                                                <option value="" disabled>Belum ada interface tersedia
+                                                                </option>
+                                                                <% } %>
+                                            </select>
+                                </div>
+
+                                <!-- Package Selection -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-blue-800 mb-1">Paket Internet
+                                        *</label>
+                                    <select name="package_id" required
+                                        class="w-full rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white">
+                                        <option value="">-- Pilih Paket Layanan --</option>
+                                        <% (packages || []).forEach(function(pkg){ %>
+                                            <option value="<%= pkg.id %>">
+                                                <%= pkg.name %> (Max Client: <%= pkg.max_clients %>)
+                                            </option>
+                                            <% }) %>
+                                    </select>
+                                </div>
+
+                                <!-- Technical Preview (Readonly) -->
+                                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Preview Teknis
+                                        (Otomatis)</label>
+                                    <input id="packetMarkPreview" readonly
+                                        class="w-full rounded border border-slate-200 px-2 py-1.5 bg-white text-xs text-slate-600 font-mono"
+                                        placeholder="Details will appear here..." />
+
+                                    <!-- Hidden inputs for Queue Logic -->
+                                    <input type="hidden" id="childDownloadName">
+                                    <input type="hidden" id="childUploadName">
+                                    <input type="hidden" id="parentDownloadName">
+                                    <input type="hidden" id="parentUploadName">
+                                    <input type="hidden" id="networkPreview">
+
+                                    <!-- Hidden queue params filled by script -->
+                                    <input type="hidden" name="qtype_download"><input type="hidden" name="qtype_upload">
+                                    <input type="hidden" name="priority_download"><input type="hidden"
+                                        name="priority_upload">
+                                    <input type="hidden" name="limitat_download"><input type="hidden"
+                                        name="limitat_upload">
+                                    <input type="hidden" name="maxlimit_download"><input type="hidden"
+                                        name="maxlimit_upload">
+                                    <input type="hidden" name="burst_limit_download"><input type="hidden"
+                                        name="burst_limit_upload">
+                                    <input type="hidden" name="burst_threshold_download"><input type="hidden"
+                                        name="burst_threshold_upload">
+                                    <input type="hidden" name="burst_time_download"><input type="hidden"
+                                        name="burst_time_upload">
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Location & Infrastructure -->
+                    <div class="space-y-6">
+                        <!-- Location Card -->
+                        <div class="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
+                            <div
+                                class="px-6 py-4 bg-gradient-to-r from-green-50 to-white border-b border-green-100 flex justify-between items-center">
+                                <h3 class="text-lg font-bold text-green-900 flex items-center gap-2">
+                                    <span class="p-1.5 bg-green-100 rounded-lg">📍</span> Lokasi & Maps
+                                </h3>
+                                <button type="button" id="btnGetLocation"
+                                    class="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm transition-all flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                                        </path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     </svg>
-                                    Format: 08xxxxxxxxxx
-                                </p>
+                                    Lokasi Saya
+                                </button>
+                            </div>
+                            <div class="p-4 space-y-4">
+                                <!-- Map Container -->
+                                <div class="relative">
+                                    <div id="map" class="h-64 w-full rounded-xl border-2 border-green-200 shadow-inner"
+                                        style="min-height: 250px;"></div>
+                                    <div
+                                        class="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-[10px] text-gray-600 shadow">
+                                        📌 Klik peta untuk pilih lokasi
+                                    </div>
+                                </div>
+
+                                <!-- Coordinate Inputs -->
+                                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7">
+                                            </path>
+                                        </svg>
+                                        <span class="text-xs font-semibold text-slate-600">Koordinat GPS & Modem</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label
+                                                class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Latitude</label>
+                                            <input name="latitude" id="latitude" type="number" step="any"
+                                                placeholder="-6.123456"
+                                                class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 focus:border-green-500 focus:ring-1 focus:ring-green-200 font-mono" />
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Longitude</label>
+                                            <input name="longitude" id="longitude" type="number" step="any"
+                                                placeholder="106.123456"
+                                                class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 focus:border-green-500 focus:ring-1 focus:ring-green-200 font-mono" />
+                                        </div>
+                                        <div class="col-span-2">
+                                            <label
+                                                class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Serial
+                                                Number (GenieACS)</label>
+                                            <input name="serial_number" placeholder="Contoh: 48575443..."
+                                                class="w-full text-sm rounded-md border border-slate-300 px-3 py-2 focus:border-green-500 focus:ring-1 focus:ring-green-200 font-mono" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Infrastructure Card -->
+                        <div class="rounded-xl border border-cyan-200 bg-white shadow-sm overflow-hidden">
+                            <div class="px-6 py-4 bg-gradient-to-r from-cyan-50 to-white border-b border-cyan-100">
+                                <h3 class="text-lg font-bold text-cyan-900 flex items-center gap-2">
+                                    <span class="p-1.5 bg-cyan-100 rounded-lg">🏗️</span> Data Teknis (ODP)
+                                </h3>
+                            </div>
+                            <div class="p-6 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-cyan-800 mb-1">ODP (Optical
+                                        Distribution Point) *</label>
+                                    <select name="odp_id" required id="odp-select"
+                                        class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200">
+                                        <option value="">-- Pilih ODP --</option>
+                                        <% if (typeof odpData !=='undefined' && odpData && odpData.length> 0) { %>
+                                            <% odpData.forEach(function(odp){ %>
+                                                <option value="<%= odp.id %>">
+                                                    <%= odp.odp_name %> - <%= odp.odc_name %>
+                                                </option>
+                                                <% }); %>
+                                                    <% } %>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-xs font-semibold text-slate-500">OLT</label>
+                                        <input name="olt_display" readonly
+                                            class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-2 py-1.5"
+                                            placeholder="Auto" />
+                                        <input name="olt_id" type="hidden" />
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-semibold text-slate-500">ODC</label>
+                                        <input name="odc_display" readonly
+                                            class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-2 py-1.5"
+                                            placeholder="Auto" />
+                                        <input name="odc_id" type="hidden" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Koordinat & Maps -->
-                <div class="sm:col-span-2">
-                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📍 Koordinat &
-                        Maps</h3>
-
-                    <!-- Container dengan background dan border -->
-                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <!-- Koordinat -->
+                <!-- Billing Configuration (Full Width) -->
+                <div class="rounded-xl border border-purple-200 bg-white shadow-sm overflow-hidden mt-6">
+                    <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-white border-b border-purple-100">
+                        <h3 class="text-lg font-bold text-purple-900 flex items-center gap-2">
+                            <span class="p-1.5 bg-purple-100 rounded-lg">💳</span> Metode Pembayaran & Tagihan
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Left: Billing Mode -->
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Latitude</label>
-                                    <input name="latitude" type="number" step="any" placeholder="-6.200000"
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                    <label class="block text-sm font-semibold text-purple-800 mb-1">Sistem
+                                        Pembayaran</label>
+                                    <select name="billing_mode" id="billing_mode" onchange="toggleBillingOptions()"
+                                        class="w-full rounded-lg border border-purple-300 px-4 py-2.5 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
+                                        <option value="postpaid" selected>📅 Pascabayar (Tagihan Bulanan)</option>
+                                        <option value="prepaid">🎟️ Prabayar (Voucher / Topup)</option>
+                                    </select>
+                                    <p class="text-xs text-purple-600 mt-1" id="billing_desc">
+                                        Tagihan dibuat otomatis tiap bulan.
+                                    </p>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Longitude</label>
-                                    <input name="longitude" type="number" step="any" placeholder="106.816666"
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Serial Number
-                                        (GenieACS)</label>
-                                    <input name="serial_number" placeholder="Contoh: 48575443..."
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                    <p class="text-xs text-slate-500 mt-1">Serial Number modem untuk sync otomatis ke
-                                        GenieACS</p>
-                                </div>
-                                <div class="text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                                    💡 <strong>Tips:</strong> Masukkan koordinat yang akurat untuk menampilkan lokasi di
-                                    peta. Isi Serial Number untuk integrasi GenieACS.
-                                </div>
-                            </div>
 
-                            <!-- Maps Preview -->
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Peta Lokasi</label>
-                                <div id="map"
-                                    style="height: 220px; width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem;"
-                                    class="rounded-lg shadow-sm"></div>
-                                <button type="button" id="btnGetLocation"
-                                    class="mt-2 px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700">📍
-                                    Ambil Lokasi Saat Ini</button>
-                                <p class="text-xs text-slate-500 mt-2 flex items-center">
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd"
-                                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                    Klik pada peta untuk memilih koordinat atau isi manual
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- OLT, ODC, ODP -->
-                <div class="sm:col-span-2">
-                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">🏗️ Infrastruktur
-                        FTTH</h3>
-
-                    <!-- Container dengan background dan border -->
-                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">OLT (View Only)</label>
-                                <input name="olt_display" readonly
-                                    class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
-                                    placeholder="Akan muncul setelah memilih ODP" />
-                                <input name="olt_id" type="hidden" />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">ODC (View Only)</label>
-                                <input name="odc_display" readonly
-                                    class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
-                                    placeholder="Akan muncul setelah memilih ODP" />
-                                <input name="odc_id" type="hidden" />
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">ODP *</label>
-                            <select name="odp_id" required
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                id="odp-select">
-                                <option value="">Pilih ODP</option>
-                                <% (odpData || []).forEach(function(odp){ %>
-                                    <option value="<%= odp.id %>">
-                                        <%= odp.odp_name %>
-                                    </option>
-                                    <% }) %>
-                            </select>
-                            <p class="text-xs text-slate-500 mt-2 flex items-center">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd"
-                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                Pilih ODP untuk mengisi OLT dan ODC secara otomatis
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Paket & Interface -->
-                <div class="sm:col-span-2">
-                    <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-slate-200 pb-2">📦 Paket &
-                        Konfigurasi</h3>
-
-                    <!-- Container dengan background dan border -->
-                    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Paket Static IP *</label>
-                                <select name="package_id" required
-                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- Pilih Paket --</option>
-                                    <% (packages || []).forEach(function(p){ %>
-                                        <option value="<%= p.id %>">
-                                            <%= p.name %> (Max Client: <%= p.max_clients %>)
-                                        </option>
-                                        <% }) %>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Interface MikroTik
-                                    *</label>
-                                <% if (typeof interfaceError !=='undefined' && interfaceError) { %>
-                                    <div
-                                        class="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                                        ⚠️ <strong>Peringatan:</strong>
-                                        <%= interfaceError %>
-                                            <br>
-                                            <a href="/settings/mikrotik"
-                                                class="text-blue-600 hover:underline mt-1 inline-block">Konfigurasi
-                                                MikroTik</a>
-                                    </div>
-                                    <% } %>
-                                        <select name="interface" required
-                                            class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            <%=(typeof interfaceError !=='undefined' && interfaceError) ? 'disabled'
-                                            : '' %>>
-                                            <option value="">-- Pilih Interface --</option>
-                                            <% if (typeof interfaces !=='undefined' && interfaces && interfaces.length>
-                                                0) { %>
-                                                <% interfaces.forEach(function(ifc){ %>
-                                                    <option value="<%= ifc.name %>">
-                                                        <%= ifc.name %>
-                                                            <% if (ifc.type) { %>(<%= ifc.type %>)<% } %>
-                                                    </option>
-                                                    <% }) %>
-                                                        <% } else if (typeof interfaceError==='undefined' ||
-                                                            !interfaceError) { %>
-                                                            <option value="" disabled>Belum ada interface</option>
-                                                            <% } %>
-                                        </select>
-                                        <% if (typeof interfaces !=='undefined' && interfaces && interfaces.length===0
-                                            && (typeof interfaceError==='undefined' || !interfaceError)) { %>
-                                            <p class="text-xs text-slate-500 mt-1">Interface tidak tersedia. Pastikan
-                                                MikroTik terhubung.</p>
-                                            <% } %>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Billing Mode Options -->
-                <div class="sm:col-span-2">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h3 class="text-md font-medium text-slate-700 mb-4 border-b border-blue-200 pb-2">
-                            💰 Mode Pembayaran (Billing Mode)
-                        </h3>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Billing Mode Selection -->
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Metode Penagihan</label>
-                                <select name="billing_mode" id="billing_mode"
-                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    onchange="toggleBillingOptions()">
-                                    <option value="postpaid" selected>📅 Pascabayar (Tagihan Bulanan)</option>
-                                    <option value="prepaid">🎟️ Prabayar (Sistem Voucher/Topup)</option>
-                                </select>
-                                <p class="text-xs text-slate-500 mt-2" id="billing_desc">
-                                    Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.
-                                </p>
-                            </div>
-
-                            <!-- Prepaid Option: Initial Bonus -->
-                            <div id="prepaid_options" class="hidden">
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Masa Aktif Awal
-                                    (Bonus)</label>
-                                <div class="flex items-center gap-2">
+                                <div id="prepaid_options"
+                                    class="hidden p-3 bg-orange-50 rounded-lg border border-orange-100">
+                                    <label class="block text-xs font-bold text-orange-800 mb-1">Bonus Masa Aktif Awal
+                                        (Hari)</label>
                                     <input type="number" name="initial_validity_days" value="0" min="0"
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <span class="text-sm text-slate-600">Hari</span>
+                                        class="w-full rounded border border-orange-300 px-2 py-1.5 text-sm" />
                                 </div>
-                                <p class="text-xs text-slate-500 mt-2">
-                                    Jumlah hari aktif gratis saat akun dibuat. Isi 0 jika tidak ada bonus.
-                                </p>
+
+                                <!-- Backward Compatibility -->
+                                <input type="hidden" name="enable_billing" id="enable_billing_hidden" value="1">
                             </div>
 
-                            <!-- Tax & Rental Settings -->
-                            <div
-                                class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-blue-200">
-                                <div>
-                                    <label class="relative inline-flex items-center cursor-pointer group">
+                            <!-- Right: Options (Tax & Rental) -->
+                            <div class="space-y-5">
+                                <!-- Tax Checkbox -->
+                                <div
+                                    class="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:border-purple-200 transition-colors">
+                                    <div>
+                                        <span class="font-bold text-slate-700 text-sm">Kena PPN?</span>
+                                        <p class="text-xs text-slate-500">Mengenakan pajak PPN pada tagihan</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" name="is_taxable" value="1" class="sr-only peer">
                                         <div
-                                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 transition-all duration-300">
+                                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
                                         </div>
-                                        <span
-                                            class="ml-3 text-sm font-bold text-slate-700 group-hover:text-blue-700">Kena
-                                            PPN?</span>
                                     </label>
-                                    <p class="text-[10px] text-slate-500 mt-1">
-                                        Aktifkan jika pelanggan ini dikenakan pajak PPN.
-                                    </p>
                                 </div>
-                                <div>
-                                    <label class="relative inline-flex items-center cursor-pointer group">
+
+                                <!-- Device Rental Checkbox -->
+                                <div
+                                    class="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:border-purple-200 transition-colors">
+                                    <div>
+                                        <span class="font-bold text-slate-700 text-sm">Sewa Perangkat?</span>
+                                        <p class="text-xs text-slate-500">Biaya sewa modem/router</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" name="use_device_rental" value="1" class="sr-only peer">
                                         <div
-                                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 transition-all duration-300">
+                                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
                                         </div>
-                                        <span
-                                            class="ml-3 text-sm font-bold text-slate-700 group-hover:text-blue-700">Sewa
-                                            Alat?</span>
                                     </label>
-                                    <p class="text-[10px] text-slate-500 mt-1">
-                                        Aktifkan jika pelanggan ini menyewa perangkat.
-                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="sm:col-span-2 flex justify-end gap-3">
+                <!-- Submit Actions -->
+                <div
+                    class="sticky bottom-0 bg-white/80 backdrop-blur-md p-4 border-t border-slate-200 flex items-center justify-end gap-4 rounded-xl shadow-lg z-20">
                     <a href="/packages/static-ip"
-                        class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
+                        class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-all">
+                        Batal
+                    </a>
                     <button type="submit"
-                        class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+                        class="px-8 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transform hover:-translate-y-0.5 transition-all">
+                        ✨ Simpan Pelanggan IP Statis
+                    </button>
                 </div>
+
             </form>
-            <script type="application/json" id="odp-data-store"><%- JSON.stringify(odpData || []) %></script>
-            <script type="application/json" id="pkg-data-store"><%- JSON.stringify(packages || []) %></script>
-            <script>
-                console.log('=== STATIC IP SCRIPT LOADED ===');
+</div>
 
-                // Data ODP untuk lookup OLT/ODC
-                let odpData = [];
+<script type="application/json" id="odp-data-store"><%- JSON.stringify(odpData || []) %></script>
+<script type="application/json" id="pkg-data-store"><%- JSON.stringify(packages || []) %></script>
+
+<script>
+    console.log('=== STATIC IP SCRIPT LOADED ===');
+
+    // Data Stores
+    let odpData = [];
+    let packages = [];
+    try {
+        odpData = JSON.parse(document.getElementById('odp-data-store').textContent);
+        packages = JSON.parse(document.getElementById('pkg-data-store').textContent);
+    } catch (e) { console.error('Data Parse Error', e); }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Infrastructure Logic ---
+        const odpSelect = document.getElementById('odp-select');
+        if (odpSelect) {
+            odpSelect.addEventListener('change', updateOLTODC);
+        }
+        updateOLTODC(); // Init
+
+        function updateOLTODC() {
+            const oltDisplay = document.querySelector('input[name="olt_display"]');
+            const odcDisplay = document.querySelector('input[name="odc_display"]');
+            const oltIdInput = document.querySelector('input[name="olt_id"]');
+            const odcIdInput = document.querySelector('input[name="odc_id"]');
+            const selectedOdpId = odpSelect ? odpSelect.value : '';
+
+            if (selectedOdpId && odpData) {
+                const odp = odpData.find(o => o.id == selectedOdpId);
+                if (odp) {
+                    if (oltDisplay) oltDisplay.value = odp.olt_name || 'Tidak tersedia';
+                    if (odcDisplay) odcDisplay.value = odp.odc_name || 'Tidak tersedia';
+                    if (oltIdInput) oltIdInput.value = odp.olt_id || '';
+                    if (odcIdInput) odcIdInput.value = odp.odc_id || '';
+                }
+            } else {
+                if (oltDisplay) oltDisplay.value = '';
+                if (odcDisplay) odcDisplay.value = '';
+                if (oltIdInput) oltIdInput.value = '';
+                if (odcIdInput) odcIdInput.value = '';
+            }
+        }
+
+        // --- IP & Queue Logic ---
+        const ipInput = document.querySelector('input[name="ip_address"]');
+        const preview = document.getElementById('packetMarkPreview');
+        const nameInput = document.querySelector('input[name="client_name"]');
+        const emailInput = document.getElementById('email');
+        const pkgSelect = document.querySelector('select[name="package_id"]');
+
+        // Listeners for IP/Queue Logic
+        if (ipInput) ipInput.addEventListener('input', updateMark);
+        if (nameInput) nameInput.addEventListener('input', () => {
+            updateChildNames();
+            autoFillEmail();
+        });
+        if (pkgSelect) pkgSelect.addEventListener('change', updateChildNames);
+
+        function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
+        function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
+
+        function updateMark() {
+            const v = (ipInput.value || '').trim();
+            const parts = v.split('/');
+            const ip = parts[0] || '';
+            const pref = Number(parts[1] || '0');
+            const networkEl = document.getElementById('networkPreview');
+
+            if (!ip || !pref) {
+                if (preview) preview.value = '';
+                if (networkEl) networkEl.value = '';
+                return;
+            }
+
+            const mask = pref === 0 ? 0 : (0xFFFFFFFF << (32 - pref)) >>> 0;
+            const net = ipToInt(ip) & mask;
+            if (networkEl) networkEl.value = intToIp(net);
+
+            let peer = ip;
+            if (pref === 30) {
+                const firstHost = net + 1;
+                const secondHost = net + 2;
+                const ipInt = ipToInt(ip);
+                peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+            }
+            if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer} (Queues di-generate otomatis)`;
+            updateChildNames();
+        }
+
+        function updateChildNames() {
+            const clientName = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
+            if (document.getElementById('childDownloadName')) document.getElementById('childDownloadName').value = clientName ? `${clientName}_DOWNLOAD` : '';
+            if (document.getElementById('childUploadName')) document.getElementById('childUploadName').value = clientName ? `${clientName}_UPLOAD` : '';
+
+            const selectedPkgId = pkgSelect && pkgSelect.value ? Number(pkgSelect.value) : null;
+            const pkg = packages.find(p => p.id === selectedPkgId);
+
+            if (pkg) {
+                if (document.getElementById('parentDownloadName')) document.getElementById('parentDownloadName').value = pkg.parent_download_name || '';
+                if (document.getElementById('parentUploadName')) document.getElementById('parentUploadName').value = pkg.parent_upload_name || '';
+
+                // Copy package params to hidden fields for backend processing
+                const setVal = (name, val) => {
+                    const el = document.querySelector(`input[name="${name}"]`);
+                    if (el) el.value = val || '';
+                };
+
+                setVal('qtype_download', pkg.child_queue_type_download);
+                setVal('qtype_upload', pkg.child_queue_type_upload);
+                setVal('priority_download', pkg.child_priority_download);
+                setVal('priority_upload', pkg.child_priority_upload);
+                setVal('limitat_download', pkg.child_limit_at_download);
+                setVal('limitat_upload', pkg.child_limit_at_upload);
+
+                const maxD = (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download);
+                const maxU = (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload);
+                setVal('maxlimit_download', maxD);
+                setVal('maxlimit_upload', maxU);
+
+                setVal('burst_limit_download', pkg.child_burst_download);
+                setVal('burst_limit_upload', pkg.child_burst_upload);
+                setVal('burst_threshold_download', pkg.child_burst_threshold_download);
+                setVal('burst_threshold_upload', pkg.child_burst_threshold_upload);
+                setVal('burst_time_download', pkg.child_burst_time_download);
+                setVal('burst_time_upload', pkg.child_burst_time_upload);
+            }
+        }
+
+        let emailTouched = false;
+        if (emailInput) emailInput.addEventListener('input', () => { emailTouched = true; });
+
+        function autoFillEmail() {
+            if (emailTouched || !emailInput || !nameInput) return;
+            const name = nameInput.value;
+            const local = (name || '')
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '.')
+                .replace(/^\.+|\.+$/g, '')
+                .slice(0, 32);
+            emailInput.value = local ? `${local}@id.net` : '';
+        }
+
+        // Init triggers
+        updateMark();
+    });
+
+    // --- Maps Logic (Same as PPPoE) ---
+    let map;
+    let marker;
+
+    function toggleBillingOptions() {
+        const modeInput = document.getElementById('billing_mode');
+        const prepaidOptions = document.getElementById('prepaid_options');
+        const billingDesc = document.getElementById('billing_desc');
+        if (!modeInput) return;
+
+        if (modeInput.value === 'prepaid') {
+            if (prepaidOptions) prepaidOptions.classList.remove('hidden');
+            if (billingDesc) billingDesc.textContent = 'Pelanggan membayar di depan. Internet otomatis terisolasi jika masa aktif habis.';
+        } else {
+            if (prepaidOptions) prepaidOptions.classList.add('hidden');
+            if (billingDesc) billingDesc.textContent = 'Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.';
+        }
+    }
+    window.toggleBillingOptions = toggleBillingOptions;
+
+    async function waitForLeaflet() {
+        if (typeof L !== 'undefined') return true;
+        for (let i = 0; i < 30; i++) {
+            if (typeof L !== 'undefined') return true;
+            await new Promise(r => setTimeout(r, 100));
+        }
+        // Fallback injection
+        const link = document.createElement('link');
+        link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        document.head.appendChild(script);
+        for (let i = 0; i < 50; i++) {
+            if (typeof L !== 'undefined') return true;
+            await new Promise(r => setTimeout(r, 100));
+        }
+        throw new Error('Leaflet libraries failed to load');
+    }
+
+    async function initMaps() {
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) return;
+        if (!mapContainer.hasChildNodes()) {
+            mapContainer.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;color:#666;"><div>⏳ Memuat Peta...</div></div>';
+        }
+
+        try {
+            await waitForLeaflet();
+            mapContainer.innerHTML = '';
+            if (map) { map.remove(); map = null; }
+
+            // Default Jakarta
+            map = L.map('map').setView([-6.200000, 106.816666], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
+            setTimeout(() => { map.invalidateSize(); }, 200);
+
+            const latInput = document.getElementById('latitude');
+            const lngInput = document.getElementById('longitude');
+
+            if (latInput && lngInput) {
+                latInput.addEventListener('input', updateMapPreview);
+                lngInput.addEventListener('input', updateMapPreview);
+            }
+
+            map.on('click', function (e) {
+                const lat = e.latlng.lat.toFixed(6);
+                const lng = e.latlng.lng.toFixed(6);
+                if (latInput) latInput.value = lat;
+                if (lngInput) lngInput.value = lng;
+                updateMapPreview();
+            });
+
+            // Auto location
+            setTimeout(async () => {
+                if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
+                    try {
+                        const { lat, lng } = await getCurrentLocation();
+                        setLoc(lat, lng);
+                    } catch (e) { console.log('Auto loc failed', e); }
+                }
+            }, 1000);
+
+        } catch (e) {
+            console.error('Map init error', e);
+            mapContainer.innerHTML = '<div class="text-red-500">Gagal memuat peta</div>';
+        }
+    }
+
+    function updateMapPreview() {
+        const lat = parseFloat(document.getElementById('latitude').value);
+        const lng = parseFloat(document.getElementById('longitude').value);
+        if (typeof L === 'undefined' || !map) return;
+
+        if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+            map.setView([lat, lng], 15);
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng]).addTo(map);
+            marker.bindPopup(`<b>Lokasi</b><br>${lat}, ${lng}`).openPopup();
+        }
+    }
+
+    function setLoc(lat, lng) {
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+        if (latInput) latInput.value = lat.toFixed(7);
+        if (lngInput) lngInput.value = lng.toFixed(7);
+        updateMapPreview();
+    }
+
+    function getCurrentLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) return reject(new Error('No geo'));
+            navigator.geolocation.getCurrentPosition(p => {
+                resolve({ lat: p.coords.latitude, lng: p.coords.longitude });
+            }, reject, { enableHighAccuracy: true, timeout: 10000 });
+        });
+    }
+
+    // Load Maps logic
+    document.addEventListener('DOMContentLoaded', () => {
+        initMaps();
+        // Manual button
+        const btn = document.getElementById('btnGetLocation');
+        if (btn) {
+            btn.addEventListener('click', async () => {
+                btn.disabled = true;
+                btn.textContent = '⏳ ...';
                 try {
-                    odpData = JSON.parse(document.getElementById('odp-data-store').textContent);
-                } catch (e) { console.error('EJS ODP Parse Error', e); }
-
-                console.log('ODP Data loaded:', odpData);
-                console.log('ODP Data length:', odpData ? odpData.length : 0);
-
-                // Add event listener for ODP select
-                document.addEventListener('DOMContentLoaded', function () {
-                    console.log('=== STATIC IP DOM CONTENT LOADED ===');
-
-                    const odpSelect = document.getElementById('odp-select');
-                    if (odpSelect) {
-                        odpSelect.addEventListener('change', updateOLTODC);
-                        console.log('Event listener added to ODP select');
-                    } else {
-                        console.error('ODP select element not found');
-                    }
-
-                    // Add form submission debug
-                    const form = document.getElementById('static-ip-form');
-                    if (form) {
-                        form.addEventListener('submit', function (e) {
-                            console.log('Static IP form submission started');
-                            console.log('Form action:', form.action);
-                            console.log('Form method:', form.method);
-
-                            // Get form data
-                            const formData = new FormData(form);
-                            console.log('Form data:');
-                            for (let [key, value] of formData.entries()) {
-                                console.log(key + ':', value);
-                            }
-                        });
-                        console.log('Static IP form submission listener added');
-                    } else {
-                        console.error('Static IP form element not found');
-                    }
-                });
-
-                function updateOLTODC() {
-                    console.log('updateOLTODC called');
-                    const odpSelect = document.getElementById('odp-select');
-                    const oltDisplay = document.querySelector('input[name="olt_display"]');
-                    const odcDisplay = document.querySelector('input[name="odc_display"]');
-                    const oltIdInput = document.querySelector('input[name="olt_id"]');
-                    const odcIdInput = document.querySelector('input[name="odc_id"]');
-
-                    const selectedOdpId = odpSelect.value;
-
-                    if (selectedOdpId) {
-                        const odp = odpData.find(o => o.id == selectedOdpId);
-                        if (odp) {
-                            oltDisplay.value = odp.olt_name || '';
-                            odcDisplay.value = odp.odc_name || '';
-                            oltIdInput.value = odp.olt_id || '';
-                            odcIdInput.value = odp.odc_id || '';
-                        }
-                    } else {
-                        oltDisplay.value = '';
-                        odcDisplay.value = '';
-                        oltIdInput.value = '';
-                        odcIdInput.value = '';
-                    }
+                    const { lat, lng } = await getCurrentLocation();
+                    setLoc(lat, lng);
+                    btn.textContent = '📍 Lokasi Saya';
+                } catch (e) {
+                    alert('Gagal: ' + e.message);
+                    btn.textContent = '📍 Lokasi Saya';
                 }
+                btn.disabled = false;
+            });
+        }
+    });
 
-
-                // Maps integration
-                let map;
-                let marker;
-
-                function getCurrentLocation() {
-                    return new Promise((resolve, reject) => {
-                        if (!navigator.geolocation) {
-                            reject(new Error('Browser tidak mendukung geolocation'));
-                            return;
-                        }
-
-                        navigator.geolocation.getCurrentPosition(
-                            function (position) {
-                                const lat = position.coords.latitude;
-                                const lng = position.coords.longitude;
-                                resolve({ lat, lng });
-                            },
-                            function (error) {
-                                reject(error);
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-                        );
-                    });
-                }
-
-                function setLocationToMap(lat, lng) {
-                    const latInput = document.querySelector('input[name="latitude"]');
-                    const lngInput = document.querySelector('input[name="longitude"]');
-
-                    if (latInput && lngInput) {
-                        latInput.value = lat.toFixed(7);
-                        lngInput.value = lng.toFixed(7);
-                    }
-
-                    if (map) {
-                        map.setView([lat, lng], 15);
-                        if (marker) {
-                            map.removeLayer(marker);
-                        }
-                        marker = L.marker([lat, lng]).addTo(map);
-                        marker.bindPopup(`<b>Lokasi Saat Ini</b><br>Lat: ${lat.toFixed(7)}<br>Lng: ${lng.toFixed(7)}`).openPopup();
-                    }
-                }
-
-                // Wait for Leaflet to be loaded with fallback
-                async function waitForLeaflet() {
-                    if (typeof L !== 'undefined') return true;
-
-                    // Wait up to 3 seconds for initial load (jsdelivr)
-                    for (let i = 0; i < 30; i++) {
-                        if (typeof L !== 'undefined') return true;
-                        await new Promise(r => setTimeout(r, 100));
-                    }
-
-                    // Inject fallback (unpkg)
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                    document.head.appendChild(link);
-                    const script = document.createElement('script');
-                    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                    document.head.appendChild(script);
-
-                    // Wait up to 5 seconds for fallback
-                    for (let i = 0; i < 50; i++) {
-                        if (typeof L !== 'undefined') return true;
-                        await new Promise(r => setTimeout(r, 100));
-                    }
-                    throw new Error('Leaflet libraries failed to load');
-                }
-
-                async function initMaps() {
-                    const mapContainer = document.getElementById('map');
-                    if (!mapContainer) return;
-
-                    // Loading Indicator
-                    if (!mapContainer.hasChildNodes()) {
-                        mapContainer.innerHTML = '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;color:#666;"><div>⏳ Memuat Peta...</div></div>';
-                    }
-
-                    try {
-                        await waitForLeaflet();
-
-                        // Clear loading
-                        mapContainer.innerHTML = '';
-                        if (map) { map.remove(); map = null; }
-
-                        // Initialize map with default center (Jakarta)
-                        map = L.map('map').setView([-6.200000, 106.816666], 13);
-
-                        // Add OpenStreetMap tiles
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '© OpenStreetMap contributors',
-                            maxZoom: 19
-                        }).addTo(map);
-
-                        // Force resize to ensure tiles render
-                        setTimeout(() => { map.invalidateSize(); }, 200);
-
-                        const latInput = document.querySelector('input[name="latitude"]');
-                        const lngInput = document.querySelector('input[name="longitude"]');
-
-                        if (latInput && lngInput) {
-                            latInput.addEventListener('input', updateMapPreview);
-                            lngInput.addEventListener('input', updateMapPreview);
-                        }
-
-                        // Add click event to map
-                        map.on('click', function (e) {
-                            const lat = e.latlng.lat.toFixed(6);
-                            const lng = e.latlng.lng.toFixed(6);
-
-                            // Update input fields
-                            if (latInput) latInput.value = lat;
-                            if (lngInput) lngInput.value = lng;
-
-                            // Update map with new marker
-                            updateMapPreview();
-
-                            // Show notification
-                            showNotification(`Koordinat dipilih: ${lat}, ${lng}`, 'success');
-                        });
-
-                        // Otomatis ambil lokasi saat ini jika koordinat masih kosong
-                        setTimeout(async () => {
-                            if ((!latInput || !latInput.value) && (!lngInput || !lngInput.value)) {
-                                try {
-                                    const { lat, lng } = await getCurrentLocation();
-                                    setLocationToMap(lat, lng);
-                                    showNotification('Lokasi saat ini berhasil diambil', 'success');
-                                } catch (error) {
-                                    console.log('Auto location failed:', error.message);
-                                }
-                            }
-                        }, 1000);
-                    } catch (error) {
-                        console.error('Error initializing map:', error);
-                        if (error.message && error.message.includes('initialized')) return;
-                        if (mapContainer) mapContainer.innerHTML = '<div class="p-4 text-center text-red-500">Gagal memuat peta (Cek Koneksi).</div>';
-                    }
-                }
-
-                function updateMapPreview() {
-                    const lat = parseFloat(document.querySelector('input[name="latitude"]').value);
-                    const lng = parseFloat(document.querySelector('input[name="longitude"]').value);
-
-                    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                        // Update map center
-                        map.setView([lat, lng], 15);
-
-                        // Remove existing marker
-                        if (marker) {
-                            map.removeLayer(marker);
-                        }
-
-                        // Add new marker
-                        marker = L.marker([lat, lng]).addTo(map);
-                        marker.bindPopup(`<b>Lokasi Pelanggan</b><br>Lat: ${lat}<br>Lng: ${lng}`).openPopup();
-                    }
-                }
-
-                function showNotification(message, type = 'info') {
-                    // Create notification element
-                    const notification = document.createElement('div');
-                    notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white text-sm ${type === 'success' ? 'bg-green-500' :
-                        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-                        }`;
-                    notification.textContent = message;
-
-                    document.body.appendChild(notification);
-
-                    // Remove after 3 seconds
-                    setTimeout(() => {
-                        notification.remove();
-                    }, 3000);
-                }
-
-                (function () {
-                    const ipInput = document.querySelector('input[name="ip_address"]');
-                    const preview = document.getElementById('packetMarkPreview');
-                    const nameInput = document.querySelector('input[name="client_name"]');
-                    const emailInput = document.getElementById('email');
-                    let emailTouched = false;
-                    if (emailInput) emailInput.addEventListener('input', () => { emailTouched = true; });
-                    const pkgSelect = document.querySelector('select[name="package_id"]');
-                    const childDownloadEl = document.getElementById('childDownloadName');
-                    const childUploadEl = document.getElementById('childUploadName');
-                    const parentDownloadEl = document.getElementById('parentDownloadName');
-                    const parentUploadEl = document.getElementById('parentUploadName');
-                    const networkEl = document.getElementById('networkPreview');
-                    let packages = [];
-                    try {
-                        packages = JSON.parse(document.getElementById('pkg-data-store').textContent);
-                    } catch (e) { console.error('EJS Package Parse Error', e); }
-
-                    function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
-                    function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
-                    function updateMark() {
-                        const v = (ipInput.value || '').trim();
-                        const parts = v.split('/');
-                        const ip = parts[0] || '';
-                        const pref = Number(parts[1] || '0');
-                        if (!ip || !pref) { if (preview) preview.value = ''; if (networkEl) networkEl.value = ''; return; }
-                        const mask = pref === 0 ? 0 : (0xFFFFFFFF << (32 - pref)) >>> 0;
-                        const net = ipToInt(ip) & mask;
-                        if (networkEl) networkEl.value = intToIp(net);
-                        let peer = ip;
-                        if (pref === 30) {
-                            const firstHost = net + 1;
-                            const secondHost = net + 2;
-                            const ipInt = ipToInt(ip);
-                            peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-                        }
-                        if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer}`;
-                        updateChildNames();
-                    }
-
-                    function updateChildNames() {
-                        const clientName = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
-                        if (childDownloadEl) childDownloadEl.value = clientName ? `${clientName}_DOWNLOAD` : '';
-                        if (childUploadEl) childUploadEl.value = clientName ? `${clientName}_UPLOAD` : '';
-                        const selectedPkgId = pkgSelect && pkgSelect.value ? Number(pkgSelect.value) : null;
-                        const pkg = packages.find(p => p.id === selectedPkgId);
-                        if (pkg) {
-                            if (parentDownloadEl) parentDownloadEl.value = pkg.parent_download_name || '';
-                            if (parentUploadEl) parentUploadEl.value = pkg.parent_upload_name || '';
-                            // Populate child template defaults to related inputs (if exist)
-                            const qd = document.querySelector('select[name="qtype_download"]');
-                            const qu = document.querySelector('select[name="qtype_upload"]');
-                            const pd = document.querySelector('select[name="priority_download"]');
-                            const pu = document.querySelector('select[name="priority_upload"]');
-                            const lad = document.querySelector('input[name="limitat_download"]');
-                            const lau = document.querySelector('input[name="limitat_upload"]');
-                            const mld = document.querySelector('input[name="maxlimit_download"]');
-                            const mlu = document.querySelector('input[name="maxlimit_upload"]');
-                            const bld = document.querySelector('input[name="burst_limit_download"]');
-                            const blu = document.querySelector('input[name="burst_limit_upload"]');
-                            const btd = document.querySelector('input[name="burst_threshold_download"]');
-                            const btu = document.querySelector('input[name="burst_threshold_upload"]');
-                            const btimeD = document.querySelector('input[name="burst_time_download"]');
-                            const btimeU = document.querySelector('input[name="burst_time_upload"]');
-                            if (qd && pkg.child_queue_type_download) qd.value = pkg.child_queue_type_download;
-                            if (qu && pkg.child_queue_type_upload) qu.value = pkg.child_queue_type_upload;
-                            if (pd && pkg.child_priority_download) pd.value = String(pkg.child_priority_download);
-                            if (pu && pkg.child_priority_upload) pu.value = String(pkg.child_priority_upload);
-                            if (lad && pkg.child_limit_at_download) lad.value = pkg.child_limit_at_download;
-                            if (lau && pkg.child_limit_at_upload) lau.value = pkg.child_limit_at_upload;
-                            if (mld && (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download)) mld.value = (pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download);
-                            if (mlu && (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload)) mlu.value = (pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload);
-                            if (bld && pkg.child_burst_download) bld.value = pkg.child_burst_download;
-                            if (blu && pkg.child_burst_upload) blu.value = pkg.child_burst_upload;
-                            if (btd && pkg.child_burst_threshold_download) btd.value = pkg.child_burst_threshold_download;
-                            if (btu && pkg.child_burst_threshold_upload) btu.value = pkg.child_burst_threshold_upload;
-                            if (btimeD && pkg.child_burst_time_download) btimeD.value = pkg.child_burst_time_download;
-                            if (btimeU && pkg.child_burst_time_upload) btimeU.value = pkg.child_burst_time_upload;
-
-                            // Fill readonly default panel
-                            const rd = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-                            rd('pkgQtypeDownload', pkg.child_queue_type_download || 'pcq-download-default');
-                            rd('pkgQtypeUpload', pkg.child_queue_type_upload || 'pcq-upload-default');
-                            rd('pkgPriorityDownload', String(pkg.child_priority_download || '8'));
-                            rd('pkgPriorityUpload', String(pkg.child_priority_upload || '8'));
-                            rd('pkgLimitAtDownload', pkg.child_limit_at_download || pkg.limit_at_download || '');
-                            rd('pkgLimitAtUpload', pkg.child_limit_at_upload || pkg.limit_at_upload || '');
-                            rd('pkgMaxDownload', pkg.child_download_limit || pkg.shared_download_limit || pkg.max_limit_download || '');
-                            rd('pkgMaxUpload', pkg.child_upload_limit || pkg.shared_upload_limit || pkg.max_limit_upload || '');
-                            rd('pkgBurstThresholdDownload', pkg.child_burst_threshold_download || '');
-                            rd('pkgBurstThresholdUpload', pkg.child_burst_threshold_upload || '');
-                            rd('pkgBurstTimeDownload', pkg.child_burst_time_download || '');
-                            rd('pkgBurstTimeUpload', pkg.child_burst_time_upload || '');
-                        } else {
-                            if (parentDownloadEl) parentDownloadEl.value = '';
-                            if (parentUploadEl) parentUploadEl.value = '';
-                        }
-                    }
-                    if (nameInput) nameInput.addEventListener('input', updateChildNames);
-                    if (pkgSelect) pkgSelect.addEventListener('change', updateChildNames);
-                    if (ipInput) { ipInput.addEventListener('input', updateMark); }
-                    updateMark();
-                    updateChildNames();
-
-                    // Auto-fill email dari nama pelanggan → nama_pelanggan@id.net
-                    function slugifyNameToEmailLocal(name) {
-                        return (name || '')
-                            .toLowerCase()
-                            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                            .replace(/[^a-z0-9]+/g, '.')
-                            .replace(/^\.+|\.+$/g, '')
-                            .slice(0, 32);
-                    }
-                    if (nameInput && emailInput) {
-                        nameInput.addEventListener('input', function () {
-                            if (emailTouched) return;
-                            const local = slugifyNameToEmailLocal(this.value);
-                            emailInput.value = local ? `${local}@id.net` : '';
-                        });
-                        if (!emailInput.value && nameInput.value) {
-                            const local = slugifyNameToEmailLocal(nameInput.value);
-                            emailInput.value = local ? `${local}@id.net` : '';
-                        }
-                    }
-
-                    // Initialize maps
-                    initMaps();
-
-                    // Initialize OLT/ODC display on page load
-                    updateOLTODC();
-
-                    // Initial trigger
-                    toggleBillingOptions();
-
-                    // Tombol manual untuk mengambil lokasi saat ini
-                    const getLocationBtn = document.getElementById('btnGetLocation');
-                    if (getLocationBtn) {
-                        getLocationBtn.addEventListener('click', function () {
-                            getLocationBtn.disabled = true;
-                            getLocationBtn.textContent = '⏳ Mendeteksi...';
-
-                            getCurrentLocation()
-                                .then(({ lat, lng }) => {
-                                    setLocationToMap(lat, lng);
-                                    showNotification('Lokasi saat ini berhasil diambil', 'success');
-                                    getLocationBtn.disabled = false;
-                                    getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
-                                })
-                                .catch((error) => {
-                                    showNotification('Tidak dapat mengambil lokasi: ' + error.message, 'error');
-                                    getLocationBtn.disabled = false;
-                                    getLocationBtn.textContent = '📍 Ambil Lokasi Saat Ini';
-                                });
-                        });
-                    }
-                })();
-
-                function toggleBillingOptions() {
-                    const modeInput = document.getElementById('billing_mode');
-                    if (!modeInput) return;
-
-                    const mode = modeInput.value;
-                    const prepaidOptions = document.getElementById('prepaid_options');
-                    const billingDesc = document.getElementById('billing_desc');
-
-                    if (mode === 'prepaid') {
-                        if (prepaidOptions) prepaidOptions.classList.remove('hidden');
-                        if (billingDesc) billingDesc.textContent = 'Pelanggan membayar di depan. Internet otomatis terisolasi jika masa aktif habis.';
-                    } else {
-                        if (prepaidOptions) prepaidOptions.classList.add('hidden');
-                        if (billingDesc) billingDesc.textContent = 'Tagihan dibuat otomatis tiap bulan. Cocok untuk pelanggan rumahan reguler.';
-                    }
-                }
-                // Make globally available
-                window.toggleBillingOptions = toggleBillingOptions;
-            </script>
-
-            <!-- Default Template dari Paket (readonly, untuk referensi) -->
-            <div class="mt-6 rounded border border-slate-200 bg-white p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-base font-semibold">Default Paket (Readonly)</h3>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Queue Type Download</label>
-                        <input id="pkgQtypeDownload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Queue Type Upload</label>
-                        <input id="pkgQtypeUpload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Priority Download</label>
-                        <input id="pkgPriorityDownload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Priority Upload</label>
-                        <input id="pkgPriorityUpload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Limit At Download</label>
-                        <input id="pkgLimitAtDownload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Limit At Upload</label>
-                        <input id="pkgLimitAtUpload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Max Download</label>
-                        <input id="pkgMaxDownload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Max Upload</label>
-                        <input id="pkgMaxUpload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Burst Threshold Download</label>
-                        <input id="pkgBurstThresholdDownload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Burst Threshold Upload</label>
-                        <input id="pkgBurstThresholdUpload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Burst Time Download</label>
-                        <input id="pkgBurstTimeDownload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Burst Time Upload</label>
-                        <input id="pkgBurstTimeUpload" readonly
-                            class="w-full rounded border border-slate-300 px-2 py-1.5 bg-slate-50" />
-                    </div>
-                </div>
-            </div>
+</script>

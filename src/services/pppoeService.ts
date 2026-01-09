@@ -265,9 +265,10 @@ export async function listPackages(): Promise<PppoePackage[]> {
 
 		// Update rate limit dari profile untuk setiap paket yang punya profile_id
 		packages.forEach((pkg: any) => {
-			if (pkg.profile_id && pkg.profile_rate_limit_rx !== null) {
-				pkg.rate_limit_rx = pkg.profile_rate_limit_rx || pkg.rate_limit_rx || '0';
-				pkg.rate_limit_tx = pkg.profile_rate_limit_tx || pkg.rate_limit_tx || '0';
+			if (pkg.profile_id) {
+				// Prioritize Package's own limit. If not set (null/empty), fallback to Profile's limit.
+				pkg.rate_limit_rx = pkg.rate_limit_rx || pkg.profile_rate_limit_rx || '0';
+				pkg.rate_limit_tx = pkg.rate_limit_tx || pkg.profile_rate_limit_tx || '0';
 			}
 		});
 
@@ -299,17 +300,21 @@ export async function getPackageById(id: number): Promise<PppoePackage | null> {
 			`, [id]);
 		const result = Array.isArray(rows) && rows.length ? rows[0] as PppoePackage : null;
 
-		// Jika paket punya profile_id, gunakan rate limit dari profile (data terbaru)
-		if (result && (result as any).profile_id && (result as any).profile_rate_limit_rx !== null) {
-			// Update rate limit dari profile jika ada (prioritas: profile > package)
-			(result as any).rate_limit_rx = (result as any).profile_rate_limit_rx || (result as any).rate_limit_rx || '0';
-			(result as any).rate_limit_tx = (result as any).profile_rate_limit_tx || (result as any).rate_limit_tx || '0';
-			(result as any).burst_limit_rx = (result as any).profile_burst_limit_rx || (result as any).burst_limit_rx || null;
-			(result as any).burst_limit_tx = (result as any).profile_burst_limit_tx || (result as any).burst_limit_tx || null;
-			(result as any).burst_threshold_rx = (result as any).profile_burst_threshold_rx || (result as any).burst_threshold_rx || null;
-			(result as any).burst_threshold_tx = (result as any).profile_burst_threshold_tx || (result as any).burst_threshold_tx || null;
-			(result as any).burst_time_rx = (result as any).profile_burst_time_rx || (result as any).burst_time_rx || null;
-			(result as any).burst_time_tx = (result as any).profile_burst_time_tx || (result as any).burst_time_tx || null;
+		// Jika paket punya profile_id, gunakan rate limit dari profile KECUALI paket punya override sendiri
+		if (result && (result as any).profile_id) {
+			// Update rate limit (Priority: Package > Profile)
+			(result as any).rate_limit_rx = (result as any).rate_limit_rx || (result as any).profile_rate_limit_rx || '0';
+			(result as any).rate_limit_tx = (result as any).rate_limit_tx || (result as any).profile_rate_limit_tx || '0';
+
+			// Burst limits (Priority: Package > Profile)
+			(result as any).burst_limit_rx = (result as any).burst_limit_rx || (result as any).profile_burst_limit_rx || null;
+			(result as any).burst_limit_tx = (result as any).burst_limit_tx || (result as any).profile_burst_limit_tx || null;
+
+			(result as any).burst_threshold_rx = (result as any).burst_threshold_rx || (result as any).profile_burst_threshold_rx || null;
+			(result as any).burst_threshold_tx = (result as any).burst_threshold_tx || (result as any).profile_burst_threshold_tx || null;
+
+			(result as any).burst_time_rx = (result as any).burst_time_rx || (result as any).profile_burst_time_rx || null;
+			(result as any).burst_time_tx = (result as any).burst_time_tx || (result as any).profile_burst_time_tx || null;
 		}
 
 		return result;
@@ -409,30 +414,41 @@ export async function updatePackage(id: number, data: {
 		// Update database
 		await conn.execute(`
 			UPDATE pppoe_packages SET
-		name = COALESCE(?, name),
+			name = COALESCE(?, name),
 			profile_id = COALESCE(?, profile_id),
-			price = COALESCE(?, price),
-			duration_days = COALESCE(?, duration_days),
+			price = ?,
+			duration_days = ?,
 			status = COALESCE(?, status),
 			description = COALESCE(?, description),
-			rate_limit_rx = COALESCE(?, rate_limit_rx),
-			rate_limit_tx = COALESCE(?, rate_limit_tx),
-			burst_limit_rx = COALESCE(?, burst_limit_rx),
-			burst_limit_tx = COALESCE(?, burst_limit_tx),
-			burst_threshold_rx = COALESCE(?, burst_threshold_rx),
-			burst_threshold_tx = COALESCE(?, burst_threshold_tx),
-			burst_time_rx = COALESCE(?, burst_time_rx),
-			burst_time_tx = COALESCE(?, burst_time_tx),
-			price_7_days = COALESCE(?, price_7_days),
-			price_30_days = COALESCE(?, price_30_days),
+			rate_limit_rx = ?,
+			rate_limit_tx = ?,
+			burst_limit_rx = ?,
+			burst_limit_tx = ?,
+			burst_threshold_rx = ?,
+			burst_threshold_tx = ?,
+			burst_time_rx = ?,
+			burst_time_tx = ?,
+			price_7_days = ?,
+			price_30_days = ?,
 			updated_at = NOW()
 			WHERE id = ?
 			`, [
-			data.name || null, data.profile_id || null, data.price || null, data.duration_days || null, data.status || null,
-			data.description || null, data.rate_limit_rx || null, data.rate_limit_tx || null, data.burst_limit_rx || null,
-			data.burst_limit_tx || null, data.burst_threshold_rx || null, data.burst_threshold_tx || null,
-			data.burst_time_rx || null, data.burst_time_tx || null,
-			data.price_7_days || null, data.price_30_days || null,  // ADDED prepaid pricing
+			data.name || null,
+			data.profile_id || null,
+			data.price !== undefined ? data.price : null, // Handle 0 correctly
+			data.duration_days !== undefined ? data.duration_days : null, // Handle 0/undefined correctly 
+			data.status || null,
+			data.description || null,
+			data.rate_limit_rx !== undefined ? data.rate_limit_rx : null,
+			data.rate_limit_tx !== undefined ? data.rate_limit_tx : null,
+			data.burst_limit_rx !== undefined ? data.burst_limit_rx : null,
+			data.burst_limit_tx !== undefined ? data.burst_limit_tx : null,
+			data.burst_threshold_rx !== undefined ? data.burst_threshold_rx : null,
+			data.burst_threshold_tx !== undefined ? data.burst_threshold_tx : null,
+			data.burst_time_rx !== undefined ? data.burst_time_rx : null,
+			data.burst_time_tx !== undefined ? data.burst_time_tx : null,
+			data.price_7_days !== undefined ? data.price_7_days : null,
+			data.price_30_days !== undefined ? data.price_30_days : null,
 			id
 		]);
 
