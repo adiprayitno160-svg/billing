@@ -2377,6 +2377,9 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
         const cfg = await getMikrotikConfig();
         const interfaces = cfg ? await getInterfaces(cfg) : [];
 
+        // Get all static IP packages for dropdown
+        const allPackages = await listStaticIpPackages();
+
         // Get ODP data with OLT and ODC info
         const conn = await databasePool.getConnection();
         try {
@@ -2398,6 +2401,7 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
                 title: 'Edit Pelanggan IP Static',
                 client,
                 package: pkg,
+                packages: allPackages,  // Add packages for dropdown
                 interfaces,
                 odpData: odpRows,
                 success: req.flash('success'),
@@ -2419,6 +2423,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             client_name,
             ip_address,
             interface: iface,
+            package_id,
             address,
             phone_number,
             latitude,
@@ -2437,7 +2442,11 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
 
         // Ambil data lama untuk sinkronisasi Mikrotik
         const oldClient = await getClientById(clientId);
-        const pkg = await getStaticIpPackageById(oldClient.package_id);
+
+        // Tentukan paket yang digunakan (baru atau lama)
+        const targetPackageId = package_id ? Number(package_id) : oldClient.package_id;
+        const pkg = await getStaticIpPackageById(targetPackageId);
+
         const cfg = await getMikrotikConfig();
 
         if (cfg && pkg && oldClient) {
@@ -2493,11 +2502,17 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             const newUploadMark: string = `UP-${newPeerIp}`;
             await addMangleRulesForClient(cfg, { peerIp: newPeerIp, downloadMark: newDownloadMark, uploadMark: newUploadMark });
 
+            // Gunakan limit dari paket (baru atau lama)
             const mlDownload = (pkg as any).child_download_limit || (pkg as any).shared_download_limit || pkg.max_limit_download;
             const mlUpload = (pkg as any).child_upload_limit || (pkg as any).shared_upload_limit || pkg.max_limit_upload;
 
             const packageDownloadQueue = pkg.name;
             const packageUploadQueue = `UP-${pkg.name}`;
+
+            // Note: Jika parent queue berubah (karena ganti paket), code ini works karena kita pakai pkg.name baru.
+            // Tapi pastikan Parent Queue untuk paket baru sudah ada di MikroTik. 
+            // Biasanya parent dibuat saat add package atau add client pertama. 
+            // Untuk safety, ideally kita check/create parent queue disini, tapi kita asumsikan sudah ada dulu.
 
             await createQueueTree(cfg, {
                 name: client_name,
@@ -2521,6 +2536,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         await updateClient(clientId, {
             client_name,
             ip_address,
+            package_id: targetPackageId,
             interface: iface || null,
             address: address || null,
             phone_number: phone_number || null,

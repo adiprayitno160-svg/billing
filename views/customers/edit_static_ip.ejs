@@ -1,254 +1,325 @@
 ﻿<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Edit Pelanggan IP Static</h2>
-        <a href="/packages/static-ip/clients" class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
+        <a href="/packages/static-ip/clients"
+            class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
             ← Kembali
         </a>
     </div>
-    
-    <% if (error && error.length > 0) { %>
-    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
-        <%= error[0] %>
-    </div>
-    <% } %>
-    
-    <% if (success && success.length > 0) { %>
-    <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
-        <%= success[0] %>
-    </div>
-    <% } %>
 
-    <!-- Informasi Paket -->
-    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-        <h3 class="font-medium text-blue-700 mb-2">ℹ️ Informasi Paket</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-600">
-            <div><span class="font-medium">Nama Paket:</span> <%= package.name %></div>
-            <div><span class="font-medium">Max Clients:</span> <%= package.max_clients || 1 %></div>
-            <div><span class="font-medium">Upload Limit:</span> <%= package.max_limit_upload %></div>
-            <div><span class="font-medium">Download Limit:</span> <%= package.max_limit_download %></div>
-            <div><span class="font-medium">Parent Upload:</span> <%= package.parent_upload_name || '-' %></div>
-            <div><span class="font-medium">Parent Download:</span> <%= package.parent_download_name || '-' %></div>
+    <% if (error && error.length> 0) { %>
+        <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+            <%= error[0] %>
         </div>
-    </div>
-    
-    <form method="post" action="/customers/edit-static-ip/<%= client.id %>" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pelanggan *</label>
-            <input name="client_name" value="<%= client.client_name %>" required placeholder="Contoh: Pelanggan A" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">Nama untuk mengidentifikasi pelanggan</p>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">IP Address *</label>
-            <input name="ip_address" value="<%= client.ip_address %>" required placeholder="192.168.1.1/30" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">IP address yang akan digunakan pelanggan</p>
-        </div>
+        <% } %>
 
-        <!-- Informasi Kontak -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📞 Informasi Kontak</h3>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
-            <textarea name="address" placeholder="Alamat lengkap pelanggan" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"><%= client.address || '' %></textarea>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Nomor Telepon</label>
-            <input name="phone_number" value="<%= client.phone_number || '' %>" placeholder="08123456789" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
+            <% if (success && success.length> 0) { %>
+                <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
+                    <%= success[0] %>
+                </div>
+                <% } %>
 
-        <!-- Koordinat & Maps -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📍 Koordinat & Maps</h3>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
-            <input name="latitude" type="number" step="any" value="<%= client.latitude || '' %>" placeholder="-6.200000" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
-            <input name="longitude" type="number" step="any" value="<%= client.longitude || '' %>" placeholder="106.816666" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
+                    <!-- Informasi Paket -->
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
+                        <h3 class="font-medium text-blue-700 mb-2">ℹ️ Informasi Paket</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-600">
+                            <div><span class="font-medium">Nama Paket:</span>
+                                <%= package.name %>
+                            </div>
+                            <div><span class="font-medium">Max Clients:</span>
+                                <%= package.max_clients || 1 %>
+                            </div>
+                            <div><span class="font-medium">Upload Limit:</span>
+                                <%= package.max_limit_upload %>
+                            </div>
+                            <div><span class="font-medium">Download Limit:</span>
+                                <%= package.max_limit_download %>
+                            </div>
+                            <div><span class="font-medium">Parent Upload:</span>
+                                <%= package.parent_upload_name || '-' %>
+                            </div>
+                            <div><span class="font-medium">Parent Download:</span>
+                                <%= package.parent_download_name || '-' %>
+                            </div>
+                        </div>
+                    </div>
 
-        <!-- OLT, ODC, ODP -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">🏗️ Infrastruktur FTTH</h3>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">OLT (View Only)</label>
-            <input name="olt_display" readonly class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" value="<%= client.olt_name || '' %>" placeholder="Akan muncul setelah memilih ODP" />
-            <input name="olt_id" type="hidden" value="<%= client.olt_id || '' %>" />
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">ODC (View Only)</label>
-            <input name="odc_display" readonly class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" value="<%= client.odc_name || '' %>" placeholder="Akan muncul setelah memilih ODP" />
-            <input name="odc_id" type="hidden" value="<%= client.odc_id || '' %>" />
-        </div>
-        
-        <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-slate-700 mb-1">ODP *</label>
-            <select name="odp_id" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updateOLTODC()">
-                <option value="">Pilih ODP</option>
-                <% (odpData || []).forEach(function(odp){ %>
-                <option value="<%= odp.id %>" <%= client.odp_id == odp.id ? 'selected' : '' %>><%= odp.odp_name %></option>
-                <% }) %>
-            </select>
-            <p class="text-xs text-slate-500 mt-1">Pilih ODP untuk mengisi OLT dan ODC secara otomatis</p>
-        </div>
+                    <form method="post" action="/customers/edit-static-ip/<%= client.id %>"
+                        class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pelanggan *</label>
+                            <input name="client_name" value="<%= client.client_name %>" required
+                                placeholder="Contoh: Pelanggan A"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <p class="text-xs text-slate-500 mt-1">Nama untuk mengidentifikasi pelanggan</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">IP Address *</label>
+                            <input name="ip_address" value="<%= client.ip_address %>" required
+                                placeholder="192.168.1.1/30"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <p class="text-xs text-slate-500 mt-1">IP address yang akan digunakan pelanggan</p>
+                        </div>
 
-        <!-- ONT Information -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📡 Informasi ONT</h3>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">ONT Serial Number</label>
-            <input name="ont_serial" value="<%= client.ont_serial || '' %>" placeholder="ABC123456789" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">Serial number ONT yang digunakan customer</p>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">ONT Model</label>
-            <input name="ont_model" value="<%= client.ont_model || '' %>" placeholder="Huawei HG8245H" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">Model ONT yang digunakan</p>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">ONT Status</label>
-            <select name="ont_status" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="offline" <%= client.ont_status === 'offline' ? 'selected' : '' %>>Offline</option>
-                <option value="online" <%= client.ont_status === 'online' ? 'selected' : '' %>>Online</option>
-                <option value="maintenance" <%= client.ont_status === 'maintenance' ? 'selected' : '' %>>Maintenance</option>
-            </select>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">ONT MAC Address</label>
-            <input name="ont_mac" value="<%= client.ont_mac || '' %>" placeholder="00:11:22:33:44:55" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <p class="text-xs text-slate-500 mt-1">MAC address ONT</p>
-        </div>
+                        <!-- Paket Internet -->
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Paket Internet *</label>
+                            <select name="package_id" required
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Pilih Paket --</option>
+                                <% (packages || []).forEach(function(pkg){ %>
+                                    <option value="<%= pkg.id %>" <%=client.package_id==pkg.id ? 'selected' : '' %>>
+                                        <%= pkg.name %> (<%= pkg.max_limit_download %>) - Rp <%= parseInt(pkg.price ||
+                                                    0).toLocaleString('id-ID') %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Pilih paket internet untuk pelanggan ini</p>
+                        </div>
 
-        <!-- Interface MikroTik -->
-        <div class="sm:col-span-2">
-            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">🔧 Konfigurasi MikroTik</h3>
-        </div>
-        
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Interface MikroTik *</label>
-            <select name="interface" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Pilih Interface --</option>
-                <% (interfaces || []).forEach(function(ifc){ %>
-                <option value="<%= ifc.name %>" <%= client.interface === ifc.name ? 'selected' : '' %>><%= ifc.name %></option>
-                <% }) %>
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Packet Mark (preview)</label>
-            <input id="editPacketMarkPreview" readonly class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
-        </div>
-        
-        <!-- Informasi Sistem Share -->
-        <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-slate-700 mb-1">Sistem Share</label>
-            <div class="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                <p class="font-medium mb-1">✅ Informasi Sistem Share:</p>
-                <p>• Child parent diambil dari parent paket (view only)</p>
-                <p>• Bandwidth akan dibagi rata sesuai max clients</p>
-                <p>• Contoh: <%= package.max_limit_upload %> untuk <%= package.max_clients || 1 %> clients = 
-                    <%= package.max_clients > 1 ? Math.floor(parseInt(package.max_limit_upload.replace(/[^0-9]/g, '')) / package.max_clients) + 'M' : package.max_limit_upload %> per client</p>
-            </div>
-        </div>
+                        <!-- Informasi Kontak -->
+                        <div class="sm:col-span-2">
+                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📞
+                                Informasi Kontak</h3>
+                        </div>
 
-        <div class="sm:col-span-2 flex justify-end gap-3">
-            <a href="/packages/static-ip/clients" class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
-                Batal
-            </a>
-            <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
-                Simpan Perubahan
-            </button>
-        </div>
-    </form>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
+                            <textarea name="address" placeholder="Alamat lengkap pelanggan"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                rows="3"><%= client.address || '' %></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Nomor Telepon</label>
+                            <input name="phone_number" value="<%= client.phone_number || '' %>"
+                                placeholder="08123456789"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
 
-    <script>
-    // Data ODP untuk lookup OLT/ODC
-    const odpData = <%- JSON.stringify(odpData || []) %>;
-    
-    function updateOLTODC() {
-        const odpSelect = document.querySelector('select[name="odp_id"]');
-        const oltDisplay = document.querySelector('input[name="olt_display"]');
-        const odcDisplay = document.querySelector('input[name="odc_display"]');
-        const oltIdInput = document.querySelector('input[name="olt_id"]');
-        const odcIdInput = document.querySelector('input[name="odc_id"]');
-        
-        const selectedOdpId = odpSelect.value;
-        if (selectedOdpId) {
-            const odp = odpData.find(o => o.id == selectedOdpId);
-            if (odp) {
-                oltDisplay.value = odp.olt_name || '';
-                odcDisplay.value = odp.odc_name || '';
-                oltIdInput.value = odp.olt_id || '';
-                odcIdInput.value = odp.odc_id || '';
-            }
-        } else {
-            oltDisplay.value = '';
-            odcDisplay.value = '';
-            oltIdInput.value = '';
-            odcIdInput.value = '';
-        }
-    }
-    
-    // Maps integration
-    function initMaps() {
-        const latInput = document.querySelector('input[name="latitude"]');
-        const lngInput = document.querySelector('input[name="longitude"]');
-        
-        if (latInput && lngInput) {
-            latInput.addEventListener('change', updateMapPreview);
-            lngInput.addEventListener('change', updateMapPreview);
-        }
-    }
-    
-    function updateMapPreview() {
-        const lat = document.querySelector('input[name="latitude"]').value;
-        const lng = document.querySelector('input[name="longitude"]').value;
-        
-        if (lat && lng) {
-            console.log('Koordinat:', lat, lng);
-        }
-    }
-    
-    (function(){
-        const ipInput = document.querySelector('input[name="ip_address"]');
-        const preview = document.getElementById('editPacketMarkPreview');
-        const nameInput = document.querySelector('input[name="client_name"]');
-        
-        function ipToInt(ip){return ip.split('.').reduce((acc,oct)=> (acc<<8)+parseInt(oct),0)>>>0}
-        function intToIp(int){return [(int>>>24)&255,(int>>>16)&255,(int>>>8)&255,int&255].join('.')}
-        
-        function update(){
-            const v = (ipInput.value||'').trim();
-            const [ip,prefStr] = v.split('/');
-            const pref = Number(prefStr||'0');
-            if (!ip || !pref){ if (preview) preview.value=''; return; }
-            const mask = pref===0 ? 0 : (0xFFFFFFFF << (32-pref))>>>0;
-            const net = ipToInt(ip) & mask;
-            let peer = ip;
-            if (pref === 30){
-                const firstHost = net + 1;
-                const secondHost = net + 2;
-                const ipInt = ipToInt(ip);
-                peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-            }
-            if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer}`;
-        }
-        
-        if (ipInput) ipInput.addEventListener('input', update);
-        update(); // Initial update
-        
-        // Initialize maps
-        initMaps();
-    })();
-    </script>
+                        <!-- Koordinat & Maps -->
+                        <div class="sm:col-span-2">
+                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📍
+                                Koordinat & Maps</h3>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
+                            <input name="latitude" type="number" step="any" value="<%= client.latitude || '' %>"
+                                placeholder="-6.200000"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
+                            <input name="longitude" type="number" step="any" value="<%= client.longitude || '' %>"
+                                placeholder="106.816666"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+
+                        <!-- OLT, ODC, ODP -->
+                        <div class="sm:col-span-2">
+                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">🏗️
+                                Infrastruktur FTTH</h3>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">OLT (View Only)</label>
+                            <input name="olt_display" readonly
+                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
+                                value="<%= client.olt_name || '' %>" placeholder="Akan muncul setelah memilih ODP" />
+                            <input name="olt_id" type="hidden" value="<%= client.olt_id || '' %>" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ODC (View Only)</label>
+                            <input name="odc_display" readonly
+                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
+                                value="<%= client.odc_name || '' %>" placeholder="Akan muncul setelah memilih ODP" />
+                            <input name="odc_id" type="hidden" value="<%= client.odc_id || '' %>" />
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ODP *</label>
+                            <select name="odp_id" required
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="updateOLTODC()">
+                                <option value="">Pilih ODP</option>
+                                <% (odpData || []).forEach(function(odp){ %>
+                                    <option value="<%= odp.id %>" <%=client.odp_id==odp.id ? 'selected' : '' %>><%=
+                                            odp.odp_name %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Pilih ODP untuk mengisi OLT dan ODC secara otomatis
+                            </p>
+                        </div>
+
+                        <!-- ONT Information -->
+                        <div class="sm:col-span-2">
+                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📡
+                                Informasi ONT</h3>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ONT Serial Number</label>
+                            <input name="ont_serial" value="<%= client.ont_serial || '' %>" placeholder="ABC123456789"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <p class="text-xs text-slate-500 mt-1">Serial number ONT yang digunakan customer</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ONT Model</label>
+                            <input name="ont_model" value="<%= client.ont_model || '' %>" placeholder="Huawei HG8245H"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <p class="text-xs text-slate-500 mt-1">Model ONT yang digunakan</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ONT Status</label>
+                            <select name="ont_status"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="offline" <%=client.ont_status==='offline' ? 'selected' : '' %>>Offline
+                                </option>
+                                <option value="online" <%=client.ont_status==='online' ? 'selected' : '' %>>Online
+                                </option>
+                                <option value="maintenance" <%=client.ont_status==='maintenance' ? 'selected' : '' %>
+                                    >Maintenance</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ONT MAC Address</label>
+                            <input name="ont_mac" value="<%= client.ont_mac || '' %>" placeholder="00:11:22:33:44:55"
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <p class="text-xs text-slate-500 mt-1">MAC address ONT</p>
+                        </div>
+
+                        <!-- Interface MikroTik -->
+                        <div class="sm:col-span-2">
+                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">🔧
+                                Konfigurasi MikroTik</h3>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Interface MikroTik *</label>
+                            <select name="interface" required
+                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Pilih Interface --</option>
+                                <% (interfaces || []).forEach(function(ifc){ %>
+                                    <option value="<%= ifc.name %>" <%=client.interface===ifc.name ? 'selected' : '' %>>
+                                        <%= ifc.name %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Packet Mark (preview)</label>
+                            <input id="editPacketMarkPreview" readonly
+                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
+                        </div>
+
+                        <!-- Informasi Sistem Share -->
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Sistem Share</label>
+                            <div class="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                                <p class="font-medium mb-1">✅ Informasi Sistem Share:</p>
+                                <p>• Child parent diambil dari parent paket (view only)</p>
+                                <p>• Bandwidth akan dibagi rata sesuai max clients</p>
+                                <p>• Contoh: <%= package.max_limit_upload %> untuk <%= package.max_clients || 1 %>
+                                            clients =
+                                            <%= package.max_clients> 1 ?
+                                                Math.floor(parseInt(package.max_limit_upload.replace(/[^0-9]/g, '')) /
+                                                package.max_clients) + 'M' : package.max_limit_upload %> per client</p>
+                            </div>
+                        </div>
+
+                        <div class="sm:col-span-2 flex justify-end gap-3">
+                            <a href="/packages/static-ip/clients"
+                                class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
+                                Batal
+                            </a>
+                            <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                                Simpan Perubahan
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        // Data ODP untuk lookup OLT/ODC
+                        const odpData = <% - JSON.stringify(odpData || []) %>;
+
+                        function updateOLTODC() {
+                            const odpSelect = document.querySelector('select[name="odp_id"]');
+                            const oltDisplay = document.querySelector('input[name="olt_display"]');
+                            const odcDisplay = document.querySelector('input[name="odc_display"]');
+                            const oltIdInput = document.querySelector('input[name="olt_id"]');
+                            const odcIdInput = document.querySelector('input[name="odc_id"]');
+
+                            const selectedOdpId = odpSelect.value;
+                            if (selectedOdpId) {
+                                const odp = odpData.find(o => o.id == selectedOdpId);
+                                if (odp) {
+                                    oltDisplay.value = odp.olt_name || '';
+                                    odcDisplay.value = odp.odc_name || '';
+                                    oltIdInput.value = odp.olt_id || '';
+                                    odcIdInput.value = odp.odc_id || '';
+                                }
+                            } else {
+                                oltDisplay.value = '';
+                                odcDisplay.value = '';
+                                oltIdInput.value = '';
+                                odcIdInput.value = '';
+                            }
+                        }
+
+                        // Maps integration
+                        function initMaps() {
+                            const latInput = document.querySelector('input[name="latitude"]');
+                            const lngInput = document.querySelector('input[name="longitude"]');
+
+                            if (latInput && lngInput) {
+                                latInput.addEventListener('change', updateMapPreview);
+                                lngInput.addEventListener('change', updateMapPreview);
+                            }
+                        }
+
+                        function updateMapPreview() {
+                            const lat = document.querySelector('input[name="latitude"]').value;
+                            const lng = document.querySelector('input[name="longitude"]').value;
+
+                            if (lat && lng) {
+                                console.log('Koordinat:', lat, lng);
+                            }
+                        }
+
+                        (function () {
+                            const ipInput = document.querySelector('input[name="ip_address"]');
+                            const preview = document.getElementById('editPacketMarkPreview');
+                            const nameInput = document.querySelector('input[name="client_name"]');
+
+                            function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
+                            function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
+
+                            function update() {
+                                const v = (ipInput.value || '').trim();
+                                const [ip, prefStr] = v.split('/');
+                                const pref = Number(prefStr || '0');
+                                if (!ip || !pref) { if (preview) preview.value = ''; return; }
+                                const mask = pref === 0 ? 0 : (0xFFFFFFFF << (32 - pref)) >>> 0;
+                                const net = ipToInt(ip) & mask;
+                                let peer = ip;
+                                if (pref === 30) {
+                                    const firstHost = net + 1;
+                                    const secondHost = net + 2;
+                                    const ipInt = ipToInt(ip);
+                                    peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                                }
+                                if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer}`;
+                            }
+
+                            if (ipInput) ipInput.addEventListener('input', update);
+                            update(); // Initial update
+
+                            // Initialize maps
+                            initMaps();
+                        })();
+                    </script>
 </div>

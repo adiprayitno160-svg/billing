@@ -202,6 +202,7 @@ export async function getClientById(clientId: number): Promise<StaticIpClient | 
 
 export async function updateClient(clientId: number, data: {
     client_name?: string;
+    package_id?: number;
     ip_address?: string;
     network?: string | null;
     interface?: string | null;
@@ -220,6 +221,7 @@ export async function updateClient(clientId: number, data: {
         const fields: string[] = [];
         const values: any[] = [];
         if (data.client_name !== undefined) { fields.push('client_name = ?'); values.push(data.client_name); }
+        if (data.package_id !== undefined) { fields.push('package_id = ?'); values.push(data.package_id); }
         if (data.ip_address !== undefined) { fields.push('ip_address = ?'); values.push(data.ip_address); }
         if (data.network !== undefined) { fields.push('network = ?'); values.push(data.network); }
         if (data.interface !== undefined) { fields.push('interface = ?'); values.push(data.interface); }
