@@ -71,8 +71,23 @@ export class WhatsAppServiceBaileys {
         }
     }
 
+    // Message deduplication cache (to prevent double processing)
+    private static processedMessages: Set<string> = new Set();
+    private static readonly MESSAGE_CACHE_TIMEOUT = 30000; // 30 seconds
+
     private static async startSocket() {
         try {
+            // Clear old event listeners if socket exists to prevent duplicates
+            if (this.sock) {
+                try {
+                    this.sock.ev.removeAllListeners('messages.upsert');
+                    this.sock.ev.removeAllListeners('connection.update');
+                    this.sock.ev.removeAllListeners('creds.update');
+                } catch (e) {
+                    // Ignore if no listeners
+                }
+            }
+
             // Fetch latest version of Baileys
             let version: [number, number, number] = [2, 3000, 1015901307];
             try {
@@ -153,10 +168,18 @@ export class WhatsAppServiceBaileys {
                 }
 
                 for (const msg of messages) {
+                    // Deduplication check using message ID
+                    const messageId = msg.key?.id;
+                    if (messageId && this.processedMessages.has(messageId)) {
+                        console.log(`[Baileys] ⏭️  Skipping duplicate message: ${messageId}`);
+                        continue;
+                    }
+
                     console.log(`[Baileys] 🔍 Processing message:`, {
                         hasMessage: !!msg.message,
                         fromMe: msg.key?.fromMe,
-                        remoteJid: msg.key?.remoteJid
+                        remoteJid: msg.key?.remoteJid,
+                        messageId: messageId
                     });
 
                     if (!msg.message) {
@@ -166,6 +189,15 @@ export class WhatsAppServiceBaileys {
                     if (msg.key.fromMe) {
                         console.log(`[Baileys] ⏭️  Skipping - message from self`);
                         continue;
+                    }
+
+                    // Add to processed set to prevent double processing
+                    if (messageId) {
+                        this.processedMessages.add(messageId);
+                        // Clean up old message IDs after timeout
+                        setTimeout(() => {
+                            this.processedMessages.delete(messageId);
+                        }, this.MESSAGE_CACHE_TIMEOUT);
                     }
 
                     console.log(`[Baileys] ✅ Valid message received, calling handleIncomingMessage...`);
@@ -251,7 +283,6 @@ export class WhatsAppServiceBaileys {
                 }
             };
 
-            console.log('[WhatsAppBaileys] Calling WhatsAppBotService.handleMessage()...');
             console.log('[WhatsAppBaileys] Calling WhatsAppBotService.handleMessage()...');
             const { WhatsAppBotService } = await import('./WhatsAppBotService');
             await WhatsAppBotService.handleMessage(adapter);
