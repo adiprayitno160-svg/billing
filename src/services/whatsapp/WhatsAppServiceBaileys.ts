@@ -137,7 +137,7 @@ export class WhatsAppServiceBaileys {
                 // QR code received
                 if (qr) {
                     console.log(`[Baileys] 📱 QR Code generated (Length: ${qr.length})`);
-                    // qrcode.generate(qr, { small: true }); // Skip terminal print for now to keep logs clean
+                    qrcode.generate(qr, { small: true }); // Print QR in terminal
                     this.currentQRCode = qr;
                     this.isConnected = false;
                 }
@@ -172,12 +172,14 @@ export class WhatsAppServiceBaileys {
 
             // Handle incoming messages
             this.sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
-                console.log(`[Baileys] 📩 messages.upsert event received - type: ${type}, count: ${messages?.length || 0}`);
+                console.log(`[Baileys-DEBUG] 📩 messages.upsert received! Type: ${type}, Count: ${messages?.length}`);
+                console.log(`[Baileys-DEBUG] Raw messages:`, JSON.stringify(messages, null, 2));
 
-                if (type !== 'notify') {
-                    console.log(`[Baileys] ⏭️  Skipping - type is "${type}" (not "notify")`);
-                    return;
-                }
+                // TEMPORARILY DISABLED FILTER FOR DEBUGGING
+                // if (type !== 'notify') {
+                //     console.log(`[Baileys] ⏭️  Skipping - type is "${type}" (not "notify")`);
+                //     return;
+                // }
 
                 for (const msg of messages) {
                     // Deduplication check using message ID
@@ -249,7 +251,7 @@ export class WhatsAppServiceBaileys {
             ];
 
             if (ignoredTypes.includes(messageType)) {
-                console.log(`[Baileys] ⏭️ Skipping ignored message type: ${messageType}`);
+                // console.log(`[Baileys] ⏭️ Skipping ignored message type: ${messageType}`);
                 return;
             }
 
@@ -273,16 +275,10 @@ export class WhatsAppServiceBaileys {
             );
 
             // STRICT FILTER REMOVED: It was blocking valid messages with complex structures (viewOnce, etc)
+            // But we ignore truly empty messages if they are not system messages (already filtered above)
             // if (!messageText && !hasMedia) { ... }
 
-            // Just log if it looks empty but let it pass to handler which has its own checks
-            if (!messageText && !hasMedia) {
-                console.log('[Baileys] ⚠️ Received message with empty text and no standard media. Content keys:', Object.keys(msg.message || {}));
-            }
-
             console.log('[WhatsAppBaileys] From:', from);
-            // console.log('[WhatsAppBaileys] Body:', messageText?.substring(0, 100)); // verbose
-            // console.log('[WhatsAppBaileys] Has Media:', hasMedia);
             console.log('[WhatsAppBaileys] Type:', messageType);
 
             // DEBUG: Log raw message for investigation

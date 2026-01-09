@@ -22,6 +22,7 @@ export const databasePool = mysql.createPool({
 	queueLimit: 0,
 	enableKeepAlive: true,
 	keepAliveInitialDelay: 0,
+	connectTimeout: 30000, // 30 seconds
 	// Connection pool optimization
 	idleTimeout: 30000, // 30 seconds
 	maxIdle: 30 // Synchronized with connectionLimit to prevent constant close/open
@@ -48,7 +49,8 @@ export async function ensureInitialSchema(): Promise<void> {
 		host: databaseHost,
 		port: databasePort,
 		user: databaseUser,
-		password: databasePassword
+		password: databasePassword,
+		connectTimeout: 30000
 	});
 	try {
 		await rootConnection.query(

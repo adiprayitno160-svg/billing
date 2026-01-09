@@ -21,6 +21,11 @@ export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, 
     try {
         const userId = (req.session as any)?.userId;
 
+        // Skip for login/logout paths to avoid redirect loops
+        if (req.path === '/login' || req.path === '/logout' || req.path.startsWith('/auth')) {
+            return next();
+        }
+
         if (!userId) {
             req.flash('error', 'Anda harus login terlebih dahulu');
             return res.redirect('/login');
@@ -87,6 +92,11 @@ export class AuthMiddleware {
         try {
             const userId = (req.session as any)?.userId;
 
+            // Skip for login/logout paths to avoid redirect loops
+            if (req.path === '/login' || req.path === '/logout' || req.path.startsWith('/auth')) {
+                return next();
+            }
+
             if (!userId) {
                 // Check if this is an API request (JSON expected)
                 const acceptsJson = req.headers.accept?.includes('application/json') ||
@@ -97,6 +107,7 @@ export class AuthMiddleware {
                         success: false,
                         error: 'Unauthorized: Anda harus login terlebih dahulu'
                     });
+                    return;
                 }
 
                 req.flash('error', 'Anda harus login terlebih dahulu');
