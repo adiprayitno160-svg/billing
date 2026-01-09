@@ -452,42 +452,66 @@ export async function updatePackage(id: number, data: {
 			id
 		]);
 
-		// Jika nama paket berubah dan ada profile_id, update nama profil di MikroTik
-		if (newPackageName && newProfileId && newPackageName !== oldPackageName) {
-			try {
+		// Sync to MikroTik if configuration allows
+		try {
+			// Jika ada profile_id (baru atau lama)
+			const targetProfileId = newProfileId || oldProfileId;
+			if (targetProfileId) {
 				const config = await getMikrotikConfig();
 				if (config) {
-					// Get profile data
+					// Get profile name from DB needed to find it in MikroTik
 					const [profileRows] = await conn.execute(
 						'SELECT name FROM pppoe_profiles WHERE id = ?',
-						[newProfileId]
+						[targetProfileId]
 					);
 					const profile = Array.isArray(profileRows) && profileRows.length ? profileRows[0] as any : null;
 
 					if (profile && profile.name) {
-						// Cari profile di MikroTik dengan nama lama
+						// Find profile in MikroTik
 						const mikrotikId = await findPppProfileIdByName(config, profile.name);
 
 						if (mikrotikId) {
-							// Update nama profil di MikroTik sesuai nama paket baru
-							await updatePppProfile(config, mikrotikId, {
-								name: newPackageName
-							});
+							const updateData: any = {};
 
-							// Update nama profil di database juga
-							await conn.execute(
-								'UPDATE pppoe_profiles SET name = ? WHERE id = ?',
-								[newPackageName, newProfileId]
-							);
+							// 1. Update Name if Changed
+							if (newPackageName && newPackageName !== oldPackageName) {
+								updateData.name = newPackageName;
+							}
 
-							console.log(`✅ Nama profil di MikroTik diupdate dari "${profile.name}" ke "${newPackageName}"`);
+							// 2. Update Rate Limits (Selalu sync rate limit paket ke profile)
+							// Gunakan nilai baru (data) atau fallback ke nilai dari DB paket saat ini
+							updateData['rate-limit-rx'] = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
+							updateData['rate-limit-tx'] = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
+
+							updateData['burst-limit-rx'] = data.burst_limit_rx !== undefined ? data.burst_limit_rx : currentPackage.burst_limit_rx;
+							updateData['burst-limit-tx'] = data.burst_limit_tx !== undefined ? data.burst_limit_tx : currentPackage.burst_limit_tx;
+
+							updateData['burst-threshold-rx'] = data.burst_threshold_rx !== undefined ? data.burst_threshold_rx : currentPackage.burst_threshold_rx;
+							updateData['burst-threshold-tx'] = data.burst_threshold_tx !== undefined ? data.burst_threshold_tx : currentPackage.burst_threshold_tx;
+
+							updateData['burst-time-rx'] = data.burst_time_rx !== undefined ? data.burst_time_rx : currentPackage.burst_time_rx;
+							updateData['burst-time-tx'] = data.burst_time_tx !== undefined ? data.burst_time_tx : currentPackage.burst_time_tx;
+
+							// Send update to MikroTik
+							await updatePppProfile(config, mikrotikId, updateData);
+							console.log(`✅ Synced package changes to MikroTik Profile "${profile.name}" (ID: ${mikrotikId})`);
+
+							// Jika nama berubah, update juga di DB pppoe_profiles
+							if (updateData.name) {
+								await conn.execute(
+									'UPDATE pppoe_profiles SET name = ? WHERE id = ?',
+									[updateData.name, targetProfileId]
+								);
+							}
+						} else {
+							console.warn(`⚠️ Profile "${profile.name}" not found in MikroTik, cannot sync package changes.`);
 						}
 					}
 				}
-			} catch (syncError: any) {
-				console.error(`⚠️ Gagal sync nama profil ke MikroTik untuk paket ${newPackageName}: `, syncError.message);
-				// Don't throw - package was updated in DB
 			}
+		} catch (syncError: any) {
+			console.error(`⚠️ Gagal sync ke MikroTik: `, syncError.message);
+			// Don't throw - package was updated in DB
 		}
 	} finally {
 		conn.release();
