@@ -195,6 +195,18 @@ const upload = multer({
 // Mount notification page router at /notification BEFORE middleware
 router.use('/notification', notificationPageRouter);
 
+// Health check & Version verification
+router.get('/api/health-check', (req, res) => {
+    res.json({
+        status: 'online',
+        server_time: new Date().toISOString(),
+        deploy_version: 'Update Check: Static IP Route Fix',
+        timestamp: Date.now()
+    });
+});
+
+// Middleware untuk parsing body request
+router.use(express.json()); // Assuming express.json() is intended for body parsing
 // Middleware untuk mencegah kasir mengakses halaman admin
 router.use(async (req, res, next) => {
     // Skip untuk route kasir, auth, API routes, dan notification
