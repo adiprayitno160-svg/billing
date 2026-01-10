@@ -2620,8 +2620,44 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
                     } as any;
                     req.flash('error', 'URL menggunakan Kode Pelanggan. Mengalihkan ke mode perbaikan data.');
                 } else {
-                    req.flash('error', 'Pelanggan tidak ditemukan');
-                    return res.redirect('/customers/list?type=static_ip');
+                    // FALLBACK LEVEL 3: Coba cari by created_at (jika URL adalah generated timestamp dari list.ejs)
+                    // Format ID: YYYYMMDDHHMMSS -> MySQL: YYYY-MM-DD HH:MM:SS
+                    const ts = String(clientId);
+                    if (ts.length === 14 && /^\d+$/.test(ts)) {
+                        const y = ts.substring(0, 4);
+                        const m = ts.substring(4, 6);
+                        const d = ts.substring(6, 8);
+                        const h = ts.substring(8, 10);
+                        const min = ts.substring(10, 12);
+                        const s = ts.substring(12, 14);
+
+                        // Range search (karena presisi detik bisa meleset sedikit atau timezone issue)
+                        // Kita cari exact second dulu
+                        const mysqlTime = `${y}-${m}-${d} ${h}:${min}:${s}`;
+
+                        console.log(`Debug: Trying lookup by created_at: ${mysqlTime}`);
+
+                        // Cari dengan range toleransi 1 detik
+                        const [custTimeRows]: any = await conn.execute(`
+                            SELECT * FROM customers 
+                            WHERE created_at >= ? - INTERVAL 2 SECOND 
+                            AND created_at <= ? + INTERVAL 2 SECOND
+                            LIMIT 1
+                        `, [mysqlTime, mysqlTime]);
+
+                        if (custTimeRows.length > 0) {
+                            const cust = custTimeRows[0];
+                            console.log(`Customer found by CREATED_AT (ID: ${cust.id}). Redirecting to correct ID.`);
+                            req.flash('success', 'Mengalihkan ke URL Pelanggan yang benar...');
+                            return res.redirect(`/customers/edit-static-ip/${cust.id}`);
+                        } else {
+                            req.flash('error', 'Pelanggan tidak ditemukan');
+                            return res.redirect('/customers/list?type=static_ip');
+                        }
+                    } else {
+                        req.flash('error', 'Pelanggan tidak ditemukan');
+                        return res.redirect('/customers/list?type=static_ip');
+                    }
                 }
             }
         }
