@@ -311,6 +311,186 @@ router.get('/', getDashboard);
 router.get('/api/interface-stats', getInterfaceStats);
 router.get('/api/mikrotik/info', getMikrotikInfoApi);
 
+// ============ REAL-TIME CUSTOMER TRAFFIC API ============
+// Get real-time traffic for a specific customer from MikroTik
+router.get('/api/mikrotik/customer/:customerId/traffic', async (req, res) => {
+    try {
+        const customerId = parseInt(req.params.customerId);
+        if (!customerId || isNaN(customerId)) {
+            return res.json({ success: false, message: 'Invalid customer ID' });
+        }
+
+        // Get customer data
+        const [customers] = await databasePool.query<RowDataPacket[]>(
+            `SELECT c.*, 
+                    sic.ip_address as static_ip_address 
+             FROM customers c 
+             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id 
+             WHERE c.id = ?`,
+            [customerId]
+        );
+
+        if (!customers || customers.length === 0) {
+            return res.json({ success: false, message: 'Customer not found' });
+        }
+
+        const customer = customers[0];
+
+        // Get MikroTik config
+        const [mikrotikRows] = await databasePool.query<RowDataPacket[]>(
+            'SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1'
+        );
+
+        if (!mikrotikRows || mikrotikRows.length === 0) {
+            return res.json({ success: false, message: 'MikroTik not configured' });
+        }
+
+        const mikrotikConfig = mikrotikRows[0];
+
+        // Connect to MikroTik
+        const { RouterOSAPI } = require('node-routeros');
+        const conn = new RouterOSAPI({
+            host: mikrotikConfig.host,
+            user: mikrotikConfig.username,
+            password: mikrotikConfig.password,
+            port: mikrotikConfig.port || 8728,
+            timeout: 10
+        });
+
+        await conn.connect();
+
+        let trafficData: any = {
+            online: false,
+            downloadMbps: 0,
+            uploadMbps: 0,
+            bytesIn: 0,
+            bytesOut: 0,
+            uptime: 0
+        };
+
+        if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
+            // Get PPPoE active session
+            const sessions = await conn.write('/ppp/active/print', [
+                `?name=${customer.pppoe_username}`,
+                '=.proplist=name,caller-id,address,uptime,bytes-in,bytes-out'
+            ]);
+
+            if (sessions && sessions.length > 0) {
+                const session = sessions[0];
+                const bytesIn = parseInt(session['bytes-in'] || '0');
+                const bytesOut = parseInt(session['bytes-out'] || '0');
+
+                // Parse uptime
+                let uptimeSeconds = 0;
+                const uptime = session.uptime || '';
+                const weeks = uptime.match(/(\d+)w/);
+                const days = uptime.match(/(\d+)d/);
+                const hours = uptime.match(/(\d+)h/);
+                const minutes = uptime.match(/(\d+)m/);
+                const secs = uptime.match(/(\d+)s/);
+                if (weeks) uptimeSeconds += parseInt(weeks[1]) * 7 * 24 * 3600;
+                if (days) uptimeSeconds += parseInt(days[1]) * 24 * 3600;
+                if (hours) uptimeSeconds += parseInt(hours[1]) * 3600;
+                if (minutes) uptimeSeconds += parseInt(minutes[1]) * 60;
+                if (secs) uptimeSeconds += parseInt(secs[1]);
+
+                // Calculate speed (estimate based on session bytes / uptime)
+                const downloadMbps = uptimeSeconds > 0 ? (bytesIn * 8) / uptimeSeconds / 1000000 : 0;
+                const uploadMbps = uptimeSeconds > 0 ? (bytesOut * 8) / uptimeSeconds / 1000000 : 0;
+
+                trafficData = {
+                    online: true,
+                    downloadMbps: Math.round(downloadMbps * 100) / 100,
+                    uploadMbps: Math.round(uploadMbps * 100) / 100,
+                    bytesIn,
+                    bytesOut,
+                    uptime: uptimeSeconds,
+                    callerID: session['caller-id'],
+                    address: session.address
+                };
+            }
+        } else if (customer.connection_type === 'static_ip') {
+            // For Static IP - try to get queue stats
+            const targetIp = customer.static_ip_address || customer.ip_address;
+            if (targetIp) {
+                // Try queue tree
+                const queues = await conn.write('/queue/tree/print', [
+                    '=.proplist=name,bytes,rate,packet-mark'
+                ]);
+
+                // Find queue matching customer IP or name
+                const customerQueue = queues.find((q: any) =>
+                    q['packet-mark']?.includes(targetIp.split('/')[0]) ||
+                    q.name?.toLowerCase().includes(customer.name?.toLowerCase().replace(/[^a-z0-9]/gi, ''))
+                );
+
+                if (customerQueue) {
+                    // Rate format varies - could be "123456" or "123456/789012" or empty
+                    let downloadRate = 0;
+                    let uploadRate = 0;
+                    const rate = customerQueue.rate || '';
+                    if (rate.includes('/')) {
+                        const parts = rate.split('/');
+                        downloadRate = parseInt(parts[0]) || 0;
+                        uploadRate = parseInt(parts[1]) || 0;
+                    } else {
+                        downloadRate = parseInt(rate) || 0;
+                    }
+
+                    // Bytes format: "123456/789012" or single value
+                    let bytesIn = 0;
+                    let bytesOut = 0;
+                    const bytes = customerQueue.bytes || '';
+                    if (bytes.includes('/')) {
+                        const byteParts = bytes.split('/');
+                        bytesIn = parseInt(byteParts[0]) || 0;
+                        bytesOut = parseInt(byteParts[1]) || 0;
+                    } else {
+                        bytesIn = parseInt(bytes) || 0;
+                    }
+
+                    trafficData = {
+                        online: true,
+                        downloadMbps: Math.round((downloadRate * 8) / 1000000 * 100) / 100,
+                        uploadMbps: Math.round((uploadRate * 8) / 1000000 * 100) / 100,
+                        bytesIn,
+                        bytesOut,
+                        uptime: 0,
+                        queueName: customerQueue.name
+                    };
+                }
+            }
+        }
+
+        await conn.close();
+
+        res.json({
+            success: true,
+            data: trafficData,
+            customer: {
+                id: customer.id,
+                name: customer.name,
+                connection_type: customer.connection_type
+            }
+        });
+
+    } catch (error: any) {
+        console.error('[API] Error fetching customer traffic:', error.message);
+        res.json({
+            success: false,
+            message: error.message || 'Failed to fetch traffic data',
+            data: {
+                online: false,
+                downloadMbps: 0,
+                uploadMbps: 0,
+                bytesIn: 0,
+                bytesOut: 0,
+                uptime: 0
+            }
+        });
+    }
+});
+
 // Redirect /dashboard to root (dashboard is the root page)
 router.get('/dashboard', (req, res) => res.redirect('/'));
 

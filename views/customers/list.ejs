@@ -462,13 +462,13 @@
 	</div>
 </div>
 
-<!-- Import Excel Modal -->
-<div id="importModal" class="fixed inset-0 bg-black  hidden z-50">
+<!-- Import Excel Modal - Simplified: Download Only -->
+<div id="importModal" class="fixed inset-0 bg-black/50 hidden z-50">
 	<div class="flex items-center justify-center min-h-screen p-4">
-		<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+		<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
 			<div class="p-6">
 				<div class="flex items-center justify-between mb-4">
-					<h3 class="text-lg font-bold text-modern-blue-900">Import Data Excel</h3>
+					<h3 class="text-lg font-bold text-modern-blue-900">📥 Download Template</h3>
 					<button id="closeImportModalIconBtn" class="text-modern-gray-400 hover:text-modern-gray-600">
 						<svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
 							<path fill-rule="evenodd"
@@ -478,61 +478,40 @@
 					</button>
 				</div>
 
-				<form id="importForm" enctype="multipart/form-data" onsubmit="handleImportClick(); return false;">
-
-					<!-- TOMBOL DOWNLOAD TEMPLATE - PALING ATAS -->
-					<div
-						class="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
-						<div class="flex items-center justify-between mb-3">
-							<div>
-								<h4 class="text-sm font-bold text-green-800">📥 Belum Punya Template?</h4>
-								<p class="text-xs text-green-700">Download template Excel di bawah ini</p>
-							</div>
+				<!-- Download Template Section -->
+				<div class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
+					<div class="text-center mb-4">
+						<div class="w-16 h-16 mx-auto mb-3 bg-green-100 rounded-full flex items-center justify-center">
+							<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
 						</div>
-						<a href="/customers/template"
-							class="block w-full text-center px-5 py-3 bg-green-600 text-white text-base font-bold rounded-lg hover:bg-green-700 shadow-lg transition-all duration-200 transform hover:scale-105">
-							📥 DOWNLOAD TEMPLATE EXCEL
-						</a>
+						<h4 class="text-base font-bold text-green-800 mb-1">Download Template Excel</h4>
+						<p class="text-sm text-green-700">Format sederhana dengan 3 kolom</p>
 					</div>
 
-					<!-- DIVIDER -->
-					<div class="mb-4 text-center text-gray-400 text-sm">atau</div>
-
-					<div class="mb-4">
-						<label class="block text-sm font-medium text-modern-gray-700 mb-2">Pilih File Excel</label>
-						<input type="file" id="excelFileInput" name="excelFile" accept=".xlsx,.xls"
-							class="w-full px-3 py-2 border border-modern-gray-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200"
-							required>
-						<p class="text-xs text-modern-gray-500 mt-1">Format yang didukung: .xlsx, .xls (Maksimal 10MB)
-						</p>
-					</div>
-
-					<div class="mb-4 p-3 bg-modern-blue-50 rounded-lg">
-						<h4 class="text-sm font-medium text-modern-blue-900 mb-2">📋 Format Excel SIMPLE (Hanya 3
-							Kolom):</h4>
-						<ul class="text-xs text-modern-blue-700 space-y-1 mb-2">
+					<div class="mb-4 p-3 bg-white rounded-lg border border-green-200">
+						<p class="text-xs text-green-800 font-medium mb-2">📋 Kolom yang tersedia:</p>
+						<ul class="text-xs text-green-700 space-y-1">
 							<li>✅ <strong>Nama</strong> (wajib)</li>
 							<li>✅ <strong>Telepon</strong> (wajib)</li>
 							<li>✅ <strong>Alamat</strong> (opsional)</li>
 						</ul>
-						<div
-							class="text-xs bg-modern-red-50 border border-modern-red-200 rounded p-2 text-modern-red-800">
-							⚠️ <strong>PENTING:</strong> Header baris 1 harus PERSIS: <strong>Nama</strong>,
-							<strong>Telepon</strong>, <strong>Alamat</strong>
-						</div>
 					</div>
 
-					<div class="flex gap-3">
-						<button type="button" id="closeImportModalBtn"
-							class="flex-1 px-4 py-2 border border-modern-gray-300 text-modern-gray-700 rounded-lg hover:bg-modern-gray-50 transition-colors">
-							Batal
-						</button>
-						<button type="button" id="submitImportBtn" onclick="handleImportClick(); return false;"
-							class="flex-1 px-4 py-2 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium">
-							Import Data
-						</button>
-					</div>
-				</form>
+					<a href="/customers/template"
+						class="block w-full text-center px-5 py-3 bg-green-600 text-white text-base font-bold rounded-lg hover:bg-green-700 shadow-lg transition-all duration-200 transform hover:scale-105">
+						📥 DOWNLOAD TEMPLATE
+					</a>
+				</div>
+
+				<div class="mt-4 text-center">
+					<button type="button" id="closeImportModalBtn"
+						class="px-6 py-2 text-modern-gray-600 hover:text-modern-gray-800 transition-colors">
+						Tutup
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>

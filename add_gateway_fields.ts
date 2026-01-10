@@ -1,4 +1,4 @@
-import { databasePool } from './db/pool';
+import { databasePool } from './src/db/pool';
 
 /**
  * Add Static IP fields to customers table

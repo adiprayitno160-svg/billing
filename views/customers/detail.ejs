@@ -432,33 +432,63 @@
 		</div>
 	</div>
 
-	<!-- Bandwidth Usage Graph -->
-	<div
-		class="rounded-2xl border border-modern-cyan-200 bg-gradient-to-br from-white to-modern-cyan-50/10 p-6 shadow-lg">
-		<div class="flex items-center justify-between mb-6">
+	<!-- Histori Bandwidth (12 Jam Terakhir) -->
+	<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
+		<div class="flex flex-wrap items-center justify-between mb-4 gap-2">
 			<div>
-				<h2
-					class="text-xl font-bold bg-gradient-to-r from-modern-blue-600 to-modern-cyan-600 bg-clip-text text-transparent">
-					Grafik Pemakaian Banda (24 Jam)
-				</h2>
-				<p class="text-sm text-modern-blue-500">Monitor pemakaian real-time pelanggan</p>
+				<h2 class="text-lg font-bold text-gray-800">📊 Histori Pemakaian Bandwidth</h2>
+				<p class="text-sm text-gray-500">Data 12 jam terakhir</p>
 			</div>
-			<div class="flex items-center gap-2 text-xs font-medium">
-				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span>
-					Download</span>
-				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-					Upload</span>
+			<div class="flex items-center gap-3">
+				<button id="refreshTrafficBtn" onclick="loadBandwidthData()"
+					class="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200">
+					🔄 Refresh
+				</button>
+				<div class="flex items-center gap-3 text-xs">
+					<span class="flex items-center gap-1">
+						<span class="w-3 h-3 rounded-full bg-blue-500"></span> Download
+					</span>
+					<span class="flex items-center gap-1">
+						<span class="w-3 h-3 rounded-full bg-green-500"></span> Upload
+					</span>
+				</div>
 			</div>
 		</div>
-		<div class="relative" style="height: 300px;">
+
+		<!-- Stats Cards - 4 Columns -->
+		<div class="grid grid-cols-4 gap-3 mb-4">
+			<!-- Avg Download -->
+			<div class="p-3 rounded-lg bg-blue-500 text-white">
+				<p class="text-xs opacity-80">⬇️ Avg Download</p>
+				<p class="text-xl font-bold" id="avgDownload">0</p>
+				<p class="text-xs opacity-70">Mbps</p>
+			</div>
+			<!-- Avg Upload -->
+			<div class="p-3 rounded-lg bg-green-500 text-white">
+				<p class="text-xs opacity-80">⬆️ Avg Upload</p>
+				<p class="text-xl font-bold" id="avgUpload">0</p>
+				<p class="text-xs opacity-70">Mbps</p>
+			</div>
+			<!-- Total Download -->
+			<div class="p-3 rounded-lg bg-purple-500 text-white">
+				<p class="text-xs opacity-80">📥 Total Download</p>
+				<p class="text-xl font-bold" id="totalDownload">0 B</p>
+			</div>
+			<!-- Total Upload -->
+			<div class="p-3 rounded-lg bg-orange-500 text-white">
+				<p class="text-xs opacity-80">📤 Total Upload</p>
+				<p class="text-xl font-bold" id="totalUpload">0 B</p>
+			</div>
+		</div>
+
+		<!-- Chart -->
+		<div class="relative bg-gray-50 rounded-lg p-3" style="height: 280px;">
 			<canvas id="usageChart"></canvas>
-			<div id="usageLoader"
-				class="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-xl">
-				<div class="flex flex-col items-center">
-					<div
-						class="w-10 h-10 border-4 border-modern-blue-200 border-t-modern-blue-600 rounded-full animate-spin">
+			<div id="usageLoader" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
+				<div class="text-center">
+					<div class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto">
 					</div>
-					<p class="mt-3 text-sm text-modern-blue-600 font-medium">Memuat data...</p>
+					<p class="mt-2 text-sm text-gray-500">Memuat data...</p>
 				</div>
 			</div>
 		</div>
@@ -617,53 +647,88 @@
 			}
 		}
 
-		// --- Usage Chart ---
+		// --- Bandwidth Chart (12 Hours History) ---
 		const ctx = document.getElementById('usageChart')?.getContext('2d');
-		if (ctx) {
-			fetch(`/monitoring/usage/<%= customer.id %>/graph`)
-				.then(res => res.json())
-				.then(result => {
-					document.getElementById('usageLoader').classList.add('hidden');
-					if (!result.success || !result.data.length) {
-						ctx.font = '14px Inter';
-						ctx.fillStyle = '#94a3b8';
-						ctx.textAlign = 'center';
-						ctx.fillText('Tidak ada data pemakaian dalam 24 jam terakhir', ctx.canvas.width / 2, ctx.canvas.height / 2);
-						return;
-					}
+		const customerId = '<%= customer.id %>';
+		let usageChart = null;
 
-					const data = result.data;
-					const labels = data.map(d => {
-						const date = new Date(d.timestamp);
-						return date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
-					});
+		// Format bytes to human readable
+		function formatBytes(bytes, decimals = 2) {
+			if (!bytes || bytes === 0) return '0 B';
+			const k = 1024;
+			const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+			const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+			return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+		}
 
-					// Convert bytes to Mbps for better visualization
-					const rxData = data.map(d => (Number(d.byte_in_diff || 0) * 8) / (5 * 60 * 1000000)); // Approx Mbps over 5m window
-					const txData = data.map(d => (Number(d.byte_out_diff || 0) * 8) / (5 * 60 * 1000000));
+		// Load bandwidth data (12 hours) with fallback to real-time
+		async function loadBandwidthData() {
+			const btn = document.getElementById('refreshTrafficBtn');
+			if (btn) {
+				btn.disabled = true;
+				btn.textContent = '⏳ Loading...';
+			}
 
-					new Chart(ctx, {
+			try {
+				const response = await fetch(`/monitoring/usage/${customerId}/graph?hours=12`);
+				const result = await response.json();
+
+				document.getElementById('usageLoader')?.classList.add('hidden');
+
+				if (!result.success || !result.data || !result.data.length) {
+					// No historical data - try to get real-time from MikroTik
+					await loadRealTimeData();
+					return;
+				}
+
+				const data = result.data;
+
+				// Calculate averages and totals
+				const totalDownloadBytes = data.reduce((sum, d) => sum + (d.total_bytes_in || 0), 0);
+				const totalUploadBytes = data.reduce((sum, d) => sum + (d.total_bytes_out || 0), 0);
+				const avgDownload = data.reduce((sum, d) => sum + (d.avg_download_mbps || 0), 0) / data.length;
+				const avgUpload = data.reduce((sum, d) => sum + (d.avg_upload_mbps || 0), 0) / data.length;
+
+				// Update stats
+				document.getElementById('avgDownload').textContent = avgDownload.toFixed(2);
+				document.getElementById('avgUpload').textContent = avgUpload.toFixed(2);
+				document.getElementById('totalDownload').textContent = formatBytes(totalDownloadBytes);
+				document.getElementById('totalUpload').textContent = formatBytes(totalUploadBytes);
+
+				// Prepare chart data
+				const labels = data.map(d => d.time_label || '-');
+				const downloadData = data.map(d => d.avg_download_mbps || 0);
+				const uploadData = data.map(d => d.avg_upload_mbps || 0);
+
+				// Create or update chart
+				if (usageChart) {
+					usageChart.data.labels = labels;
+					usageChart.data.datasets[0].data = downloadData;
+					usageChart.data.datasets[1].data = uploadData;
+					usageChart.update();
+				} else if (ctx) {
+					usageChart = new Chart(ctx, {
 						type: 'line',
 						data: {
 							labels: labels,
 							datasets: [
 								{
 									label: 'Download (Mbps)',
-									data: rxData,
+									data: downloadData,
 									borderColor: '#3b82f6',
 									backgroundColor: 'rgba(59, 130, 246, 0.1)',
 									fill: true,
-									tension: 0.4,
+									tension: 0.3,
 									pointRadius: 2,
 									borderWidth: 2
 								},
 								{
 									label: 'Upload (Mbps)',
-									data: txData,
+									data: uploadData,
 									borderColor: '#10b981',
 									backgroundColor: 'rgba(16, 185, 129, 0.1)',
 									fill: true,
-									tension: 0.4,
+									tension: 0.3,
 									pointRadius: 2,
 									borderWidth: 2
 								}
@@ -673,16 +738,14 @@
 							responsive: true,
 							maintainAspectRatio: false,
 							plugins: {
-								legend: { display: false },
+								legend: {
+									display: true,
+									position: 'top',
+									labels: { font: { size: 11 } }
+								},
 								tooltip: {
 									mode: 'index',
 									intersect: false,
-									backgroundColor: 'rgba(255, 255, 255, 0.9)',
-									titleColor: '#1e293b',
-									bodyColor: '#475569',
-									borderColor: '#e2e8f0',
-									borderWidth: 1,
-									padding: 12,
 									callbacks: {
 										label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(2)} Mbps`
 									}
@@ -691,27 +754,84 @@
 							scales: {
 								x: {
 									grid: { display: false },
-									ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+									ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12, font: { size: 10 } }
 								},
 								y: {
 									beginAtZero: true,
 									grid: { color: '#f1f5f9' },
 									ticks: {
-										callback: (value) => value + ' Mbps'
-									}
+										font: { size: 10 },
+										callback: (value) => value.toFixed(1)
+									},
+									title: { display: true, text: 'Mbps', font: { size: 10 } }
 								}
-							},
-							interaction: {
-								intersect: false,
-								mode: 'index',
 							}
 						}
 					});
-				})
-				.catch(err => {
-					console.error('Error loading chart:', err);
-					document.getElementById('usageLoader').innerHTML = '<p class="text-red-500">Gagal memuat grafik</p>';
-				});
-		}
-	});
+				}
+			} catch (error) {
+				console.error('Error loading bandwidth data:', error);
+				document.getElementById('usageLoader').innerHTML = '<p class="text-red-500 text-sm">Gagal memuat data</p>';
+			} finally {
+				if (btn) {
+					btn.disabled = false;
+					btn.textContent = '🔄 Refresh';
+				}
+			}
+
+			// Load real-time data as fallback
+			async function loadRealTimeData() {
+				try {
+					const response = await fetch(`/api/mikrotik/customer/${customerId}/traffic`);
+					const result = await response.json();
+
+					if (result.success && result.data) {
+						const data = result.data;
+
+						// Update stats with real-time values
+						document.getElementById('avgDownload').textContent = (data.downloadMbps || 0).toFixed(2);
+						document.getElementById('avgUpload').textContent = (data.uploadMbps || 0).toFixed(2);
+						document.getElementById('totalDownload').textContent = formatBytes(data.bytesIn || 0);
+						document.getElementById('totalUpload').textContent = formatBytes(data.bytesOut || 0);
+
+						if (ctx) {
+							if (usageChart) {
+								usageChart.destroy();
+								usageChart = null;
+							}
+
+							// Show simple message instead of empty chart
+							ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+							ctx.font = '14px Inter';
+							ctx.fillStyle = '#64748b';
+							ctx.textAlign = 'center';
+							ctx.fillText('📡 Menampilkan data Real-time (Belum ada histori)', ctx.canvas.width / 2, ctx.canvas.height / 2 - 10);
+							ctx.font = '12px Inter';
+							ctx.fillStyle = '#94a3b8';
+							ctx.fillText('Data histori akan muncul setelah penjadwalan berjalan', ctx.canvas.width / 2, ctx.canvas.height / 2 + 15);
+						}
+					} else {
+						throw new Error('No real-time data');
+					}
+				} catch (error) {
+					console.error('Error fetching real-time fallback:', error);
+					// Clear stats
+					document.getElementById('avgDownload').textContent = '0';
+					document.getElementById('avgUpload').textContent = '0';
+					document.getElementById('totalDownload').textContent = '0 B';
+					document.getElementById('totalUpload').textContent = '0 B';
+
+					if (ctx) {
+						ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+						ctx.font = '14px Inter';
+						ctx.fillStyle = '#94a3b8';
+						ctx.textAlign = 'center';
+						ctx.fillText('Tidak ada data histori & offline', ctx.canvas.width / 2, ctx.canvas.height / 2);
+					}
+				}
+			}
+
+			// Load data on page load
+			loadBandwidthData();
+		});
 </script>

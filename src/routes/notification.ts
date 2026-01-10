@@ -71,14 +71,14 @@ apiRouter.post('/debug-customer/:customerId', (req, res) => templateController.d
 
 // Get recent logs for analysis
 apiRouter.get('/recent-logs', (req, res) => {
-  console.log('[Notification API] GET /recent-logs hit');
-  templateController.getRecentLogs(req, res);
+    console.log('[Notification API] GET /recent-logs hit');
+    templateController.getRecentLogs(req, res);
 });
 
 // Analyze notification flow
 apiRouter.get('/analyze', (req, res) => {
-  console.log('[Notification API] GET /analyze hit');
-  templateController.analyzeNotificationFlow(req, res);
+    console.log('[Notification API] GET /analyze hit');
+    templateController.analyzeNotificationFlow(req, res);
 });
 
 // Ensure templates exist (utility endpoint)
@@ -86,10 +86,10 @@ apiRouter.post('/templates/ensure', async (req, res) => {
     try {
         const { NotificationTemplateService } = await import('../services/notification/NotificationTemplateService');
         const { ensureNotificationTemplates } = await import('../utils/ensureNotificationTemplates');
-        
+
         // First try using the utility function
         await ensureNotificationTemplates();
-        
+
         // Also try direct insert using service
         const templates = [
             {
@@ -126,7 +126,7 @@ apiRouter.post('/templates/ensure', async (req, res) => {
                 is_active: true
             }
         ];
-        
+
         const results = [];
         for (const template of templates) {
             try {
@@ -142,7 +142,7 @@ apiRouter.post('/templates/ensure', async (req, res) => {
                 results.push({ template_code: template.template_code, status: 'error', error: error.message });
             }
         }
-        
+
         res.json({
             success: true,
             message: 'Template check completed',
@@ -161,19 +161,93 @@ apiRouter.post('/templates/ensure', async (req, res) => {
 // Combined router for backward compatibility (exports page routes)
 const router = pageRouter;
 
+// ========== TROUBLE NOTIFICATION ENDPOINTS ==========
+// Report trouble/gangguan and notify admin/operators
+apiRouter.post('/trouble', async (req, res) => {
+    console.log('[Notification API] POST /trouble hit');
+    try {
+        const { TroubleNotificationService } = await import('../services/notification/TroubleNotificationService');
+
+        const {
+            customer_id,
+            customer_name,
+            customer_phone,
+            trouble_type,
+            description,
+            priority,
+            reported_by,
+            additional_info
+        } = req.body;
+
+        if (!customer_id || !customer_name || !trouble_type || !description) {
+            return res.status(400).json({
+                success: false,
+                error: 'customer_id, customer_name, trouble_type, dan description wajib diisi'
+            });
+        }
+
+        const result = await TroubleNotificationService.notifyTrouble({
+            customer_id: parseInt(customer_id),
+            customer_name,
+            customer_phone,
+            trouble_type,
+            description,
+            priority: priority || 'medium',
+            reported_by: reported_by || 'system',
+            additional_info
+        });
+
+        res.json(result);
+    } catch (error: any) {
+        console.error('[Notification API] Error reporting trouble:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Gagal mengirim notifikasi gangguan'
+        });
+    }
+});
+
+// Get list of admin/operators who will receive trouble notifications
+apiRouter.get('/admin-operators', async (req, res) => {
+    console.log('[Notification API] GET /admin-operators hit');
+    try {
+        const { TroubleNotificationService } = await import('../services/notification/TroubleNotificationService');
+
+        const operators = await TroubleNotificationService.getAdminOperators();
+
+        res.json({
+            success: true,
+            total: operators.length,
+            data: operators.map(u => ({
+                id: u.id,
+                username: u.username,
+                full_name: u.full_name,
+                role: u.role,
+                phone: u.phone ? u.phone.substring(0, 4) + '****' + u.phone.slice(-4) : null
+            }))
+        });
+    } catch (error: any) {
+        console.error('[Notification API] Error getting admin operators:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Gagal mengambil data operator'
+        });
+    }
+});
+
 // Export both routers
 console.log('[Notification Routes] Exporting routers - pageRouter and apiRouter');
 console.log('[Notification Routes] API routes registered:', {
-  templates: 'GET /templates, GET /templates/:code, POST /templates, PUT /templates/:code, DELETE /templates/:code',
-  statistics: 'GET /statistics',
-  test: 'POST /test',
-  processQueue: 'POST /process-queue',
-  queueStatus: 'GET /queue-status',
-  whatsappStatus: 'GET /whatsapp-status',
-  debugCustomer: 'POST /debug-customer/:customerId',
-  recentLogs: 'GET /recent-logs',
-  analyze: 'GET /analyze',
-  templatesEnsure: 'POST /templates/ensure'
+    templates: 'GET /templates, GET /templates/:code, POST /templates, PUT /templates/:code, DELETE /templates/:code',
+    statistics: 'GET /statistics',
+    test: 'POST /test',
+    processQueue: 'POST /process-queue',
+    queueStatus: 'GET /queue-status',
+    whatsappStatus: 'GET /whatsapp-status',
+    debugCustomer: 'POST /debug-customer/:customerId',
+    recentLogs: 'GET /recent-logs',
+    analyze: 'GET /analyze',
+    templatesEnsure: 'POST /templates/ensure'
 });
 
 export default router;

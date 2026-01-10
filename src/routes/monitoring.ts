@@ -49,4 +49,13 @@ router.get('/sla/analysis/:customerId', (req, res) => controller.getCustomerSLAA
 // Usage monitoring
 router.get('/usage/:customerId/graph', (req, res) => controller.getBandwidthTrend(req, res));
 
+// ============ TROUBLE REPORT - SEND NOTIFICATION TO ADMIN/OPERATOR ============
+// Page for reporting customer issues and notifying admin/operators
+router.get('/trouble/report', (req, res) => {
+    res.render('trouble/report', {
+        title: 'Laporan Gangguan',
+        currentPath: '/monitoring/trouble/report'
+    });
+});
+
 export default router;

@@ -333,6 +333,31 @@ export class BandwidthLogService {
         const [rows] = await pool.query<RowDataPacket[]>(query, [customerId]);
         return rows;
     }
+
+    /**
+     * Get bandwidth trend for last 12 hours (grouped by 30 minutes)
+     */
+    async getBandwidthTrend12h(customerId: number): Promise<any[]> {
+        const query = `
+            SELECT 
+                DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00') AS time_slot,
+                DATE_FORMAT(timestamp, '%H:%i') AS time_label,
+                ROUND(AVG(bytes_in / 300) * 8 / 1024 / 1024, 2) AS avg_download_mbps,
+                ROUND(AVG(bytes_out / 300) * 8 / 1024 / 1024, 2) AS avg_upload_mbps,
+                SUM(bytes_in) AS total_bytes_in,
+                SUM(bytes_out) AS total_bytes_out
+            FROM bandwidth_logs
+            WHERE customer_id = ?
+                AND timestamp >= DATE_SUB(NOW(), INTERVAL 12 HOUR)
+            GROUP BY 
+                DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00'),
+                FLOOR(MINUTE(timestamp) / 30)
+            ORDER BY time_slot ASC
+        `;
+
+        const [rows] = await pool.query<RowDataPacket[]>(query, [customerId]);
+        return rows;
+    }
 }
 
 export default new BandwidthLogService();

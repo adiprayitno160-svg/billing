@@ -104,7 +104,7 @@ async function getTroubleCustomers(): Promise<any[]> {
 					FROM customers c
 					INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
 					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
-						AND c.status IN ('active', 'suspended')
+						AND c.status = 'active'
 				`);
 			} else {
 				// Fallback if table uses affected_customers (JSON) instead of customer_id
@@ -121,12 +121,13 @@ async function getTroubleCustomers(): Promise<any[]> {
 						OR m.affected_area = c.address
 					)
 					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
-						AND c.status IN ('active', 'suspended')
+						AND c.status = 'active'
 				`);
 			}
 		}
 
-		// 2. Static IP customers who are offline (not isolated)
+		// 2. Static IP customers who are offline (not isolated, ACTIVE only)
+		// Removed time limit to show ALL offline active customers
 		if (hasStaticIpStatus) {
 			queries.push(`
 				SELECT DISTINCT
@@ -139,13 +140,13 @@ async function getTroubleCustomers(): Promise<any[]> {
 				INNER JOIN static_ip_ping_status sips ON c.id = sips.customer_id
 				WHERE c.connection_type = 'static_ip'
 					AND sips.status = 'offline'
-					AND c.status IN ('active', 'suspended')
+					AND c.status = 'active'
 					${isolatedFilter}
-					AND sips.last_check >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
 			`);
 		}
 
-		// 3. PPPoE customers who are offline (from connection_logs, not isolated)
+		// 3. PPPoE customers who are offline (from connection_logs, not isolated, ACTIVE only)
+		// Expanded time window to 24 hours to match recent connection logs
 		if (hasConnectionLogs) {
 			queries.push(`
 				SELECT DISTINCT
@@ -159,7 +160,7 @@ async function getTroubleCustomers(): Promise<any[]> {
 					SELECT customer_id, MAX(timestamp) as max_timestamp
 					FROM connection_logs
 					WHERE service_type = 'pppoe'
-						AND timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+						AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
 					GROUP BY customer_id
 				) cl_max ON c.id = cl_max.customer_id
 				INNER JOIN connection_logs cl_latest ON c.id = cl_latest.customer_id 
@@ -167,14 +168,14 @@ async function getTroubleCustomers(): Promise<any[]> {
 					AND cl_latest.service_type = 'pppoe'
 				WHERE c.connection_type = 'pppoe'
 					AND cl_latest.status = 'offline'
-					AND c.status IN ('active', 'suspended')
+					AND c.status = 'active'
 					${isolatedFilter}
 					AND NOT EXISTS (
 						SELECT 1 FROM connection_logs cl2
 						WHERE cl2.customer_id = c.id
 							AND cl2.status = 'online'
 							AND cl2.timestamp > cl_latest.timestamp
-							AND cl2.timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+							AND cl2.timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
 					)
 			`);
 		}
@@ -191,7 +192,7 @@ async function getTroubleCustomers(): Promise<any[]> {
 				FROM customers c
 				INNER JOIN sla_incidents si ON c.id = si.customer_id
 				WHERE si.status = 'ongoing'
-					AND c.status IN ('active', 'suspended')
+					AND c.status = 'active'
 			`);
 		}
 
@@ -229,7 +230,7 @@ async function getTroubleCustomers(): Promise<any[]> {
 			ORDER BY 
 				priority_type,
 				MAX(trouble.trouble_since) DESC
-			LIMIT 20
+			LIMIT 50
 		`;
 
 		const [rows] = await databasePool.query(unionQuery);

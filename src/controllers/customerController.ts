@@ -555,11 +555,14 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         try {
             if (customer.connection_type === 'pppoe') {
                 packages = await listPppoePackages();
+                console.log(`[CustomerEdit] Loaded ${packages.length} PPPoE packages for customer ${customerId}`);
             } else if (customer.connection_type === 'static_ip') {
                 packages = await listStaticIpPackages();
+                console.log(`[CustomerEdit] Loaded ${packages.length} Static IP packages for customer ${customerId}`);
+                console.log(`[CustomerEdit] Customer package_id: ${customer.package_id}, static_ip_package_id: ${customer.static_ip_package_id}`);
             }
         } catch (packageError) {
-            console.error('Error fetching packages:', packageError);
+            console.error('[CustomerEdit] Error fetching packages:', packageError);
             packages = [];
         }
 
@@ -1258,8 +1261,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             }
                         }
 
-                        // Determine password to use: new password if provided (and not empty), otherwise use old password, or generate new one only if customer has no password at all
-                        let passwordToUse: string;
+                        // Determine password to use: new password if provided (and not empty), otherwise use old password
+                        // IMPORTANT: Do NOT auto-generate random passwords - this was causing customer passwords to change unexpectedly
+                        let passwordToUse: string = '';
                         if (pppoe_password && pppoe_password.trim() !== '') {
                             // Password baru diisi, gunakan password baru
                             passwordToUse = pppoe_password.trim();
@@ -1269,14 +1273,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             passwordToUse = oldPppoePassword;
                             console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, menggunakan password lama`);
                         } else {
-                            // Tidak ada password baru dan tidak ada password lama, generate password baru
-                            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                            const length = Math.floor(Math.random() * 5) + 8; // 8-12 characters
-                            passwordToUse = '';
-                            for (let i = 0; i < length; i++) {
-                                passwordToUse += chars.charAt(Math.floor(Math.random() * chars.length));
-                            }
-                            console.log(`[Edit Customer PPPoE] 🔑 Password auto-generated: ${passwordToUse.length} characters`);
+                            // Tidak ada password baru dan tidak ada password lama
+                            // JANGAN generate password random - ini menyebabkan password pelanggan berubah tanpa sepengetahuan mereka
+                            console.warn(`[Edit Customer PPPoE] ⚠️ Tidak ada password tersedia. Secret MikroTik TIDAK akan dibuat.`);
+                            console.warn(`[Edit Customer PPPoE] 💡 Silakan isi password PPPoE secara manual untuk membuat secret di MikroTik.`);
                         }
 
                         if (existingSecretId || existingSecretByNewUsername || existingSecretByCustomerId) {

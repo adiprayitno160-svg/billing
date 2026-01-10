@@ -1121,14 +1121,23 @@ export class MonitoringController {
     /**
      * GET /monitoring/usage/:customerId/graph
      * Get bandwidth usage trend for a specific customer
+     * Query params: hours (12 or 24, default 12)
      */
     async getBandwidthTrend(req: Request, res: Response): Promise<void> {
         try {
             const { customerId } = req.params;
-            const trend = await BandwidthLogService.getBandwidthTrend24h(Number(customerId));
+            const hours = parseInt(req.query.hours as string) || 12;
+
+            let trend;
+            if (hours === 24) {
+                trend = await BandwidthLogService.getBandwidthTrend24h(Number(customerId));
+            } else {
+                trend = await BandwidthLogService.getBandwidthTrend12h(Number(customerId));
+            }
 
             res.json({
                 success: true,
+                period: hours + 'h',
                 data: trend
             });
         } catch (error: any) {
