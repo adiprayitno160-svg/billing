@@ -2698,6 +2698,9 @@ router.post('/packages/static-ip/:id/edit', postStaticIpPackageUpdate);
 router.post('/packages/static-ip/delete', postStaticIpPackageDelete);
 router.delete('/api/packages/static-ip/:id', apiDeletePackage);
 
+// Redirect jika user mengakses /clients tanpa package ID (fallback ke filtered customer list)
+router.get('/packages/static-ip/clients', (req, res) => res.redirect('/customers/list?type=static_ip'));
+
 // Clients List dalam Paket
 router.get('/packages/static-ip/:packageId/clients', getStaticIpClientList);
 
