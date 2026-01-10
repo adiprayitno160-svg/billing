@@ -2555,7 +2555,10 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
     console.log(`HIT: GET /customers/edit-static-ip/${req.params.id}`);
     try {
         const clientId = Number(req.params.id);
+        console.log(`DEBUG: Looking for customer with ID: ${clientId}`);
+
         let client = await getStaticIpClientByCustomerId(clientId);
+        console.log(`DEBUG: Result from getStaticIpClientByCustomerId:`, client ? 'Found' : 'Null');
 
         if (!client) {
             // FALLBACK: Cek di tabel customers jika data static ip hilang
