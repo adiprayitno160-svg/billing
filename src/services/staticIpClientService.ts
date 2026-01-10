@@ -200,6 +200,28 @@ export async function getClientById(clientId: number): Promise<StaticIpClient | 
     }
 }
 
+export async function getStaticIpClientByCustomerId(customerId: number): Promise<StaticIpClient | null> {
+    const conn = await databasePool.getConnection();
+    try {
+        const [rows] = await conn.execute(`
+            SELECT 
+                sic.*,
+                olt.name as olt_name,
+                odc.name as odc_name,
+                odp.name as odp_name
+            FROM static_ip_clients sic
+            LEFT JOIN ftth_olt olt ON sic.olt_id = olt.id
+            LEFT JOIN ftth_odc odc ON sic.odc_id = odc.id
+            LEFT JOIN ftth_odp odp ON sic.odp_id = odp.id
+            WHERE sic.customer_id = ? LIMIT 1
+        `, [customerId]);
+        const list = Array.isArray(rows) ? rows as any[] : [];
+        return list.length ? (list[0] as StaticIpClient) : null;
+    } finally {
+        conn.release();
+    }
+}
+
 export async function updateClient(clientId: number, data: {
     client_name?: string;
     package_id?: number;

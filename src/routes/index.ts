@@ -2555,7 +2555,7 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
     console.log(`HIT: GET /customers/edit-static-ip/${req.params.id}`);
     try {
         const clientId = Number(req.params.id);
-        const client = await getClientById(clientId);
+        const client = await getStaticIpClientByCustomerId(clientId);
         if (!client) {
             req.flash('error', 'Pelanggan tidak ditemukan');
             return res.redirect('/packages/static-ip/clients');
@@ -2771,7 +2771,13 @@ import { listStaticIpPackages } from '../services/staticIpPackageService';
 import { getStaticIpPackageById } from '../services/staticIpPackageService';
 import { getInterfaces, addMangleRulesForClient, createClientQueues, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName, createQueueTree } from '../services/mikrotikService';
 import { getPppoeSecrets } from '../services/mikrotikService';
-import { addClientToPackage, isPackageFull, getClientById, updateClient } from '../services/staticIpClientService';
+import {
+    addClientToPackage,
+    isPackageFull,
+    getClientById,
+    updateClient,
+    getStaticIpClientByCustomerId
+} from '../services/staticIpClientService';
 import { listPackages as listPppoePackages, listProfiles as listPppoeProfiles } from '../services/pppoeService';
 
 // API endpoint untuk mengambil paket berdasarkan tipe koneksi
