@@ -53,7 +53,7 @@ export const getCustomerList = async (req: Request, res: Response) => {
                 sip.name as static_ip_package_name
             FROM customers c
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
-            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND sic.status = 'active'
+            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
             LEFT JOIN static_ip_packages sip ON sic.package_id = sip.id
             ${whereClause}
             ORDER BY c.created_at DESC
