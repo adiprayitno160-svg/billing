@@ -2618,7 +2618,7 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
                         odp_id: cust.odp_id,
                         customer_code: cust.customer_code
                     } as any;
-                    req.flash('error', 'URL menggunakan Kode Pelanggan. Mengalihkan ke mode perbaikan data.');
+                    req.flash('error', 'URL menggunakan Kode Pelanggan. Mengalihkan ke mode perbaikan data. Debug ID: ' + clientId);
                 } else {
                     // FALLBACK LEVEL 3: Coba cari by created_at (jika URL adalah generated timestamp dari list.ejs)
                     // Format ID: YYYYMMDDHHMMSS -> MySQL: YYYY-MM-DD HH:MM:SS
@@ -2651,11 +2651,11 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
                             req.flash('success', 'Mengalihkan ke URL Pelanggan yang benar...');
                             return res.redirect(`/customers/edit-static-ip/${cust.id}`);
                         } else {
-                            req.flash('error', 'Pelanggan tidak ditemukan');
+                            req.flash('error', `Pelanggan tidak ditemukan. Debug ID: '${clientId}'`);
                             return res.redirect('/customers/list?type=static_ip');
                         }
                     } else {
-                        req.flash('error', 'Pelanggan tidak ditemukan');
+                        req.flash('error', `Pelanggan tidak ditemukan. Debug ID: '${clientId}'`);
                         return res.redirect('/customers/list?type=static_ip');
                     }
                 }
