@@ -49,9 +49,12 @@ export const getCustomerList = async (req: Request, res: Response) => {
             SELECT 
                 c.*,
                 s.package_name as postpaid_package_name,
-                s.price as subscription_price
+                s.price as subscription_price,
+                sip.name as static_ip_package_name
             FROM customers c
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
+            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND sic.status = 'active'
+            LEFT JOIN static_ip_packages sip ON sic.package_id = sip.id
             ${whereClause}
             ORDER BY c.created_at DESC
             LIMIT ? OFFSET ?
@@ -66,11 +69,20 @@ export const getCustomerList = async (req: Request, res: Response) => {
         const [countResult] = await databasePool.query<RowDataPacket[]>(countQuery, countParams);
         const total = countResult[0]?.total || 0;
 
-        // Map results to include package_name
-        const customersWithPackages = customers.map((customer: any) => ({
-            ...customer,
-            package_name: customer.postpaid_package_name || null
-        }));
+        // Map results to include package_name based on connection_type
+        const customersWithPackages = customers.map((customer: any) => {
+            let pkgName = null;
+            if (customer.connection_type === 'pppoe') {
+                pkgName = customer.postpaid_package_name;
+            } else if (customer.connection_type === 'static_ip') {
+                pkgName = customer.static_ip_package_name;
+            }
+
+            return {
+                ...customer,
+                package_name: pkgName
+            };
+        });
 
         // Get statistics for the view
         const [totalCount] = await databasePool.query<RowDataPacket[]>(
