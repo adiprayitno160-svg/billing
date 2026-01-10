@@ -472,14 +472,16 @@
                                 <option value="">Pilih Paket Internet</option>
                                 <% if (typeof packages !=='undefined' && packages && packages.length> 0) { %>
                                     <% packages.forEach(pkg=> { %>
-                                        <option value="<%= pkg.id %>" <%=(customer.package_id==pkg.id ||
-                                            customer.pppoe_package_id==pkg.id) ? 'selected' : '' %>>
+                                        <option value="<%= pkg.id %>" <%=(String(customer.package_id)===String(pkg.id)
+                                            || String(customer.pppoe_package_id)===String(pkg.id)) ? 'selected' : '' %>>
                                             <%= pkg.name %> - Rp <%= pkg.price.toLocaleString('id-ID') %>
                                                     <% if (pkg.rate_limit_rx && pkg.rate_limit_tx) { %>
                                                         (<%= pkg.rate_limit_rx %>/<%= pkg.rate_limit_tx %>)
                                                                 <% } %>
-                                                                    <% if (customer.package_id==pkg.id ||
-                                                                        customer.pppoe_package_id==pkg.id) { %>
+                                                                    <% if (String(customer.package_id)===String(pkg.id)
+                                                                        ||
+                                                                        String(customer.pppoe_package_id)===String(pkg.id))
+                                                                        { %>
                                                                         ✓ (Terpilih)
                                                                         <% } %>
                                         </option>
@@ -621,7 +623,8 @@
                                 <option value="">Pilih Paket Internet</option>
                                 <% if (typeof packages !=='undefined' && packages && packages.length> 0) { %>
                                     <% packages.forEach(pkg=> { %>
-                                        <option value="<%= pkg.id %>" <%=customer.package_id==pkg.id ? 'selected' : ''
+                                        <option value="<%= pkg.id %>" <%=(String(customer.package_id)===String(pkg.id)
+                                            || String(customer.static_ip_package_id)===String(pkg.id)) ? 'selected' : ''
                                             %>>
                                             <%= pkg.name %> - Rp <%= pkg.price.toLocaleString('id-ID') %>
                                                     <% if (pkg.max_limit_upload && pkg.max_limit_download) { %>

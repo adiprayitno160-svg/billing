@@ -1441,6 +1441,33 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 }
             }
 
+            // Handle Static IP specific updates
+            if (connection_type || oldCustomer.connection_type === 'static_ip') {
+                const targetConnType = connection_type || oldCustomer.connection_type;
+                if (targetConnType === 'static_ip') {
+                    try {
+                        const [staticClient] = await conn.query<RowDataPacket[]>('SELECT id FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+
+                        const staticIpUpdates: string[] = [];
+                        const staticIpValues: any[] = [];
+
+                        if (ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(ip_address); }
+                        if (interfaceName) { staticIpUpdates.push('interface = ?'); staticIpValues.push(interfaceName); }
+                        if (static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(static_ip_package); }
+
+                        if (staticIpUpdates.length > 0) {
+                            if (staticClient && staticClient.length > 0) {
+                                staticIpValues.push(staticClient[0].id);
+                                await conn.query(`UPDATE static_ip_clients SET ${staticIpUpdates.join(', ')}, updated_at = NOW() WHERE id = ?`, staticIpValues);
+                                console.log(`[UpdateCustomer] Updated static_ip_clients for customer ${customerId}`);
+                            }
+                        }
+                    } catch (staticIpError) {
+                        console.error('[UpdateCustomer] Error updating static IP data:', staticIpError);
+                    }
+                }
+            }
+
             console.log('[updateCustomer] Update successful, redirecting to:', `/customers/${customerId}?success=updated`);
             req.flash('success', 'Data pelanggan berhasil diperbarui');
             res.redirect(`/customers/${customerId}?success=updated`);
