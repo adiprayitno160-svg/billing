@@ -2863,23 +2863,13 @@ router.get('/api/pppoe/active-count', async (req, res) => {
 // ==========================================
 // STATIC IP PACKAGES ROUTES
 // ==========================================
-// Halaman List Paket Static IP
-router.get('/packages/static-ip', getStaticIpPackageList);
-
-// Tambah Paket
-router.get('/packages/static-ip/add', getStaticIpPackageAdd);
-router.post('/packages/static-ip/add', postStaticIpPackageCreate);
-
-// Edit Paket
-router.get('/packages/static-ip/:id/edit', getStaticIpPackageEdit);
-router.post('/packages/static-ip/:id/edit', postStaticIpPackageUpdate);
-
-// Hapus Paket
-router.post('/packages/static-ip/delete', postStaticIpPackageDelete);
-router.delete('/api/packages/static-ip/:id', apiDeletePackage);
 
 // Redirect jika user mengakses /clients tanpa package ID (fallback ke filtered customer list)
+// MOVED TO TOP to prevent matching with wildcard routes
 router.get('/packages/static-ip/clients', (req, res) => res.redirect('/customers/list?type=static_ip'));
+
+// Halaman List Paket Static IP
+router.get('/packages/static-ip', getStaticIpPackageList);
 
 // Clients List dalam Paket
 router.get('/packages/static-ip/:packageId/clients', getStaticIpClientList);
