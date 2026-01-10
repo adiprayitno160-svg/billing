@@ -2555,10 +2555,45 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
     console.log(`HIT: GET /customers/edit-static-ip/${req.params.id}`);
     try {
         const clientId = Number(req.params.id);
-        const client = await getStaticIpClientByCustomerId(clientId);
+        let client = await getStaticIpClientByCustomerId(clientId);
+
         if (!client) {
-            req.flash('error', 'Pelanggan tidak ditemukan');
-            return res.redirect('/packages/static-ip/clients');
+            // FALLBACK: Cek di tabel customers jika data static ip hilang
+            const conn = await databasePool.getConnection();
+            const [custRows]: any = await conn.execute('SELECT * FROM customers WHERE id = ?', [clientId]);
+            conn.release();
+
+            if (custRows.length > 0) {
+                const cust = custRows[0];
+                console.log(`Customer found (ID: ${cust.id}) but missing static_ip_client record. Using dummy.`);
+
+                // Construct dummy client
+                client = {
+                    id: 0,  // 0 indicates missing record
+                    package_id: 0,
+                    client_name: cust.name,
+                    ip_address: '',
+                    customer_id: cust.id,
+                    status: cust.status || 'active',
+                    created_at: cust.created_at || new Date(),
+                    updated_at: new Date(),
+                    address: cust.address,
+                    phone_number: cust.phone,
+                    latitude: cust.latitude,
+                    longitude: cust.longitude,
+                    odc_id: cust.odc_id,
+                    odp_id: cust.odp_id,
+                    olt_id: 0,
+                    interface: '',
+                    network: '',
+                    customer_code: cust.customer_code
+                } as any;
+
+                req.flash('error', 'Data konfigurasi IP Static tidak ditemukan/rusak. Silakan lengkapi form dan simpan untuk memperbaiki.');
+            } else {
+                req.flash('error', 'Pelanggan tidak ditemukan');
+                return res.redirect('/customers/list?type=static_ip');
+            }
         }
 
         let pkg = await getStaticIpPackageById(client.package_id);
@@ -2630,7 +2665,7 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
 
 router.post('/customers/edit-static-ip/:id', async (req, res) => {
     try {
-        const clientId = Number(req.params.id);
+        const customerId = Number(req.params.id);
         const {
             client_name,
             ip_address,
@@ -2652,44 +2687,41 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
         if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
 
-        // Ambil data lama untuk sinkronisasi Mikrotik
-        const oldClient = await getClientById(clientId);
+        // Ambil data binding static ip lama (bisa null jika data rusak)
+        const oldClient = await getStaticIpClientByCustomerId(customerId);
 
-        // Tentukan paket yang digunakan (baru atau lama)
-        const targetPackageId = package_id ? Number(package_id) : oldClient.package_id;
+        // Tentukan paket yang digunakan (baru atau fallback ke lama)
+        const targetPackageId = package_id ? Number(package_id) : (oldClient ? oldClient.package_id : 0);
+
+        if (targetPackageId === 0) {
+            throw new Error('Paket belum dipilih, silakan pilih paket terlebih dahulu.');
+        }
+
         const pkg = await getStaticIpPackageById(targetPackageId);
+        if (!pkg) throw new Error('Paket tidak valid');
 
         const cfg = await getMikrotikConfig();
 
-        if (cfg && pkg && oldClient) {
-            // 1) Hapus resource lama (IP, mangle, queues)
-            if (oldClient.ip_address) {
-                await removeIpAddress(cfg, oldClient.ip_address);
+        if (cfg) {
+            // 1) Hapus resource lama (Hanya jika oldClient ada)
+            if (oldClient) {
+                if (oldClient.ip_address) {
+                    await removeIpAddress(cfg, oldClient.ip_address);
+                }
+
+                const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                const [ipOnlyRaw, prefixStrRaw] = String(oldClient.ip_address || '').split('/');
+                const ipOnly: string = ipOnlyRaw || '';
+                const prefix: number = Number(prefixStrRaw || '0');
+                // Hapus Mangle & Queue lama ...
+                const downloadMark: string = ipOnly;
+                const uploadMark: string = `UP-${ipOnly}`;
+                await removeMangleRulesForClient(cfg, { peerIp: ipOnly, downloadMark, uploadMark });
+                await deleteClientQueuesByClientName(cfg, oldClient.client_name);
             }
 
-            // Hapus mangle rules lama
-            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-            const [ipOnlyRaw, prefixStrRaw] = String(oldClient.ip_address || '').split('/');
-            const ipOnly: string = ipOnlyRaw || '';
-            const prefix: number = Number(prefixStrRaw || '0');
-            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-            const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
-            let peerIp = ipOnly;
-            if (prefix === 30) {
-                const firstHost = networkInt + 1;
-                const secondHost = networkInt + 2;
-                const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
-                peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-            }
-            const downloadMark: string = peerIp;
-            const uploadMark: string = `UP-${peerIp}`;
-            await removeMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
-
-            // Hapus queues lama
-            await deleteClientQueuesByClientName(cfg, oldClient.client_name);
-
-            // 2) Tambahkan resource baru sesuai input
+            // 2) Tambahkan resource baru (Selalu jalankan untuk apply config baru)
             if (iface) {
                 await addIpAddress(cfg, {
                     interface: iface,
@@ -2699,6 +2731,9 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             }
 
             // Tambah mangle rules baru
+            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
             const [newIpOnly, newPrefixStr] = ip_address.split('/');
             const newPrefix = Number(newPrefixStr);
             const newMask = newPrefix === 0 ? 0 : (0xFFFFFFFF << (32 - newPrefix)) >>> 0;
@@ -2714,17 +2749,10 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             const newUploadMark: string = `UP-${newPeerIp}`;
             await addMangleRulesForClient(cfg, { peerIp: newPeerIp, downloadMark: newDownloadMark, uploadMark: newUploadMark });
 
-            // Gunakan limit dari paket (baru atau lama)
             const mlDownload = (pkg as any).child_download_limit || (pkg as any).shared_download_limit || pkg.max_limit_download;
             const mlUpload = (pkg as any).child_upload_limit || (pkg as any).shared_upload_limit || pkg.max_limit_upload;
-
             const packageDownloadQueue = pkg.name;
             const packageUploadQueue = `UP-${pkg.name}`;
-
-            // Note: Jika parent queue berubah (karena ganti paket), code ini works karena kita pakai pkg.name baru.
-            // Tapi pastikan Parent Queue untuk paket baru sudah ada di MikroTik. 
-            // Biasanya parent dibuat saat add package atau add client pertama. 
-            // Untuk safety, ideally kita check/create parent queue disini, tapi kita asumsikan sudah ada dulu.
 
             await createQueueTree(cfg, {
                 name: client_name,
@@ -2745,19 +2773,52 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         }
 
         // Update database
-        await updateClient(clientId, {
-            client_name,
-            ip_address,
-            package_id: targetPackageId,
-            interface: iface || null,
-            address: address || null,
-            phone_number: phone_number || null,
-            latitude: latitude ? Number(latitude) : null,
-            longitude: longitude ? Number(longitude) : null,
-            olt_id: olt_id ? Number(olt_id) : null,
-            odc_id: odc_id ? Number(odc_id) : null,
-            odp_id: odp_id ? Number(odp_id) : null
-        });
+        if (oldClient) {
+            // Update existing record
+            await updateClient(oldClient.id, {
+                client_name,
+                ip_address,
+                package_id: targetPackageId,
+                interface: iface || null,
+                address: address || null,
+                phone_number: phone_number || null,
+                latitude: latitude ? Number(latitude) : null,
+                longitude: longitude ? Number(longitude) : null,
+                olt_id: olt_id ? Number(olt_id) : null,
+                odc_id: odc_id ? Number(odc_id) : null,
+                odp_id: odp_id ? Number(odp_id) : null
+            });
+        } else {
+            // Insert NEW record (Recovery Mode)
+            const conn = await databasePool.getConnection();
+            try {
+                // Get customer code first
+                const [custRows]: any = await conn.execute('SELECT customer_code FROM customers WHERE id = ?', [customerId]);
+                const customerCode = custRows[0]?.customer_code || `CUST-${Date.now()}`;
+
+                await conn.execute(`
+                    INSERT INTO static_ip_clients (package_id, client_name, ip_address, interface, customer_id, address, phone_number, latitude, longitude, olt_id, odc_id, odp_id, customer_code, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                `, [
+                    targetPackageId,
+                    client_name,
+                    ip_address,
+                    iface || null,
+                    customerId,
+                    address || null,
+                    phone_number || null,
+                    latitude ? Number(latitude) : null,
+                    longitude ? Number(longitude) : null,
+                    olt_id ? Number(olt_id) : null,
+                    odc_id ? Number(odc_id) : null,
+                    odp_id ? Number(odp_id) : null,
+                    customerCode
+                ]);
+            } finally {
+                conn.release();
+            }
+        }
+
         req.flash('success', 'Pelanggan berhasil diperbarui');
         res.redirect('/packages/static-ip/clients');
 
