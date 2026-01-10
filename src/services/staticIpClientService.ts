@@ -200,7 +200,7 @@ export async function getClientById(clientId: number): Promise<StaticIpClient | 
     }
 }
 
-export async function getStaticIpClientByCustomerId(customerId: number): Promise<StaticIpClient | null> {
+export async function getStaticIpClientByCustomerId(customerId: number | string): Promise<StaticIpClient | null> {
     const conn = await databasePool.getConnection();
     try {
         const [rows] = await conn.execute(`

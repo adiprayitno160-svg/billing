@@ -2554,7 +2554,7 @@ router.post('/customers/bulk-delete', async (req, res, next) => {
 router.get('/customers/edit-static-ip/:id', async (req, res) => {
     console.log(`HIT: GET /customers/edit-static-ip/${req.params.id}`);
     try {
-        const clientId = Number(req.params.id);
+        const clientId = req.params.id; // Keep as string for BIGINT safety
         console.log(`DEBUG: Looking for customer with ID: ${clientId}`);
 
         let client = await getStaticIpClientByCustomerId(clientId);
