@@ -2594,8 +2594,35 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
 
                 req.flash('error', 'Data konfigurasi IP Static tidak ditemukan/rusak. Silakan lengkapi form dan simpan untuk memperbaiki.');
             } else {
-                req.flash('error', 'Pelanggan tidak ditemukan');
-                return res.redirect('/customers/list?type=static_ip');
+                // FALLBACK LEVEL 2: Coba cari by customer_code (jika URL salah isi code bukan ID)
+                const [custCodeRows]: any = await conn.execute('SELECT * FROM customers WHERE customer_code = ?', [clientId]);
+
+                if (custCodeRows.length > 0) {
+                    const cust = custCodeRows[0];
+                    console.log(`Customer found by CODE (ID: ${cust.id}, Code: ${cust.customer_code}). URL used Code instead of ID.`);
+
+                    client = {
+                        id: 0,
+                        package_id: 0,
+                        client_name: cust.name,
+                        ip_address: '',
+                        customer_id: cust.id,
+                        status: cust.status || 'active',
+                        created_at: cust.created_at || new Date(),
+                        updated_at: new Date(),
+                        address: cust.address,
+                        phone_number: cust.phone,
+                        latitude: cust.latitude,
+                        longitude: cust.longitude,
+                        odc_id: cust.odc_id,
+                        odp_id: cust.odp_id,
+                        customer_code: cust.customer_code
+                    } as any;
+                    req.flash('error', 'URL menggunakan Kode Pelanggan. Mengalihkan ke mode perbaikan data.');
+                } else {
+                    req.flash('error', 'Pelanggan tidak ditemukan');
+                    return res.redirect('/customers/list?type=static_ip');
+                }
             }
         }
 
