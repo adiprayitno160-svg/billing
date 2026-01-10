@@ -2680,6 +2680,37 @@ router.get('/api/pppoe/active-count', async (req, res) => {
     }
 });
 
+// ==========================================
+// STATIC IP PACKAGES ROUTES
+// ==========================================
+// Halaman List Paket Static IP
+router.get('/packages/static-ip', getStaticIpPackageList);
+
+// Tambah Paket
+router.get('/packages/static-ip/add', getStaticIpPackageAdd);
+router.post('/packages/static-ip/add', postStaticIpPackageCreate);
+
+// Edit Paket
+router.get('/packages/static-ip/:id/edit', getStaticIpPackageEdit);
+router.post('/packages/static-ip/:id/edit', postStaticIpPackageUpdate);
+
+// Hapus Paket
+router.post('/packages/static-ip/delete', postStaticIpPackageDelete);
+router.delete('/api/packages/static-ip/:id', apiDeletePackage);
+
+// Clients List dalam Paket
+router.get('/packages/static-ip/:packageId/clients', getStaticIpClientList);
+
+// Tambah Client dalam Paket
+router.get('/packages/static-ip/:packageId/clients/add', getStaticIpClientAdd);
+router.post('/packages/static-ip/:packageId/clients/add', postStaticIpClientCreate);
+
+// Edit/Delete Client Operations
+router.get('/packages/static-ip/clients/:id/edit', getStaticIpClientEdit);
+router.post('/packages/static-ip/clients/:id/edit', postStaticIpClientUpdate);
+router.post('/packages/static-ip/clients/:id/delete', postStaticIpClientDelete);
+// Note: Route umum /customers/edit-static-ip/:id juga menghandle update
+
 router.post('/customers/new-static-ip', async (req, res) => {
     console.log('=== ROUTE HIT: POST /customers/new-static-ip ===');
     try {
