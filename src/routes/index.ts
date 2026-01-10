@@ -205,8 +205,8 @@ router.get('/api/health-check', (req, res) => {
     });
 });
 
-// Middleware untuk parsing body request
-router.use(express.json()); // Assuming express.json() is intended for body parsing
+// Middleware untuk parsing body request - SUDAH DITANGANI DI SERVER.TS
+// router.use(express.json()); REMOVED
 // Middleware untuk mencegah kasir mengakses halaman admin
 router.use(async (req, res, next) => {
     // Skip untuk route kasir, auth, API routes, dan notification
