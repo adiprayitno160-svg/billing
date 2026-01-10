@@ -2561,10 +2561,28 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
             return res.redirect('/packages/static-ip/clients');
         }
 
+        let pkg = await getStaticIpPackageById(client.package_id);
+
+        // If package not found, create a dummy package to allow rendering the edit form
         if (!pkg) {
-            console.log(`Package not found for client ${clientId} with package_id ${client.package_id}`);
-            req.flash('error', `Data Paket tidak ditemukan (ID: ${client.package_id}). Silakan set ulang paket.`);
-            return res.redirect('/customers/list?type=static_ip');
+            console.log(`Package not found for client ${clientId} with package_id ${client.package_id}, using dummy package`);
+            req.flash('error', `Data Paket tidak ditemukan (ID: ${client.package_id}). Silakan pilih paket baru untuk memperbaiki data.`);
+
+            // Create dummy package compatible with view
+            const dummyPackage = {
+                id: 0,
+                name: 'Paket Tidak Ditemukan/Terhapus',
+                max_clients: 1,
+                max_limit_upload: '0M',
+                max_limit_download: '0M',
+                parent_upload_name: '-',
+                parent_download_name: '-',
+                price: 0
+            };
+
+            // Override pkg variable
+            // Using any cast to bypass strict checking for dummy object
+            (pkg as any) = dummyPackage;
         }
 
         const cfg = await getMikrotikConfig();
