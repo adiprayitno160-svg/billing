@@ -2540,6 +2540,7 @@ router.post('/customers/bulk-delete', async (req, res, next) => {
 
 // Edit pelanggan IP static
 router.get('/customers/edit-static-ip/:id', async (req, res) => {
+    console.log(`HIT: GET /customers/edit-static-ip/${req.params.id}`);
     try {
         const clientId = Number(req.params.id);
         const client = await getClientById(clientId);
