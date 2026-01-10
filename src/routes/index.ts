@@ -156,6 +156,31 @@ import {
 const router = Router();
 const authMiddleware = new AuthMiddleware();
 
+// --- DIAGNOSA SERVER ---
+router.get('/ping-server', (req, res) => {
+    res.send('SERVER IS UPDATED v2.4.16-DEBUG');
+});
+
+router.get('/debug-edit-87', (req, res) => {
+    req.flash('success', 'Forcing Edit 87 directly');
+    res.redirect('/customers/edit-static-ip/87');
+});
+
+router.get('/debug-db-87', async (req, res) => {
+    try {
+        const [rows]: any = await databasePool.query('SELECT * FROM static_ip_clients WHERE customer_id = 87');
+        res.json({
+            count: rows.length,
+            rows: rows,
+            db_config_host: process.env.DB_HOST,
+            db_name: process.env.DB_NAME
+        });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// -----------------------
+
 // Configure multer for file uploads with production-ready settings
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -2487,56 +2512,51 @@ router.post('/customers/new-pppoe', async (req, res) => {
 
 // TEST ENDPOINT: Debug create secret PPPoE
 router.get('/test/debug-create-secret', async (req: Request, res: Response) => {
-    try {
-        const testName = req.query.name as string || 'testuser';
-        const testPassword = req.query.password as string || 'test123';
-        const testProfile = req.query.profile as string || 'gratis';
+    console.log('\n\n═══════════════════════════════════════════════════════════');
+    console.log('=== DEBUG CREATE SECRET ===');
+    console.log('═══════════════════════════════════════════════════════════');
 
-        console.log('\n\n═══════════════════════════════════════════════════════════');
-        console.log('=== DEBUG CREATE SECRET ===');
-        console.log('═══════════════════════════════════════════════════════════');
+    const { getMikrotikConfig } = await import('../services/pppoeService');
+    const { createPppoeSecret, findPppoeSecretIdByName } = await import('../services/mikrotikService');
 
-        const { getMikrotikConfig } = await import('../services/pppoeService');
-        const { createPppoeSecret, findPppoeSecretIdByName } = await import('../services/mikrotikService');
-
-        const config = await getMikrotikConfig();
-        if (!config) {
-            return res.json({ success: false, error: 'MikroTik config tidak ditemukan' });
-        }
-
-        console.log('Config:', { host: config.host, port: config.port, username: config.username });
-
-        // Test create
-        try {
-            console.log('Creating secret...');
-            await createPppoeSecret(config, {
-                name: testName,
-                password: testPassword,
-                profile: testProfile,
-                comment: 'Test secret'
-            });
-
-            // Verify
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const secretId = await findPppoeSecretIdByName(config, testName);
-
-            res.json({
-                success: true,
-                message: 'Secret created successfully',
-                secretId: secretId,
-                testData: { name: testName, profile: testProfile }
-            });
-        } catch (error: any) {
-            console.error('Error:', error);
-            res.json({
-                success: false,
-                error: error.message,
-                stack: error.stack
-            });
-        }
-    } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+    const config = await getMikrotikConfig();
+    if (!config) {
+        return res.json({ success: false, error: 'MikroTik config tidak ditemukan' });
     }
+
+    console.log('Config:', { host: config.host, port: config.port, username: config.username });
+
+    // Test create
+    try {
+        console.log('Creating secret...');
+        await createPppoeSecret(config, {
+            name: testName,
+            password: testPassword,
+            profile: testProfile,
+            comment: 'Test secret'
+        });
+
+        // Verify
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const secretId = await findPppoeSecretIdByName(config, testName);
+
+        res.json({
+            success: true,
+            message: 'Secret created successfully',
+            secretId: secretId,
+            testData: { name: testName, profile: testProfile }
+        });
+    } catch (error: any) {
+        console.error('Error:', error);
+        res.json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
+    }
+} catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+}
 });
 
 // Routes dengan parameter harus di bawah routes yang lebih spesifik
