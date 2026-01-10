@@ -2561,9 +2561,9 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
             return res.redirect('/packages/static-ip/clients');
         }
 
-        const pkg = await getStaticIpPackageById(client.package_id);
         if (!pkg) {
-            req.flash('error', 'Paket tidak ditemukan');
+            console.log(`Package not found for client ${clientId} with package_id ${client.package_id}`);
+            req.flash('error', `Data Paket tidak ditemukan (ID: ${client.package_id}). Silakan set ulang paket.`);
             return res.redirect('/customers/list?type=static_ip');
         }
 
