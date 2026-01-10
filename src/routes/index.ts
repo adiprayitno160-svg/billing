@@ -2564,7 +2564,7 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
         const pkg = await getStaticIpPackageById(client.package_id);
         if (!pkg) {
             req.flash('error', 'Paket tidak ditemukan');
-            return res.redirect('/packages/static-ip/clients');
+            return res.redirect('/customers/list?type=static_ip');
         }
 
         const cfg = await getMikrotikConfig();
@@ -2605,7 +2605,8 @@ router.get('/customers/edit-static-ip/:id', async (req, res) => {
         }
     } catch (err) {
         req.flash('error', 'Gagal memuat data pelanggan');
-        res.redirect('/packages/static-ip/clients');
+        req.flash('error', 'Gagal memuat data pelanggan');
+        res.redirect('/customers/list?type=static_ip');
     }
 });
 
