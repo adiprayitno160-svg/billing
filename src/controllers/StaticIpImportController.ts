@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { StaticIpImportService } from '../services/mikrotik/StaticIpImportService';
 import { databasePool } from '../db/pool';
 import { listStaticIpPackages } from '../services/staticIpPackageService';
+import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 const importService = new StaticIpImportService();
 
@@ -138,10 +139,8 @@ export class StaticIpImportController {
         try {
             await conn.beginTransaction();
 
-            // 1. Generate Customer Code (Format: CUST + Timestamp + Random)
-            const timestamp = Date.now().toString().slice(-6);
-            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            const customerCode = `CUST${timestamp}${random}`;
+            // 1. Generate Customer Code (Format: YYYYMMDDHHMMSS)
+            const customerCode = CustomerIdGenerator.generateCustomerId();
 
             // 2. Insert Customer Baru (dengan gateway info)
             const [custResult] = await conn.execute(`
