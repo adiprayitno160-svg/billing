@@ -232,14 +232,14 @@ export class StaticIpImportService {
 
                 candidates.push({
                     queueId: queue['.id'],
-                    queueName: queue['name'],
-                    packetMark: packetMark,
+                    queueName: this.sanitizeString(queue['name']),
+                    packetMark: this.sanitizeString(packetMark),
                     maxLimit: formattedLimit,
                     ipAddress: customerIp,
                     gatewayIp: gatewayIp,
                     gatewayIpId: gatewayIpId,
                     interface: gatewayInterface,
-                    comment: queue['comment'] || '',
+                    comment: this.sanitizeString(queue['comment'] || ''),
                     mangleId: mangleId
                 });
             }
@@ -251,6 +251,14 @@ export class StaticIpImportService {
             console.error('Failed to scan MikroTik candidates:', error);
             throw error;
         }
+    }
+
+    /**
+     * Helper: Bersihkan string dari karakter aneh (\r, \n, null)
+     */
+    private sanitizeString(str: string | undefined): string {
+        if (!str) return '';
+        return str.replace(/[\r\n\t]/g, '').trim();
     }
 
     /**
