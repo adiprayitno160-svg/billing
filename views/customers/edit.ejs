@@ -318,8 +318,9 @@
         </div>
 
         <!-- CARD 4: Infrastructure (ODC/ODP) -->
-        <% var initialOdpName='' ; var initialOdcName='' ; var initialOltName='Auto' ; // Logic to preset names if
-            (customer.odp_id && typeof odpData !=='undefined' && Array.isArray(odpData)) { var found=odpData.find(o=>
+        <% var initialOdpName='' ; var initialOdcName='' ; var initialOltName='Auto' ; if (customer.odp_id && typeof
+            odpData !=='undefined' && Array.isArray(odpData)) { var found=odpData.find(o=>
+
             String(o.id) === String(customer.odp_id));
             if (found) {
             initialOdpName = found.odp_name;
