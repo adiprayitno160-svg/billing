@@ -1,45 +1,45 @@
 import { Request, Response, NextFunction } from 'express';
-import { 
-	syncProfilesFromMikrotik, 
-	listProfiles, 
+import {
+	syncProfilesFromMikrotik,
+	listProfiles,
 	getProfileById,
 	createProfile,
 	updateProfile,
 	deleteProfile,
-	listPackages, 
-	getPackageById, 
-	createPackage, 
-	updatePackage, 
-	deletePackage 
+	listPackages,
+	getPackageById,
+	createPackage,
+	updatePackage,
+	deletePackage
 } from '../services/pppoeService';
 
 export async function getProfileList(req: Request, res: Response, next: NextFunction) {
 	try {
 		const profiles = await listProfiles();
-		res.render('packages/pppoe_profiles', { 
-			title: 'Profil PPPoE', 
+		res.render('packages/pppoe_profiles', {
+			title: 'Profil PPPoE',
 			currentPath: '/packages/pppoe/profiles',
 			profiles,
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
 export async function postSyncProfiles(req: Request, res: Response, next: NextFunction) {
 	try {
 		const result = await syncProfilesFromMikrotik();
-		
+
 		if (result.errors.length > 0) {
 			req.flash('error', `Sync selesai dengan ${result.errors.length} error. ${result.synced} profil berhasil di-sync.`);
 		} else {
 			req.flash('success', `Berhasil sync ${result.synced} profil dari MikroTik.`);
 		}
-		
+
 		res.redirect('/packages/pppoe/profiles');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', `Gagal sync profil: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		res.redirect('/packages/pppoe/profiles');
 	}
@@ -49,28 +49,28 @@ export async function getPackageList(req: Request, res: Response, next: NextFunc
 	try {
 		const packages = await listPackages();
 		const profiles = await listProfiles();
-		res.render('packages/pppoe_packages', { 
-			title: 'Paket PPPoE', 
+		res.render('packages/pppoe_packages', {
+			title: 'Paket PPPoE',
 			currentPath: '/packages/pppoe/packages',
 			packages,
 			profiles,
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
-	export async function postPackageCreate(req: Request, res: Response, next: NextFunction) {
+export async function postPackageCreate(req: Request, res: Response, next: NextFunction) {
 	try {
-		const { 
-			name, 
-			profile_id, 
-			price, 
+		const {
+			name,
+			profile_id,
+			price,
 			duration_days,
-			auto_activation, 
-			status, 
+			auto_activation,
+			status,
 			description,
 			rate_limit_rx,
 			rate_limit_tx,
@@ -84,13 +84,13 @@ export async function getPackageList(req: Request, res: Response, next: NextFunc
 
 		if (!name) throw new Error('Nama paket wajib diisi');
 		if (!price || Number(price) < 0) throw new Error('Harga harus lebih dari 0');
-		if (!duration_days || Number(duration_days) < 1) throw new Error('Durasi harus minimal 1 hari');
+		// Durasi tidak wajib untuk postpaid - default 30 untuk backward compatibility
 
 		await createPackage({
 			name,
 			profile_id: profile_id ? Number(profile_id) : undefined,
 			price: Number(price),
-			duration_days: Number(duration_days),
+			duration_days: duration_days ? Number(duration_days) : 30, // Default 30 untuk backward compatibility
 			auto_activation: auto_activation === '1' || auto_activation === 'on' ? 1 : 0,
 			status: status as 'active' | 'inactive',
 			description: description || undefined,
@@ -106,7 +106,7 @@ export async function getPackageList(req: Request, res: Response, next: NextFunc
 
 		req.flash('success', 'Paket berhasil dibuat');
 		res.redirect('/packages/pppoe/packages');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal membuat paket');
 		res.redirect('/packages/pppoe/packages');
 	}
@@ -115,12 +115,12 @@ export async function getPackageList(req: Request, res: Response, next: NextFunc
 export async function postPackageUpdate(req: Request, res: Response, next: NextFunction) {
 	try {
 		const id = Number(req.params.id);
-		const { 
-			name, 
-			profile_id, 
-			price, 
-			duration_days, 
-			status, 
+		const {
+			name,
+			profile_id,
+			price,
+			duration_days,
+			status,
 			description,
 			rate_limit_rx,
 			rate_limit_tx,
@@ -157,7 +157,7 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 
 		req.flash('success', 'Paket berhasil diupdate');
 		res.redirect('/packages/pppoe/packages');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal mengupdate paket');
 		res.redirect('/packages/pppoe/packages');
 	}
@@ -166,15 +166,15 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 export async function getPackageForm(req: Request, res: Response, next: NextFunction) {
 	try {
 		const profiles = await listProfiles();
-		res.render('packages/pppoe_package_form', { 
-			title: 'Tambah Paket PPPoE', 
+		res.render('packages/pppoe_package_form', {
+			title: 'Tambah Paket PPPoE',
 			currentPath: '/packages/pppoe/packages',
 			profiles,
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
@@ -183,22 +183,22 @@ export async function getPackageEdit(req: Request, res: Response, next: NextFunc
 		const id = Number(req.params.id);
 		const packageData = await getPackageById(id);
 		const profiles = await listProfiles();
-		
+
 		if (!packageData) {
 			req.flash('error', 'Paket tidak ditemukan');
 			return res.redirect('/packages/pppoe/packages');
 		}
-		
-		res.render('packages/pppoe_package_edit', { 
-			title: 'Edit Paket PPPoE', 
+
+		res.render('packages/pppoe_package_edit', {
+			title: 'Edit Paket PPPoE',
 			currentPath: '/packages/pppoe/packages',
 			package: packageData,
 			profiles,
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
@@ -208,7 +208,7 @@ export async function postPackageDelete(req: Request, res: Response, next: NextF
 		await deletePackage(id);
 		req.flash('success', 'Paket berhasil dihapus');
 		res.redirect('/packages/pppoe/packages');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal menghapus paket');
 		res.redirect('/packages/pppoe/packages');
 	}
@@ -220,14 +220,14 @@ export async function postPackageDelete(req: Request, res: Response, next: NextF
 
 export async function getProfileForm(req: Request, res: Response, next: NextFunction) {
 	try {
-		res.render('packages/pppoe_profile_form', { 
-			title: 'Tambah Profil PPPoE', 
+		res.render('packages/pppoe_profile_form', {
+			title: 'Tambah Profil PPPoE',
 			currentPath: '/packages/pppoe/profiles',
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
@@ -235,28 +235,28 @@ export async function getProfileEdit(req: Request, res: Response, next: NextFunc
 	try {
 		const id = Number(req.params.id);
 		const profile = await getProfileById(id);
-		
+
 		if (!profile) {
 			req.flash('error', 'Profil tidak ditemukan');
 			return res.redirect('/packages/pppoe/profiles');
 		}
-		
-		res.render('packages/pppoe_profile_form', { 
-			title: 'Edit Profil PPPoE', 
+
+		res.render('packages/pppoe_profile_form', {
+			title: 'Edit Profil PPPoE',
 			currentPath: '/packages/pppoe/profiles',
 			profile,
 			success: req.flash('success'),
 			error: req.flash('error')
 		});
-	} catch (err) { 
-		next(err); 
+	} catch (err) {
+		next(err);
 	}
 }
 
 export async function postProfileCreate(req: Request, res: Response, next: NextFunction) {
 	try {
-		const { 
-			name, 
+		const {
+			name,
 			local_address,
 			remote_address_pool,
 			dns_server,
@@ -292,7 +292,7 @@ export async function postProfileCreate(req: Request, res: Response, next: NextF
 
 		req.flash('success', 'Profil berhasil dibuat');
 		res.redirect('/packages/pppoe/profiles');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal membuat profil');
 		res.redirect('/packages/pppoe/profiles/new');
 	}
@@ -301,8 +301,8 @@ export async function postProfileCreate(req: Request, res: Response, next: NextF
 export async function postProfileUpdate(req: Request, res: Response, next: NextFunction) {
 	try {
 		const id = Number(req.params.id);
-		const { 
-			name, 
+		const {
+			name,
 			local_address,
 			remote_address_pool,
 			dns_server,
@@ -345,7 +345,7 @@ export async function postProfileUpdate(req: Request, res: Response, next: NextF
 
 		req.flash('success', 'Profil berhasil diupdate');
 		res.redirect('/packages/pppoe/profiles');
-	} catch (err) { 
+	} catch (err) {
 		req.flash('error', err instanceof Error ? err.message : 'Gagal mengupdate profil');
 		res.redirect(`/packages/pppoe/profiles/${req.params.id}/edit`);
 	}
@@ -356,7 +356,7 @@ export async function postProfileDelete(req: Request, res: Response, next: NextF
 		const id = Number(req.params.id);
 		await deleteProfile(id);
 		res.json({ success: true, message: 'Profil berhasil dihapus' });
-	} catch (err) { 
+	} catch (err) {
 		res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Gagal menghapus profil' });
 	}
 }

@@ -11,373 +11,305 @@
         <p class="text-slate-600">Buat paket PPPoE baru dengan konfigurasi yang sesuai</p>
     </div>
 
-    <% if (error && error.length > 0) { %>
-    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
-        <%= error[0] %>
-    </div>
-    <% } %>
+    <% if (error && error.length> 0) { %>
+        <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+            <%= error[0] %>
+        </div>
+        <% } %>
 
-    <div class="bg-white rounded-lg border border-slate-200 p-6">
-        <form method="post" action="/packages/pppoe/packages/create" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Nama Paket -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Nama Paket <span class="text-red-500">*</span>
-                    </label>
-                    <input 
-                        name="name" 
-                        type="text" 
-                        required 
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Masukkan nama paket"
-                    />
-                </div>
+            <div class="bg-white rounded-lg border border-slate-200 p-6">
+                <form method="post" action="/packages/pppoe/packages/create" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Nama Paket -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Nama Paket <span class="text-red-500">*</span>
+                            </label>
+                            <input name="name" type="text" required
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Masukkan nama paket" />
+                        </div>
 
-                <!-- Profil PPPoE -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Profil PPPoE
-                    </label>
-                    <select 
-                        id="profile_id"
-                        name="profile_id" 
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        onchange="loadProfileRateLimits(this.value)"
-                    >
-                        <option value="">Pilih Profil (Opsional)</option>
-                        <% (profiles || []).forEach(function(profile){ %>
-                        <option value="<%= profile.id %>" 
-                            data-rate-rx="<%= profile.rate_limit_rx || '' %>"
-                            data-rate-tx="<%= profile.rate_limit_tx || '' %>"
-                            data-burst-rx="<%= profile.burst_limit_rx || '' %>"
-                            data-burst-tx="<%= profile.burst_limit_tx || '' %>"
-                            data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
-                            data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
-                            data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
-                            data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
-                            <%= profile.name %>
-                        </option>
-                        <% }) %>
-                    </select>
-                    <p class="text-xs text-slate-500 mt-1">💡 Rate limiting akan otomatis terisi dari profil MikroTik</p>
-                </div>
+                        <!-- Profil PPPoE -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Profil PPPoE
+                            </label>
+                            <select id="profile_id" name="profile_id"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                onchange="loadProfileRateLimits(this.value)">
+                                <option value="">Pilih Profil (Opsional)</option>
+                                <% (profiles || []).forEach(function(profile){ %>
+                                    <option value="<%= profile.id %>" data-rate-rx="<%= profile.rate_limit_rx || '' %>"
+                                        data-rate-tx="<%= profile.rate_limit_tx || '' %>"
+                                        data-burst-rx="<%= profile.burst_limit_rx || '' %>"
+                                        data-burst-tx="<%= profile.burst_limit_tx || '' %>"
+                                        data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
+                                        data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
+                                        data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
+                                        data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
+                                        <%= profile.name %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">💡 Rate limiting akan otomatis terisi dari profil
+                                MikroTik</p>
+                        </div>
 
-                <!-- Harga -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Harga (Rp) <span class="text-red-500">*</span>
-                    </label>
-                    <input 
-                        name="price" 
-                        type="number" 
-                        min="0" 
-                        step="1000" 
-                        required 
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="0"
-                    />
-                </div>
+                        <!-- Harga -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Harga (Rp) <span class="text-red-500">*</span>
+                            </label>
+                            <input name="price" type="number" min="0" step="1000" required
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="0" />
+                        </div>
 
-                <!-- Durasi -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Durasi (Hari) <span class="text-red-500">*</span>
-                    </label>
-                    <input 
-                        id="duration_days"
-                        name="duration_days" 
-                        type="number" 
-                        min="1" 
-                        required 
-                        value="30"
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        onchange="calculateExpiryDate()"
-                    />
-                    <div id="expiry_preview" class="text-xs text-blue-600 mt-1 font-medium"></div>
-                </div>
+                        <!-- Durasi (Hidden - Postpaid tidak menggunakan durasi, default 30 untuk backward compatibility) -->
+                        <input type="hidden" name="duration_days" value="30" />
 
-                <!-- Auto Activation Toggle -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Auto Activation
-                    </label>
-                    <div class="flex items-center space-x-3">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                id="auto_activation"
-                                name="auto_activation" 
-                                type="checkbox" 
-                                value="1"
-                                class="sr-only peer"
-                                onchange="toggleActivationInfo()"
-                            />
-                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                        <span id="activation_status" class="text-sm text-slate-600">Nonaktif</span>
+                        <!-- Auto Activation Toggle -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Auto Activation
+                            </label>
+                            <div class="flex items-center space-x-3">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input id="auto_activation" name="auto_activation" type="checkbox" value="1"
+                                        class="sr-only peer" onchange="toggleActivationInfo()" />
+                                    <div
+                                        class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                    </div>
+                                </label>
+                                <span id="activation_status" class="text-sm text-slate-600">Nonaktif</span>
+                            </div>
+                            <div id="activation_info"
+                                class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hidden">
+                                <p class="font-semibold mb-1">⚠️ Perhatian:</p>
+                                <p>Jika Auto Activation <strong>NONAKTIF</strong>, paket harus diaktifkan manual. Isolir
+                                    otomatis akan mengikuti jadwal isolir bulanan yang sudah diatur di sistem.</p>
+                            </div>
+                            <div id="activation_info_active"
+                                class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800 hidden">
+                                <p class="font-semibold mb-1">✅ Auto Activation Aktif:</p>
+                                <p>Paket akan otomatis aktif saat pelanggan subscribe. Masa berlaku dimulai dari tanggal
+                                    aktivasi.</p>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Status
+                            </label>
+                            <select name="status"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="active">Aktif</option>
+                                <option value="inactive">Tidak Aktif</option>
+                            </select>
+                        </div>
+
+                        <!-- Deskripsi -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Deskripsi
+                            </label>
+                            <textarea name="description" rows="3"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Deskripsi paket (opsional)"></textarea>
+                        </div>
                     </div>
-                    <div id="activation_info" class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hidden">
-                        <p class="font-semibold mb-1">⚠️ Perhatian:</p>
-                        <p>Jika Auto Activation <strong>NONAKTIF</strong>, paket harus diaktifkan manual. Isolir otomatis akan mengikuti jadwal isolir bulanan yang sudah diatur di sistem.</p>
-                    </div>
-                    <div id="activation_info_active" class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800 hidden">
-                        <p class="font-semibold mb-1">✅ Auto Activation Aktif:</p>
-                        <p>Paket akan otomatis aktif saat pelanggan subscribe. Masa berlaku dimulai dari tanggal aktivasi.</p>
-                    </div>
-                </div>
 
-                <!-- Status -->
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Status
-                    </label>
-                    <select 
-                        name="status" 
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                        <option value="active">Aktif</option>
-                        <option value="inactive">Tidak Aktif</option>
-                    </select>
-                </div>
+                    <!-- Rate Limiting Section -->
+                    <div class="border-t border-slate-200 pt-6">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Rate Limiting</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Download Limit
+                                </label>
+                                <input id="rate_limit_rx" name="rate_limit_rx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 10M, 5M (kosongkan untuk unlimited)" />
+                                <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil MikroTik. Jika
+                                    kosong = unlimited (0)</p>
+                            </div>
 
-                <!-- Deskripsi -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Deskripsi
-                    </label>
-                    <textarea 
-                        name="description" 
-                        rows="3"
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Deskripsi paket (opsional)"
-                    ></textarea>
-                </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Upload Limit
+                                </label>
+                                <input id="rate_limit_tx" name="rate_limit_tx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 2M, 1M (kosongkan untuk unlimited)" />
+                                <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil MikroTik. Jika
+                                    kosong = unlimited (0)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Burst Limiting Section -->
+                    <div class="border-t border-slate-200 pt-6">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Burst Limiting</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Download Limit
+                                </label>
+                                <input id="burst_limit_rx" name="burst_limit_rx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 20M" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Upload Limit
+                                </label>
+                                <input id="burst_limit_tx" name="burst_limit_tx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 4M" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Download Threshold
+                                </label>
+                                <input id="burst_threshold_rx" name="burst_threshold_rx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 15M" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Upload Threshold
+                                </label>
+                                <input id="burst_threshold_tx" name="burst_threshold_tx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 3M" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Download Time
+                                </label>
+                                <input id="burst_time_rx" name="burst_time_rx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 10s" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Upload Time
+                                </label>
+                                <input id="burst_time_tx" name="burst_time_tx" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Contoh: 10s" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                        <a href="/packages/pppoe/packages"
+                            class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                            Batal
+                        </a>
+                        <button type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">
+                            Simpan Paket
+                        </button>
+                    </div>
+                </form>
             </div>
-
-            <!-- Rate Limiting Section -->
-            <div class="border-t border-slate-200 pt-6">
-                <h3 class="text-lg font-semibold text-slate-800 mb-4">Rate Limiting</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Download Limit
-                        </label>
-                        <input 
-                            id="rate_limit_rx"
-                            name="rate_limit_rx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 10M, 5M (kosongkan untuk unlimited)"
-                        />
-                        <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil MikroTik. Jika kosong = unlimited (0)</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Upload Limit
-                        </label>
-                        <input 
-                            id="rate_limit_tx"
-                            name="rate_limit_tx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 2M, 1M (kosongkan untuk unlimited)"
-                        />
-                        <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil MikroTik. Jika kosong = unlimited (0)</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Burst Limiting Section -->
-            <div class="border-t border-slate-200 pt-6">
-                <h3 class="text-lg font-semibold text-slate-800 mb-4">Burst Limiting</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Burst Download Limit
-                        </label>
-                        <input 
-                            id="burst_limit_rx"
-                            name="burst_limit_rx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 20M"
-                        />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Burst Upload Limit
-                        </label>
-                        <input 
-                            id="burst_limit_tx"
-                            name="burst_limit_tx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 4M"
-                        />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Burst Download Threshold
-                        </label>
-                        <input 
-                            id="burst_threshold_rx"
-                            name="burst_threshold_rx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 15M"
-                        />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Burst Upload Threshold
-                        </label>
-                        <input 
-                            id="burst_threshold_tx"
-                            name="burst_threshold_tx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 3M"
-                        />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Burst Download Time
-                        </label>
-                        <input 
-                            id="burst_time_rx"
-                            name="burst_time_rx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 10s"
-                        />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">
-                            Burst Upload Time
-                        </label>
-                        <input 
-                            id="burst_time_tx"
-                            name="burst_time_tx" 
-                            type="text"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Contoh: 10s"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex justify-end gap-3 pt-6 border-t border-slate-200">
-                <a 
-                    href="/packages/pppoe/packages" 
-                    class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                >
-                    Batal
-                </a>
-                <button 
-                    type="submit" 
-                    class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                    Simpan Paket
-                </button>
-            </div>
-        </form>
-    </div>
 </div>
 
 <script>
-// Auto-fill rate limits from MikroTik profile
-function loadProfileRateLimits(profileId) {
-    if (!profileId) {
-        // Clear all fields
-        document.getElementById('rate_limit_rx').value = '';
-        document.getElementById('rate_limit_tx').value = '';
-        document.getElementById('burst_limit_rx').value = '';
-        document.getElementById('burst_limit_tx').value = '';
-        document.getElementById('burst_threshold_rx').value = '';
-        document.getElementById('burst_threshold_tx').value = '';
-        document.getElementById('burst_time_rx').value = '';
-        document.getElementById('burst_time_tx').value = '';
-        return;
-    }
-    
-    const selectElement = document.getElementById('profile_id');
-    const selectedOption = selectElement.options[selectElement.selectedIndex];
-    
-    // Get data attributes
-    const rateRx = selectedOption.getAttribute('data-rate-rx');
-    const rateTx = selectedOption.getAttribute('data-rate-tx');
-    const burstRx = selectedOption.getAttribute('data-burst-rx');
-    const burstTx = selectedOption.getAttribute('data-burst-tx');
-    const burstThresholdRx = selectedOption.getAttribute('data-burst-threshold-rx');
-    const burstThresholdTx = selectedOption.getAttribute('data-burst-threshold-tx');
-    const burstTimeRx = selectedOption.getAttribute('data-burst-time-rx');
-    const burstTimeTx = selectedOption.getAttribute('data-burst-time-tx');
-    
-    // Fill the form - if empty/null, set to "0" for unlimited (per user requirement)
-    document.getElementById('rate_limit_rx').value = (rateRx && rateRx.trim() !== '') ? rateRx : '0';
-    document.getElementById('rate_limit_tx').value = (rateTx && rateTx.trim() !== '') ? rateTx : '0';
-    
-    // Burst fields are optional, so only fill if they have values
-    document.getElementById('burst_limit_rx').value = (burstRx && burstRx.trim() !== '') ? burstRx : '';
-    document.getElementById('burst_limit_tx').value = (burstTx && burstTx.trim() !== '') ? burstTx : '';
-    document.getElementById('burst_threshold_rx').value = (burstThresholdRx && burstThresholdRx.trim() !== '') ? burstThresholdRx : '';
-    document.getElementById('burst_threshold_tx').value = (burstThresholdTx && burstThresholdTx.trim() !== '') ? burstThresholdTx : '';
-    document.getElementById('burst_time_rx').value = (burstTimeRx && burstTimeRx.trim() !== '') ? burstTimeRx : '';
-    document.getElementById('burst_time_tx').value = (burstTimeTx && burstTimeTx.trim() !== '') ? burstTimeTx : '';
-}
+    // Auto-fill rate limits from MikroTik profile
+    function loadProfileRateLimits(profileId) {
+        if (!profileId) {
+            // Clear all fields
+            document.getElementById('rate_limit_rx').value = '';
+            document.getElementById('rate_limit_tx').value = '';
+            document.getElementById('burst_limit_rx').value = '';
+            document.getElementById('burst_limit_tx').value = '';
+            document.getElementById('burst_threshold_rx').value = '';
+            document.getElementById('burst_threshold_tx').value = '';
+            document.getElementById('burst_time_rx').value = '';
+            document.getElementById('burst_time_tx').value = '';
+            return;
+        }
 
-// Calculate expiry date based on duration
-function calculateExpiryDate() {
-    const durationDays = parseInt(document.getElementById('duration_days').value) || 0;
-    if (durationDays <= 0) {
-        document.getElementById('expiry_preview').textContent = '';
-        return;
-    }
-    
-    const today = new Date();
-    const expiryDate = new Date(today);
-    expiryDate.setDate(today.getDate() + durationDays);
-    
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedDate = expiryDate.toLocaleDateString('id-ID', options);
-    
-    document.getElementById('expiry_preview').textContent = 
-        `📅 Jika aktivasi hari ini: Berakhir pada ${formattedDate}`;
-}
+        const selectElement = document.getElementById('profile_id');
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
 
-// Toggle activation info display
-function toggleActivationInfo() {
-    const checkbox = document.getElementById('auto_activation');
-    const status = document.getElementById('activation_status');
-    const infoInactive = document.getElementById('activation_info');
-    const infoActive = document.getElementById('activation_info_active');
-    
-    if (checkbox.checked) {
-        status.textContent = 'Aktif';
-        status.classList.remove('text-slate-600');
-        status.classList.add('text-green-600', 'font-semibold');
-        infoInactive.classList.add('hidden');
-        infoActive.classList.remove('hidden');
-    } else {
-        status.textContent = 'Nonaktif';
-        status.classList.remove('text-green-600', 'font-semibold');
-        status.classList.add('text-slate-600');
-        infoActive.classList.add('hidden');
-        infoInactive.classList.remove('hidden');
-    }
-}
+        // Get data attributes
+        const rateRx = selectedOption.getAttribute('data-rate-rx');
+        const rateTx = selectedOption.getAttribute('data-rate-tx');
+        const burstRx = selectedOption.getAttribute('data-burst-rx');
+        const burstTx = selectedOption.getAttribute('data-burst-tx');
+        const burstThresholdRx = selectedOption.getAttribute('data-burst-threshold-rx');
+        const burstThresholdTx = selectedOption.getAttribute('data-burst-threshold-tx');
+        const burstTimeRx = selectedOption.getAttribute('data-burst-time-rx');
+        const burstTimeTx = selectedOption.getAttribute('data-burst-time-tx');
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    calculateExpiryDate();
-    toggleActivationInfo(); // Initialize activation info display
-});
+        // Fill the form - if empty/null, set to "0" for unlimited (per user requirement)
+        document.getElementById('rate_limit_rx').value = (rateRx && rateRx.trim() !== '') ? rateRx : '0';
+        document.getElementById('rate_limit_tx').value = (rateTx && rateTx.trim() !== '') ? rateTx : '0';
+
+        // Burst fields are optional, so only fill if they have values
+        document.getElementById('burst_limit_rx').value = (burstRx && burstRx.trim() !== '') ? burstRx : '';
+        document.getElementById('burst_limit_tx').value = (burstTx && burstTx.trim() !== '') ? burstTx : '';
+        document.getElementById('burst_threshold_rx').value = (burstThresholdRx && burstThresholdRx.trim() !== '') ? burstThresholdRx : '';
+        document.getElementById('burst_threshold_tx').value = (burstThresholdTx && burstThresholdTx.trim() !== '') ? burstThresholdTx : '';
+        document.getElementById('burst_time_rx').value = (burstTimeRx && burstTimeRx.trim() !== '') ? burstTimeRx : '';
+        document.getElementById('burst_time_tx').value = (burstTimeTx && burstTimeTx.trim() !== '') ? burstTimeTx : '';
+    }
+
+    // Calculate expiry date based on duration
+    function calculateExpiryDate() {
+        const durationDays = parseInt(document.getElementById('duration_days').value) || 0;
+        if (durationDays <= 0) {
+            document.getElementById('expiry_preview').textContent = '';
+            return;
+        }
+
+        const today = new Date();
+        const expiryDate = new Date(today);
+        expiryDate.setDate(today.getDate() + durationDays);
+
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        const formattedDate = expiryDate.toLocaleDateString('id-ID', options);
+
+        document.getElementById('expiry_preview').textContent =
+            `📅 Jika aktivasi hari ini: Berakhir pada ${formattedDate}`;
+    }
+
+    // Toggle activation info display
+    function toggleActivationInfo() {
+        const checkbox = document.getElementById('auto_activation');
+        const status = document.getElementById('activation_status');
+        const infoInactive = document.getElementById('activation_info');
+        const infoActive = document.getElementById('activation_info_active');
+
+        if (checkbox.checked) {
+            status.textContent = 'Aktif';
+            status.classList.remove('text-slate-600');
+            status.classList.add('text-green-600', 'font-semibold');
+            infoInactive.classList.add('hidden');
+            infoActive.classList.remove('hidden');
+        } else {
+            status.textContent = 'Nonaktif';
+            status.classList.remove('text-green-600', 'font-semibold');
+            status.classList.add('text-slate-600');
+            infoActive.classList.add('hidden');
+            infoInactive.classList.remove('hidden');
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        calculateExpiryDate();
+        toggleActivationInfo(); // Initialize activation info display
+    });
 </script>
-
