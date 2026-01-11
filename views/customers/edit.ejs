@@ -657,15 +657,26 @@
             </div>
 
             <!-- OLT, ODC, ODP Information (HIERARCHICAL ODC -> ODP) -->
-            <% var initialOdpName='' ; var initialOdcName='' ; var initialOltName='' ; // Try to find names in odpData
-                passed from controller if available if (customer.odp_id && typeof odpData !=='undefined' &&
-                Array.isArray(odpData)) { var found=odpData.find(function(o) { return
-                String(o.id)===String(customer.odp_id); }); if (found) { initialOdpName=found.odp_name;
-                initialOdcName=found.odc_name; initialOltName=found.olt_name || 'Auto' ; } } // If not found in odpData
-                but we have names directly on customer object (sometimes passed via join) if (!initialOdpName &&
-                customer.odp_name) initialOdpName=customer.odp_name; if (!initialOdcName && customer.odc_name)
-                initialOdcName=customer.odc_name; if (!initialOltName && customer.olt_name)
-                initialOltName=customer.olt_name; %>
+            <%
+                var initialOdpName = '';
+                var initialOdcName = '';
+                var initialOltName = '';
+                
+                // Try to find names in odpData passed from controller if available
+                if (customer.odp_id && typeof odpData !== 'undefined' && Array.isArray(odpData)) {
+                    var found = odpData.find(function(o) { return String(o.id) === String(customer.odp_id); });
+                    if (found) {
+                        initialOdpName = found.odp_name;
+                        initialOdcName = found.odc_name;
+                        initialOltName = found.olt_name || 'Auto';
+                    }
+                }
+                
+                // If not found in odpData but we have names directly on customer object
+                if (!initialOdpName && customer.odp_name) initialOdpName = customer.odp_name;
+                if (!initialOdcName && customer.odc_name) initialOdcName = customer.odc_name;
+                if (!initialOltName && customer.olt_name) initialOltName = customer.olt_name;
+            %>
                 <div
                     class="rounded-xl border border-modern-cyan-200 bg-gradient-to-br from-modern-cyan-50 to-modern-blue-50 p-6">
                     <h3 class="text-lg font-bold text-modern-cyan-900 mb-4 flex items-center gap-2">
