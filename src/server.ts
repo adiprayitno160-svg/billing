@@ -105,13 +105,18 @@ const sessionStoreOptions = {
 
 const sessionStore = new MySQLStore(sessionStoreOptions);
 
+// Enable trust proxy for persistent sessions behind proxies (Laragon/Nginx)
+app.set('trust proxy', 1);
+
 app.use(session({
+	name: 'billing_sid', // Unique name to avoid conflicts with other apps
 	secret: process.env.SESSION_SECRET || 'billing-secret-key',
 	resave: false,
 	saveUninitialized: false,
 	store: sessionStore,
 	cookie: {
-		secure: false,
+		secure: false, // Set to true if using HTTPS only
+		httpOnly: true, // Prevent JS access to cookie
 		maxAge: 24 * 60 * 60 * 1000 // 24 hours session
 	},
 	rolling: true // Reset expiry time on each request
