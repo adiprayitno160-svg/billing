@@ -26,7 +26,6 @@
                                     <th class="py-2 pr-4">Nama Paket</th>
                                     <th class="py-2 pr-4">Profil</th>
                                     <th class="py-2 pr-4">Harga</th>
-                                    <th class="py-2 pr-4">Durasi</th>
                                     <th class="py-2 pr-4">Speed Limit</th>
                                     <th class="py-2 pr-4">Status</th>
                                     <th class="py-2 pr-4">Aksi</th>
@@ -42,9 +41,6 @@
                                             <%= pkg.profile_name || '-' %>
                                         </td>
                                         <td class="py-2 pr-4">Rp <%= Number(pkg.price).toLocaleString('id-ID') %>
-                                        </td>
-                                        <td class="py-2 pr-4">
-                                            <%= pkg.duration_days %> hari
                                         </td>
                                         <td class="py-2 pr-4">
                                             <% if (pkg.rate_limit_rx && pkg.rate_limit_tx) { %>
