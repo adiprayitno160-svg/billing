@@ -2516,6 +2516,11 @@ router.get('/test/debug-create-secret', async (req: Request, res: Response) => {
     console.log('=== DEBUG CREATE SECRET ===');
     console.log('═══════════════════════════════════════════════════════════');
 
+    // Default test values
+    const testName = (req.query.name as string) || `test_user_${Date.now()}`;
+    const testPassword = (req.query.password as string) || '12345';
+    const testProfile = (req.query.profile as string) || 'default';
+
     const { getMikrotikConfig } = await import('../services/pppoeService');
     const { createPppoeSecret, findPppoeSecretIdByName } = await import('../services/mikrotikService');
 
@@ -2554,9 +2559,6 @@ router.get('/test/debug-create-secret', async (req: Request, res: Response) => {
             stack: error.stack
         });
     }
-} catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-}
 });
 
 // Routes dengan parameter harus di bawah routes yang lebih spesifik
@@ -2769,9 +2771,14 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!ip_address) throw new Error('IP statis wajib diisi');
 
-        // Validasi format IP CIDR
-        const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
+        // Validasi format IP CIDR (Slash bersifat opsional, otomatis /32 jika tidak ada)
+        const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))?$/;
         if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
+
+        let formattedIp = ip_address;
+        if (!formattedIp.includes('/')) {
+            formattedIp += '/32';
+        }
 
         // Ambil data binding static ip lama (bisa null jika data rusak)
         const oldClient = await getStaticIpClientByCustomerId(customerId);
@@ -2811,7 +2818,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             if (iface) {
                 await addIpAddress(cfg, {
                     interface: iface,
-                    address: ip_address,
+                    address: formattedIp,
                     comment: client_name
                 });
             }
@@ -2820,8 +2827,8 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
             const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
 
-            const [newIpOnly, newPrefixStr] = ip_address.split('/');
-            const newPrefix = Number(newPrefixStr);
+            const [newIpOnly, newPrefixStr] = formattedIp.split('/');
+            const newPrefix = Number(newPrefixStr || '32');
             const newMask = newPrefix === 0 ? 0 : (0xFFFFFFFF << (32 - newPrefix)) >>> 0;
             const newNetworkInt = ipToInt(newIpOnly) & newMask;
             let newPeerIp = newIpOnly;
@@ -2858,37 +2865,67 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
             });
         }
 
-        // Update database
-        if (oldClient) {
-            // Update existing record
-            await updateClient(oldClient.id, {
+        // Update database (Sync both tables)
+        const connPool = await databasePool.getConnection();
+        try {
+            // 1. Sync customers table (Primary data)
+            await connPool.execute(`
+                UPDATE customers SET 
+                    name = ?, 
+                    phone = ?, 
+                    address = ?, 
+                    latitude = ?, 
+                    longitude = ?, 
+                    olt_id = ?, 
+                    odc_id = ?, 
+                    odp_id = ?, 
+                    ip_address = ?,
+                    updated_at = NOW()
+                WHERE id = ?
+            `, [
                 client_name,
-                ip_address,
-                package_id: targetPackageId,
-                interface: iface || null,
-                address: address || null,
-                phone_number: phone_number || null,
-                latitude: latitude ? Number(latitude) : null,
-                longitude: longitude ? Number(longitude) : null,
-                olt_id: olt_id ? Number(olt_id) : null,
-                odc_id: odc_id ? Number(odc_id) : null,
-                odp_id: odp_id ? Number(odp_id) : null
-            });
-        } else {
-            // Insert NEW record (Recovery Mode)
-            const conn = await databasePool.getConnection();
-            try {
-                // Get customer code first
-                const [custRows]: any = await conn.execute('SELECT customer_code FROM customers WHERE id = ?', [customerId]);
-                const customerCode = custRows[0]?.customer_code || `CUST-${Date.now()}`;
+                phone_number || null,
+                address || null,
+                latitude ? Number(latitude) : null,
+                longitude ? Number(longitude) : null,
+                olt_id ? Number(olt_id) : null,
+                odc_id ? Number(odc_id) : null,
+                odp_id ? Number(odp_id) : null,
+                formattedIp,
+                customerId
+            ]);
 
-                await conn.execute(`
-                    INSERT INTO static_ip_clients (package_id, client_name, ip_address, interface, customer_id, address, phone_number, latitude, longitude, olt_id, odc_id, odp_id, customer_code, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+            // 2. Sync static_ip_clients table (Service details)
+            if (oldClient) {
+                await updateClient(oldClient.id, {
+                    client_name,
+                    ip_address: formattedIp,
+                    package_id: targetPackageId,
+                    interface: iface || null,
+                    address: address || null,
+                    phone_number: phone_number || null,
+                    latitude: latitude ? Number(latitude) : null,
+                    longitude: longitude ? Number(longitude) : null,
+                    olt_id: olt_id ? Number(olt_id) : null,
+                    odc_id: odc_id ? Number(odc_id) : null,
+                    odp_id: odp_id ? Number(odp_id) : null
+                });
+            } else {
+                // Insert NEW record (Recovery Mode) - already uses a internal conn
+                // Get customer code first
+                const [custRows]: any = await connPool.execute('SELECT customer_code FROM customers WHERE id = ?', [customerId]);
+                const customerCode = custRows[0]?.customer_code || (() => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}${String(d.getSeconds()).padStart(2, '0')}`; })();
+
+                await connPool.execute(`
+                    INSERT INTO static_ip_clients (
+                        package_id, client_name, ip_address, interface, customer_id, 
+                        address, phone_number, latitude, longitude, olt_id, odc_id, odp_id, 
+                        customer_code, status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
                 `, [
                     targetPackageId,
                     client_name,
-                    ip_address,
+                    formattedIp,
                     iface || null,
                     customerId,
                     address || null,
@@ -2900,13 +2937,13 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
                     odp_id ? Number(odp_id) : null,
                     customerCode
                 ]);
-            } finally {
-                conn.release();
             }
+        } finally {
+            connPool.release();
         }
 
         req.flash('success', 'Pelanggan berhasil diperbarui');
-        res.redirect('/packages/static-ip/clients');
+        res.redirect('/customers/list?type=static_ip');
 
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Gagal memperbarui pelanggan';

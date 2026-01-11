@@ -209,8 +209,8 @@
 									<input type="checkbox" class="rowCheckbox" value="<%= customer.id %>">
 								</td>
 								<td class="py-4 px-4 text-modern-purple-800 font-medium">
-									<% if (customer.id < 100) { let displayCode=customer.customer_code; if (!displayCode
-										|| displayCode==='-' || (displayCode && displayCode.length < 14)) { const
+									<% if (false) { let displayCode=customer.customer_code; if (!displayCode ||
+										displayCode==='-' || (displayCode && displayCode.length < 14)) { const
 										createdDate=customer.created_at ? new Date(customer.created_at) : new Date();
 										const year=createdDate.getFullYear(); const month=String(createdDate.getMonth()
 										+ 1).padStart(2, '0' ); const day=String(createdDate.getDate()).padStart(2, '0'
@@ -225,7 +225,8 @@
 											<div class="font-semibold">
 												<%= customer.id %>
 											</div>
-											<% if (customer.customer_code) { %>
+											<% if (false) { %>
+
 												<div class="text-sm text-modern-purple-600">
 													<%= customer.customer_code %>
 												</div>
@@ -277,6 +278,7 @@
 								</td>
 								<td class="py-4 px-4">
 									<div class="flex items-center gap-2">
+										<!-- View Detail -->
 										<a href="/customers/<%= customer.id %>"
 											class="text-modern-blue-600 hover:text-modern-blue-800 transition-colors duration-300"
 											title="Lihat Detail">
@@ -287,59 +289,44 @@
 													clip-rule="evenodd" />
 											</svg>
 										</a>
+
+										<!-- Edit Link based on connection type -->
 										<% if (customer.connection_type==='static_ip' ) { %>
-											<a href="/customers/edit-static-ip/<%= customer.id %>"
+											<a href="/customers/<%= customer.id %>/edit"
 												class="text-modern-green-600 hover:text-modern-green-800 transition-colors duration-300"
-												title="Edit Static IP">
+												title="Edit Static IP (ID: <%= customer.id %>)">
 												<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
 													<path
 														d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
 												</svg>
+												<span class="text-xs ml-0.5">(<%= customer.id %>)</span>
 											</a>
 											<% } else { %>
-												<div class="flex item-center justify-center">
-													<!-- DEBUG LINK FIX -->
-													<% if (customer.connection_type==='static_ip' ) { %>
-														<a href="/customers/edit-static-ip/<%= customer.id %>"
-															class="text-modern-green-600 hover:text-modern-green-800 transition-colors duration-300 mr-2"
-															title="Edit IP Static (ID: <%= customer.id %>)">
-															<svg class="h-4 w-4" fill="currentColor"
-																viewBox="0 0 20 20">
-																<path
-																	d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-															</svg>
-															<span class="text-xs ml-1">(<%= customer.id %>)</span>
-														</a>
-														<% } else { %>
-															<a href="/customers/<%= customer.id %>/edit"
-																class="text-modern-blue-600 hover:text-modern-blue-800 transition-colors duration-300 mr-2"
-																title="Edit Pelanggan">
-																<svg class="h-4 w-4" fill="currentColor"
-																	viewBox="0 0 20 20">
-																	<path
-																		d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-																</svg>
-															</a>
-															<% } %>
-																<% } %>
+												<a href="/customers/<%= customer.id %>/edit"
+													class="text-modern-blue-600 hover:text-modern-blue-800 transition-colors duration-300"
+													title="Edit Pelanggan">
+													<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+														<path
+															d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+													</svg>
+												</a>
+												<% } %>
 
-
-
-																	<button
-																		class="deleteCustomerBtn text-modern-red-600 hover:text-modern-red-800 transition-colors duration-300"
-																		data-id="<%= customer.id %>"
-																		data-name="<%= customer.name %>" title="Hapus">
-																		<svg class="h-4 w-4" fill="currentColor"
-																			viewBox="0 0 20 20">
-																			<path fill-rule="evenodd"
-																				d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
-																				clip-rule="evenodd" />
-																			<path fill-rule="evenodd"
-																				d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-																				clip-rule="evenodd" />
-																		</svg>
-																	</button>
-												</div>
+													<!-- Delete Button -->
+													<button
+														class="deleteCustomerBtn text-modern-red-600 hover:text-modern-red-800 transition-colors duration-300"
+														data-id="<%= customer.id %>" data-name="<%= customer.name %>"
+														title="Hapus">
+														<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+															<path fill-rule="evenodd"
+																d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
+																clip-rule="evenodd" />
+															<path fill-rule="evenodd"
+																d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+																clip-rule="evenodd" />
+														</svg>
+													</button>
+									</div>
 								</td>
 							</tr>
 							<% }) %>

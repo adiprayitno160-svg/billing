@@ -434,12 +434,18 @@
                                     jika ingin mengubah, atau biarkan kosong untuk tetap menggunakan password yang ada.
                                 </p>
                                 <% } else { %>
-                                    <!-- Password belum ada - tampilkan input dengan opsi auto-generate -->
-                                    <input type="password" id="pppoe_password" name="pppoe_password"
-                                        placeholder="Masukkan password atau biarkan kosong untuk auto-generate"
-                                        class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
-                                    <p class="text-xs text-modern-blue-600 mt-1">Password untuk koneksi PPPOE (opsional
-                                        - akan di-generate otomatis jika dikosongkan)</p>
+                                    <!-- Password belum ada - tampilkan input dengan tombol Buat Password -->
+                                    <div class="flex gap-2">
+                                        <input type="text" id="pppoe_password" name="pppoe_password" required
+                                            placeholder="Masukkan password atau klik Buat Password"
+                                            class="flex-1 px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300 font-mono">
+                                        <button type="button" id="generate_password_btn"
+                                            class="px-4 py-2 bg-modern-blue-500 text-white rounded-lg hover:bg-modern-blue-600 transition-colors font-medium whitespace-nowrap flex items-center gap-1">
+                                            🔑 Buat Password
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-modern-blue-600 mt-1">Password wajib diisi. Klik "Buat
+                                        Password" untuk generate otomatis.</p>
                                     <% } %>
                         </div>
                         <div>
@@ -1966,18 +1972,17 @@
                 password += chars.charAt(Math.floor(Math.random() * chars.length));
             }
             passwordInput.value = password;
-            passwordInput.type = 'text'; // Show password temporarily
-            setTimeout(() => {
-                passwordInput.type = 'password'; // Hide again after 2 seconds
-            }, 2000);
+            passwordInput.type = 'text'; // Show password
 
             // Show success message
-            const btnText = generatePasswordBtn.textContent;
-            generatePasswordBtn.textContent = '✓ Password Generated!';
+            const originalHtml = generatePasswordBtn.innerHTML;
+            generatePasswordBtn.innerHTML = '✓ Password Dibuat!';
+            generatePasswordBtn.classList.remove('bg-modern-blue-500', 'hover:bg-modern-blue-600');
             generatePasswordBtn.classList.add('bg-green-500');
             setTimeout(() => {
-                generatePasswordBtn.textContent = btnText;
+                generatePasswordBtn.innerHTML = originalHtml;
                 generatePasswordBtn.classList.remove('bg-green-500');
+                generatePasswordBtn.classList.add('bg-modern-blue-500', 'hover:bg-modern-blue-600');
             }, 2000);
         });
     }

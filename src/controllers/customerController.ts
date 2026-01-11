@@ -509,12 +509,14 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'ID is required' });
         }
         const customerId = parseInt(id);
+        console.log(`[getCustomerEdit] Attempting to find customer. Requested ID: "${id}", Parsed: ${customerId}`);
 
         if (!customerId || isNaN(customerId)) {
+            console.warn(`[getCustomerEdit] Invalid customer ID: "${id}"`);
             return res.status(404).render('error', {
                 title: 'Not Found',
                 status: 404,
-                message: 'Pelanggan tidak ditemukan'
+                message: `Pelanggan tidak ditemukan (ID: ${id})`
             });
         }
 
@@ -539,12 +541,14 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         `;
 
         const [customers] = await databasePool.query<RowDataPacket[]>(query, [customerId]);
+        console.log(`[getCustomerEdit] Query executed for ID ${customerId}. Found ${customers.length} rows.`);
 
         if (!customers || customers.length === 0) {
+            console.warn(`[getCustomerEdit] Customer with ID ${customerId} not found in database.`);
             return res.status(404).render('error', {
                 title: 'Not Found',
                 status: 404,
-                message: 'Pelanggan tidak ditemukan'
+                message: `Pelanggan tidak ditemukan (ID: ${customerId})`
             });
         }
 
@@ -1512,9 +1516,10 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             );
 
             if (!customers || customers.length === 0) {
+                console.warn(`[deleteCustomer] Customer with ID ${customerId} not found for deletion.`);
                 return res.status(404).json({
                     success: false,
-                    error: 'Pelanggan tidak ditemukan'
+                    error: `Pelanggan tidak ditemukan (ID: ${customerId})`
                 });
             }
 

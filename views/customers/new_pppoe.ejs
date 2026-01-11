@@ -144,10 +144,18 @@
                                         <div>
                                             <label class="block text-sm font-semibold text-blue-800 mb-1">Password PPPOE
                                                 *</label>
-                                            <div class="relative">
-                                                <input name="password" type="text" required placeholder="password123"
-                                                    class="w-full rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 font-mono" />
+                                            <div class="flex gap-2">
+                                                <input name="password" id="pppoe_password" type="text" required
+                                                    placeholder="Masukkan password atau klik Buat Password"
+                                                    class="flex-1 rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 font-mono" />
+                                                <button type="button" id="generate_password_btn"
+                                                    onclick="generatePassword()"
+                                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium whitespace-nowrap">
+                                                    🔑 Buat Password
+                                                </button>
                                             </div>
+                                            <p class="text-xs text-blue-500 mt-1">Password wajib diisi. Klik "Buat
+                                                Password" untuk generate otomatis.</p>
                                         </div>
 
                                         <!-- Package Selection -->
@@ -450,6 +458,33 @@
 <script type="application/json" id="odp-data-store"><%- JSON.stringify(odpData || []) %></script>
 <script>
     console.log('=== SCRIPT LOADED ===');
+
+    // Generate Password Function
+    function generatePassword() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const length = Math.floor(Math.random() * 5) + 8; // 8-12 characters
+        let password = '';
+        for (let i = 0; i < length; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const passwordInput = document.getElementById('pppoe_password');
+        if (passwordInput) {
+            passwordInput.value = password;
+            // Show success feedback
+            const btn = document.getElementById('generate_password_btn');
+            if (btn) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Password Dibuat!';
+                btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                btn.classList.add('bg-green-500');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('bg-green-500');
+                    btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                }, 2000);
+            }
+        }
+    }
 
     // Data ODP untuk lookup OLT/ODC
     let odpData = [];
