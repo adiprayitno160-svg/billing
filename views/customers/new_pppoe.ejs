@@ -116,8 +116,9 @@
                                             <div class="flex gap-2">
                                                 <div class="relative w-full">
                                                     <input type="text" name="username" id="pppoe_search"
-                                                        autocomplete="off" placeholder="Cari atau buat username baru..."
-                                                        required
+                                                        autocomplete="off"
+                                                        value="<%= typeof initial_customer_code !== 'undefined' && initial_customer_code ? initial_customer_code + '.net' : '' %>"
+                                                        placeholder="Cari dari MikroTik atau buat baru..." required
                                                         class="w-full rounded-lg border border-blue-300 px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 font-medium text-slate-700">
                                                     <div id="pppoe_search_results"
                                                         class="absolute z-10 w-full mt-1 bg-white border border-blue-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
@@ -137,8 +138,8 @@
                                                     </svg>
                                                 </button>
                                             </div>
-                                            <p class="text-xs text-blue-500 mt-1 pl-1">Input ini otomatis mencari ke
-                                                MikroTik. Jika username belum ada, bisa digunakan untuk buat baru.</p>
+                                            <p class="text-xs text-blue-500 mt-1 pl-1">Default: ID Pelanggan + .net.
+                                                Bisa diubah atau cari dari MikroTik dengan mengetik username.</p>
                                         </div>
 
                                         <div>
