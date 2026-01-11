@@ -532,10 +532,16 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
                     WHEN c.connection_type = 'pppoe' THEN s.package_id
                     WHEN c.connection_type = 'static_ip' THEN sic.package_id
                     ELSE NULL
-                END as package_id
+                END as package_id,
+                olt.name as olt_name,
+                odc.name as odc_name,
+                odp.name as odp_name
             FROM customers c
             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND c.connection_type = 'pppoe' AND s.status = 'active'
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
+            LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+            LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
             WHERE c.id = ?
             LIMIT 1
         `;
@@ -600,26 +606,8 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         }
 
         // Get ODP data
+        // Optimization: Do NOT fetch all ODPs. Logic has moved to AJAX Search.
         let odpData: any[] = [];
-        try {
-            const [odpRows] = await databasePool.query<RowDataPacket[]>(`
-                SELECT 
-                    o.id, 
-                    o.name as odp_name,
-                    o.odc_id,
-                    odc.name as odc_name,
-                    odc.olt_id,
-                    olt.name as olt_name
-                FROM ftth_odp o
-                LEFT JOIN ftth_odc odc ON o.odc_id = odc.id
-                LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
-                ORDER BY o.name
-            `);
-            odpData = Array.isArray(odpRows) ? odpRows : [];
-        } catch (odpError) {
-            console.error('Error fetching ODP data:', odpError);
-            odpData = [];
-        }
 
         // Get customer with password field for view (password is already in customer object from first query)
         const customerForView = customer;

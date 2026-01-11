@@ -656,17 +656,20 @@
                 </div>
             </div>
 
-            <!-- OLT, ODC, ODP Information -->
-            <!-- OLT, ODC, ODP Information (UPDATED SEARCHABLE) -->
-            <% var initialOdpName='' ; var initialOdcName='' ; var initialOltName='' ; // Coba cari di odpData jika ada
-                (passed from controller) if (customer.odp_id && typeof odpData !=='undefined' && Array.isArray(odpData))
-                { var found=odpData.find(function(o) { return String(o.id)===String(customer.odp_id); }); if (found) {
-                initialOdpName=found.odp_name; initialOdcName=found.odc_name; initialOltName=found.olt_name || 'Auto' ;
-                } } %>
+            <!-- OLT, ODC, ODP Information (HIERARCHICAL ODC -> ODP) -->
+            <% var initialOdpName='' ; var initialOdcName='' ; var initialOltName='' ; // Try to find names in odpData
+                passed from controller if available if (customer.odp_id && typeof odpData !=='undefined' &&
+                Array.isArray(odpData)) { var found=odpData.find(function(o) { return
+                String(o.id)===String(customer.odp_id); }); if (found) { initialOdpName=found.odp_name;
+                initialOdcName=found.odc_name; initialOltName=found.olt_name || 'Auto' ; } } // If not found in odpData
+                but we have names directly on customer object (sometimes passed via join) if (!initialOdpName &&
+                customer.odp_name) initialOdpName=customer.odp_name; if (!initialOdcName && customer.odc_name)
+                initialOdcName=customer.odc_name; if (!initialOltName && customer.olt_name)
+                initialOltName=customer.olt_name; %>
                 <div
                     class="rounded-xl border border-modern-cyan-200 bg-gradient-to-br from-modern-cyan-50 to-modern-blue-50 p-6">
                     <h3 class="text-lg font-bold text-modern-cyan-900 mb-4 flex items-center gap-2">
-                        <span class="p-1.5 bg-modern-cyan-100 rounded-lg">🏗️</span> Informasi OLT, ODC, ODP
+                        <span class="p-1.5 bg-modern-cyan-100 rounded-lg">🏗️</span> Data Teknis (ODC & ODP)
                     </h3>
 
                     <div class="space-y-4">
@@ -674,222 +677,282 @@
                         <div
                             class="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-modern-cyan-100 shadow-sm">
                             <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input type="checkbox" id="is_wireless"
-                                    class="w-5 h-5 rounded text-modern-cyan-600 focus:ring-modern-cyan-500 border-gray-300 transition-all">
+                                <input type="checkbox" id="is_wireless" <%=(!customer.odp_id && !initialOdcName)
+                                    ? 'checked' : '' %>
+                                class="w-5 h-5 rounded text-modern-cyan-600 focus:ring-modern-cyan-500 border-gray-300
+                                transition-all">
                                 <span class="text-sm font-bold text-modern-cyan-900">Koneksi Wireless / Tanpa ODP</span>
                             </label>
                             <span class="text-xs text-modern-cyan-600 hidden sm:inline">Centang jika tidak menggunakan
-                                jalur kabel Fiber (ODP)</span>
+                                jalur Fiber</span>
                         </div>
 
-                        <!-- ODP Search Wrapper -->
-                        <div id="odp_search_wrapper" class="space-y-4 transition-all duration-300">
-                            <!-- ODP Search Section -->
-                            <div>
-                                <label class="block text-sm font-semibold text-modern-cyan-800 mb-1">ODP (Optical
-                                    Distribution Point) *</label>
-                                <div class="relative">
-                                    <div class="flex gap-2">
-                                        <div class="relative w-full">
-                                            <input type="text" id="odp_search" value="<%= initialOdpName %>"
-                                                placeholder="Ketik nama ODP untuk mencari..." autocomplete="off"
-                                                class="w-full rounded-lg border border-modern-cyan-300 px-4 py-2.5 focus:outline-none focus:border-modern-cyan-500 focus:ring-2 focus:ring-modern-cyan-200 font-medium transition-all duration-300">
-                                            <input type="hidden" name="odp_id" id="odp_id"
-                                                value="<%= customer.odp_id || '' %>" required>
+                        <!-- Main Infrastructure Wrapper -->
+                        <div id="infra_wrapper" class="space-y-4 transition-all duration-300">
 
-                                            <!-- Search Results Dropdown -->
-                                            <div id="odp_search_results"
-                                                class="absolute z-10 w-full mt-1 bg-white border border-modern-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
-                                                <div class="p-3 text-sm text-slate-500 text-center">Ketik minimal 2
-                                                    karakter...</div>
-                                            </div>
+                            <!-- STEP 1: ODC SELECTION -->
+                            <div class="relative">
+                                <label class="block text-sm font-semibold text-modern-cyan-800 mb-1">1. Cari & Pilih ODC
+                                    (Optical Distribution Cabinet) *</label>
+                                <div class="flex gap-2">
+                                    <div class="relative w-full">
+                                        <input type="text" id="odc_search" value="<%= initialOdcName %>"
+                                            placeholder="Ketik nama ODC..." autocomplete="off"
+                                            class="w-full rounded-lg border border-modern-cyan-300 px-4 py-2.5 focus:outline-none focus:border-modern-cyan-500 focus:ring-2 focus:ring-modern-cyan-200 font-medium transition-all duration-300 bg-white">
+                                        <input type="hidden" name="odc_id" id="odc_id"
+                                            value="<%= customer.odc_id || '' %>">
+
+                                        <!-- ODC Results -->
+                                        <div id="odc_search_results"
+                                            class="absolute z-20 w-full mt-1 bg-white border border-modern-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
                                         </div>
-
-                                        <button type="button" id="reload_odp_btn"
-                                            class="px-3 py-2 bg-modern-cyan-50 text-modern-cyan-600 rounded-lg border border-modern-cyan-200 hover:bg-modern-cyan-100 transition-colors"
-                                            title="Refresh / Clear">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                                </path>
-                                            </svg>
-                                        </button>
                                     </div>
-                                    <p class="text-xs text-modern-cyan-600 mt-1" id="selected_odp_info">
-                                        <%= customer.odp_id ? '✓ ODP Terpilih ID: ' + customer.odp_id
-                                            : 'Cari dan pilih ODP dari daftar' %>
-                                    </p>
+                                    <button type="button" id="reset_odc_btn"
+                                        class="px-3 py-2 bg-slate-100 text-slate-500 rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors"
+                                        title="Reset ODC">
+                                        ✕
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Auto-filled OLT & ODC -->
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-xs font-semibold text-slate-500">OLT</label>
-                                    <input name="olt_display" id="olt_display" readonly
-                                        value="<%= initialOltName || 'Auto' %>"
-                                        class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-2 py-1.5 text-slate-600"
-                                        placeholder="Auto" />
-                                    <input name="olt_id" id="olt_id" type="hidden"
-                                        value="<%= customer.olt_id || '' %>" />
+                            <!-- STEP 2: ODP SELECTION (Dependent on ODC) -->
+                            <div id="odp_section_wrapper"
+                                class="relative transition-all duration-300 <%= (customer.odc_id || initialOdcName) ? '' : 'opacity-50 pointer-events-none grayscale' %>">
+                                <label class="block text-sm font-semibold text-modern-cyan-800 mb-1">2. Pilih ODP
+                                    (Optical Distribution Point) *</label>
+                                <div class="flex gap-2">
+                                    <div class="relative w-full">
+                                        <input type="text" id="odp_search" value="<%= initialOdpName %>"
+                                            placeholder="Pilih ODP dari ODC diatas..." autocomplete="off"
+                                            class="w-full rounded-lg border border-modern-cyan-300 px-4 py-2.5 focus:outline-none focus:border-modern-cyan-500 focus:ring-2 focus:ring-modern-cyan-200 font-medium transition-all duration-300 bg-white">
+                                        <input type="hidden" name="odp_id" id="odp_id"
+                                            value="<%= customer.odp_id || '' %>" required>
+
+                                        <!-- ODP Results -->
+                                        <div id="odp_search_results"
+                                            class="absolute z-20 w-full mt-1 bg-white border border-modern-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
+                                        </div>
+                                    </div>
+                                    <button type="button" id="reload_odp_btn"
+                                        class="px-3 py-2 bg-modern-cyan-50 text-modern-cyan-600 rounded-lg border border-modern-cyan-200 hover:bg-modern-cyan-100 transition-colors"
+                                        title="Reload ODP List">
+                                        🔄
+                                    </button>
                                 </div>
-                                <div>
-                                    <label class="text-xs font-semibold text-slate-500">ODC</label>
-                                    <input name="odc_display" id="odc_display" readonly
-                                        value="<%= initialOdcName || 'Auto' %>"
-                                        class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-2 py-1.5 text-slate-600"
-                                        placeholder="Auto" />
-                                    <input name="odc_id" id="odc_id" type="hidden"
-                                        value="<%= customer.odc_id || '' %>" />
-                                </div>
+                                <p class="text-xs text-modern-cyan-600 mt-1" id="selected_odp_info">
+                                    <%= customer.odp_id ? '✓ ODP Terpilih: ' + initialOdpName
+                                        + ' (Port info akan muncul saat search)' : 'Pilih ODC dahulu, lalu pilih ODP.'
+                                        %>
+                                </p>
                             </div>
+
+                            <!-- INFO: OLT (Auto Display) -->
+                            <div>
+                                <label class="text-xs font-semibold text-slate-500">OLT (Terisi Otomatis)</label>
+                                <input name="olt_display" id="olt_display" readonly
+                                    value="<%= initialOltName || 'Auto' %>"
+                                    class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-3 py-2 text-slate-600"
+                                    placeholder="-" />
+                                <input name="olt_id" id="olt_id" type="hidden" value="<%= customer.olt_id || '' %>" />
+                            </div>
+
                         </div>
                     </div>
                 </div>
 
-                <!-- ODP Search Script Injection -->
+                <!-- Hierarchical Search Script -->
                 <script>
                     document.addEventListener('DOMContentLoaded', function () {
+                        // Elements
+                        const odcSearch = document.getElementById('odc_search');
+                        const odcIdInput = document.getElementById('odc_id');
+                        const odcResults = document.getElementById('odc_search_results');
+                        const resetOdcBtn = document.getElementById('reset_odc_btn');
+
                         const odpSearch = document.getElementById('odp_search');
                         const odpIdInput = document.getElementById('odp_id');
                         const odpResults = document.getElementById('odp_search_results');
+                        const odpSection = document.getElementById('odp_section_wrapper');
                         const odpInfo = document.getElementById('selected_odp_info');
+                        const reloadOdpBtn = document.getElementById('reload_odp_btn');
+
                         const oltDisplay = document.getElementById('olt_display');
-                        const odcDisplay = document.getElementById('odc_display');
                         const oltIdInput = document.getElementById('olt_id');
-                        const odcIdInput = document.getElementById('odc_id');
+
                         const isWireless = document.getElementById('is_wireless');
-                        const odpWrapper = document.getElementById('odp_search_wrapper');
-                        const reloadBtn = document.getElementById('reload_odp_btn');
+                        const infraWrapper = document.getElementById('infra_wrapper');
 
-                        let searchTimeout;
+                        let odcTimeout, odpTimeout;
 
-                        // === WIRELESS TOGGLE LOGIC ===
-                        if (isWireless && odpWrapper) {
-                            function toggleWireless() {
-                                if (isWireless.checked) {
-                                    // Disable everything
-                                    odpWrapper.classList.add('opacity-40', 'pointer-events-none');
-                                    if (odpSearch) odpSearch.disabled = true;
-                                    if (reloadBtn) reloadBtn.disabled = true;
-                                    if (odpIdInput) {
-                                        odpIdInput.value = ''; // Set NULL
-                                        odpIdInput.required = false; // Not required
-                                    }
-                                    if (odpInfo) odpInfo.textContent = 'Mode Wireless: Data ODP diabaikan.';
-                                } else {
-                                    // Enable everything
-                                    odpWrapper.classList.remove('opacity-40', 'pointer-events-none');
-                                    if (odpSearch) odpSearch.disabled = false;
-                                    if (reloadBtn) reloadBtn.disabled = false;
-                                    if (odpIdInput) {
-                                        odpIdInput.required = true;
-                                    }
-                                    if (odpInfo) odpInfo.textContent = odpIdInput.value ? '✓ ODP Terpilih' : 'Cari dan pilih ODP dari daftar';
+                        // === 1. WIRELESS TOGGLE ===
+                        function toggleWireless() {
+                            if (isWireless.checked) {
+                                infraWrapper.classList.add('opacity-40', 'pointer-events-none');
+                                // Clear requirements
+                                if (odpIdInput) {
+                                    odpIdInput.required = false;
+                                    odpIdInput.value = '';
                                 }
+                            } else {
+                                infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
+                                if (odpIdInput) odpIdInput.required = true;
                             }
-
-                            // Event listener
+                        }
+                        if (isWireless) {
                             isWireless.addEventListener('change', toggleWireless);
-                            toggleWireless();
+                            toggleWireless(); // Init
                         }
 
-                        if (odpSearch && odpResults) {
-                            // Input Listener
-                            odpSearch.addEventListener('input', function (e) {
-                                if (isWireless && isWireless.checked) return;
-
-                                clearTimeout(searchTimeout);
+                        // === 2. ODC SEARCH LOGIC ===
+                        if (odcSearch) {
+                            odcSearch.addEventListener('input', function (e) {
+                                clearTimeout(odcTimeout);
                                 const query = e.target.value.trim();
 
-                                if (query.length < 2) {
-                                    odpResults.classList.add('hidden');
+                                // User ketik manual -> Reset ID dulu
+                                odcIdInput.value = '';
+                                lockOdpSection(); // Lock ODP until ODC selected again
+
+                                if (query.length < 1) {
+                                    odcResults.classList.add('hidden');
                                     return;
                                 }
 
-                                searchTimeout = setTimeout(() => {
-                                    odpResults.innerHTML = '<div class="p-3 text-sm text-center text-slate-500">Mencari...</div>';
-                                    odpResults.classList.remove('hidden');
+                                odcTimeout = setTimeout(() => {
+                                    odcResults.innerHTML = '<div class="p-2 text-xs text-center">Loading...</div>';
+                                    odcResults.classList.remove('hidden');
 
-                                    fetch('/api/ftth/odp/search?q=' + encodeURIComponent(query))
+                                    fetch('/api/ftth/odc/search?q=' + encodeURIComponent(query))
                                         .then(r => r.json())
                                         .then(res => {
                                             if (res.success && res.results.length > 0) {
-                                                odpResults.innerHTML = res.results.map(odp => `
-                                                <div class="px-3 py-2 hover:bg-modern-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 odp-result-item"
-                                                     data-id="${odp.id}"
-                                                     data-name="${odp.name}"
-                                                     data-odc-id="${odp.odc_id}"
-                                                     data-odc-name="${odp.odc_name}"
-                                                     data-capacity="${odp.total_ports}"
-                                                     data-used="${odp.used_ports}">
-                                                    <div class="flex justify-between items-center">
-                                                        <div class="font-medium text-slate-800">${odp.name}</div>
-                                                        <div class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500 font-bold' : 'text-green-600'}">
-                                                            Port: ${odp.used_ports}/${odp.total_ports}
-                                                        </div>
-                                                    </div>
-                                                    <div class="text-xs text-slate-500">ODC: ${odp.odc_name || '-'}</div>
+                                                odcResults.innerHTML = res.results.map(odc => `
+                                                <div class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odc-item"
+                                                     data-id="${odc.id}" data-name="${odc.name}">
+                                                    <div class="font-bold text-cyan-900">${odc.name}</div>
+                                                    <div class="text-xs text-slate-500">${odc.location || '-'} (${odc.used_ports}/${odc.total_ports})</div>
                                                 </div>
                                             `).join('');
                                             } else {
-                                                odpResults.innerHTML = '<div class="p-3 text-sm text-center text-yellow-600">ODP tidak ditemukan</div>';
+                                                odcResults.innerHTML = '<div class="p-2 text-xs text-center text-yellow-600">ODC tidak ditemukan</div>';
                                             }
-                                        })
-                                        .catch(err => {
-                                            console.error('Search error:', err);
-                                            odpResults.innerHTML = '<div class="p-3 text-sm text-center text-red-500">Error mengambil data</div>';
+                                        }).catch(e => {
+                                            odcResults.innerHTML = '<div class="p-2 text-xs text-center text-red-500">Error</div>';
                                         });
                                 }, 300);
                             });
 
-                            // Click Result Listener
-                            odpResults.addEventListener('click', function (e) {
-                                const item = e.target.closest('.odp-result-item');
+                            // Select ODC
+                            odcResults.addEventListener('click', function (e) {
+                                const item = e.target.closest('.odc-item');
                                 if (item) {
                                     const id = item.dataset.id;
                                     const name = item.dataset.name;
-                                    const odcName = item.dataset.odcName;
-                                    const odcId = item.dataset.odcId;
-                                    const portInfo = `${item.dataset.used}/${item.dataset.capacity}`;
 
-                                    // Update fields
-                                    odpIdInput.value = id;
-                                    odpSearch.value = name;
-                                    odpInfo.textContent = `✓ Terpilih: ${name} (ODC: ${odcName}, Port: ${portInfo})`;
+                                    odcSearch.value = name;
+                                    odcIdInput.value = id;
+                                    odcResults.classList.add('hidden');
 
-                                    // Update ODC/OLT display
-                                    if (odcDisplay) odcDisplay.value = odcName || 'Auto';
-                                    if (odcIdInput) odcIdInput.value = odcId || '';
-                                    if (oltDisplay) oltDisplay.value = 'Auto (From ODC)';
+                                    // Unlock ODP Section
+                                    unlockOdpSection();
 
-                                    odpResults.classList.add('hidden');
+                                    // Auto expand ODP search to show available ODPs immediately? Maybe better let user click/focus
+                                    odpInfo.textContent = `ODC: ${name} terpilih. Silakan pilih ODP.`;
+                                    odpSearch.focus();
                                 }
                             });
 
                             // Hide on blur
-                            odpSearch.addEventListener('blur', () => {
-                                setTimeout(() => odpResults.classList.add('hidden'), 200);
+                            odcSearch.addEventListener('blur', () => setTimeout(() => odcResults.classList.add('hidden'), 200));
+                        }
+
+                        // Reset ODC
+                        if (resetOdcBtn) {
+                            resetOdcBtn.addEventListener('click', () => {
+                                if (isWireless.checked) return;
+                                odcSearch.value = '';
+                                odcIdInput.value = '';
+                                lockOdpSection();
+                                odcSearch.focus();
+                            });
+                        }
+
+                        // === 3. ODP SEARCH LOGIC (Filtered by ODC) ===
+                        function lockOdpSection() {
+                            odpSection.classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+                            odpSearch.value = '';
+                            odpIdInput.value = '';
+                            oltDisplay.value = '';
+                            oltIdInput.value = '';
+                        }
+
+                        function unlockOdpSection() {
+                            odpSection.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
+                        }
+
+                        if (odpSearch) {
+                            // Show all ODPs in ODC automatically on focus
+                            odpSearch.addEventListener('focus', function () {
+                                if (!odcIdInput.value) return;
+                                // Trigger empty search to list all in ODC
+                                triggerOdpSearch('');
                             });
 
-                            // Show on focus
-                            odpSearch.addEventListener('focus', () => {
-                                if (odpSearch.value.length >= 2 && (!isWireless || !isWireless.checked)) odpResults.classList.remove('hidden');
+                            odpSearch.addEventListener('input', function (e) {
+                                triggerOdpSearch(e.target.value.trim());
                             });
 
-                            // Reload button - clear search
-                            const reloadBtn = document.getElementById('reload_odp_btn');
-                            if (reloadBtn) {
-                                reloadBtn.addEventListener('click', function () {
-                                    if (isWireless && isWireless.checked) return;
-                                    odpSearch.value = '';
-                                    odpIdInput.value = '';
-                                    odpSearch.focus();
-                                    odcDisplay.value = '';
-                                    oltDisplay.value = '';
-                                    odpInfo.textContent = 'Cari dan pilih ODP dari daftar';
-                                });
+                            function triggerOdpSearch(query) {
+                                clearTimeout(odpTimeout);
+                                const odcId = odcIdInput.value;
+                                if (!odcId) return;
+
+                                odpTimeout = setTimeout(() => {
+                                    odpResults.classList.remove('hidden');
+                                    odpResults.innerHTML = '<div class="p-2 text-xs text-center">Loading ODPs...</div>';
+
+                                    fetch(`/api/ftth/odp/search?odc_id=${odcId}&q=${encodeURIComponent(query)}`)
+                                        .then(r => r.json())
+                                        .then(res => {
+                                            if (res.success && res.results.length > 0) {
+                                                odpResults.innerHTML = res.results.map(odp => `
+                                                <div class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odp-item"
+                                                     data-id="${odp.id}" data-name="${odp.name}"
+                                                     data-capacity="${odp.total_ports}" data-used="${odp.used_ports}">
+                                                    <div class="flex justify-between">
+                                                        <span class="font-bold text-cyan-900">${odp.name}</span>
+                                                        <span class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500' : 'text-green-600'}">
+                                                            ${odp.used_ports}/${odp.total_ports}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            `).join('');
+                                            } else {
+                                                odpResults.innerHTML = '<div class="p-2 text-xs text-center text-yellow-600">Tidak ada ODP ditemukan di ODC ini</div>';
+                                            }
+                                        });
+                                }, 300);
                             }
+
+                            // Select ODP
+                            odpResults.addEventListener('click', function (e) {
+                                const item = e.target.closest('.odp-item');
+                                if (item) {
+                                    odpSearch.value = item.dataset.name;
+                                    odpIdInput.value = item.dataset.id;
+                                    odpInfo.textContent = `✓ ODP: ${item.dataset.name} (${item.dataset.used}/${item.dataset.capacity})`;
+                                    odpResults.classList.add('hidden');
+
+                                    // Auto-fill OLT? API response might not have OLT info if it's strictly filtered
+                                    // But typically ODP belongs to ODC, and ODC belongs to OLT. 
+                                    // The API response above (modified) does not join OLT.
+                                    // Assuming ODC is enough, or we can fetch OLT separately.
+                                    // Use 'Auto' for now as placeholder.
+                                    oltDisplay.value = 'Auto (Saved)';
+                                }
+                            });
+                            // Hide on blur
+                            odpSearch.addEventListener('blur', () => setTimeout(() => odpResults.classList.add('hidden'), 200));
                         }
                     });
                 </script>

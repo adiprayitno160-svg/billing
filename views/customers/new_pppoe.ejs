@@ -257,66 +257,93 @@
                                 </div>
 
 
-                                <!-- Infrastructure Card -->
+                                <!-- Infrastructure Card (ODC -> ODP Hierarchy) -->
                                 <div class="rounded-xl border border-cyan-200 bg-white shadow-sm overflow-hidden">
                                     <div
                                         class="px-6 py-4 bg-gradient-to-r from-cyan-50 to-white border-b border-cyan-100">
                                         <h3 class="text-lg font-bold text-cyan-900 flex items-center gap-2">
-                                            <span class="p-1.5 bg-cyan-100 rounded-lg">🏗️</span> Data Teknis (ODP)
+                                            <span class="p-1.5 bg-cyan-100 rounded-lg">🏗️</span> Data Teknis (ODC &
+                                            ODP)
                                         </h3>
                                     </div>
                                     <div class="p-6 space-y-4">
-                                        <div>
-                                            <label class="block text-sm font-semibold text-cyan-800 mb-1">ODP (Optical
-                                                Distribution Point) *</label>
+                                        <!-- Wireless Toggle -->
+                                        <div
+                                            class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm mb-4">
+                                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                                <input type="checkbox" id="is_wireless"
+                                                    class="w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500 border-gray-300 transition-all">
+                                                <span class="text-sm font-bold text-cyan-900">Koneksi Wireless / Tanpa
+                                                    ODP</span>
+                                            </label>
+                                            <span class="text-xs text-cyan-600 hidden sm:inline">Centang jika tidak
+                                                menggunakan jalur Fiber</span>
+                                        </div>
+
+                                        <div id="infra_wrapper" class="space-y-4 transition-all duration-300">
+
+                                            <!-- STEP 1: ODC SELECTION -->
                                             <div class="relative">
+                                                <label class="block text-sm font-semibold text-cyan-800 mb-1">1. Cari &
+                                                    Pilih ODC (Optical Distribution Cabinet) *</label>
+                                                <div class="flex gap-2">
+                                                    <div class="relative w-full">
+                                                        <input type="text" id="odc_search"
+                                                            placeholder="Ketik nama ODC..." autocomplete="off"
+                                                            class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 font-medium transition-all duration-300 bg-white">
+                                                        <input type="hidden" name="odc_id" id="odc_id">
+
+                                                        <!-- ODC Results -->
+                                                        <div id="odc_search_results"
+                                                            class="absolute z-20 w-full mt-1 bg-white border border-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" id="reset_odc_btn"
+                                                        class="px-3 py-2 bg-slate-100 text-slate-500 rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors"
+                                                        title="Reset ODC">
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- STEP 2: ODP SELECTION (Dependent on ODC) -->
+                                            <div id="odp_section_wrapper"
+                                                class="relative transition-all duration-300 opacity-50 pointer-events-none grayscale">
+                                                <label class="block text-sm font-semibold text-cyan-800 mb-1">2. Pilih
+                                                    ODP (Optical Distribution Point) *</label>
                                                 <div class="flex gap-2">
                                                     <div class="relative w-full">
                                                         <input type="text" id="odp_search"
-                                                            placeholder="Ketik nama kemnudian cari ODP..."
+                                                            placeholder="Pilih ODP dari ODC diatas..."
                                                             autocomplete="off"
-                                                            class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 font-medium">
+                                                            class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 font-medium transition-all duration-300 bg-white">
                                                         <input type="hidden" name="odp_id" id="odp_id" required>
 
-                                                        <!-- Search Results Dropdown -->
+                                                        <!-- ODP Results -->
                                                         <div id="odp_search_results"
-                                                            class="absolute z-10 w-full mt-1 bg-white border border-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
-                                                            <div class="p-3 text-sm text-slate-500 text-center">Ketik
-                                                                minimal 2 karakter...</div>
+                                                            class="absolute z-20 w-full mt-1 bg-white border border-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
                                                         </div>
                                                     </div>
-
-                                                    <!-- Optional: Reload/Sync Button if needed -->
                                                     <button type="button" id="reload_odp_btn"
                                                         class="px-3 py-2 bg-cyan-50 text-cyan-600 rounded-lg border border-cyan-200 hover:bg-cyan-100 transition-colors"
-                                                        title="Refresh ODP">
-                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor"
-                                                            viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                                            </path>
-                                                        </svg>
+                                                        title="Reload ODP List">
+                                                        🔄
                                                     </button>
                                                 </div>
-                                                <p class="text-xs text-cyan-600 mt-1" id="selected_odp_info"></p>
+                                                <p class="text-xs text-cyan-600 mt-1" id="selected_odp_info">Pilih ODC
+                                                    dahulu, lalu pilih ODP.</p>
                                             </div>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-4">
+
+                                            <!-- INFO: OLT (Auto Display) -->
                                             <div>
-                                                <label class="text-xs font-semibold text-slate-500">OLT</label>
-                                                <input name="olt_display" readonly
-                                                    class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-2 py-1.5"
-                                                    placeholder="Auto" />
-                                                <input name="olt_id" type="hidden" />
+                                                <label class="text-xs font-semibold text-slate-500">OLT (Terisi
+                                                    Otomatis)</label>
+                                                <input name="olt_display" id="olt_display" readonly
+                                                    class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-3 py-2 text-slate-600"
+                                                    placeholder="-" />
+                                                <input name="olt_id" id="olt_id" type="hidden" />
                                             </div>
-                                            <div>
-                                                <label class="text-xs font-semibold text-slate-500">ODC</label>
-                                                <input name="odc_display" readonly
-                                                    class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-2 py-1.5"
-                                                    placeholder="Auto" />
-                                                <input name="odc_id" type="hidden" />
-                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -790,127 +817,194 @@
         loadSecrets();
     });
 
-    // === ODP SEARCH LOGIC ===
-    const odpSearch = document.getElementById('odp_search');
-    const odpIdInput = document.getElementById('odp_id');
-    const odpResults = document.getElementById('odp_search_results');
-    const odpInfo = document.getElementById('selected_odp_info');
-    let searchTimeout;
+    // === DATA TEKNIS: ODC -> ODP HIERARCHY LOGIC ===
+    (function () {
+        // Elements
+        const odcSearch = document.getElementById('odc_search');
+        const odcIdInput = document.getElementById('odc_id');
+        const odcResults = document.getElementById('odc_search_results');
+        const resetOdcBtn = document.getElementById('reset_odc_btn');
 
-    // Helper to populate OLT/ODC fields
-    function populateOltOdc(data) {
-        const oltDisplay = document.querySelector('input[name="olt_display"]');
-        const odcDisplay = document.querySelector('input[name="odc_display"]');
-        const oltIdInput = document.querySelector('input[name="olt_id"]');
-        const odcIdInput = document.querySelector('input[name="odc_id"]');
+        const odpSearch = document.getElementById('odp_search');
+        const odpIdInput = document.getElementById('odp_id');
+        const odpResults = document.getElementById('odp_search_results');
+        const odpSection = document.getElementById('odp_section_wrapper');
+        const odpInfo = document.getElementById('selected_odp_info');
+        const reloadOdpBtn = document.getElementById('reload_odp_btn');
 
-        if (data) {
-            // If we have API data structure (slightly diff from EJS dump)
-            // API keys: id, name, odc_id, odc_name (olt might need to be fetched separately or included later)
-            // Simulating auto-fill based on context if available
+        const oltDisplay = document.getElementById('olt_display');
+        const oltIdInput = document.getElementById('olt_id');
 
-            // For now, let's use what we have. 
-            // Note: The /api/ftth/odp/search only returns ODC info, we might need OLT info too 
-            // but user request is just "search ODP". 
+        const isWireless = document.getElementById('is_wireless');
+        const infraWrapper = document.getElementById('infra_wrapper');
 
-            odcDisplay.value = data.odc_name || 'Auto';
-            odcIdInput.value = data.odc_id || '';
+        let odcTimeout, odpTimeout;
 
-            // In future: fetch OLT details if needed
-            oltDisplay.value = 'Auto (From ODC)';
-            oltIdInput.value = '';
-        } else {
-            odcDisplay.value = '';
-            odcIdInput.value = '';
-            oltDisplay.value = '';
-            oltIdInput.value = '';
-        }
-    }
-
-    if (odpSearch && odpResults) {
-        odpSearch.addEventListener('input', function (e) {
-            clearTimeout(searchTimeout);
-            const query = e.target.value.trim();
-
-            if (query.length < 2) {
-                odpResults.classList.add('hidden');
-                return;
+        // === 1. WIRELESS TOGGLE ===
+        function toggleWireless() {
+            if (isWireless && isWireless.checked) {
+                if (infraWrapper) infraWrapper.classList.add('opacity-40', 'pointer-events-none');
+                // Clear requirements
+                if (odpIdInput) {
+                    odpIdInput.required = false;
+                    odpIdInput.value = '';
+                }
+            } else {
+                if (infraWrapper) infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
+                if (odpIdInput) odpIdInput.required = true;
             }
+        }
+        if (isWireless) {
+            isWireless.addEventListener('change', toggleWireless);
+            toggleWireless(); // Init
+        }
 
-            // Debounce
-            searchTimeout = setTimeout(() => {
-                odpResults.innerHTML = '<div class="p-3 text-sm text-center text-slate-500">Mencari...</div>';
-                odpResults.classList.remove('hidden');
+        // === 2. ODC SEARCH LOGIC ===
+        if (odcSearch) {
+            odcSearch.addEventListener('input', function (e) {
+                clearTimeout(odcTimeout);
+                const query = e.target.value.trim();
 
-                fetch('/api/ftth/odp/search?q=' + encodeURIComponent(query))
-                    .then(r => r.json())
-                    .then(res => {
-                        if (res.success && res.results.length > 0) {
-                            odpResults.innerHTML = res.results.map(odp => `
-                                <div class="px-3 py-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 odp-result-item"
-                                     data-id="${odp.id}"
-                                     data-name="${odp.name}"
-                                     data-odc-id="${odp.odc_id}"
-                                     data-odc-name="${odp.odc_name}"
-                                     data-capacity="${odp.total_ports}"
-                                     data-used="${odp.used_ports}">
-                                    <div class="flex justify-between items-center">
-                                        <div class="font-medium text-slate-800">${odp.name}</div>
-                                        <div class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500 font-bold' : 'text-green-600'}">
-                                            Port: ${odp.used_ports}/${odp.total_ports}
-                                        </div>
-                                    </div>
-                                    <div class="text-xs text-slate-500">ODC: ${odp.odc_name || '-'}</div>
+                // User ketik manual -> Reset ID dulu
+                if (odcIdInput) odcIdInput.value = '';
+                lockOdpSection(); // Lock ODP until ODC selected again
+
+                if (query.length < 1) {
+                    odcResults.classList.add('hidden');
+                    return;
+                }
+
+                odcTimeout = setTimeout(() => {
+                    odcResults.innerHTML = '<div class="p-2 text-xs text-center">Loading...</div>';
+                    odcResults.classList.remove('hidden');
+
+                    fetch('/api/ftth/odc/search?q=' + encodeURIComponent(query))
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.success && res.results.length > 0) {
+                                odcResults.innerHTML = res.results.map(odc => `
+                                <div class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odc-item"
+                                     data-id="${odc.id}" data-name="${odc.name}">
+                                    <div class="font-bold text-cyan-900">${odc.name}</div>
+                                    <div class="text-xs text-slate-500">${odc.location || '-'} (${odc.used_ports}/${odc.total_ports})</div>
                                 </div>
                             `).join('');
-                        } else {
-                            odpResults.innerHTML = '<div class="p-3 text-sm text-center text-yellow-600">ODP tidak ditemukan</div>';
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Search error:', err);
-                        odpResults.innerHTML = '<div class="p-3 text-sm text-center text-red-500">Error mengambil data</div>';
-                    });
-            }, 300);
-        });
+                            } else {
+                                odcResults.innerHTML = '<div class="p-2 text-xs text-center text-yellow-600">ODC tidak ditemukan</div>';
+                            }
+                        }).catch(e => {
+                            odcResults.innerHTML = '<div class="p-2 text-xs text-center text-red-500">Error</div>';
+                        });
+                }, 300);
+            });
 
-        // Hide results on blur with delay
-        odpSearch.addEventListener('blur', () => { // Handle click outside 
-            setTimeout(() => odpResults.classList.add('hidden'), 200);
-        });
+            // Select ODC
+            odcResults.addEventListener('click', function (e) {
+                const item = e.target.closest('.odc-item');
+                if (item) {
+                    const id = item.dataset.id;
+                    const name = item.dataset.name;
 
-        // Focus to show if text exists
-        odpSearch.addEventListener('focus', () => {
-            if (odpSearch.value.length >= 2) odpResults.classList.remove('hidden');
-        });
+                    odcSearch.value = name;
+                    odcIdInput.value = id;
+                    odcResults.classList.add('hidden');
 
-        // Event Delegation for clicks
-        odpResults.addEventListener('click', function (e) {
-            const item = e.target.closest('.odp-result-item');
-            if (item) {
-                const id = item.dataset.id;
-                const name = item.dataset.name;
-                const odcName = item.dataset.odcName;
-                const portInfo = `${item.dataset.used}/${item.dataset.capacity}`;
+                    // Unlock ODP Section
+                    unlockOdpSection();
 
-                odpIdInput.value = id;
-                odpSearch.value = name;
-                odpInfo.textContent = `✓ Terpilih: ${name} (ODC: ${odcName}, Port: ${portInfo})`;
+                    // Auto expand ODP search
+                    odpInfo.textContent = `ODC: ${name} terpilih. Silakan pilih ODP.`;
+                    odpSearch.focus();
+                }
+            });
 
-                // Populate legacy fields if they exist
-                populateOltOdc({
-                    odc_name: odcName,
-                    odc_id: item.dataset.odcId
-                });
+            // Hide on blur
+            odcSearch.addEventListener('blur', () => setTimeout(() => odcResults.classList.add('hidden'), 200));
+        }
 
-                odpResults.classList.add('hidden');
+        // Reset ODC
+        if (resetOdcBtn) {
+            resetOdcBtn.addEventListener('click', () => {
+                if (isWireless && isWireless.checked) return;
+                odcSearch.value = '';
+                odcIdInput.value = '';
+                lockOdpSection();
+                odcSearch.focus();
+            });
+        }
+
+        // === 3. ODP SEARCH LOGIC (Filtered by ODC) ===
+        function lockOdpSection() {
+            if (odpSection) odpSection.classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+            if (odpSearch) odpSearch.value = '';
+            if (odpIdInput) odpIdInput.value = '';
+            if (oltDisplay) oltDisplay.value = '';
+            if (oltIdInput) oltIdInput.value = '';
+        }
+
+        function unlockOdpSection() {
+            if (odpSection) odpSection.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
+        }
+
+        if (odpSearch) {
+            // Show all ODPs in ODC automatically on focus
+            odpSearch.addEventListener('focus', function () {
+                if (!odcIdInput.value) return;
+                triggerOdpSearch('');
+            });
+
+            odpSearch.addEventListener('input', function (e) {
+                triggerOdpSearch(e.target.value.trim());
+            });
+
+            function triggerOdpSearch(query) {
+                clearTimeout(odpTimeout);
+                const odcId = odcIdInput.value;
+                if (!odcId) return;
+
+                odpTimeout = setTimeout(() => {
+                    odpResults.classList.remove('hidden');
+                    odpResults.innerHTML = '<div class="p-2 text-xs text-center">Loading ODPs...</div>';
+
+                    fetch(`/api/ftth/odp/search?odc_id=${odcId}&q=${encodeURIComponent(query)}`)
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.success && res.results.length > 0) {
+                                odpResults.innerHTML = res.results.map(odp => `
+                                <div class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odp-item"
+                                     data-id="${odp.id}" data-name="${odp.name}"
+                                     data-capacity="${odp.total_ports}" data-used="${odp.used_ports}">
+                                    <div class="flex justify-between">
+                                        <span class="font-bold text-cyan-900">${odp.name}</span>
+                                        <span class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500' : 'text-green-600'}">
+                                            ${odp.used_ports}/${odp.total_ports}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('');
+                            } else {
+                                odpResults.innerHTML = '<div class="p-2 text-xs text-center text-yellow-600">Tidak ada ODP ditemukan di ODC ini</div>';
+                            }
+                        });
+                }, 300);
             }
-        });
-    }
 
-    // Replace the old updateOLTODC function with a dummy or remove listeners
-    // We already replaced the HTML, so old listeners attached to 'odp-select' won't work anyway.
-    // So we don't need to define updateOLTODC anymore.
+            // Select ODP
+            odpResults.addEventListener('click', function (e) {
+                const item = e.target.closest('.odp-item');
+                if (item) {
+                    odpSearch.value = item.dataset.name;
+                    odpIdInput.value = item.dataset.id;
+                    odpInfo.textContent = `✓ ODP: ${item.dataset.name} (${item.dataset.used}/${item.dataset.capacity})`;
+                    odpResults.classList.add('hidden');
+                    oltDisplay.value = 'Auto (Saved)';
+                }
+            });
+            // Hide on blur
+            odpSearch.addEventListener('blur', () => setTimeout(() => odpResults.classList.add('hidden'), 200));
+        }
+
+    })();
 
     // Maps integration
     let map;

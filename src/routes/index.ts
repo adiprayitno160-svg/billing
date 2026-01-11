@@ -915,17 +915,59 @@ router.post('/ftth/odp', postOdpCreate);
 router.post('/ftth/odp/:id', postOdpUpdate);
 router.post('/ftth/odp/:id/delete', postOdpDelete);
 
+// API: Search ODC
+router.get('/api/ftth/odc/search', async (req: Request, res: Response) => {
+    try {
+        const query = String(req.query.q || '').trim();
+        // Allow empty query to return all/recent ODCs if requested, or require min chars
+        // For ODC, listing all is often fine if not too many
+
+        const conn = await databasePool.getConnection();
+        try {
+            let sql = `
+                SELECT 
+                    odc.id, 
+                    odc.name, 
+                    odc.location,
+                    odc.total_ports,
+                    odc.used_ports,
+                    (SELECT COUNT(*) FROM ftth_odp WHERE odc_id = odc.id) as odp_count
+                FROM ftth_odc odc
+            `;
+            const params: any[] = [];
+
+            if (query) {
+                sql += ` WHERE odc.name LIKE ? OR odc.location LIKE ?`;
+                params.push(`%${query}%`, `%${query}%`);
+            }
+
+            sql += ` ORDER BY odc.name LIMIT 20`;
+
+            const [rows] = await conn.execute(sql, params);
+            res.json({ success: true, results: rows });
+        } finally {
+            conn.release();
+        }
+    } catch (error: any) {
+        console.error('ODC Search error:', error);
+        res.json({ success: false, error: error.message, results: [] });
+    }
+});
+
 // API: Search ODP
 router.get('/api/ftth/odp/search', async (req: Request, res: Response) => {
     try {
         const query = String(req.query.q || '').trim();
-        if (query.length < 2) {
+        const odcId = req.query.odc_id ? String(req.query.odc_id) : null;
+
+        // If filtering by ODC, we might not need a query name (show all ODPs in ODC)
+        if (!odcId && query.length < 2) {
             return res.json({ success: true, results: [] });
         }
 
         const conn = await databasePool.getConnection();
         try {
-            const [rows] = await conn.execute(`
+            let sql = `
                 SELECT 
                     odp.id, 
                     odp.name, 
@@ -935,10 +977,25 @@ router.get('/api/ftth/odp/search', async (req: Request, res: Response) => {
                     odc.name as odc_name
                 FROM ftth_odp odp
                 LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id
-                WHERE odp.name LIKE ?
-                ORDER BY odp.name
-                LIMIT 15
-            `, [`%${query}%`]);
+                WHERE 1=1
+            `;
+            const params: any[] = [];
+
+            if (odcId) {
+                sql += ` AND odp.odc_id = ?`;
+                params.push(odcId);
+            }
+
+            if (query) {
+                sql += ` AND odp.name LIKE ?`;
+                params.push(`%${query}%`);
+            }
+
+            // If we have ODC ID, we can show more results to populate a dropdown/list
+            const limit = odcId ? 100 : 15;
+            sql += ` ORDER BY odp.name LIMIT ${limit}`;
+
+            const [rows] = await conn.execute(sql, params);
 
             res.json({ success: true, results: rows });
         } finally {
