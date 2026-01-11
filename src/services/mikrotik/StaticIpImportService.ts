@@ -161,6 +161,25 @@ export class StaticIpImportService {
                 const packetMark = queue['packet-mark'];
                 if (!packetMark || packetMark === 'no-mark') continue;
 
+                // Filter: Skip queue yang hanya untuk upload (parent queue)
+                // Biasanya queue upload memiliki nama dengan pola: up-*, upload-*, *-upload, *-up
+                const queueName = (queue['name'] || '').toLowerCase();
+                const uploadPatterns = [
+                    /^up-/i,           // up-testing, up-xxx
+                    /^upload-/i,       // upload-testing
+                    /-upload$/i,       // xxx-upload
+                    /-up$/i,           // xxx-up
+                    /^upload$/i,       // upload (exact)
+                    /^parent-/i,       // parent-xxx
+                    /^global-/i,       // global-xxx
+                ];
+
+                const isUploadQueue = uploadPatterns.some(pattern => pattern.test(queueName));
+                if (isUploadQueue) {
+                    console.log(`[StaticIP Scan] Skipping upload/parent queue: ${queueName}`);
+                    continue;
+                }
+
                 let customerIp: string | null = null;
                 let mangleId: string | undefined = undefined;
                 let gatewayIp: string | null = null;
