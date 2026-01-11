@@ -98,12 +98,19 @@ export class AuthController {
 
             req.flash('success', `Selamat datang, ${user.full_name}!`);
 
-            // Redirect berdasarkan role
-            if (user.role === 'kasir') {
-                res.redirect('/kasir/dashboard');
-            } else {
-                res.redirect('/');
-            }
+            // Force save session before redirect to ensure persistence
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Error saving session before redirect:', err);
+                }
+
+                // Redirect berdasarkan role
+                if (user.role === 'kasir') {
+                    res.redirect('/kasir/dashboard');
+                } else {
+                    res.redirect('/');
+                }
+            });
         } catch (error) {
             console.error('Error during login:', error);
             req.flash('error', 'Terjadi kesalahan saat login');

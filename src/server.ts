@@ -112,7 +112,7 @@ app.use(session({
 	store: sessionStore,
 	cookie: {
 		secure: false,
-		maxAge: 5 * 60 * 1000 // 5 minutes inactivity timeout
+		maxAge: 24 * 60 * 60 * 1000 // 24 hours session
 	},
 	rolling: true // Reset expiry time on each request
 }));
