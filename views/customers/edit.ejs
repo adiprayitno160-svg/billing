@@ -1,7 +1,7 @@
-﻿<div class="space-y-6" data-version="fixed-1">
+﻿<div class="space-y-6">
     <!-- Header Section -->
     <div
-        class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-lg">
+        class="rounded-2xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6 shadow-sm">
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-modern-blue-900">Edit Pelanggan</h1>
@@ -9,2625 +9,578 @@
             </div>
             <div class="flex items-center gap-3">
                 <a href="/customers/list"
-                    class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium">
-                    ← Kembali ke Daftar
+                    class="px-4 py-2 border border-modern-blue-300 text-modern-blue-700 rounded-lg hover:bg-modern-blue-50 transition-all duration-300 font-medium text-sm">
+                    ← Kembali
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Edit Form -->
-    <div
-        class="rounded-2xl border border-modern-purple-200 bg-gradient-to-br from-white to-modern-purple-50/30 p-6 shadow-lg">
-        <form method="POST" action="/customers/<%= customer.id %>" class="space-y-6">
-            <!-- Connection Type Selection -->
-            <div class="rounded-xl border border-modern-blue-200 bg-white p-6">
-                <h3 class="text-lg font-bold text-modern-blue-900 mb-4">Jenis Koneksi</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label class="group relative cursor-pointer block">
-                        <input type="radio" name="connection_type" value="pppoe" <%=customer.connection_type==='pppoe'
-                            ? 'checked' : '' %> class="sr-only">
-                        <div
-                            class="p-5 rounded-lg border transition-all duration-300 
-							<%= customer.connection_type === 'pppoe' ? 'border-modern-blue-500 bg-modern-blue-50' : 'border-slate-200 hover:border-modern-blue-300' %>">
-                            <div class="flex items-start gap-4">
-                                <div
-                                    class="mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center 
-									<%= customer.connection_type === 'pppoe' ? 'border-modern-blue-500 bg-modern-blue-500' : 'border-slate-300 group-hover:border-modern-blue-400' %>">
-                                    <% if (customer.connection_type==='pppoe' ) { %>
-                                        <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
-                                        <% } %>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-semibold text-modern-blue-900">PPPOE</span>
-                                        <span
-                                            class="px-2 py-0.5 text-xs rounded-full bg-modern-blue-100 text-modern-blue-700">Username/Password</span>
-                                    </div>
-                                    <p class="mt-1 text-sm text-slate-600">Koneksi PPPOE menggunakan kredensial
-                                        autentikasi.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </label>
+    <!-- Main Edit Form -->
+    <form method="POST" action="/customers/<%= customer.id %>" class="space-y-6">
 
-                    <label class="group relative cursor-pointer block">
-                        <input type="radio" name="connection_type" value="static_ip"
-                            <%=customer.connection_type==='static_ip' ? 'checked' : '' %> class="sr-only">
-                        <div
-                            class="p-5 rounded-lg border transition-all duration-300 
-							<%= customer.connection_type === 'static_ip' ? 'border-modern-green-500 bg-modern-green-50' : 'border-slate-200 hover:border-modern-green-300' %>">
-                            <div class="flex items-start gap-4">
-                                <div
-                                    class="mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center 
-									<%= customer.connection_type === 'static_ip' ? 'border-modern-green-500 bg-modern-green-500' : 'border-slate-300 group-hover:border-modern-green-400' %>">
-                                    <% if (customer.connection_type==='static_ip' ) { %>
-                                        <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
-                                        <% } %>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-semibold text-modern-green-900">IP Static</span>
-                                        <span
-                                            class="px-2 py-0.5 text-xs rounded-full bg-modern-green-100 text-modern-green-700">Alamat
-                                            Tetap</span>
-                                    </div>
-                                    <p class="mt-1 text-sm text-slate-600">Koneksi dengan IP address tetap pada
-                                        interface tertentu.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </label>
-                </div>
+        <!-- CARD 1: Basic Information -->
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                <span class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">👤</span>
+                <h3 class="font-bold text-slate-800">Informasi Pelanggan</h3>
             </div>
-
-            <!-- Basic Information -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Nama -->
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Name -->
                 <div>
-                    <label for="name" class="block text-sm font-medium text-modern-purple-700 mb-2">Nama Lengkap
-                        *</label>
-                    <input type="text" id="name" name="name" value="<%= customer.name %>" required
-                        class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap *</label>
+                    <input type="text" name="name" value="<%= customer.name %>" required
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition-all font-medium">
                 </div>
 
-                <!-- Customer Code -->
+                <!-- Code -->
                 <div>
-                    <label for="customer_code" class="block text-sm font-medium text-modern-purple-700 mb-2">
-                        Kode Pelanggan
-                    </label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Kode Pelanggan</label>
                     <div class="flex gap-2">
-                        <input type="text" id="customer_code" name="customer_code"
-                            value="<%= customer.customer_code || '' %>" placeholder="Kosongkan untuk generate otomatis"
-                            class="flex-1 px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
-                        <button type="button" id="generate_customer_code"
-                            class="px-4 py-3 bg-modern-purple-600 text-white rounded-lg hover:bg-modern-purple-700 transition-all duration-300 font-medium whitespace-nowrap"
-                            title="Generate kode otomatis">
-                            🔄 Generate
+                        <input type="text" name="customer_code" value="<%= customer.customer_code || '' %>"
+                            placeholder="Auto-generate jika kosong"
+                            class="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition-all">
+                        <button type="button" id="generate_customer_code" title="Generate Code"
+                            class="px-3 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                            🔄
                         </button>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">
-                        Kode unik pelanggan. Kosongkan untuk generate otomatis (format: YYYYMMDDHHMMSS)
-                    </p>
                 </div>
 
-                <!-- Email (Hidden) -->
-                <div class="hidden">
-                    <label for="email" class="block text-sm font-medium text-modern-purple-700 mb-2">Email</label>
-                    <div class="relative">
-                        <input type="email" id="email" name="email" value="<%= customer.email || '' %>"
-                            class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300"
-                            placeholder="customer@example.com">
-                        <button type="button" onclick="document.getElementById('email').value=''"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Hapus Email">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-1">Email opsional untuk notifikasi tagihan</p>
-                </div>
-
-                <!-- Telepon -->
+                <!-- Phone -->
                 <div>
-                    <label for="phone" class="block text-sm font-medium text-modern-purple-700 mb-2">Nomor
-                        Telepon</label>
-                    <input type="tel" id="phone" name="phone" value="<%= customer.phone || '' %>"
-                        class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nomor Telepon</label>
+                    <input type="tel" name="phone" value="<%= customer.phone || '' %>"
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition-all">
                 </div>
 
                 <!-- Status -->
                 <div>
-                    <label for="status" class="block text-sm font-medium text-modern-purple-700 mb-2">Status</label>
-                    <select id="status" name="status" required
-                        class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300">
-                        <option value="active" <%=customer.status==='active' ? 'selected' : '' %>>Aktif</option>
-                        <option value="inactive" <%=customer.status==='inactive' ? 'selected' : '' %>>Tidak Aktif
-                        </option>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Status Langganan</label>
+                    <select name="status" required
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
+                        <option value="active" <%=customer.status==='active' ? 'selected' : '' %>>✅ Aktif</option>
+                        <option value="inactive" <%=customer.status==='inactive' ? 'selected' : '' %>>❌ Tidak Aktif
+                            (Isolir)</option>
                     </select>
                 </div>
 
-                <!-- Alamat -->
+                <!-- Address -->
                 <div class="md:col-span-2">
-                    <label for="address" class="block text-sm font-medium text-modern-purple-700 mb-2">Alamat</label>
-                    <textarea id="address" name="address" rows="3"
-                        class="w-full px-4 py-3 border border-modern-purple-300 rounded-lg focus:border-modern-purple-500 focus:ring-2 focus:ring-modern-purple-200 transition-all duration-300"><%= customer.address || '' %></textarea>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Alamat Pemasangan</label>
+                    <textarea name="address" rows="2"
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition-all"><%= customer.address || '' %></textarea>
                 </div>
             </div>
+        </div>
 
-            <!-- Billing Mode Configuration -->
-            <div
-                class="rounded-xl border border-modern-indigo-200 bg-gradient-to-br from-modern-indigo-50 to-modern-purple-50 p-6">
-                <h3 class="text-lg font-bold text-modern-indigo-900 mb-4">💳 Mode Pembayaran</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Billing Mode -->
+        <!-- CARD 2: Billing & Finance -->
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                <span class="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg">💳</span>
+                <h3 class="font-bold text-slate-800">Tagihan & Pembayaran</h3>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Billing Mode -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Mode Pembayaran</label>
+                    <select id="billing_mode" name="billing_mode"
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500">
+                        <option value="postpaid" <%=(!customer.billing_mode || customer.billing_mode==='postpaid' )
+                            ? 'selected' : '' %>>📅 Pascabayar (Bulanan)</option>
+                        <option value="prepaid" <%=customer.billing_mode==='prepaid' ? 'selected' : '' %>>💰 Prabayar
+                            (Voucher/Topup)</option>
+                    </select>
+                </div>
+
+                <!-- Expiry View (Prepaid Only) -->
+                <% if (customer.billing_mode==='prepaid' && customer.expiry_date) { %>
                     <div>
-                        <label for="billing_mode" class="block text-sm font-medium text-modern-indigo-700 mb-2">
-                            Sistem Pembayaran
-                        </label>
-                        <select id="billing_mode" name="billing_mode"
-                            class="w-full px-4 py-3 border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-2 focus:ring-modern-indigo-200 transition-all duration-300">
-                            <option value="postpaid" <%=(customer.billing_mode==='postpaid' || !customer.billing_mode)
-                                ? 'selected' : '' %>>
-                                📅 Pascabayar (Tagihan Bulanan)
-                            </option>
-                            <option value="prepaid" <%=customer.billing_mode==='prepaid' ? 'selected' : '' %>>
-                                💰 Prabayar (Isi Ulang)
-                            </option>
-                        </select>
-                        <p class="text-xs text-modern-indigo-600 mt-1">
-                            Pascabayar: Tagihan dikirim tiap bulan | Prabayar: Bayar dulu, internet aktif
-                        </p>
-                    </div>
-
-                    <!-- Bonus Days for Prepaid -->
-                    <div id="prepaid_bonus_container"
-                        class="<%= customer.billing_mode === 'prepaid' ? '' : 'hidden' %>">
-                        <label for="prepaid_bonus_days" class="block text-sm font-medium text-modern-indigo-700 mb-2">
-                            Bonus Hari (Jika Pindah ke Prabayar)
-                        </label>
-                        <input type="number" id="prepaid_bonus_days" name="prepaid_bonus_days" value="1" min="0"
-                            max="365"
-                            class="w-full px-4 py-3 border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-2 focus:ring-modern-indigo-200 transition-all duration-300"
-                            placeholder="1">
-                        <p class="text-xs text-modern-indigo-600 mt-1">
-                            Berapa hari bonus saat pindah ke prabayar?
-                        </p>
-                    </div>
-
-                    <!-- Device Rental Checkbox -->
-                    <div id="device_rental_container">
-                        <label class="relative inline-flex items-center cursor-pointer mt-6 group">
-                            <input type="checkbox" name="use_device_rental" id="use_device_rental" value="1"
-                                class="sr-only peer" <%=customer.use_device_rental ? 'checked' : '' %>>
-                            <div
-                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 transition-all duration-300">
-                            </div>
-                            <span class="ml-3 text-sm font-bold text-modern-indigo-700 group-hover:text-indigo-900">Sewa
-                                Alat?</span>
-                        </label>
-                        <p class="text-xs text-modern-indigo-600 mt-1">
-                            Jika aktif, biaya sewa perangkat akan ditambahkan ke tagihan.
-                        </p>
-
-                        <!-- Rental Options -->
-                        <div id="rental_options"
-                            class="mt-4 pl-4 border-l-2 border-indigo-200 ml-1 space-y-3 transition-all duration-300 <%= customer.use_device_rental ? '' : 'hidden' %>">
-                            <div class="grid grid-cols-1 gap-3">
-                                <div>
-                                    <label for="rental_mode"
-                                        class="block text-xs font-semibold text-modern-indigo-700 mb-1">Mode Perhitungan
-                                        Sewa</label>
-                                    <select name="rental_mode" id="rental_mode"
-                                        class="w-full px-3 py-2 text-sm border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-1 focus:ring-modern-indigo-200 bg-white">
-                                        <option value="flat" <%=(!customer.rental_mode || customer.rental_mode==='flat'
-                                            ) ? 'selected' : '' %>>💰 Flat / Bulanan (Tetap)</option>
-                                        <option value="daily" <%=customer.rental_mode==='daily' ? 'selected' : '' %>>📅
-                                            Harian (Harga x Jumlah Hari)</option>
-                                    </select>
-                                    <p class="text-[10px] text-modern-indigo-600 mt-1" id="rental_mode_desc">
-                                        <span
-                                            class="flat-desc <%= (!customer.rental_mode || customer.rental_mode === 'flat') ? '' : 'hidden' %>">Biaya
-                                            tetap setiap bulan (contoh: 50.000/bulan).</span>
-                                        <span
-                                            class="daily-desc <%= customer.rental_mode === 'daily' ? '' : 'hidden' %>">Biaya
-                                            dihitung: Harga x Jumlah Hari dalam bulan invoice (contoh: 2.000 x 30
-                                            hari).</span>
-                                    </p>
-                                </div>
-                                <div>
-                                    <label for="rental_cost"
-                                        class="block text-xs font-semibold text-modern-indigo-700 mb-1">
-                                        Biaya Sewa (Rp)
-                                    </label>
-                                    <div class="relative">
-                                        <span
-                                            class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
-                                        <input type="text" name="rental_cost" id="rental_cost"
-                                            value="<%= customer.rental_cost ? Number(customer.rental_cost).toLocaleString('id-ID') : '' %>"
-                                            placeholder="Gunakan Default Global"
-                                            class="w-full pl-10 pr-3 py-2 text-sm border border-modern-indigo-300 rounded-lg focus:border-modern-indigo-500 focus:ring-1 focus:ring-modern-indigo-200"
-                                            onkeyup="this.value = this.value.replace(/[^0-9]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');">
-                                    </div>
-                                    <p class="text-[10px] text-slate-500 mt-1">Kosongkan untuk menggunakan harga default
-                                        global.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                const checkbox = document.getElementById('use_device_rental');
-                                const options = document.getElementById('rental_options');
-                                const modeSelect = document.getElementById('rental_mode');
-                                const flatDesc = document.querySelector('.flat-desc');
-                                const dailyDesc = document.querySelector('.daily-desc');
-
-                                if (checkbox && options) {
-                                    checkbox.addEventListener('change', function () {
-                                        if (this.checked) {
-                                            options.classList.remove('hidden');
-                                        } else {
-                                            options.classList.add('hidden');
-                                        }
-                                    });
-                                }
-
-                                if (modeSelect) {
-                                    modeSelect.addEventListener('change', function () {
-                                        if (this.value === 'flat') {
-                                            flatDesc.classList.remove('hidden');
-                                            dailyDesc.classList.add('hidden');
-                                        } else {
-                                            flatDesc.classList.add('hidden');
-                                            dailyDesc.classList.remove('hidden');
-                                        }
-                                    });
-                                }
-                            });
-                        </script>
-                    </div>
-
-                    <!-- Taxable (PPN) Checkbox -->
-                    <div id="taxable_container" class="mt-4 md:mt-0">
-                        <label class="relative inline-flex items-center cursor-pointer md:mt-6 group">
-                            <input type="checkbox" name="is_taxable" value="1" class="sr-only peer"
-                                <%=customer.is_taxable ? 'checked' : '' %>>
-                            <div
-                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 transition-all duration-300">
-                            </div>
-                            <span class="ml-3 text-sm font-bold text-modern-indigo-700 group-hover:text-indigo-900">Kena
-                                PPN?</span>
-                        </label>
-                        <p class="text-xs text-modern-indigo-600 mt-1">
-                            Jika aktif, tagihan akan dikenakan PPN sesuai rate global.
-                        </p>
-                    </div>
-
-                    <!-- Expiry Date Display (for Prepaid) -->
-                    <% if (customer.billing_mode==='prepaid' && customer.expiry_date) { %>
-                        <div class="md:col-span-2">
-                            <div class="p-4 bg-white border border-modern-indigo-200 rounded-lg">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <span class="text-sm font-medium text-modern-indigo-700">⏰ Masa Aktif
-                                            Sampai:</span>
-                                        <p class="text-lg font-bold text-modern-indigo-900 mt-1">
-                                            <%= new Date(customer.expiry_date).toLocaleString('id-ID', {
-                                                dateStyle: 'full' , timeStyle: 'short' }) %>
-                                        </p>
-                                    </div>
-                                    <% const expiryDate=new Date(customer.expiry_date); const now=new Date(); const
-                                        isExpired=expiryDate <=now; %>
-                                        <div class="text-right">
-                                            <% if (isExpired) { %>
-                                                <span
-                                                    class="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full">
-                                                    ⚠️ Expired
-                                                </span>
-                                                <% } else { %>
-                                                    <span
-                                                        class="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                                                        ✅ Aktif
-                                                    </span>
-                                                    <% } %>
-                                                        <p class="text-xs text-slate-500 mt-1">
-                                                            <%= isExpired ? 'Sudah kadaluarsa' : 'Masih aktif' %>
-                                                        </p>
-                                        </div>
-                                </div>
-                            </div>
-                        </div>
-                        <% } %>
-                </div>
-
-                <!-- Info Box -->
-                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p class="text-sm text-blue-800">
-                        <strong>ℹ️ Informasi:</strong>
-                    </p>
-                    <ul class="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
-                        <li><strong>Pascabayar:</strong> Pelanggan menerima tagihan bulanan otomatis</li>
-                        <li><strong>Prabayar:</strong> Pelanggan harus isi ulang sebelum masa aktif habis (via WhatsApp
-                            Bot dengan perintah <code>/beli</code>)</li>
-                        <li>Saat pindah ke prabayar, sistem akan mengirim notifikasi WhatsApp otomatis ke pelanggan</li>
-                    </ul>
-                </div>
-            </div>
-
-
-            <!-- PPPOE Configuration -->
-            <div id="pppoe-config" class="<%= customer.connection_type === 'pppoe' ? '' : 'hidden' %>">
-                <div
-                    class="rounded-xl border border-modern-blue-200 bg-gradient-to-br from-modern-blue-50 to-modern-cyan-50 p-6">
-                    <h3 class="text-lg font-bold text-modern-blue-900 mb-4">Konfigurasi PPPOE</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="md:col-span-2">
-                            <div class="flex items-center justify-between mb-2">
-                                <label for="pppoe_search" class="block text-sm font-medium text-modern-blue-700">Cari
-                                    PPPoE Secret (opsional)</label>
-                                <button type="button" id="reload_secrets_btn"
-                                    class="text-xs px-2 py-1 border border-modern-blue-300 rounded hover:bg-modern-blue-50 focus:outline-none focus:ring-2 focus:ring-modern-blue-200">Muat
-                                    Ulang</button>
-                            </div>
-                            <div class="relative">
-                                <input type="text" id="pppoe_search" placeholder="Ketik untuk mencari username..."
-                                    class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300"
-                                    autocomplete="off">
-                                <div id="pppoe_search_results"
-                                    class="absolute z-10 w-full mt-1 bg-white border border-modern-blue-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
-                                    <div class="p-2 text-sm text-modern-blue-600">Memuat...</div>
-                                </div>
-                            </div>
-                            <p class="text-xs text-modern-blue-600 mt-1">Cari dan pilih username dari MikroTik. Catatan:
-                                Username yang sudah digunakan tidak akan ditampilkan.</p>
-                        </div>
-                        <div>
-                            <label for="pppoe_username"
-                                class="block text-sm font-medium text-modern-blue-700 mb-2">Username PPPOE *</label>
-                            <input type="text" id="pppoe_username" name="pppoe_username"
-                                value="<%= customer.pppoe_username || '' %>" required
-                                class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
-                            <p class="text-xs text-modern-blue-600 mt-1">Username untuk koneksi PPPOE</p>
-                        </div>
-                        <div>
-                            <label for="pppoe_password" class="block text-sm font-medium text-modern-blue-700 mb-2">
-                                <span class="flex items-center gap-2">
-                                    Password PPPOE
-                                    <% if (!customer.pppoe_password) { %>
-                                        <span class="text-red-500">*</span>
-                                        <% } %>
-                                            <% if (!customer.pppoe_password) { %>
-                                                <button type="button" id="generate_password_btn"
-                                                    class="ml-2 px-2 py-1 text-xs bg-modern-blue-500 text-white rounded hover:bg-modern-blue-600 transition-colors flex items-center gap-1"
-                                                    title="Generate password otomatis">
-                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                                        </path>
-                                                    </svg>
-                                                    Generate
-                                                </button>
-                                                <% } %>
-                                </span>
-                            </label>
-                            <% if (customer.pppoe_password) { %>
-                                <!-- Password sudah ada - tampilkan sebagai view, dengan opsi untuk mengubah -->
-                                <div class="space-y-2">
-                                    <div class="relative">
-                                        <input type="text" id="pppoe_password_view" value="••••••••" readonly
-                                            class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg bg-modern-blue-50 text-modern-blue-700 font-mono cursor-not-allowed">
-                                        <button type="button" id="change_password_btn"
-                                            class="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-xs bg-modern-blue-500 text-white rounded hover:bg-modern-blue-600 transition-colors">
-                                            Ubah Password
-                                        </button>
-                                    </div>
-                                    <input type="password" id="pppoe_password" name="pppoe_password"
-                                        placeholder="Kosongkan jika tidak ingin mengubah password"
-                                        class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300 hidden">
-                                </div>
-                                <p class="text-xs text-modern-blue-600 mt-1">Password sudah terisi. Klik "Ubah Password"
-                                    jika ingin mengubah, atau biarkan kosong untuk tetap menggunakan password yang ada.
-                                </p>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Masa Aktif</label>
+                        <div
+                            class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center">
+                            <span class="font-bold text-slate-700">
+                                <%= new Date(customer.expiry_date).toLocaleString('id-ID', { dateStyle: 'medium' ,
+                                    timeStyle: 'short' }) %>
+                            </span>
+                            <% if (new Date(customer.expiry_date) <=new Date()) { %>
+                                <span
+                                    class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-bold">Expired</span>
                                 <% } else { %>
-                                    <!-- Password belum ada - tampilkan input dengan tombol Buat Password -->
-                                    <div class="flex gap-2">
-                                        <input type="text" id="pppoe_password" name="pppoe_password" required
-                                            placeholder="Masukkan password atau klik Buat Password"
-                                            class="flex-1 px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300 font-mono">
-                                        <button type="button" id="generate_password_btn"
-                                            class="px-4 py-2 bg-modern-blue-500 text-white rounded-lg hover:bg-modern-blue-600 transition-colors font-medium whitespace-nowrap flex items-center gap-1">
-                                            🔑 Buat Password
-                                        </button>
-                                    </div>
-                                    <p class="text-xs text-modern-blue-600 mt-1">Password wajib diisi. Klik "Buat
-                                        Password" untuk generate otomatis.</p>
+                                    <span
+                                        class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-bold">Active</span>
                                     <% } %>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-modern-blue-700 mb-2">Aksi PPPoE Secret</label>
-                            <button type="button" id="create_pppoe_secret_btn"
-                                class="w-full px-4 py-3 bg-modern-blue-600 text-white rounded-lg hover:bg-modern-blue-700 transition-all duration-300 font-medium flex items-center justify-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 4v16m8-8H4"></path>
-                                </svg>
-                                Buat Secret di MikroTik
-                            </button>
-                            <p class="text-xs text-modern-blue-600 mt-1">Buat atau update PPPoE secret di MikroTik
-                                dengan data saat ini</p>
-                            <div id="create_secret_status" class="mt-2 hidden"></div>
-                        </div>
-                        <div>
-                            <label for="pppoe_package" class="block text-sm font-medium text-modern-blue-700 mb-2">
-                                Paket Internet
-                                <% if (customer.package_id) { %>
-                                    <span class="text-green-600 text-xs">(Terpilih: ID <%= customer.package_id %>
-                                            )</span>
-                                    <% } else { %>
-                                        <span class="text-gray-500 text-xs">(Opsional)</span>
-                                        <% } %>
+                    </div>
+                    <% } %>
+
+                        <!-- Flags -->
+                        <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            <!-- PPN Checkbox -->
+                            <label
+                                class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                                <input type="checkbox" name="is_taxable" value="1" <%=customer.is_taxable ? 'checked'
+                                    : '' %>
+                                class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300">
+                                <div>
+                                    <span class="block text-sm font-bold text-slate-700">Kena PPN</span>
+                                    <span class="block text-xs text-slate-500">Tambahkan pajak PPN pada invoice</span>
+                                </div>
                             </label>
-                            <!-- Paket - selalu tampilkan dropdown dengan paket terpilih, bisa diubah -->
-                            <select id="pppoe_package" name="pppoe_package"
-                                class="w-full px-4 py-3 border border-modern-blue-300 rounded-lg focus:border-modern-blue-500 focus:ring-2 focus:ring-modern-blue-200 transition-all duration-300">
-                                <option value="">Pilih Paket Internet</option>
-                                <% if (typeof packages !=='undefined' && packages && packages.length> 0) { %>
-                                    <% packages.forEach(pkg=> { %>
-                                        <option value="<%= pkg.id %>" <%=(String(customer.package_id)===String(pkg.id)
-                                            || String(customer.pppoe_package_id)===String(pkg.id)) ? 'selected' : '' %>>
-                                            <%= pkg.name %> - Rp <%= pkg.price.toLocaleString('id-ID') %>
-                                                    <% if (pkg.rate_limit_rx && pkg.rate_limit_tx) { %>
-                                                        (<%= pkg.rate_limit_rx %>/<%= pkg.rate_limit_tx %>)
-                                                                <% } %>
-                                                                    <% if (String(customer.package_id)===String(pkg.id)
-                                                                        ||
-                                                                        String(customer.pppoe_package_id)===String(pkg.id))
-                                                                        { %>
-                                                                        ✓ (Terpilih)
-                                                                        <% } %>
-                                        </option>
-                                        <% }); %>
-                                            <% } else { %>
-                                                <option value="">Tidak ada paket tersedia</option>
-                                                <% } %>
+
+                            <!-- Device Rental Checkbox -->
+                            <label
+                                class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                                <input type="checkbox" name="use_device_rental" id="use_device_rental" value="1"
+                                    <%=customer.use_device_rental ? 'checked' : '' %>
+                                class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300">
+                                <div>
+                                    <span class="block text-sm font-bold text-slate-700">Sewa Perangkat</span>
+                                    <span class="block text-xs text-slate-500">Tagihan sewa alat bulanan</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Rental Details (Hidden by default or JS toggled) -->
+                        <div id="rental_options"
+                            class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-indigo-50 rounded-lg border border-indigo-100 <%= customer.use_device_rental ? '' : 'hidden' %>">
+                            <div>
+                                <label class="block text-xs font-semibold text-indigo-700 mb-1">Mode Sewa</label>
+                                <select name="rental_mode"
+                                    class="w-full px-3 py-2 text-sm border-indigo-200 rounded focus:border-indigo-500">
+                                    <option value="flat" <%=(!customer.rental_mode || customer.rental_mode==='flat' )
+                                        ? 'selected' : '' %>>Flat (Bulanan)</option>
+                                    <option value="daily" <%=customer.rental_mode==='daily' ? 'selected' : '' %>>Harian
+                                        (Proporsional)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-indigo-700 mb-1">Biaya (Rp)</label>
+                                <input type="number" name="rental_cost" value="<%= customer.rental_cost || '' %>"
+                                    placeholder="Default Global"
+                                    class="w-full px-3 py-2 text-sm border-indigo-200 rounded focus:border-indigo-500">
+                            </div>
+                        </div>
+            </div>
+        </div>
+
+        <!-- CARD 3: Technical Configuration -->
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                <span class="p-1.5 bg-purple-100 text-purple-600 rounded-lg">⚙️</span>
+                <h3 class="font-bold text-slate-800">Konfigurasi Koneksi</h3>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Connection Type Selector -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-3">Tipe Koneksi</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="connection_type" value="pppoe" class="peer sr-only"
+                                <%=customer.connection_type==='pppoe' ? 'checked' : '' %>>
+                            <div
+                                class="p-4 border-2 rounded-xl transition-all hover:bg-blue-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 border-slate-200">
+                                <span class="block font-bold text-slate-700 peer-checked:text-blue-700">PPPoE</span>
+                                <span class="text-xs text-slate-500">Username & Password</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="connection_type" value="static_ip" class="peer sr-only"
+                                <%=customer.connection_type==='static_ip' ? 'checked' : '' %>>
+                            <div
+                                class="p-4 border-2 rounded-xl transition-all hover:bg-green-50 peer-checked:border-green-500 peer-checked:bg-green-50 border-slate-200">
+                                <span class="block font-bold text-slate-700 peer-checked:text-green-700">Static
+                                    IP</span>
+                                <span class="text-xs text-slate-500">IP Address Manual</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- PPPoE Form -->
+                <div id="pppoe-config"
+                    class="<%= customer.connection_type === 'pppoe' ? '' : 'hidden' %> space-y-4 pt-4 border-t border-slate-100">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Secret Search (Optional) -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Cari Secret (Opsional)</label>
+                            <input type="text" id="pppoe_search" placeholder="Cari username yang ada..."
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50">
+                        </div>
+
+                        <!-- Create Secret Action -->
+                        <div class="flex items-end">
+                            <button type="button" id="create_pppoe_secret_btn"
+                                class="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors">
+                                ⚡ Buat Secret di MikroTik
+                            </button>
+                        </div>
+
+                        <!-- Username -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Username PPPoE *</label>
+                            <input type="text" name="pppoe_username" value="<%= customer.pppoe_username || '' %>"
+                                id="pppoe_username"
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200">
+                        </div>
+
+                        <!-- Password -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Password PPPoE</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="pppoe_password" id="pppoe_password"
+                                    placeholder="<%= customer.pppoe_password ? '****** (Tersimpan)' : 'Input password' %>"
+                                    class="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200">
+                                <button type="button" id="generate_password_btn"
+                                    class="px-3 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-600">🔑</button>
+                            </div>
+                        </div>
+
+                        <!-- Package Select -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Paket Internet</label>
+                            <select name="pppoe_package"
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200">
+                                <option value="">-- Pilih Paket (Opsional) --</option>
+                                <% if (typeof packages !=='undefined' && packages) { packages.forEach(pkg=> { %>
+                                    <option value="<%= pkg.id %>" <%=(String(customer.package_id)===String(pkg.id) ||
+                                        String(customer.pppoe_package_id)===String(pkg.id)) ? 'selected' : '' %>>
+                                        <%= pkg.name %> (<%= pkg.price.toLocaleString('id-ID') %>)
+                                    </option>
+                                    <% }); } %>
                             </select>
-                            <p class="text-xs text-modern-blue-600 mt-1">
-                                <% if (customer.package_id) { %>
-                                    <span class="text-green-600 font-medium">✓ Paket terpilih: ID <%=
-                                            customer.package_id || customer.pppoe_package_id %> (sudah terpilih di
-                                            dropdown). Anda bisa mengubah jika diperlukan.</span>
-                                    <% } else { %>
-                                        Pilih paket internet untuk pelanggan (opsional - bisa dikosongkan)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Static IP Form -->
+                <div id="static-ip-config"
+                    class="<%= customer.connection_type === 'static_ip' ? '' : 'hidden' %> space-y-4 pt-4 border-t border-slate-100">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- IP Address -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">IP Address *</label>
+                            <input type="text" name="ip_address" value="<%= customer.ip_address || '' %>"
+                                placeholder="192.168.1.x/24"
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-200">
+                        </div>
+
+                        <!-- Gateway -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Gateway</label>
+                            <input type="text" name="gateway" value="<%= customer.gateway || '' %>"
+                                placeholder="192.168.1.1"
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-200">
+                        </div>
+
+                        <!-- Interface Select (Clean) -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Interface MikroTik *</label>
+                            <select name="interface"
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-200">
+                                <option value="">-- Pilih Interface --</option>
+                                <% if (typeof interfaces !=='undefined' && Array.isArray(interfaces)) {
+                                    interfaces.forEach(ifc=> { %>
+                                    <option value="<%= ifc.name %>" <%=customer.interface===ifc.name ? 'selected' : ''
+                                        %>>
+                                        <%= ifc.name %> (<%= ifc.type %>)
+                                    </option>
+                                    <% }); } else if (customer.interface) { %>
+                                        <option value="<%= customer.interface %>" selected>
+                                            <%= customer.interface %> (Current)
+                                        </option>
                                         <% } %>
+                            </select>
+                            <% if (typeof interfaceError !=='undefined' && interfaceError) { %>
+                                <p class="text-xs text-red-500 mt-1">Error: <%= interfaceError %>
+                                </p>
+                                <% } %>
+                        </div>
+
+                        <!-- Package Select (Static) -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Paket Internet</label>
+                            <select name="static_ip_package"
+                                class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-200">
+                                <option value="">-- Pilih Paket (Opsional) --</option>
+                                <% if (typeof packages !=='undefined' && packages) { packages.forEach(pkg=> { %>
+                                    <option value="<%= pkg.id %>" <%=(String(customer.package_id)===String(pkg.id))
+                                        ? 'selected' : '' %>>
+                                        <%= pkg.name %> (<%= pkg.price.toLocaleString('id-ID') %>)
+                                    </option>
+                                    <% }); } %>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 4: Infrastructure (ODC/ODP) -->
+        <% var initialOdpName='' ; var initialOdcName='' ; var initialOltName='Auto' ; // Logic to preset names if
+            (customer.odp_id && typeof odpData !=='undefined' && Array.isArray(odpData)) { var found=odpData.find(o=>
+            String(o.id) === String(customer.odp_id));
+            if (found) {
+            initialOdpName = found.odp_name;
+            initialOdcName = found.odc_name;
+            initialOltName = found.olt_name || 'Auto';
+            }
+            }
+            if (!initialOdpName && customer.odp_name) initialOdpName = customer.odp_name;
+            if (!initialOdcName && customer.odc_name) initialOdcName = customer.odc_name;
+            if (!initialOltName && customer.olt_name) initialOltName = customer.olt_name;
+            %>
+            <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                    <span class="p-1.5 bg-cyan-100 text-cyan-600 rounded-lg">🏗️</span>
+                    <h3 class="font-bold text-slate-800">Infrastruktur Jaringan (FTTH)</h3>
+                </div>
+                <div class="p-6 space-y-6">
+                    <!-- Wireless Toggle -->
+                    <div class="p-4 bg-cyan-50 border border-cyan-100 rounded-lg flex items-center gap-3">
+                        <input type="checkbox" id="is_wireless"
+                            class="w-5 h-5 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500"
+                            <%=(!customer.odp_id && !initialOdcName) ? 'checked' : '' %>>
+                        <div>
+                            <span class="block text-sm font-bold text-cyan-900">Koneksi Wireless / Tanpa ODP</span>
+                            <span class="block text-xs text-cyan-700">Centang opsi ini jika pelanggan tidak menggunakan
+                                jalur fiber optik (ODP/ODC)</span>
+                        </div>
+                    </div>
+
+                    <!-- ODC/ODP Inputs -->
+                    <div id="infra_wrapper" class="space-y-5 transition-all duration-300">
+                        <!-- ODC Step -->
+                        <div class="relative">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">1. Pilih ODC (Optical
+                                Distribution Cabinet)</label>
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <input type="text" id="odc_search" value="<%= initialOdcName %>"
+                                        placeholder="Ketik nama ODC..."
+                                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-200 focus:border-cyan-500"
+                                        autocomplete="off">
+                                    <input type="hidden" name="odc_id" id="odc_id" value="<%= customer.odc_id || '' %>">
+                                    <!-- Results container -->
+                                    <div id="odc_search_results"
+                                        class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg max-h-60 overflow-y-auto hidden">
+                                    </div>
+                                </div>
+                                <button type="button" id="reset_odc_btn"
+                                    class="px-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- ODP Step -->
+                        <div id="odp_section_wrapper"
+                            class="relative transition-all <%= (customer.odc_id || initialOdcName) ? '' : 'opacity-50 pointer-events-none' %>">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">2. Pilih ODP (Optical
+                                Distribution Point)</label>
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <input type="text" id="odp_search" value="<%= initialOdpName %>"
+                                        placeholder="Pilih ODP dari ODC..."
+                                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-200 focus:border-cyan-500"
+                                        autocomplete="off">
+                                    <input type="hidden" name="odp_id" id="odp_id" value="<%= customer.odp_id || '' %>">
+                                    <!-- Results -->
+                                    <div id="odp_search_results"
+                                        class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg max-h-60 overflow-y-auto hidden">
+                                    </div>
+                                </div>
+                                <button type="button" id="reload_odp_btn"
+                                    class="px-3 border border-slate-300 rounded-lg bg-cyan-50 text-cyan-600 hover:bg-cyan-100">🔄</button>
+                            </div>
+                            <p class="text-xs text-cyan-700 mt-1" id="selected_odp_info">
+                                <%= customer.odp_id ? '✓ Tersimpan: ' + initialOdpName : '' %>
                             </p>
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- IP Static Configuration -->
-            <div id="static-ip-config" class="<%= customer.connection_type === 'static_ip' ? '' : 'hidden' %>">
-                <div
-                    class="rounded-xl border border-modern-green-200 bg-gradient-to-br from-modern-green-50 to-modern-emerald-50 p-6">
-                    <h3 class="text-lg font-bold text-modern-green-900 mb-4">Konfigurasi IP Static</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="ip_address" class="block text-sm font-medium text-modern-green-700 mb-2">IP
-                                Address *</label>
-                            <input type="text" id="ip_address" name="ip_address"
-                                value="<%= customer.ip_address || '' %>" placeholder="192.168.1.1/30" required
-                                class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
-                            <p class="text-xs text-modern-green-600 mt-1">Format: IP/CIDR (contoh: 192.168.1.1/30)</p>
-                        </div>
-                        <div>
-                            <label for="interface"
-                                class="block text-sm font-medium text-modern-green-700 mb-2">Interface *</label>
-                            <% var viewInterfaces=typeof interfaces !=='undefined' ? interfaces : []; var
-                                viewHasInterfaces=Array.isArray(viewInterfaces) && viewInterfaces.length> 0;
-                                var viewCurrentInterface = customer.interface || '';
-                                var viewInterfaceError = typeof interfaceError !== 'undefined' ? interfaceError : null;
-                                %>
-                                <script>
-                                    (function () {
-                                        try {
-                                            var interfacesData = <% - typeof interfaces !== 'undefined' ? JSON.stringify(viewInterfaces) : '[]' %>;
-                                            console.log('🔍 VIEW DEBUG - Interface Section:');
-                                            console.log('  - interfaces type:', typeof interfacesData);
-                                            console.log('  - interfaces isArray:', Array.isArray(interfacesData));
-                                            console.log('  - interfaces length:', interfacesData ? interfacesData.length : 0);
-                                            console.log('  - interfaces data:', interfacesData);
-                                            console.log('  - current interface:', '<%= viewCurrentInterface %>');
-                                            console.log('  - interfaceError:', '<%= viewInterfaceError || "" %>');
-                                            console.log('  - connection_type:', '<%= customer.connection_type %>');
-                                        } catch (e) {
-                                            console.error('Debug log error:', e);
-                                        }
-                                    })();
-                                </script>
-                                <% if (viewInterfaceError) { %>
-                                    <div
-                                        class="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                                        ⚠️ <strong>Peringatan:</strong>
-                                        <%= viewInterfaceError %>
-                                            <br>
-                                            <a href="/settings/mikrotik"
-                                                class="text-blue-600 hover:underline mt-1 inline-block">Konfigurasi
-                                                MikroTik</a>
-                                            <br>
-                                            <a href="/api/debug/interfaces" target="_blank"
-                                                class="text-blue-600 hover:underline mt-1 inline-block">🔍 Debug
-                                                Interface API</a>
-                                    </div>
-                                    <% } %>
-                                        <% if (!viewHasInterfaces && !viewInterfaceError) { %>
-                                            <div
-                                                class="mb-2 p-3 bg-yellow-50 border border-yellow-300 rounded text-sm text-yellow-800">
-                                                ⚠️ <strong>Perhatian:</strong> Interface tidak ditemukan
-                                                <br>
-                                                <small>Count: <%= viewInterfaces.length %>, Type: <%= typeof interfaces
-                                                            %>, IsArray: <%= Array.isArray(viewInterfaces) %></small>
-                                                <br>
-                                                <small>Connection Type: <%= customer.connection_type %></small>
-                                                <br>
-                                                <a href="/api/debug/interfaces" target="_blank"
-                                                    class="text-blue-600 hover:underline mt-1 inline-block">🔍 Test
-                                                    Debug Interface API</a>
-                                            </div>
-                                            <% } %>
-                                                <select id="interface" name="interface" required
-                                                    class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300"
-                                                    <%=(viewInterfaceError && !viewHasInterfaces) ? 'disabled' : '' %>>
-                                                    <option value="">-- Pilih Interface --</option>
-                                                    <% if (viewHasInterfaces) { %>
-                                                        <% viewInterfaces.forEach(function(ifc){ var ifcName=(ifc &&
-                                                            ifc.name) ? String(ifc.name) : '' ; var
-                                                            isSelected=viewCurrentInterface===ifcName; if (ifcName) { %>
-                                                            <option value="<%= ifcName %>" <%=isSelected ? 'selected'
-                                                                : '' %>><%= ifcName %>
-                                                                    <% if (ifc && ifc.type) { %>(<%= ifc.type %>)<% } %>
-                                                            </option>
-                                                            <% } }); %>
-                                                                <% } else if (viewCurrentInterface) { %>
-                                                                    <option value="<%= viewCurrentInterface %>"
-                                                                        selected>
-                                                                        <%= viewCurrentInterface %> (current)
-                                                                    </option>
-                                                                    <% } else { %>
-                                                                        <option value="" disabled>Interface tidak
-                                                                            tersedia - Pastikan MikroTik terhubung
-                                                                        </option>
-                                                                        <% } %>
-                                                </select>
-                                                <p class="text-xs text-modern-green-600 mt-1">
-                                                    <% if (viewHasInterfaces) { %>
-                                                        ✅ Pilih interface MikroTik (<%= viewInterfaces.length %>
-                                                            tersedia)
-                                                            <% } else if (viewCurrentInterface) { %>
-                                                                ⚠️ Interface saat ini: <%= viewCurrentInterface %>
-                                                                    (tidak ada dalam daftar)
-                                                                    <% } else { %>
-                                                                        ❌ Interface tidak tersedia.
-                                                                        <a href="/api/debug/interfaces" target="_blank"
-                                                                            class="text-blue-600 hover:underline">Debug
-                                                                            Interface</a> |
-                                                                        <a href="/settings/mikrotik"
-                                                                            class="text-blue-600 hover:underline">Settings
-                                                                            MikroTik</a>
-                                                                        <% } %>
-                                                </p>
-                        </div>
-                        <div>
-                            <label for="static_ip_package"
-                                class="block text-sm font-medium text-modern-green-700 mb-2">Paket Internet</label>
-                            <select id="static_ip_package" name="static_ip_package"
-                                class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
-                                <option value="">Pilih Paket Internet</option>
-                                <% if (typeof packages !=='undefined' && packages && packages.length> 0) { %>
-                                    <% packages.forEach(pkg=> { %>
-                                        <option value="<%= pkg.id %>" <%=(String(customer.package_id)===String(pkg.id)
-                                            || String(customer.static_ip_package_id)===String(pkg.id)) ? 'selected' : ''
-                                            %>>
-                                            <%= pkg.name %> - Rp <%= pkg.price.toLocaleString('id-ID') %>
-                                                    <% if (pkg.max_limit_upload && pkg.max_limit_download) { %>
-                                                        (<%= pkg.max_limit_download %>/<%= pkg.max_limit_upload %>)
-                                                                <% } %>
-                                        </option>
-                                        <% }); %>
-                                            <% } else { %>
-                                                <option value="">Tidak ada paket tersedia</option>
-                                                <% } %>
-                            </select>
-                            <p class="text-xs text-modern-green-600 mt-1">Pilih paket internet untuk pelanggan</p>
-                        </div>
-                        <div>
-                            <label for="gateway"
-                                class="block text-sm font-medium text-modern-green-700 mb-2">Gateway</label>
-                            <input type="text" id="gateway" name="gateway" value="<%= customer.gateway || '' %>"
-                                placeholder="192.168.1.1"
-                                class="w-full px-4 py-3 border border-modern-green-300 rounded-lg focus:border-modern-green-500 focus:ring-2 focus:ring-modern-green-200 transition-all duration-300">
-                            <p class="text-xs text-modern-green-600 mt-1">Gateway untuk koneksi (opsional)</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- OLT, ODC, ODP Information (HIERARCHICAL ODC -> ODP) -->
-            <% 
-                var initialOdpName = ''; 
-                var initialOdcName = ''; 
-                var initialOltName = ''; 
-                
-                // Try to find names in odpData passed from controller if available 
-                if (customer.odp_id && typeof odpData !== 'undefined' && Array.isArray(odpData)) { 
-                    var found = odpData.find(function(o) { return String(o.id) === String(customer.odp_id); }); 
-                    if (found) { 
-                        initialOdpName = found.odp_name;
-                        initialOdcName = found.odc_name; 
-                        initialOltName = found.olt_name || 'Auto'; 
-                    } 
-                } 
-                
-                // If not found in odpData but we have names directly on customer object
-                if (!initialOdpName && customer.odp_name) initialOdpName = customer.odp_name; 
-                if (!initialOdcName && customer.odc_name) initialOdcName = customer.odc_name; 
-                if (!initialOltName && customer.olt_name) initialOltName = customer.olt_name; 
-            %>
-                <div
-                    class="rounded-xl border border-modern-cyan-200 bg-gradient-to-br from-modern-cyan-50 to-modern-blue-50 p-6">
-                    <h3 class="text-lg font-bold text-modern-cyan-900 mb-4 flex items-center gap-2">
-                        <span class="p-1.5 bg-modern-cyan-100 rounded-lg">🏗️</span> Data Teknis (ODC & ODP)
-                    </h3>
-
-                    <div class="space-y-4">
-                        <!-- Wireless Toggle -->
-                        <div
-                            class="flex items-center justify-between bg-white/60 p-3 rounded-lg border border-modern-cyan-100 shadow-sm">
-                            <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input type="checkbox" id="is_wireless" <%=(!customer.odp_id && !initialOdcName)
-                                    ? 'checked' : '' %>
-                                class="w-5 h-5 rounded text-modern-cyan-600 focus:ring-modern-cyan-500 border-gray-300
-                                transition-all">
-                                <span class="text-sm font-bold text-modern-cyan-900">Koneksi Wireless / Tanpa ODP</span>
-                            </label>
-                            <span class="text-xs text-modern-cyan-600 hidden sm:inline">Centang jika tidak menggunakan
-                                jalur Fiber</span>
-                        </div>
-
-                        <!-- Main Infrastructure Wrapper -->
-                        <div id="infra_wrapper" class="space-y-4 transition-all duration-300">
-
-                            <!-- STEP 1: ODC SELECTION -->
-                            <div class="relative">
-                                <label class="block text-sm font-semibold text-modern-cyan-800 mb-1">1. Cari & Pilih ODC
-                                    (Optical Distribution Cabinet) *</label>
-                                <div class="flex gap-2">
-                                    <div class="relative w-full">
-                                        <input type="text" id="odc_search" value="<%= initialOdcName %>"
-                                            placeholder="Ketik nama ODC..." autocomplete="off"
-                                            class="w-full rounded-lg border border-modern-cyan-300 px-4 py-2.5 focus:outline-none focus:border-modern-cyan-500 focus:ring-2 focus:ring-modern-cyan-200 font-medium transition-all duration-300 bg-white">
-                                        <input type="hidden" name="odc_id" id="odc_id"
-                                            value="<%= customer.odc_id || '' %>">
-
-                                        <!-- ODC Results -->
-                                        <div id="odc_search_results"
-                                            class="absolute z-20 w-full mt-1 bg-white border border-modern-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
-                                        </div>
-                                    </div>
-                                    <button type="button" id="reset_odc_btn"
-                                        class="px-3 py-2 bg-slate-100 text-slate-500 rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors"
-                                        title="Reset ODC">
-                                        ✕
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- STEP 2: ODP SELECTION (Dependent on ODC) -->
-                            <div id="odp_section_wrapper"
-                                class="relative transition-all duration-300 <%= (customer.odc_id || initialOdcName) ? '' : 'opacity-50 pointer-events-none grayscale' %>">
-                                <label class="block text-sm font-semibold text-modern-cyan-800 mb-1">2. Pilih ODP
-                                    (Optical Distribution Point) *</label>
-                                <div class="flex gap-2">
-                                    <div class="relative w-full">
-                                        <input type="text" id="odp_search" value="<%= initialOdpName %>"
-                                            placeholder="Pilih ODP dari ODC diatas..." autocomplete="off"
-                                            class="w-full rounded-lg border border-modern-cyan-300 px-4 py-2.5 focus:outline-none focus:border-modern-cyan-500 focus:ring-2 focus:ring-modern-cyan-200 font-medium transition-all duration-300 bg-white">
-                                        <input type="hidden" name="odp_id" id="odp_id"
-                                            value="<%= customer.odp_id || '' %>" required>
-
-                                        <!-- ODP Results -->
-                                        <div id="odp_search_results"
-                                            class="absolute z-20 w-full mt-1 bg-white border border-modern-cyan-200 rounded-xl shadow-xl max-h-60 overflow-y-auto hidden">
-                                        </div>
-                                    </div>
-                                    <button type="button" id="reload_odp_btn"
-                                        class="px-3 py-2 bg-modern-cyan-50 text-modern-cyan-600 rounded-lg border border-modern-cyan-200 hover:bg-modern-cyan-100 transition-colors"
-                                        title="Reload ODP List">
-                                        🔄
-                                    </button>
-                                </div>
-                                <p class="text-xs text-modern-cyan-600 mt-1" id="selected_odp_info">
-                                    <%= customer.odp_id ? '✓ ODP Terpilih: ' + initialOdpName
-                                        + ' (Port info akan muncul saat search)' : 'Pilih ODC dahulu, lalu pilih ODP.'
-                                        %>
-                                </p>
-                            </div>
-
-                            <!-- INFO: OLT (Auto Display) -->
+                        <!-- OLT Display -->
+                        <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="text-xs font-semibold text-slate-500">OLT (Terisi Otomatis)</label>
-                                <input name="olt_display" id="olt_display" readonly
-                                    value="<%= initialOltName || 'Auto' %>"
-                                    class="w-full text-sm bg-slate-50 rounded border border-slate-200 px-3 py-2 text-slate-600"
-                                    placeholder="-" />
-                                <input name="olt_id" id="olt_id" type="hidden" value="<%= customer.olt_id || '' %>" />
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">OLT (Auto)</label>
+                                <input type="text" id="olt_display" value="<%= initialOltName %>" readonly
+                                    class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded text-slate-600 text-sm">
+                                <input type="hidden" name="olt_id" id="olt_id" value="<%= customer.olt_id || '' %>">
                             </div>
-
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Hierarchical Search Script -->
-                <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        // Elements
-                        const odcSearch = document.getElementById('odc_search');
-                        const odcIdInput = document.getElementById('odc_id');
-                        const odcResults = document.getElementById('odc_search_results');
-                        const resetOdcBtn = document.getElementById('reset_odc_btn');
-
-                        const odpSearch = document.getElementById('odp_search');
-                        const odpIdInput = document.getElementById('odp_id');
-                        const odpResults = document.getElementById('odp_search_results');
-                        const odpSection = document.getElementById('odp_section_wrapper');
-                        const odpInfo = document.getElementById('selected_odp_info');
-                        const reloadOdpBtn = document.getElementById('reload_odp_btn');
-
-                        const oltDisplay = document.getElementById('olt_display');
-                        const oltIdInput = document.getElementById('olt_id');
-
-                        const isWireless = document.getElementById('is_wireless');
-                        const infraWrapper = document.getElementById('infra_wrapper');
-
-                        let odcTimeout, odpTimeout;
-
-                        // === 1. WIRELESS TOGGLE ===
-                        function toggleWireless() {
-                            if (isWireless.checked) {
-                                infraWrapper.classList.add('opacity-40', 'pointer-events-none');
-                                // Clear requirements
-                                if (odpIdInput) {
-                                    odpIdInput.required = false;
-                                    odpIdInput.value = '';
-                                }
-                            } else {
-                                infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
-                                if (odpIdInput) odpIdInput.required = true;
-                            }
-                        }
-                        if (isWireless) {
-                            isWireless.addEventListener('change', toggleWireless);
-                            toggleWireless(); // Init
-                        }
-
-                        // === 2. ODC SEARCH LOGIC ===
-                        if (odcSearch) {
-                            odcSearch.addEventListener('input', function (e) {
-                                clearTimeout(odcTimeout);
-                                const query = e.target.value.trim();
-
-                                // User ketik manual -> Reset ID dulu
-                                odcIdInput.value = '';
-                                lockOdpSection(); // Lock ODP until ODC selected again
-
-                                if (query.length < 1) {
-                                    odcResults.classList.add('hidden');
-                                    return;
-                                }
-
-                                odcTimeout = setTimeout(() => {
-                                    odcResults.innerHTML = '<div class="p-2 text-xs text-center">Loading...</div>';
-                                    odcResults.classList.remove('hidden');
-
-                                    fetch('/api/ftth/odc/search?q=' + encodeURIComponent(query))
-                                        .then(r => r.json())
-                                        .then(res => {
-                                            if (res.success && res.results.length > 0) {
-                                                odcResults.innerHTML = res.results.map(odc => `
-                                                <div class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odc-item"
-                                                     data-id="${odc.id}" data-name="${odc.name}">
-                                                    <div class="font-bold text-cyan-900">${odc.name}</div>
-                                                    <div class="text-xs text-slate-500">${odc.location || '-'} (${odc.used_ports}/${odc.total_ports})</div>
-                                                </div>
-                                            `).join('');
-                                            } else {
-                                                odcResults.innerHTML = '<div class="p-2 text-xs text-center text-yellow-600">ODC tidak ditemukan</div>';
-                                            }
-                                        }).catch(e => {
-                                            odcResults.innerHTML = '<div class="p-2 text-xs text-center text-red-500">Error</div>';
-                                        });
-                                }, 300);
-                            });
-
-                            // Select ODC
-                            odcResults.addEventListener('click', function (e) {
-                                const item = e.target.closest('.odc-item');
-                                if (item) {
-                                    const id = item.dataset.id;
-                                    const name = item.dataset.name;
-
-                                    odcSearch.value = name;
-                                    odcIdInput.value = id;
-                                    odcResults.classList.add('hidden');
-
-                                    // Unlock ODP Section
-                                    unlockOdpSection();
-
-                                    // Auto expand ODP search to show available ODPs immediately? Maybe better let user click/focus
-                                    odpInfo.textContent = `ODC: ${name} terpilih. Silakan pilih ODP.`;
-                                    odpSearch.focus();
-                                }
-                            });
-
-                            // Hide on blur
-                            odcSearch.addEventListener('blur', () => setTimeout(() => odcResults.classList.add('hidden'), 200));
-                        }
-
-                        // Reset ODC
-                        if (resetOdcBtn) {
-                            resetOdcBtn.addEventListener('click', () => {
-                                if (isWireless.checked) return;
-                                odcSearch.value = '';
-                                odcIdInput.value = '';
-                                lockOdpSection();
-                                odcSearch.focus();
-                            });
-                        }
-
-                        // === 3. ODP SEARCH LOGIC (Filtered by ODC) ===
-                        function lockOdpSection() {
-                            odpSection.classList.add('opacity-50', 'pointer-events-none', 'grayscale');
-                            odpSearch.value = '';
-                            odpIdInput.value = '';
-                            oltDisplay.value = '';
-                            oltIdInput.value = '';
-                        }
-
-                        function unlockOdpSection() {
-                            odpSection.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
-                        }
-
-                        if (odpSearch) {
-                            // Show all ODPs in ODC automatically on focus
-                            odpSearch.addEventListener('focus', function () {
-                                if (!odcIdInput.value) return;
-                                // Trigger empty search to list all in ODC
-                                triggerOdpSearch('');
-                            });
-
-                            odpSearch.addEventListener('input', function (e) {
-                                triggerOdpSearch(e.target.value.trim());
-                            });
-
-                            function triggerOdpSearch(query) {
-                                clearTimeout(odpTimeout);
-                                const odcId = odcIdInput.value;
-                                if (!odcId) return;
-
-                                odpTimeout = setTimeout(() => {
-                                    odpResults.classList.remove('hidden');
-                                    odpResults.innerHTML = '<div class="p-2 text-xs text-center">Loading ODPs...</div>';
-
-                                    fetch(`/api/ftth/odp/search?odc_id=${odcId}&q=${encodeURIComponent(query)}`)
-                                        .then(r => r.json())
-                                        .then(res => {
-                                            if (res.success && res.results.length > 0) {
-                                                odpResults.innerHTML = res.results.map(odp => `
-                                                <div class="p-2 hover:bg-cyan-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odp-item"
-                                                     data-id="${odp.id}" data-name="${odp.name}"
-                                                     data-capacity="${odp.total_ports}" data-used="${odp.used_ports}">
-                                                    <div class="flex justify-between">
-                                                        <span class="font-bold text-cyan-900">${odp.name}</span>
-                                                        <span class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500' : 'text-green-600'}">
-                                                            ${odp.used_ports}/${odp.total_ports}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            `).join('');
-                                            } else {
-                                                odpResults.innerHTML = '<div class="p-2 text-xs text-center text-yellow-600">Tidak ada ODP ditemukan di ODC ini</div>';
-                                            }
-                                        });
-                                }, 300);
-                            }
-
-                            // Select ODP
-                            odpResults.addEventListener('click', function (e) {
-                                const item = e.target.closest('.odp-item');
-                                if (item) {
-                                    odpSearch.value = item.dataset.name;
-                                    odpIdInput.value = item.dataset.id;
-                                    odpInfo.textContent = `✓ ODP: ${item.dataset.name} (${item.dataset.used}/${item.dataset.capacity})`;
-                                    odpResults.classList.add('hidden');
-
-                                    // Auto-fill OLT? API response might not have OLT info if it's strictly filtered
-                                    // But typically ODP belongs to ODC, and ODC belongs to OLT. 
-                                    // The API response above (modified) does not join OLT.
-                                    // Assuming ODC is enough, or we can fetch OLT separately.
-                                    // Use 'Auto' for now as placeholder.
-                                    oltDisplay.value = 'Auto (Saved)';
-                                }
-                            });
-                            // Hide on blur
-                            odpSearch.addEventListener('blur', () => setTimeout(() => odpResults.classList.add('hidden'), 200));
-                        }
-                    });
-                </script>
-
-                <!-- Location Information -->
-                <div
-                    class="rounded-xl border border-modern-orange-200 bg-gradient-to-br from-modern-orange-50 to-modern-amber-50 p-6">
-                    <h3 class="text-lg font-bold text-modern-orange-900 mb-4">Informasi Lokasi</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="latitude"
-                                class="block text-sm font-medium text-modern-orange-700 mb-2">Latitude</label>
-                            <input type="number" id="latitude" name="latitude" value="<%= customer.latitude || '' %>"
-                                step="any" placeholder="-6.200000"
-                                class="w-full px-4 py-3 border border-modern-orange-300 rounded-lg focus:border-modern-orange-500 focus:ring-2 focus:ring-modern-orange-200 transition-all duration-300">
-                        </div>
-                        <div>
-                            <label for="longitude"
-                                class="block text-sm font-medium text-modern-orange-700 mb-2">Longitude</label>
-                            <input type="number" id="longitude" name="longitude" value="<%= customer.longitude || '' %>"
-                                step="any" placeholder="106.816666"
-                                class="w-full px-4 py-3 border border-modern-orange-300 rounded-lg focus:border-modern-orange-500 focus:ring-2 focus:ring-modern-orange-200 transition-all duration-300">
-                        </div>
-                    </div>
-
-                    <div class="mt-6">
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="block text-sm font-medium text-modern-orange-700">Peta Lokasi</label>
-                            <button type="button" id="btnMyLocation"
-                                class="text-xs px-2 py-1 border border-amber-300 rounded hover:bg-amber-50">Lokasi
-                                Saya</button>
-                        </div>
-                        <div id="editLocationMap"
-                            style="height: 260px; width: 100%; border: 1px solid #e2e8f0; border-radius: 0.75rem; position: relative; z-index: 1;"
-                            class="rounded-lg shadow-sm bg-white"></div>
-                        <p class="text-xs text-modern-orange-700 mt-2">Klik pada peta untuk mengisi
-                            latitude/longitude,
-                            atau
-                            gunakan “Lokasi Saya”.</p>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="flex items-center justify-end gap-4 pt-6 border-t border-modern-purple-200">
-                    <a href="/customers/list"
-                        class="px-6 py-3 border border-modern-purple-300 text-modern-purple-700 rounded-lg hover:bg-modern-purple-50 transition-all duration-300 font-medium">
-                        Batal
-                    </a>
-                    <button type="submit"
-                        class="px-6 py-3 bg-gradient-to-r from-modern-purple-500 to-modern-pink-500 text-white rounded-lg hover:from-modern-purple-600 hover:to-modern-pink-600 transition-all duration-300 font-medium shadow-lg">
-                        Simpan Perubahan
-                    </button>
-                </div>
-        </form>
-        <!-- Data Storage for Javascript -->
-        <!-- Data Storage for Javascript -->
-        <script id="odp-data-json" type="application/json">
-            <%- (typeof odpData !== "undefined" && odpData) ? JSON.stringify(odpData) : "[]" %>
-        </script>
-    </div>
+            <!-- Submit Actions -->
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <a href="/customers/list"
+                    class="px-6 py-3 border border-slate-300 text-slate-600 font-medium rounded-xl hover:bg-slate-50 transition-colors">Batal</a>
+                <button type="submit"
+                    class="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all transform hover:-translate-y-0.5">
+                    💾 Simpan Perubahan
+                </button>
+            </div>
+    </form>
 </div>
 
+<!-- SCRIPTS: Clean & Consolidated -->
 <script>
-    function toggleConnectionFields() {
-        const connectionType = document.querySelector('input[name="connection_type"]:checked')?.value;
-        if (!connectionType) return;
-
-        const pppoeConfig = document.getElementById('pppoe-config');
-        const staticIpConfig = document.getElementById('static-ip-config');
-
-        // Get all radio buttons
-        const radios = document.querySelectorAll('input[name="connection_type"]');
-        const pppoeRadio = document.querySelector('input[name="connection_type"][value="pppoe"]');
-        const staticIpRadio = document.querySelector('input[name="connection_type"][value="static_ip"]');
-
-        if (connectionType === 'pppoe') {
-            // Show PPPOE config, hide Static IP config
-            if (pppoeConfig) {
-                pppoeConfig.classList.remove('hidden');
-
-                // Ensure search field is visible and trigger loadSecrets
-                setTimeout(() => {
-                    const pppoeSearch = document.getElementById('pppoe_search');
-                    if (pppoeSearch) {
-                        // Re-initialize handlers if needed
-                        if (typeof window.reinitializePPPoESearch === 'function') {
-                            window.reinitializePPPoESearch();
-                        }
-                        if (typeof window.loadSecrets === 'function') {
-                            window.loadSecrets();
-                        }
-                    }
-                }, 200);
-            }
-            if (staticIpConfig) staticIpConfig.classList.add('hidden');
-
-            // Update visual radio button
-            radios.forEach(radio => {
-                const label = radio.closest('label');
-                const card = label?.querySelector('div');
-                const dot = label?.querySelector('div > div > div[class*="border-2"]');
-                if (radio.value === 'pppoe' && card && dot) {
-                    card.classList.remove('border-slate-200');
-                    card.classList.add('border-modern-blue-500', 'bg-modern-blue-50');
-                    dot.classList.remove('border-slate-300');
-                    dot.classList.add('border-modern-blue-500', 'bg-modern-blue-500');
-                    if (!dot.querySelector('div[class*="rounded-full"]')) {
-                        const innerDot = document.createElement('div');
-                        innerDot.className = 'w-1.5 h-1.5 rounded-full bg-white';
-                        dot.appendChild(innerDot);
-                    }
-                } else if (radio.value === 'static_ip' && card && dot) {
-                    card.classList.remove('border-modern-green-500', 'bg-modern-green-50');
-                    card.classList.add('border-slate-200');
-                    dot.classList.remove('border-modern-green-500', 'bg-modern-green-500');
-                    dot.classList.add('border-slate-300');
-                    const innerDot = dot.querySelector('div[class*="rounded-full"]');
-                    if (innerDot) innerDot.remove();
-                }
-            });
-
-            // Set required fields for PPPOE
-            const pppoeUsername = document.getElementById('pppoe_username');
-            const pppoePassword = document.getElementById('pppoe_password');
-            const passwordView = document.getElementById('pppoe_password_view');
-            const ipAddress = document.getElementById('ip_address');
-            const interfaceField = document.getElementById('interface');
-            if (pppoeUsername) pppoeUsername.required = true;
-            // Password tidak wajib - akan di-generate otomatis jika dikosongkan
-            if (pppoePassword) {
-                pppoePassword.required = false;
-            }
-            if (ipAddress) ipAddress.required = false;
-            if (interfaceField) interfaceField.required = false;
-
-        } else if (connectionType === 'static_ip') {
-            // Show Static IP config, hide PPPOE config
-            if (pppoeConfig) pppoeConfig.classList.add('hidden');
-            if (staticIpConfig) staticIpConfig.classList.remove('hidden');
-
-            // Update visual radio button
-            radios.forEach(radio => {
-                const label = radio.closest('label');
-                const card = label?.querySelector('div');
-                const dot = label?.querySelector('div > div > div[class*="border-2"]');
-                if (radio.value === 'static_ip' && card && dot) {
-                    card.classList.remove('border-slate-200');
-                    card.classList.add('border-modern-green-500', 'bg-modern-green-50');
-                    dot.classList.remove('border-slate-300');
-                    dot.classList.add('border-modern-green-500', 'bg-modern-green-500');
-                    if (!dot.querySelector('div[class*="rounded-full"]')) {
-                        const innerDot = document.createElement('div');
-                        innerDot.className = 'w-1.5 h-1.5 rounded-full bg-white';
-                        dot.appendChild(innerDot);
-                    }
-                } else if (radio.value === 'pppoe' && card && dot) {
-                    card.classList.remove('border-modern-blue-500', 'bg-modern-blue-50');
-                    card.classList.add('border-slate-200');
-                    dot.classList.remove('border-modern-blue-500', 'bg-modern-blue-500');
-                    dot.classList.add('border-slate-300');
-                    const innerDot = dot.querySelector('div[class*="rounded-full"]');
-                    if (innerDot) innerDot.remove();
-                }
-            });
-
-            // Set required fields for Static IP
-            const pppoeUsername = document.getElementById('pppoe_username');
-            const pppoePassword = document.getElementById('pppoe_password');
-            const passwordView = document.getElementById('pppoe_password_view');
-            const ipAddress = document.getElementById('ip_address');
-            const interfaceField = document.getElementById('interface');
-            if (pppoeUsername) pppoeUsername.required = false;
-            // Password tidak wajib untuk Static IP
-            if (pppoePassword) {
-                pppoePassword.required = false;
-            }
-            if (ipAddress) ipAddress.required = true;
-            if (interfaceField) interfaceField.required = true;
-        }
-    }
-
-    // Form validation
-    function validateForm() {
-        const connectionTypeRadio = document.querySelector('input[name="connection_type"]:checked');
-        if (!connectionTypeRadio) {
-            alert('Pilih jenis koneksi terlebih dahulu');
-            return false;
-        }
-        const connectionType = connectionTypeRadio.value;
-
-        if (connectionType === 'pppoe') {
-            const usernameEl = document.getElementById('pppoe_username');
-            if (!usernameEl) {
-                console.warn('pppoe_username element not found');
-                return true; // Skip validation if element doesn't exist
-            }
-            const username = usernameEl.value.trim();
-            const passwordInput = document.getElementById('pppoe_password');
-            const passwordView = document.getElementById('pppoe_password_view');
-            const hasExistingPassword = passwordView && passwordView.offsetParent !== null;
-
-            // Check if password input is visible (not hidden)
-            const isPasswordInputVisible = passwordInput && passwordInput.offsetParent !== null;
-            const password = (passwordInput && isPasswordInputVisible) ? passwordInput.value.trim() : '';
-
-            if (!username) {
-                alert('Username PPPOE harus diisi');
-                return false;
-            }
-            // Password tidak wajib - akan di-generate otomatis jika dikosongkan
-            // Tidak perlu validasi password karena bisa kosong (auto-generate)
-        } else if (connectionType === 'static_ip') {
-            const ipAddressEl = document.getElementById('ip_address');
-            const interfaceEl = document.getElementById('interface');
-
-            if (!ipAddressEl || !interfaceEl) {
-                console.warn('Static IP form elements not found');
-                return true; // Skip validation if elements don't exist
-            }
-
-            const ipAddress = ipAddressEl.value.trim();
-            const interface = interfaceEl.value.trim();
-
-            if (!ipAddress) {
-                alert('IP Address harus diisi');
-                return false;
-            }
-            if (!interface) {
-                alert('Interface harus diisi');
-                return false;
-            }
-
-            // Validate IP format
-            const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
-            if (!ipRegex.test(ipAddress)) {
-                alert('Format IP Address tidak valid. Gunakan format: 192.168.1.1/30');
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    // Function to update package dropdown based on connection type
-    async function updatePackageDropdown(connectionType) {
-        const pppoePackageSelect = document.getElementById('pppoe_package');
-        const staticIpPackageSelect = document.getElementById('static_ip_package');
-
-        try {
-            const response = await fetch(`/api/packages/${connectionType}`);
-            const packages = await response.json();
-
-            if (connectionType === 'pppoe') {
-                // Update PPPOE package dropdown
-                pppoePackageSelect.innerHTML = '<option value="">Pilih Paket Internet</option>';
-                packages.forEach(pkg => {
-                    const option = document.createElement('option');
-                    option.value = pkg.id;
-                    option.textContent = `${pkg.name} - Rp ${pkg.price.toLocaleString('id-ID')}${pkg.rate_limit_rx && pkg.rate_limit_tx ? ` (${pkg.rate_limit_rx}/${pkg.rate_limit_tx})` : ''}`;
-                    pppoePackageSelect.appendChild(option);
-                });
-            } else if (connectionType === 'static_ip') {
-                // Update Static IP package dropdown
-                staticIpPackageSelect.innerHTML = '<option value="">Pilih Paket Internet</option>';
-                packages.forEach(pkg => {
-                    const option = document.createElement('option');
-                    option.value = pkg.id;
-                    option.textContent = `${pkg.name} - Rp ${pkg.price.toLocaleString('id-ID')}${pkg.max_limit_upload && pkg.max_limit_download ? ` (${pkg.max_limit_download}/${pkg.max_limit_upload})` : ''}`;
-                    staticIpPackageSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading packages:', error);
-        }
-    }
-
-    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function () {
-        // Initial toggle based on current selection
-        toggleConnectionFields();
+        // === 1. Tipe Koneksi Toggle ===
+        const typeRadios = document.querySelectorAll('input[name="connection_type"]');
+        const pppoeGroup = document.getElementById('pppoe-config');
+        const staticGroup = document.getElementById('static-ip-config');
 
-        // Add event listeners to radio buttons for real-time toggle
-        const connectionTypeRadios = document.querySelectorAll('input[name="connection_type"]');
-        connectionTypeRadios.forEach(radio => {
-            radio.addEventListener('change', function () {
-                toggleConnectionFields();
-                // Update package dropdown when connection type changes
-                updatePackageDropdown(this.value);
-
-                // If PPPoE is selected, ensure search field is visible and load secrets
-                if (this.value === 'pppoe') {
-                    const pppoeConfig = document.getElementById('pppoe-config');
-                    if (pppoeConfig && pppoeConfig.classList.contains('hidden')) {
-                        pppoeConfig.classList.remove('hidden');
-                    }
-                    // Trigger loadSecrets if function exists
-                    if (typeof loadSecrets === 'function') {
-                        setTimeout(loadSecrets, 100);
-                    }
-                }
-            });
-        });
-
-        // Billing Mode toggle handler
-        const billingModeSelect = document.getElementById('billing_mode');
-        const prepaidBonusContainer = document.getElementById('prepaid_bonus_container');
-        const deviceRentalContainer = document.getElementById('device_rental_container');
-
-        if (billingModeSelect) {
-            billingModeSelect.addEventListener('change', function () {
-                if (this.value === 'prepaid') {
-                    if (prepaidBonusContainer) prepaidBonusContainer.classList.remove('hidden');
-                    if (deviceRentalContainer) deviceRentalContainer.classList.remove('hidden');
-                } else {
-                    if (prepaidBonusContainer) prepaidBonusContainer.classList.add('hidden');
-                    if (deviceRentalContainer) deviceRentalContainer.classList.add('hidden');
-                }
-            });
-        }
-
-
-        // Add form validation on submit - MUST be isolated from map errors
-        try {
-            const form = document.querySelector('form');
-            if (form) {
-                form.addEventListener('submit', function (e) {
-                    try {
-                        if (!validateForm()) {
-                            e.preventDefault();
-                            return false;
-                        }
-                    } catch (validationError) {
-                        console.error('Form validation error:', validationError);
-                        // Don't prevent submit on validation error, let server handle it
-                    }
-                });
-            }
-        } catch (formError) {
-            console.error('Error setting up form submit handler:', formError);
-        }
-
-        // Leaflet map for location - isolated in try-catch to prevent blocking other scripts
-        // Declare map and marker in outer scope so they can be accessed by other functions
-        let map, marker;
-        try {
-            const latEl = document.getElementById('latitude');
-            const lngEl = document.getElementById('longitude');
-            const mapContainer = document.getElementById('editLocationMap');
-            function parseNum(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
-
-            // Wait for Leaflet to be loaded with fallback
-            async function waitForLeaflet() {
-                if (typeof L !== 'undefined') {
-                    return true;
-                }
-
-                // Wait up to 3 seconds for initial load (jsdelivr)
-                for (let i = 0; i < 30; i++) {
-                    if (typeof L !== 'undefined') {
-                        return true;
-                    }
-                    await new Promise(r => setTimeout(r, 100));
-                }
-
-                console.warn('Leaflet slow/failed to load, attempting fallback CDN...');
-
-                // Inject fallback (unpkg)
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                document.head.appendChild(link);
-
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                document.head.appendChild(script);
-
-                // Wait up to 5 seconds for fallback
-                for (let i = 0; i < 50; i++) {
-                    if (typeof L !== 'undefined') return true;
-                    await new Promise(r => setTimeout(r, 100));
-                }
-
-                throw new Error('Leaflet libraries failed to load from all sources');
-            }
-
-            async function ensureMap() {
-                try {
-                    if (map || !mapContainer) return;
-
-                    // Ensure Leaflet is loaded
-                    try {
-                        await waitForLeaflet();
-                    } catch (loadError) {
-                        console.error('Map init failed:', loadError);
-                        if (mapContainer) {
-                            mapContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-gray-50 text-gray-500 flex-col gap-2 p-4 text-center border-2 border-dashed border-gray-300 rounded"><i class="fas fa-wifi text-2xl text-red-400"></i><span class="font-medium">Gagal memuat peta</span><span class="text-xs">Periksa koneksi internet Anda untuk memuat library peta.</span></div>';
-                        }
-                        return;
-                    }
-
-                    // Pastikan container map terlihat
-                    if (mapContainer.offsetWidth === 0 || mapContainer.offsetHeight === 0) {
-                        console.warn('Map container has no dimensions, retrying...');
-                        setTimeout(ensureMap, 200);
-                        return;
-                    }
-
-                    const lat0 = parseNum(latEl && latEl.value) ?? -6.200000;
-                    const lng0 = parseNum(lngEl && lngEl.value) ?? 106.816666;
-                    map = L.map('editLocationMap', {
-                        zoomControl: true,
-                        attributionControl: true
-                    }).setView([lat0, lng0], 13);
-
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-                    marker = L.marker([lat0, lng0]).addTo(map);
-
-                    // Set z-index for leaflet controls to be below footer
-                    function setLeafletZIndex() {
-                        try {
-                            const leafletControls = document.querySelectorAll('.leaflet-control-container, .leaflet-popup, .leaflet-control-zoom, .leaflet-control-attribution, .leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-top, .leaflet-bottom, .leaflet-left, .leaflet-right');
-                            leafletControls.forEach((control) => {
-                                if (control && control.style) {
-                                    control.style.zIndex = '50';
-                                }
-                            });
-                        } catch (e) {
-                            console.error('Error setting Leaflet z-index:', e);
-                        }
-                    }
-
-                    // Set z-index immediately and after map is ready
-                    setTimeout(setLeafletZIndex, 100);
-                    setTimeout(setLeafletZIndex, 500);
-
-                    // Also set when popup opens
-                    map.on('popupopen', function () {
-                        setTimeout(setLeafletZIndex, 50);
-                    });
-
-                    map.on('click', function (e) {
-                        try {
-                            const lat = e.latlng.lat.toFixed(6);
-                            const lng = e.latlng.lng.toFixed(6);
-                            if (latEl) latEl.value = lat;
-                            if (lngEl) lngEl.value = lng;
-                            if (marker) marker.setLatLng([lat, lng]);
-                            if (map) map.setView([lat, lng], map.getZoom());
-                        } catch (e) {
-                            console.error('Error handling map click:', e);
-                        }
-                    });
-
-                    // Trigger resize untuk memastikan map ter-render dengan benar
-                    setTimeout(() => {
-                        try {
-                            if (map) {
-                                map.invalidateSize();
-                            }
-                        } catch (e) {
-                            console.error('Error invalidating map size:', e);
-                        }
-                    }, 100);
-
-                    // Otomatis ambil lokasi saat ini jika koordinat masih kosong
-                    setTimeout(() => {
-                        if ((!latEl || !latEl.value) && (!lngEl || !lngEl.value)) {
-                            if (navigator.geolocation) {
-                                navigator.geolocation.getCurrentPosition(function (position) {
-                                    try {
-                                        const lat = position.coords.latitude;
-                                        const lng = position.coords.longitude;
-
-                                        // Update map view
-                                        if (map) {
-                                            map.setView([lat, lng], 15);
-                                            if (marker) {
-                                                marker.setLatLng([lat, lng]);
-                                            }
-                                        }
-
-                                        // Update form fields
-                                        if (latEl) latEl.value = lat.toFixed(7);
-                                        if (lngEl) lngEl.value = lng.toFixed(7);
-                                    } catch (e) {
-                                        console.error('Error updating location:', e);
-                                    }
-                                }, function (error) {
-                                    console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
-                                    // Tidak menampilkan error, hanya log saja karena ini opsional
-                                }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
-                            }
-                        }
-                    }, 1000);
-
-                    console.log('Map initialized successfully');
-                } catch (error) {
-                    console.error('Error initializing map:', error);
-
-                    // Ignore duplicate initialization error
-                    if (error.message && error.message.includes('initialized')) {
-                        console.warn('Map redundancy check: Already initialized.');
-                        // Try to recover map instance if variable is lost
-                        if (!map && mapContainer && mapContainer._leaflet_id) {
-                            // If element has leaflet_id, it is initialized.
-                            // We can't easily get the map instance back from DOM element in Leaflet 1.x without global store,
-                            // but at least we don't destroy it.
-                            return;
-                        }
-                        return;
-                    }
-
-                    // Only show error message if container is empty (meaning no map rendered)
-                    if (mapContainer && mapContainer.children.length === 0) {
-                        mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Gagal memuat peta: ' + (error.message || 'Error tidak diketahui') + '</div>';
-                    }
-                }
-            }
-
-            function syncMarker() {
-                try {
-                    if (!map || !marker) return;
-                    const lat = parseNum(latEl && latEl.value);
-                    const lng = parseNum(lngEl && lngEl.value);
-                    if (lat == null || lng == null) return;
-                    marker.setLatLng([lat, lng]);
-                    map.setView([lat, lng], map.getZoom());
-                } catch (e) {
-                    console.error('Error syncing marker:', e);
-                }
-            }
-
-            if (mapContainer) {
-                // Wait for Leaflet to be loaded before initializing map
-                waitForLeaflet().then(() => {
-                    setTimeout(() => {
-                        try {
-                            ensureMap();
-                            if (latEl) latEl.addEventListener('input', syncMarker);
-                            if (lngEl) lngEl.addEventListener('input', syncMarker);
-                        } catch (e) {
-                            console.error('Error in map initialization callback:', e);
-                        }
-                    }, 100);
-                }).catch((error) => {
-                    console.error('Failed to load Leaflet:', error);
-                    // Fallback: coba lagi setelah delay lebih lama
-                    setTimeout(() => {
-                        try {
-                            if (typeof L !== 'undefined') {
-                                ensureMap();
-                                if (latEl) latEl.addEventListener('input', syncMarker);
-                                if (lngEl) lngEl.addEventListener('input', syncMarker);
-                            } else {
-                                // Show message if Leaflet still not available
-                                if (mapContainer) {
-                                    mapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Peta tidak dapat dimuat. Silakan isi koordinat secara manual.</div>';
-                                }
-                            }
-                        } catch (e) {
-                            console.error('Error in Leaflet fallback:', e);
-                        }
-                    }, 2000);
-                });
-            }
-        } catch (mapInitError) {
-            console.error('Error initializing map system:', mapInitError);
-            // Don't block other scripts - map is optional
-        }
-
-        // My Location (Geolocation API) - isolated to prevent blocking
-        try {
-            const btnMyLocation = document.getElementById('btnMyLocation');
-            if (btnMyLocation) {
-                btnMyLocation.addEventListener('click', function () {
-                    try {
-                        if (!navigator.geolocation) {
-                            alert('Geolocation tidak didukung di browser ini.');
-                            return;
-                        }
-                        btnMyLocation.disabled = true;
-                        btnMyLocation.textContent = 'Mendeteksi...';
-                        navigator.geolocation.getCurrentPosition(function (pos) {
-                            try {
-                                const latEl = document.getElementById('latitude');
-                                const lngEl = document.getElementById('longitude');
-                                const lat = pos.coords.latitude.toFixed(6);
-                                const lng = pos.coords.longitude.toFixed(6);
-                                if (latEl) latEl.value = lat;
-                                if (lngEl) lngEl.value = lng;
-                                // Try to update map if available
-                                try {
-                                    if (map && marker) {
-                                        marker.setLatLng([lat, lng]);
-                                        map.setView([lat, lng], 16);
-                                    }
-                                } catch (mapError) {
-                                    console.error('Error updating map with location:', mapError);
-                                }
-                                btnMyLocation.disabled = false;
-                                btnMyLocation.textContent = 'Lokasi Saya';
-                            } catch (e) {
-                                console.error('Error processing geolocation:', e);
-                                btnMyLocation.disabled = false;
-                                btnMyLocation.textContent = 'Lokasi Saya';
-                            }
-                        }, function (err) {
-                            console.error('Geolocation error:', err);
-                            alert('Gagal mendapatkan lokasi. Pastikan izin lokasi diizinkan.');
-                            btnMyLocation.disabled = false;
-                            btnMyLocation.textContent = 'Lokasi Saya';
-                        }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
-                    } catch (e) {
-                        console.error('Error in My Location button handler:', e);
-                        btnMyLocation.disabled = false;
-                        btnMyLocation.textContent = 'Lokasi Saya';
-                    }
-                });
-            }
-        } catch (myLocationError) {
-            console.error('Error setting up My Location button:', myLocationError);
-        }
-
-        // Generate customer code automatically
-        const customerCodeInput = document.getElementById('customer_code');
-        const generateCustomerCodeBtn = document.getElementById('generate_customer_code');
-
-        function generateCustomerCode() {
-            const now = new Date();
-            const code = now.getFullYear().toString() +
-                String(now.getMonth() + 1).padStart(2, '0') +
-                String(now.getDate()).padStart(2, '0') +
-                String(now.getHours()).padStart(2, '0') +
-                String(now.getMinutes()).padStart(2, '0') +
-                String(now.getSeconds()).padStart(2, '0');
-            if (customerCodeInput) {
-                customerCodeInput.value = code;
-            }
-        }
-
-        if (generateCustomerCodeBtn) {
-            generateCustomerCodeBtn.addEventListener('click', function () {
-                generateCustomerCode();
-            });
-        }
-
-        // Auto-fill email dari nama → nama_pelanggan@id.net (tanpa menimpa jika user edit manual)
-        const nameInput = document.getElementById('name');
-        const emailInput = document.getElementById('email');
-        let emailTouched = false;
-        if (emailInput) emailInput.addEventListener('input', () => { emailTouched = true; });
-        function slugifyNameToEmailLocal(name) {
-            return (name || '')
-                .toLowerCase()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '.')
-                .replace(/^\.+|\.+$/g, '')
-                .slice(0, 32);
-        }
-        if (nameInput && emailInput) {
-            nameInput.addEventListener('input', function () {
-                if (emailTouched) return;
-                const local = slugifyNameToEmailLocal(this.value);
-                emailInput.value = local ? `${local}@id.net` : '';
-            });
-            if (!emailInput.value && nameInput.value) {
-                const local = slugifyNameToEmailLocal(nameInput.value);
-                emailInput.value = local ? `${local}@id.net` : '';
-            }
-        }
-
-        // Auto-sync PPPoE username dengan nama pelanggan (untuk PPPoE customers)
-        const pppoeUsernameInput = document.getElementById('pppoe_username');
-        let pppoeUsernameTouched = false;
-        if (pppoeUsernameInput) {
-            pppoeUsernameInput.addEventListener('input', () => { pppoeUsernameTouched = true; });
-
-            // Function to generate username from name (tanpa spasi, lowercase)
-            function generatePppoeUsername(name) {
-                return (name || '').trim().toLowerCase().replace(/\s+/g, '');
-            }
-
-            // Auto-update username saat nama berubah (jika username belum di-edit manual)
-            if (nameInput) {
-                nameInput.addEventListener('input', function () {
-                    if (!pppoeUsernameTouched && pppoeUsernameInput) {
-                        const newUsername = generatePppoeUsername(this.value);
-                        pppoeUsernameInput.value = newUsername;
-                    }
-                });
-            }
-
-            // Set initial username jika kosong
-            if (!pppoeUsernameInput.value && nameInput && nameInput.value) {
-                const initialUsername = generatePppoeUsername(nameInput.value);
-                pppoeUsernameInput.value = initialUsername;
-            }
-        }
-
-        // Load PPPoE secrets with search functionality
-        // Get elements - use function to re-fetch if needed
-        function getPPPoEElements() {
-            return {
-                pppoeSearch: document.getElementById('pppoe_search'),
-                pppoeResults: document.getElementById('pppoe_search_results'),
-                userEl: document.getElementById('pppoe_username'),
-                passEl: document.getElementById('pppoe_password'),
-                pppoeConfig: document.getElementById('pppoe-config')
-            };
-        }
-
-        let elements = getPPPoEElements();
-        let pppoeSearch = elements.pppoeSearch;
-        let pppoeResults = elements.pppoeResults;
-        let userEl = elements.userEl;
-        let passEl = elements.passEl;
-        let pppoeConfig = elements.pppoeConfig;
-        let allSecrets = [];
-
-        // Function to re-initialize handlers if elements are replaced
-        function reinitializePPPoESearch() {
-            console.log('[PPPoE Search] Re-initializing search handlers...');
-            elements = getPPPoEElements();
-            pppoeSearch = elements.pppoeSearch;
-            pppoeResults = elements.pppoeResults;
-            userEl = elements.userEl;
-            passEl = elements.passEl;
-            pppoeConfig = elements.pppoeConfig;
-
-            if (pppoeSearch) {
-                setupPPPoESearchHandlers();
-            }
-
-            // Also re-setup reload button handler
-            setupReloadButtonHandler();
-        }
-
-        // Expose reinitialize function globally
-        window.reinitializePPPoESearch = reinitializePPPoESearch;
-
-        function loadSecrets() {
-            // Check if PPPoE config is visible
-            if (pppoeConfig && pppoeConfig.classList.contains('hidden')) {
-                console.log('[PPPoE Search] PPPoE config is hidden, skipping loadSecrets');
-                return;
-            }
-
-            if (!pppoeResults) {
-                console.log('[PPPoE Search] pppoeResults element not found');
-                return;
-            }
-
-            console.log('[PPPoE Search] loadSecrets called');
-            pppoeResults.innerHTML = '<div class="p-2 text-sm text-modern-blue-600">Memuat...</div>';
-            pppoeResults.classList.remove('hidden');
-            fetch('/api/pppoe/secrets')
-                .then(r => r.json())
-                .then(list => {
-                    allSecrets = Array.isArray(list) ? list : [];
-                    console.log('[PPPoE Search] Loaded', allSecrets.length, 'secrets');
-
-                    // Show success message with count
-                    if (allSecrets.length > 0) {
-                        pppoeResults.innerHTML = `<div class="p-2 text-sm text-green-600">✓ Berhasil memuat ${allSecrets.length} username. Ketik untuk mencari...</div>`;
-                        // Hide after 2 seconds
-                        setTimeout(() => {
-                            if (pppoeResults && !pppoeSearch?.value?.trim()) {
-                                pppoeResults.classList.add('hidden');
-                            }
-                        }, 2000);
-                    } else {
-                        pppoeResults.innerHTML = '<div class="p-2 text-sm text-yellow-600">Tidak ada username tersedia</div>';
-                        setTimeout(() => {
-                            if (pppoeResults && !pppoeSearch?.value?.trim()) {
-                                pppoeResults.classList.add('hidden');
-                            }
-                        }, 2000);
-                    }
-                })
-                .catch(err => {
-                    console.error('[PPPoE Search] Load PPPoE secrets error:', err);
-                    pppoeResults.innerHTML = '<div class="p-2 text-sm text-red-600">Gagal memuat dari MikroTik. Pastikan koneksi ke MikroTik tersedia.</div>';
-                });
-        }
-
-        // Make loadSecrets globally accessible
-        window.loadSecrets = loadSecrets;
-
-        function searchPPPoE(query) {
-            if (!pppoeResults) {
-                console.log('[PPPoE Search] searchPPPoE: pppoeResults element not found');
-                return;
-            }
-
-            const searchTerm = query.toLowerCase().trim();
-            console.log('[PPPoE Search] searchPPPoE called with query:', query, 'searchTerm:', searchTerm);
-
-            // Hide if query is empty
-            if (!searchTerm) {
-                console.log('[PPPoE Search] Empty search term, hiding results');
-                pppoeResults.classList.add('hidden');
-                return;
-            }
-
-            // Check if secrets are loaded
-            if (!allSecrets || allSecrets.length === 0) {
-                console.log('[PPPoE Search] No secrets loaded, loading now...');
-                loadSecrets();
-                // Try again after a short delay
-                setTimeout(() => {
-                    if (allSecrets.length > 0) {
-                        searchPPPoE(query);
-                    }
-                }, 500);
-                return;
-            }
-
-            // Filter secrets based on search term
-            const filtered = allSecrets.filter(item =>
-                item.name && item.name.toLowerCase().includes(searchTerm)
-            );
-
-            console.log('[PPPoE Search] Filtered results:', filtered.length, 'out of', allSecrets.length, 'total secrets');
-
-            // Show results
-            if (filtered.length === 0) {
-                // Escape searchTerm for display - use textContent instead of innerHTML to avoid escaping issues
-                const noResultsDiv = document.createElement('div');
-                noResultsDiv.className = 'p-2 text-sm text-gray-600';
-                noResultsDiv.textContent = 'Tidak ada hasil untuk "' + searchTerm + '"';
-                pppoeResults.innerHTML = '';
-                pppoeResults.appendChild(noResultsDiv);
+        typeRadios.forEach(r => r.addEventListener('change', (e) => {
+            if (e.target.value === 'pppoe') {
+                pppoeGroup.classList.remove('hidden');
+                staticGroup.classList.add('hidden');
             } else {
-                // Clear existing content
-                pppoeResults.innerHTML = '';
-
-                // Create result items using DOM methods to avoid template string escaping issues
-                filtered.slice(0, 50).forEach(item => {
-                    const resultItem = document.createElement('div');
-                    resultItem.className = 'px-3 py-2 hover:bg-modern-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 pppoe-result-item';
-                    resultItem.setAttribute('data-username', String(item.name || ''));
-                    resultItem.setAttribute('data-profile', String(item.profile || ''));
-
-                    const nameDiv = document.createElement('div');
-                    nameDiv.className = 'font-medium text-modern-blue-900';
-                    nameDiv.textContent = String(item.name || '');
-                    resultItem.appendChild(nameDiv);
-
-                    if (item.profile) {
-                        const profileDiv = document.createElement('div');
-                        profileDiv.className = 'text-xs text-modern-blue-600';
-                        profileDiv.textContent = 'Profile: ' + String(item.profile);
-                        resultItem.appendChild(profileDiv);
-                    }
-
-                    pppoeResults.appendChild(resultItem);
-                });
+                pppoeGroup.classList.add('hidden');
+                staticGroup.classList.remove('hidden');
             }
+        }));
 
-            // Ensure dropdown is visible
-            if (pppoeResults) {
-                pppoeResults.classList.remove('hidden');
-                console.log('[PPPoE Search] Dropdown shown with', filtered.length, 'results');
+        // === 2. Device Rental Toggle ===
+        const rentalCheck = document.getElementById('use_device_rental');
+        const rentalOptions = document.getElementById('rental_options');
+        if (rentalCheck && rentalOptions) {
+            rentalCheck.addEventListener('change', function () {
+                if (this.checked) rentalOptions.classList.remove('hidden');
+                else rentalOptions.classList.add('hidden');
+            });
+        }
 
-                // Force display in case CSS is hiding it
-                if (pppoeResults.style.display === 'none') {
-                    pppoeResults.style.display = 'block';
-                }
+        // === 3. Infrastruktur (Wireless vs FTTH) ===
+        const isWireless = document.getElementById('is_wireless');
+        const infraWrapper = document.getElementById('infra_wrapper');
+        const odcId = document.getElementById('odc_id');
+        const odpId = document.getElementById('odp_id');
+
+        function updateWirelessState() {
+            if (isWireless.checked) {
+                infraWrapper.classList.add('opacity-40', 'pointer-events-none');
+                // Remove required
+                if (odpId) odpId.required = false;
             } else {
-                console.error('[PPPoE Search] pppoeResults element not found when trying to show dropdown');
+                infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
+                // Add required if needed, or rely on backend validation
+                if (odpId) odpId.required = true;
             }
         }
 
-        function selectPPPoE(username, profile) {
-            console.log('[PPPoE Search] selectPPPoE called:', username);
-            if (userEl) {
-                userEl.value = username;
-                console.log('[PPPoE Search] Username field updated');
-            }
-            if (pppoeSearch) pppoeSearch.value = '';
-            if (pppoeResults) pppoeResults.classList.add('hidden');
+        if (isWireless) {
+            isWireless.addEventListener('change', updateWirelessState);
+            updateWirelessState(); // Init
         }
 
-        // Make selectPPPoE globally accessible
-        window.selectPPPoE = selectPPPoE;
-
-        // Function to setup search handlers
-        function setupPPPoESearchHandlers() {
-            if (!pppoeSearch) {
-                console.log('[PPPoE Search] Input element not found, skipping handler setup');
-                return;
-            }
-
-            console.log('[PPPoE Search] Setting up event listeners');
-            console.log('[PPPoE Search] Input element:', pppoeSearch);
-            console.log('[PPPoE Search] Input element type:', pppoeSearch.type);
-            console.log('[PPPoE Search] Input element disabled:', pppoeSearch.disabled);
-            console.log('[PPPoE Search] Input element readonly:', pppoeSearch.readOnly);
-
-            // Search on input - main search functionality
-            const inputHandler = function (e) {
-                const value = (e.target.value || '').trim();
-                console.log('[PPPoE Search] Input event triggered, value:', value, 'length:', value.length, 'event type:', e.type);
-
-                if (value.length > 0) {
-                    console.log('[PPPoE Search] Calling searchPPPoE with value:', value);
-                    searchPPPoE(value);
-                } else {
-                    console.log('[PPPoE Search] Empty value, hiding results');
-                    if (pppoeResults) pppoeResults.classList.add('hidden');
-                }
-            };
-
-            // Use both capture and bubble phases to ensure we catch the event
-            pppoeSearch.addEventListener('input', inputHandler, { capture: false, passive: true });
-            pppoeSearch.addEventListener('input', inputHandler, { capture: true, passive: true });
-            console.log('[PPPoE Search] Input event listener added (both phases)');
-
-            // Also listen to keyup for better compatibility
-            const keyupHandler = function (e) {
-                const value = (e.target.value || '').trim();
-                console.log('[PPPoE Search] Keyup event, key:', e.key, 'value:', value, 'length:', value.length);
-
-                // Only trigger search if not arrow keys or enter
-                if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
-                    console.log('[PPPoE Search] Navigation key pressed, skipping search');
-                    return;
-                }
-
-                if (value.length > 0) {
-                    console.log('[PPPoE Search] Keyup calling searchPPPoE');
-                    searchPPPoE(value);
-                }
-            };
-
-            pppoeSearch.addEventListener('keyup', keyupHandler, { capture: false, passive: true });
-            pppoeSearch.addEventListener('keyup', keyupHandler, { capture: true, passive: true });
-            console.log('[PPPoE Search] Keyup event listener added (both phases)');
-
-            // Also listen to keydown for immediate feedback
-            const keydownHandler = function (e) {
-                console.log('[PPPoE Search] Keydown event, key:', e.key, 'code:', e.code, 'value before:', this.value);
-                // Don't prevent default - let the key be processed normally
-            };
-            pppoeSearch.addEventListener('keydown', keydownHandler, { capture: false, passive: true });
-            pppoeSearch.addEventListener('keydown', keydownHandler, { capture: true, passive: true });
-            console.log('[PPPoE Search] Keydown event listener added (both phases)');
-
-            // Also try property-based event handler as backup - these are more reliable
-            pppoeSearch.oninput = function (e) {
-                console.log('[PPPoE Search] oninput property handler triggered, value:', this.value, 'length:', this.value.length);
-                const value = (this.value || '').trim();
-                if (value.length > 0) {
-                    console.log('[PPPoE Search] Property handler calling searchPPPoE with:', value);
-                    searchPPPoE(value);
-                } else {
-                    console.log('[PPPoE Search] Empty value, hiding dropdown');
-                    if (pppoeResults) {
-                        pppoeResults.classList.add('hidden');
-                        pppoeResults.innerHTML = '';
-                    }
-                }
-            };
-
-            pppoeSearch.onkeyup = function (e) {
-                console.log('[PPPoE Search] onkeyup property handler triggered, key:', e.key, 'value:', this.value);
-                if (!['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
-                    const value = (this.value || '').trim();
-                    if (value.length > 0) {
-                        console.log('[PPPoE Search] Keyup property handler calling searchPPPoE');
-                        searchPPPoE(value);
-                    }
-                }
-            };
-
-            pppoeSearch.onkeydown = function (e) {
-                console.log('[PPPoE Search] onkeydown property handler triggered, key:', e.key, 'value:', this.value);
-            };
-
-            // Use MutationObserver to detect if element is replaced
-            const observer = new MutationObserver(function (mutations) {
-                mutations.forEach(function (mutation) {
-                    if (mutation.type === 'childList') {
-                        const newInput = document.getElementById('pppoe_search');
-                        if (newInput && newInput !== pppoeSearch) {
-                            console.log('[PPPoE Search] Input element was replaced! Re-attaching handlers...');
-                            // Re-attach handlers to new element
-                            newInput.oninput = pppoeSearch.oninput;
-                            newInput.onkeyup = pppoeSearch.onkeyup;
-                            newInput.onkeydown = pppoeSearch.onkeydown;
-                        }
-                    }
-                });
-            });
-
-            // Observe the parent container for changes
-            if (pppoeSearch.parentElement) {
-                observer.observe(pppoeSearch.parentElement, { childList: true, subtree: true });
-            }
-
-            console.log('[PPPoE Search] Property-based handlers added as backup');
-            console.log('[PPPoE Search] MutationObserver setup to detect element replacement');
-
-            // Test if events are being captured
-            console.log('[PPPoE Search] All event listeners setup complete');
-            console.log('[PPPoE Search] Testing event listener attachment...');
-            console.log('[PPPoE Search] Input element value:', pppoeSearch.value);
-            console.log('[PPPoE Search] Input element can receive input:', !pppoeSearch.disabled && !pppoeSearch.readOnly);
-
-            // Test removed - was causing unwanted "test" text to appear in production
-            // If you need to test, uncomment below and comment out the setTimeout
-            /*
-            setTimeout(() => {
-                try {
-                    const testEvent = new Event('input', { bubbles: true, cancelable: true });
-                    pppoeSearch.value = 'test';
-                    pppoeSearch.dispatchEvent(testEvent);
-                    console.log('[PPPoE Search] Test input event dispatched');
-                    pppoeSearch.value = ''; // Reset
-                } catch (e) {
-                    console.error('[PPPoE Search] Error testing input event:', e);
-                }
-            }, 1000);
-            */
-
-            // Show all results when focused (if data is loaded and has value)
-            pppoeSearch.addEventListener('focus', function () {
-                console.log('[PPPoE Search] Focus event, allSecrets.length:', allSecrets.length, 'current value:', this.value);
-                if (allSecrets.length > 0) {
-                    const currentValue = this.value.trim();
-                    if (currentValue.length > 0) {
-                        console.log('[PPPoE Search] Has value on focus, calling searchPPPoE');
-                        searchPPPoE(currentValue);
-                    } else {
-                        console.log('[PPPoE Search] No value on focus, waiting for user input');
-                    }
-                } else {
-                    console.log('[PPPoE Search] No secrets loaded yet, loading...');
-                    loadSecrets();
-                }
-            });
-
-            // Flag to track if click is inside dropdown
-            let isClickInsideDropdown = false;
-
-            // Use event delegation for click events on dropdown items
-            // Register on pppoeResults first (bubbling phase)
-            if (pppoeResults) {
-                pppoeResults.addEventListener('click', function (e) {
-                    console.log('[PPPoE Search] Click event on dropdown, target:', e.target);
-                    isClickInsideDropdown = true; // Mark that click is inside
-
-                    // Find the clicked result item
-                    const item = e.target.closest('.pppoe-result-item');
-                    if (item) {
-                        const username = item.getAttribute('data-username');
-                        const profile = item.getAttribute('data-profile') || '';
-                        console.log('[PPPoE Search] Item clicked:', username);
-                        if (username) {
-                            selectPPPoE(username, profile);
-                        }
-                    }
-
-                    // Stop propagation to prevent document listener from firing
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-
-                    // Reset flag after a short delay
-                    setTimeout(() => {
-                        isClickInsideDropdown = false;
-                    }, 10);
-                }, false); // Bubbling phase (default)
-            }
-
-            // Also check on search input - but don't stop propagation for input events
-            if (pppoeSearch) {
-                pppoeSearch.addEventListener('click', function (e) {
-                    console.log('[PPPoE Search] Click on search input');
-                    isClickInsideDropdown = true;
-                    // Don't stop propagation for click - let it bubble normally
-                    // Only stop propagation for document click handler
-                    setTimeout(() => {
-                        isClickInsideDropdown = false;
-                    }, 10);
-                }, false);
-
-                // Ensure input is not blocked
-                pppoeSearch.addEventListener('paste', function (e) {
-                    console.log('[PPPoE Search] Paste event detected');
-                    // Let paste event complete, then trigger search
-                    setTimeout(() => {
-                        const value = pppoeSearch.value.trim();
-                        if (value.length > 0) {
-                            searchPPPoE(value);
-                        }
-                    }, 10);
-                });
-            }
-
-            // Prevent dropdown from hiding when clicking reload button
-            const reloadBtn = document.getElementById('reload_secrets_btn');
-            if (reloadBtn) {
-                reloadBtn.addEventListener('click', function (e) {
-                    console.log('[PPPoE Search] Click on reload button');
-                    isClickInsideDropdown = true;
-                    e.stopPropagation();
-                    setTimeout(() => {
-                        isClickInsideDropdown = false;
-                    }, 10);
-                }, false);
-            }
-
-            // Hide results when clicking outside
-            // Use setTimeout to ensure dropdown listener runs first
-            document.addEventListener('click', function (e) {
-                // Use setTimeout to let other listeners run first
-                setTimeout(() => {
-                    const target = e.target;
-                    const isClickInsideSearch = pppoeSearch && (pppoeSearch.contains(target) || pppoeSearch === target);
-                    const isClickInsideResults = pppoeResults && (pppoeResults.contains(target) || pppoeResults === target);
-
-                    // Check if click is on reload button or its parent container
-                    const reloadBtn = document.getElementById('reload_secrets_btn');
-                    const isClickOnReloadBtn = reloadBtn && (reloadBtn.contains(target) || reloadBtn === target);
-
-                    // Check if click is inside the entire PPPoE config section
-                    const pppoeConfigSection = document.getElementById('pppoe-config');
-                    const isClickInsidePPPoEConfig = pppoeConfigSection && pppoeConfigSection.contains(target);
-
-                    console.log('[PPPoE Search] Document click event:', {
-                        target: target,
-                        isClickInsideDropdown: isClickInsideDropdown,
-                        isClickInsideSearch: isClickInsideSearch,
-                        isClickInsideResults: isClickInsideResults,
-                        isClickOnReloadBtn: isClickOnReloadBtn,
-                        isClickInsidePPPoEConfig: isClickInsidePPPoEConfig
-                    });
-
-                    // Don't hide if click was inside dropdown, search field, reload button, or PPPoE config section
-                    if (!isClickInsideDropdown && !isClickInsideSearch && !isClickInsideResults && !isClickOnReloadBtn) {
-                        // Only hide if click is completely outside the PPPoE config section
-                        if (!isClickInsidePPPoEConfig) {
-                            console.log('[PPPoE Search] Click outside PPPoE config, hiding dropdown');
-                            if (pppoeResults) {
-                                pppoeResults.classList.add('hidden');
-                            }
-                        } else {
-                            console.log('[PPPoE Search] Click inside PPPoE config, keeping dropdown');
-                        }
-                    } else {
-                        console.log('[PPPoE Search] Click inside search/dropdown/reload button, keeping dropdown open');
-                    }
-                }, 0);
-            }, false); // Bubbling phase
-        }
-
-        // Setup reload button handler (outside setupPPPoESearchHandlers to avoid duplication)
-        function setupReloadButtonHandler() {
-            const reloadBtn = document.getElementById('reload_secrets_btn');
-            if (reloadBtn) {
-                // Remove existing listeners by cloning
-                const newReloadBtn = reloadBtn.cloneNode(true);
-                reloadBtn.parentNode.replaceChild(newReloadBtn, reloadBtn);
-
-                newReloadBtn.addEventListener('click', function (e) {
-                    console.log('[PPPoE Search] Reload button clicked (main handler)');
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    // Show loading state
-                    if (pppoeResults) {
-                        pppoeResults.innerHTML = '<div class="p-2 text-sm text-modern-blue-600">Memuat...</div>';
-                        pppoeResults.classList.remove('hidden');
-                    }
-
-                    // Load secrets
-                    loadSecrets();
-
-                    // Re-initialize handlers after a short delay in case element was replaced
-                    setTimeout(() => {
-                        if (typeof window.reinitializePPPoESearch === 'function') {
-                            console.log('[PPPoE Search] Re-initializing after reload...');
-                            window.reinitializePPPoESearch();
-                        }
-                    }, 300);
-                });
-            }
-        }
-
-        // Call setup function
-        setupReloadButtonHandler();
-
-        // Load on page load only if PPPoE config is visible
-        if (pppoeConfig && !pppoeConfig.classList.contains('hidden')) {
-            loadSecrets();
-        }
-
-        // Periodically check if handlers are still attached (in case of dynamic updates)
-        setInterval(() => {
-            const checkInput = document.getElementById('pppoe_search');
-            if (checkInput && pppoeConfig && !pppoeConfig.classList.contains('hidden')) {
-                // Check if handlers are missing
-                if (!checkInput.oninput || typeof checkInput.oninput !== 'function') {
-                    console.log('[PPPoE Search] Handlers missing, re-initializing...');
-                    if (typeof window.reinitializePPPoESearch === 'function') {
-                        window.reinitializePPPoESearch();
-                    }
-                }
-            }
-        }, 2000); // Check every 2 seconds
-
-        // ODP/ODC/OLT Update Handler
-        const odpDataScript = document.getElementById('odp-data-json');
-        let odpData = [];
-        try {
-            odpData = odpDataScript ? JSON.parse(odpDataScript.textContent || '[]') : [];
-        } catch (e) { console.error('Error parsing ODP data', e); }
-        const odpSelect = document.getElementById('odp_id');
-        const odcDisplay = document.getElementById('odc_display');
+        // === 4. ODC/ODP Search Logic (Simplified) ===
+        const odcSearch = document.getElementById('odc_search');
+        const odcResults = document.getElementById('odc_search_results');
+        const resetOdc = document.getElementById('reset_odc_btn');
+        const odpSearch = document.getElementById('odp_search');
+        const odpResults = document.getElementById('odp_search_results');
+        const odpWrapper = document.getElementById('odp_section_wrapper');
         const oltDisplay = document.getElementById('olt_display');
-        const odcIdInput = document.getElementById('odc_id');
-        const oltIdInput = document.getElementById('olt_id');
+        const oltId = document.getElementById('olt_id');
 
-        function updateOLTODC() {
-            const selectedOdpId = odpSelect?.value;
-            if (!selectedOdpId) {
-                if (odcDisplay) odcDisplay.value = '';
-                if (oltDisplay) oltDisplay.value = '';
-                if (odcIdInput) odcIdInput.value = '';
-                if (oltIdInput) oltIdInput.value = '';
-                return;
-            }
+        let debounceTimer;
 
-            const selectedOdp = odpData.find(odp => odp.id == selectedOdpId);
-            if (selectedOdp) {
-                if (odcDisplay) odcDisplay.value = selectedOdp.odc_name || '';
-                if (oltDisplay) oltDisplay.value = selectedOdp.olt_name || '';
-                if (odcIdInput) odcIdInput.value = selectedOdp.odc_id || '';
-                if (oltIdInput) oltIdInput.value = selectedOdp.olt_id || '';
-            }
-        }
+        // Search ODC
+        if (odcSearch) {
+            odcSearch.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const q = e.target.value.trim();
+                odcId.value = ''; // Reset ID on edit
+                if (odpWrapper) odpWrapper.classList.add('opacity-50', 'pointer-events-none');
 
-        // Initialize ODP/ODC/OLT on page load
-        if (odpSelect) {
-            odpSelect.addEventListener('change', updateOLTODC);
-            // Set initial values if customer already has ODP
-            if (odpSelect.value) {
-                updateOLTODC();
-            }
-        }
-    });
+                if (q.length < 1) { odcResults.classList.add('hidden'); return; }
 
-    // Handle change password button
-    const changePasswordBtn = document.getElementById('change_password_btn');
-    const passwordView = document.getElementById('pppoe_password_view');
-    const passwordInput = document.getElementById('pppoe_password');
+                debounceTimer = setTimeout(() => {
+                    fetch('/api/ftth/odc/search?q=' + encodeURIComponent(q))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.results && data.results.length) {
+                                odcResults.innerHTML = data.results.map(odc => `
+                                <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-light" onclick="selectOdc('${odc.id}', '${odc.name}')">
+                                    <div class="font-bold text-slate-700">${odc.name}</div>
+                                    <div class="text-xs text-slate-500">${odc.location || ''}</div>
+                                </div>
+                            `).join('');
+                                odcResults.classList.remove('hidden');
+                            } else {
+                                odcResults.innerHTML = '<div class="p-2 text-sm text-slate-500 text-center">Tidak ditemukan</div>';
+                                odcResults.classList.remove('hidden');
+                            }
+                        });
+                }, 300);
+            });
 
-    if (changePasswordBtn && passwordView && passwordInput) {
-        changePasswordBtn.addEventListener('click', function () {
-            passwordView.classList.add('hidden');
-            passwordInput.classList.remove('hidden');
-            passwordInput.required = false; // Tidak wajib, bisa kosong untuk tetap menggunakan password lama
-            passwordInput.placeholder = 'Kosongkan jika tidak ingin mengubah password';
-            passwordInput.focus();
-            changePasswordBtn.style.display = 'none';
-        });
-    }
+            // Search ODP (Dependent on ODC ID)
+            odpSearch.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const q = e.target.value.trim();
+                const currentOdcId = odcId.value;
+                if (!currentOdcId) return;
 
-    // Handle generate password button
-    const generatePasswordBtn = document.getElementById('generate_password_btn');
-    if (generatePasswordBtn && passwordInput) {
-        generatePasswordBtn.addEventListener('click', function () {
-            // Generate random password (8-12 characters, alphanumeric)
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            const length = Math.floor(Math.random() * 5) + 8; // 8-12 characters
-            let password = '';
-            for (let i = 0; i < length; i++) {
-                password += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            passwordInput.value = password;
-            passwordInput.type = 'text'; // Show password
+                debounceTimer = setTimeout(() => {
+                    fetch(`/api/ftth/odp/search?q=${encodeURIComponent(q)}&odc_id=${currentOdcId}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.results && data.results.length) {
+                                odpResults.innerHTML = data.results.map(odp => `
+                                <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-light" 
+                                     onclick="selectOdp('${odp.id}', '${odp.name}', '${odp.olt_id}', '${odp.olt_name}')">
+                                    <div class="font-bold text-slate-700">${odp.odp_name}</div>
+                                    <div class="text-xs text-slate-500">Ports: ${odp.available_ports} Free</div>
+                                </div>
+                            `).join('');
+                                odpResults.classList.remove('hidden');
+                            } else {
+                                odpResults.innerHTML = '<div class="p-2 text-sm text-slate-500 text-center">Tidak ditemukan</div>';
+                                odpResults.classList.remove('hidden');
+                            }
+                        });
+                }, 300);
+            });
 
-            // Show success message
-            const originalHtml = generatePasswordBtn.innerHTML;
-            generatePasswordBtn.innerHTML = '✓ Password Dibuat!';
-            generatePasswordBtn.classList.remove('bg-modern-blue-500', 'hover:bg-modern-blue-600');
-            generatePasswordBtn.classList.add('bg-green-500');
-            setTimeout(() => {
-                generatePasswordBtn.innerHTML = originalHtml;
-                generatePasswordBtn.classList.remove('bg-green-500');
-                generatePasswordBtn.classList.add('bg-modern-blue-500', 'hover:bg-modern-blue-600');
-            }, 2000);
-        });
-    }
-
-    // Handle create PPPoE secret button
-    const createSecretBtn = document.getElementById('create_pppoe_secret_btn');
-    const createSecretStatus = document.getElementById('create_secret_status');
-
-    if (createSecretBtn) {
-        createSecretBtn.addEventListener('click', async function () {
-            console.log('\n');
-            console.log('========================================');
-            console.log('[Frontend] ========== BUTTON CLICKED ==========');
-            console.log('[Frontend] Time:', new Date().toISOString());
-            console.log('========================================');
-            console.log('\n');
-
-            try {
-                // Get customer ID from URL
-                const urlParts = window.location.pathname.split('/');
-                const customerId = urlParts[urlParts.length - 2]; // /customers/:id/edit
-
-                console.log('[Frontend] URL parts:', urlParts);
-                console.log('[Frontend] Extracted Customer ID:', customerId);
-
-                // Get form values
-                const usernameEl = document.getElementById('pppoe_username');
-                const passwordEl = document.getElementById('pppoe_password');
-                const passwordViewEl = document.getElementById('pppoe_password_view');
-                const nameEl = document.getElementById('name');
-
-                if (!usernameEl || !customerId) {
-                    showSecretStatus('error', 'Username atau Customer ID tidak ditemukan');
-                    return;
-                }
-
-                const username = usernameEl.value.trim();
-
-                console.log('[Frontend] ========== CREATE SECRET BUTTON CLICKED ==========');
-                console.log('[Frontend] Customer ID:', customerId);
-                console.log('[Frontend] Username from form:', username);
-                console.log('[Frontend] Username element value:', usernameEl.value);
-                let password = '';
-
-                // Get password - check if password view is visible (existing password) or input field
-                if (passwordViewEl && passwordViewEl.offsetParent !== null) {
-                    // Password exists but we need new password to create secret
-                    if (!passwordEl || passwordEl.offsetParent === null || !passwordEl.value.trim()) {
-                        showSecretStatus('error', 'Password diperlukan untuk membuat secret. Klik "Ubah Password" dan isi password baru.');
-                        return;
-                    }
-                    password = passwordEl.value.trim();
-                } else if (passwordEl) {
-                    password = passwordEl.value.trim();
-                }
-
-                if (!password) {
-                    showSecretStatus('error', 'Password wajib diisi untuk membuat secret di MikroTik');
-                    return;
-                }
-
-                if (!username) {
-                    console.error('[Frontend] ❌ ERROR: Username kosong!');
-                    showSecretStatus('error', 'Username wajib diisi');
-                    return;
-                }
-
-                const packageEl = document.getElementById('pppoe_package');
-                const packageId = packageEl ? packageEl.value : null;
-
-                const requestData = {
-                    customerId: customerId,
-                    username: username,
-                    password: password,
-                    profileId: null,
-                    packageId: packageId,
-                    customerName: nameEl ? nameEl.value : ''
-                };
-
-                console.log('[Frontend] Request data:', {
-                    ...requestData,
-                    password: '***'
-                });
-                console.log('[Frontend] ⚠️ IMPORTANT: Secret akan dibuat dengan username:', username);
-
-                // Disable button and show loading
-                createSecretBtn.disabled = true;
-                createSecretBtn.innerHTML = '<svg class="animate-spin h-5 w-5 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Membuat Secret...';
-                showSecretStatus('info', 'Sedang membuat secret di MikroTik...');
-
-                // Call API
-                console.log('[Frontend] Sending request to:', '/api/pppoe/secret/create');
-                console.log('[Frontend] Request method: POST');
-                console.log('[Frontend] Request body:', JSON.stringify(requestData, null, 2));
-
-                const response = await fetch('/api/pppoe/secret/create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                console.log('[Frontend] ========== RESPONSE RECEIVED ==========');
-                console.log('[Frontend] Response status:', response.status);
-                console.log('[Frontend] Response statusText:', response.statusText);
-                console.log('[Frontend] Response headers:', Object.fromEntries(response.headers.entries()));
-                console.log('[Frontend] Response OK:', response.ok);
-
-                // Check if response is OK and content-type is JSON
-                const contentType = response.headers.get('content-type');
-                console.log('[Frontend] Content-Type:', contentType);
-
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('[Frontend] ❌ Non-JSON response received!');
-                    console.error('[Frontend] Response text:', text);
-                    console.error('[Frontend] Response status:', response.status);
-                    showSecretStatus('error', 'Server mengembalikan respons yang tidak valid. Status: ' + response.status);
-                    return;
-                }
-
-                let result;
-                try {
-                    result = await response.json();
-                    console.log('[Frontend] ========== RESPONSE PARSED ==========');
-                    console.log('[Frontend] Response result:', result);
-                    console.log('[Frontend] Result success:', result.success);
-                    console.log('[Frontend] Result message:', result.message);
-                    console.log('[Frontend] Result error:', result.error);
-                } catch (parseError) {
-                    console.error('[Frontend] ========== JSON PARSE ERROR ==========');
-                    console.error('[Frontend] JSON parse error:', parseError);
-                    const text = await response.text();
-                    console.error('[Frontend] Response text:', text);
-                    console.error('[Frontend] Response status:', response.status);
-                    showSecretStatus('error', 'Gagal memparse respons dari server. Pastikan server berjalan dengan benar.');
-                    return;
-                }
-
-                if (result.success) {
-                    console.log('[Frontend] ✅ Success! Secret berhasil dibuat/update');
-                    showSecretStatus('success', result.message || 'Secret berhasil dibuat/update di MikroTik');
-                    // Reload secrets list if function exists
-                    if (typeof loadSecrets === 'function') {
-                        setTimeout(loadSecrets, 1000);
-                    }
-                } else {
-                    console.error('[Frontend] ❌ Failed! Error:', result.error);
-                    showSecretStatus('error', result.error || 'Gagal membuat secret');
-                }
-            } catch (error) {
-                console.error('\n');
-                console.error('========================================');
-                console.error('[Frontend] ========== ERROR OCCURRED ==========');
-                console.error('[Frontend] Error creating secret:', error);
-                console.error('[Frontend] Error type:', typeof error);
-                console.error('[Frontend] Error message:', error instanceof Error ? error.message : String(error));
-                console.error('[Frontend] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-                console.error('========================================');
-                console.error('\n');
-                showSecretStatus('error', 'Terjadi kesalahan: ' + (error instanceof Error ? error.message : 'Unknown error'));
-            } finally {
-                // Re-enable button
-                createSecretBtn.disabled = false;
-                createSecretBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Buat Secret di MikroTik';
-            }
-        });
-    }
-
-    function showSecretStatus(type, message) {
-        if (!createSecretStatus) return;
-
-        createSecretStatus.classList.remove('hidden');
-        createSecretStatus.className = 'mt-2 p-3 rounded-lg ' + (
-            type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
-                type === 'error' ? 'bg-red-50 border border-red-200 text-red-800' :
-                    'bg-blue-50 border border-blue-200 text-blue-800'
-        );
-        createSecretStatus.textContent = message;
-
-        // Auto-hide after 5 seconds for success/info
-        if (type !== 'error') {
-            setTimeout(() => {
-                if (createSecretStatus) {
-                    createSecretStatus.classList.add('hidden');
-                }
-            }, 5000);
-        }
-    }
-
-    // Set password field - tidak wajib (akan auto-generate jika kosong)
-    const pppoePasswordField = document.getElementById('pppoe_password');
-    if (pppoePasswordField) {
-        pppoePasswordField.required = false; // Password tidak wajib, akan auto-generate jika kosong
-    }
-
-    // Initialize Leaflet Map for Location
-    (function initEditLocationMap() {
-        const mapContainer = document.getElementById('editLocationMap');
-        if (!mapContainer) return;
-        if (typeof L === 'undefined') {
-            console.warn('[Map] Leaflet not loaded');
-            return;
-        }
-
-        const latInput = document.getElementById('latitude');
-        const lngInput = document.getElementById('longitude');
-
-        // Default center (Jakarta)
-        let defaultLat = -6.2088;
-        let defaultLng = 106.8456;
-        let zoomLevel = 12;
-
-        // Use customer's current location if available
-        const currentLat = parseFloat(latInput?.value);
-        const currentLng = parseFloat(lngInput?.value);
-
-        if (!isNaN(currentLat) && !isNaN(currentLng)) {
-            defaultLat = currentLat;
-            defaultLng = currentLng;
-            zoomLevel = 15;
-        }
-
-        // Initialize map
-        const map = L.map('editLocationMap').setView([defaultLat, defaultLng], zoomLevel);
-
-        // Add tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
-        // Add marker if coordinates exist
-        let marker = null;
-        if (!isNaN(currentLat) && !isNaN(currentLng)) {
-            marker = L.marker([currentLat, currentLng]).addTo(map);
-            marker.bindPopup(`Lokasi: ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`).openPopup();
-        }
-
-        // Click on map to set location
-        map.on('click', function (e) {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-
-            // Update input fields
-            if (latInput) latInput.value = lat.toFixed(7);
-            if (lngInput) lngInput.value = lng.toFixed(7);
-
-            // Update or create marker
-            if (marker) {
-                marker.setLatLng(e.latlng);
-            } else {
-                marker = L.marker(e.latlng).addTo(map);
-            }
-            marker.bindPopup(`Lokasi Baru: ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
-        });
-
-        // My Location button
-        const myLocationBtn = document.getElementById('btnMyLocation');
-        if (myLocationBtn) {
-            myLocationBtn.addEventListener('click', function () {
-                if (!navigator.geolocation) {
-                    alert('Geolocation tidak didukung browser Anda');
-                    return;
-                }
-
-                myLocationBtn.textContent = 'Mencari...';
-                myLocationBtn.disabled = true;
-
-                navigator.geolocation.getCurrentPosition(
-                    function (position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-
-                        // Update inputs
-                        if (latInput) latInput.value = lat.toFixed(7);
-                        if (lngInput) lngInput.value = lng.toFixed(7);
-
-                        // Update map
-                        map.setView([lat, lng], 15);
-
-                        // Update marker
-                        if (marker) {
-                            marker.setLatLng([lat, lng]);
-                        } else {
-                            marker = L.marker([lat, lng]).addTo(map);
-                        }
-                        marker.bindPopup(`Lokasi Saya: ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
-
-                        myLocationBtn.textContent = 'Lokasi Saya';
-                        myLocationBtn.disabled = false;
-                    },
-                    function (error) {
-                        alert('Gagal mendapatkan lokasi: ' + error.message);
-                        myLocationBtn.textContent = 'Lokasi Saya';
-                        myLocationBtn.disabled = false;
-                    },
-                    { enableHighAccuracy: true, timeout: 10000 }
-                );
+            // Hide results on blur
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#odc_search') && !e.target.closest('#odc_search_results')) odcResults.classList.add('hidden');
+                if (!e.target.closest('#odp_search') && !e.target.closest('#odp_search_results')) odpResults.classList.add('hidden');
             });
         }
 
-        // Force map resize after layout settles
-        setTimeout(() => map.invalidateSize(), 300);
-        console.log('[Map] Edit location map initialized');
-    })();
+        // Helper: Select ODC
+        window.selectOdc = function (id, name) {
+            odcSearch.value = name;
+            odcId.value = id;
+            odcResults.classList.add('hidden');
+            // Unlock ODP
+            odpWrapper.classList.remove('opacity-50', 'pointer-events-none');
+            odpSearch.focus();
+            // Reset ODP
+            odpSearch.value = '';
+            odpId.value = '';
+        };
 
-    // Ensure footer doesn't cover content - minimal padding
-    window.addEventListener('load', function () {
-        const footer = document.getElementById('footer');
-        const mainContent = document.getElementById('main-content');
+        // Helper: Select ODP
+        window.selectOdp = function (id, name, oltIdVal, oltNameVal) {
+            odpSearch.value = name;
+            odpId.value = id;
+            odpResults.classList.add('hidden');
+            // Set OLT
+            if (oltId) oltId.value = oltIdVal || '';
+            if (oltDisplay) oltDisplay.value = oltNameVal || 'Auto';
+        };
 
-        if (footer && mainContent) {
-            // Add minimal padding to main content to account for fixed footer
-            const footerHeight = footer.offsetHeight || 60;
-            const currentPadding = parseInt(mainContent.style.paddingBottom) || 70;
-            // Only add padding if current padding is less than footer height + 10px
-            if (currentPadding < footerHeight + 10) {
-                mainContent.style.paddingBottom = (footerHeight + 10) + 'px';
-            }
+        if (resetOdc) {
+            resetOdc.addEventListener('click', () => {
+                if (isWireless.checked) return;
+                odcSearch.value = '';
+                odcId.value = '';
+                odcSearch.focus();
+                odpWrapper.classList.add('opacity-50', 'pointer-events-none');
+            });
         }
     });
 </script>
-
-<style>
-    /* Ensure footer doesn't cover content - minimal padding */
-    #main-content {
-        padding-bottom: 70px !important;
-    }
-
-    /* Footer should not cover important elements */
-    #footer {
-        z-index: 1000 !important;
-    }
-
-    /* Leaflet map controls should be below footer */
-    .leaflet-container {
-        z-index: 1 !important;
-        position: relative !important;
-    }
-
-    .leaflet-control-container,
-    .leaflet-control-zoom,
-    .leaflet-control-attribution,
-    .leaflet-popup,
-    .leaflet-popup-content-wrapper,
-    .leaflet-popup-tip,
-    .leaflet-top,
-    .leaflet-bottom,
-    .leaflet-left,
-    .leaflet-right,
-    .leaflet-pane,
-    .leaflet-map-pane,
-    .leaflet-tile-pane,
-    .leaflet-overlay-pane,
-    .leaflet-shadow-pane,
-    .leaflet-marker-pane,
-    .leaflet-tooltip-pane,
-    .leaflet-popup-pane {
-        z-index: 50 !important;
-    }
-
-    /* Map container should not overlap footer */
-    #editLocationMap {
-        position: relative !important;
-        z-index: 1 !important;
-    }
-
-    /* Ensure all leaflet control elements are below footer */
-    #editLocationMap .leaflet-control-container,
-    #editLocationMap .leaflet-popup,
-    #editLocationMap .leaflet-control-zoom,
-    #editLocationMap .leaflet-control-attribution {
-        z-index: 50 !important;
-    }
-</style>
