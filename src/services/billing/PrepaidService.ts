@@ -652,4 +652,117 @@ Terima kasih atas pengertiannya! 🙏`;
 
         return { isolatedCount, errors };
     }
+
+    /**
+     * Get customers expiring in X days (for reminder notifications)
+     * @param daysUntilExpiry - Number of days until expiry (e.g., 3 for H-3, 1 for H-1)
+     */
+    static async getExpiringCustomers(daysUntilExpiry: number): Promise<any[]> {
+        const conn = await databasePool.getConnection();
+
+        try {
+            // Calculate date range for the specific day
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() + daysUntilExpiry);
+            const startOfDay = new Date(targetDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(targetDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const [customers] = await conn.query<RowDataPacket[]>(
+                `SELECT id, customer_code, name, phone, pppoe_username, expiry_date
+                 FROM customers
+                 WHERE billing_mode = 'prepaid'
+                 AND expiry_date IS NOT NULL
+                 AND expiry_date BETWEEN ? AND ?
+                 AND (is_isolated IS NULL OR is_isolated = 0)
+                 ORDER BY expiry_date ASC`,
+                [startOfDay, endOfDay]
+            );
+
+            return customers || [];
+
+        } finally {
+            conn.release();
+        }
+    }
+
+    /**
+     * Send expiry warning notifications to prepaid customers
+     * Should be called by scheduler for H-3, H-1 reminders
+     */
+    static async sendExpiryWarnings(): Promise<{
+        h3Sent: number;
+        h1Sent: number;
+        errors: string[]
+    }> {
+        const errors: string[] = [];
+        let h3Sent = 0;
+        let h1Sent = 0;
+
+        const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+
+        // H-3 Notifications
+        const customersH3 = await this.getExpiringCustomers(3);
+        for (const customer of customersH3) {
+            if (customer.phone) {
+                try {
+                    const expiryDate = new Date(customer.expiry_date);
+                    const message = `⏰ *PENGINGAT MASA AKTIF - 3 HARI LAGI*
+
+Halo *${customer.name}*,
+
+Masa aktif paket internet Anda akan berakhir dalam *3 hari*.
+
+📅 Berakhir: ${expiryDate.toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}
+
+Segera lakukan pembelian paket agar layanan internet Anda tidak terputus.
+
+Ketik */menu* untuk membeli paket.
+
+Terima kasih! 🙏`;
+
+                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message);
+                    h3Sent++;
+                    console.log(`📤 Prepaid H-3 reminder sent to ${customer.name}`);
+                } catch (err: any) {
+                    errors.push(`H-3 failed for ${customer.name}: ${err.message}`);
+                }
+            }
+        }
+
+        // H-1 Notifications
+        const customersH1 = await this.getExpiringCustomers(1);
+        for (const customer of customersH1) {
+            if (customer.phone) {
+                try {
+                    const expiryDate = new Date(customer.expiry_date);
+                    const message = `🚨 *PERINGATAN - MASA AKTIF BERAKHIR BESOK!*
+
+Halo *${customer.name}*,
+
+Masa aktif paket internet Anda akan berakhir *BESOK!*
+
+📅 Berakhir: ${expiryDate.toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}
+
+⚠️ Jika tidak diperpanjang, layanan internet akan otomatis *DINONAKTIFKAN*.
+
+Segera lakukan pembelian paket sekarang!
+
+Ketik */menu* untuk membeli paket.
+
+Terima kasih! 🙏`;
+
+                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message);
+                    h1Sent++;
+                    console.log(`📤 Prepaid H-1 reminder sent to ${customer.name}`);
+                } catch (err: any) {
+                    errors.push(`H-1 failed for ${customer.name}: ${err.message}`);
+                }
+            }
+        }
+
+        console.log(`✅ Prepaid expiry warnings: H-3=${h3Sent}, H-1=${h1Sent}, Errors=${errors.length}`);
+        return { h3Sent, h1Sent, errors };
+    }
 }

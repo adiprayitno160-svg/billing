@@ -42,6 +42,9 @@ export class MonitoringScheduler {
         // 6. Prepaid Expiry Check - Every 1 hour
         this.startPrepaidCheck();
 
+        // 7. Prepaid Expiry Warnings (H-3, H-1) - Every day at 9:00 AM
+        this.startPrepaidExpiryWarnings();
+
         this.isRunning = true;
         console.log('[MonitoringScheduler] All schedulers started successfully');
     }
@@ -183,6 +186,30 @@ export class MonitoringScheduler {
     }
 
     /**
+     * 7. Prepaid Expiry Warnings (H-3, H-1) - Every day at 9:00 AM
+     */
+    private startPrepaidExpiryWarnings(): void {
+        const job = cron.schedule('0 9 * * *', async () => {
+            try {
+                console.log('[PrepaidWarnings] Sending H-3 and H-1 expiry warnings...');
+                const { PrepaidService } = await import('../services/billing/PrepaidService');
+                const result = await PrepaidService.sendExpiryWarnings();
+
+                console.log(`[PrepaidWarnings] Completed - H-3: ${result.h3Sent}, H-1: ${result.h1Sent}`);
+
+                if (result.errors.length > 0) {
+                    console.error('[PrepaidWarnings] Errors:', result.errors);
+                }
+            } catch (error) {
+                console.error('[PrepaidWarnings] Error:', error);
+            }
+        });
+
+        this.jobs.set('prepaid-expiry-warnings', job);
+        console.log('[MonitoringScheduler] ✓ Prepaid Expiry Warnings scheduled (daily at 9:00 AM)');
+    }
+
+    /**
      * Run specific scheduler manually
      */
     async runManually(jobName: string): Promise<void> {
@@ -218,6 +245,11 @@ export class MonitoringScheduler {
                 case 'prepaid-check':
                     const { PrepaidService } = await import('../services/billing/PrepaidService');
                     await PrepaidService.processExpiredCustomers();
+                    break;
+
+                case 'prepaid-warnings':
+                    const { PrepaidService: PrepaidSvc } = await import('../services/billing/PrepaidService');
+                    await PrepaidSvc.sendExpiryWarnings();
                     break;
 
                 default:
