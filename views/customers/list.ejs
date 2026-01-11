@@ -209,29 +209,9 @@
 									<input type="checkbox" class="rowCheckbox" value="<%= customer.id %>">
 								</td>
 								<td class="py-4 px-4 text-modern-purple-800 font-medium">
-									<% if (false) { let displayCode=customer.customer_code; if (!displayCode ||
-										displayCode==='-' || (displayCode && displayCode.length < 14)) { const
-										createdDate=customer.created_at ? new Date(customer.created_at) : new Date();
-										const year=createdDate.getFullYear(); const month=String(createdDate.getMonth()
-										+ 1).padStart(2, '0' ); const day=String(createdDate.getDate()).padStart(2, '0'
-										); const hours=String(createdDate.getHours()).padStart(2, '0' ); const
-										minutes=String(createdDate.getMinutes()).padStart(2, '0' ); const
-										seconds=String(createdDate.getSeconds()).padStart(2, '0' ); displayCode='' +
-										year + month + day + hours + minutes + seconds; } %>
-										<div class="font-semibold">
-											<%= displayCode %>
-										</div>
-										<% } else { %>
-											<div class="font-semibold">
-												<%= customer.id %>
-											</div>
-											<% if (false) { %>
-
-												<div class="text-sm text-modern-purple-600">
-													<%= customer.customer_code %>
-												</div>
-												<% } %>
-													<% } %>
+									<div class="font-semibold">
+										<%= customer.id %>
+									</div>
 								</td>
 								<td class="py-4 px-4 text-modern-purple-800 font-medium">
 									<div class="font-semibold">
