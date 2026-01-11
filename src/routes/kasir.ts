@@ -69,41 +69,73 @@ router.get('/print-odc/:odc_id', async (req, res) => {
             const { odc_id } = req.params;
             const { period, format } = req.query;
 
-            // Get ODC info
-            const [odcResult] = await conn.query(
-                'SELECT * FROM ftth_odc WHERE id = ?',
-                [odc_id]
-            ) as any;
+            let odc;
+            let invoicesQuery;
+            const queryParams: any[] = [];
 
-            if (odcResult.length === 0) {
-                return res.status(404).send('ODC not found');
+            if (odc_id === 'wireless') {
+                odc = {
+                    id: 'wireless',
+                    name: 'Wireless / Tanpa ODP',
+                    location: 'Area Wireless (Non-Fiber)',
+                };
+
+                invoicesQuery = `
+                    SELECT 
+                        i.id,
+                        i.invoice_number,
+                        i.customer_id,
+                        i.period,
+                        i.due_date,
+                        i.total_amount,
+                        i.paid_amount,
+                        i.status,
+                        i.created_at,
+                        c.name as customer_name,
+                        c.phone as customer_phone,
+                        c.address as customer_address,
+                        c.customer_code
+                    FROM invoices i
+                    INNER JOIN customers c ON i.customer_id = c.id
+                    WHERE c.odc_id IS NULL
+                    AND i.status IN ('sent', 'partial', 'overdue')
+                `;
+            } else {
+                // Get ODC info
+                const [odcResult] = await conn.query(
+                    'SELECT * FROM ftth_odc WHERE id = ?',
+                    [odc_id]
+                ) as any;
+
+                if (odcResult.length === 0) {
+                    return res.status(404).send('ODC not found');
+                }
+
+                odc = odcResult[0];
+
+                // Get invoices for this ODC
+                invoicesQuery = `
+                    SELECT 
+                        i.id,
+                        i.invoice_number,
+                        i.customer_id,
+                        i.period,
+                        i.due_date,
+                        i.total_amount,
+                        i.paid_amount,
+                        i.status,
+                        i.created_at,
+                        c.name as customer_name,
+                        c.phone as customer_phone,
+                        c.address as customer_address,
+                        c.customer_code
+                    FROM invoices i
+                    INNER JOIN customers c ON i.customer_id = c.id
+                    WHERE c.odc_id = ?
+                    AND i.status IN ('sent', 'partial', 'overdue')
+                `;
+                queryParams.push(odc_id);
             }
-
-            const odc = odcResult[0];
-
-            // Get invoices for this ODC
-            let invoicesQuery = `
-                SELECT 
-                    i.id,
-                    i.invoice_number,
-                    i.customer_id,
-                    i.period,
-                    i.due_date,
-                    i.total_amount,
-                    i.paid_amount,
-                    i.status,
-                    i.created_at,
-                    c.name as customer_name,
-                    c.phone as customer_phone,
-                    c.address as customer_address,
-                    c.customer_code
-                FROM invoices i
-                INNER JOIN customers c ON i.customer_id = c.id
-                WHERE c.odc_id = ?
-                AND i.status IN ('sent', 'partial', 'overdue')
-            `;
-
-            const queryParams: any[] = [odc_id];
 
             if (period) {
                 invoicesQuery += ' AND i.period = ?';

@@ -395,6 +395,36 @@ export class KasirController {
                     ORDER BY o.name ASC
                 `);
 
+                // Get wireless stats (No ODC)
+                const [wirelessStats] = await conn.query<RowDataPacket[]>(`
+                    SELECT 
+                        COUNT(DISTINCT c.id) as customer_count,
+                        COUNT(DISTINCT i.id) as pending_invoice_count
+                    FROM customers c
+                    LEFT JOIN invoices i ON i.customer_id = c.id 
+                        AND i.status IN ('sent', 'partial', 'overdue')
+                    WHERE c.odc_id IS NULL AND c.status = 'active'
+                `);
+
+                const wireless = wirelessStats[0];
+                if (wireless && wireless.customer_count > 0) {
+                    (odcList as any[]).push({
+                        id: 'wireless',
+                        olt_id: null,
+                        name: 'Wireless / Tanpa ODP',
+                        location: 'N/A',
+                        latitude: null,
+                        longitude: null,
+                        total_ports: 0,
+                        used_ports: 0,
+                        notes: 'Pelanggan tanpa alokasi ODP',
+                        created_at: new Date(),
+                        updated_at: new Date(),
+                        customer_count: wireless.customer_count,
+                        pending_invoice_count: wireless.pending_invoice_count
+                    });
+                }
+
                 // Get invoice statistics
                 const [stats] = await conn.query<RowDataPacket[]>(`
                     SELECT 
@@ -436,45 +466,81 @@ export class KasirController {
             const conn = await databasePool.getConnection();
 
             try {
-                // Get ODC info
-                const [odcResult] = await conn.query<RowDataPacket[]>(
-                    'SELECT id, olt_id, name, location, latitude, longitude, total_ports, used_ports, notes, created_at, updated_at FROM ftth_odc WHERE id = ?',
-                    [odc_id]
-                );
+                let odc: any;
+                let customers: any[] = [];
 
-                if (odcResult.length === 0) {
-                    res.status(404).send('ODC tidak ditemukan');
-                    return;
+                if (odc_id === 'wireless') {
+                    odc = {
+                        id: 'wireless',
+                        name: 'Wireless / Tanpa ODP',
+                        location: '-',
+                        latitude: null,
+                        longitude: null,
+                        total_ports: 0,
+                        used_ports: 0,
+                        notes: 'Area pelanggan tanpa ODP'
+                    };
+
+                    const [wirelessCustomers] = await conn.query<RowDataPacket[]>(`
+                        SELECT 
+                            c.id,
+                            c.customer_code,
+                            c.name,
+                            c.phone,
+                            c.address,
+                            c.status,
+                            i.invoice_number,
+                            i.period,
+                            i.total_amount,
+                            i.paid_amount,
+                            i.status as invoice_status,
+                            i.due_date,
+                            COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
+                        FROM customers c
+                        LEFT JOIN invoices i ON i.customer_id = c.id 
+                            AND i.status IN ('sent', 'partial', 'overdue')
+                        WHERE c.odc_id IS NULL
+                        ORDER BY c.name ASC
+                    `);
+                    customers = wirelessCustomers;
+                } else {
+                    // Get ODC info
+                    const [odcResult] = await conn.query<RowDataPacket[]>(
+                        'SELECT id, olt_id, name, location, latitude, longitude, total_ports, used_ports, notes, created_at, updated_at FROM ftth_odc WHERE id = ?',
+                        [odc_id]
+                    );
+
+                    if (odcResult.length === 0) {
+                        res.status(404).send('ODC tidak ditemukan');
+                        return;
+                    }
+
+                    odc = odcResult[0];
+
+                    // Get customers with invoices in this ODC
+                    const [odcCustomers] = await conn.query<RowDataPacket[]>(`
+                        SELECT 
+                            c.id,
+                            c.customer_code,
+                            c.name,
+                            c.phone,
+                            c.address,
+                            c.status,
+                            i.invoice_number,
+                            i.period,
+                            i.total_amount,
+                            i.paid_amount,
+                            i.status as invoice_status,
+                            i.due_date,
+                            COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
+                        FROM customers c
+                        LEFT JOIN invoices i ON i.customer_id = c.id 
+                            AND i.status IN ('sent', 'partial', 'overdue')
+                        WHERE c.odc_id = ?
+                        ORDER BY c.name ASC
+                    `, [odc_id]);
+                    customers = odcCustomers;
                 }
-
-                const odc = odcResult[0];
-                if (!odc) {
-                    res.status(404).send('ODC tidak ditemukan');
-                    return;
-                }
-
-                // Get customers with invoices in this ODC
-                const [customers] = await conn.query<RowDataPacket[]>(`
-                    SELECT 
-                        c.id,
-                        c.customer_code,
-                        c.name,
-                        c.phone,
-                        c.address,
-                        c.status,
-                        i.invoice_number,
-                        i.period,
-                        i.total_amount,
-                        i.paid_amount,
-                        i.status as invoice_status,
-                        i.due_date,
-                        COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
-                    FROM customers c
-                    LEFT JOIN invoices i ON i.customer_id = c.id 
-                        AND i.status IN ('sent', 'partial', 'overdue')
-                    WHERE c.odc_id = ?
-                    ORDER BY c.name ASC
-                `, [odc_id]);
 
                 const printDate = new Date().toLocaleDateString('id-ID', {
                     day: '2-digit',
