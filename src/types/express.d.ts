@@ -3,12 +3,14 @@ import { User } from '../services/userService';
 declare global {
     namespace Express {
         interface Request {
-            user?: User;
+            user?: any;
+            flash(type: string, message: any): any;
+            session: any;
         }
     }
 }
 
-export {};
+export { };
 
 
 
