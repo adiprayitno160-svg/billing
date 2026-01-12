@@ -419,90 +419,100 @@
 
         // Check if map container exists
         if (document.getElementById('map')) {
-            // Default center (Indonesia -> Jakarta approx, or user's current value)
-            let defaultLat = -6.200000;
-            let defaultLng = 106.816666;
-            let initialZoom = 5;
+            // Safety check for Leaflet
+            if (typeof L === 'undefined') {
+                console.error('Leaflet JS (Map) not loaded. Check internet connection or CDN.');
+                return;
+            }
 
-            // Init Map
-            const map = L.map('map').setView([defaultLat, defaultLng], initialZoom);
+            try {
+                // Default center (Indonesia -> Jakarta approx, or user's current value)
+                let defaultLat = -6.200000;
+                let defaultLng = 106.816666;
+                let initialZoom = 5;
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
+                // Init Map
+                const map = L.map('map').setView([defaultLat, defaultLng], initialZoom);
 
-            let marker;
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
 
-            // Function to set marker
-            function setMarker(lat, lng) {
-                if (marker) {
-                    marker.setLatLng([lat, lng]);
-                } else {
-                    marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                let marker;
 
-                    // Drag event
-                    marker.on('dragend', function (e) {
-                        const position = e.target.getLatLng();
-                        latInput.value = position.lat.toFixed(6);
-                        lngInput.value = position.lng.toFixed(6);
+                // Function to set marker
+                function setMarker(lat, lng) {
+                    if (marker) {
+                        marker.setLatLng([lat, lng]);
+                    } else {
+                        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+
+                        // Drag event
+                        marker.on('dragend', function (e) {
+                            const position = e.target.getLatLng();
+                            latInput.value = position.lat.toFixed(6);
+                            lngInput.value = position.lng.toFixed(6);
+                        });
+                    }
+                    // Automatically zoom in when location is found/set
+                    if (map.getZoom() < 12) map.setZoom(15);
+                    map.panTo([lat, lng]);
+                }
+
+                // Map click event
+                map.on('click', function (e) {
+                    const lat = e.latlng.lat;
+                    const lng = e.latlng.lng;
+
+                    latInput.value = lat.toFixed(6);
+                    lngInput.value = lng.toFixed(6);
+
+                    setMarker(lat, lng);
+                });
+
+                // Input change event (manual typing)
+                [latInput, lngInput].forEach(input => {
+                    input.addEventListener('change', () => {
+                        const lat = parseFloat(latInput.value);
+                        const lng = parseFloat(lngInput.value);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            setMarker(lat, lng);
+                        }
+                    });
+                });
+
+                // Get Location Button
+                if (btnGetLocation) {
+                    btnGetLocation.addEventListener('click', () => {
+                        btnGetLocation.textContent = '⌛ Mencari...';
+                        if ("geolocation" in navigator) {
+                            navigator.geolocation.getCurrentPosition((pos) => {
+                                const lat = pos.coords.latitude;
+                                const lng = pos.coords.longitude;
+
+                                latInput.value = lat.toFixed(6);
+                                lngInput.value = lng.toFixed(6);
+
+                                setMarker(lat, lng);
+
+                                btnGetLocation.innerHTML = '<span>✅</span> Lokasi Didapat';
+                                setTimeout(() => btnGetLocation.innerHTML = '<span>📍</span> Ambil Lokasi GPS', 2000);
+                            }, (err) => {
+                                alert('Gagal mengambil lokasi: ' + err.message);
+                                btnGetLocation.textContent = '❌ Gagal';
+                            });
+                        } else {
+                            alert('Geolocation tidak didukung browser ini.');
+                        }
                     });
                 }
-                // Automatically zoom in when location is found/set
-                if (map.getZoom() < 12) map.setZoom(15);
-                map.panTo([lat, lng]);
+
+                // Resolve rendering issues (map hidden/shown in tabs or just loaded)
+                setTimeout(() => { map.invalidateSize(); }, 200);
+            } catch (err) {
+                console.error('Error initializing map:', err);
             }
-
-            // Map click event
-            map.on('click', function (e) {
-                const lat = e.latlng.lat;
-                const lng = e.latlng.lng;
-
-                latInput.value = lat.toFixed(6);
-                lngInput.value = lng.toFixed(6);
-
-                setMarker(lat, lng);
-            });
-
-            // Input change event (manual typing)
-            [latInput, lngInput].forEach(input => {
-                input.addEventListener('change', () => {
-                    const lat = parseFloat(latInput.value);
-                    const lng = parseFloat(lngInput.value);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        setMarker(lat, lng);
-                    }
-                });
-            });
-
-            // Get Location Button
-            if (btnGetLocation) {
-                btnGetLocation.addEventListener('click', () => {
-                    btnGetLocation.textContent = '⌛ Mencari...';
-                    if ("geolocation" in navigator) {
-                        navigator.geolocation.getCurrentPosition((pos) => {
-                            const lat = pos.coords.latitude;
-                            const lng = pos.coords.longitude;
-
-                            latInput.value = lat.toFixed(6);
-                            lngInput.value = lng.toFixed(6);
-
-                            setMarker(lat, lng);
-
-                            btnGetLocation.innerHTML = '<span>✅</span> Lokasi Didapat';
-                            setTimeout(() => btnGetLocation.innerHTML = '<span>📍</span> Ambil Lokasi GPS', 2000);
-                        }, (err) => {
-                            alert('Gagal mengambil lokasi: ' + err.message);
-                            btnGetLocation.textContent = '❌ Gagal';
-                        });
-                    } else {
-                        alert('Geolocation tidak didukung browser ini.');
-                    }
-                });
-            }
-
-            // Resolve rendering issues (map hidden/shown in tabs or just loaded)
-            setTimeout(() => { map.invalidateSize(); }, 200);
         }
     });
 </script>
