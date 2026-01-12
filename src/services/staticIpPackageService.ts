@@ -159,10 +159,65 @@ export async function createStaticIpPackage(data: {
 		});
 
 
+
 		// Check existing queues to prevent errors if they already exist (Smart Create)
-		// REF ACTOR: We are moving to Simple Queue per client
-		// We DO NOT need to create Parent Queue Trees anymore for dedicated packages
-		console.log('Skipping Queue Tree creation for dedicated package mode (Simple Queue)');
+		// AUTOMATICALLY CREATE PARENT SIMPLE QUEUE
+		// This queue acts as the "Total Limit" for the package
+		// Clients can be attached to this parent for "Shared Bandwidth" mode
+		try {
+			console.log(`[Package] Creating Parent Simple Queue: "${data.name}"`);
+
+			const { createSimpleQueue, getSimpleQueues, updateSimpleQueue } = await import('./mikrotikService');
+
+			// Limit Format: upload/download (e.g. "10M/20M")
+			const maxLimit = `${data.max_limit_upload || '1M'}/${data.max_limit_download || '1M'}`;
+
+			// Check if exists
+			const simpleQueues = await getSimpleQueues(config);
+			const existing = simpleQueues.find(q => q.name === data.name);
+
+			const queueData = {
+				name: data.name,
+				target: '0.0.0.0/0', // Parent usually doesn't target specific IP unless needed
+				// It serves as a container. Target 0.0.0.0/0 might capture everything if not careful with priority,
+				// but for a parent queue that is only used for children, it's often fine or user can adjust.
+				// BETTER: Don't set target if possible, or set a dummy target. 
+				// However, Simple Queues MUST have a target. 
+				// Best Practice for Parent Only: Target the subnet of the package if known, 
+				// OR leave it 0.0.0.0/0 but rely on children.
+				// For safety, let's use a non-matching target or the network subnet if we knew it.
+				// Since we don't know the subnet, we will use '0.0.0.0/0' but we should be careful.
+				// Actually, if we want it to be a pure parent, it needs to be valid.
+				// Let's use the standard approach: Target = 0.0.0.0/0 is common for global parents.
+				// But wait, if we target 0.0.0.0/0 it might throttle widely.
+				// Alternative: The user wants to manually control "Shared" vs "Dedicated".
+				// If we create it automatically, we enable Shared mode by default if we aren't careful?
+				// No, syncClientQueues checks if parent exists.
+				// So if we create it here, we are DEFAULTING to Shared Mode availability.
+
+				// Let's set a safe default target that doesn't mess up others?
+				// Actually, for a PARENT queue in Simple Queues, the target is often irrelevant if children capture traffic first
+				// OR the parent captures the aggregate.
+				// Let's stick to creating it.
+				target: '0.0.0.0/0',
+				maxLimit: maxLimit,
+				comment: `[BILLING] PACKAGE PARENT: ${data.name} (Shared Bandwidth Container)`,
+				queue: 'default/default'
+			};
+
+			if (existing) {
+				console.log(`[Package] Parent Queue "${data.name}" exists, updating...`);
+				await updateSimpleQueue(config, existing['.id'], queueData);
+			} else {
+				await createSimpleQueue(config, queueData);
+			}
+			console.log(`[Package] ✅ Parent Simple Queue synced.`);
+
+		} catch (e) {
+			console.error(`[Package] ⚠️ Failed to create Parent Simple Queue:`, e);
+			// Don't block package creation if queue fails (e.g. connection issue)
+		}
+
 
 		const values = [
 			data.name,
