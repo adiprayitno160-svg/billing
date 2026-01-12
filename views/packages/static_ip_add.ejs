@@ -37,16 +37,16 @@
                 </div>
 
 
-                <!-- Baris 3: Parent Upload & Parent Download -->
-                <div>
+                <!-- Baris 3: Parent Upload & Parent Download (HIDDEN - handled automatically) -->
+                <div class="hidden">
                     <label class="block text-sm font-medium text-slate-700 mb-1">Parent Upload *</label>
-                    <input name="parent_upload_name" type="text" required placeholder="Contoh: UPLOAD ALL"
+                    <input name="parent_upload_name" type="text" value="SIMPLE_QUEUE_PARENT"
                         class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     <p class="text-xs text-slate-500 mt-1">Ketik nama parent upload yang sudah ada di MikroTik</p>
                 </div>
-                <div>
+                <div class="hidden">
                     <label class="block text-sm font-medium text-slate-700 mb-1">Parent Download *</label>
-                    <input name="parent_download_name" type="text" required placeholder="Contoh: DOWNLOAD ALL"
+                    <input name="parent_download_name" type="text" value="SIMPLE_QUEUE_PARENT"
                         class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     <p class="text-xs text-slate-500 mt-1">Ketik nama parent download yang sudah ada di MikroTik</p>
                 </div>
@@ -99,17 +99,17 @@
                 <div class="sm:col-span-2">
                     <h3 class="text-lg font-semibold text-slate-700 mb-3">📋 Child Template untuk Pelanggan</h3>
                     <div class="p-4 bg-slate-50 border border-slate-200 rounded">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Nama Paket *</label>
-                                <input name="child_upload_name" required readonly placeholder="PAKET_NAME_UPLOAD"
+                                <input name="child_upload_name" readonly placeholder="PAKET_NAME_UPLOAD"
                                     class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <p class="text-xs text-slate-500 mt-1">Diisi otomatis dari Nama Paket (format:
                                     NAMA_PAKET_UPLOAD)</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Nama Paket *</label>
-                                <input name="child_download_name" required readonly placeholder="PAKET_NAME_DOWNLOAD"
+                                <input name="child_download_name" readonly placeholder="PAKET_NAME_DOWNLOAD"
                                     class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <p class="text-xs text-slate-500 mt-1">Diisi otomatis dari Nama Paket (format:
                                     NAMA_PAKET_DOWNLOAD)</p>

@@ -123,14 +123,14 @@ export class AuthMiddleware {
                 return;
             }
 
-            // Single Session Enforcement
-            if (user.session_id && user.session_id !== req.sessionID) {
-                req.session.destroy(() => {
-                    res.clearCookie('connect.sid');
-                    res.redirect('/login?error=Sesi berakhir. Akun Anda telah login di perangkat lain.');
-                });
-                return;
-            }
+            // Single Session Enforcement (DISABLED to prevent frequent logouts)
+            // if (user.session_id && user.session_id !== req.sessionID) {
+            //     req.session.destroy(() => {
+            //         res.clearCookie('connect.sid');
+            //         res.redirect('/login?error=Sesi berakhir. Akun Anda telah login di perangkat lain.');
+            //     });
+            //     return;
+            // }
 
             req.user = user;
             next();

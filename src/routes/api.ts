@@ -20,5 +20,4 @@ router.get('/server-time', (req: Request, res: Response) => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
 });
-
 export default router;

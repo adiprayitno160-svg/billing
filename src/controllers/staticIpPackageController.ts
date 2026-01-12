@@ -6,7 +6,8 @@ import {
 	updateStaticIpPackage,
 	deleteStaticIpPackage,
 	createMikrotikQueues,
-	deleteMikrotikQueuesOnly
+	deleteMikrotikQueuesOnly,
+	syncAllMikrotikQueues
 } from '../services/staticIpPackageService';
 
 export async function getStaticIpPackageList(req: Request, res: Response, next: NextFunction) {
@@ -87,28 +88,31 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			description
 		} = req.body;
 
+
 		if (!name) throw new Error('Nama paket wajib diisi');
-		if (!parent_upload_name) throw new Error('Parent upload wajib diisi');
-		if (!parent_download_name) throw new Error('Parent download wajib diisi');
+		// REF ACTOR: Relaxed validation for Simple Queue mode
+		// if (!parent_upload_name) throw new Error('Parent upload wajib diisi');
+		// if (!parent_download_name) throw new Error('Parent download wajib diisi');
 		if (!max_limit_upload) throw new Error('Max limit upload wajib diisi');
 		if (!max_limit_download) throw new Error('Max limit download wajib diisi');
 		if (!max_clients || Number(max_clients) < 1) throw new Error('Max clients harus minimal 1');
-		if (!child_upload_name) throw new Error('Child upload name wajib diisi');
-		if (!child_download_name) throw new Error('Child download name wajib diisi');
+		// if (!child_upload_name) throw new Error('Child upload name wajib diisi');
+		// if (!child_download_name) throw new Error('Child download name wajib diisi');
 		// ... (previous checks)
-		if (!child_download_name) throw new Error('Child download name wajib diisi');
+		// if (!child_download_name) throw new Error('Child download name wajib diisi');
 		if (!price || Number(price) < 0) throw new Error('Harga harus lebih dari 0');
 		// Removed mandatory duration check, defaulted to 30
 
 		await createStaticIpPackage({
 			name,
-			parent_upload_name,
-			parent_download_name,
+			// Default values for DB compatibility
+			parent_upload_name: parent_upload_name || 'SIMPLE_QUEUE_PARENT',
+			parent_download_name: parent_download_name || 'SIMPLE_QUEUE_PARENT',
 			max_limit_upload,
 			max_limit_download,
 			max_clients: Number(max_clients),
-			child_upload_name,
-			child_download_name,
+			child_upload_name: child_upload_name || `${name}_UPLOAD`,
+			child_download_name: child_download_name || `${name}_DOWNLOAD`,
 			child_upload_limit: child_upload_limit || undefined,
 			child_download_limit: child_download_limit || undefined,
 			child_limit_at_upload: child_limit_at_upload || undefined,
@@ -172,13 +176,13 @@ export async function postStaticIpPackageUpdate(req: Request, res: Response, nex
 		} = req.body;
 
 		if (!name) throw new Error('Nama paket wajib diisi');
-		if (!parent_upload_name) throw new Error('Parent upload wajib diisi');
-		if (!parent_download_name) throw new Error('Parent download wajib diisi');
+		// if (!parent_upload_name) throw new Error('Parent upload wajib diisi');
+		// if (!parent_download_name) throw new Error('Parent download wajib diisi');
 		if (!max_limit_upload) throw new Error('Max limit upload wajib diisi');
 		if (!max_limit_download) throw new Error('Max limit download wajib diisi');
 		if (max_clients && Number(max_clients) < 1) throw new Error('Max clients harus minimal 1');
-		if (child_upload_name && !child_upload_name.trim()) throw new Error('Child upload name tidak boleh kosong');
-		if (child_download_name && !child_download_name.trim()) throw new Error('Child download name tidak boleh kosong');
+		// if (child_upload_name && !child_upload_name.trim()) throw new Error('Child upload name tidak boleh kosong');
+		// if (child_download_name && !child_download_name.trim()) throw new Error('Child download name tidak boleh kosong');
 		if (price && Number(price) < 0) throw new Error('Harga harus lebih dari 0');
 		// field removed
 
@@ -286,3 +290,25 @@ export async function apiDeletePackage(req: Request, res: Response) {
 	}
 }
 
+
+export async function postStaticIpPackageSyncAll(req: Request, res: Response, next: NextFunction) {
+	try {
+		await syncAllMikrotikQueues();
+
+		if (req.method === 'GET') {
+			res.send('Sync All Queues Success');
+			return;
+		}
+
+		req.flash('success', 'Semua Queue Paket berhasil disinkronkan ke MikroTik');
+		res.redirect('/packages/static-ip');
+	} catch (err) {
+		if (req.method === 'GET') {
+			// res.status(500).send('Error');
+			res.send('Error: ' + (err instanceof Error ? err.message : String(err)));
+			return;
+		}
+		req.flash('error', err instanceof Error ? err.message : 'Gagal sinkronisasi global');
+		res.redirect('/packages/static-ip');
+	}
+}

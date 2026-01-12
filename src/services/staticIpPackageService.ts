@@ -178,7 +178,7 @@ export async function createStaticIpPackage(data: {
 
 			const queueData = {
 				name: data.name,
-				target: '0.0.0.0/0', // Parent usually doesn't target specific IP unless needed
+				// Parent usually doesn't target specific IP unless needed
 				// It serves as a container. Target 0.0.0.0/0 might capture everything if not careful with priority,
 				// but for a parent queue that is only used for children, it's often fine or user can adjust.
 				// BETTER: Don't set target if possible, or set a dummy target. 
@@ -317,41 +317,48 @@ export async function updateStaticIpPackage(id: number, data: {
 		const oldUploadQueueName = `${currentPackage.name}_UPLOAD`;
 		const oldDownloadQueueName = `${currentPackage.name}_DOWNLOAD`;
 
-		// New names (if name changed) or same as old
+
 		const newPackageName = data.name || currentPackage.name;
-		const newUploadQueueName = `${newPackageName}_UPLOAD`;
-		const newDownloadQueueName = `${newPackageName}_DOWNLOAD`;
 
-		// Update upload & download queues in MikroTik
-		const queueTrees = await getQueueTrees(config);
+		// REF ACTOR: Update Parent Simple Queue (for Shared Mode)
+		// Instead of updating Queue Trees, we check and update the Parent Simple Queue
+		try {
+			console.log(`[Package] Updating Parent Simple Queue: "${newPackageName}"`);
+			const { getSimpleQueues, updateSimpleQueue, createSimpleQueue, deleteSimpleQueue } = await import('./mikrotikService');
 
-		// Find by OLD name
-		const uploadQueue = queueTrees.find(qt => qt.name === oldUploadQueueName);
-		const downloadQueue = queueTrees.find(qt => qt.name === oldDownloadQueueName);
+			const simpleQueues = await getSimpleQueues(config);
 
-		const newUploadLimit = data.max_limit_upload || currentPackage.max_limit_upload;
-		const newDownloadLimit = data.max_limit_download || currentPackage.max_limit_download;
-		const parentUpload = data.parent_upload_name || currentPackage.parent_upload_name;
-		const parentDownload = data.parent_download_name || currentPackage.parent_download_name;
+			// Find OLD queue (if name changed)
+			const oldQueue = simpleQueues.find(q => q.name === currentPackage.name);
 
-		if (uploadQueue) {
-			console.log(`Updating Upload Queue: ${oldUploadQueueName} -> ${newUploadQueueName}`);
-			await updateQueueTree(config, uploadQueue['.id'], {
-				name: newUploadQueueName, // Rename if needed
-				parent: parentUpload,
-				maxLimit: newUploadLimit,
-				comment: `Upload queue for package: ${newPackageName}`
-			});
+			// New Limits
+			const maxLimit = `${(data.max_limit_upload || currentPackage.max_limit_upload) || '1M'}/${(data.max_limit_download || currentPackage.max_limit_download) || '1M'}`;
+
+			const queueData = {
+				name: newPackageName,
+				maxLimit: maxLimit,
+				comment: `[BILLING] PACKAGE PARENT: ${newPackageName} (Shared Bandwidth Container)`
+			};
+
+			if (oldQueue) {
+				// Update existing
+				await updateSimpleQueue(config, oldQueue['.id'], queueData);
+				console.log(`[Package] ✅ Updated Parent Queue: ${oldQueue.name} -> ${newPackageName}`);
+			} else {
+				// If it didn't exist before, create it now (maybe it was deleted manually or didn't exist)
+				// Only create if we think it should exist (Shared Mode support)
+				console.log(`[Package] ⚠️ Parent Queue not found for "${currentPackage.name}". Creating new one for "${newPackageName}"...`);
+				await createSimpleQueue(config, {
+					...queueData,
+					target: '0.0.0.0/0',
+					queue: 'default/default'
+				});
+			}
+
+		} catch (e) {
+			console.warn(`[Package] Warning during Parent Queue update:`, e);
 		}
-		if (downloadQueue) {
-			console.log(`Updating Download Queue: ${oldDownloadQueueName} -> ${newDownloadQueueName}`);
-			await updateQueueTree(config, downloadQueue['.id'], {
-				name: newDownloadQueueName, // Rename if needed
-				parent: parentDownload,
-				maxLimit: newDownloadLimit,
-				comment: `Download queue for package: ${newPackageName}`
-			});
-		}
+
 
 		// Update package in database
 		const updateFields = [];
@@ -495,35 +502,37 @@ export async function createMikrotikQueues(packageId: number): Promise<void> {
 		throw new Error('Paket tidak ditemukan');
 	}
 
-	// Use package name directly for custom queue names
-	const uploadQueueName = `${packageData.name}_UPLOAD`;
-	const downloadQueueName = `${packageData.name}_DOWNLOAD`;
-
-	console.log('Creating MikroTik queues for package:', packageData.name);
-	console.log('Upload queue:', uploadQueueName, 'Parent:', packageData.parent_upload_name);
-	console.log('Download queue:', downloadQueueName, 'Parent:', packageData.parent_download_name);
-
+	// REF ACTOR: Create Parent Simple Queue
 	try {
-		// Create upload queue
-		await createQueueTree(config, {
-			name: uploadQueueName,
-			parent: packageData.parent_upload_name,
-			maxLimit: packageData.max_limit_upload,
-			comment: `Upload queue for package: ${packageData.name}`
-		});
+		console.log(`[Package] Creating Parent Simple Queue (Manual Sync): "${packageData.name}"`);
 
-		// Create download queue  
-		await createQueueTree(config, {
-			name: downloadQueueName,
-			parent: packageData.parent_download_name,
-			maxLimit: packageData.max_limit_download,
-			comment: `Download queue for package: ${packageData.name}`
-		});
+		const { createSimpleQueue, getSimpleQueues, updateSimpleQueue } = await import('./mikrotikService');
 
-		console.log('MikroTik queues created successfully');
-	} catch (error: any) {
-		console.error('Error creating MikroTik queues:', error);
-		throw error;
+		const maxLimit = `${(packageData.max_limit_upload || '1M')}/${(packageData.max_limit_download || '1M')}`;
+
+		// Check if exists
+		const simpleQueues = await getSimpleQueues(config);
+		const existing = simpleQueues.find(q => q.name === packageData.name);
+
+		const queueData = {
+			name: packageData.name,
+			target: '0.0.0.0/0',
+			maxLimit: maxLimit,
+			comment: `[BILLING] PACKAGE PARENT: ${packageData.name} (Shared Bandwidth Container)`,
+			queue: 'default/default'
+		};
+
+		if (existing) {
+			console.log(`[Package] Parent Queue "${packageData.name}" exists, updating...`);
+			await updateSimpleQueue(config, existing['.id'], queueData);
+		} else {
+			await createSimpleQueue(config, queueData);
+		}
+		console.log(`[Package] ✅ Parent Simple Queue synced manually.`);
+
+	} catch (e) {
+		console.error(`[Package] ⚠️ Failed to create Parent Simple Queue:`, e);
+		throw e;
 	}
 }
 
@@ -543,7 +552,7 @@ export async function deleteStaticIpPackage(id: number): Promise<void> {
 			throw new Error('Paket tidak ditemukan');
 		}
 
-		// Delete upload and download queues from MikroTik
+		// Delete upload and download queues from MikroTik (Legacy Queue Tree)
 		const queueTrees = await getQueueTrees(config);
 		const uploadQueueName = `${packageData.name}_UPLOAD`;
 		const downloadQueueName = `${packageData.name}_DOWNLOAD`;
@@ -558,6 +567,20 @@ export async function deleteStaticIpPackage(id: number): Promise<void> {
 		if (downloadQueue) {
 			console.log('Deleting download queue:', downloadQueueName);
 			await deleteQueueTree(config, downloadQueue['.id']);
+		}
+
+		// REF ACTOR: Delete Parent Simple Queue (New System)
+		try {
+			const { getSimpleQueues, deleteSimpleQueue } = await import('./mikrotikService');
+			const simpleQueues = await getSimpleQueues(config);
+			const parentQueue = simpleQueues.find(q => q.name === packageData.name);
+
+			if (parentQueue) {
+				console.log(`[Package] Deleting Parent Simple Queue: "${parentQueue.name}"`);
+				await deleteSimpleQueue(config, parentQueue['.id']);
+			}
+		} catch (e) {
+			console.warn(`[Package] Warning during Parent Queue deletion:`, e);
 		}
 
 		// Delete package from database
@@ -583,24 +606,24 @@ export async function deleteMikrotikQueuesOnly(packageId: number): Promise<void>
 		throw new Error('Paket tidak ditemukan');
 	}
 
-	// Hapus kedua queue tanpa menyentuh database paket
-	const queueTrees = await getQueueTrees(config);
-	const uploadQueueName = `${packageData.name}_UPLOAD`;
-	const downloadQueueName = `${packageData.name}_DOWNLOAD`;
+	// Hapus Parent Simple Queue (New System)
+	try {
+		console.log(`[Package] Deleting Parent Simple Queue (Manual): "${packageData.name}"`);
+		const { getSimpleQueues, deleteSimpleQueue } = await import('./mikrotikService');
+		const simpleQueues = await getSimpleQueues(config);
+		const parentQueue = simpleQueues.find(q => q.name === packageData.name);
 
-	const uploadQueue = queueTrees.find(qt => qt.name === uploadQueueName);
-	const downloadQueue = queueTrees.find(qt => qt.name === downloadQueueName);
-
-	if (!uploadQueue && !downloadQueue) {
-		return;
+		if (parentQueue) {
+			await deleteSimpleQueue(config, parentQueue['.id']);
+			console.log(`[Package] ✅ Parent Simple Queue deleted.`);
+		} else {
+			console.log(`[Package] Parent Simple Queue not found.`);
+		}
+	} catch (e) {
+		console.error(`[Package] Error deleting Parent Simple Queue:`, e);
+		throw e;
 	}
 
-	if (uploadQueue) {
-		await deleteQueueTree(config, uploadQueue['.id']);
-	}
-	if (downloadQueue) {
-		await deleteQueueTree(config, downloadQueue['.id']);
-	}
 }
 
 
@@ -671,8 +694,8 @@ export async function syncClientQueues(customerId: number, packageId: number, ip
 
 	let maxLimit = `${pkg.max_limit_upload || '1M'}/${pkg.max_limit_download || '1M'}`;
 	let parentName: string | undefined = undefined;
-	let limitAt: string | undefined = (pkg.limit_at_upload && pkg.limit_at_download)
-		? `${pkg.limit_at_upload}/${pkg.limit_at_download}`
+	let limitAt: string | undefined = (pkg.child_limit_at_upload && pkg.child_limit_at_download)
+		? `${pkg.child_limit_at_upload}/${pkg.child_limit_at_download}`
 		: undefined;
 
 	if (parentPackageQueue) {
@@ -716,3 +739,17 @@ export async function syncClientQueues(customerId: number, packageId: number, ip
 }
 
 
+
+export async function syncAllMikrotikQueues(): Promise<void> {
+	const packages = await listStaticIpPackages();
+	console.log('[SyncAll] Found ' + packages.length + ' packages to sync.');
+
+	for (const pkg of packages) {
+		try {
+			await createMikrotikQueues(pkg.id);
+		} catch (error) {
+			console.error('[SyncAll] Failed to sync package ' + pkg.name + ':', error);
+			// Continue with next package
+		}
+	}
+}

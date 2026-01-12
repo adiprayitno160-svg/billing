@@ -359,12 +359,13 @@ export async function findSimpleQueueIdByName(cfg: MikroTikConfig, name: string)
     } catch { return null; }
 }
 
-
-try {
-    const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [], 'queue_trees', 30000);
-    return Array.isArray(res) ? res : [];
-} catch { return []; }
+export async function getQueueTrees(cfg: MikroTikConfig): Promise<any[]> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [], 'queue_trees', 30000);
+        return Array.isArray(res) ? res : [];
+    } catch { return []; }
 }
+
 
 export async function createQueueTree(cfg: MikroTikConfig, data: any): Promise<void> {
     try {

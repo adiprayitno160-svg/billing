@@ -1,10 +1,28 @@
 ﻿<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Daftar Paket IP Static</h2>
-        <a href="/packages/static-ip/add"
-            class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 inline-block">
-            Tambah Paket
-        </a>
+        <div class="flex gap-2">
+            <form action="/packages/static-ip/sync-all" method="POST"
+                onsubmit="return confirm('Yakin ingin sync semua Queue paket ke MikroTik? Proses ini akan membuat/update Simple Queue untuk SEMUA paket.');">
+                <button type="submit"
+                    class="px-4 py-2 rounded bg-orange-500 text-white font-semibold hover:bg-orange-600 inline-flex items-center gap-2 shadow-sm transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Sync Semua Queue
+                </button>
+            </form>
+            <a href="/packages/static-ip/add"
+                class="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 inline-flex items-center gap-2 shadow-sm transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Tambah Paket
+            </a>
+        </div>
     </div>
 
     <% if (success && success.length>0) { %>
@@ -24,14 +42,11 @@
                             <thead class="text-left text-slate-600">
                                 <tr>
                                     <th class="py-2 pr-4">Nama Paket</th>
-                                    <th class="py-2 pr-4">Parent Upload</th>
-                                    <th class="py-2 pr-4">Parent Download</th>
+                                    <!-- Simple Queue Mode: Hiding Parent/Child Names -->
                                     <th class="py-2 pr-4">Upload Limit</th>
                                     <th class="py-2 pr-4">Download Limit</th>
                                     <th class="py-2 pr-4">Max Clients</th>
                                     <th class="py-2 pr-4">Current Clients</th>
-                                    <th class="py-2 pr-4">Child Upload</th>
-                                    <th class="py-2 pr-4">Child Download</th>
                                     <th class="py-2 pr-4">Shared Upload</th>
                                     <th class="py-2 pr-4">Shared Download</th>
                                     <th class="py-2 pr-4">Harga</th>
@@ -45,12 +60,7 @@
                                         <td class="py-2 pr-4 font-medium">
                                             <%= pkg.name %>
                                         </td>
-                                        <td class="py-2 pr-4">
-                                            <%= pkg.parent_upload_name || '-' %>
-                                        </td>
-                                        <td class="py-2 pr-4">
-                                            <%= pkg.parent_download_name || '-' %>
-                                        </td>
+                                        <!-- Removed Parent Upload/Download TDs -->
                                         <td class="py-2 pr-4">
                                             <%= pkg.max_limit_upload %>
                                         </td>
@@ -68,16 +78,7 @@
                                                 <%= pkg.current_clients || 0 %>/<%= pkg.max_clients || 1 %>
                                             </span>
                                         </td>
-                                        <td class="py-2 pr-4">
-                                            <span class="px-2 py-1 text-xs rounded bg-orange-100 text-orange-700">
-                                                <%= pkg.child_upload_name || '-' %>
-                                            </span>
-                                        </td>
-                                        <td class="py-2 pr-4">
-                                            <span class="px-2 py-1 text-xs rounded bg-orange-100 text-orange-700">
-                                                <%= pkg.child_download_name || '-' %>
-                                            </span>
-                                        </td>
+                                        <!-- Removed Child Upload/Download TDs -->
                                         <td class="py-2 pr-4">
                                             <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-700">
                                                 <%= pkg.shared_upload_limit || pkg.max_limit_upload %>
@@ -99,6 +100,15 @@
                                         </td>
                                         <td class="py-2 pr-4">
                                             <div class="flex flex-wrap gap-2">
+                                                <form action="/packages/static-ip/<%= pkg.id %>/create-queues"
+                                                    method="POST" class="inline"
+                                                    onsubmit="return confirm('Sync Queue Parent ke MikroTik?');">
+                                                    <button type="submit"
+                                                        class="px-2 py-1 text-xs rounded border border-blue-300 text-blue-700 hover:bg-blue-50 inline-block"
+                                                        title="Sync Parent Queue (Simple Queue)">
+                                                        Sync Queue
+                                                    </button>
+                                                </form>
                                                 <a href="/packages/static-ip/<%= pkg.id %>/clients"
                                                     class="px-2 py-1 text-xs rounded border border-green-300 text-green-700 hover:bg-green-50 inline-block">
                                                     Client
