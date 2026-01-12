@@ -244,7 +244,9 @@ export async function findPppoeSecretIdByName(cfg: MikroTikConfig, name: string)
 export async function createPppoeSecret(cfg: MikroTikConfig, data: any): Promise<void> {
     try {
         const params: string[] = [];
-        for (const [k, v] of Object.entries(data)) {
+        // Default service to pppoe if not provided
+        const secretData = { service: 'pppoe', ...data };
+        for (const [k, v] of Object.entries(secretData)) {
             if (v !== undefined && v !== null && v !== '') params.push(`=${k}=${v}`);
         }
         await mikrotikPool.execute(cfg, '/ppp/secret/add', params);
@@ -257,7 +259,9 @@ export async function updatePppoeSecret(cfg: MikroTikConfig, username: string, d
         const id = await findPppoeSecretIdByName(cfg, username);
         if (!id) throw new Error('Secret not found');
         const params: string[] = [`=.id=${id}`];
-        for (const [k, v] of Object.entries(data)) {
+        // Ensure service is pppoe if being updated (optional but keeps it consistent)
+        const secretData = { service: 'pppoe', ...data };
+        for (const [k, v] of Object.entries(secretData)) {
             if (v !== undefined && v !== null && v !== '') params.push(`=${k}=${v}`);
         }
         await mikrotikPool.execute(cfg, '/ppp/secret/set', params);
