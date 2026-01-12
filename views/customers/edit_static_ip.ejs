@@ -96,23 +96,53 @@
                                 class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
 
-                        <!-- Koordinat & Maps -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📍
-                                Koordinat & Maps</h3>
-                        </div>
+                        <!-- Koordinat & Maps Card (Combined) -->
+                        <div class="sm:col-span-2 mt-4">
+                            <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                <div
+                                    class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 class="text-md font-bold text-slate-700 flex items-center gap-2">
+                                        <span class="p-1.5 bg-green-100 rounded-lg">📍</span> Koordinat & Maps
+                                    </h3>
+                                    <button type="button" id="btnGetLocation"
+                                        class="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center gap-1">
+                                        <span>📍</span> Ambil Lokasi GPS
+                                    </button>
+                                </div>
+                                <div class="p-6">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <!-- Inputs -->
+                                        <div class="md:col-span-1 space-y-4">
+                                            <div>
+                                                <label
+                                                    class="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
+                                                <input name="latitude" id="latitude" type="number" step="any"
+                                                    value="<%= client.latitude || '' %>" placeholder="-6.xxxxx"
+                                                    class="w-full rounded border border-slate-300 px-3 py-2 bg-white font-mono text-sm" />
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
+                                                <input name="longitude" id="longitude" type="number" step="any"
+                                                    value="<%= client.longitude || '' %>" placeholder="106.xxxxx"
+                                                    class="w-full rounded border border-slate-300 px-3 py-2 bg-white font-mono text-sm" />
+                                            </div>
+                                            <div
+                                                class="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-200">
+                                                <p>💡 Geser pin pada peta untuk menyesuaikan lokasi pelanggan.</p>
+                                            </div>
+                                        </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
-                            <input name="latitude" type="number" step="any" value="<%= client.latitude || '' %>"
-                                placeholder="-6.200000"
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
-                            <input name="longitude" type="number" step="any" value="<%= client.longitude || '' %>"
-                                placeholder="106.816666"
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                        <!-- Map Container -->
+                                        <div class="md:col-span-2">
+                                            <div
+                                                class="w-full h-[300px] bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative z-0">
+                                                <div id="map" class="w-full h-full z-0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- OLT, ODC, ODP (Modern Card - HIERARCHICAL) -->
@@ -523,21 +553,105 @@
 
                         // Maps integration
                         function initMaps() {
-                            const latInput = document.querySelector('input[name="latitude"]');
-                            const lngInput = document.querySelector('input[name="longitude"]');
+                            const btnGetLocation = document.getElementById('btnGetLocation');
+                            const latInput = document.getElementById('latitude');
+                            const lngInput = document.getElementById('longitude');
 
-                            if (latInput && lngInput) {
-                                latInput.addEventListener('change', updateMapPreview);
-                                lngInput.addEventListener('change', updateMapPreview);
-                            }
-                        }
+                            if (document.getElementById('map')) {
+                                // Default center (Indonesia -> Jakarta approx, or user's current value)
+                                let defaultLat = -6.200000;
+                                let defaultLng = 106.816666;
+                                let initialZoom = 5;
 
-                        function updateMapPreview() {
-                            const lat = document.querySelector('input[name="latitude"]').value;
-                            const lng = document.querySelector('input[name="longitude"]').value;
+                                if (latInput.value && lngInput.value) {
+                                    defaultLat = parseFloat(latInput.value);
+                                    defaultLng = parseFloat(lngInput.value);
+                                    initialZoom = 15;
+                                }
 
-                            if (lat && lng) {
-                                console.log('Koordinat:', lat, lng);
+                                // Init Map
+                                const map = L.map('map').setView([defaultLat, defaultLng], initialZoom);
+
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    maxZoom: 19,
+                                    attribution: '© OpenStreetMap'
+                                }).addTo(map);
+
+                                let marker;
+
+                                // Function to set marker
+                                function setMarker(lat, lng) {
+                                    if (marker) {
+                                        marker.setLatLng([lat, lng]);
+                                    } else {
+                                        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+
+                                        // Drag event
+                                        marker.on('dragend', function (e) {
+                                            const position = e.target.getLatLng();
+                                            latInput.value = position.lat.toFixed(6);
+                                            lngInput.value = position.lng.toFixed(6);
+                                        });
+                                    }
+                                    if (map.getZoom() < 12) map.setZoom(15);
+                                    map.panTo([lat, lng]);
+                                }
+
+                                // If initial values exist, place marker
+                                if (latInput.value && lngInput.value) {
+                                    setMarker(defaultLat, defaultLng);
+                                }
+
+                                // Map click event
+                                map.on('click', function (e) {
+                                    const lat = e.latlng.lat;
+                                    const lng = e.latlng.lng;
+
+                                    latInput.value = lat.toFixed(6);
+                                    lngInput.value = lng.toFixed(6);
+
+                                    setMarker(lat, lng);
+                                });
+
+                                // Input change event (manual typing)
+                                [latInput, lngInput].forEach(input => {
+                                    input.addEventListener('change', () => {
+                                        const lat = parseFloat(latInput.value);
+                                        const lng = parseFloat(lngInput.value);
+                                        if (!isNaN(lat) && !isNaN(lng)) {
+                                            setMarker(lat, lng);
+                                        }
+                                    });
+                                });
+
+                                // Get Location Button
+                                if (btnGetLocation) {
+                                    btnGetLocation.addEventListener('click', () => {
+                                        btnGetLocation.textContent = '⌛ Mencari...';
+                                        if ("geolocation" in navigator) {
+                                            navigator.geolocation.getCurrentPosition((pos) => {
+                                                const lat = pos.coords.latitude;
+                                                const lng = pos.coords.longitude;
+
+                                                latInput.value = lat.toFixed(6);
+                                                lngInput.value = lng.toFixed(6);
+
+                                                setMarker(lat, lng);
+
+                                                btnGetLocation.innerHTML = '<span>✅</span> Lokasi Didapat';
+                                                setTimeout(() => btnGetLocation.innerHTML = '<span>📍</span> Ambil Lokasi GPS', 2000);
+                                            }, (err) => {
+                                                alert('Gagal mengambil lokasi: ' + err.message);
+                                                btnGetLocation.textContent = '❌ Gagal';
+                                            });
+                                        } else {
+                                            alert('Geolocation tidak didukung browser ini.');
+                                        }
+                                    });
+                                }
+
+                                // Fix map rendering
+                                setTimeout(() => { map.invalidateSize(); }, 200);
                             }
                         }
 
