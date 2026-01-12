@@ -158,52 +158,11 @@ export async function createStaticIpPackage(data: {
 			download_limit: data.max_limit_download
 		});
 
+
 		// Check existing queues to prevent errors if they already exist (Smart Create)
-		const queueTrees = await getQueueTrees(config);
-
-		// --- UPLOAD QUEUE ---
-		const uploadQueueName = `${data.name}_UPLOAD`;
-		const existingUploadQueue = queueTrees.find(qt => qt.name === uploadQueueName);
-
-		if (existingUploadQueue) {
-			console.log('⚠️ Upload queue already exists, updating:', uploadQueueName);
-			await updateQueueTree(config, existingUploadQueue['.id'], {
-				parent: data.parent_upload_name,
-				maxLimit: data.max_limit_upload,
-				comment: `Upload queue for package: ${data.name}`
-			});
-		} else {
-			console.log('Creating new Upload queue:', uploadQueueName);
-			await createQueueTree(config, {
-				name: uploadQueueName,
-				parent: data.parent_upload_name,
-				maxLimit: data.max_limit_upload,
-				comment: `Upload queue for package: ${data.name}`
-			});
-		}
-		console.log('✅ Upload queue synced:', uploadQueueName);
-
-		// --- DOWNLOAD QUEUE ---
-		const downloadQueueName = `${data.name}_DOWNLOAD`;
-		const existingDownloadQueue = queueTrees.find(qt => qt.name === downloadQueueName);
-
-		if (existingDownloadQueue) {
-			console.log('⚠️ Download queue already exists, updating:', downloadQueueName);
-			await updateQueueTree(config, existingDownloadQueue['.id'], {
-				parent: data.parent_download_name,
-				maxLimit: data.max_limit_download,
-				comment: `Download queue for package: ${data.name}`
-			});
-		} else {
-			console.log('Creating new Download queue:', downloadQueueName);
-			await createQueueTree(config, {
-				name: downloadQueueName,
-				parent: data.parent_download_name,
-				maxLimit: data.max_limit_download,
-				comment: `Download queue for package: ${data.name}`
-			});
-		}
-		console.log('✅ Download queue synced:', downloadQueueName);
+		// REF ACTOR: We are moving to Simple Queue per client
+		// We DO NOT need to create Parent Queue Trees anymore for dedicated packages
+		console.log('Skipping Queue Tree creation for dedicated package mode (Simple Queue)');
 
 		const values = [
 			data.name,
