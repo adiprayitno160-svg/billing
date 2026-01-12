@@ -1,34 +1,29 @@
-<div class="space-y-6">
-    <!-- Page Header -->
-    <div class="mb-8">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+<div class="h-full flex flex-col space-y-6">
+    <!-- Page Header (Compact) -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 pb-4">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center shadow-sm">
+                <i class="fas fa-exclamation-triangle text-red-600 text-lg"></i>
+            </div>
             <div>
-                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2 flex items-center">
-                    <div
-                        class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mr-4 shadow-lg shadow-red-200">
-                        <i class="fas fa-exclamation-triangle text-white text-xl"></i>
-                    </div>
-                    Monitor Trouble
-                </h1>
-                <p class="text-gray-600 ml-16 italic">Daftar pelanggan yang mengalami gangguan (Offline, Maintenance,
-                    High Latency)</p>
+                <h1 class="text-2xl font-bold text-gray-900 leading-tight">Monitor Trouble</h1>
+                <p class="text-sm text-gray-500">Gangguan Pelanggan (Offline / Maintenance)</p>
             </div>
-            <div class="flex items-center gap-3 ml-16 sm:ml-0">
-                <span
-                    class="text-xs font-semibold text-gray-400 uppercase tracking-widest bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                    Live: <%= new Date(updatedAt).toLocaleTimeString('id-ID') %>
-                </span>
-                <button onclick="window.location.reload()"
-                    class="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm flex items-center gap-2 font-medium">
-                    <i class="fas fa-sync-alt"></i>
-                    Refresh
-                </button>
-            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span
+                class="text-[11px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                Last Update: <%= new Date(updatedAt).toLocaleTimeString('id-ID') %>
+            </span>
+            <button onclick="window.location.reload()"
+                class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-xs font-bold transition flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
         </div>
     </div>
 
-    <!-- Stats Cards Summary -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Summary Stats (Compact Grid) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <% const stats={ total: troubleCustomers.length, offline: troubleCustomers.filter(c=> c.issue_type ===
             'Offline').length,
             maintenance: troubleCustomers.filter(c => c.trouble_type === 'maintenance').length,
@@ -36,249 +31,243 @@
             };
             %>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600">
-                        <i class="fas fa-list-check text-xl"></i>
-                    </div>
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TOTAL ISSUE</span>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">TOTAL</p>
+                    <p class="text-2xl font-black text-slate-700 mt-1">
+                        <%= stats.total %>
+                    </p>
                 </div>
-                <div class="text-3xl font-bold text-gray-900 mb-1">
-                    <%= stats.total %>
+                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                    <i class="fas fa-list-ul text-xs"></i>
                 </div>
-                <div class="text-sm text-gray-500">Jumlah Gangguan</div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-red-200 p-6 hover:shadow-md transition-shadow">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-red-600">
-                        <i class="fas fa-signal-slash text-xl"></i>
-                    </div>
-                    <span class="text-[10px] font-bold text-red-600 uppercase tracking-widest">OFFLINE</span>
+            <div class="bg-white p-4 rounded-xl border border-red-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-red-400 uppercase tracking-wider">OFFLINE</p>
+                    <p class="text-2xl font-black text-red-600 mt-1">
+                        <%= stats.offline %>
+                    </p>
                 </div>
-                <div class="text-3xl font-bold text-red-600 mb-1">
-                    <%= stats.offline %>
+                <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500">
+                    <i class="fas fa-plug-circle-xmark text-xs"></i>
                 </div>
-                <div class="text-sm text-red-500/70">Koneksi Terputus</div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-yellow-200 p-6 hover:shadow-md transition-shadow">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600">
-                        <i class="fas fa-tools text-xl"></i>
-                    </div>
-                    <span class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">MAINTENANCE</span>
+            <div class="bg-white p-4 rounded-xl border border-yellow-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-yellow-500 uppercase tracking-wider">MAINTENANCE</p>
+                    <p class="text-2xl font-black text-yellow-600 mt-1">
+                        <%= stats.maintenance %>
+                    </p>
                 </div>
-                <div class="text-3xl font-bold text-yellow-600 mb-1">
-                    <%= stats.maintenance %>
+                <div class="w-8 h-8 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-500">
+                    <i class="fas fa-tools text-xs"></i>
                 </div>
-                <div class="text-sm text-yellow-600/70">Perbaikan Aktif</div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-orange-200 p-6 hover:shadow-md transition-shadow">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
-                        <i class="fas fa-triangle-exclamation text-xl"></i>
-                    </div>
-                    <span class="text-[10px] font-bold text-orange-600 uppercase tracking-widest">SLA INCIDENT</span>
+            <div class="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-orange-400 uppercase tracking-wider">SLA ISSUE</p>
+                    <p class="text-2xl font-black text-orange-600 mt-1">
+                        <%= stats.sla %>
+                    </p>
                 </div>
-                <div class="text-3xl font-bold text-orange-600 mb-1">
-                    <%= stats.sla %>
+                <div class="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
+                    <i class="fas fa-stopwatch text-xs"></i>
                 </div>
-                <div class="text-sm text-orange-600/70">Gangguan SLA</div>
             </div>
     </div>
 
-    <!-- Main Table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col"
-                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Pelanggan</th>
-                        <th scope="col"
-                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Koneksi</th>
-                        <th scope="col"
-                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Lokasi (ODC/ODP)</th>
-                        <th scope="col"
-                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Masalah</th>
-                        <th scope="col"
-                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Status</th>
-                        <th scope="col"
-                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Sejak</th>
-                        <th scope="col"
-                            class="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Aksi</th>
+    <!-- Full Width Table Container -->
+    <div class="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="overflow-x-auto flex-1">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr
+                        class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                        <th class="px-6 py-4 w-[25%]">Pelanggan</th>
+                        <th class="px-6 py-4 w-[20%]">Lokasi Infrastruktur</th>
+                        <th class="px-6 py-4 w-[15%]">Jenis Masalah</th>
+                        <th class="px-6 py-4 w-[15%]">Status</th>
+                        <th class="px-6 py-4 w-[15%]">Durasi</th>
+                        <th class="px-6 py-4 w-[10%] text-right">Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-100">
+                <tbody class="divide-y divide-slate-100">
                     <% if (troubleCustomers && troubleCustomers.length> 0) { %>
-                        <% troubleCustomers.forEach(function(customer, index) { %>
-                            <tr
-                                class="hover:bg-gray-50 transition-colors duration-150 <%= index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' %>">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
+                        <% troubleCustomers.forEach(function(customer) { %>
+                            <tr class="hover:bg-slate-50/80 transition-colors group">
+                                <!-- CL 1: Customer Info -->
+                                <td class="px-6 py-4 align-top">
+                                    <div class="flex items-start gap-3">
                                         <div
-                                            class="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center text-gray-600 font-bold">
+                                            class="w-9 h-9 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0">
                                             <%= customer.name.charAt(0).toUpperCase() %>
                                         </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-semibold text-gray-900">
+                                        <div>
+                                            <div
+                                                class="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
                                                 <%= customer.name %>
                                             </div>
-                                            <div class="text-xs text-gray-500">
+                                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">
                                                 <%= customer.customer_code %>
+                                            </div>
+                                            <div class="mt-1 flex items-center gap-1.5">
+                                                <span
+                                                    class="px-1.5 py-0.5 rounded text-[10px] font-medium border <%= customer.connection_type === 'pppoe' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-green-50 text-green-700 border-green-100' %>">
+                                                    <%= customer.connection_type==='pppoe' ? 'PPPoE' : 'Static' %>
+                                                </span>
+                                                <span class="text-[10px] text-slate-400 truncate max-w-[100px]">
+                                                    <%= customer.pppoe_username || customer.ip_address %>
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        <%= customer.connection_type==='pppoe' ? 'PPPoE' : 'Static IP' %>
-                                    </div>
-                                    <div class="text-xs text-blue-600 font-mono">
-                                        <%= customer.pppoe_username || customer.ip_address || '-' %>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="space-y-1">
+
+                                <!-- CL 2: Infra Location -->
+                                <td class="px-6 py-4 align-top">
+                                    <div class="space-y-1.5">
                                         <% if (customer.odc_name) { %>
-                                            <span
-                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                                                ODC: <%= customer.odc_name %>
-                                            </span>
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                                <span class="text-xs text-slate-600 font-medium">
+                                                    <%= customer.odc_name %>
+                                                </span>
+                                            </div>
                                             <% } %>
-                                                <% if (customer.odp_id) { %>
-                                                    <span
-                                                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">
-                                                        ODP: <%= customer.odp_id %>
-                                                    </span>
+                                                <% if (customer.odp_name || customer.odp_id) { %>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                                        <span class="text-xs text-slate-600 font-medium">
+                                                            <%= customer.odp_name || customer.odp_id %>
+                                                        </span>
+                                                    </div>
                                                     <% } %>
+                                                        <% if (!customer.odc_name && !customer.odp_name &&
+                                                            !customer.odp_id) { %>
+                                                            <span class="text-xs text-slate-400 italic">Lokasi tidak
+                                                                terdata</span>
+                                                            <% } %>
+
+                                                                <% if (customer.address) { %>
+                                                                    <div
+                                                                        class="flex items-start gap-1.5 mt-2 pt-2 border-t border-slate-50">
+                                                                        <i
+                                                                            class="fas fa-map-marker-alt text-slate-300 text-[10px] mt-0.5"></i>
+                                                                        <p class="text-[10px] text-slate-500 leading-tight line-clamp-2"
+                                                                            title="<%= customer.address %>">
+                                                                            <%= customer.address %>
+                                                                        </p>
+                                                                    </div>
+                                                                    <% } %>
                                     </div>
-                                    <% if (customer.address) { %>
-                                        <div class="text-[10px] text-gray-500 mt-1 truncate max-w-[150px]"
-                                            title="<%= customer.address %>">
-                                            <%= customer.address %>
+                                </td>
+
+                                <!-- CL 3: Issue Type -->
+                                <td class="px-6 py-4 align-top">
+                                    <% if (customer.issue_type==='Offline' ) { %>
+                                        <div
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 border border-red-100 text-red-700">
+                                            <span class="relative flex h-2 w-2">
+                                                <span
+                                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                <span
+                                                    class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                            </span>
+                                            <span class="text-xs font-bold">OFFLINE</span>
                                         </div>
-                                        <% } %>
+                                        <% } else if (customer.trouble_type==='maintenance' ) { %>
+                                            <div
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-50 border border-yellow-100 text-yellow-700">
+                                                <i class="fas fa-tools text-[10px]"></i>
+                                                <span class="text-xs font-bold">MAINTENANCE</span>
+                                            </div>
+                                            <% } else { %>
+                                                <div
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-50 border border-orange-100 text-orange-700">
+                                                    <i class="fas fa-exclamation-circle text-[10px]"></i>
+                                                    <span class="text-xs font-bold">
+                                                        <%= customer.issue_type || 'Unknown Issue' %>
+                                                    </span>
+                                                </div>
+                                                <% } %>
+
+                                                    <!-- Modem/CPE Status -->
+                                                    <% if (customer.ont_status) { %>
+                                                        <div class="mt-2 text-[10px] flex items-center gap-1">
+                                                            <span class="text-slate-400">Modem:</span>
+                                                            <span
+                                                                class="<%= customer.ont_status === 'online' ? 'text-green-600 font-bold' : 'text-slate-500 font-medium' %> uppercase">
+                                                                <%= customer.ont_status %>
+                                                            </span>
+                                                        </div>
+                                                        <% } %>
                                 </td>
-                                <td class="px-6 py-4">
-                                    <div class="text-sm font-bold text-red-600">
-                                        <%= customer.issue_type || '-' %>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+
+                                <!-- CL 4: Status Penanganan -->
+                                <td class="px-6 py-4 align-top">
                                     <% if (customer.maintenance_status==='in_progress' ) { %>
                                         <span
-                                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                            <i class="fas fa-tools mr-1.5 text-[10px]"></i> Sedang Ditangani
+                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                                            <i class="fas fa-user-cog"></i> Sedang Perbaikan
                                         </span>
                                         <% } else if (customer.maintenance_status==='scheduled' ) { %>
                                             <span
-                                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                                <i class="fas fa-calendar-alt mr-1.5 text-[10px]"></i> Terjadwal
+                                                class="inline-flex items-center gap-1.5 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded border border-purple-100">
+                                                <i class="fas fa-calendar-check"></i> Terjadwal
                                             </span>
-                                            <% } else if (customer.issue_type==='Offline' ) { %>
-                                                <span
-                                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
-                                                    <span
-                                                        class="h-2 w-2 rounded-full bg-red-500 mr-1.5 animate-pulse"></span>
-                                                    Offline
-                                                </span>
-                                                <% } else { %>
-                                                    <span
-                                                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-200">
-                                                        <%= customer.status || 'Unknown' %>
-                                                    </span>
-                                                    <% } %>
-
-                                                        <!-- CPE Status (GenieACS) -->
-                                                        <% if (customer.ont_status) { %>
-                                                            <div
-                                                                class="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
-                                                                <span
-                                                                    class="text-[10px] font-bold text-gray-500 uppercase tracking-tight">modem:</span>
-                                                                <% if (customer.ont_status==='online' ) { %>
-                                                                    <div class="flex items-center gap-1.5">
-                                                                        <span
-                                                                            class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                                                        <span
-                                                                            class="text-[10px] font-bold text-green-600">ONLINE</span>
-                                                                        <% if(customer.ont_last_seen) { %>
-                                                                            <span class="text-[9px] text-gray-400">(<%=
-                                                                                    new
-                                                                                    Date(customer.ont_last_seen).toLocaleTimeString('id-ID',
-                                                                                    {hour:'2-digit', minute:'2-digit'})
-                                                                                    %>)</span>
-                                                                            <% } %>
-                                                                    </div>
-                                                                    <% } else { %>
-                                                                        <div class="flex items-center gap-1.5">
-                                                                            <span
-                                                                                class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                                                            <span
-                                                                                class="text-[10px] font-bold text-gray-500">OFFLINE</span>
-                                                                        </div>
-                                                                        <% } %>
-                                                            </div>
-                                                            <% } %>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <% if (customer.trouble_since) { %>
-                                        <% const since=new Date(customer.trouble_since); const now=new Date(); const
-                                            diffMs=now - since; const diffMins=Math.floor(diffMs / 60000); const
-                                            diffHrs=Math.floor(diffMins / 60); let durationStr='' ; if (diffHrs> 24) {
-                                            durationStr = Math.floor(diffHrs / 24) + ' hari';
-                                            } else if (diffHrs > 0) {
-                                            durationStr = diffHrs + ' j ' + (diffMins % 60) + ' m';
-                                            } else {
-                                            durationStr = diffMins + ' m';
-                                            }
-                                            %>
-                                            <div class="text-sm font-semibold text-gray-900">
-                                                <%= since.toLocaleTimeString('id-ID', { hour: '2-digit' ,
-                                                    minute: '2-digit' }) %>
-                                            </div>
-                                            <div class="text-[10px] text-red-500 font-bold uppercase tracking-wider">
-                                                <%= durationStr %> yang lalu
-                                            </div>
                                             <% } else { %>
-                                                <span class="text-gray-400">-</span>
+                                                <span
+                                                    class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                                    <i class="fas fa-clock"></i> Menunggu
+                                                </span>
                                                 <% } %>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right">
-                                    <div class="flex items-center justify-end space-x-2">
-                                        <button onclick="checkStatus(<%= customer.id %>)"
-                                            class="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-xs font-bold transition-all transform active:scale-95">
-                                            CEK
-                                        </button>
-                                        <a href="/customers/<%= customer.id %>"
-                                            class="px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all">
-                                            DETAIL
-                                        </a>
-                                    </div>
+
+                                <!-- CL 5: Durasi -->
+                                <td class="px-6 py-4 align-top">
+                                    <% if (customer.trouble_since) { const since=new Date(customer.trouble_since); const
+                                        now=new Date(); const diffMs=now - since; const diffMins=Math.floor(diffMs /
+                                        60000); const diffHrs=Math.floor(diffMins / 60); let durStr=diffMins + 'm' ;
+                                        if(diffHrs> 0) durStr = diffHrs + 'j ' + (diffMins % 60) + 'm';
+                                        if(diffHrs > 24) durStr = Math.floor(diffHrs/24) + ' hari';
+                                        %>
+                                        <div class="font-bold text-red-600 text-sm">
+                                            <%= durStr %>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 mt-1">
+                                            Sejak <%= since.toLocaleTimeString('id-ID', {hour:'2-digit',
+                                                minute:'2-digit'}) %>
+                                        </div>
+                                        <% } else { %>
+                                            <span class="text-slate-400">-</span>
+                                            <% } %>
+                                </td>
+
+                                <!-- CL 6: Actions -->
+                                <td class="px-6 py-4 align-top text-right">
+                                    <a href="/customers/<%= customer.id %>"
+                                        class="inline-flex items-center justify-center w-8 h-8 bg-white border border-slate-200 rounded text-slate-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all shadow-sm"
+                                        title="Lihat Detail">
+                                        <i class="fas fa-arrow-right text-xs"></i>
+                                    </a>
                                 </td>
                             </tr>
                             <% }) %>
                                 <% } else { %>
                                     <tr>
-                                        <td colspan="7" class="px-6 py-24 text-center">
-                                            <div class="flex flex-col items-center justify-center">
+                                        <td colspan="6" class="px-6 py-32 text-center">
+                                            <div class="max-w-xs mx-auto text-center">
                                                 <div
-                                                    class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6 ring-8 ring-green-50/50">
-                                                    <i class="fas fa-check-circle text-4xl text-green-500"></i>
+                                                    class="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-100">
+                                                    <i class="fas fa-check text-2xl"></i>
                                                 </div>
-                                                <h3 class="text-xl font-bold text-gray-900 mb-1">Semua Sistem Normal
-                                                </h3>
-                                                <p class="text-gray-500">Tidak ada pelanggan yang mengalami gangguan
-                                                    saat ini.</p>
+                                                <h3 class="text-lg font-bold text-gray-900">Semua Sistem Normal</h3>
+                                                <p class="text-sm text-gray-500 mt-1">Tidak ada pelanggan yang mengalami
+                                                    gangguan saat ini.</p>
                                             </div>
                                         </td>
                                     </tr>
