@@ -1,5 +1,5 @@
 import { databasePool } from '../db/pool';
-import { createQueueTree, updateQueueTree, deleteQueueTree, getQueueTrees, MikroTikConfig } from './mikrotikService';
+import { createQueueTree, updateQueueTree, deleteQueueTree, getQueueTrees, MikroTikConfig, addMangleRulesForClient, findQueueTreeIdByName } from './mikrotikService';
 
 export type StaticIpPackage = {
 	id: number;
@@ -588,3 +588,154 @@ export async function deleteMikrotikQueuesOnly(packageId: number): Promise<void>
 		await deleteQueueTree(config, downloadQueue['.id']);
 	}
 }
+
+export async function syncClientQueues(customerId: number, packageId: number, ipAddress: string, clientName: string): Promise<void> {
+	const config = await getMikrotikConfig();
+	if (!config) throw new Error('Konfigurasi MikroTik tidak ditemukan');
+
+	const pkg = await getStaticIpPackageById(packageId);
+	if (!pkg) throw new Error('Paket tidak ditemukan');
+
+	// Get customer code to create a unique and recognizable name
+	let codeSuffix = '';
+	try {
+		const [custRows] = await databasePool.execute('SELECT customer_code FROM customers WHERE id = ?', [customerId]);
+		const cust = (custRows as any)[0];
+		if (cust && cust.customer_code) {
+			codeSuffix = cust.customer_code.slice(-4);
+		}
+	} catch (e) {
+		console.warn('[syncClientQueues] Could not fetch customer_code:', e);
+	}
+
+	// Sanitize client name for MikroTik (remove spaces and special chars)
+	// We want it to be readable but valid for MikroTik
+	const cleanName = clientName.replace(/[^a-zA-Z0-9]/g, '_');
+	const baseName = codeSuffix ? `${cleanName}_${codeSuffix}` : cleanName;
+
+	// Standardize marks & names
+	const downloadMark = `${baseName}_DL_MARK`;
+	const uploadMark = `${baseName}_UP_MARK`;
+	const qDownloadName = `${baseName}_DOWN`;
+	const qUploadName = `${baseName}_UP`;
+
+	// Clean IP address from CIDR if present (e.g. 192.168.1.1/30 -> 192.168.1.1)
+	const cleanIp = ipAddress.split('/')[0];
+
+	// 1. Ensure Mangle rules (This will cleanup old ones using our robust removal)
+	await addMangleRulesForClient(config, {
+		peerIp: cleanIp,
+		downloadMark: downloadMark,
+		uploadMark: uploadMark
+	});
+
+	const allQueues = await getQueueTrees(config);
+
+	// Helper to find parent queue (robust matching)
+	const findParent = (suffix: string, dbParentName?: string) => {
+		// 1. Try DB configured name first!
+		if (dbParentName) {
+			const dbMatch = allQueues.find(q => q.name === dbParentName);
+			if (dbMatch) return dbMatch.name;
+		}
+
+		// 2. Try Strict construction
+		const strictName = `${pkg.name}_${suffix}`; // e.g. PAKET 110_DOWNLOAD
+		const strictMatch = allQueues.find(q => q.name === strictName);
+		if (strictMatch) return strictName;
+
+		// 3. Soft match
+		const candidate = allQueues.find(q =>
+			q.name.toLowerCase().includes(pkg.name.toLowerCase()) &&
+			q.name.includes(suffix)
+		);
+
+		if (candidate) {
+			console.log(`[syncClientQueues] ⚠️ Exact parent '${strictName}' not found. Using fuzzy match: '${candidate.name}'`);
+			return candidate.name;
+		}
+
+		// 4. Fallback for legacy naming (e.g. "PAKET 5000" and "UP-PAKET 5000") if strict suffix not found
+		if (suffix === 'DOWNLOAD') {
+			const exactNameQueue = allQueues.find(q => q.name === pkg.name);
+			if (exactNameQueue) {
+				console.log(`[syncClientQueues] Using legacy parent name for DOWNLOAD: ${exactNameQueue.name}`);
+				return exactNameQueue.name;
+			}
+		}
+		if (suffix === 'UPLOAD') {
+			const upPrefixName = `UP-${pkg.name}`;
+			const upQueue = allQueues.find(q => q.name === upPrefixName);
+			if (upQueue) {
+				console.log(`[syncClientQueues] Using legacy parent name for UPLOAD: ${upQueue.name}`);
+				return upQueue.name;
+			}
+		}
+
+		console.error(`[syncClientQueues] ❌ CRITICAL: Parent queue for ${pkg.name} (${suffix}) NOT FOUND in MikroTik!`);
+		return dbParentName || strictName; // Fallback
+	};
+
+	const parentDownloadName = findParent('DOWNLOAD', pkg.parent_download_name);
+	const parentUploadName = findParent('UPLOAD', pkg.parent_upload_name);
+
+	// 2. Sync Download Queue Tree
+	// Try to find by: 1. standard name, 2. raw client name, 3. old sanitized name, 4. IP address as packet mark (legacy, partial match)
+	let qDownId = (allQueues.find(q => q.name === qDownloadName) ||
+		allQueues.find(q => q.name === clientName) ||
+		allQueues.find(q => q.name === `${clientName.replace(/\s+/g, '_')}_DOWN`) ||
+		allQueues.find(q => q['packet-mark'] && q['packet-mark'].includes(cleanIp)))?.['.id'];
+
+	const downData = {
+		name: qDownloadName,
+		parent: parentDownloadName,
+		packetMarks: downloadMark,
+		maxLimit: pkg.max_limit_download,
+		priority: pkg.child_priority_download || '8',
+		comment: `[BILLING] DL for ${clientName}`
+	};
+
+	if (qDownId) {
+		await updateQueueTree(config, qDownId, downData);
+	} else {
+		// Only create if we think we can (parent might be missing, but we try)
+		await createQueueTree(config, downData);
+	}
+
+	// 3. Sync Upload Queue Tree
+	let qUpId = (allQueues.find(q => q.name === qUploadName) ||
+		allQueues.find(q => q.name === clientName) ||
+		allQueues.find(q => q.name === `${clientName.replace(/\s+/g, '_')}_UP`) ||
+		allQueues.find(q => q['packet-mark'] && q['packet-mark'].includes(cleanIp) && !q.name.includes('DOWN')))?.['.id'];
+
+	const upData = {
+		name: qUploadName,
+		parent: parentUploadName,
+		packetMarks: uploadMark,
+		maxLimit: pkg.max_limit_upload,
+		priority: pkg.child_priority_upload || '8',
+		comment: `[BILLING] UP for ${clientName}`
+	};
+
+	if (qUpId) {
+		await updateQueueTree(config, qUpId, upData);
+	} else {
+		await createQueueTree(config, upData);
+	}
+
+	// Cleanup: If the raw name queue was found but had a different ID than what we just synced (unlikely but safe)
+	// or if there are other duplicates left over.
+	const remainingDups = allQueues.filter(q =>
+		(q.name === clientName || q.name === `${clientName.replace(/\s+/g, '_')}_DOWN` || q.name === `${clientName.replace(/\s+/g, '_')}_UP` || q['packet-mark'] === cleanIp) &&
+		q['.id'] !== qDownId && q['.id'] !== qUpId
+	);
+	for (const dup of remainingDups) {
+		try {
+			await deleteQueueTree(config, dup['.id']);
+			console.log(`[syncClientQueues] Cleaned up duplicate/old queue: ${dup.name}`);
+		} catch (e) { /* ignore */ }
+	}
+
+	console.log(`[syncClientQueues] ✅ Successfully synced queues for ${baseName} (${cleanIp}) using package ${pkg.name}`);
+}
+

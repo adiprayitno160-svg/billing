@@ -3,7 +3,7 @@ import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { getMikrotikConfig } from '../utils/mikrotikConfigHelper';
 import { listPackages as listPppoePackages } from '../services/pppoeService';
-import { listStaticIpPackages } from '../services/staticIpPackageService';
+import { listStaticIpPackages, syncClientQueues } from '../services/staticIpPackageService';
 import { getInterfaces } from '../services/mikrotikService';
 import { calculateCustomerIP } from '../utils/ipHelper';
 import GenieacsService from '../services/genieacs/GenieacsService';
@@ -747,6 +747,14 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateFields.push('serial_number = ?');
                 updateValues.push(serial_number || null);
             }
+            if (req.body.latitude !== undefined) {
+                updateFields.push('latitude = ?');
+                updateValues.push(req.body.latitude || null);
+            }
+            if (req.body.longitude !== undefined) {
+                updateFields.push('longitude = ?');
+                updateValues.push(req.body.longitude || null);
+            }
 
             // Handle PPN Taxable flag
             // Checkbox behavior: sent as '1' if checked, missing if unchecked
@@ -1433,33 +1441,104 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 }
             }
 
-            // Handle Static IP specific updates
-            if (connection_type || oldCustomer.connection_type === 'static_ip') {
-                const targetConnType = connection_type || oldCustomer.connection_type;
-                if (targetConnType === 'static_ip') {
-                    try {
-                        const [staticClient] = await conn.query<RowDataPacket[]>('SELECT id FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+            // ========== UPDATE SUBSCRIPTION KETIKA PAKET DIUBAH (STATIC IP) ==========
+            // Handle package update for Static IP customers
+            const targetConnTypeForSub = connection_type || oldCustomer.connection_type;
+            if (targetConnTypeForSub === 'static_ip' && static_ip_package) {
+                const packageId = parseInt(static_ip_package);
+                if (!isNaN(packageId) && packageId > 0) {
+                    console.log(`[Edit Customer] Updating subscription for static IP customer ${customerId} to package ${packageId}`);
 
-                        const staticIpUpdates: string[] = [];
-                        const staticIpValues: any[] = [];
+                    // Get package details
+                    const [packageRows] = await conn.query<RowDataPacket[]>(
+                        'SELECT id, name, price FROM static_ip_packages WHERE id = ?',
+                        [packageId]
+                    );
 
-                        if (ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(ip_address); }
-                        if (interfaceName) { staticIpUpdates.push('interface = ?'); staticIpValues.push(interfaceName); }
-                        if (static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(static_ip_package); }
+                    if (packageRows && packageRows.length > 0) {
+                        const pkg = packageRows[0];
 
-                        if (staticIpUpdates.length > 0) {
-                            if (staticClient && staticClient.length > 0) {
-                                staticIpValues.push(staticClient[0].id);
-                                await conn.query(`UPDATE static_ip_clients SET ${staticIpUpdates.join(', ')}, updated_at = NOW() WHERE id = ?`, staticIpValues);
-                                console.log(`[UpdateCustomer] Updated static_ip_clients for customer ${customerId}`);
-                            }
+                        // Check if subscription exists
+                        const [existingSubs] = await conn.query<RowDataPacket[]>(
+                            'SELECT id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                            [customerId]
+                        );
+
+                        if (existingSubs && existingSubs.length > 0) {
+                            // Update existing subscription
+                            await conn.query(
+                                `UPDATE subscriptions 
+                                 SET package_id = ?, package_name = ?, price = ?, updated_at = NOW() 
+                                 WHERE customer_id = ? AND status = 'active'`,
+                                [pkg?.id, pkg?.name, pkg?.price, customerId]
+                            );
+                            console.log(`[Edit Customer Static IP] ✅ Subscription updated to package: ${pkg?.name}`);
+                        } else {
+                            // Create new subscription if none exists
+                            await conn.query(
+                                `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)
+                                 VALUES (?, ?, ?, ?, 'active', NOW(), NOW(), NOW())`,
+                                [customerId, pkg?.id, pkg?.name, pkg?.price]
+                            );
+                            console.log(`[Edit Customer Static IP] ✅ New subscription created with package: ${pkg?.name}`);
                         }
-                    } catch (staticIpError) {
-                        console.error('[UpdateCustomer] Error updating static IP data:', staticIpError);
                     }
                 }
             }
 
+            // Handle connection type specific updates
+            const targetConnType = connection_type || oldCustomer.connection_type;
+
+            if (targetConnType === 'static_ip') {
+                try {
+                    const [staticClient] = await conn.query<RowDataPacket[]>('SELECT id, ip_address, package_id FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+
+                    const staticIpUpdates: string[] = [];
+                    const staticIpValues: any[] = [];
+
+                    if (ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(ip_address); }
+                    if (interfaceName) { staticIpUpdates.push('interface = ?'); staticIpValues.push(interfaceName); }
+                    if (static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(static_ip_package); }
+
+                    if (staticClient && staticClient.length > 0) {
+                        if (staticIpUpdates.length > 0) {
+                            staticIpValues.push(staticClient[0].id);
+                            await conn.query(`UPDATE static_ip_clients SET ${staticIpUpdates.join(', ')}, updated_at = NOW() WHERE id = ?`, staticIpValues);
+                            console.log(`[UpdateCustomer] Updated static_ip_clients for customer ${customerId}`);
+                        }
+
+                        // SYNC TO MIKROTIK
+                        const finalIp = ip_address || (staticClient[0] as any).ip_address;
+                        const finalPackageId = static_ip_package || (staticClient[0] as any).package_id;
+
+                        if (finalIp && finalPackageId) {
+                            console.log(`[UpdateCustomer] Init sync to MikroTik for Static IP: ${finalIp}, Package: ${finalPackageId}`);
+                            try {
+                                await syncClientQueues(customerId, parseInt(finalPackageId), finalIp, name || oldName);
+                            } catch (syncErr: any) {
+                                console.error('[UpdateCustomer] ❌ Failed to sync MikroTik queues:', syncErr.message);
+                            }
+                        }
+                    } else if (targetConnType === 'static_ip') {
+                        // Create new static_ip_clients record if switching connection type
+                        const pkgId = static_ip_package ? parseInt(static_ip_package) : null;
+                        if (ip_address && pkgId) {
+                            await conn.query(
+                                'INSERT INTO static_ip_clients (customer_id, client_name, ip_address, interface, package_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, "active", NOW(), NOW())',
+                                [customerId, name || oldName, ip_address, interfaceName, pkgId]
+                            );
+                            console.log(`[UpdateCustomer] Created new static_ip_clients for customer ${customerId}`);
+
+                            // Sync to MikroTik
+                            await syncClientQueues(customerId, pkgId, ip_address, name || oldName);
+                        }
+                    }
+                } catch (staticIpError) {
+                    console.error('[UpdateCustomer] Error updating static IP data:', staticIpError);
+                }
+            }
+
+            await conn.commit();
             console.log('[updateCustomer] Update successful, redirecting to:', `/customers/${customerId}?success=updated`);
             req.flash('success', 'Data pelanggan berhasil diperbarui');
             res.redirect(`/customers/${customerId}?success=updated`);

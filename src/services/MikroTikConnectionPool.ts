@@ -99,7 +99,7 @@ class MikroTikPoolManager {
     }
 
     private getConnectionKey(config: MikroTikConfig): string {
-        return `${config.host}:${config.port}:${config.username}`;
+        return `${config.host}:${config.port}:${config.username}:${config.password}`;
     }
 
     private cleanupIdleConnections(): void {

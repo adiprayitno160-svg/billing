@@ -1044,7 +1044,7 @@ export class NetworkMonitoringService {
                 queries.push(`
                     SELECT DISTINCT
                         c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                        c.odc_id, c.odp_id, c.address, c.phone,
+                        c.odc_id, c.odp_id, c.address, c.phone, c.serial_number,
                         m.status as maintenance_status, 
                         ${issueTypeColumn} as issue_type, 
                         m.created_at as trouble_since,
@@ -1061,7 +1061,7 @@ export class NetworkMonitoringService {
                 queries.push(`
                     SELECT DISTINCT
                         c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                        c.odc_id, c.odp_id, c.address, c.phone,
+                        c.odc_id, c.odp_id, c.address, c.phone, c.serial_number,
                         NULL as maintenance_status,
                         'Offline' as issue_type,
                         COALESCE(sips.last_offline_at, sips.last_check) as trouble_since,
@@ -1081,7 +1081,7 @@ export class NetworkMonitoringService {
                 queries.push(`
                     SELECT DISTINCT
                         c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                        c.odc_id, c.odp_id, c.address, c.phone,
+                        c.odc_id, c.odp_id, c.address, c.phone, c.serial_number,
                         NULL as maintenance_status,
                         'Offline' as issue_type,
                         cl_latest.timestamp as trouble_since,
@@ -1115,7 +1115,7 @@ export class NetworkMonitoringService {
                 queries.push(`
                     SELECT DISTINCT
                         c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                        c.odc_id, c.odp_id, c.address, c.phone,
+                        c.odc_id, c.odp_id, c.address, c.phone, c.serial_number,
                         NULL as maintenance_status,
                         CONCAT('SLA: ', si.incident_type) as issue_type,
                         si.start_time as trouble_since,
@@ -1132,7 +1132,7 @@ export class NetworkMonitoringService {
                 queries.push(`
                     SELECT DISTINCT
                         c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                        c.odc_id, c.odp_id, c.address, c.phone,
+                        c.odc_id, c.odp_id, c.address, c.phone, c.serial_number,
                         NULL as maintenance_status,
                         CONCAT('Ticket: ', t.subject) as issue_type,
                         t.reported_at as trouble_since,
@@ -1153,7 +1153,7 @@ export class NetworkMonitoringService {
                 SELECT 
                     trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, 
                     trouble.status, trouble.connection_type,
-                    trouble.odc_id, trouble.odp_id, trouble.address, trouble.phone,
+                    trouble.odc_id, trouble.odp_id, trouble.address, trouble.phone, trouble.serial_number,
                     COALESCE(
                         MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.maintenance_status END),
                         MAX(trouble.maintenance_status)
@@ -1177,7 +1177,7 @@ export class NetworkMonitoringService {
                 FROM (
                     ${queries.join(' UNION ALL ')}
                 ) as trouble
-                GROUP BY trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, trouble.status, trouble.connection_type, trouble.odc_id, trouble.odp_id, trouble.address, trouble.phone, trouble.trouble_type
+                GROUP BY trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, trouble.status, trouble.connection_type, trouble.odc_id, trouble.odp_id, trouble.address, trouble.phone, trouble.serial_number, trouble.trouble_type
                 ORDER BY 
                     priority_type,
                     MAX(trouble.trouble_since) DESC
@@ -1186,31 +1186,138 @@ export class NetworkMonitoringService {
 
             const [rows] = await databasePool.query(unionQuery);
 
-            // ---- Real-time Mikrotik status injection ----
-            let activeSessions: any[] = [];
+            // ---- Real-time Mikrotik status injection & Realtime Offline Detection ----
             try {
                 const mikrotikConfig = await getMikrotikConfig();
                 if (mikrotikConfig) {
-                    activeSessions = await getPppoeActiveConnections(mikrotikConfig);
+                    const activeSessions = await getPppoeActiveConnections(mikrotikConfig);
+                    const onlineUsernames = new Set(activeSessions.map(s => s.name));
+
+                    // 1. Identify customers who are Active in DB but NOT online in MikroTik (Realtime Offline)
+                    // We need to fetch ALL active PPPoE customers to check this, 
+                    // because the UNION query above only returns customers with LOGS or MAINTENANCE.
+
+                    const [allActivePppoe] = await databasePool.query(`
+                        SELECT c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+                               c.odc_id, c.odp_id, c.address, c.phone, c.serial_number
+                        FROM customers c
+                        WHERE c.status = 'active' 
+                        AND c.connection_type = 'pppoe'
+                        AND c.pppoe_username IS NOT NULL 
+                        AND c.pppoe_username != ''
+                        ${hasIsolated ? 'AND (c.is_isolated = 0 OR c.is_isolated IS NULL)' : ''}
+                    `) as [RowDataPacket[], any];
+
+                    // Helper to check if customer is already in rows
+                    // Use a Set for faster lookup
+                    const existingIds = new Set((rows as any[]).map(r => r.id));
+
+                    for (const activeCust of allActivePppoe) {
+                        // Use activeCust.pppoe_username to check online status
+                        if (!onlineUsernames.has(activeCust.pppoe_username)) {
+                            // Customer is Active in DB but NOT Online in Mikrotik -> Trouble!
+
+                            // Only add if not already present (e.g. from maintenance or logs)
+                            if (!existingIds.has(activeCust.id)) {
+                                (rows as any[]).push({
+                                    id: activeCust.id,
+                                    name: activeCust.name,
+                                    customer_code: activeCust.customer_code,
+                                    pppoe_username: activeCust.pppoe_username,
+                                    status: activeCust.status,
+                                    connection_type: activeCust.connection_type,
+                                    odc_id: activeCust.odc_id,
+                                    odp_id: activeCust.odp_id,
+                                    address: activeCust.address,
+                                    phone: activeCust.phone,
+                                    serial_number: activeCust.serial_number,
+                                    maintenance_status: null,
+                                    issue_type: 'Offline (Realtime)',
+                                    trouble_since: new Date(), // Just detected
+                                    priority_type: 2, // Offline priority
+                                    trouble_type: 'offline'
+                                });
+                            }
+                        }
+                    }
+
+                    // Send notifications for newly offline customers (offline trouble_type)
+                    for (const cust of rows as any[]) {
+                        if (cust.trouble_type === 'offline') {
+                            const isOnline = onlineUsernames.has(cust.pppoe_username);
+                            if (!isOnline && cust.phone) {
+                                const message = `⚠️ *Pemberitahuan Gangguan*\n\nPelanggan ${cust.name} (${cust.customer_code}) terdeteksi offline. Tim kami sedang menindaklanjuti.`;
+                                try {
+                                    // Normally we should check if message was already sent recently
+                                    // Suppressing error to avoid breaking the dashboard view
+                                    await WhatsAppServiceBaileys.sendMessage(cust.phone, message);
+                                } catch (err) {
+                                    console.error('Failed to send trouble notification (suppressed):', err);
+                                }
+                            }
+                        }
+                    }
+
                 }
             } catch (e) {
                 console.error('Error fetching Mikrotik active sessions for trouble customers:', e);
             }
-            const onlineUsernames = new Set(activeSessions.map(s => s.name));
 
-            // Send notifications for newly offline customers (offline trouble_type)
-            for (const cust of rows as any[]) {
-                if (cust.trouble_type === 'offline') {
-                    const isOnline = onlineUsernames.has(cust.pppoe_username);
-                    if (!isOnline && cust.phone) {
-                        const message = `⚠️ *Pemberitahuan Gangguan*\n\nPelanggan ${cust.name} (${cust.customer_code}) terdeteksi offline. Tim kami sedang menindaklanjuti.`;
-                        try {
-                            await WhatsAppServiceBaileys.sendMessage(cust.phone, message);
-                        } catch (err) {
-                            console.error('Failed to send trouble notification to', cust.phone, err);
+            // Sort rows again because we pushed new items
+            (rows as any[]).sort((a, b) => {
+                const priorityDiff = (a.priority_type || 5) - (b.priority_type || 5);
+                if (priorityDiff !== 0) return priorityDiff;
+                // Sort by trouble_since desc
+                const dateA = a.trouble_since ? new Date(a.trouble_since).getTime() : 0;
+                const dateB = b.trouble_since ? new Date(b.trouble_since).getTime() : 0;
+                return dateB - dateA;
+            });
+
+            // ---- GenieACS Status Injection ----
+            try {
+                // Collect serial numbers of interest (offline customers only)
+                const serials = (rows as any[])
+                    .filter(r => r.trouble_type === 'offline' && r.serial_number)
+                    .map(r => r.serial_number);
+
+                if (serials.length > 0) {
+                    // Fetch device status
+                    const [devices] = await databasePool.query<RowDataPacket[]>(
+                        `SELECT genieacs_serial, status, last_seen, metadata 
+                         FROM network_devices 
+                         WHERE genieacs_serial IN (?)`,
+                        [serials]
+                    );
+
+                    // Create status map
+                    const deviceMap = new Map();
+                    (devices as any[]).forEach(d => {
+                        deviceMap.set(d.genieacs_serial, d);
+                    });
+
+                    // Inject into rows
+                    (rows as any[]).forEach(r => {
+                        if (r.serial_number && deviceMap.has(r.serial_number)) {
+                            const dev = deviceMap.get(r.serial_number);
+                            r.ont_status = dev.status;
+                            r.ont_last_seen = dev.last_seen;
+                            // Parse metadata if string
+                            try {
+                                if (typeof dev.metadata === 'string') {
+                                    r.ont_metadata = JSON.parse(dev.metadata);
+                                } else {
+                                    r.ont_metadata = dev.metadata;
+                                }
+                            } catch (e) { r.ont_metadata = null; }
+                        } else if (r.serial_number) {
+                            r.ont_status = 'unknown'; // Serial exists but not found in GenieACS DB
+                        } else {
+                            r.ont_status = null; // No serial
                         }
-                    }
+                    });
                 }
+            } catch (e) {
+                console.error('Error fetching GenieACS status for trouble customers:', e);
             }
 
             return rows as any[];

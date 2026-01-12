@@ -381,26 +381,51 @@ export async function addMangleRulesForClient(cfg: MikroTikConfig, data: { peerI
 
 export async function removeMangleRulesForClient(cfg: MikroTikConfig, data: { peerIp: string, downloadMark: string, uploadMark: string }): Promise<void> {
     try {
-        const rules = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
+        // 1. Find by comment (original logic)
+        const rulesByCommentDown = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
             `?comment=Download for ${data.peerIp}`
-        ], `mangle_down:${data.peerIp}`, 1000);
+        ], `mangle_down_c:${data.peerIp}`, 1000);
 
-        if (rules && rules.length > 0) {
-            for (const r of rules) {
-                await mikrotikPool.execute(cfg, '/ip/firewall/mangle/remove', [`=.id=${r['.id']}`]);
-            }
-        }
-
-        const upRules = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
+        const rulesByCommentUp = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
             `?comment=Upload for ${data.peerIp}`
-        ], `mangle_up:${data.peerIp}`, 1000);
+        ], `mangle_up_c:${data.peerIp}`, 1000);
 
-        if (upRules && upRules.length > 0) {
-            for (const r of upRules) {
-                await mikrotikPool.execute(cfg, '/ip/firewall/mangle/remove', [`=.id=${r['.id']}`]);
+        // 2. Find by IP Address (more robust)
+        const rulesByIpDown = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
+            `?dst-address=${data.peerIp}`
+        ], `mangle_down_ip:${data.peerIp}`, 1000);
+
+        const rulesByIpUp = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
+            `?src-address=${data.peerIp}`
+        ], `mangle_up_ip:${data.peerIp}`, 1000);
+
+        // 3. Find by packet mark (if it matches the IP or the expected marks)
+        // This is for cases where the mark itself IS the IP address
+        const rulesByMarkDown = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [
+            `?new-packet-mark=${data.peerIp}`
+        ], `mangle_down_m:${data.peerIp}`, 1000);
+
+        // Combine all found rules
+        const allRules = [
+            ...(rulesByCommentDown || []),
+            ...(rulesByCommentUp || []),
+            ...(rulesByIpDown || []),
+            ...(rulesByIpUp || []),
+            ...(rulesByMarkDown || [])
+        ];
+
+        // Unique by .id
+        const uniqueIds = Array.from(new Set(allRules.map(r => r['.id'])));
+
+        if (uniqueIds.length > 0) {
+            console.log(`[MikroTik] Cleaning up ${uniqueIds.length} old mangle rules for ${data.peerIp}`);
+            for (const id of uniqueIds) {
+                await mikrotikPool.execute(cfg, '/ip/firewall/mangle/remove', [`=.id=${id}`]);
             }
         }
-    } catch { /* ignore */ }
+    } catch (err) {
+        console.warn(`[MikroTik] Warning while removing mangle rules for ${data.peerIp}:`, err);
+    }
 }
 
 export async function addIpAddress(cfg: MikroTikConfig, data: { interface: string, address: string, comment: string }): Promise<void> {

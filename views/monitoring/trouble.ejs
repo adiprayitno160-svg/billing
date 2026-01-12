@@ -198,6 +198,37 @@
                                                         <%= customer.status || 'Unknown' %>
                                                     </span>
                                                     <% } %>
+
+                                                        <!-- CPE Status (GenieACS) -->
+                                                        <% if (customer.ont_status) { %>
+                                                            <div
+                                                                class="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                                                                <span
+                                                                    class="text-[10px] font-bold text-gray-500 uppercase tracking-tight">modem:</span>
+                                                                <% if (customer.ont_status==='online' ) { %>
+                                                                    <div class="flex items-center gap-1.5">
+                                                                        <span
+                                                                            class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                                        <span
+                                                                            class="text-[10px] font-bold text-green-600">ONLINE</span>
+                                                                        <% if(customer.ont_last_seen) { %>
+                                                                            <span class="text-[9px] text-gray-400">(<%=
+                                                                                    new
+                                                                                    Date(customer.ont_last_seen).toLocaleTimeString('id-ID',
+                                                                                    {hour:'2-digit', minute:'2-digit'})
+                                                                                    %>)</span>
+                                                                            <% } %>
+                                                                    </div>
+                                                                    <% } else { %>
+                                                                        <div class="flex items-center gap-1.5">
+                                                                            <span
+                                                                                class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                                                                            <span
+                                                                                class="text-[10px] font-bold text-gray-500">OFFLINE</span>
+                                                                        </div>
+                                                                        <% } %>
+                                                            </div>
+                                                            <% } %>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <% if (customer.trouble_since) { %>
