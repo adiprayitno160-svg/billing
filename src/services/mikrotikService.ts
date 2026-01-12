@@ -288,11 +288,82 @@ export async function getPppoeServerStats(cfg: MikroTikConfig): Promise<any[]> {
         return Array.isArray(res) ? res : [];
     } catch { return []; }
 }
-export async function getQueueTrees(cfg: MikroTikConfig): Promise<any[]> {
+export async function getSimpleQueues(cfg: MikroTikConfig): Promise<any[]> {
     try {
-        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [], 'queue_trees', 30000);
+        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/simple/print', [], 'simple_queues', 30000);
         return Array.isArray(res) ? res : [];
     } catch { return []; }
+}
+
+export async function createSimpleQueue(cfg: MikroTikConfig, data: any): Promise<void> {
+    try {
+        const params: string[] = [];
+        const mapping: any = {
+            name: 'name',
+            target: 'target',
+            parent: 'parent',
+            maxLimit: 'max-limit',
+            limitAt: 'limit-at',
+            priority: 'priority',
+            burstLimit: 'burst-limit',
+            burstThreshold: 'burst-threshold',
+            burstTime: 'burst-time',
+            comment: 'comment',
+            queue: 'queue' // Add queue type support
+        };
+        for (const [k, v] of Object.entries(data)) {
+            const mikrotikKey = mapping[k] || k;
+            if (v !== undefined && v !== null && v !== '') params.push(`=${mikrotikKey}=${v}`);
+        }
+        await mikrotikPool.execute(cfg, '/queue/simple/add', params);
+        mikrotikPool.clearCache();
+    } catch (err: any) { throw err; }
+}
+
+export async function updateSimpleQueue(cfg: MikroTikConfig, id: string, data: any): Promise<void> {
+    try {
+        const params: string[] = [`=.id=${id}`];
+        const mapping: any = {
+            name: 'name',
+            target: 'target',
+            parent: 'parent',
+            maxLimit: 'max-limit',
+            limitAt: 'limit-at',
+            priority: 'priority',
+            burstLimit: 'burst-limit',
+            burstThreshold: 'burst-threshold',
+            burstTime: 'burst-time',
+            comment: 'comment',
+            queue: 'queue'
+        };
+        for (const [k, v] of Object.entries(data)) {
+            const mikrotikKey = mapping[k] || k;
+            if (v !== undefined && v !== null && v !== '') params.push(`=${mikrotikKey}=${v}`);
+        }
+        await mikrotikPool.execute(cfg, '/queue/simple/set', params);
+        mikrotikPool.clearCache();
+    } catch (err: any) { throw err; }
+}
+
+export async function deleteSimpleQueue(cfg: MikroTikConfig, id: string): Promise<void> {
+    try {
+        await mikrotikPool.execute(cfg, '/queue/simple/remove', [`=.id=${id}`]);
+        mikrotikPool.clearCache();
+    } catch (err: any) { throw err; }
+}
+
+export async function findSimpleQueueIdByName(cfg: MikroTikConfig, name: string): Promise<string | null> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/simple/print', [`?name=${name}`], `sq_name:${name}`, 5000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
+
+
+try {
+    const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [], 'queue_trees', 30000);
+    return Array.isArray(res) ? res : [];
+} catch { return []; }
 }
 
 export async function createQueueTree(cfg: MikroTikConfig, data: any): Promise<void> {
