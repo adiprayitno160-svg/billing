@@ -53,57 +53,48 @@ class MonitoringDaemon {
 
     private async checkAllDevices() {
         try {
-            // console.log(`[${new Date().toISOString()}] Monitoring cycle...`);
-
-            // Get all devices with IP addresses, including last_check
+            // Get all devices with IP addresses
             const [devices] = await databasePool.query<RowDataPacket[]>(
                 'SELECT id, name, ip_address, status, device_type, last_check FROM network_devices WHERE ip_address IS NOT NULL'
             );
-
-            let checked = 0;
-            let statusChanged = 0;
-            let skipped = 0;
 
             const NOW = new Date();
 
             for (const device of devices) {
                 try {
                     // Logic: 
-                    // - If Offline/Warning: Check every cycle (20s)
-                    // - If Online: Check every 10 minutes
+                    // - If Offline/Warning: Check every cycle
+                    // - If Online: Check every 5 minutes
                     let shouldCheck = true;
 
                     if (device.status === 'online' && device.last_check) {
                         const lastCheckTime = new Date(device.last_check).getTime();
                         const timeDiff = NOW.getTime() - lastCheckTime;
-                        const TEN_MINUTES_MS = 10 * 60 * 1000;
+                        const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
-                        if (timeDiff < TEN_MINUTES_MS) {
+                        if (timeDiff < FIVE_MINUTES_MS) {
                             shouldCheck = false;
-                            skipped++;
                         }
                     }
 
                     if (!shouldCheck) continue;
 
                     const oldStatus = device.status;
-                    const newStatus = await NetworkMonitoringService.checkDeviceStatus(device.id);
+                    // Keep smarter check (retries) as it helps stability, but remove parent dependency
+                    const newStatus = await NetworkMonitoringService.checkDeviceStatusSmarter(device.id);
 
                     await NetworkMonitoringService.updateDeviceStatus(device.id, newStatus);
-
-                    checked++;
 
                     // Log status change
                     if (oldStatus !== newStatus.status) {
                         console.log(`  📊 ${device.name}: ${oldStatus} → ${newStatus.status}`);
-                        statusChanged++;
 
                         // Log to database
                         await databasePool.query(
                             `INSERT INTO device_status_logs 
                              (device_id, previous_status, new_status, latency_ms, packet_loss_percent, check_method)
                              VALUES (?, ?, ?, ?, ?, 'ping')`,
-                            [device.id, oldStatus, newStatus.status, newStatus.latency_ms, newStatus.packet_loss_percent]
+                            [device.id, oldStatus, newStatus.status, newStatus.latency_ms || 0, newStatus.packet_loss_percent || 0]
                         );
 
                         // Trigger mass outage notification if device went down
@@ -116,9 +107,6 @@ class MonitoringDaemon {
                     console.error(`  ❌ Error checking ${device.name}:`, error);
                 }
             }
-
-            console.log(`  ✅ Checked ${checked} devices, ${statusChanged} status changes\n`);
-
         } catch (error) {
             console.error('Error in monitoring daemon:', error);
         }

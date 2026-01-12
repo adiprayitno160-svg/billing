@@ -36,6 +36,11 @@ export type PppoePackage = {
 	burst_threshold_tx?: string;
 	burst_time_rx?: string;
 	burst_time_tx?: string;
+	max_clients?: number;
+	limit_at_rx?: string;
+	limit_at_tx?: string;
+	limit_at_download?: string;
+	limit_at_upload?: string;
 	created_at: Date;
 	updated_at: Date;
 	profile?: PppoeProfile;
@@ -339,6 +344,9 @@ export async function createPackage(data: {
 	burst_threshold_tx?: string;
 	burst_time_rx?: string;
 	burst_time_tx?: string;
+	max_clients?: number;
+	limit_at_download?: string;
+	limit_at_upload?: string;
 }): Promise<number> {
 	const conn = await databasePool.getConnection();
 	try {
@@ -366,12 +374,67 @@ export async function createPackage(data: {
 			data.burst_threshold_rx || null,
 			data.burst_threshold_tx || null,
 			data.burst_time_rx || null,
-			data.burst_time_tx || null
+			data.burst_time_tx || null,
+			data.max_clients || 1,
+			data.limit_at_upload || null,
+			data.limit_at_download || null
 		]);
 
 		const insertResult = result as any;
+		const packageId = insertResult.insertId;
+
+		// AUTOMATICALLY MANAGE PARENT QUEUE FOR SHARED PACKAGE
+		if ((data.max_clients || 1) > 1) {
+			try {
+				const config = await getMikrotikConfig();
+				if (config) {
+					const { createSimpleQueue, getSimpleQueues, updateSimpleQueue } = await import('./mikrotikService');
+					// Parent limit is usually the RX/TX limit of the package
+					const parentMaxLimit = `${data.rate_limit_tx || '10M'}/${data.rate_limit_rx || '10M'}`;
+					const parentLimitAt = (data.limit_at_upload && data.limit_at_download)
+						? `${data.limit_at_upload}/${data.limit_at_download}`
+						: undefined;
+
+					const queueData = {
+						name: data.name,
+						target: '0.0.0.0/0', // Global target for parent
+						maxLimit: parentMaxLimit,
+						limitAt: parentLimitAt,
+						comment: `[BILLING] PPPOE SHARED PARENT: ${data.name}`,
+						queue: 'default/default'
+					};
+
+					const queues = await getSimpleQueues(config);
+					const existing = queues.find(q => q.name === data.name);
+
+					if (existing) {
+						await updateSimpleQueue(config, existing['.id'], queueData);
+					} else {
+						await createSimpleQueue(config, queueData);
+					}
+
+					// Update the associated Profile to use this Parent Queue
+					if (data.profile_id) {
+						const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [data.profile_id]);
+						const profile = (profRows as any)[0];
+						if (profile) {
+							const mikrotikId = await (await import('./mikrotikService')).findPppProfileIdByName(config, profile.name);
+							if (mikrotikId) {
+								await (await import('./mikrotikService')).updatePppProfile(config, mikrotikId, {
+									'parent-queue': data.name
+								});
+								console.log(`✅ Profile ${profile.name} now points to parent queue ${data.name}`);
+							}
+						}
+					}
+				}
+			} catch (e) {
+				console.error(`[PPPOE] Shared Queue setup failed:`, e);
+			}
+		}
+
 		await conn.commit();
-		return insertResult.insertId;
+		return packageId;
 	} catch (error: any) {
 		await conn.rollback();
 		throw error;
@@ -397,6 +460,9 @@ export async function updatePackage(id: number, data: {
 	burst_time_tx?: string;
 	price_7_days?: number;  // ADDED for prepaid
 	price_30_days?: number; // ADDED for prepaid
+	max_clients?: number;
+	limit_at_download?: string;
+	limit_at_upload?: string;
 }): Promise<void> {
 	const conn = await databasePool.getConnection();
 	try {
@@ -449,8 +515,100 @@ export async function updatePackage(id: number, data: {
 			data.burst_time_tx !== undefined ? data.burst_time_tx : null,
 			data.price_7_days !== undefined ? data.price_7_days : null,
 			data.price_30_days !== undefined ? data.price_30_days : null,
+			data.max_clients !== undefined ? data.max_clients : 1,
+			data.limit_at_download !== undefined ? data.limit_at_download : null,
+			data.limit_at_upload !== undefined ? data.limit_at_upload : null,
 			id
 		]);
+
+		// AUTOMATICALLY MANAGE PARENT QUEUE FOR SHARED PACKAGE
+		const finalMaxClients = data.max_clients !== undefined ? data.max_clients : (currentPackage.max_clients || 1);
+
+		if (finalMaxClients > 1) {
+			try {
+				const config = await getMikrotikConfig();
+				if (config) {
+					const { createSimpleQueue, getSimpleQueues, updateSimpleQueue, findPppProfileIdByName, updatePppProfile } = await import('./mikrotikService');
+
+					// Parent limit is usually the RX/TX limit of the package
+					const rateLimitRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
+					const rateLimitTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
+
+					const parentMaxLimit = `${rateLimitTx || '10M'}/${rateLimitRx || '10M'}`;
+					const parentLimitAt = (data.limit_at_upload !== undefined && data.limit_at_download !== undefined)
+						? `${data.limit_at_upload}/${data.limit_at_download}`
+						: (currentPackage.limit_at_upload && currentPackage.limit_at_download)
+							? `${currentPackage.limit_at_upload}/${currentPackage.limit_at_download}`
+							: undefined;
+
+					const queueData = {
+						name: newPackageName,
+						target: '0.0.0.0/0',
+						maxLimit: parentMaxLimit,
+						limitAt: parentLimitAt,
+						comment: `[BILLING] PPPOE SHARED PARENT: ${newPackageName}`,
+						queue: 'default/default'
+					};
+
+					const queues = await getSimpleQueues(config);
+					let existing = queues.find(q => q.name === oldPackageName || q.name === newPackageName);
+
+					if (existing) {
+						await updateSimpleQueue(config, existing['.id'], queueData);
+					} else {
+						await createSimpleQueue(config, queueData);
+					}
+
+					// Update the associated Profile to use this Parent Queue
+					const targetProfileId = newProfileId || oldProfileId;
+					if (targetProfileId) {
+						const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [targetProfileId]);
+						const profile = (profRows as any)[0];
+						if (profile) {
+							const mikrotikId = await findPppProfileIdByName(config, profile.name);
+							if (mikrotikId) {
+								await updatePppProfile(config, mikrotikId, {
+									'parent-queue': newPackageName
+								});
+								console.log(`✅ Profile ${profile.name} now points to parent queue ${newPackageName}`);
+							}
+						}
+					}
+				}
+			} catch (e: any) {
+				console.error(`[PPPOE] Shared Queue update failed:`, e.message);
+			}
+		} else {
+			// If max_clients changed from >1 to 1, clean up
+			try {
+				const config = await getMikrotikConfig();
+				if (config) {
+					const { deleteSimpleQueue, findSimpleQueueIdByName, findPppProfileIdByName, updatePppProfile } = await import('./mikrotikService');
+					const queueId = await findSimpleQueueIdByName(config, oldPackageName);
+					if (queueId) {
+						await deleteSimpleQueue(config, queueId);
+						console.log(`🗑️ Deleted parent queue ${oldPackageName} (no longer shared)`);
+					}
+
+					// Clear parent-queue from profile
+					const targetProfileId = newProfileId || oldProfileId;
+					if (targetProfileId) {
+						const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [targetProfileId]);
+						const profile = (profRows as any)[0];
+						if (profile) {
+							const mikrotikId = await findPppProfileIdByName(config, profile.name);
+							if (mikrotikId) {
+								await updatePppProfile(config, mikrotikId, {
+									'parent-queue': 'none'
+								});
+							}
+						}
+					}
+				}
+			} catch (e: any) {
+				console.error(`[PPPOE] Shared Queue cleanup failed:`, e.message);
+			}
+		}
 
 		// Sync to MikroTik if configuration allows
 		try {

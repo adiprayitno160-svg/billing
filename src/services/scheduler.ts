@@ -216,6 +216,19 @@ export class SchedulerService {
         });
 
 
+
+        // Static IP Ping Monitoring - Every minute
+        cron.schedule('* * * * *', async () => {
+            // Quiet logging to avoid spam
+            try {
+                const pingServiceModule = await import('./pingService');
+                const pingService = pingServiceModule.default || pingServiceModule;
+                await pingService.monitorAllStaticIPs();
+            } catch (error) {
+                console.error('Error running static IP monitoring:', error);
+            }
+        });
+
         this.isInitialized = true;
         console.log('Billing scheduler initialized successfully');
     }

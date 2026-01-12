@@ -1327,6 +1327,43 @@ export class NetworkMonitoringService {
             return [];
         }
     }
+
+    /**
+     * Get parent device ID based on network topology
+     */
+    static async getParentDeviceId(deviceId: number): Promise<number | null> {
+        try {
+            const [links] = await databasePool.query<RowDataPacket[]>(
+                'SELECT source_device_id FROM network_links WHERE target_device_id = ? LIMIT 1',
+                [deviceId]
+            );
+            return links[0]?.source_device_id || null;
+        } catch (error) {
+            console.error('Error getting parent device:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Smarter device check with retries
+     */
+    static async checkDeviceStatusSmarter(deviceId: number): Promise<DeviceStatus> {
+        let status = await this.checkDeviceStatus(deviceId);
+
+        // If offline or warning, retry up to 2 times for stability
+        if (status.status !== 'online') {
+            console.log(`[SmartMonitoring] Suspicious status for ID ${deviceId}: ${status.status}. Retrying...`);
+            for (let i = 0; i < 2; i++) {
+                await new Promise(r => setTimeout(r, 2000)); // wait 2s
+                const retryStatus = await this.checkDeviceStatus(deviceId);
+                if (retryStatus.status === 'online') {
+                    console.log(`[SmartMonitoring] ID ${deviceId} is actually ONLINE (jitter suppressed)`);
+                    return retryStatus;
+                }
+            }
+        }
+        return status;
+    }
 }
 
 

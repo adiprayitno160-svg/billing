@@ -309,13 +309,82 @@
                         rows="3" placeholder="Deskripsi paket (opsional)"><%= package.description || '' %></textarea>
                 </div>
                 <div class="sm:col-span-2 flex justify-end gap-3">
+                    <button type="button" onclick="autoCalculateAll()"
+                        class="px-4 py-2 rounded bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-2 shadow-sm transition-all font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Otomatis Isi Share & Burst
+                    </button>
                     <a href="/packages/static-ip"
-                        class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
+                        class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold">
                         Batal
                     </a>
-                    <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                    <button type="submit"
+                        class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow-sm">
                         Update Paket
                     </button>
                 </div>
-            </form>
-</div>
+                <script>
+                    function parseBandwidth(val) {
+                        if (!val) return 0;
+                        val = val.toUpperCase().trim();
+                        let num = parseFloat(val);
+                        if (val.endsWith('M')) return num * 1024 * 1024;
+                        if (val.endsWith('K')) return num * 1024;
+                        if (val.endsWith('G')) return num * 1024 * 1024 * 1024;
+                        return num;
+                    }
+
+                    function formatBandwidth(bits) {
+                        if (bits >= 1024 * 1024 * 1024) return Math.round(bits / (1024 * 1024 * 1024)) + 'G';
+                        if (bits >= 1024 * 1024) return Math.round(bits / (1024 * 1024)) + 'M';
+                        if (bits >= 1024) return Math.round(bits / 1024) + 'K';
+                        return Math.round(bits);
+                    }
+
+                    function autoCalculateAll() {
+                        const maxUp = document.querySelector('input[name="max_limit_upload"]').value;
+                        const maxDown = document.querySelector('input[name="max_limit_download"]').value;
+                        const maxClients = parseInt(document.querySelector('input[name="max_clients"]').value) || 1;
+
+                        if (!maxUp || !maxDown) {
+                            alert('Silakan isi Max Limit Upload & Download terlebih dahulu!');
+                            return;
+                        }
+
+                        const upBits = parseBandwidth(maxUp);
+                        const downBits = parseBandwidth(maxDown);
+
+                        // 1. Limit-At (Shared) - Default 1/2 of max limit
+                        document.querySelector('input[name="limit_at_upload"]').value = formatBandwidth(upBits / 2);
+                        document.querySelector('input[name="limit_at_download"]').value = formatBandwidth(downBits / 2);
+
+                        // 2. Child Limits
+                        const childUp = upBits / maxClients;
+                        const childDown = downBits / maxClients;
+                        document.querySelector('input[name="child_upload_limit"]').value = formatBandwidth(childUp);
+                        document.querySelector('input[name="child_download_limit"]').value = formatBandwidth(childDown);
+
+                        // 3. Child Limit-At (Default 1/4 of child max)
+                        document.querySelector('input[name="child_limit_at_upload"]').value = formatBandwidth(childUp / 2);
+                        document.querySelector('input[name="child_limit_at_download"]').value = formatBandwidth(childDown / 2);
+
+                        // 4. Burst Calculator
+                        // Burst Limit: 2x Max Limit
+                        document.querySelector('input[name="child_burst_upload"]').value = formatBandwidth(childUp * 2);
+                        document.querySelector('input[name="child_burst_download"]').value = formatBandwidth(childDown * 2);
+
+                        // Burst Threshold: 80% of Max Limit
+                        document.querySelector('input[name="child_burst_threshold_upload"]').value = formatBandwidth(childUp * 0.8);
+                        document.querySelector('input[name="child_burst_threshold_download"]').value = formatBandwidth(childDown * 0.8);
+
+                        // Burst Time: 20s (default stable)
+                        document.querySelector('input[name="child_burst_time_upload"]').value = '20s';
+                        document.querySelector('input[name="child_burst_time_download"]').value = '20s';
+
+                        alert('✅ Kalkulasi otomatis selesai! Silakan sesuaikan kembali jika diperlukan.');
+                    }
+                    (function () {

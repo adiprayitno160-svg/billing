@@ -26,7 +26,32 @@ let schemaCache: {
 	hasCustomerId: boolean;
 } | null = null;
 
+async function getRecentAlerts(): Promise<any[]> {
+	try {
+		// Fetch status changes from the last 1 hour specifically for offline transitions
+		const [rows] = await databasePool.query(`
+			SELECT 
+				dsl.id, dsl.new_status, dsl.timestamp,
+				nd.name as device_name, nd.device_type,
+				c.name as customer_name, c.customer_code
+			FROM device_status_logs dsl
+			JOIN network_devices nd ON dsl.device_id = nd.id
+			LEFT JOIN customers c ON nd.customer_id = c.id
+			WHERE dsl.new_status = 'offline'
+				AND dsl.previous_status = 'online'
+				AND dsl.timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+			ORDER BY dsl.timestamp DESC
+			LIMIT 10
+		`);
+		return rows as any[];
+	} catch (error) {
+		console.error('Error fetching recent alerts:', error);
+		return [];
+	}
+}
+
 async function getTroubleCustomers(): Promise<any[]> {
+	// ... (rest of function unchanged, just need to make sure I don't break the return)
 	try {
 		// Initialize cache if null
 		if (!schemaCache) {
@@ -280,7 +305,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			mtSettingsP,
 			troubleCustomersP,
 			latePaymentHighRiskP,
-			latePaymentWarning4P
+			latePaymentWarning4P,
+			recentAlertsP
 		] = await Promise.all([
 			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -311,7 +337,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 					const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 4") as any;
 					return result;
 				} catch { return [[{ cnt: 0 }]]; }
-			})()
+			})(),
+			getRecentAlerts()
 		]);
 
 		const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -329,6 +356,7 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		const recentRequests = (recentRequestsP[0] as any) ?? [];
 		// Ensure troubleCustomers is always an array
 		const troubleCustomers = Array.isArray(troubleCustomersP) ? troubleCustomersP : [];
+		const recentAlerts = Array.isArray(recentAlertsP) ? recentAlertsP : [];
 		const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
 		const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
 
@@ -377,6 +405,7 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			},
 			recentRequests,
 			troubleCustomers,
+			recentAlerts,
 			chart: { labels, data: dataPoints },
 			settings: mtSettings,
 			mikrotikInfo,
