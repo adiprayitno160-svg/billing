@@ -221,9 +221,14 @@ export class SchedulerService {
         cron.schedule('* * * * *', async () => {
             // Quiet logging to avoid spam
             try {
-                const pingServiceModule = await import('./pingService');
+                const pingServiceModule = await import('./pingService') as any;
                 const pingService = pingServiceModule.default || pingServiceModule;
-                await pingService.monitorAllStaticIPs();
+
+                if (typeof pingService.monitorAllStaticIPs === 'function') {
+                    await pingService.monitorAllStaticIPs();
+                } else {
+                    console.error('monitorAllStaticIPs function not found in PingService');
+                }
             } catch (error) {
                 console.error('Error running static IP monitoring:', error);
             }
