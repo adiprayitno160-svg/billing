@@ -601,8 +601,7 @@ export async function syncClientQueues(customerId: number, packageId: number, ip
 	}
 
 	// -- CREATE SIMPLE QUEUE --
-	// We use a single Simple Queue for both Upload/Download or with Parent if needed.
-	// Ideally for Static IP individual clients, a Simple Queue targeting their IP is best.
+	// IMPLEMENTATION OF 2 CONCEPTS: DEDICATED & SHARED BANDWIDTH
 
 	const simpleQueueName = clientName; // Use the actual client name provided (e.g. "MBAH TINI")
 
@@ -610,22 +609,34 @@ export async function syncClientQueues(customerId: number, packageId: number, ip
 	const simpleQueues = await getSimpleQueues(config);
 	const existingQueue = simpleQueues.find(q => q.name === simpleQueueName || q.target === `${cleanIp}/32`);
 
-	// Construct Max Limit string (Upload/Download)
-	// Format: upload/download (e.g. "5M/10M")
-	const maxLimit = `${pkg.max_limit_upload || '1M'}/${pkg.max_limit_download || '1M'}`;
+	// Check if a "Parent Package Queue" exists (for SHARED BANDWIDTH Mode)
+	// Concept: If a Simple Queue exists with the EXACT NAME of the Package, we treat it as a Parent.
+	//          All clients will be children of this Parent and share its bandwidth.
+	const parentPackageQueue = simpleQueues.find(q => q.name === pkg.name);
 
-	// Construct Limit At (Guaranteed) string (optional)
-	const limitAt = (pkg.limit_at_upload && pkg.limit_at_download)
+	let maxLimit = `${pkg.max_limit_upload || '1M'}/${pkg.max_limit_download || '1M'}`;
+	let parentName: string | undefined = undefined;
+	let limitAt: string | undefined = (pkg.limit_at_upload && pkg.limit_at_download)
 		? `${pkg.limit_at_upload}/${pkg.limit_at_download}`
 		: undefined;
 
-	// Determine Parent (if configured in package)
-	// Note: Simple Queue parents must also be Simple Queues. 
-	// If your "Total Download" is a Simple Queue, this works. If it's a Queue Tree, it WON'T work directly.
-	// For now, we will SKIP parent for Simple Queue unless explicitly requested, 
-	// to ensure the limit actually works on the client IP first.
-	// Use proper "parent" field if you setup a global Simple Queue parent.
-	const parent = undefined;
+	if (parentPackageQueue) {
+		// === SHARED BANDWIDTH MODE ===
+		// 10 Clients share 10Mbps (Parent)
+		console.log(`[StaticIP] 👥 Detected Shared Bandwidth Mode via Parent: "${pkg.name}"`);
+
+		parentName = pkg.name;
+
+		// In Shared Mode, the child (client) usually has the SAME max-limit as the parent 
+		// to allow them to use full bandwidth if others are idle.
+		maxLimit = `${pkg.max_limit_upload || '1M'}/${pkg.max_limit_download || '1M'}`;
+	} else {
+		// === DEDICATED BANDWIDTH MODE ===
+		// 10 Clients each get 10Mbps
+		console.log(`[StaticIP] 👤 Detected Dedicated Bandwidth Mode (No Parent "${pkg.name}" found)`);
+
+		parentName = undefined; // No parent
+	}
 
 	// Prepare Data
 	const queueData = {
@@ -633,8 +644,8 @@ export async function syncClientQueues(customerId: number, packageId: number, ip
 		target: `${cleanIp}/32`, // Specific target
 		maxLimit: maxLimit,
 		limitAt: limitAt,
-		parent: parent,
-		comment: `[BILLING] Static IP Client: ${clientName} (${pkg.name})`,
+		parent: parentName,
+		comment: `[BILLING] Static IP Client: ${clientName} (${pkg.name}) [${parentName ? 'SHARED' : 'DEDICATED'}]`,
 		queue: 'default-small/default-small' // standard queue type
 	};
 
