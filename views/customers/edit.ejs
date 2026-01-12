@@ -584,19 +584,42 @@
         const isWireless = document.getElementById('is_wireless');
         const infraWrapper = document.getElementById('infra_wrapper');
         const odpId = document.getElementById('odp_id');
+        const odcId = document.getElementById('odc_id');
+        const odpSearchInput = document.getElementById('odp_search');
 
         function updateWirelessState() {
             if (isWireless.checked) {
+                // Wireless Mode: Disable ODC/ODP interaction and remove requirements
                 infraWrapper.classList.add('opacity-40', 'pointer-events-none');
-                if (odpId) odpId.required = false;
+
+                // Remove required attributes
+                if (odpId) {
+                    odpId.required = false;
+                    odpId.removeAttribute('required'); // Force remove
+                }
+                if (odpSearchInput) {
+                    odpSearchInput.required = false;
+                    odpSearchInput.removeAttribute('required');
+                }
+
+                // Optional: Clear values to ensure clean data submission (discuss if needed, currently just allowing submission)
+                // if (odpId) odpId.value = ''; 
+                // if (odcId) odcId.value = '';
+
             } else {
+                // FTTH Mode: Enable interaction and enforce ODP if needed
                 infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
+
+                // Enforce required only if strict mode is desired (usually yes for FTTH)
                 if (odpId) odpId.required = true;
+                if (odpSearchInput) odpSearchInput.required = false; // Search input itself usually doesn't need required if hidden ID handles it, but safety first
             }
         }
+
         if (isWireless) {
             isWireless.addEventListener('change', updateWirelessState);
-            updateWirelessState();
+            // Run immediately
+            setTimeout(updateWirelessState, 100);
         }
 
         // === ODC/ODP Search ===
