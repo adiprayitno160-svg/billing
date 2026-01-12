@@ -637,13 +637,40 @@
 		// --- Map Stats ---
 		var mapEl = document.getElementById('detailCustomerMap');
 		if (mapEl) {
-			var lat = Number('<%= customer.latitude %>');
-			var lng = Number('<%= customer.longitude %>');
-			if (lat && lng) {
-				var map = L.map('detailCustomerMap', { zoomControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false }).setView([lat, lng], 15);
-				L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-				var marker = L.marker([lat, lng]).addTo(map);
-				marker.bindPopup('Lokasi Pelanggan').openPopup();
+			if (typeof L === 'undefined') {
+				console.error('Leaflet JS not loaded!');
+				return;
+			}
+			try {
+				var lat = Number('<%= customer.latitude %>');
+				var lng = Number('<%= customer.longitude %>');
+				if (lat && lng) {
+					console.log('Initializing Detail Map:', lat, lng);
+					var map = L.map('detailCustomerMap', {
+						zoomControl: true,
+						dragging: false,
+						scrollWheelZoom: false,
+						doubleClickZoom: false,
+						boxZoom: false,
+						keyboard: false,
+						tap: false
+					}).setView([lat, lng], 15);
+
+					L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+						attribution: '© OpenStreetMap contributors',
+						maxZoom: 19
+					}).addTo(map);
+
+					var marker = L.marker([lat, lng]).addTo(map);
+					marker.bindPopup('<b>Lokasi Pelanggan</b>').openPopup();
+
+					// Fix render
+					setTimeout(function () {
+						map.invalidateSize();
+					}, 200);
+				}
+			} catch (e) {
+				console.error('Map init error:', e);
 			}
 		}
 
