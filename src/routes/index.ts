@@ -588,7 +588,7 @@ router.get('/api/mikrotik/secrets/search', async (req, res) => {
 
         // 3. Get Existing Customers (to filter out used usernames)
         const [existingCustomers] = await databasePool.query<RowDataPacket[]>('SELECT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL');
-        const usedUsernames = new Set(existingCustomers.map(c => c.pppoe_username));
+        const usedUsernames = new Set(existingCustomers.map(c => (c.pppoe_username || '').toLowerCase()));
 
         // 4. Filter and Format
         const results = secrets
@@ -596,7 +596,7 @@ router.get('/api/mikrotik/secrets/search', async (req, res) => {
                 // Filter by name (case-insensitive)
                 const nameMatch = s.name.toLowerCase().includes(query);
                 // Filter OUT if already used by a customer (The "Lock" Feature)
-                const isUnused = !usedUsernames.has(s.name);
+                const isUnused = !usedUsernames.has(s.name.toLowerCase());
                 // Only show if it matches query AND is not used
                 return nameMatch && isUnused;
             })
