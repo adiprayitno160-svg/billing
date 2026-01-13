@@ -485,128 +485,133 @@
         const latInput = document.getElementById('latitude');
         const lngInput = document.getElementById('longitude');
 
-        if (document.getElementById('map') && typeof L !== 'undefined') {
-            try {
-                const map = L.map('map').setView([-6.200000, 106.816666], 5);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        if (document.getElementById('map')) {
+            if (typeof L === 'undefined') {
+                console.error('Leaflet JS is not loaded!');
+                document.getElementById('map').innerHTML = '<div class="flex items-center justify-center h-full text-red-500 text-xs text-center p-4">Gagal memuat peta.<br>Periksa koneksi internet Anda.</div>';
+            } else {
+                try {
+                    const map = L.map('map').setView([-6.200000, 106.816666], 5);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap'
+                    }).addTo(map);
 
-                let marker;
+                    let marker;
 
-                // Function to update address from coords (Reverse Geocoding)
-                const updateAddress = (lat, lng) => {
-                    const addressInput = document.getElementById('address');
-                    if (addressInput) {
-                        addressInput.placeholder = 'Mengambil alamat...';
-                        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
-                            .then(r => r.json())
-                            .then(data => {
-                                if (data && data.display_name) {
-                                    // Make it cleaner: Road, Village, District
-                                    const addr = data.address;
-                                    const parts = [];
-                                    if (addr.road) parts.push(addr.road);
-                                    if (addr.village || addr.suburb || addr.hamlet) parts.push(addr.village || addr.suburb || addr.hamlet);
-                                    if (addr.city || addr.town || addr.county) parts.push(addr.city || addr.town || addr.county);
+                    // Function to update address from coords (Reverse Geocoding)
+                    const updateAddress = (lat, lng) => {
+                        const addressInput = document.getElementById('address');
+                        if (addressInput) {
+                            addressInput.placeholder = 'Mengambil alamat...';
+                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data && data.display_name) {
+                                        // Make it cleaner: Road, Village, District
+                                        const addr = data.address;
+                                        const parts = [];
+                                        if (addr.road) parts.push(addr.road);
+                                        if (addr.village || addr.suburb || addr.hamlet) parts.push(addr.village || addr.suburb || addr.hamlet);
+                                        if (addr.city || addr.town || addr.county) parts.push(addr.city || addr.town || addr.county);
 
-                                    const cleanAddr = parts.length > 0 ? parts.join(', ') : data.display_name;
-                                    addressInput.value = cleanAddr;
-                                    console.log('Auto Address:', cleanAddr);
+                                        const cleanAddr = parts.length > 0 ? parts.join(', ') : data.display_name;
+                                        addressInput.value = cleanAddr;
+                                    }
+                                })
+                                .catch(e => console.warn('Reverse geocode failed:', e))
+                                .finally(() => addressInput.placeholder = 'Alamat lengkap...');
+                        }
+                    };
+
+                    const setMarker = (lat, lng, zoom = 15) => {
+                        if (marker) marker.setLatLng([lat, lng]);
+                        else {
+                            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                            marker.on('dragend', (e) => {
+                                const p = e.target.getLatLng();
+                                latInput.value = p.lat.toFixed(6);
+                                lngInput.value = p.lng.toFixed(6);
+                                updateAddress(p.lat, p.lng);
+                            });
+                        }
+                        map.setView([lat, lng], zoom);
+                        updateAddress(lat, lng);
+                    };
+
+                    map.on('click', (e) => {
+                        latInput.value = e.latlng.lat.toFixed(6);
+                        lngInput.value = e.latlng.lng.toFixed(6);
+                        setMarker(e.latlng.lat, e.latlng.lng, map.getZoom());
+                    });
+
+                    // Map Search Logic
+                    const searchInput = document.getElementById('map_search');
+                    if (searchInput) {
+                        searchInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const q = searchInput.value.trim();
+                                if (q.length > 2) {
+                                    searchInput.classList.add('opacity-50');
+                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            if (data && data.length > 0) {
+                                                const res = data[0];
+                                                const lat = parseFloat(res.lat);
+                                                const lon = parseFloat(res.lon);
+                                                latInput.value = lat.toFixed(6);
+                                                lngInput.value = lon.toFixed(6);
+                                                setMarker(lat, lon, 16);
+                                                searchInput.value = res.display_name;
+                                            } else {
+                                                alert('Lokasi tidak ditemukan');
+                                            }
+                                        })
+                                        .catch(err => console.error('Map search err:', err))
+                                        .finally(() => searchInput.classList.remove('opacity-50'));
                                 }
-                            })
-                            .catch(e => console.warn('Reverse geocode failed:', e))
-                            .finally(() => addressInput.placeholder = 'Alamat lengkap...');
-                    }
-                };
-
-                const setMarker = (lat, lng, zoom = 15) => {
-                    if (marker) marker.setLatLng([lat, lng]);
-                    else {
-                        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-                        marker.on('dragend', (e) => {
-                            const p = e.target.getLatLng();
-                            latInput.value = p.lat.toFixed(6);
-                            lngInput.value = p.lng.toFixed(6);
-                            updateAddress(p.lat, p.lng);
+                            }
                         });
                     }
-                    map.setView([lat, lng], zoom);
-                    updateAddress(lat, lng); // Auto update address on set
-                };
 
-                map.on('click', (e) => {
-                    latInput.value = e.latlng.lat.toFixed(6);
-                    lngInput.value = e.latlng.lng.toFixed(6);
-                    setMarker(e.latlng.lat, e.latlng.lng, map.getZoom()); // Keep current zoom
-                });
-
-                // Map Search Logic
-                const searchInput = document.getElementById('map_search');
-                if (searchInput) {
-                    searchInput.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault(); // Prevent form submit
-                            const q = searchInput.value.trim();
-                            if (q.length > 2) {
-                                searchInput.classList.add('opacity-50');
-                                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
-                                    .then(r => r.json())
-                                    .then(data => {
-                                        if (data && data.length > 0) {
-                                            const res = data[0];
-                                            const lat = parseFloat(res.lat);
-                                            const lon = parseFloat(res.lon);
-                                            latInput.value = lat.toFixed(6);
-                                            lngInput.value = lon.toFixed(6);
-                                            setMarker(lat, lon, 16);
-                                            searchInput.value = res.display_name; // Show found name
-                                        } else {
-                                            alert('Lokasi tidak ditemukan');
-                                        }
-                                    })
-                                    .catch(err => console.error('Map search err:', err))
-                                    .finally(() => searchInput.classList.remove('opacity-50'));
+                    if (btnGetLocation) {
+                        btnGetLocation.addEventListener('click', () => {
+                            btnGetLocation.textContent = '...';
+                            if ("geolocation" in navigator) {
+                                navigator.geolocation.getCurrentPosition(pos => {
+                                    const { latitude, longitude } = pos.coords;
+                                    latInput.value = latitude.toFixed(6);
+                                    lngInput.value = longitude.toFixed(6);
+                                    setMarker(latitude, longitude);
+                                    btnGetLocation.textContent = 'OK';
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
+                                }, (err) => {
+                                    console.error('Geolocation error:', err);
+                                    // Robust error handling for HTTP vs HTTPS
+                                    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                                        alert('⚠️ GPS Gagal: Browser memblokir akses lokasi di koneksi HTTP (tidak aman).\n\nSolusi:\n1. Klik titik di peta secara manual.\n2. Atau isi koordinat Latitude/Longitude secara manual.');
+                                    } else {
+                                        alert('Gagal mendapatkan lokasi: ' + (err.message || 'Unknown error'));
+                                    }
+                                    btnGetLocation.textContent = 'Gagal';
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 2000);
+                                }, {
+                                    enableHighAccuracy: true,
+                                    timeout: 10000,
+                                    maximumAge: 0
+                                });
+                            } else {
+                                alert('Browser Anda tidak mendukung Geolocation.');
                             }
-                        }
-                    });
+                        });
+                    }
+                    setTimeout(() => map.invalidateSize(), 500);
+                } catch (e) {
+                    console.error('Map init error', e);
+                    document.getElementById('map').innerHTML = `<div class="p-4 text-center text-red-500 text-xs">Error Map: ${e.message}</div>`;
                 }
-
-                if (btnGetLocation) {
-                    btnGetLocation.addEventListener('click', () => {
-                        btnGetLocation.textContent = '...';
-                        if ("geolocation" in navigator) {
-                            navigator.geolocation.getCurrentPosition(pos => {
-                                const { latitude, longitude } = pos.coords;
-                                latInput.value = latitude.toFixed(6);
-                                document.getElementById('longitude').value = longitude.toFixed(6);
-                                setMarker(latitude, longitude);
-                                btnGetLocation.textContent = 'OK';
-                                setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
-                            }, (err) => {
-                                console.error('Geolocation error:', err);
-                                let errMsg = 'Gagal';
-                                if (err.code === 1) errMsg = 'Ditolak';
-                                else if (err.code === 2) errMsg = 'Unavai';
-                                else if (err.code === 3) errMsg = 'Timeout';
-                                btnGetLocation.textContent = errMsg;
-
-                                // Check if error is likely due to HTTP
-                                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                                    alert('GPS Gagal: Browser memblokir akses lokasi di koneksi HTTP (tidak aman).\n\nSolusi:\n1. Gunakan "localhost" jika di server.\n2. Isi koordinat manual atau klik peta.\n3. Gunakan HTTPS.');
-                                } else {
-                                    alert('Gagal mendapatkan lokasi: ' + (err.message || 'Unknown error'));
-                                }
-                            }, {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 0
-                            });
-                        } else {
-                            alert('Browser Anda tidak mendukung Geolocation.');
-                        }
-                    });
-                }
-                setTimeout(() => map.invalidateSize(), 500);
-            } catch (e) { console.error('Map init error', e); }
+            }
         }
     });
 </script>
