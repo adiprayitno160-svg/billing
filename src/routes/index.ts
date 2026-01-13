@@ -983,6 +983,9 @@ router.get('/api/ftth/odc/search', async (req: Request, res: Response) => {
             if (query) {
                 sql += ` WHERE odc.name LIKE ? OR odc.location LIKE ?`;
                 params.push(`%${query}%`, `%${query}%`);
+            } else {
+                // Prevent showing all ODCs by default
+                return res.json({ success: true, results: [] });
             }
 
             sql += ` ORDER BY odc.name LIMIT 20`;
@@ -1036,7 +1039,7 @@ router.get('/api/ftth/odp/search', async (req: Request, res: Response) => {
             }
 
             // If we have ODC ID, we can show more results to populate a dropdown/list
-            const limit = odcId ? 100 : 15;
+            const limit = odcId ? 50 : 15;
             sql += ` ORDER BY odp.name LIMIT ${limit}`;
 
             const [rows] = await conn.execute(sql, params);

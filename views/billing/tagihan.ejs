@@ -404,7 +404,7 @@
                 <!-- Form -->
                 <form id="generateInvoiceForm">
                     <!-- Period Selection -->
-                    <div style="margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="margin-bottom: 20px;">
                         <div>
                             <label
                                 style="display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">
@@ -412,16 +412,9 @@
                             </label>
                             <input type="month" id="invoicePeriod" required
                                 style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
-                        </div>
-                        <div>
-                            <label
-                                style="display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">
-                                Jatuh Tempo (Tgl):
-                            </label>
-                            <input type="number" id="dueDateOffset"
-                                value="<%= typeof schedulerSettings !== 'undefined' && schedulerSettings.due_date_offset ? schedulerSettings.due_date_offset : 7 %>"
-                                min="1" max="31" required
-                                style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
+                            <p style="margin-top: 6px; font-size: 12px; color: #6b7280; font-style: italic;">
+                                *Jatuh tempo akan diset otomatis sesuai pengaturan scheduler/otomasi.
+                            </p>
                         </div>
                     </div>
 
@@ -892,9 +885,10 @@
             // Generate invoices from form data
             function generateInvoicesFromForm() {
                 const period = document.getElementById('invoicePeriod').value;
-                const offsetEl = document.getElementById('dueDateOffset');
-                const dueDateOffset = parseInt(offsetEl ? offsetEl.value : '7');
                 const sendWhatsapp = document.getElementById('sendWhatsapp').checked;
+
+                // Using null/undefined for offset to signal backend to use default/scheduler settings
+                const dueDateOffset = null;
 
                 // Determine target
                 let customerIds = [];

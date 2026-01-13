@@ -247,6 +247,11 @@
         }
 
         searchTimeout = setTimeout(async () => {
+            if (!query || query.length < 2) {
+                resultsDiv.classList.add('hidden');
+                return;
+            }
+
             try {
                 const response = await fetch(`/api/ftth/odp/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
