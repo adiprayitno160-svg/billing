@@ -29,7 +29,7 @@ import {
 } from '../controllers/pppoeController';
 import { getProfileById, updateProfile, listProfiles } from '../services/pppoeService';
 import { getMikrotikConfig } from '../services/pppoeService';
-import { findPppProfileIdByName, getPppProfiles, updatePppProfile } from '../services/mikrotikService';
+import { findPppProfileIdByName, getPppProfiles, updatePppProfile, getPppoeSecrets } from '../services/mikrotikService';
 import {
     getStaticIpPackageList,
     getStaticIpPackageAdd,
@@ -550,6 +550,59 @@ router.use('/wifi-admin', wifiAdminRoutes);
 // ============================================
 // API ROUTES - Must be registered early to avoid conflicts
 // ============================================
+
+// API endpoint untuk search PPPoE secrets (used for autocomplete)
+router.get('/api/mikrotik/secrets/search', async (req, res) => {
+    try {
+        const query = (req.query.q as string || '').toLowerCase();
+
+        // 1. Get MikroTik Config
+        const config = await getMikrotikConfig();
+        if (!config) {
+            return res.json({ results: [] });
+        }
+
+        // 2. Get Secrets from MikroTik
+        // We catch error here to prevent crashing if MikroTik is down
+        let secrets;
+        try {
+            secrets = await getPppoeSecrets(config);
+        } catch (err) {
+            console.error('[API] Failed to fetch secrets:', err);
+            return res.json({ results: [] });
+        }
+
+        // 3. Get Existing Customers (to filter out used usernames)
+        const [existingCustomers] = await databasePool.query<RowDataPacket[]>('SELECT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL');
+        const usedUsernames = new Set(existingCustomers.map(c => c.pppoe_username));
+
+        // 4. Filter and Format
+        const results = secrets
+            .filter(s => {
+                // Filter by name (case-insensitive)
+                const nameMatch = s.name.toLowerCase().includes(query);
+                // Filter OUT if already used by a customer (The "Lock" Feature)
+                const isUnused = !usedUsernames.has(s.name);
+                // Only show if it matches query AND is not used
+                return nameMatch && isUnused;
+            })
+            // Sort by name
+            .sort((a, b) => a.name.localeCompare(b.name))
+            // Limit to 20 results for performance
+            .slice(0, 20)
+            .map(s => ({
+                username: s.name,
+                password: s.password, // Return password so we can auto-fill it
+                service: s.service,
+                profile: s.profile
+            }));
+
+        res.json({ results });
+    } catch (error: any) {
+        console.error('[API] Error in /api/mikrotik/secrets/search:', error);
+        res.status(500).json({ results: [], error: error.message });
+    }
+});
 
 // API endpoint untuk get customers with device_id (for WiFi admin)
 router.get('/api/customers', async (req, res) => {

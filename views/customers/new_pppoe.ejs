@@ -413,7 +413,7 @@
 
                 if (q.length < 2) { results.classList.add('hidden'); return; }
 
-                // Extra params for ODP
+                // Extra params
                 let url = apiPath + '?q=' + encodeURIComponent(q);
                 if (inputId === 'odp_search') {
                     const odcId = document.getElementById('odc_id').value;
@@ -424,13 +424,21 @@
                 t = setTimeout(() => {
                     fetch(url).then(r => r.json()).then(data => {
                         if (data.results && data.results.length) {
-                            results.innerHTML = data.results.map(item => `
+                            results.innerHTML = data.results.map(item => {
+                                // Fix undefined display logic
+                                const name = item.name || item.odp_name || item.username || '';
+                                let sub = '';
+                                if (item.location) sub = item.location;
+                                else if (item.available_ports !== undefined) sub = item.available_ports + ' Ports';
+                                else if (item.profile) sub = item.profile; // PPPoE Profile
+
+                                return `
                                 <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 text-sm" 
-                                     data-item='${JSON.stringify(item)}'>
-                                    <div class="font-bold text-slate-800">${item.name || item.odp_name || item.username}</div>
-                                    <div class="text-[10px] text-slate-400">${item.location || item.available_ports + ' Ports' || ''}</div>
+                                     data-item='${JSON.stringify(item).replace(/'/g, "&#39;")}'>
+                                    <div class="font-bold text-slate-800">${name}</div>
+                                    <div class="text-[10px] text-slate-400">${sub}</div>
                                 </div>
-                            `).join('');
+                            `}).join('');
                             results.classList.remove('hidden');
 
                             // Add click listeners
@@ -470,6 +478,13 @@
         setupSearch('odp_search', 'odp_search_results', '/api/ftth/odp/search', (item) => {
             document.getElementById('odp_search').value = item.odp_name;
             document.getElementById('odp_id').value = item.id;
+        });
+
+        // PPPoE Secret Search
+        setupSearch('pppoe_search', 'pppoe_search_results', '/api/mikrotik/secrets/search', (item) => {
+            document.getElementById('pppoe_search').value = item.username;
+            document.getElementById('pppoe_password').value = item.password || ''; // Auto fill password
+            // Optionally try to select the package if profile matches something (advanced logic omitted for simplicity)
         });
 
         // Reset ODC
@@ -535,7 +550,7 @@
                         if (window.location.protocol !== 'https:' &&
                             window.location.hostname !== 'localhost' &&
                             window.location.hostname !== '127.0.0.1') {
-                            alert('⚠️ Auto GPS membutuhkan koneksi HTTPS.\n\nKarena Anda mengakses lewat IP (HTTP), browser memblokir fitur lokasi demi keamanan.\n\nSilakan isi kordinat secara manual atau klik peta.');
+                            alert('⚠️ Auto GPS membutuhkan koneksi HTTPS (port 443) atau Localhost.\n\nAnda sedang mengakses lewat HTTP (tidak aman).\nSilakan isi kordinat manual atau klik peta.');
                             btnGetLocation.textContent = 'Need HTTPS';
                             return;
                         }
@@ -545,15 +560,15 @@
                             navigator.geolocation.getCurrentPosition(pos => {
                                 const { latitude, longitude } = pos.coords;
                                 latInput.value = latitude.toFixed(6);
-                                lngInput.value = longitude.toFixed(6); // Fixed typo: use lngInput instead of longitude variable
+                                lngInput.value = longitude.toFixed(6);
                                 setMarker(latitude, longitude);
                                 btnGetLocation.textContent = 'OK';
                                 setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
                             }, (err) => {
                                 console.error('Geolocation error:', err);
                                 let errMsg = 'Err';
-                                if (err.code === 1) errMsg = 'Denied'; // User denied
-                                else if (err.code === 2) errMsg = 'Unavai'; // Position unavailable
+                                if (err.code === 1) errMsg = 'Denied';
+                                else if (err.code === 2) errMsg = 'Unavai';
                                 else if (err.code === 3) errMsg = 'Timeout';
                                 btnGetLocation.textContent = errMsg;
                                 alert('Gagal mendapatkan lokasi: ' + (err.message || 'Unknown error'));
