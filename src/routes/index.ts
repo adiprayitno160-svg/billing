@@ -3073,8 +3073,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
         res.redirect(`/customers/edit-static-ip/${req.params.id}`);
     }
 });
-import { listStaticIpPackages } from '../services/staticIpPackageService';
-import { getStaticIpPackageById } from '../services/staticIpPackageService';
+import { listStaticIpPackages, getStaticIpPackageById, syncClientQueues } from '../services/staticIpPackageService';
 import { getInterfaces, addMangleRulesForClient, createClientQueues, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName, createQueueTree } from '../services/mikrotikService';
 
 import {
@@ -3250,13 +3249,17 @@ router.post('/customers/new-static-ip', async (req, res) => {
             ppn_mode,
             rental_mode,
             serial_number,
-            enable_billing
+            enable_billing,
+            is_wireless // Add is_wireless
         } = req.body;
-        console.log('Parsed data:', { client_name, customer_code, ip_address, package_id, interface: iface });
+        console.log('Parsed data:', { client_name, customer_code, ip_address, package_id, interface: iface, is_wireless: is_wireless ? 'YES' : 'NO' });
 
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!ip_address) throw new Error('IP statis wajib diisi (contoh: 192.168.1.1/30)');
         if (!package_id) throw new Error('Paket wajib dipilih');
+
+        // Validation: ODP required only if NOT wireless mode
+        if (!is_wireless && !odp_id) throw new Error('ODP wajib dipilih (kecuali Mode Wireless)');
 
         // Validate customer_code if provided
         if (customer_code && customer_code.trim() !== '') {
@@ -3337,84 +3340,55 @@ router.post('/customers/new-static-ip', async (req, res) => {
             try {
                 // 1) Tambah IP address ke interface
                 if (iface) {
-                    console.log('Adding IP address to MikroTik...');
                     await addIpAddress(cfg, {
                         interface: iface,
                         address: ip_address,
                         comment: client_name
                     });
-                    console.log('IP address added successfully');
-                } else {
-                    console.log('No interface specified, skipping IP address addition');
                 }
-            } catch (error: unknown) {
-                console.error('Failed to add IP address:', error);
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                throw new Error(`Gagal menambahkan IP ke MikroTik: ${errorMessage}`);
+
+                // 2) Sync and create Queues using the service
+                const {
+                    qtype_download,
+                    qtype_upload,
+                    priority_download,
+                    priority_upload,
+                    limitat_download,
+                    limitat_upload,
+                    maxlimit_download,
+                    maxlimit_upload,
+                    burst_enabled,
+                    burst_limit_download,
+                    burst_limit_upload,
+                    burst_threshold_download,
+                    burst_threshold_upload,
+                    burst_time_download,
+                    burst_time_upload
+                } = req.body as any;
+
+                await syncClientQueues(customerId, pkgId, ip_address, client_name, {
+                    overrides: {
+                        queueDownload: qtype_download,
+                        queueUpload: qtype_upload,
+                        priorityDownload: priority_download,
+                        priorityUpload: priority_upload,
+                        limitAtDownload: limitat_download,
+                        limitAtUpload: limitat_upload,
+                        maxLimitDownload: maxlimit_download,
+                        maxLimitUpload: maxlimit_upload,
+                        useBurst: String(burst_enabled || 'off') === 'on',
+                        burstLimitDownload: burst_limit_download,
+                        burstLimitUpload: burst_limit_upload,
+                        burstThresholdDownload: burst_threshold_download,
+                        burstThresholdUpload: burst_threshold_upload,
+                        burstTimeDownload: burst_time_download,
+                        burstTimeUpload: burst_time_upload
+                    }
+                });
+            } catch (error: any) {
+                console.error('Failed to provision MikroTik:', error);
+                throw new Error(`Gagal konfigurasi MikroTik: ${error.message}`);
             }
-
-            const downloadMark = peerIp;
-            const uploadMark = `UP-${peerIp}`;
-            await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
-            // Ambil konfigurasi aneka parameter dari form (optional)
-            const {
-                qtype_download,
-                qtype_upload,
-                priority_download,
-                priority_upload,
-                limitat_download,
-                limitat_upload,
-                maxlimit_download,
-                maxlimit_upload,
-                burst_enabled,
-                burst_limit_download,
-                burst_limit_upload,
-                burst_threshold_download,
-                burst_threshold_upload,
-                burst_time_download,
-                burst_time_upload
-            } = req.body as any;
-
-            const qDownload = qtype_download || pkg.child_queue_type_download || 'pcq-download-default';
-            const qUpload = qtype_upload || pkg.child_queue_type_upload || 'pcq-upload-default';
-            const pDownload = priority_download || pkg.child_priority_download || '8';
-            const pUpload = priority_upload || pkg.child_priority_upload || '8';
-            const laDownload = limitat_download || pkg.child_limit_at_download || '';
-            const laUpload = limitat_upload || pkg.child_limit_at_upload || '';
-            const mlDownload = maxlimit_download || (pkg.child_download_limit || (pkg as any).shared_download_limit || pkg.max_limit_download);
-            const mlUpload = maxlimit_upload || (pkg.child_upload_limit || (pkg as any).shared_upload_limit || pkg.max_limit_upload);
-
-            const useBurst = String(burst_enabled || 'off') === 'on';
-            const blDownload = burst_limit_download || pkg.child_burst_download || '';
-            const blUpload = burst_limit_upload || pkg.child_burst_upload || '';
-            const btDownload = burst_threshold_download || pkg.child_burst_threshold_download || '';
-            const btUpload = burst_threshold_upload || pkg.child_burst_threshold_upload || '';
-            const btimeDownload = burst_time_download || pkg.child_burst_time_download || '';
-            const btimeUpload = burst_time_upload || pkg.child_burst_time_upload || '';
-
-            const packageDownloadQueue = pkg.name;
-            const packageUploadQueue = `UP-${pkg.name}`;
-
-            await createQueueTree(cfg, {
-                name: client_name,
-                parent: packageDownloadQueue,
-                packetMarks: downloadMark,
-                limitAt: laDownload,
-                maxLimit: mlDownload,
-                queue: qDownload,
-                priority: pDownload,
-                ...(useBurst ? { burstLimit: blDownload, burstThreshold: btDownload, burstTime: btimeDownload } : {})
-            });
-            await createQueueTree(cfg, {
-                name: `UP-${client_name}`,
-                parent: packageUploadQueue,
-                packetMarks: uploadMark,
-                limitAt: laUpload,
-                maxLimit: mlUpload,
-                queue: qUpload,
-                priority: pUpload,
-                ...(useBurst ? { burstLimit: blUpload, burstThreshold: btUpload, burstTime: btimeUpload } : {})
-            });
         }
 
         // Create subscription if enable_billing is checked

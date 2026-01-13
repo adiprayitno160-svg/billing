@@ -24,6 +24,7 @@ export class ChatBotService {
 
     /**
      * Ask a question to the AI with context from the knowledge base (RAG)
+     * Includes Retry Logic for Robustness
      */
     static async ask(userQuery: string, customerData?: any): Promise<string> {
         try {
@@ -56,7 +57,7 @@ export class ChatBotService {
                 5. Singkat dan jelas adalah kunci.
             `;
 
-            // 3. Generate response
+            // 3. Generate response with Retry Logic
             const prompt = `
                 System Context: ${systemPrompt}
                 ${context ? `RAG Context: ${context}` : ''}
@@ -64,13 +65,25 @@ export class ChatBotService {
                 Asisten AI:
             `;
 
-            const result = await this.model.generateContent(prompt);
-            const response = await result.response;
-            return response.text().trim();
+            let lastError: any;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const result = await this.model.generateContent(prompt);
+                    const response = await result.response;
+                    return response.text().trim();
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`[ChatBot] Attempt ${attempt} failed:`, error);
+                    // Exponential backoff for retries
+                    if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                }
+            }
+            throw lastError;
 
         } catch (error) {
             console.error('Error in ChatBotService:', error);
-            return "Maaf, sistem AI sedang mengalami gangguan. Silakan hubungi admin kami melalui pesan langsung.";
+            // Graceful Degradation
+            return "Maaf, sistem AI sedang mengalami gangguan sementara. Silakan hubungi admin kami secara manual atau coba lagi nanti.";
         }
     }
 }

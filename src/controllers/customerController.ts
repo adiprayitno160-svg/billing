@@ -1060,15 +1060,21 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
                                 if (staticClient && staticClient.length > 0 && staticClient[0].client_name) {
                                     const clientName = staticClient[0].client_name;
-                                    const queues = await api.write('/queue/simple/print', [`?name=${clientName}`]);
-                                    if (queues && queues.length > 0) {
-                                        const queueId = queues[0]['.id'];
-                                        await api.write('/queue/simple/set', [
-                                            `=.id=${queueId}`,
-                                            `=disabled=${isDisabling ? 'yes' : 'no'}`
-                                        ]);
-                                        console.log(`[UpdateCustomer] Static Queue ${clientName} ${isDisabling ? 'disabled' : 'enabled'}`);
+                                    const { findQueueTreeIdByName, updateQueueTree } = await import('../services/mikrotikService');
+
+                                    // Disable Download
+                                    const dlId = await findQueueTreeIdByName(config, clientName);
+                                    if (dlId) {
+                                        await updateQueueTree(config, dlId, { disabled: isDisabling ? 'yes' : 'no' });
                                     }
+
+                                    // Disable Upload
+                                    const upId = await findQueueTreeIdByName(config, `UP-${clientName}`);
+                                    if (upId) {
+                                        await updateQueueTree(config, upId, { disabled: isDisabling ? 'yes' : 'no' });
+                                    }
+
+                                    console.log(`[UpdateCustomer] Static Queue Tree ${clientName} ${isDisabling ? 'disabled' : 'enabled'}`);
                                 }
                             }
                         } finally {
@@ -1514,7 +1520,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         if (finalIp && finalPackageId) {
                             console.log(`[UpdateCustomer] Init sync to MikroTik for Static IP: ${finalIp}, Package: ${finalPackageId}`);
                             try {
-                                await syncClientQueues(customerId, parseInt(finalPackageId), finalIp, name || oldName);
+                                await syncClientQueues(customerId, parseInt(finalPackageId), finalIp, name || oldName, {
+                                    oldClientName: oldName
+                                });
                             } catch (syncErr: any) {
                                 console.error('[UpdateCustomer] ❌ Failed to sync MikroTik queues:', syncErr.message);
                             }
@@ -1530,7 +1538,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             console.log(`[UpdateCustomer] Created new static_ip_clients for customer ${customerId}`);
 
                             // Sync to MikroTik
-                            await syncClientQueues(customerId, pkgId, ip_address, name || oldName);
+                            await syncClientQueues(customerId, pkgId, ip_address, name || oldName, {
+                                oldClientName: oldName
+                            });
                         }
                     }
                 } catch (staticIpError) {

@@ -71,7 +71,8 @@ app.use(helmet({
 				"https://unpkg.com",
 				"https://*.tile.openstreetmap.org",
 				"https://*.basemaps.cartocdn.com",
-				"https://router.project-osrm.org"
+				"https://router.project-osrm.org",
+				"https://nominatim.openstreetmap.org"
 			],
 			upgradeInsecureRequests: null
 		}

@@ -150,33 +150,13 @@ export async function createStaticIpPackage(data: {
 	try {
 		await conn.beginTransaction();
 
-		// AUTOMATICALLY CREATE PARENT SIMPLE QUEUE
+		// AUTOMATICALLY CREATE PARENT QUEUE TREE
 		try {
-			console.log(`[Package] Creating Parent Simple Queue: "${data.name}"`);
-			const { createSimpleQueue, getSimpleQueues, updateSimpleQueue } = await import('./mikrotikService');
-			const maxLimit = `${data.max_limit_upload || '1M'}/${data.max_limit_download || '1M'}`;
+			console.log(`[Package] Creating Parent Queue Trees for: "${data.name}"`);
 
-			const simpleQueues = await getSimpleQueues(config);
-			const existing = simpleQueues.find(q => q.name === data.name);
-
-			const queueData = {
-				name: data.name,
-				target: '0.0.0.0/0',
-				maxLimit: maxLimit,
-				limitAt: (data.limit_at_upload && data.limit_at_download)
-					? `${data.limit_at_upload}/${data.limit_at_download}`
-					: undefined,
-				comment: `[BILLING] PACKAGE PARENT: ${data.name} (Shared Bandwidth Container)`,
-				queue: 'default/default'
-			};
-
-			if (existing) {
-				await updateSimpleQueue(config, existing['.id'], queueData);
-			} else {
-				await createSimpleQueue(config, queueData);
-			}
-		} catch (e) {
-			console.error(`[Package] ⚠️ Failed to create Parent Simple Queue:`, e);
+			// We sync after insertion to have all defaults etc.
+		} catch (notifError: any) {
+			console.error(`[Package] Error preparation:`, notifError);
 		}
 
 		const values = [
@@ -219,6 +199,15 @@ export async function createStaticIpPackage(data: {
 
 		const insertResult = result as any;
 		await conn.commit();
+
+		// Sync to MikroTik after commit
+		try {
+			const pkg = await getStaticIpPackageById(insertResult.insertId);
+			if (pkg) await syncPackageQueueTrees(config, pkg);
+		} catch (e) {
+			console.error(`[Package] Failed to sync Queue Tree to MikroTik:`, e);
+		}
+
 		return insertResult.insertId;
 	} catch (error) {
 		await conn.rollback();
@@ -273,6 +262,8 @@ export async function updateStaticIpPackage(id: number, data: {
 		const newPackageName = data.name || currentPackage.name;
 
 		// Update Parent Simple Queue
+		// Update Parent Simple Queue - DISABLED BY USER REQUEST
+		/*
 		try {
 			console.log(`[Package] Updating Parent Simple Queue: "${newPackageName}"`);
 			const { getSimpleQueues, updateSimpleQueue, createSimpleQueue } = await import('./mikrotikService');
@@ -298,6 +289,7 @@ export async function updateStaticIpPackage(id: number, data: {
 		} catch (e) {
 			console.warn(`[Package] Warning during Parent Queue update:`, e);
 		}
+		*/
 
 		// Update database
 		const updateFields = [];
@@ -339,6 +331,27 @@ export async function updateStaticIpPackage(id: number, data: {
 		}
 
 		await conn.commit();
+
+		// Update MikroTik Queue Tree
+		try {
+			const updatedPkg = await getStaticIpPackageById(id);
+			if (updatedPkg) {
+				// Handle renaming if name changed
+				if (currentPackage.name !== newPackageName) {
+					console.log(`[Package] Renaming Package Queues from ${currentPackage.name} to ${newPackageName}`);
+					const oldDlId = await findQueueTreeIdByName(config, currentPackage.name);
+					if (oldDlId) await updateQueueTree(config, oldDlId, { name: newPackageName });
+
+					const oldUpName = `UP-${currentPackage.name}`;
+					const oldUpId = await findQueueTreeIdByName(config, oldUpName);
+					if (oldUpId) await updateQueueTree(config, oldUpId, { name: `UP-${newPackageName}` });
+				}
+
+				await syncPackageQueueTrees(config, updatedPkg);
+			}
+		} catch (e) {
+			console.error(`[Package] Failed to update Queue Tree on MikroTik:`, e);
+		}
 	} catch (error) {
 		await conn.rollback();
 		throw error;
@@ -355,29 +368,9 @@ export async function createMikrotikQueues(packageId: number): Promise<void> {
 	if (!pkg) throw new Error('Paket tidak ditemukan');
 
 	try {
-		const { createSimpleQueue, getSimpleQueues, updateSimpleQueue } = await import('./mikrotikService');
-		const maxLimit = `${pkg.max_limit_upload || '1M'}/${pkg.max_limit_download || '1M'}`;
-		const simpleQueues = await getSimpleQueues(config);
-		const existing = simpleQueues.find(q => q.name === pkg.name);
-
-		const queueData = {
-			name: pkg.name,
-			target: '0.0.0.0/0',
-			maxLimit: maxLimit,
-			limitAt: (pkg.limit_at_upload && pkg.limit_at_download)
-				? `${pkg.limit_at_upload}/${pkg.limit_at_download}`
-				: undefined,
-			comment: `[BILLING] PACKAGE PARENT: ${pkg.name} (Shared Bandwidth Container)`,
-			queue: 'default/default'
-		};
-
-		if (existing) {
-			await updateSimpleQueue(config, existing['.id'], queueData);
-		} else {
-			await createSimpleQueue(config, queueData);
-		}
+		await syncPackageQueueTrees(config, pkg);
 	} catch (e) {
-		console.error(`[Package] Failed to create Parent Queue:`, e);
+		console.error(`[Package] Failed to create Parent Queue Tree:`, e);
 		throw e;
 	}
 }
@@ -394,10 +387,7 @@ export async function deleteStaticIpPackage(id: number): Promise<void> {
 
 		// Delete from MikroTik
 		try {
-			const { getSimpleQueues, deleteSimpleQueue } = await import('./mikrotikService');
-			const simpleQueues = await getSimpleQueues(config);
-			const parent = simpleQueues.find(q => q.name === pkg.name);
-			if (parent) await deleteSimpleQueue(config, parent['.id']);
+			await deletePackageQueueTrees(config, pkg.name);
 		} catch (e) { console.warn(e); }
 
 		await conn.execute('DELETE FROM static_ip_packages WHERE id = ?', [id]);
@@ -417,67 +407,137 @@ export async function deleteMikrotikQueuesOnly(packageId: number): Promise<void>
 	if (!pkg) throw new Error('Paket tidak ditemukan');
 
 	try {
-		const { getSimpleQueues, deleteSimpleQueue } = await import('./mikrotikService');
-		const simpleQueues = await getSimpleQueues(config);
-		const parent = simpleQueues.find(q => q.name === pkg.name);
-		if (parent) await deleteSimpleQueue(config, parent['.id']);
+		await deletePackageQueueTrees(config, pkg.name);
 	} catch (e) { throw e; }
 }
 
-export async function syncClientQueues(customerId: number, packageId: number, ipAddress: string, clientName: string): Promise<void> {
+export async function syncClientQueues(
+	customerId: number,
+	packageId: number,
+	ipAddress: string,
+	clientName: string,
+	options?: {
+		oldClientName?: string,
+		overrides?: {
+			maxLimitDownload?: string;
+			maxLimitUpload?: string;
+			limitAtDownload?: string;
+			limitAtUpload?: string;
+			priorityDownload?: string;
+			priorityUpload?: string;
+			queueDownload?: string;
+			queueUpload?: string;
+			useBurst?: boolean;
+			burstLimitDownload?: string;
+			burstLimitUpload?: string;
+			burstThresholdDownload?: string;
+			burstThresholdUpload?: string;
+			burstTimeDownload?: string;
+			burstTimeUpload?: string;
+		}
+	}
+): Promise<void> {
 	const config = await getMikrotikConfig();
 	if (!config) throw new Error('Konfigurasi MikroTik tidak ditemukan');
 
-	const { getSimpleQueues, createSimpleQueue, updateSimpleQueue, removeMangleRulesForClient } = await import('./mikrotikService');
+	const { createQueueTree, deleteClientQueuesByClientName, addMangleRulesForClient, findQueueTreeIdByPacketMark, deleteQueueTree } = await import('./mikrotikService');
+	const { calculateSharedLimit } = await import('../services/staticIpClientService');
+
 	const pkg = await getStaticIpPackageById(packageId);
 	if (!pkg) throw new Error('Paket tidak ditemukan');
 
+	// ENSURE PARENT EXISTS
+	await syncPackageQueueTrees(config, pkg);
+
 	const cleanIp = ipAddress.split('/')[0];
 
-	// Prepare Data
-	const burstLimit = (pkg.child_burst_upload && pkg.child_burst_download)
-		? `${pkg.child_burst_upload}/${pkg.child_burst_download}`
-		: undefined;
-	const burstThreshold = (pkg.child_burst_threshold_upload && pkg.child_burst_threshold_download)
-		? `${pkg.child_burst_threshold_upload}/${pkg.child_burst_threshold_download}`
-		: undefined;
-	const burstTime = (pkg.child_burst_time_upload && pkg.child_burst_time_download)
-		? `${pkg.child_burst_time_upload}/${pkg.child_burst_time_download}`
-		: undefined;
-
-	const simpleQueues = await getSimpleQueues(config);
-	const existingQueue = simpleQueues.find(q => q.name === clientName || q.target === `${cleanIp}/32`);
-	const parentPackageQueue = simpleQueues.find(q => q.name === pkg.name);
-
-	let maxLimit = `${pkg.max_limit_upload || '1M'}/${pkg.max_limit_download || '1M'}`;
-	let parentName = parentPackageQueue ? pkg.name : undefined;
-	let limitAt = (pkg.child_limit_at_upload && pkg.child_limit_at_download)
-		? `${pkg.child_limit_at_upload}/${pkg.child_limit_at_download}`
-		: undefined;
-
-	const queueData = {
-		name: clientName,
-		target: `${cleanIp}/32`,
-		maxLimit: maxLimit,
-		limitAt: limitAt,
-		priority: (pkg.child_priority_upload && pkg.child_priority_download)
-			? `${pkg.child_priority_upload}/${pkg.child_priority_download}`
-			: undefined,
-		burstLimit,
-		burstThreshold,
-		burstTime,
-		parent: parentName,
-		comment: `[BILLING] Static IP Client: ${clientName} (${pkg.name}) [${parentName ? 'SHARED' : 'DEDICATED'}]`,
-		queue: (pkg.child_queue_type_upload && pkg.child_queue_type_download)
-			? `${pkg.child_queue_type_upload}/${pkg.child_queue_type_download}`
-			: 'default-small/default-small'
-	};
-
-	if (existingQueue) {
-		await updateSimpleQueue(config, existingQueue['.id'], queueData);
-	} else {
-		await createSimpleQueue(config, queueData);
+	// Cleanup first
+	await deleteClientQueuesByClientName(config, clientName);
+	if (options?.oldClientName && options.oldClientName !== clientName) {
+		await deleteClientQueuesByClientName(config, options.oldClientName);
 	}
+
+	// Calculate Peer IP for marks
+	function ipToInt(ip: string) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0; }
+	function intToIp(int: number) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.'); }
+
+	const [ipOnly, prefixStr] = ipAddress.split('/');
+	const prefix = Number(prefixStr || '32');
+	const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+	const networkInt = ipToInt(ipOnly) & mask;
+
+	let peerIp = ipOnly;
+	if (prefix === 30) {
+		const firstHost = networkInt + 1;
+		const secondHost = networkInt + 2;
+		const ipInt = ipToInt(ipOnly);
+		peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+	}
+
+	// Cleanup Queue by IP/PacketMark to be extra safe
+	try {
+		const dlIdByMark = await findQueueTreeIdByPacketMark(config, peerIp);
+		if (dlIdByMark) await deleteQueueTree(config, dlIdByMark);
+		const upIdByMark = await findQueueTreeIdByPacketMark(config, `UP-${peerIp}`);
+		if (upIdByMark) await deleteQueueTree(config, upIdByMark);
+	} catch (e) { console.warn('Extra cleanup failed (not critical):', e); }
+
+	// Add Mangle Rules
+	const downloadMark = peerIp;
+	const uploadMark = `UP-${peerIp}`;
+	await addMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
+
+	// Calculate Limits (taking overrides into account)
+	const mlDownload = options?.overrides?.maxLimitDownload || pkg.child_download_limit || (pkg as any).shared_download_limit || pkg.max_limit_download;
+	const mlUpload = options?.overrides?.maxLimitUpload || pkg.child_upload_limit || (pkg as any).shared_upload_limit || pkg.max_limit_upload;
+
+	let laDownload = options?.overrides?.limitAtDownload || pkg.child_limit_at_download;
+	if (!laDownload && pkg.max_clients > 1) {
+		laDownload = calculateSharedLimit(mlDownload, pkg.max_clients);
+	}
+
+	let laUpload = options?.overrides?.limitAtUpload || pkg.child_limit_at_upload;
+	if (!laUpload && pkg.max_clients > 1) {
+		laUpload = calculateSharedLimit(mlUpload, pkg.max_clients);
+	}
+
+	const useBurst = options?.overrides?.useBurst !== undefined
+		? options.overrides.useBurst
+		: ((pkg.child_burst_upload && pkg.child_burst_download) ? true : false);
+
+	// Create Download Queue Tree
+	await createQueueTree(config, {
+		name: clientName,
+		parent: pkg.name, // Use Package Name as Parent for Download
+		packetMarks: downloadMark,
+		limitAt: laDownload,
+		maxLimit: mlDownload,
+		queue: options?.overrides?.queueDownload || pkg.child_queue_type_download || 'pcq-download-default',
+		priority: options?.overrides?.priorityDownload || pkg.child_priority_download || '8',
+		...(useBurst ? {
+			burstLimit: options?.overrides?.burstLimitDownload || pkg.child_burst_download,
+			burstThreshold: options?.overrides?.burstThresholdDownload || pkg.child_burst_threshold_download,
+			burstTime: options?.overrides?.burstTimeDownload || pkg.child_burst_time_download
+		} : {})
+	});
+
+	// Create Upload Queue Tree
+	await createQueueTree(config, {
+		name: `UP-${clientName}`,
+		parent: `UP-${pkg.name}`, // Use UP-{Package Name} as Parent for Upload
+		packetMarks: uploadMark,
+		limitAt: laUpload,
+		maxLimit: mlUpload,
+		queue: options?.overrides?.queueUpload || pkg.child_queue_type_upload || 'pcq-upload-default',
+		priority: options?.overrides?.priorityUpload || pkg.child_priority_upload || '8',
+		...(useBurst ? {
+			burstLimit: options?.overrides?.burstLimitUpload || pkg.child_burst_upload,
+			burstThreshold: options?.overrides?.burstThresholdUpload || pkg.child_burst_threshold_upload,
+			burstTime: options?.overrides?.burstTimeUpload || pkg.child_burst_time_upload
+		} : {})
+	});
+
+	console.log(`[SyncClientQueues] Queue Tree updated for ${clientName}`);
 }
 
 export async function syncAllMikrotikQueues(): Promise<void> {
@@ -489,4 +549,47 @@ export async function syncAllMikrotikQueues(): Promise<void> {
 			console.error(`[SyncAll] Failed to sync ${pkg.name}:`, error);
 		}
 	}
+}
+
+/**
+ * Sync Package Queue Trees Helper
+ */
+export async function syncPackageQueueTrees(config: MikroTikConfig, pkg: StaticIpPackage) {
+	// Download
+	const dlName = pkg.name;
+	const dlId = await findQueueTreeIdByName(config, dlName);
+	const dlData = {
+		name: dlName,
+		parent: (pkg.parent_download_name && pkg.parent_download_name !== 'SIMPLE_QUEUE_PARENT') ? pkg.parent_download_name : 'global',
+		maxLimit: pkg.max_limit_download,
+		limitAt: pkg.limit_at_download || undefined,
+		comment: `[BILLING] Package Download Parent: ${pkg.name}`
+	};
+	if (dlId) await updateQueueTree(config, dlId, dlData);
+	else await createQueueTree(config, dlData);
+
+	// Upload
+	const upName = `UP-${pkg.name}`;
+	const upId = await findQueueTreeIdByName(config, upName);
+	const upData = {
+		name: upName,
+		parent: (pkg.parent_upload_name && pkg.parent_upload_name !== 'SIMPLE_QUEUE_PARENT') ? pkg.parent_upload_name : 'global',
+		maxLimit: pkg.max_limit_upload || '1M',
+		limitAt: pkg.limit_at_upload || undefined,
+		comment: `[BILLING] Package Upload Parent: ${pkg.name}`
+	};
+	if (upId) await updateQueueTree(config, upId, upData);
+	else await createQueueTree(config, upData);
+}
+
+/**
+ * Delete Package Queue Trees Helper
+ */
+export async function deletePackageQueueTrees(config: MikroTikConfig, packageName: string) {
+	const dlId = await findQueueTreeIdByName(config, packageName);
+	if (dlId) await deleteQueueTree(config, dlId);
+
+	const upName = `UP-${packageName}`;
+	const upId = await findQueueTreeIdByName(config, upName);
+	if (upId) await deleteQueueTree(config, upId);
 }
