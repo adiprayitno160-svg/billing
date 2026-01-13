@@ -295,15 +295,24 @@ export class WhatsAppServiceBaileys {
                     if (!hasMedia) return null;
 
                     try {
-                        const buffer = await downloadMediaMessage(
-                            msg,
-                            'buffer',
-                            {},
-                            {
-                                logger: pino({ level: 'silent' }),
-                                reuploadRequest: this.sock.updateMediaMessage
-                            }
+                        // Create a timeout promise
+                        const timeoutPromise = new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('Media download timed out')), 15000)
                         );
+
+                        // Race between download and timeout
+                        const buffer = await Promise.race([
+                            downloadMediaMessage(
+                                msg,
+                                'buffer',
+                                {},
+                                {
+                                    logger: pino({ level: 'silent' }),
+                                    reuploadRequest: this.sock.updateMediaMessage
+                                }
+                            ),
+                            timeoutPromise
+                        ]) as Buffer;
 
                         const messageType = Object.keys(msg.message || {})[0];
                         const mimeType = (msg.message as any)[messageType]?.mimetype || 'image/jpeg';
@@ -314,8 +323,8 @@ export class WhatsAppServiceBaileys {
                             filename: (msg.message as any)[messageType]?.fileName || 'file'
                         };
                     } catch (error) {
-                        console.error('[WhatsAppBaileys] Error downloading media:', error);
-                        return null;
+                        console.error('[WhatsAppBaileys] Error or Timeout downloading media:', error);
+                        return null; // Return null effectively skipping the broken media
                     }
                 }
             };
