@@ -299,6 +299,18 @@ export class WhatsAppBotService {
                     }
 
                     // 3. Default: Guide unregistered users to register
+                    // Loop Protection: Only reply ONCE every hour for same unregistered user unless flow keyword
+                    const lastReplyKey = `unreg_reply:${phone}`;
+                    const lastReplyTime = this.recentMessages.get(lastReplyKey);
+
+                    if (lastReplyTime && (Date.now() - lastReplyTime) < 3600000) { // 1 hour cool off
+                        console.log(`[WhatsAppBot] ⏭️ Skipping unregistered reply (Cool off active for ${phone})`);
+                        return;
+                    }
+
+                    // Set cool off timestamp
+                    this.recentMessages.set(lastReplyKey, Date.now());
+
                     console.log('[WhatsAppBot] ℹ️ Sending registration guide to unregistered user');
                     const msgContent = '❌ *Nomor Belum Terdaftar*\n\n' +
                         'Maaf, nomor ini belum terdaftar di database kami.\n\n' +
