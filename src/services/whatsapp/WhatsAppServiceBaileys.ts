@@ -183,40 +183,45 @@ export class WhatsAppServiceBaileys {
                 // }
 
                 for (const msg of messages) {
-                    // Deduplication check using message ID
-                    const messageId = msg.key?.id;
-                    if (messageId) {
-                        if (this.processedMessages.has(messageId)) {
-                            console.log(`[Baileys] ⏭️  Skipping duplicate message: ${messageId}`);
+                    try {
+                        // Deduplication check using message ID
+                        const messageId = msg.key?.id;
+                        if (messageId) {
+                            if (this.processedMessages.has(messageId)) {
+                                console.log(`[Baileys] ⏭️  Skipping duplicate message: ${messageId}`);
+                                continue;
+                            }
+                            // IMMEDIATE LOCK: Add to set instantly to prevent race conditions
+                            this.processedMessages.add(messageId);
+
+                            // Clean up old message IDs after timeout
+                            setTimeout(() => {
+                                this.processedMessages.delete(messageId);
+                            }, this.MESSAGE_CACHE_TIMEOUT);
+                        }
+
+                        console.log(`[Baileys] 🔍 Processing message:`, {
+                            hasMessage: !!msg.message,
+                            fromMe: msg.key?.fromMe,
+                            remoteJid: msg.key?.remoteJid,
+                            messageId: messageId
+                        });
+
+                        if (!msg.message) {
+                            console.log(`[Baileys] ⏭️  Skipping - no message content`);
                             continue;
                         }
-                        // IMMEDIATE LOCK: Add to set instantly to prevent race conditions
-                        this.processedMessages.add(messageId);
+                        if (msg.key.fromMe) {
+                            console.log(`[Baileys] ⏭️  Skipping - message from self`);
+                            continue;
+                        }
 
-                        // Clean up old message IDs after timeout
-                        setTimeout(() => {
-                            this.processedMessages.delete(messageId);
-                        }, this.MESSAGE_CACHE_TIMEOUT);
+                        console.log(`[Baileys] ✅ Valid message received, calling handleIncomingMessage...`);
+                        await this.handleIncomingMessage(msg);
+                    } catch (msgError) {
+                        console.error('[Baileys] ❌ CRITICAL ERROR processing individual message:', msgError);
+                        // Continue to next message, do not kill the service
                     }
-
-                    console.log(`[Baileys] 🔍 Processing message:`, {
-                        hasMessage: !!msg.message,
-                        fromMe: msg.key?.fromMe,
-                        remoteJid: msg.key?.remoteJid,
-                        messageId: messageId
-                    });
-
-                    if (!msg.message) {
-                        console.log(`[Baileys] ⏭️  Skipping - no message content`);
-                        continue;
-                    }
-                    if (msg.key.fromMe) {
-                        console.log(`[Baileys] ⏭️  Skipping - message from self`);
-                        continue;
-                    }
-
-                    console.log(`[Baileys] ✅ Valid message received, calling handleIncomingMessage...`);
-                    await this.handleIncomingMessage(msg);
                 }
             });
 
