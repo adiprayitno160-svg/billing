@@ -234,6 +234,25 @@ export class SchedulerService {
             }
         });
 
+        // Daily WhatsApp Service Restart - 04:30 AM
+        cron.schedule('30 4 * * *', async () => {
+            console.log('[Scheduler] 🔄 Running daily WhatsApp Service restart...');
+            try {
+                const waModule = await import('./whatsapp/WhatsAppServiceBaileys') as any;
+                const waService = waModule.WhatsAppServiceBaileys || waModule.default;
+
+                if (waService && typeof waService.restart === 'function') {
+                    await waService.restart();
+                    console.log('[Scheduler] ✅ WhatsApp Service restarted successfully');
+                }
+            } catch (error) {
+                console.error('[Scheduler] ❌ Error restarting WhatsApp Service:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
         this.isInitialized = true;
         console.log('Billing scheduler initialized successfully');
     }

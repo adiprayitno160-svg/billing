@@ -67,6 +67,7 @@ export class WhatsAppServiceBaileys {
             }
 
             await this.startSocket();
+            this.startWatchdog();
 
         } catch (error: any) {
             this.isInitializing = false;
@@ -766,10 +767,73 @@ export class WhatsAppServiceBaileys {
         };
     }
 
+    private static watchdogInterval: any = null;
+
+    /**
+     * Start the watchdog to monitor connection health
+     */
+    private static startWatchdog() {
+        if (this.watchdogInterval) clearInterval(this.watchdogInterval);
+
+        // Check every 5 minutes
+        this.watchdogInterval = setInterval(() => {
+            if (this.isInitialized && !this.isInitializing) {
+                let status = 'UNKNOWN';
+
+                try {
+                    // Access internal WS state if possible
+                    if (this.sock && (this.sock as any).ws) {
+                        const readyState = (this.sock as any).ws.readyState;
+                        status = readyState === 1 ? 'OPEN' : (readyState === 0 ? 'CONNECTING' : 'CLOSED');
+
+                        if (readyState !== 1 && readyState !== 0) {
+                            console.log(`[Watchdog] 🚨 Socket state is ${status} (not OPEN). Restarting...`);
+                            this.restart();
+                            return;
+                        }
+                    } else if (!this.sock) {
+                        console.log('[Watchdog] 🚨 Socket is missing but service is marked initialized. Restarting...');
+                        this.restart();
+                        return;
+                    }
+                } catch (e) {
+                    console.error('[Watchdog] Error checking status:', e);
+                }
+
+                // console.log(`[Watchdog] ✅ Service healthy (State: ${status})`);
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    private static stopWatchdog() {
+        if (this.watchdogInterval) {
+            clearInterval(this.watchdogInterval);
+            this.watchdogInterval = null;
+        }
+    }
+
+    /**
+     * Force restart the service
+     */
+    static async restart(): Promise<void> {
+        console.log('[WhatsAppService] 🔄 Forced restart triggered...');
+        await this.destroy();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s
+        await this.initialize();
+    }
+
     static async destroy(): Promise<void> {
+        this.stopWatchdog(); // Stop watchdog
+
         if (this.sock) {
             try {
+                // Remove listeners first
+                this.sock.ev.removeAllListeners('messages.upsert');
+                this.sock.ev.removeAllListeners('connection.update');
+                this.sock.ev.removeAllListeners('creds.update');
+
                 await this.sock.logout();
+                this.sock.end(undefined);
                 console.log('✅ WhatsApp client destroyed');
             } catch (error) {
                 console.warn('⚠️ Error during cleanup:', error);
@@ -777,7 +841,7 @@ export class WhatsAppServiceBaileys {
 
             this.sock = null;
             this.isInitialized = false;
-            this.isInitializing = false; // Fix: Reset initializing flag
+            this.isInitializing = false;
             this.isConnected = false;
             this.currentQRCode = null;
         }
