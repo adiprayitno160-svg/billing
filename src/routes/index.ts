@@ -568,9 +568,22 @@ router.get('/api/mikrotik/secrets/search', async (req, res) => {
         let secrets;
         try {
             secrets = await getPppoeSecrets(config);
+            console.log(`[API] Got ${secrets ? secrets.length : 0} secrets from MikroTik`);
         } catch (err) {
             console.error('[API] Failed to fetch secrets:', err);
             return res.json({ results: [] });
+        }
+
+        if (query === 'test') {
+            console.log('[API] Returning debug test user');
+            return res.json({
+                results: [{
+                    username: 'test_user_debug',
+                    password: '123',
+                    service: 'pppoe',
+                    profile: 'default'
+                }]
+            });
         }
 
         // 3. Get Existing Customers (to filter out used usernames)
