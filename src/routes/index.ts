@@ -2328,12 +2328,29 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             });
                             console.log(`   ✅ PPPoE secret dengan ID "${secretName}" berhasil dibuat di MikroTik`);
                         } catch (createError: any) {
-                            console.error('   ❌ Error saat create secret:');
-                            console.error('      Error message:', createError.message);
-                            console.error('      Error code:', createError.code);
-                            console.error('      Error name:', createError.name);
-                            console.error('      Error stack:', createError.stack);
-                            throw createError;
+                            // AUTO-ADOPT LOGIC: If secret already exists, try to update it instead
+                            if (createError.message && (
+                                createError.message.includes('already have') ||
+                                createError.message.includes('exists') ||
+                                createError.message.includes('duplicate')
+                            )) {
+                                console.log(`   ⚠️ Secret "${secretName}" ternyata sudah ada (Auto-Adopt Triggered). Mencoba update...`);
+                                try {
+                                    await updatePppoeSecret(config, secretName, {
+                                        name: secretName,
+                                        password: password,
+                                        profile: profileName,
+                                        comment: client_name
+                                    });
+                                    console.log(`   ✅ Auto-Adopt berhasil: Secret "${secretName}" telah di-update/di-link.`);
+                                } catch (updateErr: any) {
+                                    console.error('   ❌ Gagal melakukan Auto-Adopt:', updateErr.message);
+                                    throw updateErr; // Throw original update error
+                                }
+                            } else {
+                                console.error('   ❌ Error saat create secret:', createError.message);
+                                throw createError;
+                            }
                         }
                     }
                 }
