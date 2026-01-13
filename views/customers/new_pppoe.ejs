@@ -156,15 +156,20 @@
                                                 <label
                                                     class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Username
                                                     PPPoE <span class="text-red-500">*</span></label>
-                                                <div class="relative">
-                                                    <input type="text" name="username" id="pppoe_search"
-                                                        value="<%= typeof initial_customer_code !== 'undefined' ? initial_customer_code + '.net' : '' %>"
-                                                        placeholder="user.net" required autocomplete="off"
-                                                        class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-blue-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all" />
-                                                    <!-- Search Results Dropdown -->
-                                                    <div id="pppoe_search_results"
-                                                        class="absolute z-20 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-48 overflow-y-auto hidden">
+                                                <div class="flex gap-2">
+                                                    <div class="relative w-full">
+                                                        <input type="text" name="username" id="pppoe_search"
+                                                            value="<%= typeof initial_customer_code !== 'undefined' ? initial_customer_code + '.net' : '' %>"
+                                                            placeholder="user.net" required autocomplete="off"
+                                                            class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-blue-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all" />
+                                                        <!-- Search Results Dropdown -->
+                                                        <div id="pppoe_search_results"
+                                                            class="absolute z-20 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-48 overflow-y-auto hidden">
+                                                        </div>
                                                     </div>
+                                                    <button type="button" id="reset_pppoe_btn"
+                                                        class="hidden px-3 border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
+                                                        title="Reset / Ganti User">✕</button>
                                                 </div>
                                             </div>
                                             <div>
@@ -481,11 +486,29 @@
         });
 
         // PPPoE Secret Search
+        const pppoeInput = document.getElementById('pppoe_search');
+        const pppoeReset = document.getElementById('reset_pppoe_btn');
+
         setupSearch('pppoe_search', 'pppoe_search_results', '/api/mikrotik/secrets/search', (item) => {
-            document.getElementById('pppoe_search').value = item.username;
+            pppoeInput.value = item.username;
             document.getElementById('pppoe_password').value = item.password || ''; // Auto fill password
-            // Optionally try to select the package if profile matches something (advanced logic omitted for simplicity)
+
+            // LOCK INPUT
+            pppoeInput.readOnly = true;
+            pppoeInput.classList.add('bg-slate-100', 'text-slate-500');
+            if (pppoeReset) pppoeReset.classList.remove('hidden');
         });
+
+        if (pppoeReset) {
+            pppoeReset.addEventListener('click', () => {
+                pppoeInput.value = '';
+                document.getElementById('pppoe_password').value = '';
+                pppoeInput.readOnly = false;
+                pppoeInput.classList.remove('bg-slate-100', 'text-slate-500');
+                pppoeReset.classList.add('hidden');
+                pppoeInput.focus();
+            });
+        }
 
         // Reset ODC
         const resetOdc = document.getElementById('reset_odc_btn');

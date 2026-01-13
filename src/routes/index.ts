@@ -553,6 +553,7 @@ router.use('/wifi-admin', wifiAdminRoutes);
 
 // API endpoint untuk search PPPoE secrets (used for autocomplete)
 router.get('/api/mikrotik/secrets/search', async (req, res) => {
+    console.log('[API] /api/mikrotik/secrets/search called with query:', req.query);
     try {
         const query = (req.query.q as string || '').toLowerCase();
 

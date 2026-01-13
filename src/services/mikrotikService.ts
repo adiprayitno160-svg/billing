@@ -231,7 +231,10 @@ export async function getPppoeSecrets(cfg: MikroTikConfig): Promise<PppoeSecret[
     try {
         const res = await mikrotikPool.execute<PppoeSecret[]>(cfg, '/ppp/secret/print', [], 'pppoe_secrets', 60000);
         return Array.isArray(res) ? res : [];
-    } catch { return []; }
+    } catch (e) {
+        console.error('[MikroTikService] Failed to get secrets:', e);
+        return [];
+    }
 }
 
 export async function findPppoeSecretIdByName(cfg: MikroTikConfig, name: string): Promise<string | null> {
