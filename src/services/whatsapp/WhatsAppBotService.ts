@@ -170,9 +170,31 @@ export class WhatsAppBotService {
     }
 
     /**
+     * Ensure database schema is correct
+     */
+    private static async ensureSchema(): Promise<void> {
+        try {
+            // Add media_url column if not exists
+            await databasePool.query(`
+                ALTER TABLE whatsapp_bot_messages 
+                ADD COLUMN IF NOT EXISTS media_url TEXT NULL AFTER message_content
+            `);
+            // Add status column if not exists
+            await databasePool.query(`
+                ALTER TABLE whatsapp_bot_messages 
+                ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'sent' AFTER direction
+            `);
+            console.log('✅ WhatsApp Bot schema check passed');
+        } catch (error) {
+            console.error('[WhatsAppBot] Schema check warning:', error);
+        }
+    }
+
+    /**
      * Initialize bot message handler
      */
     static async initialize(): Promise<void> {
+        await this.ensureSchema();
         // Bot handler is registered in WhatsAppService
         console.log('✅ WhatsApp Bot Service initialized');
     }
