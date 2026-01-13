@@ -1,0 +1,312 @@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // === 1. Auto Password ===
+        window.generatePassword = function () {
+            const pass = Math.random().toString(36).slice(-8);
+            document.getElementById('pppoe_password').value = pass;
+        };
+
+        // === 2. Search Logic (ODC, ODP, PPPoE User) ===
+        const setupSearch = (inputId, resultsId, apiPath, onSelect) => {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+            let t;
+
+            if (!input) return;
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(t);
+                const q = e.target.value.trim();
+
+                // Specific logic for ODC reset
+                if (inputId === 'odc_search') {
+                    document.getElementById('odc_id').value = '';
+                    document.getElementById('odp_section_wrapper').classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+                }
+
+                if (q.length < 2) { results.classList.add('hidden'); return; }
+
+                // Extra params
+                let url = apiPath + '?q=' + encodeURIComponent(q);
+                if (inputId === 'odp_search') {
+                    const odcId = document.getElementById('odc_id').value;
+                    if (!odcId) return;
+                    url += '&odc_id=' + odcId;
+                }
+
+                t = setTimeout(() => {
+                    // Show loading
+                    results.innerHTML = '<div class="px-4 py-3 text-xs text-slate-400 italic text-center flex items-center justify-center gap-2"><svg class="animate-spin h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Mencari...</div>';
+                    results.classList.remove('hidden');
+
+                    fetch(url).then(r => {
+                        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                        return r.json();
+                    }).then(data => {
+                        if (data.results && data.results.length) {
+                            results.innerHTML = data.results.map(item => {
+                                // Fix undefined display logic
+                                const name = item.name || item.odp_name || item.username || '';
+                                let sub = '';
+                                if (item.location) sub = item.location;
+                                else if (item.available_ports !== undefined) sub = item.available_ports + ' Ports';
+                                else if (item.profile) sub = item.profile; // PPPoE Profile
+
+                                return `
+                                <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 text-sm" 
+                                     data-item='${JSON.stringify(item).replace(/'/g, "&#39;")}'>
+                                    <div class="font-bold text-slate-800">${name}</div>
+                                    <div class="text-[10px] text-slate-400">${sub}</div>
+                                </div>
+                            `}).join('');
+                            results.classList.remove('hidden');
+
+                            // Add click listeners
+                            results.querySelectorAll('div[data-item]').forEach(el => {
+                                el.addEventListener('click', () => {
+                                    const item = JSON.parse(el.dataset.item);
+                                    onSelect(item);
+                                    results.classList.add('hidden');
+                                });
+                            });
+                        } else {
+                            results.innerHTML = '<div class="px-4 py-2 text-xs text-slate-400 italic text-center">Tidak ditemukan</div>';
+                            results.classList.remove('hidden');
+                        }
+                    }).catch(err => {
+                        results.innerHTML = `<div class="px-4 py-2 text-xs text-red-400 italic text-center">Gagal memuat data: ${err.message}</div>`;
+                    });
+                }, 300);
+            });
+
+            // Blur handling
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#' + inputId)) results.classList.add('hidden');
+            });
+        };
+
+        // ODC Search
+        setupSearch('odc_search', 'odc_search_results', '/api/ftth/odc/search', (item) => {
+            document.getElementById('odc_search').value = item.name;
+            document.getElementById('odc_id').value = item.id;
+            const odpWrapper = document.getElementById('odp_section_wrapper');
+            odpWrapper.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
+            document.getElementById('odp_search').focus();
+            document.getElementById('odp_search').value = '';
+            document.getElementById('odp_id').value = '';
+        });
+
+        // ODP Search
+        setupSearch('odp_search', 'odp_search_results', '/api/ftth/odp/search', (item) => {
+            document.getElementById('odp_search').value = item.odp_name;
+            document.getElementById('odp_id').value = item.id;
+        });
+
+        // PPPoE Secret Search
+        const pppoeInput = document.getElementById('pppoe_search');
+        const pppoeReset = document.getElementById('reset_pppoe_btn');
+
+        setupSearch('pppoe_search', 'pppoe_search_results', '/api/mikrotik/secrets/search', (item) => {
+            pppoeInput.value = item.username;
+            document.getElementById('pppoe_password').value = item.password || ''; // Auto fill password
+
+            // LOCK INPUT
+            pppoeInput.readOnly = true;
+            pppoeInput.classList.add('bg-slate-100', 'text-slate-500');
+            if (pppoeReset) pppoeReset.classList.remove('hidden');
+        });
+
+        if (pppoeReset) {
+            pppoeReset.addEventListener('click', () => {
+                pppoeInput.value = '';
+                document.getElementById('pppoe_password').value = '';
+                pppoeInput.readOnly = false;
+                pppoeInput.classList.remove('bg-slate-100', 'text-slate-500');
+                pppoeReset.classList.add('hidden');
+                pppoeInput.focus();
+            });
+        }
+
+        // Reset ODC
+        const resetOdc = document.getElementById('reset_odc_btn');
+        if (resetOdc) {
+            resetOdc.addEventListener('click', () => {
+                document.getElementById('odc_search').value = '';
+                document.getElementById('odc_id').value = '';
+                document.getElementById('odp_section_wrapper').classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+            });
+        }
+
+        // === 3. Wireless Toggle Logic ===
+        const isWireless = document.getElementById('is_wireless');
+        const infraWrapper = document.getElementById('infra_wrapper');
+        const odpInput = document.getElementById('odp_id');
+
+        if (isWireless) {
+            isWireless.addEventListener('change', () => {
+                if (isWireless.checked) {
+                    infraWrapper.classList.add('opacity-40', 'pointer-events-none', 'grayscale');
+                    if (odpInput) odpInput.required = false;
+                } else {
+                    infraWrapper.classList.remove('opacity-40', 'pointer-events-none', 'grayscale');
+                    if (odpInput) odpInput.required = true;
+                }
+            });
+        }
+
+        // === 4. Maps Integration (Robust with HTTP Fallback) ===
+        const btnGetLocation = document.getElementById('btnGetLocation');
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+
+        if (document.getElementById('map')) {
+            if (typeof L === 'undefined') {
+                console.error('Leaflet JS is not loaded!');
+                document.getElementById('map').innerHTML = '<div class="flex items-center justify-center h-full text-red-500 text-xs text-center p-4">Gagal memuat peta.<br>Periksa koneksi internet Anda.</div>';
+            } else {
+                try {
+                    const map = L.map('map').setView([-6.200000, 106.816666], 5);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+                    let marker;
+
+                    // Function to update address from coords (Reverse Geocoding)
+                    const updateAddress = (lat, lng) => {
+                        const addressInput = document.getElementById('address');
+                        if (addressInput) {
+                            addressInput.placeholder = 'Mengambil alamat...';
+                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data && data.display_name) {
+                                        // Make it cleaner: Road, Village, District
+                                        const addr = data.address;
+                                        const parts = [];
+                                        if (addr.road) parts.push(addr.road);
+                                        if (addr.village || addr.suburb || addr.hamlet) parts.push(addr.village || addr.suburb || addr.hamlet);
+                                        if (addr.city || addr.town || addr.county) parts.push(addr.city || addr.town || addr.county);
+
+                                        const cleanAddr = parts.length > 0 ? parts.join(', ') : data.display_name;
+                                        addressInput.value = cleanAddr;
+                                    }
+                                })
+                                .catch(e => console.warn('Reverse geocode failed:', e))
+                                .finally(() => addressInput.placeholder = 'Alamat lengkap...');
+                        }
+                    };
+
+                    const setMarker = (lat, lng, zoom = 15) => {
+                        if (marker) marker.setLatLng([lat, lng]);
+                        else {
+                            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                            marker.on('dragend', (e) => {
+                                const p = e.target.getLatLng();
+                                latInput.value = p.lat.toFixed(6);
+                                lngInput.value = p.lng.toFixed(6);
+                                updateAddress(p.lat, p.lng);
+                            });
+                        }
+                        map.setView([lat, lng], zoom);
+                        updateAddress(lat, lng); // Auto update address on set
+                    };
+
+                    map.on('click', (e) => {
+                        latInput.value = e.latlng.lat.toFixed(6);
+                        lngInput.value = e.latlng.lng.toFixed(6);
+                        setMarker(e.latlng.lat, e.latlng.lng, map.getZoom()); // Keep current zoom
+                    });
+
+                    // Map Search Logic
+                    const searchInput = document.getElementById('map_search');
+                    if (searchInput) {
+                        searchInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault(); // Prevent form submit
+                                const q = searchInput.value.trim();
+                                if (q.length > 2) {
+                                    searchInput.classList.add('opacity-50');
+                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            if (data && data.length > 0) {
+                                                const res = data[0];
+                                                const lat = parseFloat(res.lat);
+                                                const lon = parseFloat(res.lon);
+                                                latInput.value = lat.toFixed(6);
+                                                lngInput.value = lon.toFixed(6);
+                                                setMarker(lat, lon, 16);
+                                                searchInput.value = res.display_name; // Show found name
+                                            } else {
+                                                alert('Lokasi tidak ditemukan');
+                                            }
+                                        })
+                                        .catch(err => console.error('Map search err:', err))
+                                        .finally(() => searchInput.classList.remove('opacity-50'));
+                                }
+                            }
+                        });
+                    }
+
+                    if (btnGetLocation) {
+                        const fallbackToIP = () => {
+                            btnGetLocation.textContent = 'IP Loc...';
+                            // Use server-side proxy to avoid Mixed Content / CORS / AdBlockers
+                            fetch('/api/proxy/ip-location')
+                                .then(r => {
+                                    if (!r.ok) throw new Error('Proxy API Error: ' + r.status);
+                                    return r.json();
+                                })
+                                .then(data => {
+                                    if (data && (data.status === 'success' || data.lat)) {
+                                        latInput.value = data.lat;
+                                        lngInput.value = data.lon;
+                                        setMarker(data.lat, data.lon, 13);
+                                        btnGetLocation.textContent = 'IP OK';
+                                        alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
+                                    } else {
+                                        console.error('IP-API response invalid:', data);
+                                        throw new Error('IP API Data Invalid');
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('Fallback IP Failed:', err);
+                                    btnGetLocation.textContent = 'Gagal';
+                                    alert('Gagal mendapatkan lokasi (GPS & IP Fallback).\n\nPenyebab:\n1. Browser memblokir GPS (Non-HTTPS)\n2. Server gagal koneksi ke IP-API (No Internet?)\n\nSilakan klik lokasi manual di peta.');
+                                })
+                                .finally(() => {
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
+                                });
+                        };
+
+                        btnGetLocation.addEventListener('click', () => {
+                            btnGetLocation.textContent = '...';
+                            if ("geolocation" in navigator) {
+                                navigator.geolocation.getCurrentPosition(pos => {
+                                    const { latitude, longitude } = pos.coords;
+                                    latInput.value = latitude.toFixed(6);
+                                    lngInput.value = longitude.toFixed(6);
+                                    setMarker(latitude, longitude);
+                                    btnGetLocation.textContent = 'OK';
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
+                                }, (err) => {
+                                    console.warn('GPS Failed, trying IP fallback...');
+                                    fallbackToIP();
+                                }, {
+                                    enableHighAccuracy: true,
+                                    timeout: 5000,
+                                    maximumAge: 0
+                                });
+                            } else {
+                                fallbackToIP();
+                            }
+                        });
+                    }
+                    setTimeout(() => map.invalidateSize(), 500);
+                } catch (e) {
+                    console.error('Map init error', e);
+                    document.getElementById('map').innerHTML = `<div class="p-4 text-center text-red-500 text-xs">Error Map: ${e.message}</div>`;
+                }
+            }
+        }
+    });
+</script>

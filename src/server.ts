@@ -1,5 +1,6 @@
 import path from 'path';
 import express from 'express';
+import axios from 'axios';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -199,6 +200,17 @@ app.use(errorLoggingMiddleware);
 // Payment routes
 import paymentRoutes from './routes/payment';
 app.use('/payment', paymentRoutes);
+
+// Proxy for IP Location (Fixed in Server)
+app.get('/api/proxy/ip-location', async (req, res) => {
+	try {
+		const response = await axios.get('http://ip-api.com/json');
+		res.json(response.data);
+	} catch (error: any) {
+		console.error('Error fetching IP location:', error);
+		res.status(500).json({ status: 'fail', message: error.message });
+	}
+});
 
 // General API routes
 import apiRoutes from './routes/api';
