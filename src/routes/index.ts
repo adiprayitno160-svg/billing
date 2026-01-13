@@ -2045,6 +2045,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
             olt_id,
             odc_id,
             odp_id,
+            is_wireless, // Add is_wireless
             enable_billing,
             billing_mode,
             ppn_mode,
@@ -2060,7 +2061,8 @@ router.post('/customers/new-pppoe', async (req, res) => {
             username,
             package_id,
             rental_mode,
-            rental_cost
+            rental_cost,
+            is_wireless: is_wireless ? 'YES' : 'NO'
         });
 
         // Validasi input
@@ -2068,7 +2070,9 @@ router.post('/customers/new-pppoe', async (req, res) => {
         if (!username) throw new Error('Username PPPOE wajib diisi');
         if (!password) throw new Error('Password PPPOE wajib diisi');
         if (!package_id) throw new Error('Paket wajib dipilih');
-        if (!odp_id) throw new Error('ODP wajib dipilih');
+
+        // ODP required only if NOT wireless mode
+        if (!is_wireless && !odp_id) throw new Error('ODP wajib dipilih (kecuali Mode Wireless)');
 
         // Validate customer_code
         if (!customer_code || customer_code.trim() === '') {
@@ -2167,7 +2171,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
 
             const [result] = await conn.execute(insertQuery, [
                 customer_code, client_name, phone_number || null, null, address || null,
-                odc_id || null, odp_id, finalLatitude || null, finalLongitude || null,
+                odc_id || null, odp_id || null, finalLatitude || null, finalLongitude || null,
                 username, password, // Simpan username dan password
                 billing_mode_value, expiry_date_val, is_taxable,
                 use_device_rental, rental_mode_val, rental_cost_val,
