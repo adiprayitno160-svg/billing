@@ -65,6 +65,9 @@
                 <% } %>
 
                     <form method="post" action="/customers/new-pppoe" id="pppoe-form" onsubmit="return validateForm()">
+                        <!-- DEFAULT ENABLE BILLING -->
+                        <input type="hidden" name="enable_billing" value="1">
+
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
                             <!-- LEFT COLUMN: Identity & Settings (7) -->
