@@ -3041,7 +3041,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
 import { listStaticIpPackages } from '../services/staticIpPackageService';
 import { getStaticIpPackageById } from '../services/staticIpPackageService';
 import { getInterfaces, addMangleRulesForClient, createClientQueues, addIpAddress, removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName, createQueueTree } from '../services/mikrotikService';
-import { getPppoeSecrets } from '../services/mikrotikService';
+
 import {
     addClientToPackage,
     isPackageFull,
