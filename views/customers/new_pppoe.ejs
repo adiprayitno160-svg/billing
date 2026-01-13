@@ -565,7 +565,7 @@
             });
         }
 
-        // === 4. Maps Integration (Robust) ===
+        // === 4. Maps Integration (Robust with HTTP Fallback) ===
         const btnGetLocation = document.getElementById('btnGetLocation');
         const latInput = document.getElementById('latitude');
         const lngInput = document.getElementById('longitude');
@@ -659,6 +659,30 @@
                     }
 
                     if (btnGetLocation) {
+                        const fallbackToIP = () => {
+                            btnGetLocation.textContent = 'IP Loc...';
+                            fetch('http://ip-api.com/json')
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.status === 'success') {
+                                        latInput.value = data.lat;
+                                        lngInput.value = data.lon;
+                                        setMarker(data.lat, data.lon, 13);
+                                        btnGetLocation.textContent = 'IP OK';
+                                        alert('⚠️ Info: GPS Akurat gagal karena koneksi HTTP.\nLokasi diperkirakan berdasarkan IP Internet Anda (' + data.city + ').\nSilakan geser pin ke lokasi tepat.');
+                                    } else {
+                                        throw new Error('IP API Fail');
+                                    }
+                                })
+                                .catch(err => {
+                                    btnGetLocation.textContent = 'Gagal';
+                                    alert('Gagal mendapatkan lokasi (GPS & IP).\nSilakan klik lokasi di peta secara manual.');
+                                })
+                                .finally(() => {
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
+                                });
+                        };
+
                         btnGetLocation.addEventListener('click', () => {
                             btnGetLocation.textContent = '...';
                             if ("geolocation" in navigator) {
@@ -670,21 +694,15 @@
                                     btnGetLocation.textContent = 'OK';
                                     setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
                                 }, (err) => {
-                                    console.error('Geolocation error:', err);
-                                    // Robust error handling for HTTP vs HTTPS
-                                    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                                        alert('⚠️ GPS Gagal: Browser memblokir akses lokasi di koneksi HTTP (tidak aman).\n\nSolusi:\n1. Klik titik di peta secara manual.\n2. Atau isi koordinat Latitude/Longitude secara manual.');
-                                    } else {
-                                        alert('Gagal mendapatkan lokasi: ' + (err.message || 'Unknown error'));
-                                    }
-                                    btnGetLocation.textContent = 'Gagal';
+                                    console.warn('GPS Failed, trying IP fallback...');
+                                    fallbackToIP();
                                 }, {
                                     enableHighAccuracy: true,
-                                    timeout: 10000,
+                                    timeout: 5000,
                                     maximumAge: 0
                                 });
                             } else {
-                                alert('Browser Anda tidak mendukung Geolocation.');
+                                fallbackToIP();
                             }
                         });
                     }
