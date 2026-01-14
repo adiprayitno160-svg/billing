@@ -50,8 +50,7 @@ export class WhatsAppService {
                 }),
                 puppeteer: {
                     headless: true,
-                    // Timeout settings for startup
-                    timeout: 60000,
+
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
