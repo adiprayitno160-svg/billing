@@ -16,7 +16,7 @@ import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerServ
 
 // Use Baileys (pure JS, no Chromium) instead of whatsapp-web.js (Puppeteer/Chromium)
 // Compatible with old CPUs (Intel Atom D2500, etc)
-import { WhatsAppServiceBaileys as WhatsAppServiceBaileys } from './services/whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppService as WhatsAppServiceBaileys } from './services/whatsapp/WhatsAppServiceLegacy';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
