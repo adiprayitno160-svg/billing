@@ -55,12 +55,18 @@ export class WhatsAppService {
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage', // CRITICAL for Docker/VPS
+                        '--disable-accelerated-2d-canvas',
                         '--no-first-run',
                         '--no-zygote',
-                        '--disable-gpu'
+                        '--single-process', // <- Forces all chrome to run in single process (prevents IPC errors)
+                        '--disable-gpu',
+                        '--disable-extensions',
+                        '--disable-software-rasterizer',
+                        '--disable-blink-features=AutomationControlled'
                     ],
+                    // Increase timeout for slow servers
+                    timeout: 120000,
                     // Try to use system Chromium on Ubuntu, fallback to bundled
                     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
                         (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : undefined) ||
