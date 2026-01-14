@@ -55,15 +55,11 @@ export class WhatsAppService {
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage', // CRITICAL for Docker/VPS
+                        '--disable-dev-shm-usage',
                         '--disable-accelerated-2d-canvas',
                         '--no-first-run',
                         '--no-zygote',
-                        '--single-process', // <- Forces all chrome to run in single process (prevents IPC errors)
-                        '--disable-gpu',
-                        '--disable-extensions',
-                        '--disable-software-rasterizer',
-                        '--disable-blink-features=AutomationControlled'
+                        '--disable-gpu'
                     ],
                     // Increase timeout for slow servers
                     timeout: 120000,
