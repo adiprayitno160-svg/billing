@@ -14,8 +14,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
 
-// Use whatsapp-web.js (Puppeteer/Chromium) as requested
-import { WhatsAppService as WhatsAppServiceBaileys } from './services/whatsapp/WhatsAppServiceLegacy';
+import { WhatsAppServiceBaileys } from './services/whatsapp/WhatsAppServiceBaileys';
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';

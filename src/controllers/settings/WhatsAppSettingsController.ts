@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { WhatsAppService as WhatsAppService } from '../../services/whatsapp/WhatsAppServiceLegacy';
+import { WhatsAppServiceBaileys as WhatsAppService } from '../../services/whatsapp/WhatsAppServiceBaileys';
 import { databasePool } from '../../db/pool';
 import * as fs from 'fs';
 import * as path from 'path';

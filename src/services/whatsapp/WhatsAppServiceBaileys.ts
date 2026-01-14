@@ -134,8 +134,17 @@ export class WhatsAppServiceBaileys {
                 this.lastActivityTimestamp = Date.now();
 
                 if (qr) {
-                    console.log(`[WA-${this.INSTANCE_ID}] 📷 QR Code generated`);
+                    console.log(`[WA-${this.INSTANCE_ID}] 📷 QR Code generated!`);
+                    console.log(`QR String: ${qr}`); // Log raw string for debugging
                     this.currentQRCode = qr;
+
+                    // Attempt to print QR to terminal using qrcode-terminal if available
+                    try {
+                        qrcode.generate(qr, { small: true });
+                    } catch (e) {
+                        console.log('Could not print QR to terminal, please view in web settings');
+                    }
+
                     this.isConnected = false;
                     this.isInitialized = false;
                 }

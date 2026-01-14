@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { WhatsAppService as WhatsAppService } from '../services/whatsapp/WhatsAppServiceLegacy';
+import { WhatsAppServiceBaileys as WhatsAppService } from '../services/whatsapp/WhatsAppServiceBaileys';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import QRCode from 'qrcode';
