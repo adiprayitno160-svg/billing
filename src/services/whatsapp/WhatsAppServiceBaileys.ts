@@ -306,12 +306,26 @@ export class WhatsAppServiceBaileys {
             const from = msg.key.remoteJid;
             if (!from || from.includes('@g.us') || from === 'status@broadcast') return;
 
-            const type = Object.keys(msg.message || {})[0];
+            let m = msg.message;
+            if (!m) return;
+
+            // Unwrap ephemeral/viewOnce messages
+            if (m.ephemeralMessage) m = m.ephemeralMessage.message!;
+            if (m.viewOnceMessage) m = m.viewOnceMessage.message!;
+            if (m.viewOnceMessageV2) m = m.viewOnceMessageV2.message!;
+            if (m.documentWithCaptionMessage) m = m.documentWithCaptionMessage.message!;
+
+            const type = Object.keys(m || {})[0];
             let body = '';
-            if (type === 'conversation') body = msg.message?.conversation || '';
-            else if (type === 'extendedTextMessage') body = msg.message?.extendedTextMessage?.text || '';
-            else if (type === 'imageMessage') body = msg.message?.imageMessage?.caption || '';
-            else if (type === 'videoMessage') body = msg.message?.videoMessage?.caption || '';
+
+            console.log(`[WA-${this.INSTANCE_ID}] 📨 Processing message type: ${type}`);
+
+            if (type === 'conversation') body = m?.conversation || '';
+            else if (type === 'extendedTextMessage') body = m?.extendedTextMessage?.text || '';
+            else if (type === 'imageMessage') body = m?.imageMessage?.caption || '';
+            else if (type === 'videoMessage') body = m?.videoMessage?.caption || '';
+            else if (type === 'documentMessage') body = m?.documentMessage?.caption || '';
+
 
             const hasMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.documentMessage);
 
