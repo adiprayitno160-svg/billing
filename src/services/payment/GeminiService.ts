@@ -14,6 +14,7 @@ export interface GeminiAnalysisResult {
     extractedData: {
         amount?: number;
         date?: string;
+        time?: string;
         bank?: string;
         accountNumber?: string;
         accountHolder?: string;
@@ -25,6 +26,7 @@ export interface GeminiAnalysisResult {
         isRecent: boolean;
         amountMatches: boolean;
         bankMatches: boolean;
+        isExactMatch?: boolean;
         riskLevel: 'low' | 'medium' | 'high';
         riskReasons: string[];
     };
@@ -98,7 +100,9 @@ export class GeminiService {
         expectedAmount?: number,
         expectedBank?: string,
         customerName?: string,
-        invoiceNumber?: string
+        invoiceNumber?: string,
+        expectedRecipientName?: string,
+        isPrepaid?: boolean
     ): Promise<GeminiAnalysisResult> {
         try {
             await this.initialize();
@@ -174,14 +178,21 @@ export class GeminiService {
         expectedAmount?: number,
         expectedBank?: string,
         customerName?: string,
-        invoiceNumber?: string
+        invoiceNumber?: string,
+        expectedRecipientName?: string,
+        isPrepaid?: boolean
     ): string {
         // Use comprehensive fraud detection prompt
+        const currentDate = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+
         return FraudDetectionPrompts.getPaymentProofVerificationPrompt(
             expectedAmount,
             expectedBank,
             customerName,
-            invoiceNumber
+            invoiceNumber,
+            expectedRecipientName,
+            isPrepaid,
+            currentDate
         );
     }
 
@@ -216,6 +227,7 @@ export class GeminiService {
                 extractedData: {
                     amount: parsed.extractedData?.amount ? parseFloat(parsed.extractedData.amount) : undefined,
                     date: parsed.extractedData?.date,
+                    time: parsed.extractedData?.time,
                     bank: parsed.extractedData?.bank,
                     accountNumber: parsed.extractedData?.accountNumber,
                     accountHolder: parsed.extractedData?.accountHolder,
@@ -227,6 +239,7 @@ export class GeminiService {
                     isRecent: parsed.validation?.isRecent === true,
                     amountMatches: parsed.validation?.amountMatches === true,
                     bankMatches: parsed.validation?.bankMatches === true,
+                    isExactMatch: parsed.validation?.isExactMatch === true,
                     riskLevel: ['low', 'medium', 'high', 'critical'].includes(riskLevel)
                         ? riskLevel as 'low' | 'medium' | 'high'
                         : 'high',
@@ -252,11 +265,14 @@ export class GeminiService {
                 (result as any).reasoning = parsed.reasoning;
             }
 
-            // Additional validation
+            // Additional validation (STRICT)
             if (expectedAmount && result.extractedData.amount) {
                 const amountDiff = Math.abs(result.extractedData.amount - expectedAmount);
-                const tolerance = expectedAmount * 0.01; // 1% tolerance
+                const tolerance = 100; // Almost exact match (e.g., Rp 150.000 vs Rp 150.045)
                 result.validation.amountMatches = amountDiff <= tolerance;
+
+                // Set isExactMatch for very close matches
+                (result.validation as any).isExactMatch = amountDiff <= 10;
             }
 
             if (expectedBank && result.extractedData.bank) {

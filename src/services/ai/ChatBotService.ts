@@ -16,7 +16,9 @@ export class ChatBotService {
         if (!apiKey) throw new Error('API Key missing');
 
         const settings = await AISettingsService.getSettings();
-        const modelName = settings?.model || 'gemini-1.5-flash';
+        const modelName = settings?.model || 'gemini-2.5-flash';
+
+        console.log(`[ChatBot] Initializing with model: ${modelName}, API Key Length: ${apiKey.length}`);
 
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({ model: modelName });
@@ -27,11 +29,12 @@ export class ChatBotService {
      * Includes Retry Logic for Robustness
      */
     static async ask(userQuery: string, customerData?: any): Promise<string> {
+        let relevantDocs: any[] = [];
         try {
             await this.initialize();
 
             // 1. Retrieve context from Knowledge Base
-            const relevantDocs = await KnowledgeBaseService.search(userQuery);
+            relevantDocs = await KnowledgeBaseService.search(userQuery);
             let context = '';
 
             if (relevantDocs.length > 0) {
@@ -55,6 +58,8 @@ export class ChatBotService {
                 3. Jika informasi tidak ada di konteks atau data pelanggan, arahkan untuk menghubungi admin manusia.
                 4. Jika ditanya tagihan, dan data pelanggan tersedia, berikan ringkasan singkat.
                 5. Singkat dan jelas adalah kunci.
+                6. SELALU sertakan perintah "Ketik */menu* untuk melihat opsi lainnya" di akhir jawaban Anda.
+                7. Jika pengguna hanya menyapa (halo, p, tes, oi), jangan menjawab panjang lebar, tapi langsung tampilkan ringkasan menu atau arahkan ke */menu*.
             `;
 
             // 3. Generate response with Retry Logic
@@ -80,10 +85,17 @@ export class ChatBotService {
             }
             throw lastError;
 
-        } catch (error) {
-            console.error('Error in ChatBotService:', error);
+        } catch (error: any) {
+            console.error('Error in ChatBotService:', error.message || error);
+
+            // If we have relevant docs from knowledge base, use the best match as fallback
+            if (relevantDocs && relevantDocs.length > 0) {
+                console.log('[ChatBot] 🔄 Falling back to Knowledge Base (RAG) due to AI error');
+                return relevantDocs[0].answer;
+            }
+
             // Graceful Degradation
-            return "Maaf, sistem AI sedang mengalami gangguan sementara. Silakan hubungi admin kami secara manual atau coba lagi nanti.";
+            return "Maaf, sistem AI sedang mengalami gangguan sementara (API Key bermasalah). Silakan ketik */menu* untuk melihat opsi layanan.";
         }
     }
 }

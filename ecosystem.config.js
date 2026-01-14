@@ -14,7 +14,7 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 3001,
       // Chromium path for Ubuntu server
-      PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium-browser'
+      // PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium-browser'
     },
     error_file: './logs/pm2-error.log',
     out_file: './logs/pm2-out.log',

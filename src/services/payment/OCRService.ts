@@ -102,23 +102,48 @@ export class OCRService {
         // Normalize text (remove extra spaces, convert to lowercase for matching)
         const normalizedText = text.toLowerCase().replace(/\s+/g, ' ');
 
-        // Extract amount (Rp, IDR, rupiah)
+        // Extract amount (Rp, IDR, rupiah) - More robust patterns
         const amountPatterns = [
-            /rp\s*[.,]?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/gi,
-            /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:rupiah|idr)/gi,
-            /nominal[:\s]*rp\s*[.,]?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/gi
+            /rp\s*[.,]?\s*(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)/gi, // Standard Rp 100.000
+            /(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)\s*(?:rupiah|idr)/gi, // 100.000 Rupiah
+            /nominal[:\s]*(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)/gi, // Nominal: 100.000
+            /total[:\s]*(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)/gi, // Total: 100.000
+            /jumlah[:\s]*(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)/gi, // Jumlah: 100.000
+            /(\d{1,3}(?:\.\d{3}){1,})/g, // Any number like 100.000 (usually large amounts in receipts)
         ];
 
-        for (const pattern of amountPatterns) {
-            const match = normalizedText.match(pattern);
-            if (match) {
-                const amountStr = match[0].replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
-                const amount = parseFloat(amountStr);
-                if (!isNaN(amount) && amount > 0) {
-                    extracted.amount = amount;
-                    break;
+        let foundAmounts: { value: number, patternIndex: number }[] = [];
+
+        for (let i = 0; i < amountPatterns.length; i++) {
+            const pattern = amountPatterns[i];
+            const matches = normalizedText.matchAll(pattern);
+            for (const match of matches) {
+                if (match[1]) {
+                    const amountStr = match[1].replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+                    const amount = parseFloat(amountStr);
+                    if (!isNaN(amount) && amount >= 1000) { // Assume payments are at least 1000
+                        foundAmounts.push({ value: amount, patternIndex: i });
+                    }
+                } else if (match[0]) {
+                    // Check if match[0] itself has a number
+                    const amountStr = match[0].replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+                    const amount = parseFloat(amountStr);
+                    if (!isNaN(amount) && amount >= 1000) {
+                        foundAmounts.push({ value: amount, patternIndex: i });
+                    }
                 }
             }
+        }
+
+        // Pick the most likely amount (usually the largest one or the first specific pattern)
+        if (foundAmounts.length > 0) {
+            // Sort by priority (pattern index) then by value
+            foundAmounts.sort((a, b) => {
+                if (a.patternIndex !== b.patternIndex) return a.patternIndex - b.patternIndex;
+                return b.value - a.value;
+            });
+            extracted.amount = foundAmounts[0].value;
+            console.log(`[OCR] Identified amount: Rp ${extracted.amount.toLocaleString('id-ID')}`);
         }
 
         // Extract date (various formats)

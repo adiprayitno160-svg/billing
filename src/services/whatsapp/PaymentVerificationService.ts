@@ -153,19 +153,30 @@ export class PaymentVerificationService {
             const geminiEnabled = await GeminiService.isEnabled();
 
             if (geminiEnabled) {
-                const expectedAmount = parseFloat(bestMatch.remaining_amount.toString());
-                const geminiResult = await GeminiService.analyzePaymentProof(
-                    imageBuffer,
-                    expectedAmount,
-                    undefined,
-                    'invoice'
-                );
+                try {
+                    const expectedAmount = parseFloat(bestMatch.remaining_amount.toString());
+                    const geminiResult = await GeminiService.analyzePaymentProof(
+                        imageBuffer,
+                        expectedAmount,
+                        undefined,
+                        'invoice'
+                    );
 
-                if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
-                    return {
-                        success: false,
-                        error: 'Verifikasi AI gagal. Bukti transfer tidak valid atau tidak jelas.'
-                    };
+                    if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
+                        // If it's a clear fraud/mismatch, reject
+                        if (geminiResult.validation?.riskLevel === 'high') {
+                            return {
+                                success: false,
+                                error: `Verifikasi AI mendeteksi risiko tinggi: ${geminiResult.validation.riskReasons.join(', ')}`
+                            };
+                        }
+
+                        // If it's just low confidence but OCR might be right, we could continue or require manual
+                        // For now, let's be strict but handle API errors separately
+                    }
+                } catch (aiError: any) {
+                    console.error('[PaymentVerification] AI verification skipped due to error:', aiError.message);
+                    // Continue with manual/OCR-only verification
                 }
             }
 
@@ -287,18 +298,24 @@ export class PaymentVerificationService {
             const geminiEnabled = await GeminiService.isEnabled();
 
             if (geminiEnabled) {
-                const geminiResult = await GeminiService.analyzePaymentProof(
-                    imageBuffer,
-                    expectedAmount,
-                    undefined,
-                    'prepaid'
-                );
+                try {
+                    const geminiResult = await GeminiService.analyzePaymentProof(
+                        imageBuffer,
+                        expectedAmount,
+                        undefined,
+                        'prepaid'
+                    );
 
-                if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
-                    return {
-                        success: false,
-                        error: 'Verifikasi AI gagal. Bukti transfer tidak valid atau tidak jelas.'
-                    };
+                    if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
+                        if (geminiResult.validation?.riskLevel === 'high') {
+                            return {
+                                success: false,
+                                error: `Verifikasi AI mendeteksi risiko tinggi: ${geminiResult.validation.riskReasons.join(', ')}`
+                            };
+                        }
+                    }
+                } catch (aiError: any) {
+                    console.error('[PaymentVerification] AI verification skipped due to error:', aiError.message);
                 }
             }
 

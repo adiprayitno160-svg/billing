@@ -14,6 +14,8 @@ export interface AISettings {
     min_confidence: number;
     risk_threshold: 'low' | 'medium' | 'high';
     max_age_days: number;
+    allow_amount_mismatch: boolean;
+    strict_date_check: boolean;
 }
 
 export class AISettingsService {
@@ -61,6 +63,8 @@ export class AISettingsService {
             await ensureColumn('min_confidence', 'INT DEFAULT 70', 'auto_approve_enabled');
             await ensureColumn('risk_threshold', 'VARCHAR(20) DEFAULT "medium"', 'min_confidence');
             await ensureColumn('max_age_days', 'INT DEFAULT 7', 'risk_threshold');
+            await ensureColumn('allow_amount_mismatch', 'TINYINT(1) DEFAULT 0', 'max_age_days');
+            await ensureColumn('strict_date_check', 'TINYINT(1) DEFAULT 1', 'allow_amount_mismatch');
 
             // Insert default settings if not exists
             const [existing] = await databasePool.query<RowDataPacket[]>(
@@ -75,7 +79,7 @@ export class AISettingsService {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 `, [
                     process.env.GEMINI_API_KEY || '',
-                    'gemini-1.5-flash',
+                    'gemini-2.5-flash',
                     0, // Disabled by default until API key is set
                     1,
                     70,
@@ -104,6 +108,7 @@ export class AISettingsService {
             }
 
             const settings = rows[0] as any;
+            console.log(`[AISettings] Loaded model: ${settings.model || 'DEFAULT'}`);
             return {
                 api_key: settings.api_key || '',
                 model: settings.model || 'gemini-2.5-flash',
@@ -111,7 +116,9 @@ export class AISettingsService {
                 auto_approve_enabled: settings.auto_approve_enabled === 1,
                 min_confidence: settings.min_confidence || 70,
                 risk_threshold: (settings.risk_threshold || 'medium') as 'low' | 'medium' | 'high',
-                max_age_days: settings.max_age_days || 7
+                max_age_days: settings.max_age_days || 7,
+                allow_amount_mismatch: settings.allow_amount_mismatch === 1,
+                strict_date_check: settings.strict_date_check === 1
             };
         } catch (error) {
             console.error('Error getting AI settings:', error);
@@ -162,6 +169,14 @@ export class AISettingsService {
                 if (settings.max_age_days !== undefined) {
                     updateFields.push('max_age_days = ?');
                     updateValues.push(settings.max_age_days);
+                }
+                if (settings.allow_amount_mismatch !== undefined) {
+                    updateFields.push('allow_amount_mismatch = ?');
+                    updateValues.push(settings.allow_amount_mismatch ? 1 : 0);
+                }
+                if (settings.strict_date_check !== undefined) {
+                    updateFields.push('strict_date_check = ?');
+                    updateValues.push(settings.strict_date_check ? 1 : 0);
                 }
 
                 updateFields.push('updated_at = NOW()');

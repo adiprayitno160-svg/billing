@@ -4,7 +4,7 @@
  */
 
 // import { Message, MessageMedia } from 'whatsapp-web.js'; // Removed to support multiple providers
-import { WhatsAppServiceBaileys as WhatsAppService } from './WhatsAppServiceBaileys';
+import { WhatsAppService as WhatsAppService } from './WhatsAppServiceLegacy';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import fs from 'fs';
@@ -422,6 +422,15 @@ export class WhatsAppBotService {
                 return;
             }
 
+            // NEW: Default to menu for greetings or very short messages
+            const commonGreetings = ['p', 'halo', 'hai', 'tes', 'oi', 'bot', 'admin', 'menu', 'siang', 'pagi', 'malam'];
+            const bodyClean = body.toLowerCase().trim();
+            if (commonGreetings.includes(bodyClean) || bodyClean.length < 3) {
+                console.log('[WhatsAppBot] 📋 Generic message detected, showing menu as default.');
+                await this.showMainMenu(senderJid, customer);
+                return;
+            }
+
             // Handle AI ChatBot (Fallback for other text)
             console.log('[WhatsAppBot] 🤖 Hubbing AI ChatBot...');
             try {
@@ -513,12 +522,15 @@ export class WhatsAppBotService {
             }
 
             // Process payment verification - AI will analyze and match automatically
-            await this.sendMessage(
+            const processingMsg = await this.sendMessage(
                 phone,
-                '⏳ *Memproses Bukti Transfer...*\n\n' +
-                '🤖 AI Canggih sedang menganalisa bukti transfer Anda\n' +
-                '📊 Multi-stage verification aktif\n' +
-                'Mohon tunggu sebentar...'
+                '🚀 *KEAMANAN FINANSIAL AKTIF*\n\n' +
+                '🛡️ *Sistem AI sedang memverifikasi bukti transfer Anda:*\n' +
+                '◽ [1/4] Forensik Gambar & Deteksi Manipulasi...\n' +
+                '◽ [2/4] Ekstraksi Data Nominal & Nomor Referensi...\n' +
+                '◽ [3/4] Validasi Waktu & Keaslian Transaksi...\n' +
+                '◽ [4/4] Sinkronisasi dengan Sistem Billing...\n\n' +
+                '📢 _Mohon tidak mengirim gambar lain selama proses ini._'
             );
 
             // Use Advanced Payment Verification Service
@@ -531,100 +543,111 @@ export class WhatsAppBotService {
                 );
 
                 if (result.success && result.data?.autoApproved) {
-                    // Successful auto-approve
-                    let successMsg = '✅ *PEMBAYARAN BERHASIL DIVERIFIKASI!*\n\n';
-                    successMsg += `📄 Invoice: ${result.data.invoiceNumber || '-'}\n`;
-                    successMsg += `💰 Jumlah: Rp ${result.data.extractedAmount?.toLocaleString('id-ID') || '0'}\n`;
-                    successMsg += `📊 Confidence: ${Math.round(result.data.confidence || 0)}%\n`;
-                    successMsg += `🛡️ Risk Level: ${result.data.riskLevel || 'Unknown'}\n\n`;
+                    // Success! Automatic approval happened
+                    const data = result.data;
+                    let successMsg = '✅ *PEMBAYARAN DITERIMA & AKTIF*\n\n';
 
-                    // Show actions taken
-                    if (result.actions) {
-                        successMsg += '📋 *Status Aksi:*\n';
-                        if (result.actions.paymentRecorded) {
-                            successMsg += '✅ Pembayaran tercatat\n';
-                        }
-                        if (result.actions.isolationRemoved) {
-                            successMsg += '🔓 Isolasi dibuka - Internet aktif kembali\n';
-                        }
-                        if (result.actions.notificationSent) {
-                            successMsg += '📨 Notifikasi terkirim\n';
-                        }
+                    successMsg += `👤 *Pelanggan:* ${customer.name}\n`;
+                    successMsg += `📄 *No. Invoice:* ${data?.invoiceNumber || '-'}\n`;
+                    successMsg += `💰 *Nominal:* Rp ${data?.extractedAmount?.toLocaleString('id-ID')}\n`;
+                    successMsg += `🏦 *Bank/Metode:* ${data?.bank || 'Transfer'}\n`;
+                    successMsg += `🆔 *No. Referensi:* ${data?.referenceNumber || '-'}\n`;
+                    successMsg += `📅 *Waktu:* ${data?.date || '-'} ${data?.time || ''}\n\n`;
+
+                    if (result.actions?.isolationRemoved) {
+                        successMsg += '📡 *STATUS LAYANAN: AKTIF*\n';
+                        successMsg += 'Internet Anda sudah diaktifkan secara otomatis. 🚀\n\n';
                     }
 
-                    successMsg += '\n🎉 *Terima kasih atas pembayaran Anda!*';
-
+                    successMsg += '✨ _Self-Service Verification Powered by Advanced AI_';
                     await this.sendMessage(phone, successMsg);
 
                 } else {
                     // Verification failed or needs manual review
-                    const stage = result.stage;
                     const error = result.error || 'Unknown error';
                     const data = result.data;
-
-                    // Check specific error scenarios
                     const errorLower = error.toLowerCase();
+
+                    // 1. Check if NO invoice was found
                     const isNoInvoice = errorLower.includes('tidak ada tagihan') ||
                         errorLower.includes('sudah lunas') ||
                         errorLower.includes('tidak ditemukan');
 
                     if (isNoInvoice) {
+                        // Consider it a payment proof unless explicitly false
+                        const mightBePayment = data?.isPaymentProof !== false;
+
+                        if (mightBePayment) {
+                            const mediaToSave = mediaObj || { data: imageBuffer.toString('base64'), mimetype: 'image/jpeg' };
+                            await this.flagForManualVerification(customer.id, mediaToSave, 'Bukti pembayaran dikirim tapi tidak ada tagihan aktif');
+
+                            await this.sendMessage(
+                                phone,
+                                'ℹ️ *PEMBAYARAN BELUM TERKAIT TAGIHAN*\n\n' +
+                                'Sistem tidak menemukan tagihan aktif yang sesuai.\n\n' +
+                                '👮 *Apa yang terjadi?*\n' +
+                                '• Tagihan mungkin sudah terbayar sebelumnya.\n' +
+                                '• Anda mungkin melakukan pembayaran dimuka.\n' +
+                                '• Nominal transfer tidak sama dengan nominal tagihan.\n\n' +
+                                'Bukti Anda telah kami simpan untuk *Verifikasi Manual* oleh admin. Mohon ditunggu.'
+                            );
+                        } else {
+                            await this.sendMessage(phone, '✅ *STATUS TAGIHAN*\n\nSemua tagihan Anda sudah lunas. Terima kasih!');
+                        }
+                        return;
+                    }
+
+                    // 2. Check if it's even a payment proof
+                    if (data?.isPaymentProof === false && result.stage === 'extraction') {
+                        await this.sendMessage(phone, '👋 *Halo!* AI kami mendeteksi gambar ini kemungkinan *bukan bukti transfer*.\n\nJika ini bukti transfer, pastikan gambar jelas & menampilkan nominal.');
+                        await this.showMainMenu(phone, customer);
+                        return;
+                    }
+
+                    // 3. Check for FRAUD
+                    const riskLevel = data?.riskLevel || 'high';
+                    if (riskLevel === 'critical' || errorLower.includes('fraud')) {
+                        const mediaToSave = mediaObj || { data: imageBuffer.toString('base64'), mimetype: 'image/jpeg' };
+                        await this.flagForManualVerification(customer.id, mediaToSave, `FRAUD DETECTED: ${error}`);
+
                         await this.sendMessage(
                             phone,
-                            '✅ *Tagihan Sudah Lunas*\n\n' +
-                            'Semua tagihan Anda sudah dibayar.\n' +
-                            'Tidak ada tagihan yang perlu dibayar saat ini.\n\n' +
-                            'Terima kasih! 🙏'
+                            '🚫 *VERIFIKASI DITOLAK (KEAMANAN)*\n\n' +
+                            'Sistem mendeteksi ketidaksesuaian kritis (indikasi manipulasi).\n\n' +
+                            `🚩 *Alasan:* ${error}\n\n` +
+                            'Tindakan pemalsuan bukti dapat mengakibatkan pemblokiran akun permanen.'
                         );
                         return;
                     }
 
-                    // Check if it should go to manual review
-                    const confidence = data?.confidence || 0;
-                    const riskLevel = data?.riskLevel || 'high';
-                    const needsManualReview = confidence < 70 || riskLevel === 'high' || riskLevel === 'critical';
+                    // 4. Default to Manual Review
+                    const mediaToSave = mediaObj || { data: imageBuffer.toString('base64'), mimetype: 'image/jpeg' };
+                    await this.flagForManualVerification(customer.id, mediaToSave, error);
 
-                    if (needsManualReview) {
-                        // Flag for manual verification
-                        await this.flagForManualVerification(customer.id, error, existingMediaUrl);
+                    let manualMsg = '⏳ *SEDANG DIVERIFIKASI MANUAL*\n\n';
 
-                        let manualMsg = '⚠️ *BUKTI TRANSFER MEMERLUKAN VERIFIKASI MANUAL*\n\n';
-                        manualMsg += `📍 Stage: ${stage}\n`;
-                        manualMsg += `📊 Confidence: ${Math.round(confidence)}%\n`;
-                        manualMsg += `🛡️ Risk Level: ${riskLevel}\n`;
-
-                        if (data?.extractedAmount) {
-                            manualMsg += `💰 Nominal Terdeteksi: Rp ${data.extractedAmount.toLocaleString('id-ID')}\n`;
-                        }
-                        if (data?.expectedAmount) {
-                            manualMsg += `💵 Tagihan: Rp ${data.expectedAmount.toLocaleString('id-ID')}\n`;
-                        }
-
-                        manualMsg += `\n📋 Alasan: ${error}\n\n`;
-                        manualMsg += '📋 *Bukti transfer telah disimpan dan akan diverifikasi oleh admin.*\n\n';
-                        manualMsg += '⏱️ Verifikasi manual biasanya selesai dalam 1-2 jam kerja.\n';
-                        manualMsg += 'Anda akan mendapat notifikasi setelah verifikasi selesai.\n\n';
-                        manualMsg += '💡 *Tips untuk verifikasi lebih cepat:*\n';
-                        manualMsg += '• Pastikan foto jelas dan tidak blur\n';
-                        manualMsg += '• Pastikan semua informasi terlihat lengkap\n';
-                        manualMsg += '• Pastikan jumlah transfer sesuai tagihan';
-
-                        await this.sendMessage(phone, manualMsg);
+                    // Special handling for Partial Payments
+                    if (data?.amountMatch === 'partial') {
+                        manualMsg = '⚠️ *PEMBAYARAN DITERIMA SEBAGIAN (CICILAN)*\n\n';
+                        manualMsg += 'Nominal transfer Anda kurang dari total tagihan.\n';
+                        manualMsg += 'Sistem kami memerlukan konfirmasi Admin untuk memproses pembayaran parsial/cicilan ini.\n\n';
+                        manualMsg += `💰 *Nominal:* Rp ${data.extractedAmount?.toLocaleString('id-ID')}\n`;
+                        manualMsg += `🧾 *Sisa Tagihan:* Rp ${data.expectedAmount?.toLocaleString('id-ID')}\n\n`;
+                    } else if (error.includes('Identity Mismatch') || error.includes('Nama Pengirim')) {
+                        manualMsg = '⏳ *SEDANG DIVERIFIKASI MANUAL (DATA PENGIRIM)*\n\n';
+                        manualMsg += 'Nama di rekening pengirim berbeda dengan data pelanggan kami.\n\n';
+                        manualMsg += 'ℹ️ *Tips:* Untuk verifikasi otomatis kedepannya, mohon tuliskan *Nama Pelanggan* atau *No Invoice* di kolom "Berita/Catatan" saat transfer.\n\n';
+                        manualMsg += `📝 *Sebab:* ${error}\n`;
                     } else {
-                        // Genuine error
-                        let errorMsg = '❌ *VERIFIKASI GAGAL*\n\n';
-                        errorMsg += `📍 Stage: ${stage}\n`;
-                        errorMsg += `📋 Alasan: ${error}\n\n`;
-                        errorMsg += '💡 *Saran:*\n';
-                        errorMsg += '• Pastikan foto bukti transfer jelas\n';
-                        errorMsg += '• Pastikan jumlah transfer sesuai dengan tagihan\n';
-                        errorMsg += '• Pastikan bukti transfer belum pernah digunakan\n\n';
-                        errorMsg += '📞 Jika masalah berlanjut, silakan hubungi customer service.';
-
-                        await this.sendMessage(phone, errorMsg);
+                        manualMsg += `📝 *Sebab:* ${error}\n`;
+                        manualMsg += `🛡️ *Analisis AI:* Level ${riskLevel.toUpperCase()}\n\n`;
+                        if (data?.extractedAmount) manualMsg += `💰 *Nominal:* Rp ${data.extractedAmount.toLocaleString('id-ID')}\n`;
                     }
-                }
+                    if (data?.referenceNumber) manualMsg += `🆔 *No. Ref:* ${data.referenceNumber}\n`;
 
+                    manualMsg += '\n👨‍💻 *Status:* Bukti sudah diteruskan ke Admin. Tanggal & Nominal sudah kami catat. Mohon tunggu sebentar.';
+                    await this.sendMessage(phone, manualMsg);
+                }
             } catch (advancedError: any) {
                 console.error('[WhatsAppBot] Advanced verification error, falling back:', advancedError);
 

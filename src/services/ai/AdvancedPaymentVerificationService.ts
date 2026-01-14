@@ -24,6 +24,11 @@ export interface AdvancedVerificationResult {
         riskLevel: string;
         riskScore: number;
         autoApproved?: boolean;
+        isPaymentProof?: boolean;
+        bank?: string;
+        referenceNumber?: string;
+        date?: string;
+        time?: string;
         fraudIndicators: any[];
         reasoning?: string;
     };
@@ -72,7 +77,8 @@ export class AdvancedPaymentVerificationService {
                         confidence: extractionResult.confidence,
                         riskLevel: 'high',
                         riskScore: 80,
-                        fraudIndicators: []
+                        fraudIndicators: [],
+                        isPaymentProof: extractionResult.details?.isPaymentProof
                     }
                 };
             }
@@ -107,6 +113,30 @@ export class AdvancedPaymentVerificationService {
                 matchResult.details.invoice,
                 extractionResult.details
             );
+
+            // NEW: Anti-Fraud Stage - Reference Number & Date Verification
+            console.log('[AdvancedAI] Anti-Fraud Stage: Checking reference & time...');
+            const refNumber = validationResult.details?.referenceNumber || extractionResult.details?.referenceNumber;
+            const isDuplicate = refNumber ? await this.checkReferenceNumber(refNumber) : false;
+            const isTimeValid = await this.verifyDateTime(validationResult.details?.date, validationResult.details?.time);
+
+            if (isDuplicate) {
+                return {
+                    success: false,
+                    stage: 'validation',
+                    error: `❌ FRAUD DETECTED: Nomor referensi ${refNumber} sudah pernah digunakan sebelumnya!`,
+                    data: {
+                        confidence: 100,
+                        riskLevel: 'critical',
+                        riskScore: 100,
+                        fraudIndicators: [{ type: 'duplicate', severity: 'critical', description: 'Nomor referensi duplikat' }]
+                    }
+                };
+            }
+
+            if (!isTimeValid) {
+                validationResult.warnings.push('Waktu transfer tidak valid atau sudah terlalu lama');
+            }
 
             // Stage 4: Determine approval
             console.log('[AdvancedAI] Stage 4: Determining approval...');
@@ -151,6 +181,11 @@ export class AdvancedPaymentVerificationService {
                     riskLevel: validationResult.details.riskLevel,
                     riskScore: validationResult.details.riskScore,
                     autoApproved: approvalResult.autoApprove,
+                    isPaymentProof: validationResult.details?.isPaymentProof ?? extractionResult.details?.isPaymentProof,
+                    referenceNumber: refNumber,
+                    date: validationResult.details?.date || extractionResult.details?.date,
+                    time: validationResult.details?.time || extractionResult.details?.time,
+                    bank: validationResult.details?.bank || extractionResult.details?.bank,
                     fraudIndicators: validationResult.details.fraudIndicators || [],
                     reasoning: approvalResult.reasoning
                 },
@@ -209,7 +244,8 @@ export class AdvancedPaymentVerificationService {
                         amount: ocrResult.amount,
                         bank: ocrResult.bank,
                         accountNumber: ocrResult.accountNumber,
-                        date: ocrResult.date
+                        date: ocrResult.date,
+                        isPaymentProof: true // Assume true if OCR extracted amount
                     },
                     warnings: ['Hasil OCR dasar, akurasi mungkin terbatas']
                 };
@@ -263,6 +299,7 @@ export class AdvancedPaymentVerificationService {
                     referenceNumber: geminiResult.extractedData.referenceNumber,
                     date: geminiResult.extractedData.date,
                     transferMethod: geminiResult.extractedData.transferMethod,
+                    isPaymentProof: geminiResult.validation.isPaymentProof,
                     validation: geminiResult.validation
                 },
                 warnings: geminiResult.validation.riskReasons || []
@@ -415,6 +452,8 @@ PENTING:
                 }
 
                 // Partial payment check (amount is less but reasonable)
+                // STRICT MODE: Only allow partial if explicit enabled or very specific conditions
+                // For now, we allow it to be 'bestMatch' but 'partial' type will be flagged in approval
                 if (extractedAmount < remaining && extractedAmount >= remaining * 0.5) {
                     if (!bestMatch || matchConfidence < 70) {
                         bestMatch = invoice;
@@ -495,13 +534,27 @@ PENTING:
             const expectedAmount = invoice ? parseFloat(invoice.remaining_amount.toString()) : undefined;
             const customerName = invoice?.customer_name;
 
+            // Fetch company name for recipient verification
+            let expectedRecipientName = 'Provider Internet';
+            try {
+                const [companyRows] = await databasePool.query<RowDataPacket[]>('SELECT company_name FROM company_settings LIMIT 1');
+                if (companyRows.length > 0) {
+                    expectedRecipientName = companyRows[0].company_name;
+                }
+            } catch (ignore) { }
+
             // Full Gemini validation
+            // Check if this is a time-critical transaction (e.g. PPPoE / Prepaid)
+            const isPrepaid = invoice?.invoice_number?.startsWith('INV') || true; // Default to strict 
+
             const validationResult = await GeminiService.analyzePaymentProof(
                 imageBuffer,
                 expectedAmount,
                 undefined, // bank
                 customerName,
-                invoice?.invoice_number
+                invoice?.invoice_number,
+                expectedRecipientName,
+                isPrepaid
             );
 
             const riskLevel = validationResult.validation.riskLevel;
@@ -643,11 +696,32 @@ PENTING:
         }
 
         // Check amount match type
-        if (matchDetails.matchType === 'mismatch') {
+        // STRICT: If not allowing mismatch, we only accept EXACT matches (or extremely close ones < 500 IDR)
+        if (!settings.allow_amount_mismatch) {
+            if (matchDetails.matchType !== 'exact') {
+                return {
+                    autoApprove: false,
+                    confidence: validationResult.confidence,
+                    reasoning: `Nominal tidak 100% cocok (Type: ${matchDetails.matchType}). Dibutuhkan nominal persis.`
+                };
+            }
+        } else {
+            // Loose mode logic
+            if (matchDetails.matchType === 'mismatch') {
+                return {
+                    autoApprove: false,
+                    confidence: validationResult.confidence,
+                    reasoning: 'Nominal tidak sesuai dengan tagihan'
+                };
+            }
+        }
+
+        // New Strict date check
+        if (!validationResult.details.isRecent) {
             return {
                 autoApprove: false,
                 confidence: validationResult.confidence,
-                reasoning: 'Nominal tidak sesuai dengan tagihan'
+                reasoning: 'Bukti transfer sudah terlalu lama (> 48 jam)'
             };
         }
 
@@ -657,6 +731,47 @@ PENTING:
             confidence: validationResult.confidence,
             reasoning: `Auto-approved: Confidence ${validationResult.confidence}%, Risk ${riskLevel}, Amount match: ${matchDetails.matchType}`
         };
+    }
+
+    /**
+     * Check if reference number already exists in payments table
+     */
+    private static async checkReferenceNumber(ref: string): Promise<boolean> {
+        if (!ref) return false;
+        try {
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id FROM payments WHERE reference_number = ?',
+                [ref]
+            );
+            return rows.length > 0;
+        } catch (error) {
+            console.error('[AdvancedAI] Error checking reference number:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Verify if the date and time is within acceptable range (last 48 hours)
+     */
+    private static async verifyDateTime(date?: string, time?: string): Promise<boolean> {
+        if (!date) return true; // Fail safe if not extracted but Gemini says isRecent
+
+        try {
+            const transferDate = new Date(`${date} ${time || '00:00:00'}`);
+            const now = new Date();
+            const diffMs = now.getTime() - transferDate.getTime();
+            const diffHours = diffMs / (1000 * 60 * 60);
+
+            // STRICT TIME RULE
+            // Future dates (> 1 hour ahead) are rejected (allow slightly clock drift)
+            // Old dates (> 24 hours) are rejected by default
+
+            if (diffHours < -1) return false; // Future date detection
+
+            return diffHours <= 24; // Default max 24 hours. (Prepaid 2 hours logic is handled by AI Prompt + isRecent flag)
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
@@ -691,10 +806,11 @@ PENTING:
             const isFullPayment = newRemaining <= 0;
 
             // Insert payment record
+            const refNumber = validationDetails.referenceNumber || 'AI-AUTO';
             await connection.query(
-                `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at)
-                 VALUES (?, 'transfer', ?, NOW(), ?, NOW())`,
-                [invoice.id, effectivePayment, `Auto-verified by AI (confidence: ${validationDetails.riskScore}%)`]
+                `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, reference_number, notes, created_at)
+                 VALUES (?, 'transfer', ?, NOW(), ?, ?, NOW())`,
+                [invoice.id, effectivePayment, refNumber, `Auto-verified by AI (confidence: ${validationDetails.riskScore}%)`]
             );
 
             // Update invoice status

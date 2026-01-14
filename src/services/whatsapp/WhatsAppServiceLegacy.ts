@@ -8,7 +8,7 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { WhatsAppBotService } from './WhatsAppBotService';
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 export interface WhatsAppMessageOptions {
     customerId?: number;
@@ -50,44 +50,17 @@ export class WhatsAppService {
                 }),
                 puppeteer: {
                     headless: true,
-                    // Timeout settings for Ubuntu server
-                    timeout: 60000, // 60 seconds timeout for browser launch
+                    // Timeout settings for startup
+                    timeout: 60000,
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--disable-dev-shm-usage',
-                        '--disable-accelerated-2d-canvas',
-                        '--no-first-run',
-                        '--no-zygote',
-                        '--single-process',
-                        '--disable-gpu',
-                        '--disable-web-security',
-                        '--disable-features=IsolateOrigins,site-per-process',
-                        '--disable-software-rasterizer',
-                        '--disable-extensions',
-                        '--disable-background-networking',
-                        '--disable-background-timer-throttling',
-                        '--disable-backgrounding-occluded-windows',
-                        '--disable-breakpad',
-                        '--disable-component-extensions-with-background-pages',
-                        '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-                        '--disable-ipc-flooding-protection',
-                        '--disable-renderer-backgrounding',
-                        '--enable-features=NetworkService,NetworkServiceInProcess',
-                        '--force-color-profile=srgb',
-                        '--hide-scrollbars',
-                        '--metrics-recording-only',
-                        '--mute-audio',
-                        '--no-default-browser-check',
-                        '--no-pings',
-                        '--password-store=basic',
-                        '--use-mock-keychain',
-                        '--disable-blink-features=AutomationControlled',
-                        // Memory optimization for Ubuntu
-                        '--js-flags=--max-old-space-size=512'
+                        '--disable-blink-features=AutomationControlled'
                     ],
                     // Try to use system Chromium on Ubuntu, fallback to bundled
                     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
+                        (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : undefined) ||
                         (process.platform === 'linux' ? '/usr/bin/chromium-browser' : undefined)
                 }
             });
@@ -124,39 +97,29 @@ export class WhatsAppService {
 
             // Message event
             this.client.on('message', async (message: any) => {
-                try {
-                    console.log('📩 New message received');
-                    console.log('[WhatsAppService] From:', message.from);
-                    console.log('[WhatsAppService] Body:', message.body?.substring(0, 100));
+                console.log('📩 Incoming message from:', message.from);
+                this.handleIncomingMessage(message);
+            });
 
-                    // Create adapter (NO dynamic import, using static import from top)
-                    const adapter = {
-                        from: message.from,
-                        body: message.body || '',
-                        hasMedia: message.hasMedia,
-                        downloadMedia: async () => {
-                            if (!message.hasMedia) {
-                                return null;
-                            }
-                            const media = await message.downloadMedia();
-                            return {
-                                mimetype: media.mimetype,
-                                data: media.data,
-                                filename: media.filename || 'file'
-                            };
-                        }
-                    };
-
-                    console.log('[WhatsAppService] Calling WhatsAppBotService.handleMessage()...');
-                    await WhatsAppBotService.handleMessage(adapter);
-                    console.log('[WhatsAppService] ✅ Message handled successfully');
-
-                } catch (error: any) {
-                    console.error('[WhatsAppService] ========== ERROR IN MESSAGE HANDLER ==========');
-                    console.error('[WhatsAppService] Error:', error?.message || 'Unknown');
-                    console.error('[WhatsAppService] Stack:', error?.stack);
-                    console.error('[WhatsAppService] ==========================================');
+            // Handle messages sent from the account itself (including self-chats)
+            this.client.on('message_create', async (message: any) => {
+                if (message.fromMe) {
+                    console.log('📤 Outgoing message / Message to self detected');
                 }
+                // We only handle incoming or messages from others here for the bot logic
+                if (!message.fromMe) {
+                    console.log('📩 Message create (from others):', message.from);
+                    this.handleIncomingMessage(message);
+                }
+            });
+
+            // State changes
+            this.client.on('change_state', (state: string) => {
+                console.log('🔄 WhatsApp state changed to:', state);
+            });
+
+            this.client.on('loading_screen', (percent: string, message: string) => {
+                console.log('⏳ Loading WhatsApp:', percent, '% -', message);
             });
 
             // Initialize client
@@ -168,6 +131,42 @@ export class WhatsAppService {
             this.isInitialized = false;
             console.error('❌ Failed to initialize WhatsApp service:', error.message || error);
             throw error;
+        }
+    }
+
+    private static async handleIncomingMessage(message: any) {
+        try {
+            console.log('📩 Processing incoming message...');
+            console.log('[WhatsAppService] From:', message.from);
+            console.log('[WhatsAppService] Body:', message.body?.substring(0, 100));
+
+            // Create adapter
+            const adapter = {
+                from: message.from,
+                body: message.body || '',
+                hasMedia: message.hasMedia,
+                downloadMedia: async () => {
+                    if (!message.hasMedia) {
+                        return null;
+                    }
+                    const media = await message.downloadMedia();
+                    return {
+                        mimetype: media.mimetype,
+                        data: media.data,
+                        filename: media.filename || 'file'
+                    };
+                }
+            };
+
+            console.log('[WhatsAppService] Calling WhatsAppBotService.handleMessage()...');
+            await WhatsAppBotService.handleMessage(adapter);
+            console.log('[WhatsAppService] ✅ Message handled successfully');
+
+        } catch (error: any) {
+            console.error('[WhatsAppService] ========== ERROR IN MESSAGE HANDLER ==========');
+            console.error('[WhatsAppService] Error:', error?.message || 'Unknown');
+            console.error('[WhatsAppService] Stack:', error?.stack);
+            console.error('[WhatsAppService] ==========================================');
         }
     }
 
@@ -303,6 +302,50 @@ export class WhatsAppService {
                 success: false,
                 error: errorMessage
             };
+        }
+    }
+
+    static async sendImage(
+        phone: string,
+        imagePath: string,
+        caption?: string,
+        options: WhatsAppMessageOptions = {}
+    ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+        if (!this.isClientReady()) {
+            return { success: false, error: 'WhatsApp client is not ready' };
+        }
+
+        try {
+            const formattedPhone = this.formatPhoneNumber(phone);
+            const media = MessageMedia.fromFilePath(imagePath);
+
+            console.log(`📱 [WhatsApp] Sending image to ${formattedPhone}`);
+            const result = await this.client.sendMessage(formattedPhone, media, { caption: caption });
+
+            await this.logNotification(
+                options.customerId,
+                phone,
+                caption || '[Image]',
+                'sent',
+                undefined,
+                options.template
+            );
+
+            return { success: true, messageId: result?.id?.id };
+        } catch (error: any) {
+            const errorMessage = error.message || 'Unknown error';
+            console.error(`❌ Failed to send image:`, errorMessage);
+
+            await this.logNotification(
+                options.customerId,
+                phone,
+                caption || '[Image]',
+                'failed',
+                errorMessage,
+                options.template
+            );
+
+            return { success: false, error: errorMessage };
         }
     }
 

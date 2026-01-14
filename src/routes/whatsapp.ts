@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { WhatsAppServiceBaileys as WhatsAppService } from '../services/whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppService as WhatsAppService } from '../services/whatsapp/WhatsAppServiceLegacy';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import QRCode from 'qrcode';
@@ -88,6 +88,7 @@ router.get('/qr', async (req: Request, res: Response) => {
 router.get('/qr-image', async (req: Request, res: Response) => {
     try {
         const qrCode = WhatsAppService.getQRCode();
+        console.log(`[Route] /qr-image - Has QR: ${!!qrCode}`);
 
         if (!qrCode) {
             return res.status(404).json({
