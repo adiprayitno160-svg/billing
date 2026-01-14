@@ -73,13 +73,32 @@ export class ChatBotService {
             let lastError: any;
             for (let attempt = 1; attempt <= 3; attempt++) {
                 try {
+                    // Ensure initialization (especially if cleared by previous error)
+                    if (!this.model) await this.initialize();
+
                     const result = await this.model.generateContent(prompt);
                     const response = await result.response;
                     return response.text().trim();
-                } catch (error) {
+                } catch (error: any) {
                     lastError = error;
-                    console.warn(`[ChatBot] Attempt ${attempt} failed:`, error);
-                    // Exponential backoff for retries
+                    const errorMessage = error.message || error.toString();
+                    console.warn(`[ChatBot] Attempt ${attempt} failed:`, errorMessage);
+
+                    // Check for Auth/Key errors (Auto-Healing)
+                    const isAuthError = errorMessage.includes('API_KEY_INVALID') ||
+                        errorMessage.includes('403') ||
+                        errorMessage.includes('permission_denied') ||
+                        errorMessage.includes('API key not valid');
+
+                    if (isAuthError) {
+                        console.log('[ChatBot] 🔄 Detected Invalid Key in memory. Refreshing settings from DB...');
+                        this.model = null; // Clear cached model
+                        this.genAI = null; // Clear cached instance
+                        // Next loop iteration will call initialize() again, fetching new key
+                        continue;
+                    }
+
+                    // Exponential backoff for other errors
                     if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
                 }
             }
