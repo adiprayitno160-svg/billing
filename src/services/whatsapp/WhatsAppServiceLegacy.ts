@@ -56,7 +56,10 @@ export class WhatsAppService {
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--disable-dev-shm-usage',
-                        '--disable-blink-features=AutomationControlled'
+                        '--disable-blink-features=AutomationControlled',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
                     ],
                     // Try to use system Chromium on Ubuntu, fallback to bundled
                     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
