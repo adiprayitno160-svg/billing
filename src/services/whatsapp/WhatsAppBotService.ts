@@ -36,7 +36,7 @@ export class WhatsAppBotService {
 
     // Deduplication: Track recently processed messages (sender + body hash)
     private static recentMessages: Map<string, number> = new Map();
-    private static readonly DEDUP_WINDOW_MS = 5000; // 5 seconds window
+    private static readonly DEDUP_WINDOW_MS = 2000; // 2 seconds window
 
     private static getMessageHash(sender: string, body: string): string {
         // Simple hash: first 50 chars of sender + body
@@ -422,6 +422,7 @@ export class WhatsAppBotService {
                 return;
             }
 
+
             // NEW: Default to menu for greetings or very short messages
             const commonGreetings = ['p', 'halo', 'hai', 'tes', 'oi', 'bot', 'admin', 'menu', 'siang', 'pagi', 'malam'];
             const bodyClean = body.toLowerCase().trim();
@@ -434,6 +435,9 @@ export class WhatsAppBotService {
             // Handle AI ChatBot (Fallback for other text)
             console.log('[WhatsAppBot] 🤖 Hubbing AI ChatBot...');
             try {
+                // Show typing status
+                await WhatsAppService.sendPresenceUpdate(senderJid, 'composing');
+
                 const aiResponse = await ChatBotService.ask(body, customer);
                 const aiResponseLower = aiResponse.toLowerCase();
 

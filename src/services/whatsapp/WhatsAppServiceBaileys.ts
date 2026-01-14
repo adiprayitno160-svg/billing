@@ -369,6 +369,18 @@ export class WhatsAppServiceBaileys {
         }
     }
 
+    /**
+     * Send presence update (typing, recording, available, unavailable)
+     */
+    static async sendPresenceUpdate(jid: string, type: 'composing' | 'recording' | 'available' | 'unavailable'): Promise<void> {
+        if (!this.isConnected || !this.sock) return;
+        try {
+            await this.sock.sendPresenceUpdate(type, jid);
+        } catch (error) {
+            console.warn(`[WA-${this.INSTANCE_ID}] Failed to send presence update:`, error);
+        }
+    }
+
     static async sendImage(phone: string, imagePath: string, caption?: string, options: WhatsAppMessageOptions = {}): Promise<{ success: boolean; messageId?: string; error?: string }> {
         if (!this.isConnected || !this.sock) return { success: false, error: 'Not connected' };
 
