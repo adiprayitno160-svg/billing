@@ -153,6 +153,18 @@ export class SystemSettingsController {
         }
       }
 
+
+      // Check if GenieACS settings were updated and reload service
+      if (Object.keys(settings).some(k => k.startsWith('genieacs_'))) {
+        try {
+          const { GenieacsService } = await import('../../services/genieacs/GenieacsService');
+          await GenieacsService.reloadConfig();
+          console.log('🔄 GenieACS Service reloaded with new settings');
+        } catch (e) {
+          console.error('Failed to reload GenieACS service:', e);
+        }
+      }
+
       res.redirect('/settings/system?success=Pengaturan berhasil diupdate');
     } catch (error: any) {
       // Enhanced error logging
@@ -410,6 +422,8 @@ export class SystemSettingsController {
           ('local_url', 'http://localhost:3000', 'URL lokal untuk akses aplikasi (development)', 'url'),
           ('domain_mode_enabled', 'false', 'Aktifkan penggunaan domain URL', 'url'),
           ('local_mode_enabled', 'true', 'Aktifkan penggunaan local URL', 'url'),
+          ('genieacs_host', '192.168.239.154', 'IP Address server GenieACS', 'genieacs'),
+          ('genieacs_port', '7557', 'Port API GenieACS', 'genieacs'),
 
           ('grace_period_days', '3', 'Jumlah hari grace period sebelum late payment dihitung', 'late_payment'),
 
@@ -436,6 +450,8 @@ export class SystemSettingsController {
           ('local_url', 'http://localhost:3000', 'URL lokal untuk akses aplikasi (development)'),
           ('domain_mode_enabled', 'false', 'Aktifkan penggunaan domain URL'),
           ('local_mode_enabled', 'true', 'Aktifkan penggunaan local URL'),
+          ('genieacs_host', '192.168.239.154', 'IP Address server GenieACS'),
+          ('genieacs_port', '7557', 'Port API GenieACS'),
 
           ('grace_period_days', '3', 'Jumlah hari grace period sebelum late payment dihitung'),
 

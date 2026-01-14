@@ -10,6 +10,7 @@ export class GenieacsController {
     static async dashboard(req: Request, res: Response) {
         try {
             const genieacs = await GenieacsService.getInstanceFromDb();
+            const config = await GenieacsService.getConfigFromDb();
 
             // Test connection
             const connectionTest = await genieacs.testConnection();
@@ -48,7 +49,8 @@ export class GenieacsController {
                 title: 'GenieACS Dashboard',
                 currentPath: '/genieacs',
                 connectionStatus: connectionTest,
-                stats
+                stats,
+                config
             });
         } catch (error: any) {
             console.error('Error loading GenieACS dashboard:', error);
@@ -56,7 +58,8 @@ export class GenieacsController {
                 title: 'GenieACS Dashboard',
                 currentPath: '/genieacs',
                 connectionStatus: { success: false, message: error.message },
-                stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, recentFaults: 0 }
+                stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, recentFaults: 0 },
+                config: { host: '192.168.239.154', port: 7557 }
             });
         }
     }

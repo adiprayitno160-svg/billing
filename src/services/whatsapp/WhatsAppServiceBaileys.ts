@@ -126,6 +126,24 @@ export class WhatsAppServiceBaileys {
 
             this.sock = sock;
 
+            // PAIRING CODE LOGIC
+            if (!sock.authState.creds.registered) {
+                const phoneNumber = process.env.WA_BOT_NUMBER;
+                if (phoneNumber) {
+                    console.log(`[WA-${this.INSTANCE_ID}] 🔢 Pairing Code Mode Enabled. Number: ${phoneNumber}`);
+                    setTimeout(async () => {
+                        try {
+                            const code = await sock.requestPairingCode(phoneNumber);
+                            console.log(`\n\n[WA-${this.INSTANCE_ID}] 🔑 PAIRING CODE: ${code}\n\n`);
+                        } catch (err) {
+                            console.error(`[WA-${this.INSTANCE_ID}] ❌ Failed to request pairing code:`, err);
+                        }
+                    }, 3000);
+                } else {
+                    console.log(`[WA-${this.INSTANCE_ID}] 📷 Waiting for QR Code (No WA_BOT_NUMBER in env)...`);
+                }
+            }
+
             sock.ev.on('creds.update', saveCreds);
 
             sock.ev.on('connection.update', async (update) => {
@@ -133,7 +151,9 @@ export class WhatsAppServiceBaileys {
 
                 this.lastActivityTimestamp = Date.now();
 
-                if (qr) {
+                const usePairingCode = !!process.env.WA_BOT_NUMBER;
+
+                if (qr && !usePairingCode) {
                     console.log(`[WA-${this.INSTANCE_ID}] 📷 QR Code generated!`);
                     console.log(`QR String: ${qr}`); // Log raw string for debugging
                     this.currentQRCode = qr;

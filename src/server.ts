@@ -356,12 +356,12 @@ async function start() {
 			// Initialize WhatsApp Business service (non-blocking)
 			// Using Legacy (Puppeteer)
 			WhatsAppServiceBaileys.initialize()
-				.then(() => console.log('✅ WhatsApp Business service initialized (Legacy/Puppeteer)'))
+				.then(() => console.log('✅ WhatsApp Business service initialized (Baileys/Robust)'))
 				.catch(error => {
 					console.error('❌ Failed to initialize WhatsApp service:', error);
 					console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
 				});
-			console.log('📱 WhatsApp service (Legacy/Puppeteer) initialization started in background');
+			console.log('📱 WhatsApp service (Baileys/Robust) initialization started in background');
 		}
 
 		// Initialize default users
