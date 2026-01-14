@@ -435,8 +435,10 @@ export class WhatsAppBotService {
             // Handle AI ChatBot (Fallback for other text)
             console.log('[WhatsAppBot] 🤖 Hubbing AI ChatBot...');
             try {
-                // Show typing status
-                await WhatsAppService.sendPresenceUpdate(senderJid, 'composing');
+                // Show typing status (Safe Call)
+                if ((WhatsAppService as any).sendPresenceUpdate) {
+                    await (WhatsAppService as any).sendPresenceUpdate(senderJid, 'composing');
+                }
 
                 const aiResponse = await ChatBotService.ask(body, customer);
                 const aiResponseLower = aiResponse.toLowerCase();

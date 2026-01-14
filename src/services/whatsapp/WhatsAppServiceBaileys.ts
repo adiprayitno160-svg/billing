@@ -84,6 +84,9 @@ export class WhatsAppServiceBaileys {
                 fs.mkdirSync(this.authDir, { recursive: true });
             }
 
+            // SELF-HEALING: Ensure DB Schema is correct automatically
+            await this.ensureSchemaFixed();
+
             await this.connectToWhatsApp();
 
             // Start Watchdog immediately
@@ -94,6 +97,35 @@ export class WhatsAppServiceBaileys {
             this.isInitialized = false;
             console.error(`[WA-${this.INSTANCE_ID}] ❌ Fatal initialization error:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Self-healing DB Schema
+     */
+    private static async ensureSchemaFixed(): Promise<void> {
+        try {
+            console.log(`[WA-${this.INSTANCE_ID}] 🔧 Checking/Fixing Database Schema...`);
+
+            // Fix whatsapp_bot_messages
+            try {
+                await databasePool.query("ALTER TABLE whatsapp_bot_messages ADD COLUMN media_url TEXT NULL AFTER message_content");
+                console.log(`[WA-${this.INSTANCE_ID}] ✅ Added media_url column`);
+            } catch (e: any) { if (!e.message.includes('Duplicate')) console.log(`[WA-${this.INSTANCE_ID}] ℹ️ media_url check: ${e.message}`); }
+
+            try {
+                await databasePool.query("ALTER TABLE whatsapp_bot_messages ADD COLUMN status VARCHAR(20) DEFAULT 'processed' AFTER direction");
+                console.log(`[WA-${this.INSTANCE_ID}] ✅ Added status column`);
+            } catch (e: any) { if (!e.message.includes('Duplicate')) console.log(`[WA-${this.INSTANCE_ID}] ℹ️ status check: ${e.message}`); }
+
+            // Fix notification_logs
+            try {
+                await databasePool.query("ALTER TABLE notification_logs ADD COLUMN channel VARCHAR(20) DEFAULT 'whatsapp' AFTER customer_id");
+                console.log(`[WA-${this.INSTANCE_ID}] ✅ Added channel column`);
+            } catch (e: any) { if (!e.message.includes('Duplicate')) console.log(`[WA-${this.INSTANCE_ID}] ℹ️ channel check: ${e.message}`); }
+
+        } catch (error) {
+            console.warn(`[WA-${this.INSTANCE_ID}] ⚠️ Schema fix warning:`, error);
         }
     }
 
