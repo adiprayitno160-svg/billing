@@ -294,11 +294,11 @@ export class SchedulerService {
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
                 WHERE i.status IN ('sent', 'partial')
-                AND i.due_date = $1
+                AND i.due_date = ?
                 AND c.phone IS NOT NULL
             `;
 
-            const result = await databasePool.query(query, [dueIn3Days.toISOString().split('T')[0]]);
+            const [result] = await databasePool.query<any[]>(query, [dueIn3Days.toISOString().split('T')[0]]);
 
             for (const invoice of result) {
                 // WhatsApp notification removed
