@@ -74,6 +74,11 @@ async function fixSchema() {
                 console.log('   Adding missing column: recipient');
                 await connection.query("ALTER TABLE notification_logs ADD COLUMN recipient VARCHAR(50) NULL AFTER channel");
             }
+
+            if (!logColumnNames.includes('error_message')) {
+                console.log('   Adding missing column: error_message');
+                await connection.query("ALTER TABLE notification_logs ADD COLUMN error_message TEXT NULL AFTER status");
+            }
         }
 
         console.log('✅ Schema Fix Completed Successfully!');

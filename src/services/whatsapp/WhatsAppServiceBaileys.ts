@@ -338,8 +338,31 @@ export class WhatsAppServiceBaileys {
 
     private static async handleIncomingMessage(msg: WAMessage) {
         try {
-            const from = msg.key.remoteJid;
-            if (!from || from.includes('@g.us') || from === 'status@broadcast') return;
+            // Self-message check (ignore)
+            if (msg.key.fromMe) return;
+
+            let senderJid = msg.key.remoteJid || '';
+            const isGroup = senderJid.endsWith('@g.us');
+            const isStatus = senderJid === 'status@broadcast';
+
+            if (isStatus) return;
+
+            // Handle LID (Linked Device ID)
+            // If sender is a LID (e.g., 637...@lid), we need to handle it carefully.
+            // For now, we will try to use the participant ID if available (in groups),
+            // or rely on Baileys to handle the reply destination.
+            // But for DATABASE LOOKUP, we need the clean phone number.
+
+            // NOTE: LID numbers are NOT the phone number.
+            // If we receive from LID, we might not be able to map to a customer unless we have an LID map.
+            // However, usually in 1:1 chat, remoteJid is the user.
+
+            // Improved log
+            console.log(`[WA-${this.INSTANCE_ID}] 📨 Raw RemoteJID: ${senderJid}`);
+
+            // If it is an LID, try to strip suffixes, but LID digits != Phone digits.
+            // We just proceed, but user must register the LID if it persists, OR we advise user to chat from main device.
+            // But usually, Baileys handles this? No, we receive what WA sends.
 
             let m = msg.message;
             if (!m) return;
