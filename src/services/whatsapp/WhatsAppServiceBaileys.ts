@@ -388,7 +388,7 @@ export class WhatsAppServiceBaileys {
             const hasMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.documentMessage);
 
             const adapter = {
-                from: from,
+                from: senderJid, // FIX: Use senderJid instead of undefined 'from'
                 body: body,
                 hasMedia: hasMedia,
                 fromMe: msg.key.fromMe || false,
