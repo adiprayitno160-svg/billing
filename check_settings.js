@@ -21,6 +21,18 @@ async function check() {
 
         if (rows.length > 0) {
             console.log('✅ Setting Found:', rows[0]);
+
+            // Check if LID is missing
+            const val = rows[0].setting_value;
+            if (!val.includes('63729093849223')) {
+                console.log('⚠️ LID Missing! Updating setting...');
+                const newVal = `63729093849223,${val}`;
+                await connection.execute("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'whatsapp_tester_numbers'", [newVal]);
+                console.log(`✅ Updated to: ${newVal}`);
+            } else {
+                console.log('✅ Setting is CORRECT (Contains LID).');
+            }
+
         } else {
             console.log('❌ Setting "whatsapp_tester_numbers" NOT FOUND!');
             console.log('Attempting to insert default value...');
