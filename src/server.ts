@@ -354,14 +354,11 @@ async function start() {
 			console.log('⚠️ WhatsApp service DISABLED (DISABLE_WHATSAPP=true)');
 		} else {
 			// Initialize WhatsApp Business service (non-blocking)
-			// Using Legacy (Puppeteer)
 			WhatsAppServiceBaileys.initialize()
 				.then(() => console.log('✅ WhatsApp Business service initialized (Baileys/Robust)'))
 				.catch(error => {
 					console.error('❌ Failed to initialize WhatsApp service:', error);
-					console.log('⚠️ WhatsApp notifications will not be available until service is initialized');
 				});
-			console.log('📱 WhatsApp service (Baileys/Robust) initialization started in background');
 		}
 
 		// Initialize default users
@@ -369,22 +366,38 @@ async function start() {
 		await authController.initializeDefaultUsers();
 		console.log('Default users initialized');
 
+		// TELEGRAM REMOVED PERMANENTLY PER USER REQUEST
 
 		// Create HTTP server
 		const server = createServer(app);
 
+		// SMART PORT STARTUP: Try preferred port, if busy increment and retry
+		const preferredPort = port;
+		let actualPort = preferredPort;
 
-		// Listen on all interfaces (IPv4 and IPv6)
-		server.listen(port, () => {
-			console.log(`Server running on http://localhost:${port}`);
-			console.log(`Server also accessible on http://0.0.0.0:${port}`);
-			console.log(`WebSocket available at ws://localhost:${port}/ws`);
+		const startServer = (p: number) => {
+			server.listen(p, () => {
+				console.log(`Server running on http://localhost:${p}`);
+				console.log(`Server also accessible on http://0.0.0.0:${p}`);
+				console.log(`WebSocket available at ws://localhost:${p}/ws`);
 
-			// Signal PM2 that the app is ready (satisfied wait_ready: true)
-			if (process.send) {
-				process.send('ready');
-			}
-		});
+				// Signal PM2 that the app is ready (satisfied wait_ready: true)
+				if (process.send) {
+					process.send('ready');
+				}
+			}).on('error', (err: any) => {
+				if (err.code === 'EADDRINUSE') {
+					console.log(`⚠️ Port ${p} is busy, trying ${p + 1}...`);
+					startServer(p + 1);
+				} else {
+					console.error('Failed to start server:', err);
+					process.exit(1);
+				}
+			});
+		};
+
+		startServer(preferredPort);
+
 	} catch (err) {
 		console.error('Failed to start server:', err);
 		if (err instanceof Error) {
