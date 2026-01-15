@@ -41,7 +41,8 @@ export class TelegramBotService {
             this.botToken !== 'your_telegram_bot_token_here';
 
         if (isValidToken) {
-            this.initializeBot();
+            // this.initializeBot(); // DISABLED to clear logs per user request
+            console.log('[TelegramBot] ⚠️ Telegram Bot disabled by code (see TelegramBotService.ts)');
         } else {
             console.warn('[TelegramBot] ⚠️ Bot token not configured or invalid.');
             console.warn('[TelegramBot] 📝 Silakan atur token melalui: Settings > Telegram');

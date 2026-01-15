@@ -158,8 +158,11 @@ export class WhatsAppServiceBaileys {
 
             this.sock = sock;
 
-            // PAIRING CODE LOGIC
+            // PAIRING CODE LOGIC - DISABLED TEMPORARILY TO FIX CONNECTION
+            // Force QR Code mode for stability
             if (!sock.authState.creds.registered) {
+                console.log(`[WA-${this.INSTANCE_ID}] 📷 Waiting for QR Code (QR Mode Enforced)...`);
+                /*
                 const phoneNumber = process.env.WA_BOT_NUMBER;
                 if (phoneNumber) {
                     console.log(`[WA-${this.INSTANCE_ID}] 🔢 Pairing Code Mode Enabled. Number: ${phoneNumber}`);
@@ -174,6 +177,7 @@ export class WhatsAppServiceBaileys {
                 } else {
                     console.log(`[WA-${this.INSTANCE_ID}] 📷 Waiting for QR Code (No WA_BOT_NUMBER in env)...`);
                 }
+                */
             }
 
             sock.ev.on('creds.update', saveCreds);
@@ -183,9 +187,8 @@ export class WhatsAppServiceBaileys {
 
                 this.lastActivityTimestamp = Date.now();
 
-                const usePairingCode = !!process.env.WA_BOT_NUMBER;
-
-                if (qr && !usePairingCode) {
+                // Force QR display
+                if (qr) {
                     console.log(`[WA-${this.INSTANCE_ID}] 📷 QR Code generated!`);
                     console.log(`QR String: ${qr}`); // Log raw string for debugging
                     this.currentQRCode = qr;
