@@ -283,7 +283,6 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			mtSettingsP,
 			troubleCustomersP,
 			latePaymentHighRiskP,
-			latePaymentHighRiskP,
 			latePaymentWarning4P
 		] = await Promise.all([
 			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
