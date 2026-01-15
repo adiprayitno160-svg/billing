@@ -56,7 +56,6 @@ export class WhatsAppBotService {
         // Record this message
         this.recentMessages.set(hash, now);
 
-        // Cleanup old entries (keep map small)
         if (this.recentMessages.size > 100) {
             const cutoff = now - this.DEDUP_WINDOW_MS;
             for (const [key, time] of this.recentMessages.entries()) {
@@ -66,6 +65,7 @@ export class WhatsAppBotService {
             }
         }
 
+        console.log(`[WhatsAppBot] 📥 Message accepted defined as unique: ${hash.substring(0, 15)}...`);
         return false;
     }
 
