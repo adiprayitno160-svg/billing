@@ -69,6 +69,11 @@ async function fixSchema() {
                 console.log('   Adding missing column: channel');
                 await connection.query("ALTER TABLE notification_logs ADD COLUMN channel VARCHAR(20) DEFAULT 'whatsapp' AFTER customer_id");
             }
+
+            if (!logColumnNames.includes('recipient')) {
+                console.log('   Adding missing column: recipient');
+                await connection.query("ALTER TABLE notification_logs ADD COLUMN recipient VARCHAR(50) NULL AFTER channel");
+            }
         }
 
         console.log('✅ Schema Fix Completed Successfully!');
