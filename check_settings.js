@@ -1,36 +1,45 @@
 
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const dotenv = require('dotenv');
 
-async function run() {
-    console.log("=== CHECKING MIKROTIK SETTINGS IN DB ===");
-    const conn = await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME
-    });
+dotenv.config();
 
-    const [rows] = await conn.execute('SELECT * FROM mikrotik_settings');
-    console.log("Rows found:", rows.length);
-    if (rows.length > 0) {
-        rows.forEach(row => {
-            console.log(`ID: ${row.id}`);
-            console.log(`Host: ${row.host}`);
-            console.log(`Username: ${row.username}`);
-            console.log(`Port: ${row.port}`);
-            // Don't log full password for security, just length or first char
-            console.log(`Password Length: ${row.password ? row.password.length : 0}`);
+async function check() {
+    try {
+        console.log('Connecting to database...');
+        const connection = await mysql.createConnection({
+            host: process.env.DB_HOST || 'localhost',
+            user: process.env.DB_USER || 'root',
+            password: process.env.DB_PASSWORD || '',
+            database: process.env.DB_NAME || 'billing_db'
         });
-    } else {
-        console.log("No settings found!");
+
+        console.log('✅ Connected!');
+
+        console.log('\n--- Checking System Settings ---');
+        const [rows] = await connection.execute("SELECT * FROM system_settings WHERE setting_key = 'whatsapp_tester_numbers'");
+
+        if (rows.length > 0) {
+            console.log('✅ Setting Found:', rows[0]);
+        } else {
+            console.log('❌ Setting "whatsapp_tester_numbers" NOT FOUND!');
+            console.log('Attempting to insert default value...');
+
+            await connection.execute(`
+                INSERT INTO system_settings (setting_key, setting_value, setting_description, category)
+                VALUES ('whatsapp_tester_numbers', '63729093849223,089678630707', 'Nomor HP/ID untuk testing bypass (Owner)', 'general')
+            `);
+            console.log('✅ Default value inserted successfully!');
+        }
+
+        console.log('\n--- Checking Users Table (Admin) ---');
+        const [users] = await connection.execute("SELECT id, username, phone FROM users");
+        console.table(users);
+
+        await connection.end();
+    } catch (error) {
+        console.error('Error:', error);
     }
-
-    // Also check the specific customer again just to be sure we are looking at the right one
-    const [cust] = await conn.execute("SELECT id, name, ip_address FROM customers WHERE name LIKE '%Ponakanae%'");
-    console.log("Customer:", cust);
-
-    conn.end();
 }
 
-run();
+check();
