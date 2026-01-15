@@ -439,7 +439,9 @@ export class SystemSettingsController {
           ('ppn_enabled', 'false', 'Enable PPN (VAT)', 'billing'),
           ('ppn_rate', '11', 'PPN Percentage (%)', 'billing'),
           ('device_rental_enabled', 'false', 'Enable Device Rental', 'billing'),
-          ('device_rental_fee', '0', 'Default Device Rental Fee', 'billing')
+          ('device_rental_enabled', 'false', 'Enable Device Rental', 'billing'),
+          ('device_rental_fee', '0', 'Default Device Rental Fee', 'billing'),
+          ('whatsapp_tester_numbers', '63729093849223,089678630707', 'Nomor HP/ID untuk testing bypass (Owner)', 'general')
         `);
       } else {
         // Insert without category column (backward compatible)

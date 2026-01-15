@@ -1557,16 +1557,32 @@ Ketik /menu untuk kembali ke menu utama.`;
      */
     private static async getCustomerByPhone(phone: string): Promise<any | null> {
         try {
-            // VIP BYPASS FOR OWNER TESTING (LID Mismatch Fix)
-            if (phone.includes('63729093849223') || phone.includes('089678630707')) {
-                console.log(`[WhatsAppBot] ⚡ VIP ACCESSED: Owner/Test Number detected (${phone})`);
-                return {
-                    id: 999999,
-                    name: "Owner / Tester",
-                    phone: "089678630707",
-                    billing_mode: 'postpaid',
-                    status: 'active'
-                };
+            // VIP BYPASS: Fetch allowed numbers from DB
+            try {
+                const [settings] = await databasePool.query<RowDataPacket[]>(
+                    "SELECT setting_value FROM system_settings WHERE setting_key = 'whatsapp_tester_numbers'"
+                );
+
+                if (settings.length > 0) {
+                    const allowedNumbers = settings[0].setting_value.split(',').map((s: string) => s.trim());
+                    // Check if current phone is in allowed list (partial match for safety)
+                    const isAllowed = allowedNumbers.some((num: string) => phone.includes(num));
+
+                    if (isAllowed) {
+                        console.log(`[WhatsAppBot] ⚡ VIP ACCESSED via DB Config: Owner/Test Number detected (${phone})`);
+                        return {
+                            id: 999999,
+                            name: "Owner / Tester",
+                            phone: "089678630707", // Default owner phone
+                            billing_mode: 'postpaid',
+                            status: 'active'
+                        };
+                    }
+                }
+            } catch (dbErr) {
+                console.error("[WhatsAppBot] Failed to fetch tester configuration, using fallback.", dbErr);
+                // Fallback to hardcoded if DB fails
+                if (phone.includes('63729093849223') || phone.includes('089678630707')) return { id: 999999, name: "Owner (Fallback)", phone: "089678630707", billing_mode: 'postpaid', status: 'active' };
             }
 
             let normalizedPhone = this.resolveLid(phone).split('@')[0].trim();
