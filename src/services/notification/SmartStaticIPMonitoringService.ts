@@ -50,7 +50,7 @@ export class SmartStaticIPMonitoringService {
         AND c.static_ip IS NOT NULL 
         AND c.static_ip != ''
     `;
-    
+
     try {
       const [results] = await databasePool.query(query);
       return results as StaticIPCustomer[];
@@ -67,27 +67,27 @@ export class SmartStaticIPMonitoringService {
     try {
       // Gunakan ping command berdasarkan OS
       const isWindows = process.platform === 'win32';
-      const pingCommand = isWindows 
+      const pingCommand = isWindows
         ? `ping -n 1 -w 3000 ${ip}`  // Windows: 1 packet, 3 second timeout
         : `ping -c 1 -W 3 ${ip}`;    // Linux/Mac: 1 packet, 3 second timeout
-      
+
       const { stdout, stderr } = await execAsync(pingCommand);
-      
+
       // Cek apakah ada packet loss atau timeout
       const output = stdout.toLowerCase();
-      const hasReply = output.includes('reply from') || 
-                      output.includes('bytes=') || 
-                      output.includes('ttl=') ||
-                      (!output.includes('100% packet loss') && 
-                       !output.includes('timed out') &&
-                       !output.includes('host unreachable'));
-      
+      const hasReply = output.includes('reply from') ||
+        output.includes('bytes=') ||
+        output.includes('ttl=') ||
+        (!output.includes('100% packet loss') &&
+          !output.includes('timed out') &&
+          !output.includes('host unreachable'));
+
       if (hasReply) {
         console.log(`✅ Ping SUCCESS for ${ip}`);
       } else {
         console.log(`❌ Ping FAILED for ${ip}`);
       }
-      
+
       return hasReply;
     } catch (error) {
       // Jika command gagal, anggap sebagai tidak merespon
@@ -100,38 +100,35 @@ export class SmartStaticIPMonitoringService {
    * Buat tiket otomatis untuk teknisi
    */
   async createAutomaticTicket(customer: StaticIPCustomer, issueDescription: string): Promise<number | null> {
+    const ticketNumber = `TKT-ST-${Date.now()}`;
     const query = `
-      INSERT INTO technician_tickets (
+      INSERT INTO technician_jobs (
+        ticket_number,
         customer_id,
-        customer_name,
-        phone,
-        area,
-        location,
-        issue_description,
+        title,
+        description,
         priority,
         status,
-        created_at,
-        assigned_to,
-        source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NULL, ?)
+        reported_by,
+        address
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     try {
       const [result]: any = await databasePool.query(query, [
+        ticketNumber,
         customer.id,
-        customer.name,
-        customer.phone,
-        customer.area,
-        customer.location,
+        `GANGGUAN IP STATIC: ${customer.name}`,
         issueDescription,
-        'high', // Prioritas tinggi untuk koneksi hilang
-        'open',
-        'automatic_static_ip_monitoring'
+        'high',
+        'pending',
+        'automatic_static_ip_monitoring',
+        customer.location // location in StaticIPCustomer interface is aliased from odc_location
       ]);
-      
+
       const ticketId = result.insertId;
       console.log(`🎫 Automatic ticket created #${ticketId} for ${customer.name} (${customer.static_ip})`);
-      
+
       // Kirim notifikasi ke pelanggan
       if (customer.phone) {
         await this.whatsappService.sendMessage(
@@ -139,7 +136,7 @@ export class SmartStaticIPMonitoringService {
           `🎫 Halo ${customer.name}, kami telah membuat tiket gangguan otomatis (#${ticketId}) untuk masalah koneksi IP static Anda (${customer.static_ip}). Tim teknisi kami akan segera menindaklanjuti.`
         );
       }
-      
+
       return ticketId;
     } catch (error) {
       console.error('Error creating automatic ticket:', error);
@@ -151,7 +148,7 @@ export class SmartStaticIPMonitoringService {
    * Update monitoring state pelanggan
    */
   async updateCustomerMonitoringState(
-    customerId: number, 
+    customerId: number,
     state: 'normal' | 'timeout_5min' | 'timeout_10min' | 'awaiting_confirmation_12min' | 'ticket_created' | 'resolved',
     timeoutStartedAt: Date | null = null,
     awaitingResponse: boolean = false,
@@ -165,7 +162,7 @@ export class SmartStaticIPMonitoringService {
           customer_response_received = ?
       WHERE id = ?
     `;
-    
+
     try {
       await databasePool.query(query, [state, timeoutStartedAt, awaitingResponse, responseReceived, customerId]);
     } catch (error) {
@@ -184,7 +181,7 @@ Apakah ada gangguan di lokasi Anda seperti pemadaman listrik?
 Balas:
 - YA (jika ada gangguan)
 - TIDAK (jika tidak ada gangguan)`;
-      
+
       await this.whatsappService.sendMessage(customer.phone, message);
       console.log(`📧 Confirmation request sent to ${customer.name} (${customer.static_ip})`);
     }
@@ -196,10 +193,10 @@ Balas:
    */
   async runSmartMonitoring(): Promise<void> {
     console.log('🚀 Starting Smart Static IP Monitoring for Prepaid Customers...');
-    
+
     const customers = await this.getActiveStaticIPCustomers();
     console.log(`📊 Found ${customers.length} active prepaid Static IP customers`);
-    
+
     for (const customer of customers) {
       try {
         await this.processCustomerMonitoring(customer);
@@ -207,7 +204,7 @@ Balas:
         console.error(`Error processing customer ${customer.name}:`, error);
       }
     }
-    
+
     console.log('✅ Smart Static IP Monitoring cycle completed');
   }
 
@@ -216,23 +213,23 @@ Balas:
    */
   private async processCustomerMonitoring(customer: StaticIPCustomer): Promise<void> {
     const now = new Date();
-    
+
     // Mode normal: Ping setiap 15 menit jika tidak ada timeout
     if (customer.monitoring_state === 'normal' || !customer.ping_timeout_started_at) {
       const isReachable = await this.pingIPAddress(customer.static_ip);
-      
+
       if (!isReachable) {
         // Ping timeout pertama terdeteksi
         console.log(`🔴 Ping TIMEOUT detected for ${customer.name} (${customer.static_ip})`);
-        
+
         await this.updateCustomerMonitoringState(
-          customer.id, 
-          'timeout_5min', 
+          customer.id,
+          'timeout_5min',
           now,
           false,
           false
         );
-        
+
         // Kirim notifikasi awal ke pelanggan
         if (customer.phone) {
           await this.whatsappService.sendMessage(
@@ -243,28 +240,28 @@ Balas:
       } else {
         // Ping berhasil - update last check time
         await databasePool.query(
-          'UPDATE customers SET last_ping_check = NOW() WHERE id = ?', 
+          'UPDATE customers SET last_ping_check = NOW() WHERE id = ?',
           [customer.id]
         );
       }
       return;
     }
-    
+
     // Hitung selisih waktu sejak timeout pertama
     const timeDiffMs = now.getTime() - customer.ping_timeout_started_at.getTime();
     const timeDiffMinutes = Math.floor(timeDiffMs / (1000 * 60));
-    
+
     console.log(`⏱️ Monitoring ${customer.name} (${customer.static_ip}): ${timeDiffMinutes} minutes in timeout state (${customer.monitoring_state})`);
-    
+
     // Timeout 5 menit: Ping ulang pertama
     if (customer.monitoring_state === 'timeout_5min' && timeDiffMinutes >= 5) {
       const isReachable = await this.pingIPAddress(customer.static_ip);
-      
+
       if (isReachable) {
         // IP pulih - reset ke normal
         console.log(`✅ IP ${customer.static_ip} RESTORED at 5-minute check for ${customer.name}`);
         await this.updateCustomerMonitoringState(customer.id, 'normal', null, false, false);
-        
+
         if (customer.phone) {
           await this.whatsappService.sendMessage(
             customer.phone,
@@ -275,7 +272,7 @@ Balas:
         // Masih timeout - lanjut ke timeout 10 menit
         console.log(`⏳ IP ${customer.static_ip} still TIMEOUT at 5-minute check for ${customer.name}, moving to 10-minute check`);
         await this.updateCustomerMonitoringState(customer.id, 'timeout_10min', customer.ping_timeout_started_at, false, false);
-        
+
         if (customer.phone) {
           await this.whatsappService.sendMessage(
             customer.phone,
@@ -285,16 +282,16 @@ Balas:
       }
       return;
     }
-    
+
     // Timeout 10 menit: Ping ulang kedua
     if (customer.monitoring_state === 'timeout_10min' && timeDiffMinutes >= 10) {
       const isReachable = await this.pingIPAddress(customer.static_ip);
-      
+
       if (isReachable) {
         // IP pulih - reset ke normal
         console.log(`✅ IP ${customer.static_ip} RESTORED at 10-minute check for ${customer.name}`);
         await this.updateCustomerMonitoringState(customer.id, 'normal', null, false, false);
-        
+
         if (customer.phone) {
           await this.whatsappService.sendMessage(
             customer.phone,
@@ -305,13 +302,13 @@ Balas:
         // Masih timeout - lanjut ke konfirmasi 12 menit
         console.log(`⏳ IP ${customer.static_ip} still TIMEOUT at 10-minute check for ${customer.name}, moving to confirmation at 12 minutes`);
         await this.updateCustomerMonitoringState(customer.id, 'awaiting_confirmation_12min', customer.ping_timeout_started_at, true, false);
-        
+
         // Kirim konfirmasi ke pelanggan
         await this.sendCustomerConfirmationRequest(customer);
       }
       return;
     }
-    
+
     // Menunggu konfirmasi pelanggan di menit 12
     if (customer.monitoring_state === 'awaiting_confirmation_12min' && timeDiffMinutes >= 12) {
       // Cek apakah sudah ada respons dari pelanggan
@@ -321,7 +318,7 @@ Balas:
         await this.updateCustomerMonitoringState(customer.id, 'normal', null, false, false);
         return;
       }
-      
+
       // Jika belum ada respons, lanjut ke pembuatan tiket di menit 15
       if (timeDiffMinutes >= 15) {
         console.log(`🎫 Creating AUTOMATIC TICKET for ${customer.name} - no customer response after 15 minutes`);
@@ -329,7 +326,7 @@ Balas:
           customer,
           `IP static prepaid pelanggan tidak merespon ping selama 15 menit dan tidak ada konfirmasi gangguan dari pelanggan. IP: ${customer.static_ip}, Area: ${customer.area}`
         );
-        
+
         if (ticketId) {
           await this.updateCustomerMonitoringState(customer.id, 'ticket_created', customer.ping_timeout_started_at, false, false);
         }

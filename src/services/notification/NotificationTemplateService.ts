@@ -222,4 +222,26 @@ export class NotificationTemplateService {
       day: 'numeric'
     });
   }
+
+  /**
+   * Format notification message for anomalies
+   */
+  formatNotificationMessage(
+    connectionType: string,
+    severity: string,
+    isMassOutage: boolean | undefined,
+    variables: Record<string, any>
+  ): string {
+    let template = '';
+    if (isMassOutage) {
+      template = "⚠️ *GANGGUAN MASSAL*\nTerdeteksi gangguan jaringan di area *{location}*.\n{affectedCustomers} pelanggan terdampak.\nTeknisi sedang menindaklanjuti.";
+    } else if (severity === 'critical' || severity === 'high') {
+      template = "🚨 *ALERT JARINGAN*\nTerdeteksi gangguan pada koneksi {connectionType} Anda ({ipAddress}).\nMohon jangan restart perangkat selama 5 menit.";
+    } else {
+      // default
+      template = "⚠️ *INFO JARINGAN*\nTerdeteksi gangguan sesaat pada koneksi {connectionType} Anda.\nSistem sedang memonitor stabilitas koneksi.";
+    }
+
+    return NotificationTemplateService.replaceVariables(template, variables);
+  }
 }

@@ -377,7 +377,7 @@ export class NotificationTemplateController {
         customer_id: parseInt(customer_id),
         notification_type: template.notification_type as any,
         variables: variables || {},
-        channels: [template.channel]
+        channels: [template.channel as any]
       });
 
       res.json({

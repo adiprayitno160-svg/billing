@@ -71,6 +71,7 @@
     "pdfkit": "^0.15.0",
     "ping": "^0.4.4",
     "pino": "^10.2.0",
+    "puppeteer": "^24.35.0",
     "qrcode": "^1.5.3",
     "qrcode-terminal": "^0.12.0",
     "routeros-api": "^1.0.2",
@@ -79,6 +80,7 @@
     "ssh2": "^1.11.0",
     "tesseract.js": "^6.0.1",
     "tripay-nodejs": "^1.0.0",
+    "winston": "^3.19.0",
     "ws": "^8.18.3",
     "xendit-node": "^3.0.0",
     "xlsx": "^0.18.5"
@@ -92,6 +94,7 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.9.1",
     "@types/node-cron": "^3.0.11",
+    "@types/node-telegram-bot-api": "^0.64.13",
     "@types/qrcode": "^1.5.5",
     "@types/ssh2": "^1.11.0",
     "autoprefixer": "^10.4.20",

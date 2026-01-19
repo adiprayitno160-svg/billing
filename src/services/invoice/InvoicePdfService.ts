@@ -24,6 +24,6 @@ export class InvoicePdfService {
         await browser.close();
 
         logger.info(`✅ PDF (A4) generated for invoice ${invoiceId}`);
-        return pdfBuffer;
+        return Buffer.from(pdfBuffer);
     }
 }

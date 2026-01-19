@@ -28,6 +28,8 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/controllers/ftth/ontController.ts"
+    "src/controllers/ftth/ontController.ts",
+    "src/controllers/customers/PPPoEController.ts",
+    "src/scripts/run-maintenance-migration.ts"
   ]
 }

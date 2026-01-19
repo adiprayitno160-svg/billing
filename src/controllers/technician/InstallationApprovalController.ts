@@ -109,7 +109,8 @@ export class InstallationApprovalController {
             `, [jobId]);
 
             if (jobs.length === 0) {
-                return res.status(404).json({ success: false, error: 'Job not found' });
+                res.status(404).json({ success: false, error: 'Job not found' });
+                return;
             }
 
             // Get existing assignments
@@ -231,7 +232,8 @@ BCA: 123456789 (A/N ISP BILLING)
 Setelah transfer, kirimkan foto bukti pembayaran di sini. Internet akan otomatis aktif segera setelah pembayaran diverifikasi.
 `.trim();
 
-                await WhatsAppClient.sendMessage(regData.phone, message);
+                const waClient = WhatsAppClient.getInstance();
+                await waClient.sendMessage(regData.phone, message);
             } catch (err) {
                 console.error('Failed to send activation notification:', err);
             }

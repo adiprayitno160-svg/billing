@@ -1,664 +1,620 @@
-<%# Removed duplicate header include to avoid double header %>
+<div class="space-y-8 animate-fadeIn">
+    <!-- Premium Header Section -->
+    <div
+        class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-3xl p-8 text-white shadow-2xl border border-white/10">
+        <!-- Decorative background elements -->
+        <div class="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-blue-500/20 blur-[100px] rounded-full"></div>
+        <div class="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-indigo-500/20 blur-[100px] rounded-full"></div>
 
-    <div class="space-y-6">
-        <!-- Actions Row (Compact) -->
-        <div class="flex items-center justify-end gap-3 mb-2">
-            <button type="button" onclick="showAddJobModal()"
-                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold shadow-md hover:shadow-lg">
-                <i class="fas fa-plus-circle mr-2"></i> Tambah Pekerjaan
-            </button>
-            <span
-                class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                Status: Available
-            </span>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <div class="text-xs text-gray-500 font-medium uppercase">Pending Jobs</div>
-                <div class="text-2xl font-bold text-orange-600 mt-1">
-                    <%= stats.pending || 0 %>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <div class="text-xs text-gray-500 font-medium uppercase">In Progress</div>
-                <div class="text-2xl font-bold text-blue-600 mt-1">
-                    <%= stats.in_progress || 0 %>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <div class="text-xs text-gray-500 font-medium uppercase">Completed Today</div>
-                <div class="text-2xl font-bold text-green-600 mt-1">
-                    <%= stats.completed_today || 0 %>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <div class="text-xs text-gray-500 font-medium uppercase">Total Jobs</div>
-                <div class="text-2xl font-bold text-gray-900 mt-1">
-                    <%= stats.total_jobs || 0 %>
-                </div>
-            </div>
-            <!-- Wallet / Fee Stats -->
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative overflow-hidden">
-                <div class="absolute right-0 top-0 p-2 opacity-10"><i class="fas fa-wallet fa-3x text-red-600"></i>
-                </div>
-                <div class="text-xs text-gray-500 font-medium uppercase">Titipan Tunai</div>
-                <div class="text-xl font-bold text-red-600 mt-1">
-                    <%= Number(stats.wallet_balance || 0).toLocaleString('id-ID') %>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative overflow-hidden">
-                <div class="absolute right-0 top-0 p-2 opacity-10"><i
-                        class="fas fa-money-bill-wave fa-3x text-green-600"></i></div>
-                <div class="text-xs text-gray-500 font-medium uppercase">Est. Fee (Bulan Ini)</div>
-                <div class="text-xl font-bold text-green-600 mt-1">
-                    <%= Number(stats.monthly_fees || 0).toLocaleString('id-ID') %>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            <!-- Job List -->
-            <div class="lg:col-span-2 space-y-4">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="p-4 border-b border-gray-50 flex justify-between items-center">
-                        <h2 class="font-bold text-gray-900">Daftar Pekerjaan</h2>
-                        <div class="flex gap-2">
-                            <select id="statusFilter" class="text-xs border-gray-200 rounded-lg">
-                                <option value="">Semua Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="in_progress">Sedang Dikerjakan</option>
-                                <option value="completed">Selesai</option>
-                            </select>
-                            <button onclick="refreshJobs()" class="p-2 text-gray-500 hover:text-gray-700">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
+        <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="space-y-2">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-12 h-12 bg-blue-500/30 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
+                        <i class="fas fa-user-gear text-2xl text-blue-400"></i>
                     </div>
-                    <div class="overflow-y-auto max-h-[600px]" id="jobListContainer">
-                        <!-- Loaded via AJAX -->
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                            <p>Memuat data...</p>
-                        </div>
+                    <div>
+                        <h2 class="text-3xl font-extrabold tracking-tight">Halo, <%= user?.full_name || user?.username
+                                || 'Teknisi' %>!</h2>
+                        <p class="text-blue-200/80 font-medium">Dashboard Management Pekerjaan Lapangan</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Map & Details Panel -->
-            <div class="space-y-4">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <h3 class="font-bold text-gray-900 mb-3">Peta Lokasi</h3>
-                    <div id="jobMap" class="h-64 bg-gray-100 rounded-lg w-full z-0"></div>
-                    <div id="locationDetails" class="mt-3 text-sm text-gray-600 hidden">
-                        <p class="font-semibold text-gray-900" id="mapCustomerName"></p>
-                        <p id="mapAddress"></p>
-                        <a href="#" id="gmapLink" target="_blank"
-                            class="text-blue-600 hover:underline mt-1 inline-block">
-                            <i class="fas fa-external-link-alt mr-1"></i> Buka Google Maps
-                        </a>
+            <div class="flex items-center gap-4">
+                <button type="button" onclick="showAddJobModal()"
+                    class="group relative px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl transition-all duration-300 shadow-lg shadow-blue-900/40 hover:shadow-blue-500/40 flex items-center gap-3 font-bold active:scale-95">
+                    <div
+                        class="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center group-hover:rotate-90 transition-transform">
+                        <i class="fas fa-plus"></i>
                     </div>
-                </div>
-
-                <!-- Validation Panel (Hidden by default) -->
-                <div id="validationPanel" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hidden">
-                    <h3 class="font-bold text-gray-900 mb-3">Penyelesaian Pekerjaan</h3>
-                    <form id="completionForm" class="space-y-3">
-                        <input type="hidden" id="completeJobId">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Catatan Penyelesaian</label>
-                            <textarea id="completionNotes" rows="3" class="w-full text-sm border-gray-300 rounded-lg"
-                                required></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Bukti Foto
-                                (Wajib/Opsional)</label>
-                            <input type="file" id="completionProof" accept="image/*"
-                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        </div>
-                        <button type="submit"
-                            class="w-full py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700">
-                            Selesaikan Pekerjaan
-                        </button>
-                    </form>
+                    <span>Tambah Pekerjaan</span>
+                </button>
+                <div
+                    class="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center gap-2">
+                    <span
+                        class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></span>
+                    <span class="text-sm font-bold uppercase tracking-wider">Online</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Job Card Template -->
-    <template id="jobCardTemplate">
-        <div class="job-card p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors">
-            <div class="flex justify-between items-start mb-2">
-                <div>
-                    <span class="job-ticket text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded"></span>
-                    <span class="job-priority ml-2 text-xs font-semibold px-2 py-0.5 rounded-full"></span>
+    <!-- Smart Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Stat Card: Pending -->
+        <div
+            class="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                    <i class="fas fa-clock text-xl"></i>
                 </div>
-                <span class="job-time text-xs text-gray-400"></span>
+                <span
+                    class="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase tracking-tighter">Waiting</span>
             </div>
-            <h3 class="job-title font-bold text-gray-900 text-lg mb-1"></h3>
-            <p class="job-desc text-sm text-gray-600 mb-3"></p>
-
-            <div class="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                <span class="flex items-center gap-1 job-customer">
-                    <i class="fas fa-user"></i> <span></span>
-                </span>
-                <span class="flex items-center gap-1 job-area">
-                    <i class="fas fa-map-marker-alt"></i> <span></span>
-                </span>
+            <div class="text-4xl font-black text-slate-800 tracking-tighter">
+                <%= stats.pending || 0 %>
             </div>
-
-            <div class="job-actions flex gap-2">
-                <!-- Buttons injected via JS -->
+            <div class="text-slate-500 text-sm font-semibold mt-1">Pekerjaan Tertunda</div>
+            <div class="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-orange-500 w-1/3 rounded-full"></div>
             </div>
         </div>
-    </template>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-
-
-
-    <!-- Add Job Modal -->
-    <div id="addJobModal" class="hidden"
-        style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; width: 100vw !important; height: 100vh !important;">
-        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);"
-            onclick="hideAddJobModal()"></div>
+        <!-- Stat Card: In Progress -->
         <div
-            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; max-width: 28rem; background: white; border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); padding: 1.5rem;">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-900">Buat Pekerjaan Baru</h2>
-                <button onclick="hideAddJobModal()" class="text-gray-400 hover:text-gray-600"><i
-                        class="fas fa-times"></i></button>
-            </div>
-            <form id="addJobForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Judul Pekerjaan</label>
-                    <input type="text" name="title" required placeholder="Contoh: Perbaikan Kabel Putus"
-                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            class="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                    <i class="fas fa-spinner fa-spin text-xl"></i>
                 </div>
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="block text-sm font-medium text-gray-700">Jenis Pekerjaan</label>
-                        <a href="/settings/job-types" target="_blank"
-                            class="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                            <i class="fas fa-cog mr-1"></i> Kelola / Tambah Baru
-                        </a>
+                <span
+                    class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 uppercase tracking-tighter">Active</span>
+            </div>
+            <div class="text-4xl font-black text-slate-800 tracking-tighter">
+                <%= stats.in_progress || 0 %>
+            </div>
+            <div class="text-slate-500 text-sm font-semibold mt-1">Sedang Dikerjakan</div>
+            <div class="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500 w-1/2 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Stat Card: Completed -->
+        <div
+            class="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                    <i class="fas fa-check-double text-xl"></i>
+                </div>
+                <span
+                    class="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100 uppercase tracking-tighter">Done</span>
+            </div>
+            <div class="text-4xl font-black text-slate-800 tracking-tighter">
+                <%= stats.completed_today || 0 %>
+            </div>
+            <div class="text-slate-500 text-sm font-semibold mt-1">Selesai Hari Ini</div>
+            <div class="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-green-500 w-full rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Stat Card: Wallet/Balance -->
+        <div
+            class="group bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 shadow-lg shadow-indigo-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+                    <i class="fas fa-wallet text-xl"></i>
+                </div>
+                <span
+                    class="text-xs font-bold text-white bg-white/20 px-3 py-1 rounded-full border border-white/30 uppercase tracking-tighter">Balance</span>
+            </div>
+            <div class="text-2xl font-black tracking-tighter mb-1">Rp <%= Number(stats.wallet_balance ||
+                    0).toLocaleString('id-ID') %>
+            </div>
+            <div class="text-indigo-100/80 text-sm font-medium">Titipan Tunai (Belum Setor)</div>
+            <div class="mt-4 flex items-center gap-2 text-xs font-bold text-indigo-100">
+                <i class="fas fa-circle-info"></i>
+                <span>Harap hubungi kasir untuk penyetoran</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Jobs Feed -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-list-ul text-blue-600"></i>
+                        Daftar Pekerjaan Lapangan
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="refreshJobs()"
+                            class="p-2 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors text-slate-600">
+                            <i class="fas fa-rotate" id="refresh-icon"></i>
+                        </button>
                     </div>
-                    <select name="job_type_id" id="jobTypeSelect"
-                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                        onchange="updateFee()">
-                        <option value="">-- Manual / Lainnya --</option>
-                        <% if (locals.jobTypes) { %>
-                            <% jobTypes.forEach(function(type) { %>
-                                <option value="<%= type.id %>" data-fee="<%= type.base_fee %>">
-                                    <%= type.name %> (Rp <%= Number(type.base_fee).toLocaleString('id-ID') %>)
-                                </option>
-                                <% }); %>
-                                    <% } %>
+                </div>
+
+                <div id="jobs-container" class="divide-y divide-slate-100 min-h-[400px]">
+                    <!-- Skeleton Loader -->
+                    <div class="p-8 text-center" id="jobs-loading">
+                        <div
+                            class="inline-block animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full mb-4">
+                        </div>
+                        <p class="text-slate-500 font-medium tracking-tight">Memuat data pekerjaan...</p>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                    <span class="text-sm text-slate-500 font-medium" id="jobs-count">Menampilkan 0 pekerjaan</span>
+                    <a href="/technician/history"
+                        class="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
+                        Lihat Semua Riwayat
+                        <i class="fas fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar / Tools -->
+        <div class="space-y-6">
+            <!-- Job Map Section (Quick View) -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-location-dot text-red-500"></i>
+                    Lokasi Pekerjaan
+                </h3>
+                <div id="quick-map"
+                    class="h-64 rounded-2xl bg-slate-100 border border-slate-200 mb-4 overflow-hidden z-10"></div>
+                <p class="text-xs text-slate-500 italic text-center font-medium">Klik marker untuk melihat detail lokasi
+                    pelanggan</p>
+            </div>
+
+            <!-- Attendance Card -->
+            <div
+                class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-lg shadow-emerald-200 text-white">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shadow-inner">
+                        <i class="fas fa-id-badge text-3xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg leading-tight text-white">Kehadiran Harian</h4>
+                        <p class="text-emerald-100/80 text-xs font-medium uppercase tracking-widest mt-0.5">Attendance
+                            System</p>
+                    </div>
+                </div>
+
+                <button onclick="handleCheckIn()" id="btn-checkin"
+                    class="w-full py-4 bg-white text-emerald-600 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:shadow-white/20 hover:scale-[1.02] active:scale-95 transition-all duration-300">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    Check-In Sekarang
+                </button>
+
+                <p class="mt-4 text-xs text-center text-emerald-100/70 font-medium">Jangan lupa check-in sebelum memulai
+                    pekerjaan!</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JOB MODALS & HIDDEN ELEMENTS -->
+<div id="addJobModal"
+    class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+    <div
+        class="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 animate-zoomIn transform transition-all">
+        <div class="px-8 py-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 tracking-tight">Tambah Pekerjaan Baru</h3>
+                <p class="text-sm text-slate-500 font-medium">Input data pekerjaan teknisi di lapangan</p>
+            </div>
+            <button onclick="closeAddJobModal()"
+                class="w-10 h-10 rounded-xl hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="addJobForm" class="p-8 space-y-5">
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nama / ID
+                    Pelanggan</label>
+                <div class="relative">
+                    <input type="text" id="customerSearch" placeholder="Cari pelanggan..."
+                        class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <div id="customerResults"
+                        class="absolute z-[1001] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                    </div>
+                </div>
+                <input type="hidden" id="selectedCustomerId" name="customer_id">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Jenis
+                        Pekerjaan</label>
+                    <select name="job_type_id"
+                        class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium appearance-none">
+                        <% jobTypes.forEach(type=> { %>
+                            <option value="<%= type.id %>">
+                                <%= type.name %>
+                            </option>
+                            <% }) %>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Fee Teknisi (Rp)</label>
-                    <input type="number" name="fee" id="jobFeeInput"
-                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="0">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Prioritas</label>
+                    <select name="priority"
+                        class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium appearance-none">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Cari Pelanggan (Opsional)</label>
-                    <div class="relative">
-                        <input type="text" id="customerSearch" placeholder="Ketik nama atau No HP..."
-                            class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        <input type="hidden" name="customer_id" id="selectedCustomerId">
-                        <div id="customerResults"
-                            class="absolute z-10 w-full bg-white border border-gray-100 rounded-lg shadow-xl mt-1 hidden max-h-48 overflow-y-auto">
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Alamat / Lokasi</label>
-                    <textarea name="address" rows="2" id="jobAddress"
-                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Alamat lengkap atau koordinat..."></textarea>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Prioritas</label>
-                        <select name="priority" class="w-full border-gray-300 rounded-lg">
-                            <option value="low">Rendah</option>
-                            <option value="medium" selected>Normal</option>
-                            <option value="high">Tinggi</option>
-                            <option value="critical">Kritis</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Koordinat (Lat,Lng)</label>
-                        <div class="flex gap-2">
-                            <input type="text" name="coordinates" id="jobCoords" placeholder="-6.123, 106.123"
-                                class="w-full text-xs border-gray-300 rounded-lg">
-                            <button type="button" onclick="getCurrentLocation()"
-                                class="p-2 bg-gray-100 rounded-lg text-blue-600 hover:bg-gray-200">
-                                <i class="fas fa-location-arrow"></i>
-                            </button>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Peta Titik Lokasi</label>
-                            <div id="addJobMap" class="h-48 w-full bg-gray-100 rounded-lg border border-gray-300 mb-2">
-                            </div>
-                            <p class="text-xs text-gray-500 mb-2">* Klik pada peta untuk menandai lokasi</p>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
-                        <textarea name="description" rows="3"
-                            class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Detail kendala yang dialami..."></textarea>
-                    </div>
-                    <div class="flex gap-3 pt-2">
-                        <button type="button" onclick="hideAddJobModal()"
-                            class="flex-1 py-2 text-gray-600 font-bold hover:bg-gray-50 rounded-lg">Batal</button>
-                        <button type="submit"
-                            class="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md">Simpan</button>
-                    </div>
-            </form>
-        </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Deskripsi / Judul</label>
+                <textarea name="title" rows="2" placeholder="Masukan judul atau deskripsi singkat..."
+                    class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium resize-none"></textarea>
+            </div>
+
+            <button type="submit"
+                class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 active:scale-[0.98] transition-all">
+                Simpan Pekerjaan
+            </button>
+        </form>
     </div>
+</div>
 
-    <!-- CRITICAL: Define modal functions BEFORE footer loads -->
-    <script>
-        // Define these functions globally IMMEDIATELY so onclick handlers work
-        let addJobMapInstance = null;
-        let addJobMarker = null;
+<!-- Scripts for the dashboard -->
+<script>
+    let map, jobMarkers = [];
 
-        function initAddJobMap() {
-            if (addJobMapInstance) {
-                setTimeout(() => {
-                    addJobMapInstance.invalidateSize();
-                }, 200);
+    document.addEventListener('DOMContentLoaded', () => {
+        initMap();
+        refreshJobs();
+        setupSearch();
+    });
+
+    function initMap() {
+        if (!document.getElementById('quick-map')) return;
+
+        map = L.map('quick-map').setView([-7.0, 110.0], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+    }
+
+    async function refreshJobs() {
+        const container = document.getElementById('jobs-container');
+        const icon = document.getElementById('refresh-icon');
+
+        icon.classList.add('fa-spin');
+
+        try {
+            const res = await fetch('/technician/jobs?limit=20');
+            const result = await res.json();
+
+            if (result.success) {
+                renderJobs(result.data);
+                updateMapMarkers(result.data);
+                document.getElementById('jobs-count').textContent = `Menampilkan ${result.data.length} pekerjaan`;
+            }
+        } catch (error) {
+            console.error('Error fetching jobs:', error);
+        } finally {
+            icon.classList.remove('fa-spin');
+            const loading = document.getElementById('jobs-loading');
+            if (loading) loading.style.display = 'none';
+        }
+    }
+
+    function renderJobs(jobs) {
+        const container = document.getElementById('jobs-container');
+
+        if (jobs.length === 0) {
+            container.innerHTML = `
+                <div class="p-12 text-center">
+                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-clipboard-list text-3xl text-slate-300"></i>
+                    </div>
+                    <p class="text-slate-500 font-bold">Belum ada pekerjaan yang tersedia</p>
+                    <p class="text-slate-400 text-sm">Pekerjaan akan muncul jika ada tiket baru</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = jobs.map(job => {
+            const statusColors = {
+                'pending': 'bg-orange-100 text-orange-700 border-orange-200',
+                'accepted': 'bg-blue-100 text-blue-700 border-blue-200',
+                'in_progress': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                'completed': 'bg-green-100 text-green-700 border-green-200',
+                'cancelled': 'bg-red-100 text-red-700 border-red-200'
+            };
+
+            const priorityColors = {
+                'low': 'text-gray-400',
+                'medium': 'text-blue-400',
+                'high': 'text-orange-400',
+                'critical': 'text-red-500'
+            };
+
+            return `
+                <div class="group p-6 hover:bg-slate-50 transition-colors flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-ticket text-slate-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">${job.ticket_number}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full border font-black uppercase tracking-widest ${statusColors[job.status]}">${job.status}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800 truncate mb-1">${job.title}</h4>
+                        <p class="text-sm text-slate-500 font-medium line-clamp-1">${job.customer_name || 'Generic Service'} • ${job.address || 'No location'}</p>
+                        
+                        <div class="flex items-center gap-4 mt-3">
+                            <div class="flex items-center gap-1.5">
+                                <i class="fas fa-circle text-[8px] ${priorityColors[job.priority]}"></i>
+                                <span class="text-xs font-bold text-slate-400 capitalize">${job.priority} Priority</span>
+                            </div>
+                            <span class="text-[10px] text-slate-300">|</span>
+                            <div class="flex items-center gap-1.5 text-slate-400">
+                                <i class="far fa-calendar text-[10px]"></i>
+                                <span class="text-xs font-semibold">${new Date(job.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 flex gap-2">
+                        ${job.status === 'pending' ? `
+                            <button onclick="updateJobStatus(${job.id}, 'accepted')" class="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-90">
+                                <i class="fas fa-handshake"></i>
+                            </button>
+                        ` : ''}
+                        ${job.status === 'accepted' || job.status === 'in_progress' ? `
+                            <button onclick="showCompleteModal(${job.id})" class="p-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all active:scale-90">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="viewJobDetail(${job.id})" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all active:scale-90">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateMapMarkers(jobs) {
+        jobMarkers.forEach(m => map.removeLayer(m));
+        jobMarkers = [];
+
+        const points = [];
+        jobs.forEach(job => {
+            if (job.coordinates) {
+                const parts = job.coordinates.split(',');
+                if (parts.length === 2) {
+                    const lat = parseFloat(parts[0]);
+                    const lng = parseFloat(parts[1]);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const m = L.marker([lat, lng]).addTo(map)
+                            .bindPopup(`<b>${job.ticket_number}</b><br>${job.customer_name || 'Job Location'}<br>${job.title}`);
+                        jobMarkers.push(m);
+                        points.push([lat, lng]);
+                    }
+                }
+            }
+        });
+
+        if (points.length > 0) {
+            map.fitBounds(L.latLngBounds(points), { padding: [30, 30] });
+        }
+    }
+
+    // Modal Helpers
+    function showAddJobModal() {
+        document.getElementById('addJobModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAddJobModal() {
+        document.getElementById('addJobModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    async function handleCheckIn() {
+        const btn = document.getElementById('btn-checkin');
+        const originalText = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+
+        try {
+            const res = await fetch('/technician/attendance/check-in', { method: 'POST' });
+            const result = await res.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: result.message,
+                    background: '#ffffff',
+                    confirmButtonColor: '#10b981'
+                });
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Checked In Today';
+                btn.className = btn.className.replace('from-emerald-500 to-teal-600', 'from-slate-400 to-slate-500').replace('bg-white', 'bg-emerald-100');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: result.error || 'Gagal check-in',
+                });
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Check-in error:', error);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Search Autocomplete
+    function setupSearch() {
+        const input = document.getElementById('customerSearch');
+        const results = document.getElementById('customerResults');
+        let timeout;
+
+        input.addEventListener('input', () => {
+            clearTimeout(timeout);
+            const query = input.value;
+            if (query.length < 2) {
+                results.classList.add('hidden');
                 return;
             }
 
-            // Default center Jakarta or current location if available
-            addJobMapInstance = L.map('addJobMap').setView([-6.200000, 106.816666], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(addJobMapInstance);
+            timeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/technician/customers/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
 
-            addJobMapInstance.on('click', function (e) {
-                const { lat, lng } = e.latlng;
-                document.getElementById('jobCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-
-                if (addJobMarker) {
-                    addJobMarker.setLatLng(e.latlng);
-                } else {
-                    addJobMarker = L.marker(e.latlng).addTo(addJobMapInstance);
+                    if (data.success && data.data.length > 0) {
+                        results.innerHTML = data.data.map(c => `
+                            <div onclick="selectCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}')" 
+                                class="px-5 py-4 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
+                                <div class="font-bold text-slate-800">${c.name}</div>
+                                <div class="text-xs text-slate-500 font-medium">${c.pppoe_username || c.static_ip || 'No connection ID'} • ${c.address || ''}</div>
+                            </div>
+                        `).join('');
+                        results.classList.remove('hidden');
+                    } else {
+                        results.innerHTML = '<div class="p-5 text-center text-slate-500 text-sm italic font-medium">Pelanggan tidak ditemukan</div>';
+                        results.classList.remove('hidden');
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
+            }, 300);
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !results.contains(e.target)) {
+                results.classList.add('hidden');
+            }
+        });
+    }
+
+    function selectCustomer(id, name) {
+        document.getElementById('selectedCustomerId').value = id;
+        document.getElementById('customerSearch').value = name;
+        document.getElementById('customerResults').classList.add('hidden');
+    }
+
+    // Form Handling
+    document.getElementById('addJobForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await fetch('/technician/jobs/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
+            const result = await res.json();
 
-            // Try to get current location for initial center
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function (pos) {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    addJobMapInstance.setView([lat, lng], 15);
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Tersimpan!',
+                    text: 'Pekerjaan berhasil ditambahkan ke daftar.',
+                    timer: 2000
                 });
-            }
-        }
-
-        function showAddJobModal() {
-            console.log('[TechDashboard] showAddJobModal called');
-            var modal = document.getElementById('addJobModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.style.display = 'block';
-                console.log('[TechDashboard] Modal shown');
-                // Init map after modal is visible
-                setTimeout(initAddJobMap, 100);
+                closeAddJobModal();
+                e.target.reset();
+                refreshJobs();
             } else {
-                console.error('[TechDashboard] Modal element not found!');
-                alert('Error: Modal tidak ditemukan');
+                Swal.fire({ icon: 'error', title: 'Gagal', text: result.error });
             }
+        } catch (err) {
+            console.error(err);
         }
+    });
 
-        function hideAddJobModal() {
-            console.log('[TechDashboard] hideAddJobModal called');
-            var modal = document.getElementById('addJobModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
-                var form = document.getElementById('addJobForm');
-                if (form) form.reset();
-                var custId = document.getElementById('selectedCustomerId');
-                if (custId) custId.value = '';
-
-                // Clear marker
-                if (addJobMarker && addJobMapInstance) {
-                    addJobMapInstance.removeLayer(addJobMarker);
-                    addJobMarker = null;
-                }
-            }
-        }
-
-        function refreshJobs() {
-            // Will be overwritten by main script, but define placeholder
-            console.log('[TechDashboard] refreshJobs placeholder called');
-        }
-
-        function updateFee() {
-            var select = document.getElementById('jobTypeSelect');
-            var feeInput = document.getElementById('jobFeeInput');
-            if (select && feeInput) {
-                var selectedOption = select.options[select.selectedIndex];
-                var fee = selectedOption.getAttribute('data-fee');
-                feeInput.value = fee || '';
-            }
-        }
-        window.updateFee = updateFee;
-
-        function getCurrentLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function (pos) {
-                    var coordsInput = document.getElementById('jobCoords');
-                    if (coordsInput) {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        coordsInput.value = lat + ', ' + lng;
-
-                        // Update map if exists
-                        if (addJobMapInstance) {
-                            addJobMapInstance.setView([lat, lng], 16);
-                            if (addJobMarker) {
-                                addJobMarker.setLatLng([lat, lng]);
-                            } else {
-                                addJobMarker = L.marker([lat, lng]).addTo(addJobMapInstance);
-                            }
-                        }
-                    }
-                }, function (err) {
-                    alert('Gagal mengambil lokasi. Pastikan izin lokasi aktif.');
+    async function updateJobStatus(id, status) {
+        try {
+            const res = await fetch('/technician/jobs/accept', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status })
+            });
+            const result = await res.json();
+            if (result.success) {
+                refreshJobs();
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
                 });
-            } else {
-                alert('Browser tidak mendukung Geolocation');
+                Toast.fire({ icon: 'success', title: 'Status diperbarui' });
             }
+        } catch (e) { console.error(e); }
+    }
+
+    function viewJobDetail(id) {
+        window.location.href = `/technician/jobs/${id}`;
+    }
+
+    function showCompleteModal(id) {
+        // Implementation for completion modal (upload proof, etc.)
+        window.location.href = `/technician/jobs/${id}`;
+    }
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
         }
 
-        // Make available on window
-        window.showAddJobModal = showAddJobModal;
-        window.hideAddJobModal = hideAddJobModal;
-        window.refreshJobs = refreshJobs;
-        window.getCurrentLocation = getCurrentLocation;
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 
-        console.log('[TechDashboard] Global functions defined');
-    </script>
+    .animate-fadeIn {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
 
-    <%- include('../partials/footer') %>
+    @keyframes zoomIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
 
-        <script>
-            (function () {
-                let map;
-                let markers = [];
-                const userId = <%= (locals.user && user.id) ? user.id : 'null' %>;
-                let searchTimeout;
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
 
-                // Initialize Everything
-                document.addEventListener('DOMContentLoaded', () => {
-                    // NOTE: Do NOT teleport modal to body - this breaks CSS positioning
-                    // The modal now uses inline !important styles to ensure correct display
+    .animate-zoomIn {
+        animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
 
-                    initMap();
-                    // Ensure functions are available globally if not already (safeguard)
-                    if (!window.showAddJobModal) {
-                        window.showAddJobModal = function () {
-                            const m = document.getElementById('addJobModal');
-                            if (m) { m.classList.remove('hidden'); m.style.display = 'block'; }
-                        }
-                    }
-                    if (!window.hideAddJobModal) {
-                        window.hideAddJobModal = function () {
-                            const m = document.getElementById('addJobModal');
-                            if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
-                        }
-                    }
-
-                    // Initial Load
-                    window.refreshJobs(); // Call the global one defined above which is a placeholder? 
-                    // Pivot: The global refreshJobs was a placeholder. We need to assign the REAL one to window.
-                    window.refreshJobs = refreshJobs;
-                    refreshJobs(); // Call it immediately
-
-                    const filter = document.getElementById('statusFilter');
-                    if (filter) filter.addEventListener('change', refreshJobs);
-
-                    const compForm = document.getElementById('completionForm');
-                    if (compForm) compForm.addEventListener('submit', handleCompletion);
-
-                    const addForm = document.getElementById('addJobForm');
-                    if (addForm) addForm.addEventListener('submit', handleAddJob);
-
-                    const custSearch = document.getElementById('customerSearch');
-                    if (custSearch) custSearch.addEventListener('input', handleCustomerSearch);
-                });
-
-                function initMap() {
-                    const mapEl = document.getElementById('jobMap');
-                    if (!mapEl) return;
-                    map = L.map('jobMap').setView([-6.2088, 106.8456], 10);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                }
-
-                async function refreshJobs() {
-                    const container = document.getElementById('jobListContainer');
-                    const status = document.getElementById('statusFilter').value;
-                    const template = document.getElementById('jobCardTemplate');
-                    if (!container || !template) return;
-
-                    try {
-                        const res = await fetch(`/api/technician/jobs?status=${status}`);
-                        const result = await res.json();
-                        // if (!result.success) throw new Error(result.error); 
-                        // Relax error checking slightly to prevent total crash
-
-                        container.innerHTML = '';
-                        markers.forEach(m => map.removeLayer(m));
-                        markers = [];
-
-                        if (!result.success || !result.data || result.data.length === 0) {
-                            container.innerHTML = '<div class="p-8 text-center text-gray-500">Tidak ada pekerjaan.</div>';
-                            return;
-                        }
-
-                        result.data.forEach(job => {
-                            const clone = template.content.cloneNode(true);
-                            clone.querySelector('.job-ticket').textContent = job.ticket_number;
-                            clone.querySelector('.job-title').textContent = job.title;
-                            clone.querySelector('.job-desc').textContent = job.description || '-';
-                            clone.querySelector('.job-customer span:last-child').textContent = job.customer_name || 'Umum';
-                            clone.querySelector('.job-area span:last-child').textContent = job.coordinates || 'No Coord';
-                            clone.querySelector('.job-time').textContent = new Date(job.created_at).toLocaleString('id-ID');
-
-                            const priorityEl = clone.querySelector('.job-priority');
-                            priorityEl.textContent = job.priority.toUpperCase();
-                            priorityEl.className = `job-priority ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${job.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                                job.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-                                }`;
-
-                            const actionsDiv = clone.querySelector('.job-actions');
-                            const detailBtn = document.createElement('a');
-                            detailBtn.href = `/technician/jobs/${job.id}`;
-                            detailBtn.className = 'px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded hover:bg-gray-200 flex items-center gap-1';
-                            detailBtn.innerHTML = '<i class="fas fa-eye"></i> Detail';
-                            actionsDiv.appendChild(detailBtn);
-
-                            if (job.status === 'pending') {
-                                const btn = document.createElement('button');
-                                btn.className = 'px-4 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700';
-                                btn.textContent = 'Ambil';
-                                btn.onclick = (e) => { e.preventDefault(); acceptJob(job.id); };
-                                actionsDiv.appendChild(btn);
-                                if (job.coordinates) addMarker(job, 'red');
-                            } else if (job.status === 'accepted' || job.status === 'in_progress') {
-                                if (job.technician_id === userId) {
-                                    const btn = document.createElement('button');
-                                    btn.className = 'px-4 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700';
-                                    btn.textContent = 'Selesaikan';
-                                    btn.onclick = (e) => { e.preventDefault(); showValidation(job); };
-                                    actionsDiv.appendChild(btn);
-                                } else {
-                                    const span = document.createElement('span');
-                                    span.className = 'text-[10px] text-gray-500 italic self-center';
-                                    span.textContent = `Oleh: ${job.technician_name}`;
-                                    actionsDiv.appendChild(span);
-                                }
-                                if (job.coordinates) addMarker(job, 'blue');
-                            } else if (job.status === 'completed') {
-                                const span = document.createElement('span');
-                                span.className = 'text-xs text-green-600 font-semibold self-center ml-auto';
-                                span.innerHTML = '<i class="fas fa-check-circle"></i> Selesai';
-                                actionsDiv.appendChild(span);
-                            }
-                            container.appendChild(clone);
-                        });
-
-                        if (markers.length > 0) {
-                            const group = new L.featureGroup(markers);
-                            try { map.fitBounds(group.getBounds().pad(0.1)); } catch (e) { }
-                        }
-                    } catch (error) {
-                        console.error(error);
-                        container.innerHTML = '<div class="p-4 text-red-500 text-center">Gagal memuat data.</div>';
-                    }
-                }
-
-                function addMarker(job, color) {
-                    if (!job.coordinates) return;
-                    const [lat, lng] = job.coordinates.split(',').map(c => parseFloat(c.trim()));
-                    if (isNaN(lat) || isNaN(lng)) return;
-                    const marker = L.circleMarker([lat, lng], { color, fillColor: color, fillOpacity: 0.5, radius: 8 }).addTo(map);
-                    marker.bindPopup(`<b>${job.ticket_number}</b><br>${job.title}<br><a href="/technician/jobs/${job.id}" class="text-blue-600 font-bold text-xs hover:underline mt-1 inline-block">Lihat Detail &rarr;</a>`);
-                    marker.on('click', () => showLocation(job));
-                    markers.push(marker);
-                }
-
-                async function acceptJob(id) {
-                    if (!confirm('Ambil pekerjaan ini?')) return;
-                    try {
-                        const res = await fetch('/api/technician/jobs/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-                        const result = await res.json();
-                        if (result.success) refreshJobs(); else alert(result.error);
-                    } catch (e) { alert('Error Connection'); }
-                }
-
-                function showValidation(job) {
-                    document.getElementById('validationPanel').classList.remove('hidden');
-                    document.getElementById('completeJobId').value = job.id;
-                    showLocation(job);
-                }
-
-                function showLocation(job) {
-                    const details = document.getElementById('locationDetails');
-                    if (!details) return;
-                    details.classList.remove('hidden');
-                    document.getElementById('mapCustomerName').textContent = job.customer_name || 'Umum';
-                    document.getElementById('mapAddress').textContent = job.address || job.coordinates || '-';
-                    if (job.coordinates) {
-                        const [lat, lng] = job.coordinates.split(',').map(c => c.trim());
-                        document.getElementById('gmapLink').href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-                        map.setView([lat, lng], 15);
-                    }
-                }
-
-                async function handleCompletion(e) {
-                    e.preventDefault();
-                    const id = document.getElementById('completeJobId').value;
-                    const notes = document.getElementById('completionNotes').value;
-                    const proof = document.getElementById('completionProof').files[0];
-                    const formData = new FormData();
-                    formData.append('id', id); formData.append('notes', notes);
-                    if (proof) formData.append('proof', proof);
-                    try {
-                        const res = await fetch('/api/technician/jobs/complete', { method: 'POST', body: formData });
-                        const result = await res.json();
-                        if (result.success) {
-                            document.getElementById('validationPanel').classList.add('hidden');
-                            document.getElementById('completionForm').reset();
-                            refreshJobs();
-                        } else alert(result.error);
-                    } catch (e) { alert('Error Connection'); }
-                }
-
-                function handleCustomerSearch(e) {
-                    clearTimeout(searchTimeout);
-                    const val = e.target.value;
-                    if (val.length < 2) {
-                        document.getElementById('customerResults').classList.add('hidden');
-                        return;
-                    }
-                    searchTimeout = setTimeout(async () => {
-                        const res = await fetch(`/api/technician/customers/search?q=${val}`);
-                        const result = await res.json();
-                        const container = document.getElementById('customerResults');
-                        container.innerHTML = '';
-                        if (result.success && result.data.length > 0) {
-                            result.data.forEach(c => {
-                                const div = document.createElement('div');
-                                div.className = 'p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50';
-                                div.innerHTML = `<div class="text-sm font-bold text-gray-900">${c.name}</div><div class="text-xs text-gray-500">${c.phone} - ${c.address || ''}</div>`;
-                                div.onclick = () => {
-                                    document.getElementById('customerSearch').value = c.name;
-                                    document.getElementById('selectedCustomerId').value = c.id;
-                                    document.getElementById('jobAddress').value = c.address || '';
-
-                                    // Auto-fill coordinates and update map if available
-                                    if (c.coordinates) {
-                                        document.getElementById('jobCoords').value = c.coordinates;
-                                        const [lat, lng] = c.coordinates.split(',').map(coord => parseFloat(coord.trim()));
-
-                                        if (!isNaN(lat) && !isNaN(lng) && addJobMapInstance) {
-                                            addJobMapInstance.setView([lat, lng], 16);
-
-                                            // Update or create marker
-                                            if (addJobMarker) {
-                                                addJobMarker.setLatLng([lat, lng]);
-                                            } else {
-                                                addJobMarker = L.marker([lat, lng]).addTo(addJobMapInstance);
-                                            }
-                                        }
-                                    }
-
-                                    container.classList.add('hidden');
-                                };
-                                container.appendChild(div);
-                            });
-                            container.classList.remove('hidden');
-                        }
-                    }, 300);
-                }
-
-                // Global Helper needs to be explicitly exposed if used by HTML onclick
-                window.getCurrentLocation = function () {
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition((pos) => {
-                            document.getElementById('jobCoords').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
-                        }, (err) => alert('Gagal mengambil lokasi. Pastikan izin lokasi aktif.'));
-                    }
-                }
-
-                async function handleAddJob(e) {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const data = Object.fromEntries(formData.entries());
-                    try {
-                        const res = await fetch('/api/technician/jobs/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-                        const result = await res.json();
-                        if (result.success) {
-                            window.hideAddJobModal(); // Global function usage
-                            refreshJobs();
-                            alert(result.message);
-                        } else alert(result.error);
-                    } catch (e) { alert('Gagal menyimpan pekerjaan'); }
-                }
-            })();
-        </script>
+    .line-clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>

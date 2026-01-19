@@ -98,27 +98,20 @@ export class SelfHealingNotificationService {
     try {
       // Get all static IP customers
       // Fix schema: active Static IP connections
-      // Since we don't have last_connection, we'll skip the query based detection for now.
-      console.log('[SelfHealing] Static IP anomaly check skipped: requires schema update for activity tracking.');
-      return;
-
-      /*
-      // PENDING SCHEMA UPDATE
       const query = `
         SELECT 
           c.id as customerId,
           c.name as customerName,
           c.phone as customerPhone,
-          sic.ip_address as ipAddress,
-          c.updated_at as lastActive,
+          COALESCE(sic.ip_address, c.ip_address) as ipAddress,
+          c.last_connection as lastActive,
           c.status as isActive,
           c.address as area
         FROM customers c
         LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
         WHERE c.connection_type = 'static_ip' AND c.status = 'active'
+          AND (c.last_connection IS NOT NULL OR c.ip_address IS NOT NULL)
       `;
-      */
-
 
       const [results] = await databasePool.query(query);
       const customers = results as any[];
@@ -129,10 +122,10 @@ export class SelfHealingNotificationService {
           customerId: customer.customerId,
           customerName: customer.customerName,
           customerPhone: customer.customerPhone,
-          ipAddress: customer.ipAddress,
+          ipAddress: customer.ipAddress || '0.0.0.0',
           connectionType: 'static_ip',
-          lastActive: new Date(customer.lastActive),
-          isActive: customer.isActive,
+          lastActive: new Date(customer.lastActive || Date.now()),
+          isActive: customer.isActive === 'active',
           area: customer.area
         };
 

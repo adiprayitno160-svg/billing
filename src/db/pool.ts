@@ -745,6 +745,48 @@ export async function ensureInitialSchema(): Promise<void> {
             INDEX idx_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
+		// Ensure technician-specific tables exist
+		await conn.query(`CREATE TABLE IF NOT EXISTS job_types (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(100) NOT NULL,
+			code VARCHAR(50) UNIQUE NOT NULL,
+			base_fee DECIMAL(12,2) DEFAULT 0,
+			description TEXT NULL,
+			is_active TINYINT(1) DEFAULT 1,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB`);
+
+		await conn.query(`CREATE TABLE IF NOT EXISTS technician_jobs (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			ticket_number VARCHAR(50) UNIQUE NOT NULL,
+			customer_id INT NULL,
+			job_type_id INT NULL,
+			technician_id INT NULL,
+			title VARCHAR(255) NOT NULL,
+			description TEXT,
+			priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+			status ENUM('pending', 'accepted', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
+			reported_by VARCHAR(50) DEFAULT 'system',
+			coordinates VARCHAR(100) NULL,
+			address TEXT NULL,
+			total_fee DECIMAL(12,2) DEFAULT 0,
+			collected_funds DECIMAL(12,2) DEFAULT 0,
+			is_remitted TINYINT(1) DEFAULT 0,
+			remitted_at TIMESTAMP NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			accepted_at TIMESTAMP NULL,
+			completed_at TIMESTAMP NULL,
+			completion_notes TEXT,
+			completion_proof VARCHAR(255) NULL,
+			INDEX idx_status (status),
+			INDEX idx_technician (technician_id),
+			INDEX idx_customer (customer_id),
+			CONSTRAINT fk_job_technician FOREIGN KEY (technician_id) REFERENCES users(id) ON DELETE SET NULL,
+			CONSTRAINT fk_job_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+			CONSTRAINT fk_job_type FOREIGN KEY (job_type_id) REFERENCES job_types(id) ON DELETE SET NULL
+		) ENGINE=InnoDB`);
+
 	} finally {
 		conn.release();
 	}

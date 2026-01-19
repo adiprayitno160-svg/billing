@@ -10,7 +10,7 @@ interface PrepaidCustomer {
   phone: string;
   pppoe_username: string;
   area: string;
-  location: string;
+  odc_location: string;
   last_connection_loss: Date | null;
   monitoring_state: 'initial' | 'minute_3_check' | 'minute_6_action' | 'ticket_created' | 'resolved';
   connection_loss_detected_at: Date | null;
@@ -34,7 +34,7 @@ export class SmartPPPoEMonitoringService {
         c.phone,
         c.pppoe_username,
         c.area,
-        c.location,
+        c.odc_location,
         c.last_connection_loss,
         c.monitoring_state,
         c.connection_loss_detected_at
@@ -126,32 +126,27 @@ export class SmartPPPoEMonitoringService {
    * Buat tiket otomatis untuk teknisi
    */
   async createAutomaticTicket(customer: PrepaidCustomer, issueDescription: string): Promise<number | null> {
+    const ticketNumber = `TKT-${Date.now()}`;
     const query = `
-      INSERT INTO technician_tickets (
+      INSERT INTO technician_jobs (
+        ticket_number,
         customer_id,
-        customer_name,
-        phone,
-        area,
-        location,
-        issue_description,
+        title,
+        description,
         priority,
         status,
-        created_at,
-        assigned_to,
-        source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NULL, ?)
+        reported_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     try {
       const [result]: any = await databasePool.query(query, [
+        ticketNumber,
         customer.id,
-        customer.name,
-        customer.phone,
-        customer.area,
-        customer.location,
+        `GANGGUAN: ${customer.name}`,
         issueDescription,
         'high', // Prioritas tinggi untuk koneksi hilang
-        'open',
+        'pending',
         'automatic_monitoring'
       ]);
 
@@ -252,11 +247,11 @@ export class SmartPPPoEMonitoringService {
 
     // Jika ini deteksi awal koneksi hilang
     if (!customer.connection_loss_detected_at) {
-      const isActive = await this.checkMikroTikActiveConnections(customer.username_pppoe);
+      const isActive = await this.checkMikroTikActiveConnections(customer.pppoe_username);
 
       if (!isActive) {
         // Koneksi hilang terdeteksi - mulai proses monitoring
-        console.log(`🔴 Connection loss detected for ${customer.name} (${customer.username_pppoe})`);
+        console.log(`🔴 Connection loss detected for ${customer.name} (${customer.pppoe_username})`);
 
         await this.updateCustomerMonitoringState(
           customer.id,
@@ -283,7 +278,7 @@ export class SmartPPPoEMonitoringService {
 
     // Menit 3: Cek apakah koneksi masih aktif di MikroTik
     if (customer.monitoring_state === 'minute_3_check' && timeDiffMinutes >= 3) {
-      const isActive = await this.checkMikroTikActiveConnections(customer.username_pppoe);
+      const isActive = await this.checkMikroTikActiveConnections(customer.pppoe_username);
 
       if (isActive) {
         // Koneksi aktif lagi - reset monitoring
@@ -306,12 +301,12 @@ export class SmartPPPoEMonitoringService {
 
     // Menit 6: Action akhir - reset paksa atau buat tiket
     if (customer.monitoring_state === 'minute_6_action' && timeDiffMinutes >= 6) {
-      const isActive = await this.checkMikroTikActiveConnections(customer.username_pppoe);
+      const isActive = await this.checkMikroTikActiveConnections(customer.pppoe_username);
 
       if (isActive) {
         // Ada koneksi aktif yang "macet" - reset paksa
         console.log(`🔄 Force resetting stuck connection for ${customer.name}`);
-        const resetSuccess = await this.forceResetPPPoEConnection(customer.username_pppoe);
+        const resetSuccess = await this.forceResetPPPoEConnection(customer.pppoe_username);
 
         if (resetSuccess) {
           await this.updateCustomerMonitoringState(customer.id, 'resolved');
@@ -329,7 +324,7 @@ export class SmartPPPoEMonitoringService {
         console.log(`🎫 Creating automatic ticket for ${customer.name} - genuine connection issue`);
         const ticketId = await this.createAutomaticTicket(
           customer,
-          `Koneksi PPPoE prepaid pelanggan hilang secara permanen. Username: ${customer.username_pppoe}, Area: ${customer.area}`
+          `Koneksi PPPoE prepaid pelanggan hilang secara permanen. Username: ${customer.pppoe_username}, Area: ${customer.area}`
         );
 
         if (ticketId) {

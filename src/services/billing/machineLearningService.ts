@@ -1,4 +1,5 @@
 import { databasePool } from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 
 export interface MLModel {
     id: number;

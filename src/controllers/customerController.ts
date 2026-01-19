@@ -1292,20 +1292,13 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         }
 
                         // Update Password in DB
-                        // Jika password baru diisi, update. Jika kosong, biarkan yang lama.
+                        // Jika password baru diisi, update.
                         if (pppoe_password && pppoe_password.trim() !== '') {
                             await conn.query(
                                 'UPDATE customers SET pppoe_password = ? WHERE id = ?',
-                                [passwordToUse, customerId]
+                                [pppoe_password, customerId]
                             );
                             console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database`);
-                        } else if (!oldPppoePassword && passwordToUse) {
-                            // Case: No old password, but we have a generated/fallback one to save
-                            await conn.query(
-                                'UPDATE customers SET pppoe_password = ? WHERE id = ?',
-                                [passwordToUse, customerId]
-                            );
-                            console.log(`[Edit Customer PPPoE] ✅ Password initial disimpan di database`);
                         }
 
                         /* 

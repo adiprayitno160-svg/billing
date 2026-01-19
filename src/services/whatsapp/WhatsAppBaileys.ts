@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, delay, WASocket, MessageRetryMap, MessageUpsertType, proto } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, delay, WASocket, MessageUpsertType, proto } from '@whiskeysockets/baileys';
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import path from 'path';
@@ -25,7 +25,7 @@ export class WhatsAppBaileys {
         return WhatsAppBaileys.instance;
     }
 
-    public get client() {
+    public get client(): any {
         return this.socket;
     }
 
@@ -146,6 +146,16 @@ export class WhatsAppBaileys {
             initializing: this.isInitializing,
             hasQRCode: !!this.lastQR,
         };
+    }
+
+    /** Static wrapper for sendMessage */
+    public static async sendMessage(to: string, content: string | any): Promise<any> {
+        return WhatsAppBaileys.getInstance().sendMessage(to, content);
+    }
+
+    /** Static wrapper for sendImage */
+    public static async sendImage(to: string, imagePath: string, caption?: string): Promise<void> {
+        return WhatsAppBaileys.getInstance().sendImage(to, imagePath, caption);
     }
 
     private formatJid(number: string): string {

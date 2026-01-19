@@ -197,6 +197,12 @@ const upload = multer({
     }
 });
 
+// Registered early to avoid issues with complex middleware
+router.use('/', authRoutes);
+router.get('/technician', (req, res) => res.redirect('/technician/'));
+router.use('/technician', technicianRoutes);
+router.use('/api/technician', technicianRoutes);
+
 // NOTIFICATION ROUTES - Mount notification page router
 // Mount notification page router at /notification BEFORE middleware
 router.use('/notification', notificationPageRouter);
@@ -594,18 +600,6 @@ router.use('/genieacs', genieacsRoutes);
 // WiFi Admin routes
 router.use('/wifi-admin', wifiAdminRoutes);
 
-// Technician routes
-// Technician routes (already imported above at line 72)
-// Technician routes (already imported above at line 74)
-// Mount technician routes under /technician and /api/technician
-console.log('[DEBUG ROUTE] Registering /technician routes...');
-try {
-    router.use('/technician', technicianRoutes);
-    router.use('/api/technician', technicianRoutes);
-    console.log('[DEBUG ROUTE] ✅ /technician routes registered successfully');
-} catch (err) {
-    console.error('[DEBUG ROUTE] ❌ Failed to register /technician routes:', err);
-}
 
 // ============ ADMIN SPECIFIC TECHNICIAN ROUTES ============
 console.log('[DEBUG ROUTE] Registering Admin Technician routes...');
@@ -6643,7 +6637,7 @@ router.get('/billing/reports', (req, res) => {
 router.use('/payment', paymentRoutes);
 
 // Auth Routes
-router.use('/', authRoutes);
+// Auth routes moved to top
 
 // Kasir Routes
 router.use('/kasir', kasirRoutes);

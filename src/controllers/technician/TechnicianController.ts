@@ -23,6 +23,9 @@ export class TechnicianController {
                     address TEXT NULL,
                     job_type_id INT NULL,
                     total_fee DECIMAL(12,2) DEFAULT 0,
+                    collected_funds DECIMAL(12,2) DEFAULT 0,
+                    is_remitted TINYINT(1) DEFAULT 0,
+                    remitted_at TIMESTAMP NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     accepted_at TIMESTAMP NULL,
                     completed_at TIMESTAMP NULL,
@@ -41,23 +44,28 @@ export class TechnicianController {
     // Dashboard
     static async dashboard(req: Request, res: Response) {
         try {
-            // await TechnicianController.ensureTables(); // Optimization: Avoid DDL on every request
-            const userId = (req.session as any).user?.id;
-            const userRole = (req.session as any).user?.role;
+            // Use req.user which is set by isAuthenticated middleware
+            const user = (req as any).user;
+            const userId = user?.id;
+            const userRole = user?.role;
 
             // Get stats
-            const [stats] = await databasePool.query<any[]>(`
+            const isTeknisi = userRole === 'teknisi';
+            const statsQuery = `
                 SELECT 
                     COUNT(*) as total_jobs,
                     SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
                     SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
                     SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
                     SUM(CASE WHEN status = 'completed' AND DATE(completed_at) = CURDATE() THEN 1 ELSE 0 END) as completed_today,
-                    COALESCE(SUM(CASE WHEN technician_id = ? AND is_remitted = 0 THEN collected_funds ELSE 0 END), 0) as wallet_balance,
-                    COALESCE(SUM(CASE WHEN technician_id = ? AND status = 'completed' AND MONTH(completed_at) = MONTH(CURRENT_DATE()) AND YEAR(completed_at) = YEAR(CURRENT_DATE()) THEN total_fee ELSE 0 END), 0) as monthly_fees
+                    COALESCE(SUM(CASE WHEN ${isTeknisi ? 'technician_id = ?' : '1=1'} AND is_remitted = 0 THEN collected_funds ELSE 0 END), 0) as wallet_balance,
+                    COALESCE(SUM(CASE WHEN ${isTeknisi ? 'technician_id = ?' : '1=1'} AND status = 'completed' AND MONTH(completed_at) = MONTH(CURRENT_DATE()) AND YEAR(completed_at) = YEAR(CURRENT_DATE()) THEN total_fee ELSE 0 END), 0) as monthly_fees
                 FROM technician_jobs
-                ${userRole === 'teknisi' ? 'WHERE technician_id = ? OR status = "pending"' : ''}
-            `, userRole === 'teknisi' ? [userId, userId, userId] : [userId, userId]);
+                ${isTeknisi ? 'WHERE technician_id = ? OR status = "pending"' : ''}
+            `;
+
+            const statsParams = isTeknisi ? [userId, userId, userId] : [];
+            const [stats] = await databasePool.query<any[]>(statsQuery, statsParams);
 
             // Get Job Types for Modal
             const [jobTypes] = await databasePool.query<any[]>('SELECT * FROM job_types WHERE is_active = 1');
@@ -65,7 +73,7 @@ export class TechnicianController {
             res.render('technician/dashboard', {
                 title: 'Dashboard Teknisi',
                 currentPath: '/technician',
-                user: (req.session as any).user,
+                user: (req as any).user,
                 stats: stats[0],
                 jobTypes
             });
@@ -111,6 +119,44 @@ export class TechnicianController {
             res.json({ success: true, data: rows });
         } catch (error) {
             res.json({ success: false, error: 'Failed to fetch jobs' });
+        }
+    }
+
+    // Get Job History
+    static async getJobHistory(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?.id;
+            const userRole = (req as any).user?.role;
+            
+            let query = `
+                SELECT j.*, c.name as customer_name, c.phone as customer_phone, u.full_name as technician_name
+                FROM technician_jobs j
+                LEFT JOIN customers c ON j.customer_id = c.id
+                LEFT JOIN users u ON j.technician_id = u.id
+                WHERE 1=1
+            `;
+            const params: any[] = [];
+            
+            if (userRole === 'teknisi') {
+                // Technician sees their own jobs only
+                query += ` AND j.technician_id = ?`;
+                params.push(userId);
+            }
+            
+            // Order by created_at descending to show latest jobs first
+            query += ` ORDER BY j.created_at DESC`;
+            
+            const [rows] = await databasePool.query<any[]>(query, params);
+            
+            res.render('technician/history', {
+                title: 'Riwayat Pekerjaan',
+                jobs: rows,
+                currentPath: '/technician/history',
+                user: (req as any).user
+            });
+        } catch (error) {
+            console.error('Error loading technician job history:', error);
+            res.status(500).render('error', { error: 'Failed to load job history' });
         }
     }
 

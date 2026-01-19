@@ -341,7 +341,6 @@ export class UnifiedNotificationService {
           console.error(`[UnifiedNotification] ❌ WhatsApp not ready:`, {
             ready: whatsappStatus.ready,
             initializing: whatsappStatus.initializing,
-            authenticated: whatsappStatus.authenticated,
             hasQRCode: whatsappStatus.hasQRCode,
             phone: customer.phone,
             notification_id: notification.id

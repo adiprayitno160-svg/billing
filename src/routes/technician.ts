@@ -10,6 +10,11 @@ const router = Router();
 // But typically, 'technician' dashboard is for technicians.
 // For now, let's allow authenticated users and handle data filtering in controller.
 
+router.use((req, res, next) => {
+    console.log(`🛠️ [Technician Route] Accessing: ${req.method} ${req.path}`);
+    next();
+});
+
 router.get('/', isAuthenticated, TechnicianController.dashboard);
 router.get('/jobs', isAuthenticated, TechnicianController.getJobs);
 router.post('/jobs/accept', isAuthenticated, TechnicianController.acceptJob);
@@ -20,6 +25,7 @@ router.post('/jobs/complete', isAuthenticated, technicianUpload.single('proof'),
 router.post('/jobs/save', isAuthenticated, TechnicianController.apiSaveJob);
 router.get('/customers/search', isAuthenticated, TechnicianController.apiSearchCustomers);
 router.get('/jobs/:id', isAuthenticated, TechnicianController.getJobDetail);
+router.get('/history', isAuthenticated, TechnicianController.getJobHistory);
 
 // Attendance & Salary
 import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController';
