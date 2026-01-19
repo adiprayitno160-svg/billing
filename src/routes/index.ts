@@ -199,7 +199,7 @@ const upload = multer({
 
 // Registered early to avoid issues with complex middleware
 router.use('/', authRoutes);
-router.get('/technician', (req, res) => res.redirect('/technician/'));
+// router.get('/technician', (req, res) => res.redirect('/technician/'));
 router.use('/technician', technicianRoutes);
 router.use('/api/technician', technicianRoutes);
 
