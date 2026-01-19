@@ -41,7 +41,7 @@ export class SmartPPPoEMonitoringService {
       FROM customers c
       WHERE c.billing_mode = 'prepaid' 
         AND c.connection_type = 'pppoe'
-        AND c.is_active = 1
+        AND c.status = 'active'
         AND c.pppoe_username IS NOT NULL 
         AND c.pppoe_username != ''
     `;
