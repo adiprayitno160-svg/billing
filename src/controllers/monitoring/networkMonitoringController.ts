@@ -51,6 +51,26 @@ export const getNetworkTopology = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get network topology without heavy sync operations (faster response)
+ */
+export const getNetworkTopologyFast = async (req: Request, res: Response) => {
+    try {
+        // Get only the basic topology data without heavy sync operations
+        const topology = await NetworkMonitoringService.getNetworkTopologyFast();
+        res.json({
+            success: true,
+            data: topology
+        });
+    } catch (error) {
+        console.error('Error getting fast network topology:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to get network topology'
+        });
+    }
+};
+
+/**
  * Get all devices
  */
 export const getAllDevices = async (req: Request, res: Response) => {

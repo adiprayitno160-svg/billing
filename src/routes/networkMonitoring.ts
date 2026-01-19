@@ -13,6 +13,7 @@ router.get('/public/modern-network-map', networkMonitoringController.renderModer
 
 // API routes for network monitoring data (public for now, can add auth later)
 router.get('/api/network-topology', networkMonitoringController.getNetworkTopology);
+router.get('/api/network-topology-fast', networkMonitoringController.getNetworkTopologyFast);
 router.get('/api/devices', networkMonitoringController.getAllDevices);
 router.get('/api/devices/:id/status', networkMonitoringController.checkDeviceStatus);
 

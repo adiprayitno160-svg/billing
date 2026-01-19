@@ -844,6 +844,37 @@ export class NetworkMonitoringService {
     }
 
     /**
+     * Get network topology data (fast version - no sync operations)
+     */
+    static async getNetworkTopologyFast(): Promise<TopologyData> {
+        try {
+            let devices = await this.getAllDevices();
+
+            // Get links
+            const [links] = await databasePool.query<RowDataPacket[]>(
+                'SELECT * FROM network_links ORDER BY id'
+            );
+
+            // Calculate basic statistics
+            const stats = {
+                total_devices: devices.length,
+                online_devices: devices.filter(d => d.status === 'online').length,
+                offline_devices: devices.filter(d => d.status === 'offline').length,
+                warning_devices: devices.filter(d => d.status === 'warning').length
+            };
+
+            return {
+                devices,
+                links: links as NetworkLink[],
+                statistics: stats
+            };
+        } catch (error) {
+            console.error('Error in getNetworkTopologyFast:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Update device status
      */
     static async updateDeviceStatus(deviceId: number, statusData: DeviceStatus): Promise<void> {

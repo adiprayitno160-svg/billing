@@ -53,34 +53,23 @@ export class SelfHealingNotificationService {
    */
   async checkPPPoEAnomalies(): Promise<void> {
     try {
-      // Get all active PPPoE sessions from MikroTik (this would integrate with your existing PPPoE service)
-      // For now, we'll simulate by checking recent customer activity
-      // Fix schema: active PPoE connections from MikroTik (realtime) OR from DB if we track sessions
-      // Since we don't have last_connection, we'll skip the query based detection for now 
-      // to avoid filling logs with errors until the schema is updated.
-      // Instead, we'll log that this feature is pending schema update.
-      console.log('[SelfHealing] PPPoE anomaly check skipped: requires schema update for activity tracking.');
-      return;
-
-      /* 
-      // PENDING SCHEMA UPDATE
       const query = `
         SELECT 
           c.id as customerId,
           c.name as customerName,
           c.phone as customerPhone,
-          c.ip_address as ipAddress,
-          c.updated_at as lastActive, 
+          c.pppoe_username as ipAddress,
+          c.last_connection as lastActive, 
           c.status as isActive,
           c.address as area
         FROM customers c
         WHERE c.connection_type = 'pppoe' AND c.status = 'active'
+          AND c.last_connection IS NOT NULL
       `;
-      */
-
 
       const [results] = await databasePool.query(query);
       const customers = results as any[];
+
 
       for (const customer of customers) {
         const customerConnection: CustomerConnection = {

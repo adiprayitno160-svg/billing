@@ -2025,7 +2025,7 @@
         // Load network topology data
         async function loadNetworkData() {
             try {
-                const response = await fetch('/monitoring/api/network-topology?_t=' + new Date().getTime());
+                const response = await fetch('/monitoring/api/network-topology-fast?_t=' + new Date().getTime());
                 const result = await response.json();
 
                 if (result.success) {
@@ -2597,12 +2597,6 @@
             }
 
             // --- CONNECTED CHILDREN LOGIC (ODC -> ODPs, ODP -> Customers) ---
-            // Toggle Legend
-            function toggleLegend() {
-                const legend = document.getElementById('mapLegend');
-                legend.classList.toggle('collapsed');
-            }
-
             // ODC/ODP Logic: Show connected children
             const childType = device.device_type === 'odc' ? 'odp' : 'customer';
 
@@ -2724,9 +2718,9 @@
             `;
 
         return content;
-        }
+    }
 
-        // Render network links using Leaflet Polylines
+    // Render network links using Leaflet Polylines
         function renderLinks(linkData) {
             const currentLinkIds = new Set();
 

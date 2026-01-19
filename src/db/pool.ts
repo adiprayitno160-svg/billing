@@ -200,6 +200,13 @@ export async function ensureInitialSchema(): Promise<void> {
 		await addCol(`ALTER TABLE users ADD COLUMN is_active TINYINT(1) DEFAULT 1 AFTER full_name`);
 		await addCol(`ALTER TABLE users ADD COLUMN session_id VARCHAR(255) NULL AFTER is_active`);
 
+		// Add monitoring and connection status columns to customers
+		await addCol(`ALTER TABLE customers ADD COLUMN last_connection DATETIME NULL AFTER status`);
+		await addCol(`ALTER TABLE customers ADD COLUMN static_ip VARCHAR(45) NULL AFTER pppoe_password`);
+		await addCol(`ALTER TABLE customers ADD COLUMN last_connection_loss DATETIME NULL AFTER expiry_date`);
+		await addCol(`ALTER TABLE customers ADD COLUMN monitoring_state VARCHAR(50) DEFAULT 'monitor' AFTER last_connection_loss`);
+		await addCol(`ALTER TABLE customers ADD COLUMN connection_loss_detected_at DATETIME NULL AFTER monitoring_state`);
+
 		// Remove old parent_queue_name column if it exists
 		try {
 			await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN parent_queue_name`);

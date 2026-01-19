@@ -97,18 +97,21 @@ export class WhatsAppBaileys {
     }
 
     /** Send a text message or object content */
-    public async sendMessage(to: string, content: string | any): Promise<void> {
+    public async sendMessage(to: string, content: string | any): Promise<any> {
         if (!this.socket) throw new Error('WhatsApp socket not initialized');
         const jid = this.formatJid(to);
 
+        let result;
         if (typeof content === 'string') {
-            await this.socket.sendMessage(jid, { text: content });
+            result = await this.socket.sendMessage(jid, { text: content });
             WhatsAppEvents.emit('message_sent', { to, type: 'text', content });
         } else {
-            await this.socket.sendMessage(jid, content);
+            result = await this.socket.sendMessage(jid, content);
             WhatsAppEvents.emit('message_sent', { to, type: 'complex', content });
         }
+        return result;
     }
+
 
     /** Send an image with optional caption */
     public async sendImage(to: string, imagePath: string, caption?: string): Promise<void> {

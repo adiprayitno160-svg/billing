@@ -104,7 +104,8 @@ Ada pertanyaan? Silakan balas pesan ini atau ketik */help*
 
 Terima kasih atas pengertiannya! 🙏`;
 
-                    await WhatsAppClient.sendMessage(customer.phone, message);
+                    const waInstance = WhatsAppClient.getInstance();
+                    await waInstance.sendMessage(customer.phone, message);
                     console.log(`✅ Prepaid migration notification sent to ${customer.name} (${customer.phone})`);
                 } catch (notifError) {
                     console.error('Failed to send WhatsApp notification:', notifError);
