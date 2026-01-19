@@ -610,22 +610,32 @@ try {
 // ============ ADMIN SPECIFIC TECHNICIAN ROUTES ============
 console.log('[DEBUG ROUTE] Registering Admin Technician routes...');
 try {
-    // 1. Settings: Job Types (Jenis Pekerjaan)
-    router.get('/settings/job-types', authMiddleware.isAuthenticated, JobTypeController.index);
-    router.post('/api/settings/job-types', authMiddleware.isAuthenticated, JobTypeController.create);
-    router.put('/api/settings/job-types/:id', authMiddleware.isAuthenticated, JobTypeController.update);
-    router.delete('/api/settings/job-types/:id', authMiddleware.isAuthenticated, JobTypeController.delete);
+    if (!JobTypeController) {
+        console.error('[DEBUG ROUTE] ❌ CRITICAL: JobTypeController is undefined!');
+    } else {
+        // 1. Settings: Job Types (Jenis Pekerjaan)
+        router.get('/settings/job-types', authMiddleware.isAuthenticated, JobTypeController.index);
+        router.post('/api/settings/job-types', authMiddleware.isAuthenticated, JobTypeController.create);
+        router.put('/api/settings/job-types/:id', authMiddleware.isAuthenticated, JobTypeController.update);
+        router.delete('/api/settings/job-types/:id', authMiddleware.isAuthenticated, JobTypeController.delete);
+    }
 
-    // 2. Admin Technician: Salary Approval & Payment
-    // Fixes 404 on /admin/technician/salary/approval
-    router.get('/admin/technician/salary/approval', authMiddleware.isAuthenticated, TechnicianSalaryController.viewMonthlyRecap);
-    router.post('/admin/technician/salary/approve', authMiddleware.isAuthenticated, TechnicianSalaryController.approveSalary);
-    router.get('/admin/technician/payments/summary', authMiddleware.isAuthenticated, TechnicianSalaryController.viewPaymentSummary);
-    router.get('/admin/technician/payments/slip/:id', authMiddleware.isAuthenticated, TechnicianSalaryController.printSalarySlip);
-    console.log('[DEBUG ROUTE] ✅ Admin Technician routes registered successfully');
+    if (!TechnicianSalaryController) {
+        console.error('[DEBUG ROUTE] ❌ CRITICAL: TechnicianSalaryController is undefined!');
+    } else {
+        // 2. Admin Technician: Salary Approval & Payment
+        // Fixes 404 on /admin/technician/salary/approval
+        router.get('/admin/technician/salary/approval', authMiddleware.isAuthenticated, TechnicianSalaryController.viewMonthlyRecap);
+        router.post('/admin/technician/salary/approve', authMiddleware.isAuthenticated, TechnicianSalaryController.approveSalary);
+        router.get('/admin/technician/payments/summary', authMiddleware.isAuthenticated, TechnicianSalaryController.viewPaymentSummary);
+        router.get('/admin/technician/payments/slip/:id', authMiddleware.isAuthenticated, TechnicianSalaryController.printSalarySlip);
+    }
+
+    console.log('[DEBUG ROUTE] ✅ Admin Technician routes registration attempted.');
 } catch (err) {
-    console.error('[DEBUG ROUTE] ❌ Failed to register Admin Technician routes:', err);
+    console.error('[DEBUG ROUTE] ❌ Failed to register Admin Technician routes (Unknown Error):', err);
 }
+
 
 
 
