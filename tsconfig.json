@@ -30,6 +30,9 @@
     "dist",
     "src/controllers/ftth/ontController.ts",
     "src/controllers/customers/PPPoEController.ts",
-    "src/scripts/run-maintenance-migration.ts"
+    "src/scripts/run-maintenance-migration.ts",
+    "**/*.bak",
+    "**/*.backup",
+    "src/services/telegram.bak"
   ]
 }
