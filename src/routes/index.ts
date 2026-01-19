@@ -596,10 +596,30 @@ router.use('/wifi-admin', wifiAdminRoutes);
 
 // Technician routes
 // Technician routes (already imported above at line 72)
+// Technician routes (already imported above at line 74)
+// Mount technician routes under /technician and /api/technician
 router.use('/technician', technicianRoutes);
 router.use('/api/technician', technicianRoutes);
 
-// Admin Specific Routes (manual add for now)
+// ============ ADMIN SPECIFIC TECHNICIAN ROUTES ============
+// These must be registered AFTER the main technician routes if they share prefixes,
+// but since these are under /admin/technician, they are safe.
+// However, we need to ensure the Controller is imported correctly.
+
+// 1. Settings: Job Types (Jenis Pekerjaan)
+router.get('/settings/job-types', authMiddleware.isAuthenticated, JobTypeController.index);
+router.post('/api/settings/job-types', authMiddleware.isAuthenticated, JobTypeController.create);
+router.put('/api/settings/job-types/:id', authMiddleware.isAuthenticated, JobTypeController.update);
+router.delete('/api/settings/job-types/:id', authMiddleware.isAuthenticated, JobTypeController.delete);
+
+// 2. Admin Technician: Salary Approval & Payment
+// Fixes 404 on /admin/technician/salary/approval
+router.get('/admin/technician/salary/approval', authMiddleware.isAuthenticated, TechnicianSalaryController.viewMonthlyRecap);
+router.post('/admin/technician/salary/approve', authMiddleware.isAuthenticated, TechnicianSalaryController.approveSalary);
+router.get('/admin/technician/payments/summary', authMiddleware.isAuthenticated, TechnicianSalaryController.viewPaymentSummary);
+router.get('/admin/technician/payments/slip/:id', authMiddleware.isAuthenticated, TechnicianSalaryController.printSalarySlip);
+
+
 // ============ NEW ROUTES ============
 
 // 1. Settings: Job Types (Jenis Pekerjaan)
