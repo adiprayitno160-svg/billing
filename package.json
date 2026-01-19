@@ -1,7 +1,7 @@
 {
-  "name": "billing",
-  "version": "2.4.15",
-  "description": "",
+  "name": "billing-app",
+  "version": "2.4.16",
+  "description": "Billing System Management",
   "main": "index.js",
   "engines": {
     "node": ">=18.0.0"
