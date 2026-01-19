@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e # Exit on error
 
 # Configuration
 # Change this if your app is in a different folder
@@ -24,13 +25,17 @@ git fetch origin
 git reset --hard origin/$BRANCH
 git clean -fd # Optional: Clean untracked files
 
-# 3. Install Dependencies
+# 3. Install Dependencies (Include DevDeps for Build)
 echo "📦 Installing modules..."
-npm install --production
+npm install
 
 # 4. Build Project
 echo "🛠️  Building code..."
 npm run build
+
+# 5. Prune Dev Dependencies (Optional - save space)
+# echo "🧹 Pruning dev dependencies..."
+# npm prune --production
 
 # 5. Database Information
 echo "------------------------------------------"
