@@ -89,23 +89,10 @@ export class PrepaidScheduler {
      */
     private static async sendExpiryNotification(customer: any): Promise<void> {
         try {
-            const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
-
-            const expiryDate = new Date(customer.expiry_date);
-            const message = `⚠️ *MASA AKTIF HABIS*\n\n` +
-                `Halo *${customer.name}*,\n\n` +
-                `Masa aktif paket internet Anda telah berakhir pada:\n` +
-                `📅 ${expiryDate.toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}\n\n` +
-                `🔒 *Internet Anda telah dinonaktifkan.*\n\n` +
-                `💡 *Cara Aktivasi Kembali:*\n` +
-                `1️⃣ Ketik */beli* untuk melihat paket\n` +
-                `2️⃣ Pilih paket yang diinginkan\n` +
-                `3️⃣ Transfer sesuai nominal\n` +
-                `4️⃣ Kirim bukti transfer\n` +
-                `5️⃣ Internet aktif otomatis!\n\n` +
-                `Terima kasih atas pengertiannya 🙏`;
-
-            await WhatsAppServiceBaileys.sendMessage(customer.phone, message);
+            const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
+            const waClient = WhatsAppClient.getInstance();
+            const message = `Halo ${customer.name}, masa aktif layanan prepaid Anda telah berakhir hari ini. Layanan Anda sementara dinonaktifkan. Silakan lakukan pembayaran tagihan untuk mengaktifkan kembali layanan Anda. Terima kasih.`;
+            await waClient.sendMessage(customer.phone, message);
             console.log(`[PrepaidScheduler] 📱 Notification sent to ${customer.name} (${customer.phone})`);
 
         } catch (notifError: any) {

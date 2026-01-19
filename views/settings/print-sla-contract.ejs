@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLA Contract - <%= contract.contract_number %>
+    </title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .a4-container {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        @media print {
+            body {
+                background: none;
+            }
+
+            .a4-container {
+                margin: 0;
+                box-shadow: none;
+                width: 100%;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        .header-logo {
+            width: 80px;
+            height: 80px;
+            background: #3b82f6;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="no-print bg-white border-b p-4 sticky top-0 z-50 flex justify-between items-center px-10">
+        <div>
+            <h1 class="text-xl font-bold">Contract Preview</h1>
+            <p class="text-sm text-gray-500">Professional A4 Format</p>
+        </div>
+        <div class="flex space-x-4">
+            <button onclick="window.close()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Close</button>
+            <button onclick="window.print()"
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">
+                <i class="fas fa-print mr-2"></i> Print Contract
+            </button>
+        </div>
+    </div>
+
+    <div class="a4-container">
+        <!-- Header -->
+        <div class="flex justify-between items-start border-b-4 border-blue-600 pb-8 mb-10">
+            <div>
+                <div class="header-logo mb-4">
+                    <i class="fas fa-file-contract"></i>
+                </div>
+                <h1 class="text-3xl font-black text-blue-900 uppercase tracking-tighter">SLA AGREEMENT</h1>
+                <p class="text-gray-500 font-medium">Agreement Number: <%= contract.contract_number %>
+                </p>
+            </div>
+            <div class="text-right">
+                <h2 class="text-xl font-bold text-gray-900">BILLING SYSTEM PRO</h2>
+                <p class="text-gray-600">Premium ISP Management</p>
+                <div class="mt-4 text-sm text-gray-500 italic">
+                    Printed on: <%= new Date().toLocaleDateString('id-ID', { day: 'numeric' , month: 'long' ,
+                        year: 'numeric' }) %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parties -->
+        <div class="grid grid-cols-2 gap-10 mb-10">
+            <div class="bg-gray-50 p-6 rounded-xl">
+                <h3 class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4">The Provider</h3>
+                <p class="font-bold text-gray-900">BILLING SYSTEM INFRASTRUCTURE</p>
+                <p class="text-sm text-gray-600 mt-1 leading-relaxed">
+                    Digital Tower, 5th Floor<br>
+                    Jakarta, Indonesia
+                </p>
+                <p class="text-sm text-gray-600 mt-2 font-medium">support@billingpro.com</p>
+            </div>
+            <div class="bg-gray-50 p-6 rounded-xl">
+                <h3 class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4">The Customer</h3>
+                <p class="font-bold text-gray-900">
+                    <%= contract.customer_name %>
+                </p>
+                <p class="text-sm text-gray-600 mt-1 leading-relaxed">
+                    <%= contract.customer_address || 'No address provided' %>
+                </p>
+                <p class="text-sm text-gray-600 mt-2 font-medium">
+                    <%= contract.customer_phone %>
+                </p>
+            </div>
+        </div>
+
+        <!-- Agreement Title -->
+        <div class="mb-10">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                <%= contract.contract_title %>
+            </h2>
+            <div class="w-20 h-1 bg-blue-600 rounded-full mb-6"></div>
+            <p class="text-gray-700 leading-relaxed text-sm">
+                This Service Level Agreement (SLA) outlines the commitment between Billing System Pro and <%=
+                    contract.customer_name %> regarding the quality and reliability of the provided services.
+            </p>
+        </div>
+
+        <!-- Key Terms -->
+        <div class="mb-10">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                <span
+                    class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mr-3">1</span>
+                SLA Performance Metrics
+            </h3>
+            <div class="overflow-hidden border rounded-xl">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Service Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Target Availability</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Metric</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Network Uptime
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-bold">
+                                <%= contract.sla_target %>%
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Monthly Measurement</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Support Response
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                < 4 Hours</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">High Priority</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Repair Time (MTTR)
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                < 12 Hours</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">On-site Support</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Dates -->
+        <div class="grid grid-cols-2 gap-8 mb-10">
+            <div class="border-l-4 border-green-500 pl-6">
+                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Commencement Date</p>
+                <p class="text-lg font-semibold text-gray-900">
+                    <%= new Date(contract.start_date).toLocaleDateString('id-ID', { day: 'numeric' , month: 'long' ,
+                        year: 'numeric' }) %>
+                </p>
+            </div>
+            <div class="border-l-4 border-red-500 pl-6">
+                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Expiration Date</p>
+                <p class="text-lg font-semibold text-gray-900">
+                    <%= new Date(contract.end_date).toLocaleDateString('id-ID', { day: 'numeric' , month: 'long' ,
+                        year: 'numeric' }) %>
+                </p>
+            </div>
+        </div>
+
+        <!-- Compensation Clause -->
+        <div class="mb-10">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                <span
+                    class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mr-3">2</span>
+                Service Credit Policy
+            </h3>
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                In the event that the network availability falls below the target mentioned above, Billing System Pro
+                will provide service credits as follows:
+            </p>
+            <ul class="list-disc pl-6 text-sm text-gray-600 space-y-2">
+                <li>
+                    <%= contract.sla_target - 1 %>% - <%= contract.sla_target %>%: 5% Credit applied to the monthly
+                            service fee.
+                </li>
+                <li>Below <%= contract.sla_target - 1 %>%: 10% Credit applied for every 1% additional downtime.</li>
+                <li>Total credit shall not exceed 100% of the monthly service fee.</li>
+            </ul>
+        </div>
+
+        <!-- Signatures -->
+        <div class="mt-20">
+            <div class="grid grid-cols-2 gap-20">
+                <div class="text-center">
+                    <div class="border-b border-gray-400 mb-4 h-24 flex items-end justify-center">
+                        <!-- Space for signature -->
+                        <span class="text-gray-300 italic text-xs mb-2">Company Digital Signature</span>
+                    </div>
+                    <p class="font-bold text-gray-900 uppercase">Provider Authorized Signatory</p>
+                    <p class="text-sm text-gray-500">Billing System Pro Infrastructure</p>
+                </div>
+                <div class="text-center">
+                    <div class="border-b border-gray-400 mb-4 h-24 flex items-end justify-center">
+                        <!-- Space for signature -->
+                        <span class="text-gray-300 italic text-xs mb-2">Customer Authorized Signature</span>
+                    </div>
+                    <p class="font-bold text-gray-900 uppercase">
+                        <%= contract.customer_name %>
+                    </p>
+                    <p class="text-sm text-gray-500">Customer Representative</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="absolute bottom-10 left-20 right-20 border-t pt-6 text-center text-[10px] text-gray-400">
+            <p>This document is electronically generated and holds legal standing within the terms of service of BILLING
+                SYSTEM PRO.</p>
+            <p class="mt-1">© 2026 Billing System Infrastructure. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

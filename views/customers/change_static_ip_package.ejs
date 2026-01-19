@@ -1,0 +1,87 @@
+<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="mb-4">
+        <h2 class="text-lg font-semibold"><%= title %></h2>
+        <p class="text-sm text-slate-600">Ubah paket IP statis untuk pelanggan <%= customer.customer_name %></p>
+    </div>
+
+    <% if (error && Array.isArray(error) && error.length > 0) { %>
+        <div class="mb-4 p-3 bg-red-100 text-red-700 rounded border border-red-300">
+            <ul class="list-disc pl-5">
+                <% error.forEach(function(msg) { %>
+                    <li><%= msg %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } else if (error && typeof error === 'string') { %>
+        <div class="mb-4 p-3 bg-red-100 text-red-700 rounded border border-red-300">
+            <%= error %>
+        </div>
+    <% } %>
+
+    <% if (success && Array.isArray(success) && success.length > 0) { %>
+        <div class="mb-4 p-3 bg-green-100 text-green-700 rounded border border-green-300">
+            <% success.forEach(function(msg) { %>
+                <p><%= msg %></p>
+            <% }); %>
+        </div>
+    <% } else if (success && typeof success === 'string') { %>
+        <div class="mb-4 p-3 bg-green-100 text-green-700 rounded border border-green-300">
+            <%= success %>
+        </div>
+    <% } %>
+
+    <form method="POST" action="/customers/<%= customer.customer_id %>/change-static-ip-package" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Paket Saat Ini</label>
+                <input type="text" value="<%= customer.current_package_name %>" class="w-full px-3 py-2 border border-slate-300 rounded bg-gray-100" readonly>
+            </div>
+            <div>
+                <label for="new_package_id" class="block text-sm font-medium text-slate-700 mb-1">Paket Baru *</label>
+                <select name="new_package_id" id="new_package_id" class="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="">Pilih Paket Baru</option>
+                    <% availablePackages.forEach(function(pkg) { %>
+                        <option value="<%= pkg.id %>" <%= pkg.id == customer.package_id ? 'disabled selected' : '' %>>
+                            <%= pkg.name %> (<%= pkg.available_slots %> slot tersedia)
+                            <% if (!pkg.is_available) { %>
+                                - PENUH
+                            <% } %>
+                        </option>
+                    <% }); %>
+                </select>
+                <p class="mt-1 text-xs text-slate-500">Paket yang dipilih harus memiliki slot tersedia</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4">
+            <a href="/customers" class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
+                Batal
+            </a>
+            <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                Ganti Paket
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const newPackageSelect = document.getElementById('new_package_id');
+    
+    form.addEventListener('submit', function(e) {
+        const selectedOption = newPackageSelect.options[newPackageSelect.selectedIndex];
+        const isDisabled = selectedOption.disabled;
+        
+        if (isDisabled) {
+            e.preventDefault();
+            alert('Tidak dapat memilih paket yang sama atau paket penuh');
+            return false;
+        }
+        
+        if (!confirm('Apakah Anda yakin ingin mengganti paket untuk pelanggan ini? Proses ini akan menghapus konfigurasi MikroTik lama dan membuat yang baru.')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>

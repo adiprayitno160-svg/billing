@@ -679,15 +679,19 @@ export class InvoiceController {
                 `Silakan melakukan pembayaran sebelum jatuh tempo. Terima kasih.`;
 
             // Import dynamically to avoid circular dependency issues if any
-            const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
+            // Import dynamically to avoid circular dependency issues if any
+            const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
+            const waClient = WhatsAppClient.getInstance();
 
-            const result = await WhatsAppService.sendMessage(
-                invoice.customer_phone,
-                message,
-                { customerId: invoice.customer_id }
-            );
+            let success = false;
+            try {
+                await waClient.sendMessage(invoice.customer_phone, message);
+                success = true;
+            } catch (e) {
+                console.error('Failed to send WA:', e);
+            }
 
-            if (result.success) {
+            if (success) {
                 // Optional: Update invoice status if it was draft
                 if (invoice.status === 'draft') {
                     await databasePool.query('UPDATE invoices SET status = "sent" WHERE id = ?', [id]);
@@ -695,7 +699,7 @@ export class InvoiceController {
 
                 res.json({ success: true, message: 'Pesan WhatsApp berhasil dikirim' });
             } else {
-                res.status(500).json({ success: false, message: 'Gagal mengirim WhatsApp: ' + result.error });
+                res.status(500).json({ success: false, message: 'Gagal mengirim WhatsApp' });
             }
         } catch (error: any) {
             console.error('Error sending WhatsApp invoice:', error);

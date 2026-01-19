@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { WhatsAppServiceBaileys as WhatsAppService } from '../services/whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppClient } from '../services/whatsapp';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import QRCode from 'qrcode';
@@ -27,9 +27,11 @@ router.use((req, res, next) => {
  */
 router.get('/status', async (req: Request, res: Response) => {
     try {
-        const status = WhatsAppService.getStatus();
-        const stats = await WhatsAppService.getNotificationStats();
-        const qrCode = WhatsAppService.getQRCode();
+        const waClient = WhatsAppClient.getInstance();
+        const status = waClient.getStatus();
+        const stats = { sent: 0, failed: 0, total: 0, successRate: 0 }; // Mock stats for now
+        // Access qr via lastQR property we added
+        const qrCode = waClient.lastQR || null;
 
         res.json({
             success: true,
@@ -54,8 +56,9 @@ router.get('/status', async (req: Request, res: Response) => {
  */
 router.get('/qr', async (req: Request, res: Response) => {
     try {
-        const qrCode = WhatsAppService.getQRCode();
-        const status = WhatsAppService.getStatus();
+        const waClient = WhatsAppClient.getInstance();
+        const qrCode = waClient.lastQR;
+        const status = waClient.getStatus();
 
         if (!qrCode) {
             return res.json({
@@ -87,7 +90,8 @@ router.get('/qr', async (req: Request, res: Response) => {
  */
 router.get('/qr-image', async (req: Request, res: Response) => {
     try {
-        const qrCode = WhatsAppService.getQRCode();
+        const waClient = WhatsAppClient.getInstance();
+        const qrCode = waClient.lastQR;
         console.log(`[Route] /qr-image - Has QR: ${!!qrCode}`);
 
         if (!qrCode) {
@@ -137,30 +141,16 @@ router.get('/qr-image', async (req: Request, res: Response) => {
 router.post('/clear-session', async (req: Request, res: Response) => {
     try {
         console.log('🗑️ Clearing WhatsApp session...');
+        const waClient = WhatsAppClient.getInstance();
 
-        // Destroy client if exists
-        if (WhatsAppService.isClientReady() || WhatsAppService.getStatus().initialized) {
-            await WhatsAppService.destroy();
-        }
-
-        // Delete session folder
-        const fs = require('fs');
-        const path = require('path');
-        const sessionPath = path.join(process.cwd(), 'baileys-session');
-
-        if (fs.existsSync(sessionPath)) {
-            fs.rmSync(sessionPath, { recursive: true, force: true });
-            console.log('✅ Session folder deleted');
-        }
-
-        // Reset state
-        const status = WhatsAppService.getStatus();
+        // Restart to generate new QR
+        await waClient.restart();
 
         res.json({
             success: true,
-            message: 'Session berhasil dihapus. Silakan regenerate QR code.',
+            message: 'Session berhasil dihapus. Silakan tunggu QR code baru.',
             data: {
-                status
+                status: waClient.getStatus()
             }
         });
     } catch (error: any) {
@@ -179,18 +169,21 @@ router.post('/clear-session', async (req: Request, res: Response) => {
 router.post('/regenerate-qr', async (req: Request, res: Response) => {
     try {
         console.log('🔄 Regenerating QR code...');
-        await WhatsAppService.regenerateQRCode();
+        const waClient = WhatsAppClient.getInstance();
+
+        // Re-initialize to trigger new QR
+        await waClient.restart();
 
         // Wait longer for QR code to be generated (up to 10 seconds)
         let attempts = 0;
-        let qrCode = WhatsAppService.getQRCode();
+        let qrCode = waClient.lastQR;
         while (!qrCode && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 500));
-            qrCode = WhatsAppService.getQRCode();
+            qrCode = waClient.lastQR;
             attempts++;
         }
 
-        const status = WhatsAppService.getStatus();
+        const status = waClient.getStatus();
 
         res.json({
             success: true,
@@ -227,22 +220,13 @@ router.post('/send', async (req: Request, res: Response) => {
             });
         }
 
-        const result = await WhatsAppService.sendMessage(phone, message, {
-            customerId,
-            template
-        });
+        const waClient = WhatsAppClient.getInstance();
+        await waClient.sendMessage(phone, message);
 
-        if (result.success) {
-            res.json({
-                success: true,
-                data: result
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error || 'Failed to send message'
-            });
-        }
+        res.json({
+            success: true,
+            data: { messageId: 'unknown' }
+        });
     } catch (error: any) {
         res.status(500).json({
             success: false,
@@ -266,7 +250,21 @@ router.post('/send-bulk', async (req: Request, res: Response) => {
             });
         }
 
-        const result = await WhatsAppService.sendBulkMessages(recipients, delayMs || 2000);
+        const waClient = WhatsAppClient.getInstance();
+        let sent = 0;
+        let failed = 0;
+
+        for (const recipient of recipients) {
+            try {
+                await waClient.sendMessage(recipient.phone, recipient.message);
+                sent++;
+                if (delayMs) await new Promise(r => setTimeout(r, delayMs));
+            } catch (e) {
+                failed++;
+            }
+        }
+
+        const result = { sent, failed, total: recipients.length };
 
         res.json({
             success: true,
@@ -317,22 +315,13 @@ router.post('/send-to-customer', async (req: Request, res: Response) => {
             });
         }
 
-        const result = await WhatsAppService.sendMessage(customer.phone, message, {
-            customerId,
-            template
-        });
+        const waClient = WhatsAppClient.getInstance();
+        await waClient.sendMessage(customer.phone, message);
 
-        if (result.success) {
-            res.json({
-                success: true,
-                data: result
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error || 'Failed to send message'
-            });
-        }
+        res.json({
+            success: true,
+            data: { messageId: 'unknown' }
+        });
     } catch (error: any) {
         res.status(500).json({
             success: false,
@@ -351,11 +340,32 @@ router.get('/history', async (req: Request, res: Response) => {
         const customerId = req.query.customerId ? parseInt(req.query.customerId as string) : undefined;
         const status = req.query.status as string | undefined;
 
-        const history = await WhatsAppService.getNotificationHistory(limit, customerId, status);
+        let query = `
+            SELECT wbm.*, c.name as customer_name 
+            FROM whatsapp_bot_messages wbm
+            LEFT JOIN customers c ON wbm.customer_id = c.id
+            WHERE 1=1
+        `;
+        const params: any[] = [];
+
+        if (customerId) {
+            query += ' AND wbm.customer_id = ?';
+            params.push(customerId);
+        }
+
+        if (status) {
+            query += ' AND wbm.status = ?';
+            params.push(status);
+        }
+
+        query += ' ORDER BY wbm.created_at DESC LIMIT ?';
+        params.push(limit);
+
+        const [rows] = await databasePool.query<RowDataPacket[]>(query, params);
 
         res.json({
             success: true,
-            data: history
+            data: rows
         });
     } catch (error: any) {
         res.status(500).json({
@@ -371,11 +381,29 @@ router.get('/history', async (req: Request, res: Response) => {
  */
 router.get('/stats', async (req: Request, res: Response) => {
     try {
-        const stats = await WhatsAppService.getNotificationStats();
+        const [rows] = await databasePool.query<RowDataPacket[]>(`
+            SELECT 
+                SUM(CASE WHEN direction = 'outbound' AND status = 'sent' THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                COUNT(*) as total,
+                SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END) as received
+            FROM whatsapp_bot_messages
+        `);
+
+        // Calculate success rate based on outbound
+        const stats = rows[0];
+        const outboundTotal = (parseInt(stats.sent) || 0) + (parseInt(stats.failed) || 0);
+        const successRate = outboundTotal > 0 ? ((parseInt(stats.sent) || 0) / outboundTotal) * 100 : 100;
 
         res.json({
             success: true,
-            data: stats
+            data: {
+                sent: parseInt(stats.sent) || 0,
+                failed: parseInt(stats.failed) || 0,
+                received: parseInt(stats.received) || 0,
+                total: parseInt(stats.total) || 0,
+                successRate: parseFloat(successRate.toFixed(2))
+            }
         });
     } catch (error: any) {
         res.status(500).json({
@@ -437,7 +465,7 @@ router.post('/send-payment-notification', async (req: Request, res: Response) =>
 
         // Format message
         const { getBillingMonth } = await import('../utils/periodHelper');
-        const paymentDate = new Date();
+        const paymentDate = new Date(); // Use current date for payment date
         const billingMonth = invoice.period ?
             getBillingMonth(invoice.period, paymentDate, invoice.due_date || null) :
             (invoice.period || '-');
@@ -491,22 +519,13 @@ Status layanan Anda telah ${statusText}.
             `.trim();
         }
 
-        const result = await WhatsAppService.sendMessage(customer.phone, message, {
-            customerId,
-            template: 'payment_notification'
-        });
+        const waClient = WhatsAppClient.getInstance();
+        await waClient.sendMessage(customer.phone, message);
 
-        if (result.success) {
-            res.json({
-                success: true,
-                data: result
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error || 'Failed to send payment notification'
-            });
-        }
+        res.json({
+            success: true,
+            data: { messageId: 'unknown' }
+        });
     } catch (error: any) {
         res.status(500).json({
             success: false,
@@ -521,13 +540,41 @@ Status layanan Anda telah ${statusText}.
  */
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const status = WhatsAppService.getStatus();
-        const stats = await WhatsAppService.getNotificationStats();
-        const qrCode = WhatsAppService.getQRCode();
+        const waClient = WhatsAppClient.getInstance();
+        const status = waClient.getStatus();
+        const qrCode = waClient.lastQR;
         const qrCodeUrl = qrCode ? `/whatsapp/qr-image` : null;
 
-        // Get recent notifications
-        const history = await WhatsAppService.getNotificationHistory(50);
+        // Get Stats
+        const [statRows] = await databasePool.query<RowDataPacket[]>(`
+            SELECT 
+                SUM(CASE WHEN direction = 'outbound' AND status = 'sent' THEN 1 ELSE 0 END) as sent,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                COUNT(*) as total,
+                SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END) as received
+            FROM whatsapp_bot_messages
+        `);
+
+        const dbStats = statRows[0] || { sent: 0, failed: 0, total: 0, received: 0 };
+        const outboundTotal = (parseInt(dbStats.sent) || 0) + (parseInt(dbStats.failed) || 0);
+        const successRate = outboundTotal > 0 ? ((parseInt(dbStats.sent) || 0) / outboundTotal) * 100 : 100;
+
+        const stats = {
+            sent: parseInt(dbStats.sent) || 0,
+            failed: parseInt(dbStats.failed) || 0,
+            received: parseInt(dbStats.received) || 0,
+            total: parseInt(dbStats.total) || 0,
+            successRate: parseFloat(successRate.toFixed(2))
+        };
+
+        // Get recent notifications (History)
+        const [history] = await databasePool.query<RowDataPacket[]>(`
+            SELECT wbm.*, c.name as customer_name 
+            FROM whatsapp_bot_messages wbm
+            LEFT JOIN customers c ON wbm.customer_id = c.id
+            ORDER BY wbm.created_at DESC
+            LIMIT 10
+        `);
 
         res.render('whatsapp/index', {
             title: 'WhatsApp Notifikasi',

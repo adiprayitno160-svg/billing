@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Network Monitoring Dashboard</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            overflow: hidden;
+            height: 100vh;
+            color: #e2e8f0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header Stats Panel */
+        .stats-panel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 15px 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            min-width: 80px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .control-panel.collapsed {
+            width: 60px;
+            padding: 20px 10px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #f8fafc;
+        }
+
+        .control-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .toggle-btn {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+        }
+
+        .control-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .filter-option:hover {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .filter-option.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+
+        .filter-option i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(30, 41, 59, 0.5);
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #e2e8f0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Device Sidebar */
+        .device-sidebar {
+            position: absolute;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1001;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .device-sidebar.open {
+            right: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .close-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: none;
+            border-radius: 6px;
+            color: #ef4444;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            transform: scale(1.05);
+        }
+
+        .device-info {
+            margin-bottom: 20px;
+        }
+
+        .device-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-online { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .status-offline { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .status-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .status-degraded { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+
+        /* Performance Charts */
+        .performance-chart {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .chart-container {
+            height: 200px;
+            position: relative;
+        }
+
+        /* Network Path Visualization */
+        .path-info {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .path-step {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .path-step:last-child {
+            border-bottom: none;
+        }
+
+        .path-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .path-label {
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #3b82f6;
+            z-index: 10000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.critical {
+            border-left-color: #ef4444;
+        }
+
+        .toast.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .toast.info {
+            border-left-color: #3b82f6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .control-panel {
+                width: 280px;
+                right: 10px;
+                top: 10px;
+            }
+            
+            .device-sidebar {
+                width: 320px;
+            }
+            
+            .stats-panel {
+                padding: 10px 15px;
+                gap: 15px;
+            }
+            
+            .stat-value {
+                font-size: 20px;
+            }
+            
+            .stat-label {
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Stats Panel -->
+    <div class="stats-panel">
+        <div class="stat-item">
+            <div class="stat-value" id="total-devices">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="online-devices">0</div>
+            <div class="stat-label">Online</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="offline-devices">0</div>
+            <div class="stat-label">Offline</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="warning-devices">0</div>
+            <div class="stat-label">Warning</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="uptime-percent">0%</div>
+            <div class="stat-label">Uptime</div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel" id="controlPanel">
+        <div class="control-header">
+            <h2 class="control-title"><i class="fas fa-sliders-h"></i> Controls</h2>
+            <button class="toggle-btn" onclick="toggleControlPanel()">
+                <i class="fas fa-cog" id="toggleIcon"></i>
+            </button>
+        </div>
+
+        <div class="control-section">
+            <h3><i class="fas fa-search"></i> Search</h3>
+            <input type="text" class="search-input" placeholder="Search devices..." oninput="onSearchInput(this.value)">
+        </div>
+
+        <div class="control-section">
+            <h3><i class="fas fa-filter"></i> Filters</h3>
+            <div class="filter-group">
+                <div class="filter-option active" data-filter="all" onclick="toggleFilter(this, 'all')">
+                    <i class="fas fa-circle"></i> All Devices
+                </div>
+                <div class="filter-option" data-filter="online" onclick="toggleFilter(this, 'online')">
+                    <i class="fas fa-circle" style="color: #10b981;"></i> Online
+                </div>
+                <div class="filter-option" data-filter="offline" onclick="toggleFilter(this, 'offline')">
+                    <i class="fas fa-circle" style="color: #ef4444;"></i> Offline
+                </div>
+                <div class="filter-option" data-filter="customer" onclick="toggleFilter(this, 'customer')">
+                    <i class="fas fa-user"></i> Customers
+                </div>
+                <div class="filter-option" data-filter="infrastructure" onclick="toggleFilter(this, 'infrastructure')">
+                    <i class="fas fa-server"></i> Infrastructure
+                </div>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3><i class="fas fa-sync-alt"></i> Actions</h3>
+            <div class="filter-group">
+                <div class="filter-option" onclick="syncAll()">
+                    <i class="fas fa-sync"></i> Sync All Data
+                </div>
+                <div class="filter-option" onclick="refreshData()">
+                    <i class="fas fa-redo"></i> Refresh
+                </div>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3><i class="fas fa-bell"></i> Alerts</h3>
+            <div class="filter-group">
+                <div class="filter-option" onclick="toggleAudioAlerts()">
+                    <i class="fas fa-volume-up"></i> Audio Alerts
+                </div>
+                <div class="filter-option" onclick="showRecentAlerts()">
+                    <i class="fas fa-history"></i> Recent Alerts
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Sidebar -->
+    <div class="device-sidebar" id="deviceSidebar">
+        <div class="sidebar-header">
+            <h3>Device Details</h3>
+            <button class="close-btn" onclick="closeDeviceSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="deviceDetails"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading Network Data...</div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        let map = null;
+        let markers = {};
+        let linksLayer = null;
+        let deviceMap = {};
+        let linksMap = {};
+        let allDevices = [];
+        let selectedDevice = null;
+        let currentFilter = 'all';
+        let searchQuery = '';
+        let isAudioEnabled = true;
+        let audioCtx = null;
+        let deviceCharts = {};
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([-6.200000, 106.816666], 13);
+
+            // Add tile layer with dark theme
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            // Initialize links layer
+            linksLayer = L.layerGroup().addTo(map);
+
+            // Load data
+            loadNetworkData();
+
+            // Auto refresh every 15 seconds
+            setInterval(refreshData, 15000);
+        }
+
+        // Load network data
+        async function loadNetworkData() {
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/monitoring/api/network-topology?_t=' + new Date().getTime());
+                const result = await response.json();
+
+                if (result.success) {
+                    allDevices = result.data.devices;
+                    const links = result.data.links;
+                    
+                    // Update stats
+                    updateStats(result.data.statistics);
+                    
+                    // Render devices and links
+                    renderDevices(allDevices);
+                    renderLinks(links);
+                    
+                    // Update connection status
+                    updateConnectionStatus('Connected', '#10b981');
+                } else {
+                    updateConnectionStatus('Error', '#ef4444');
+                }
+            } catch (error) {
+                console.error('Error loading network data:', error);
+                updateConnectionStatus('Error', '#ef4444');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Update stats panel
+        function updateStats(stats) {
+            document.getElementById('total-devices').textContent = stats.total_devices || 0;
+            document.getElementById('online-devices').textContent = stats.online_devices || 0;
+            document.getElementById('offline-devices').textContent = stats.offline_devices || 0;
+            document.getElementById('warning-devices').textContent = stats.warning_devices || 0;
+            
+            const uptime = stats.total_devices > 0 ? 
+                Math.round((stats.online_devices / stats.total_devices) * 100) : 0;
+            document.getElementById('uptime-percent').textContent = uptime + '%';
+        }
+
+        // Update connection status
+        function updateConnectionStatus(status, color) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            if (statusDot) statusDot.style.background = color;
+            if (statusText) statusText.textContent = status;
+        }
+
+        // Render devices on map
+        function renderDevices(devices) {
+            // Clear existing markers
+            Object.keys(markers).forEach(id => {
+                map.removeLayer(markers[id]);
+            });
+            markers = {};
+
+            // Apply filters and search
+            const filteredDevices = devices.filter(device => {
+                if (currentFilter !== 'all') {
+                    if (currentFilter === 'online' && device.status !== 'online') return false;
+                    if (currentFilter === 'offline' && device.status !== 'offline') return false;
+                    if (currentFilter === 'customer' && device.device_type !== 'customer') return false;
+                    if (currentFilter === 'infrastructure' && device.device_type === 'customer') return false;
+                }
+
+                if (searchQuery) {
+                    const searchLower = searchQuery.toLowerCase();
+                    const nameMatch = device.name.toLowerCase().includes(searchLower);
+                    const typeMatch = device.device_type.toLowerCase().includes(searchLower);
+                    const addressMatch = device.address && device.address.toLowerCase().includes(searchLower);
+                    const ipMatch = device.ip_address && device.ip_address.toLowerCase().includes(searchLower);
+                    
+                    if (!nameMatch && !typeMatch && !addressMatch && !ipMatch) return false;
+                }
+
+                return true;
+            });
+
+            // Add markers for filtered devices
+            filteredDevices.forEach(device => {
+                const marker = createDeviceMarker(device);
+                marker.addTo(map);
+                markers[device.id] = marker;
+                deviceMap[device.id] = device;
+            });
+        }
+
+        // Create device marker
+        function createDeviceMarker(device) {
+            const statusColors = {
+                'online': '#10b981',
+                'offline': '#ef4444',
+                'warning': '#f59e0b',
+                'degraded': '#6366f1',
+                'unknown': '#64748b'
+            };
+
+            const iconHtml = `
+                <div class="device-marker" style="
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background: ${statusColors[device.status] || '#64748b'};
+                    border: 3px solid white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    position: relative;
+                ">
+                    <i class="${getDeviceIcon(device.device_type)}" style="
+                        color: white;
+                        font-size: 14px;
+                    "></i>
+                    ${device.status === 'offline' ? '<div style="position: absolute; top: -2px; right: -2px; width: 12px; height: 12px; background: #ef4444; border-radius: 50%; border: 1px solid white;"></div>' : ''}
+                </div>
+            `;
+
+            const icon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-device-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
+            const marker = L.marker([device.latitude, device.longitude], { icon: icon });
+
+            // Popup content
+            marker.bindPopup(createDevicePopup(device));
+
+            // Events
+            marker.on('click', () => onDeviceClick(device));
+            marker.on('mouseover', function(e) {
+                this.openPopup();
+            });
+            marker.on('mouseout', function(e) {
+                this.closePopup();
+            });
+
+            return marker;
+        }
+
+        // Get device icon based on type
+        function getDeviceIcon(deviceType) {
+            const icons = {
+                'customer': 'fas fa-user',
+                'ont': 'fas fa-router',
+                'olt': 'fas fa-server',
+                'odc': 'fas fa-box',
+                'odp': 'fas fa-cube',
+                'router': 'fas fa-network-wired',
+                'switch': 'fas fa-sitemap',
+                'access_point': 'fas fa-wifi'
+            };
+            return icons[deviceType] || 'fas fa-circle';
+        }
+
+        // Create device popup content
+        function createDevicePopup(device) {
+            const statusClass = `status-${device.status}`;
+            const statusText = device.status.charAt(0).toUpperCase() + device.status.slice(1);
+
+            let content = `
+                <div style="min-width: 250px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; font-size: 16px; color: #1e293b;">${device.name}</h4>
+                        <span class="device-status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Type:</strong> ${device.device_type}
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Status:</strong> ${statusText}
+                    </div>
+            `;
+
+            if (device.ip_address) {
+                content += `<div style="margin-bottom: 8px;"><strong>IP:</strong> ${device.ip_address}</div>`;
+            }
+
+            if (device.latency_ms) {
+                content += `<div style="margin-bottom: 8px;"><strong>Latency:</strong> ${device.latency_ms}ms</div>`;
+            }
+
+            if (device.packet_loss_percent) {
+                content += `<div style="margin-bottom: 8px;"><strong>Packet Loss:</strong> ${device.packet_loss_percent}%</div>`;
+            }
+
+            if (device.last_seen) {
+                content += `<div style="margin-bottom: 8px;"><strong>Last Seen:</strong> ${new Date(device.last_seen).toLocaleString()}</div>`;
+            }
+
+            content += '</div>';
+            return content;
+        }
+
+        // Render network links
+        function renderLinks(links) {
+            // Clear existing links
+            linksLayer.clearLayers();
+
+            links.forEach(link => {
+                const sourceDevice = deviceMap[link.source_device_id];
+                const targetDevice = deviceMap[link.target_device_id];
+
+                if (sourceDevice && targetDevice && sourceDevice.latitude && targetDevice.latitude) {
+                    const color = link.status === 'up' ? '#10b981' : 
+                                  link.status === 'down' ? '#ef4444' : '#f59e0b';
+
+                    const polyline = L.polyline([
+                        [sourceDevice.latitude, sourceDevice.longitude],
+                        [targetDevice.latitude, targetDevice.longitude]
+                    ], {
+                        color: color,
+                        weight: 3,
+                        opacity: 0.7
+                    }).addTo(linksLayer);
+
+                    linksMap[`${link.source_device_id}-${link.target_device_id}`] = polyline;
+                }
+            });
+        }
+
+        // Device click handler
+        function onDeviceClick(device) {
+            selectedDevice = device;
+            showDeviceDetails(device);
+            openDeviceSidebar();
+        }
+
+        // Show device details
+        function showDeviceDetails(device) {
+            const detailsDiv = document.getElementById('deviceDetails');
+            
+            let content = `
+                <div class="device-info">
+                    <h3 style="margin-bottom: 15px; color: #f8fafc;">${device.name}</h3>
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <span class="device-status-badge status-${device.status}">
+                            ${device.status.toUpperCase()}
+                        </span>
+                        <span style="margin-left: 10px; color: #94a3b8;">${device.device_type}</span>
+                    </div>
+            `;
+
+            if (device.ip_address) {
+                content += `<p><strong>IP Address:</strong> ${device.ip_address}</p>`;
+            }
+
+            if (device.metadata) {
+                content += `<p><strong>Metadata:</strong> ${JSON.stringify(device.metadata)}</p>`;
+            }
+
+            if (device.latency_ms) {
+                content += `<p><strong>Latency:</strong> ${device.latency_ms}ms</p>`;
+            }
+
+            if (device.packet_loss_percent) {
+                content += `<p><strong>Packet Loss:</strong> ${device.packet_loss_percent}%</p>`;
+            }
+
+            content += `
+                </div>
+                <div class="performance-chart">
+                    <h4 style="margin-bottom: 10px; color: #e2e8f0;">Performance Metrics</h4>
+                    <div class="chart-container">
+                        <canvas id="perfChart-${device.id}"></canvas>
+                    </div>
+                </div>
+            `;
+
+            detailsDiv.innerHTML = content;
+            
+            // Initialize chart
+            setTimeout(() => initPerformanceChart(device), 100);
+        }
+
+        // Initialize performance chart
+        function initPerformanceChart(device) {
+            const canvasId = `perfChart-${device.id}`;
+            const canvas = document.getElementById(canvasId);
+            
+            if (!canvas) return;
+
+            if (deviceCharts[device.id]) {
+                deviceCharts[device.id].destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            deviceCharts[device.id] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1m', '5m', '10m', '15m', '20m', '25m', '30m'],
+                    datasets: [{
+                        label: 'Latency (ms)',
+                        data: [Math.random() * 50, Math.random() * 50, Math.random() * 50, Math.random() * 50, Math.random() * 50, Math.random() * 50, Math.random() * 50],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // UI Functions
+        function toggleControlPanel() {
+            const panel = document.getElementById('controlPanel');
+            const icon = document.getElementById('toggleIcon');
+
+            if (panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+                icon.className = 'fas fa-cog';
+            } else {
+                panel.classList.add('collapsed');
+                icon.className = 'fas fa-ellipsis-v';
+            }
+        }
+
+        function toggleFilter(element, filter) {
+            // Remove active class from all
+            document.querySelectorAll('.filter-option').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Add active class to clicked
+            element.classList.add('active');
+            
+            currentFilter = filter;
+            applyFilters();
+        }
+
+        function onSearchInput(value) {
+            searchQuery = value.toLowerCase();
+            applyFilters();
+        }
+
+        function applyFilters() {
+            renderDevices(allDevices);
+        }
+
+        function openDeviceSidebar() {
+            document.getElementById('deviceSidebar').classList.add('open');
+        }
+
+        function closeDeviceSidebar() {
+            document.getElementById('deviceSidebar').classList.remove('open');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        function refreshData() {
+            loadNetworkData();
+        }
+
+        function syncAll() {
+            showLoading(true);
+            fetch('/monitoring/api/sync/genieacs', { method: 'POST' })
+                .then(() => fetch('/monitoring/api/sync/customers', { method: 'POST' }))
+                .then(() => fetch('/monitoring/api/sync/ftth', { method: 'POST' }))
+                .then(() => loadNetworkData())
+                .catch(error => {
+                    console.error('Sync error:', error);
+                    showLoading(false);
+                });
+        }
+
+        function toggleAudioAlerts() {
+            isAudioEnabled = !isAudioEnabled;
+            const btn = event.target.closest('.filter-option') || event.target;
+            btn.innerHTML = isAudioEnabled ? 
+                '<i class="fas fa-volume-up"></i> Audio Alerts (ON)' : 
+                '<i class="fas fa-volume-mute"></i> Audio Alerts (OFF)';
+        }
+
+        function showRecentAlerts() {
+            // TODO: Implement recent alerts display
+            alert('Recent alerts feature coming soon!');
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<strong>${message}</strong>`;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+
+</html>

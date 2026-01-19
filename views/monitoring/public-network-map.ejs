@@ -18,100 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-    <!-- ULTIMATE FORCE HIDE 3RD PARTY EXTENSIONS -->
-    <style>
-        /* === VIEWPORT LOCKDOWN === */
-        /* This is the most aggressive approach possible from CSS */
-        html {
-            overflow: clip !important;
-            overflow-clip-margin: 0 !important;
-            width: 100vw !important;
-            max-width: 100vw !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
 
-        body {
-            overflow-x: clip !important;
-            overflow-y: auto !important;
-            width: 100vw !important;
-            max-width: 100vw !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            position: relative !important;
-            isolation: isolate !important;
-        }
-
-        /* Create a clip container that hides everything outside viewport */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            right: -1px;
-            width: 400px;
-            height: 100vh;
-            background: transparent;
-            z-index: 2147483647;
-            pointer-events: none;
-        }
-
-        /* Aggressive blocking of AI Overlay Extensions */
-        #sider-sidebar-root,
-        #check-sidebar-root,
-        #monica-root-host,
-        #monica-content-root,
-        #chatgpt-sidebar-root,
-        .sider-sidebar-container,
-        #__chsidebar,
-        [id*="sider-"],
-        [id*="monica-"],
-        [class*="chatgpt"],
-        [id*="chatgpt"],
-        [id*="ai-sidebar"],
-        div[id^="aiinhbfoop"],
-        div[class^="aiinhbfoop"],
-        div[id*="deepseek"],
-        chat-gpt-sidebar,
-        #CRX-container,
-        .chsidebar-container,
-        [class*="gpt-sidebar"],
-        [class*="gpt_sidebar"],
-        [class*="GPT"],
-        [id*="GPT"],
-        [class*="chat-gpt"],
-        [class*="ChatGPT"],
-        [id*="chat-gpt"],
-        [id*="ChatGPT"],
-        [class*="openai"],
-        [id*="openai"],
-        [class*="extension"],
-        [id*="extension"],
-        div[data-extension],
-        div[data-chatgpt],
-        div[data-gpt] {
-            display: none !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
-            max-width: 0 !important;
-            max-height: 0 !important;
-            overflow: hidden !important;
-            pointer-events: none !important;
-            position: fixed !important;
-            z-index: -99999 !important;
-            left: -99999px !important;
-            top: -99999px !important;
-            transform: scale(0) !important;
-            clip: rect(0, 0, 0, 0) !important;
-            clip-path: inset(100%) !important;
-        }
-
-        /* Hide ANY fixed/absolute element at far right that's not ours */
-        body>div:not(#map):not(.stats-panel):not(.control-panel):not(.loading-overlay):not(.odc-sidebar):not(.leaflet-pane):not([class^="leaflet"]) {
-            /* Additional check with JS below */
-        }
-    </style>
 
     <style>
         * {
@@ -625,19 +532,144 @@
             }
         }
 
+        /* Trace Path Styling */
+        .trace-line {
+            stroke-dasharray: 10, 10;
+            animation: dash 5s linear infinite;
+            filter: drop-shadow(0 0 5px #ff00ea);
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+
+        .trace-overlay {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 30px;
+            color: white;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideDown {
+            from {
+                top: -100px;
+                transform: translate(-50%, -20px);
+            }
+
+            to {
+                top: 20px;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        .trace-node {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .trace-node i {
+            font-size: 14px;
+        }
+
+        .trace-arrow {
+            opacity: 0.5;
+            font-size: 10px;
+        }
+
+        /* Floating Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            width: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .map-legend.collapsed {
+            width: auto;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .map-legend.collapsed #legendContent {
+            display: none;
+        }
+
+        .map-legend.collapsed #legendToggleIcon {
+            transform: rotate(-90deg);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Marker Blinking for Criticals */
         @keyframes marker-blink {
 
             0%,
             100% {
                 opacity: 1;
                 transform: scale(1);
+                filter: brightness(1);
             }
 
             50% {
                 opacity: 0.7;
-                transform: scale(0.95);
+                transform: scale(0.9);
+                filter: brightness(1.5) drop-shadow(0 0 10px #ef4444);
             }
         }
+
+        /* Heatmap Mode */
+        .heatmap-mode .leaflet-marker-icon {
+            opacity: 0.3 !important;
+            filter: grayscale(0.8) !important;
+            transition: all 0.5s;
+        }
+
+        .heatmap-mode .customer-marker-label {
+            display: none !important;
+        }
+
+
 
         .marker-label-container {
             display: flex;
@@ -1138,209 +1170,7 @@
         })();
     </script>
 
-    <style>
-        /* CSS to target siblings of body */
-        html>body~* {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            width: 0 !important;
-            height: 0 !important;
-            clip-path: inset(100%) !important;
-        }
-    </style>
-    <!-- ULTIMATE AGGRESSIVE CLEANER SCRIPT -->
-    <script>
-        (function () {
-            // Known extension selectors to nuke
-            const NUKE_SELECTORS = [
-                '#sider-sidebar-root', '#monica-root-host', '#check-sidebar-root',
-                '#chatgpt-sidebar-root', '#__chsidebar', '.sider-sidebar-container',
-                '[id^="aiinhbfoop"]', '[class^="aiinhbfoop"]', '#CRX-container',
-                '.chsidebar-container', 'chat-gpt-sidebar', 'side-bar',
-                '[id*="gpt"]', '[class*="gpt"]', '[id*="GPT"]', '[class*="GPT"]',
-                '[id*="openai"]', '[class*="openai"]', '[id*="chatgpt"]', '[class*="chatgpt"]',
-                '[id*="sider"]', '[class*="sider"]', '[id*="monica"]', '[class*="monica"]',
-                '[data-extension]', '[data-chatgpt]', '[data-gpt]'
-            ];
 
-            // Whitelisted elements that should never be removed
-            const WHITELIST_IDS = ['map', 'loadingOverlay', 'statsPanel', 'controlPanel', 'odcSidebar'];
-            const WHITELIST_CLASSES = ['stats-panel', 'control-panel', 'odc-sidebar', 'leaflet-control',
-                'leaflet-pane', 'popup-content', 'loading-overlay'];
-
-            function isWhitelisted(el) {
-                if (!el || !el.tagName) return true;
-                if (WHITELIST_IDS.includes(el.id)) return true;
-                for (const cls of WHITELIST_CLASSES) {
-                    if (el.classList && el.classList.contains(cls)) return true;
-                }
-                // Check if it's inside the map
-                if (el.closest('#map')) return true;
-                if (el.closest('.leaflet-container')) return true;
-                return false;
-            }
-
-            function nukeElement(el) {
-                if (isWhitelisted(el)) return;
-                try {
-                    el.remove();
-                    console.log('[EXTENSION CLEANER] Removed:', el.tagName, el.id || el.className);
-                } catch (e) { }
-            }
-
-            function nukeBySelectors() {
-                NUKE_SELECTORS.forEach(sel => {
-                    try {
-                        document.querySelectorAll(sel).forEach(el => {
-                            nukeElement(el);
-                        });
-                    } catch (e) { }
-                });
-            }
-
-            function nukeSuspiciousSidebars() {
-                // 1. Existing Logic: Find fixed/absolute positioned elements
-                const allDivs = document.querySelectorAll('body > div, body > aside, body > section, body > shadow-host');
-                allDivs.forEach(div => {
-                    if (isWhitelisted(div)) return;
-                    // Ignore built-in elements
-                    if (div.tagName === 'SCRIPT' || div.tagName === 'STYLE') return;
-
-                    const style = window.getComputedStyle(div);
-                    const rect = div.getBoundingClientRect();
-
-                    // Check if it's fixed/absolute and on the right side
-                    if ((style.position === 'fixed' || style.position === 'absolute') &&
-                        rect.right >= window.innerWidth - 30 &&
-                        rect.height > 100 &&
-                        rect.width > 20 && rect.width < 600) {
-
-                        // Check content for GPT/AI keywords or if it's just a generic container
-                        // If it's on the far right and fixed, it's likely an extension sidebar
-                        console.log('[EXTENSION CLEANER] Detected suspicious sidebar via metrics:', div.id || div.className);
-                        div.style.cssText = 'display:none!important;visibility:hidden!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;position:fixed!important;left:-99999px!important;z-index:-9999!important;';
-                        try { div.remove(); } catch (e) { }
-                    }
-                });
-
-                // 2. "Seek and Destroy" Physics-Based Logic
-                // Scan the right edge of the screen to find elements physically obstructing the view
-                const screenRight = window.innerWidth - 30; // 30px from right edge
-                const screenHeight = window.innerHeight;
-
-                // Scan points from top to bottom
-                for (let y = 100; y < screenHeight - 100; y += 100) {
-                    const el = document.elementFromPoint(screenRight, y);
-                    if (el &&
-                        el.tagName !== 'BODY' &&
-                        el.tagName !== 'HTML' &&
-                        !isWhitelisted(el)) {
-
-                        // Double check it's not a child of whitelisted element
-                        if (el.closest('#map') || el.closest('.stats-panel')) continue;
-
-                        const rect = el.getBoundingClientRect();
-                        // Ensure we don't delete full-screen overlays or the map itself
-                        if (rect.width < window.innerWidth && rect.height > 50) {
-                            console.log('[EXTENSION CLEANER] Seek & Destroy hit:', el.tagName, el.id, el.className);
-                            el.style.setProperty('display', 'none', 'important');
-                            el.style.setProperty('visibility', 'hidden', 'important');
-                            try { el.remove(); } catch (e) { }
-                        }
-                    }
-                }
-            }
-
-            function nukeShadowRoots() {
-                // Try to pierce shadow roots (limited by browser security)
-                document.querySelectorAll('*').forEach(el => {
-                    if (el.shadowRoot && !isWhitelisted(el)) {
-                        const shadowContent = el.shadowRoot.innerHTML || '';
-                        if (shadowContent.includes('GPT') || shadowContent.includes('gpt') ||
-                            shadowContent.includes('chat') || shadowContent.includes('sidebar')) {
-                            console.log('[EXTENSION CLEANER] Removing element with suspicious shadow root');
-                            try { el.remove(); } catch (e) { }
-                        }
-                    }
-                });
-            }
-
-
-            function fullNuke() {
-                nukeBySelectors();
-                nukeSuspiciousSidebars();
-                nukeShadowRoots();
-
-                // Specifically target aiinhbfoop extension (identified as the culprit)
-                document.querySelectorAll('[id^="aiinhbfoop"], [class*="aiinhbfoop"]').forEach(el => {
-                    try { el.remove(); } catch (e) { }
-                });
-            }
-
-            // Run immediately
-            fullNuke();
-
-            // Run after DOM ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', fullNuke);
-            }
-
-            // Run after full load
-            window.addEventListener('load', () => {
-                fullNuke();
-                setTimeout(fullNuke, 50);
-                setTimeout(fullNuke, 100);
-                setTimeout(fullNuke, 200);
-                setTimeout(fullNuke, 500);
-                setTimeout(fullNuke, 1000);
-                setTimeout(fullNuke, 2000);
-                setTimeout(fullNuke, 3000);
-            });
-
-            // Run VERY frequently (every 100ms) to catch re-renders
-            setInterval(fullNuke, 100);
-
-            // Watch for new elements with MutationObserver
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1) { // Element node
-                            // Check if it's a known extension element
-                            const tagName = node.tagName ? node.tagName.toLowerCase() : '';
-                            const id = node.id ? node.id.toLowerCase() : '';
-                            const className = node.className ? (typeof node.className === 'string' ? node.className.toLowerCase() : '') : '';
-
-                            // Include aiinhbfoop pattern (the identified extension)
-                            if (id.includes('gpt') || id.includes('chatgpt') || id.includes('monica') ||
-                                id.includes('sider') || id.includes('openai') || id.includes('aiinhbfoop') ||
-                                className.includes('gpt') || className.includes('chatgpt') ||
-                                className.includes('monica') || className.includes('sider') || className.includes('aiinhbfoop') ||
-                                tagName.includes('chat-gpt') || tagName.includes('sidebar')) {
-                                nukeElement(node);
-                            }
-
-                            // Also run the suspicious sidebar check on new elements
-                            if (!isWhitelisted(node)) {
-                                const style = window.getComputedStyle(node);
-                                if (style.position === 'fixed' || style.position === 'absolute') {
-                                    setTimeout(() => nukeSuspiciousSidebars(), 50);
-                                }
-                            }
-                        }
-                    });
-                });
-            });
-
-            observer.observe(document.documentElement, {
-                childList: true,
-                subtree: true
-            });
-
-            console.log('[EXTENSION CLEANER] Ultimate protection activated');
-        })();
-    </script>
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
@@ -1393,24 +1223,88 @@
                 (Gunakan jika ODP/ODC belum muncul)
             </div>
 
-            <!-- Live Traffic Toggle -->
-            <div class="filter-group" style="border-top: none; margin-top: 5px; padding-top: 5px;">
-                <div class="filter-item" onclick="toggleLiveTraffic()">
+            <!-- Search Control -->
+            <div class="mb-4">
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i class="fas fa-search text-xs"></i>
+                    </span>
+                    <input type="text" id="device-search" placeholder="Cari pelanggan/perangkat..."
+                        class="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                        oninput="onSearchInput(this.value)">
+                </div>
+            </div>
+
+            <!-- Enhanced Filters -->
+            <div class="filter-group" style="margin-top: 5px; padding-top: 5px; border-top: none;">
+                <div class="filter-item" onclick="toggleOfflineOnly()">
                     <div class="filter-label">
                         <div class="filter-icon" style="background: #ef4444; color: white;">
+                            <i class="fas fa-exclamation-circle" id="offline-filter-icon"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #ef4444;" id="offline-filter-label">Offline Only</span>
+                    </div>
+                    <input type="checkbox" id="filter-offline-only">
+                </div>
+            </div>
+
+            <!-- Live Traffic Toggle -->
+            <div class="filter-group" style="border-top: 1px solid #e2e8f0; margin-top: 5px; padding-top: 5px;">
+                <div class="filter-item" onclick="toggleLiveTraffic()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #10b981; color: white;">
                             <i class="fas fa-bolt animate-pulse"></i>
                         </div>
-                        <span style="font-weight: 700; color: #ef4444;">Live Traffic</span>
+                        <span style="font-weight: 700; color: #10b981;">Live Traffic</span>
                     </div>
                     <!-- Toggle Switch -->
                     <div
                         class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
                         <input type="checkbox" name="toggle" id="live-traffic-toggle" checked
                             class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                            style="right: 0; top: 0; transition: all 0.3s; transform: translateX(0); border-color: #ef4444; background: #ef4444;" />
+                            style="right: 0; top: 0; transition: all 0.3s; transform: translateX(0); border-color: #10b981; background: #10b981;" />
                         <label for="live-traffic-toggle"
-                            class="toggle-label block overflow-hidden h-4 rounded-full bg-red-100 cursor-pointer"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-green-100 cursor-pointer"
                             style="transition: all 0.3s;"></label>
+                    </div>
+                </div>
+
+                <!-- Audio Alerts Toggle -->
+                <div class="filter-item" onclick="toggleAudioAlerts()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #8b5cf6; color: white;">
+                            <i class="fas fa-volume-up" id="audio-toggle-icon"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #8b5cf6;">Audio Alerts</span>
+                    </div>
+                    <!-- Toggle Switch -->
+                    <div
+                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="audio-toggle" id="audio-alerts-toggle" checked
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            style="right: 0; top: 0; transition: all 0.3s; transform: translateX(0); border-color: #8b5cf6; background: #8b5cf6;" />
+                        <label for="audio-alerts-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-purple-100 cursor-pointer"
+                            style="transition: all 0.3s;"></label>
+                    </div>
+                </div>
+
+                <!-- Heatmap Toggle -->
+                <div class="filter-item" onclick="toggleHeatmap()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #f97316; color: white;">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #f97316;">Signal Heatmap</span>
+                    </div>
+                    <!-- Toggle Switch -->
+                    <div
+                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="heatmap-toggle"
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            style="right: 4px; top: 0; transition: all 0.3s;" />
+                        <label for="heatmap-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-200 cursor-pointer"></label>
                     </div>
                 </div>
             </div>
@@ -1506,8 +1400,46 @@
         </div>
     </div>
 
+    <!-- Trace Route Info Overlay -->
+    <div id="traceOverlay" class="trace-overlay" style="display: none;">
+        <div class="trace-node"><i class="fas fa-server text-purple-500"></i> OLT</div>
+        <div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>
+        <div class="trace-node"><i class="fas fa-box text-orange-500"></i> ODC</div>
+        <div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>
+        <div class="trace-node"><i class="fas fa-cube text-blue-500"></i> ODP</div>
+        <div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>
+        <div class="trace-node"><i class="fas fa-user text-green-500"></i> Customer</div>
+        <div style="margin-left: 20px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 15px;">
+            <span id="traceDistance" style="color: #fca311; font-weight: 800; font-size: 14px;">0m</span>
+            <button onclick="clearTrace()"
+                style="margin-left: 15px; color: #ef4444; background: none; border: none; cursor: pointer;"><i
+                    class="fas fa-times-circle"></i></button>
+        </div>
+    </div>
+
+    <!-- Map Legend -->
+    <div class="map-legend">
+        <h4 style="font-size: 12px; font-weight: 800; margin-bottom: 5px; color: #1e293b;">Legend</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #8b5cf6;"></div> <span>Backbone (OLT-ODC)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3b82f6;"></div> <span>Distribusi (ODC-ODP)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #10b981;"></div> <span>Dropcore Online</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ef4444;"></div> <span>Dropcore Offline</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f59e0b;"></div> <span>High Latency / Warning</span>
+        </div>
+    </div>
+
     <!-- Map Container -->
     <div id="map"></div>
+    <div id="heatmapContainer"></div>
 
     <!-- Sync Button (Fixed Position) -->
     <button id="btn-sync-data" onclick="syncData()" style="
@@ -1572,42 +1504,17 @@
         }
     </script>
 
-    <!-- ODC Sidebar -->
-    <div id="odcSidebar" class="odc-sidebar">
-        <div class="odc-header">
-            <button class="close-sidebar" onclick="closeOdcSidebar()">
+    <!-- Device Detail Sidebar -->
+    <div id="deviceSidebar" class="odc-sidebar">
+        <div class="odc-header" id="sidebarHeader">
+            <button class="close-sidebar" onclick="closeDeviceSidebar()">
                 <i class="fas fa-times"></i>
             </button>
-            <h2 id="odcName">ODC Name</h2>
-            <p id="odcLocation">Location details...</p>
+            <h2 id="sidebarName">Device Name</h2>
+            <p id="sidebarSubname">Type details...</p>
         </div>
-        <div class="odc-content">
-            <div class="odc-stats-grid"
-                style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 25px;">
-                <div class="stat-card">
-                    <span class="label">Connected ODP</span>
-                    <span class="value" id="statOdpCount">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="label">Port Usage</span>
-                    <span class="value" id="statPortUsage">0/0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="label">Online ONT</span>
-                    <span class="value" style="color: #10b981;" id="statOntOnline">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="label">Offline ONT</span>
-                    <span class="value" style="color: #ef4444;" id="statOntOffline">0</span>
-                </div>
-            </div>
-
-            <div class="odp-list-container">
-                <h3><i class="fas fa-cube text-pink-500"></i> Connected ODP List</h3>
-                <div id="odpList">
-                    <!-- ODP items will be injected here -->
-                </div>
-            </div>
+        <div class="odc-content" id="sidebarContent">
+            <!-- Content will be injected here -->
         </div>
     </div>
 
@@ -1616,6 +1523,9 @@
 
     <!-- Leaflet Routing Machine (for walking distance) -->
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <!-- Leaflet Heatmap Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heatmap@1.0.0/leaflet-heatmap.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <script>
         // Global variables
@@ -1634,16 +1544,29 @@
         let routingControl = null;
         let deviceMap = {};
         let linksMap = {}; // Track active link polyline objects
+        let searchQuery = '';
+        let isOfflineOnly = false;
+        let isHeatmapActive = false;
+        let allDevices = []; // Cache for filtering without re-fetching
+        let traceLayer = L.layerGroup();
+        let heatLayer = null;
 
         // Initialize map
         function initMap() {
             // Start with default center (will be updated after loading data)
             map = L.map('map').setView([-6.200000, 106.816666], 13);
 
+            // Enable audio interaction on first click (browser policy)
+            document.body.addEventListener('click', () => {
+                if (window.audioCtx && window.audioCtx.state === 'suspended') {
+                    window.audioCtx.resume();
+                }
+            }, { once: true });
+
             // Map click handler to close sidebar
             map.on('click', (e) => {
                 if (!e.originalEvent.target.closest('.leaflet-marker-icon')) {
-                    closeOdcSidebar();
+                    closeDeviceSidebar();
                 }
             });
 
@@ -1656,6 +1579,7 @@
 
             // Add link layers to map
             linkLayers.addTo(map);
+            traceLayer.addTo(map);
 
             // Load data
             loadNetworkData();
@@ -1664,62 +1588,438 @@
             setInterval(refreshData, 10000);
         }
 
-        // Calculate center point from OLT location (prioritize OLT for initial view)
-        function calculateInitialCenter(devices) {
-            // First, try to find OLT
-            const olt = devices.find(d =>
-                d.device_type === 'olt' &&
-                d.latitude !== null && d.latitude !== undefined &&
-                d.longitude !== null && d.longitude !== undefined &&
-                !isNaN(parseFloat(d.latitude)) && !isNaN(parseFloat(d.longitude))
-            );
-
-            if (olt) {
-                console.log(`📍 Auto-centered to OLT: ${olt.name} at [${parseFloat(olt.latitude).toFixed(4)}, ${parseFloat(olt.longitude).toFixed(4)}]`);
-                return { lat: parseFloat(olt.latitude), lng: parseFloat(olt.longitude), zoom: 14 };
-            }
-
-            // Fallback to ODC if no OLT
-            const odc = devices.find(d =>
-                d.device_type === 'odc' &&
-                d.latitude !== null && d.latitude !== undefined &&
-                d.longitude !== null && d.longitude !== undefined &&
-                !isNaN(parseFloat(d.latitude)) && !isNaN(parseFloat(d.longitude))
-            );
-
-            if (odc) {
-                console.log(`📍 Auto-centered to ODC: ${odc.name} at [${parseFloat(odc.latitude).toFixed(4)}, ${parseFloat(odc.longitude).toFixed(4)}]`);
-                return { lat: parseFloat(odc.latitude), lng: parseFloat(odc.longitude), zoom: 15 };
-            }
-
-            // Final fallback to first device with valid coordinates
-            const anyDevice = devices.find(d =>
-                d.latitude !== null && d.latitude !== undefined &&
-                d.longitude !== null && d.longitude !== undefined &&
-                !isNaN(parseFloat(d.latitude)) && !isNaN(parseFloat(d.longitude))
-            );
-
-            if (anyDevice) {
-                console.log(`📍 Auto-centered to device: ${anyDevice.name}`);
-                return { lat: parseFloat(anyDevice.latitude), lng: parseFloat(anyDevice.longitude), zoom: 14 };
-            }
-
-            // Default Jakarta
-            return { lat: -6.200000, lng: 106.816666, zoom: 13 };
+        // Search logic
+        function onSearchInput(value) {
+            searchQuery = value.toLowerCase();
+            applyFilters();
         }
 
-        // Toggle stats panel
-        function toggleStatsPanel() {
-            const panel = document.getElementById('statsPanel');
-            const icon = document.getElementById('statsToggleIcon');
+        // Toggle Offline Only
+        function toggleOfflineOnly() {
+            const checkbox = document.getElementById('filter-offline-only');
+            isOfflineOnly = !checkbox.checked;
+            checkbox.checked = isOfflineOnly;
 
-            if (panel.classList.contains('collapsed')) {
-                panel.classList.remove('collapsed');
-                icon.className = 'fas fa-times';
+            const icon = document.getElementById('offline-filter-icon');
+            const label = document.getElementById('offline-filter-label');
+
+            if (isOfflineOnly) {
+                icon.parentElement.style.background = '#ef4444';
+                label.style.color = '#ef4444';
             } else {
-                panel.classList.add('collapsed');
-                icon.className = 'fas fa-chart-bar';
+                icon.parentElement.style.background = '#9ca3af';
+                label.style.color = '#6b7280';
             }
+
+            applyFilters();
+        }
+
+        // Apply all active filters (Type, Search, Offline Status)
+        // Apply all active filters (Type, Search, Offline Status)
+        function applyFilters() {
+            if (!allDevices || allDevices.length === 0) return;
+
+            const filteredDevices = allDevices.filter(device => {
+                // 1. Type Filter
+                if (!activeFilters[device.device_type]) return false;
+
+                // 2. Offline Only Filter
+                if (isOfflineOnly && device.status !== 'offline') return false;
+
+                // 3. Search Query Filter
+                if (searchQuery) {
+                    const nameMatch = device.name.toLowerCase().includes(searchQuery);
+                    const ipMatch = (device.ip_address && device.ip_address.toLowerCase().includes(searchQuery)) ||
+                        (device.metadata && device.metadata.ip_address && device.metadata.ip_address.toLowerCase().includes(searchQuery));
+                    const addressMatch = device.address && device.address.toLowerCase().includes(searchQuery);
+
+                    let pppoeMatch = false;
+                    const meta = typeof device.metadata === 'string' ? JSON.parse(device.metadata || '{}') : (device.metadata || {});
+                    if (meta.pppoe_username) {
+                        pppoeMatch = meta.pppoe_username.toLowerCase().includes(searchQuery);
+                    }
+
+                    if (!nameMatch && !ipMatch && !addressMatch && !pppoeMatch) return false;
+                }
+
+                return true;
+            });
+
+            renderDevices(filteredDevices);
+
+            // If search has exactly one result, center on it and auto-trace
+            if (searchQuery && filteredDevices.length === 1) {
+                const d = filteredDevices[0];
+                const lat = parseFloat(d.latitude);
+                const lng = parseFloat(d.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    map.setView([lat, lng], 19);
+                    setTimeout(() => {
+                        if (markers[d.id]) markers[d.id].openPopup();
+                        // Auto-trace path to OLT for the found device
+                        traceRouteToOlt(d.id);
+                        // Also show detail sidebar
+                        showDeviceDetail(d);
+                    }, 500);
+                }
+            }
+        }
+
+        // Enhanced Audio Notification System
+        let audioCtx = null;
+        let isAudioEnabled = true;
+
+        // Initialize audio context on first user interaction
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Resume if suspended
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Different sound types for different alerts
+        function playAlertSound(type = 'warning') {
+            if (!isAudioEnabled) return;
+
+            initAudio();
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch (type) {
+                case 'critical': // For offline devices
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.3);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    break;
+                case 'warning': // For general warnings
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(554.37, audioCtx.currentTime); // C#5
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    break;
+                case 'info': // For positive notifications
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    break;
+                default: // Default alarm
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.5);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            }
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // Audio toggle functionality
+        function toggleAudioAlerts() {
+            const checkbox = document.getElementById('audio-alerts-toggle');
+            isAudioEnabled = !checkbox.checked; // Since click happens before state changes
+
+            // Update checkbox state
+            checkbox.checked = isAudioEnabled;
+
+            // Update UI
+            const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+            const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+
+            if (isAudioEnabled) {
+                // Enable audio
+                checkbox.style.borderColor = '#8b5cf6';
+                checkbox.style.background = '#8b5cf6';
+                checkbox.nextElementSibling.style.background = '#ede9fe'; // Light purple
+                if (iconDiv) {
+                    iconDiv.style.background = '#8b5cf6';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-up"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#8b5cf6';
+            } else {
+                // Disable audio
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e5e7eb'; // Gray
+                if (iconDiv) {
+                    iconDiv.style.background = '#9ca3af';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#6b7280';
+            }
+
+            localStorage.setItem('audioAlertsEnabled', isAudioEnabled);
+
+            // Play test sound if enabling
+            if (isAudioEnabled) {
+                playAlertSound('info');
+            }
+        }
+
+        // Initialize audio toggle state
+        function initAudioToggleState() {
+            const savedState = localStorage.getItem('audioAlertsEnabled');
+            const shouldEnable = savedState === null || savedState === 'true';
+
+            const checkbox = document.getElementById('audio-alerts-toggle');
+            if (checkbox) {
+                checkbox.checked = shouldEnable;
+
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+
+                if (shouldEnable) {
+                    checkbox.style.borderColor = '#8b5cf6';
+                    checkbox.style.background = '#8b5cf6';
+                    checkbox.nextElementSibling.style.background = '#ede9fe';
+                    if (iconDiv) {
+                        iconDiv.style.background = '#8b5cf6';
+                        iconDiv.innerHTML = '<i class="fas fa-volume-up"></i>';
+                    }
+                    if (labelSpan) labelSpan.style.color = '#8b5cf6';
+                } else {
+                    checkbox.style.borderColor = '#ccc';
+                    checkbox.style.background = 'white';
+                    checkbox.nextElementSibling.style.background = '#e5e7eb';
+                    if (iconDiv) {
+                        iconDiv.style.background = '#9ca3af';
+                        iconDiv.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                    }
+                    if (labelSpan) labelSpan.style.color = '#6b7280';
+                }
+
+                isAudioEnabled = shouldEnable;
+            }
+        }
+
+        // Initialize audio settings from localStorage
+        function initAudioSettings() {
+            const savedSetting = localStorage.getItem('audioAlertsEnabled');
+            if (savedSetting !== null) {
+                isAudioEnabled = savedSetting === 'true';
+            }
+        }
+
+        // Calculate initial center based on device locations
+        function calculateInitialCenter(devices) {
+            if (!devices || devices.length === 0) {
+                // Default center if no devices
+                return { lat: -6.200000, lng: 106.816666, zoom: 13 };
+            }
+
+            // Filter devices with valid coordinates
+            const validDevices = devices.filter(d => {
+                const lat = parseFloat(d.latitude);
+                const lng = parseFloat(d.longitude);
+                return !isNaN(lat) && !isNaN(lng) && d.latitude && d.longitude;
+            });
+
+            if (validDevices.length === 0) {
+                return { lat: -6.200000, lng: 106.816666, zoom: 13 };
+            }
+
+            // Calculate bounds
+            let minLat = Infinity, maxLat = -Infinity;
+            let minLng = Infinity, maxLng = -Infinity;
+
+            validDevices.forEach(d => {
+                const lat = parseFloat(d.latitude);
+                const lng = parseFloat(d.longitude);
+
+                if (lat < minLat) minLat = lat;
+                if (lat > maxLat) maxLat = lat;
+                if (lng < minLng) minLng = lng;
+                if (lng > maxLng) maxLng = lng;
+            });
+
+            // Calculate center
+            const centerLat = (minLat + maxLat) / 2;
+            const centerLng = (minLng + maxLng) / 2;
+
+            // Calculate appropriate zoom based on spread
+            const latDiff = maxLat - minLat;
+            const lngDiff = maxLng - minLng;
+            const maxDiff = Math.max(latDiff, lngDiff);
+
+            // Rough estimation of zoom level based on area size
+            let zoom = 13; // default
+            if (maxDiff < 0.01) zoom = 16; // Very small area
+            else if (maxDiff < 0.05) zoom = 14;
+            else if (maxDiff < 0.1) zoom = 12;
+            else if (maxDiff < 0.5) zoom = 10;
+            else zoom = 8;
+
+            return { lat: centerLat, lng: centerLng, zoom: zoom };
+        }
+
+        function showOfflineToast(name) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 80px; right: 20px; background: #ef4444; color: white;
+                padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 9999; animation: slideIn 0.3s ease-out; font-weight: bold; font-size: 14px;
+                display: flex; align-items: center; gap: 10px;
+            `;
+            toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>${name} Offline!</span>`;
+            document.body.appendChild(toast);
+
+            // Play critical alert sound for offline devices
+            playAlertSound('critical');
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        let previousDeviceStatus = {};
+
+        // Heatmap Toggle
+        function toggleHeatmap() {
+            const checkbox = document.getElementById('heatmap-toggle');
+            isHeatmapActive = !isHeatmapActive;
+            checkbox.checked = isHeatmapActive;
+
+            if (isHeatmapActive) {
+                document.body.classList.add('heatmap-mode');
+                renderHeatmap();
+            } else {
+                document.body.classList.remove('heatmap-mode');
+                if (heatLayer) {
+                    map.removeLayer(heatLayer);
+                    heatLayer = null;
+                }
+            }
+        }
+
+        function renderHeatmap() {
+            if (heatLayer) map.removeLayer(heatLayer);
+
+            const points = allDevices
+                .filter(d => d.device_type === 'customer' && d.latitude && d.longitude)
+                .map(d => {
+                    let intensity = 0.5;
+                    let meta = typeof d.metadata === 'string' ? JSON.parse(d.metadata) : (d.metadata || {});
+                    if (d.status === 'offline') intensity = 1.0; // Hot spot for offline
+                    else if (meta.signal && meta.signal.rxPower) {
+                        const rx = parseFloat(meta.signal.rxPower);
+                        if (rx < -27) intensity = 0.9;
+                        else if (rx < -24) intensity = 0.7;
+                    }
+                    return [parseFloat(d.latitude), parseFloat(d.longitude), intensity];
+                });
+
+            heatLayer = L.heatLayer(points, {
+                radius: 40,
+                blur: 25,
+                maxZoom: 17,
+                gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+            }).addTo(map);
+        }
+
+        // Trace Route to OLT Logic
+        function traceRouteToOlt(deviceId) {
+            clearTrace();
+            const path = [];
+            const nodes = [];
+            let current = deviceMap[deviceId];
+            let totalDist = 0;
+
+            console.log('Tracing Route from:', current?.name);
+
+            while (current) {
+                path.push([parseFloat(current.latitude), parseFloat(current.longitude)]);
+                nodes.push(current);
+
+                // Find parent via link or parent_id
+                let parent = null;
+
+                // 1. Check parent_id field
+                if (current.parent_id && deviceMap[current.parent_id]) {
+                    parent = deviceMap[current.parent_id];
+                }
+
+                // 2. Check currentLinks
+                if (!parent) {
+                    const link = currentLinks.find(l =>
+                        (l.source_device_id == current.id && deviceMap[l.target_device_id]?.device_type !== 'customer') ||
+                        (l.target_device_id == current.id && deviceMap[l.source_device_id]?.device_type !== 'customer')
+                    );
+                    if (link) {
+                        const pid = link.source_device_id == current.id ? link.target_device_id : link.source_device_id;
+                        parent = deviceMap[pid];
+                    }
+                }
+
+                // If parent is the same as current (loop) or no parent, stop
+                if (!parent || parent.id === current.id) break;
+
+                // Accumulate distance
+                totalDist += calculateDirectDistance(
+                    parseFloat(current.latitude), parseFloat(current.longitude),
+                    parseFloat(parent.latitude), parseFloat(parent.longitude)
+                );
+
+                current = parent;
+                if (current.device_type === 'olt') {
+                    path.push([parseFloat(current.latitude), parseFloat(current.longitude)]);
+                    nodes.push(current);
+                    break;
+                }
+            }
+
+            if (path.length > 1) {
+                const tracePoly = L.polyline(path, {
+                    color: '#ff00ea',
+                    weight: 6,
+                    opacity: 0.9,
+                    className: 'trace-line'
+                }).addTo(traceLayer);
+
+                map.fitBounds(tracePoly.getBounds(), { padding: [50, 50] });
+
+                // Update Overlay UI
+                const overlay = document.getElementById('traceOverlay');
+                const distEl = document.getElementById('traceDistance');
+                distEl.textContent = totalDist > 1000 ? (totalDist / 1000).toFixed(2) + 'km' : totalDist + 'm';
+
+                // Build Node HTML
+                overlay.innerHTML = nodes.reverse().map((n, i) => {
+                    const iconClass = n.device_type === 'customer' ? 'fa-user text-green-500' :
+                        n.device_type === 'odp' ? 'fa-cube text-blue-500' :
+                            n.device_type === 'odc' ? 'fa-box text-orange-500' : 'fa-server text-purple-500';
+                    return `
+                        <div class="trace-node"><i class="fas ${iconClass}"></i> ${n.name}</div>
+                        ${i < nodes.length - 1 ? '<div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>' : ''}
+                    `;
+                }).join('') + `
+                    <div style="margin-left: 20px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 15px; display: flex; align-items: center; gap: 15px;">
+                        <span id="traceDistance" style="color: #fca311; font-weight: 800; font-size: 14px;">${totalDist > 1000 ? (totalDist / 1000).toFixed(2) + 'km' : totalDist + 'm'}</span>
+                        <button onclick="clearTrace()" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 16px;"><i class="fas fa-times-circle"></i></button>
+                    </div>
+                `;
+
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function clearTrace() {
+            traceLayer.clearLayers();
+            document.getElementById('traceOverlay').style.display = 'none';
         }
 
         // Load network topology data
@@ -1735,33 +2035,48 @@
                     if (dot) dot.style.background = '#10b981';
                     if (text) text.textContent = 'Live Monitoring Active';
 
-                    // IMPORTANT: Update global links FIRST (before renderDevices)
-                    // This ensures getDeviceIcon has access to currentLinks for distance calculation
+                    // IMPORTANT: Update global devices and links
+                    allDevices = result.data.devices;
                     currentLinks = result.data.links;
 
-                    // Build deviceMap first for distance calculation  
-                    deviceMap = {}; // Reset map to ensure no stale data
-                    result.data.devices.forEach(d => { deviceMap[d.id] = d; });
+                    deviceMap = {};
+                    allDevices.forEach(d => {
+                        deviceMap[d.id] = d;
 
-                    // Auto-center map to OLT location
-                    const center = calculateInitialCenter(result.data.devices);
-                    // Only set view on first load
+                        // Check for Status Alerts
+                        const prev = previousDeviceStatus[d.id];
+                        let meta = d.metadata || {};
+                        if (typeof meta === 'string') try { meta = JSON.parse(meta); } catch (e) { }
+
+                        if (prev && prev === 'online' && d.status === 'offline') {
+                            // Device just went offline
+                            if (!meta.is_ignored) {
+                                console.log(`[ALERT] ${d.name} went offline!`);
+                                playAlertSound();
+                                showOfflineToast(d.name);
+                            } else {
+                                console.log(`[SILENT] ${d.name} went offline (Ignored Schedule)`);
+                            }
+                        }
+                        previousDeviceStatus[d.id] = d.status;
+                    });
+
+                    // Auto-center map to OLT location on first load
+                    const center = calculateInitialCenter(allDevices);
                     if (!map.hasSetView) {
                         map.setView([center.lat, center.lng], center.zoom);
                         map.hasSetView = true;
                     }
 
-                    // Now render devices (with currentLinks and deviceMap already populated)
-                    renderDevices(result.data.devices);
+                    applyFilters();
                     renderLinks(currentLinks);
-
                     updateStats(result.data.statistics);
 
-                    // Successfully loaded - hide loading overlay
                     document.getElementById('loadingOverlay').style.display = 'none';
                 } else {
                     throw new Error(result.error || 'Unknown error');
                 }
+
 
             } catch (error) {
                 console.error('Error loading network data:', error);
@@ -1886,12 +2201,20 @@
                 }
             }
 
+            // --- IGNORED / MAINTENANCE CHECK ---
+            const isIgnored = metadata.is_ignored === true;
+
             const typeColorMap = {
                 olt: '#8B5CF6',
                 odc: '#F59E0B',
                 odp: '#3B82F6',
                 customer: device.status === 'online' ? '#10B981' : '#EF4444'
             };
+
+            // Override color if ignored
+            if (isIgnored && device.device_type === 'customer') {
+                typeColorMap.customer = '#8b5cf6'; // Purple for maintenance/ignored
+            }
 
             const statusColorMap = {
                 online: '#10b981',
@@ -1901,14 +2224,22 @@
             };
 
             const iconClass = iconMap[device.device_type] || 'fa-circle';
-            const color = typeColorMap[device.device_type] || statusColorMap[device.status] || '#9ca3af';
+            let color = typeColorMap[device.device_type] || statusColorMap[device.status] || '#9ca3af';
 
             // Pulse animation for online, blink for offline customers
             let animation = '';
+            let opacity = 1;
+
             if (device.status === 'online') {
                 animation = 'pulse 2s ease-in-out infinite';
             } else if (device.status === 'offline' && device.device_type === 'customer') {
-                animation = 'marker-blink 1.5s infinite';
+                if (isIgnored) {
+                    // Suppress alarming blink for ignored devices
+                    animation = '';
+                    opacity = 0.7; // Dim it slightly
+                } else {
+                    animation = 'marker-blink 1.5s infinite';
+                }
             }
 
             // Calculate distance to ODP for customers (BEFORE template literal)
@@ -1963,7 +2294,7 @@
 
             return L.divIcon({
                 html: `
-                    <div class="marker-label-container">
+                    <div class="marker-label-container" style="opacity: ${opacity}">
                         <div style="
                             background: ${color};
                             width: 38px;
@@ -1978,8 +2309,10 @@
                             border: 3px solid white;
                             transition: all 0.3s ease;
                             animation: ${animation};
+                            position: relative;
                         ">
-                            <i class="fas ${iconClass}"></i>
+                            <i class="fas ${isIgnored && device.status === 'offline' ? 'fa-tools' : iconClass}"></i>
+                            ${isIgnored ? `<span style="position:absolute; top:-5px; right:-5px; background:white; color:#8b5cf6; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:10px; border:1px solid #8b5cf6;"><i class="fas fa-moon"></i></span>` : ''}
                         </div>
                         ${device.device_type === 'customer' ? `
                             <div class="customer-marker-label">
@@ -1989,14 +2322,19 @@
                                     ${metadata.genieacs.ssid}
                                 </div>
                                 ` : ''}
-                                ${metadata.signal?.rxPower && metadata.signal.rxPower !== 'N/A' ? `
+                                ${isIgnored ? `
+                                <div style="color: #cbd5e1; font-size: 9px; font-style: italic; margin-top:1px;">
+                                    <i class="fas fa-moon" style="font-size: 8px; margin-right: 4px;"></i>Monitoring Paused
+                                </div>
+                                ` : ''}
+                                ${!isIgnored && metadata.signal?.rxPower && metadata.signal.rxPower !== 'N/A' ? `
                                 <div class="signal" style="color: ${rxColor}">
                                     <i class="fas fa-signal" style="font-size: 8px; margin-right: 4px;"></i>
                                     ${metadata.signal.rxPower}
                                 </div>
                                 ` : ''}
                                 ${distanceHtml}
-                                ${!metadata.genieacs?.ssid && !metadata.signal?.rxPower && !distanceHtml ? `
+                                ${!metadata.genieacs?.ssid && !metadata.signal?.rxPower && !distanceHtml && !isIgnored ? `
                                 <div class="status-label" style="color: ${device.status === 'online' ? '#10b981' : '#ef4444'}">
                                     <i class="fas ${device.status === 'online' ? 'fa-check-circle' : 'fa-times-circle'}" style="font-size: 8px; margin-right: 4px;"></i>
                                     ${device.status === 'online' ? 'Online' : 'Offline'}
@@ -2026,6 +2364,8 @@
                 }
             }
 
+            const isIgnored = metadata.is_ignored === true;
+
             let content = `
                 <div class="device-popup">
                     <h4>${device.name}</h4>
@@ -2036,8 +2376,17 @@
                         </div>
                         <div class="device-popup-row">
                             <span class="device-popup-label">Status:</span>
-                            <span class="status-badge ${statusClass}">${device.status}</span>
+                            ${isIgnored ?
+                    `<span class="status-badge" style="background:#f3e8ff; color:#7e22ce;"><i class="fas fa-tools"></i> MAINTENANCE</span>` :
+                    `<span class="status-badge ${statusClass}">${device.status}</span>`
+                }
                         </div>
+                        ${isIgnored ? `
+                            <div class="device-popup-row">
+                                <span class="device-popup-label">SLA Monitor:</span>
+                                <span class="device-popup-value" style="color:#9333ea; font-size:11px;"><i class="fas fa-pause-circle"></i> Paused (Schedule)</span>
+                            </div>
+                        ` : ''}
 
             `;
 
@@ -2248,63 +2597,69 @@
             }
 
             // --- CONNECTED CHILDREN LOGIC (ODC -> ODPs, ODP -> Customers) ---
-            if (device.device_type === 'odc' || device.device_type === 'odp') {
-                const childType = device.device_type === 'odc' ? 'odp' : 'customer';
+            // Toggle Legend
+            function toggleLegend() {
+                const legend = document.getElementById('mapLegend');
+                legend.classList.toggle('collapsed');
+            }
 
-                // Find connected children from links
-                const children = [];
-                currentLinks.forEach(link => {
-                    // Check if this link connects current device to a child
-                    let childId = null;
-                    if (link.source_device_id === device.id && deviceMap[link.target_device_id]?.device_type === childType) {
-                        childId = link.target_device_id;
-                    } else if (link.target_device_id === device.id && deviceMap[link.source_device_id]?.device_type === childType) {
-                        childId = link.source_device_id;
-                    }
+            // ODC/ODP Logic: Show connected children
+            const childType = device.device_type === 'odc' ? 'odp' : 'customer';
 
-                    if (childId) {
-                        const child = deviceMap[childId];
-                        if (child) {
-                            // Calculate Distance
-                            let distText = 'N/A';
-                            const lat1 = parseFloat(device.latitude);
-                            const lng1 = parseFloat(device.longitude);
-                            const lat2 = parseFloat(child.latitude);
-                            const lng2 = parseFloat(child.longitude);
+            // Find connected children from links
+            const children = [];
+            currentLinks.forEach(link => {
+                // Check if this link connects current device to a child
+                let childId = null;
+                if (link.source_device_id === device.id && deviceMap[link.target_device_id]?.device_type === childType) {
+                    childId = link.target_device_id;
+                } else if (link.target_device_id === device.id && deviceMap[link.source_device_id]?.device_type === childType) {
+                    childId = link.source_device_id;
+                }
 
-                            if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
-                                const dist = map.distance([lat1, lng1], [lat2, lng2]);
-                                distText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
-                            }
+                if (childId) {
+                    const child = deviceMap[childId];
+                    if (child) {
+                        // Calculate Distance
+                        let distText = 'N/A';
+                        const lat1 = parseFloat(device.latitude);
+                        const lng1 = parseFloat(device.longitude);
+                        const lat2 = parseFloat(child.latitude);
+                        const lng2 = parseFloat(child.longitude);
 
-                            children.push({ ...child, distText, rawDist: isNaN(lat1) ? 0 : 1 });
+                        if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
+                            const dist = map.distance([lat1, lng1], [lat2, lng2]);
+                            distText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
                         }
-                    }
-                });
 
-                if (children.length > 0) {
-                    content += `
+                        children.push({ ...child, distText, rawDist: isNaN(lat1) ? 0 : 1 });
+                    }
+                }
+            });
+
+            if (children.length > 0) {
+                content += `
                         <div style="margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 5px;">
                             <span class="device-popup-label" style="display:block; margin-bottom:5px;">Connected ${childType.toUpperCase()}s (${children.length}):</span>
                             <div style="max-height: 150px; overflow-y: auto; font-size: 11px;">
                      `;
 
-                    children.forEach(child => {
-                        let extraInfo = '';
-                        if (childType === 'customer') {
-                            const cmeta = child.metadata || {};
-                            // Wifi info
-                            // Wifi info removed as requested
-                            // if (cmeta.genieacs && cmeta.genieacs.ssid) {
-                            //    extraInfo += `<br><i class="fas fa-wifi" style="font-size:9px"></i> ${cmeta.genieacs.ssid}`;
-                            // }
-                            // Connected devices
-                            if (cmeta.genieacs && cmeta.genieacs.hosts_count !== undefined) {
-                                extraInfo += ` | <i class="fas fa-users" style="font-size:9px"></i> ${cmeta.genieacs.hosts_count}`;
-                            }
+                children.forEach(child => {
+                    let extraInfo = '';
+                    if (childType === 'customer') {
+                        const cmeta = child.metadata || {};
+                        // Wifi info
+                        // Wifi info removed as requested
+                        // if (cmeta.genieacs && cmeta.genieacs.ssid) {
+                        //    extraInfo += `<br><i class="fas fa-wifi" style="font-size:9px"></i> ${cmeta.genieacs.ssid}`;
+                        // }
+                        // Connected devices
+                        if (cmeta.genieacs && cmeta.genieacs.hosts_count !== undefined) {
+                            extraInfo += ` | <i class="fas fa-users" style="font-size:9px"></i> ${cmeta.genieacs.hosts_count}`;
                         }
+                    }
 
-                        content += `
+                    content += `
                             <div style="padding: 4px; border-bottom: 1px dashed #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <div style="font-weight: 600; color: #334155;">
@@ -2316,59 +2671,59 @@
                                 <div style="color: #3b82f6; font-weight: bold; white-space: nowrap;">${child.distText}</div>
                             </div>
                          `;
-                    });
+                });
 
-                    content += `</div></div>`;
-                }
+                content += `</div></div>`;
             }
+        }
 
 
-            // Calculate Distance to ODP - REMOVED DUPLICATE (Handled in Customer Block)
+        // Calculate Distance to ODP - REMOVED DUPLICATE (Handled in Customer Block)
 
 
-            if (device.ip_address || (metadata.ip_address)) {
-                content += `
+        if (device.ip_address || (metadata.ip_address)) {
+            content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">IP:</span>
                         <span class="device-popup-value">${device.ip_address || metadata.ip_address}</span>
                     </div>
                 `;
-            }
+        }
 
-            if (device.latency_ms) {
-                content += `
+        if (device.latency_ms) {
+            content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">Latency:</span>
                         <span class="device-popup-value">${device.latency_ms.toFixed(1)} ms</span>
                     </div>
                 `;
-            }
+        }
 
-            if (device.packet_loss_percent) {
-                content += `
+        if (device.packet_loss_percent) {
+            content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">Packet Loss:</span>
                         <span class="device-popup-value">${device.packet_loss_percent.toFixed(1)}%</span>
                     </div>
                 `;
-            }
+        }
 
-            if (device.last_seen) {
-                const lastSeen = new Date(device.last_seen);
-                content += `
+        if (device.last_seen) {
+            const lastSeen = new Date(device.last_seen);
+            content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">Last Seen:</span>
                         <span class="device-popup-value">${formatDateTime(lastSeen)}</span>
                     </div>
                 `;
-            }
+        }
 
-            content += `
+        content += `
                     </div>
                 </div>
             `;
 
-            return content;
+        return content;
         }
 
         // Render network links using Leaflet Polylines
@@ -2495,17 +2850,10 @@
             document.getElementById('statTotal').textContent = stats.total_devices || 0;
         }
 
-        // Device click handler - calculate walking distance
+        // Device click handler
         function onDeviceClick(device) {
             console.log('📌 Device Clicked:', device);
-
-            // SPECIAL CASE: ODC Detail Sidebar
-            if (device.device_type === 'odc') {
-                showOdcDetail(device);
-                return;
-            } else {
-                closeOdcSidebar();
-            }
+            showDeviceDetail(device);
 
             if (selectedDevice && selectedDevice.id !== device.id) {
                 // Calculate walking distance between two devices
@@ -2619,7 +2967,7 @@
             const checkbox = document.getElementById(`filter-${type}`);
             checkbox.checked = !checkbox.checked;
             activeFilters[type] = checkbox.checked;
-            refreshData();
+            applyFilters();
         }
 
         // Format date time
@@ -2637,152 +2985,208 @@
             return `${seconds}s ago`;
         }
 
-        // ODC DETAIL SIDEBAR LOGIC
-        function showOdcDetail(odc) {
-            console.log('📊 Loading ODC Sidebar for:', odc.name);
-            const sidebar = document.getElementById('odcSidebar');
+        // GEeneric Device Detail Sidebar Logic
+        function showDeviceDetail(device) {
+            console.log('📊 Opening Sidebar for:', device.name);
+            const sidebar = document.getElementById('deviceSidebar');
+            const nameEl = document.getElementById('sidebarName');
+            const subnameEl = document.getElementById('sidebarSubname');
+            const contentEl = document.getElementById('sidebarContent');
+            const headerEl = document.getElementById('sidebarHeader');
+
             if (!sidebar) return;
 
-            document.getElementById('odcName').textContent = odc.name || 'Unnamed ODC';
-            document.getElementById('odcLocation').textContent = `${parseFloat(odc.latitude).toFixed(6)}, ${parseFloat(odc.longitude).toFixed(6)}`;
+            nameEl.textContent = device.name || 'Unnamed Device';
+            subnameEl.textContent = `${device.device_type.toUpperCase()} • ${device.status.toUpperCase()}`;
 
-            // Find all ODPs connected to this ODC
-            const connectedOdpIds = new Set();
-            currentLinks.forEach(link => {
-                if (link.source_device_id == odc.id && deviceMap[link.target_device_id]?.device_type === 'odp') {
-                    connectedOdpIds.add(link.target_device_id);
-                } else if (link.target_device_id == odc.id && deviceMap[link.source_device_id]?.device_type === 'odp') {
-                    connectedOdpIds.add(link.source_device_id);
-                }
-            });
+            // Customize header color based on type
+            const typeColors = {
+                olt: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                odc: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                odp: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                customer: device.status === 'online' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+            };
+            headerEl.style.background = typeColors[device.device_type] || 'linear-gradient(135deg, #64748b 0%, #475569 100%)';
 
-            // Fallback: check direct parent_id
-            Object.values(deviceMap).forEach(d => {
-                if (d.device_type === 'odp' && d.parent_id == odc.id) {
-                    connectedOdpIds.add(d.id);
-                }
-            });
+            let contentHtml = '';
+            let metadata = device.metadata || {};
+            if (typeof metadata === 'string') try { metadata = JSON.parse(metadata); } catch (e) { }
 
-            const connectedOdps = Array.from(connectedOdpIds).map(id => deviceMap[id]).filter(d => !!d);
-
-            // Statistics variables
-            let totalPorts = 0;
-            let usedPorts = 0;
-            let onlineOnt = 0;
-            let offlineOnt = 0;
-
-            // Process ODPs with Distance and ONT stats
-            const odpsWithDist = connectedOdps.map(odp => {
-                // Calculate Haversine Distance
-                const dist = calculateDirectDistance(
-                    parseFloat(odc.latitude), parseFloat(odc.longitude),
-                    parseFloat(odp.latitude), parseFloat(odp.longitude)
-                );
-
-                // Find ONTs connected to this ODP
-                const ontIds = new Set();
-                currentLinks.forEach(link => {
-                    const src = deviceMap[link.source_device_id];
-                    const tgt = deviceMap[link.target_device_id];
-                    if (link.source_device_id == odp.id && (tgt?.device_type === 'ont' || tgt?.device_type === 'customer')) {
-                        ontIds.add(link.target_device_id);
-                    } else if (link.target_device_id == odp.id && (src?.device_type === 'ont' || src?.device_type === 'customer')) {
-                        ontIds.add(link.source_device_id);
-                    }
-                });
-
-                // Fallback parent check
-                Object.values(deviceMap).forEach(d => {
-                    if ((d.device_type === 'ont' || d.device_type === 'customer') && d.parent_id == odp.id) {
-                        ontIds.add(d.id);
-                    }
-                });
-
-                const linkedOnts = Array.from(ontIds).map(id => deviceMap[id]).filter(d => !!d);
-                const onlineCount = linkedOnts.filter(d => d.status === 'online').length;
-                const offlineCount = linkedOnts.filter(d => d.status === 'offline').length;
-
-                onlineOnt += onlineCount;
-                offlineOnt += offlineCount;
-
-                // Port Capacity (Default 16)
-                let capacity = 16;
-                try {
-                    const meta = typeof odp.metadata === 'string' ? JSON.parse(odp.metadata) : (odp.metadata || {});
-                    capacity = parseInt(meta.capacity) || 16;
-                } catch (e) { }
-
-                totalPorts += capacity;
-                usedPorts += linkedOnts.length;
-
-                return {
-                    ...odp,
-                    distance: dist,
-                    onlineCount,
-                    offlineCount,
-                    capacity,
-                    linkedCount: linkedOnts.length
-                };
-            }).sort((a, b) => a.distance - b.distance); // SORT NEAREST TO FARTHEST
-
-            // Update UI Sidebar Stats
-            document.getElementById('statOdpCount').textContent = `${connectedOdps.length} / 16`;
-            document.getElementById('statPortUsage').textContent = `${usedPorts} / ${totalPorts}`;
-            document.getElementById('statOntOnline').textContent = onlineOnt;
-            document.getElementById('statOntOffline').textContent = offlineOnt;
-
-            // Render ODP List
-            const listContainer = document.getElementById('odpList');
-            if (listContainer) {
-                listContainer.innerHTML = '';
-
-                if (odpsWithDist.length === 0) {
-                    listContainer.innerHTML = `
-                        <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
-                            <i class="fas fa-satellite-dish" style="font-size: 32px; opacity: 0.3; margin-bottom: 10px; display: block;"></i>
-                            <p style="font-size: 13px; font-style: italic;">No ODPs found for this ODC</p>
+            if (device.device_type === 'odc') {
+                contentHtml = getOdcSidebarContent(device);
+            } else if (device.device_type === 'odp') {
+                contentHtml = getOdpSidebarContent(device);
+            } else if (device.device_type === 'customer') {
+                contentHtml = getCustomerSidebarContent(device, metadata);
+            } else {
+                contentHtml = `
+                    <div class="p-4">
+                        <p class="text-sm text-slate-500 mb-4">${device.address || 'No address provided'}</p>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Technical Info</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span>IP Address</span><span class="font-semibold">${device.ip_address || '-'}</span></div>
+                                <div class="flex justify-between"><span>MAC Address</span><span class="font-semibold">${device.mac_address || '-'}</span></div>
+                                <div class="flex justify-between"><span>Last Seen</span><span class="font-semibold">${formatDateTime(new Date(device.last_seen))}</span></div>
+                            </div>
                         </div>
-                    `;
-                } else {
-                    odpsWithDist.forEach((odp, index) => {
-                        const item = document.createElement('div');
-                        item.className = 'odp-item';
-                        item.style.animationDelay = `${index * 0.05}s`;
-
-                        item.onclick = (e) => {
-                            e.stopPropagation();
-                            map.setView([odp.latitude, odp.longitude], 19);
-                            if (markers[odp.id]) {
-                                markers[odp.id].openPopup();
-                            }
-                        };
-
-                        item.innerHTML = `
-                            <div class="odp-info-main">
-                                <span class="odp-name">${odp.name}</span>
-                                <span class="odp-dist">
-                                    <i class="fas fa-location-arrow" style="font-size: 10px; margin-right: 4px;"></i>
-                                    ${odp.distance} meter
-                                </span>
-                            </div>
-                            <div class="odp-badges">
-                                <span class="badge badge-port">${odp.linkedCount}/${odp.capacity} P</span>
-                                <span class="badge ${odp.onlineCount > 0 ? 'badge-online' : 'badge-offline'}">
-                                    ${odp.onlineCount} ON
-                                </span>
-                            </div>
-                        `;
-                        listContainer.appendChild(item);
-                    });
-                }
+                    </div>
+                `;
             }
 
+            contentEl.innerHTML = contentHtml;
             sidebar.classList.add('active');
         }
 
-        function closeOdcSidebar() {
-            const sidebar = document.getElementById('odcSidebar');
+        function closeDeviceSidebar() {
+            const sidebar = document.getElementById('deviceSidebar');
             if (sidebar) sidebar.classList.remove('active');
+        }
+
+        function getOdcSidebarContent(odc) {
+            const connectedOdpIds = new Set();
+            currentLinks.forEach(link => {
+                if (link.source_device_id == odc.id && deviceMap[link.target_device_id]?.device_type === 'odp') connectedOdpIds.add(link.target_device_id);
+                else if (link.target_device_id == odc.id && deviceMap[link.source_device_id]?.device_type === 'odp') connectedOdpIds.add(link.source_device_id);
+            });
+            Object.values(deviceMap).forEach(d => { if (d.device_type === 'odp' && d.parent_id == odc.id) connectedOdpIds.add(d.id); });
+
+            const connectedOdps = Array.from(connectedOdpIds).map(id => deviceMap[id]).filter(d => !!d);
+            let totalPorts = 0, usedPorts = 0, onlineOnt = 0, offlineOnt = 0;
+            const odpsWithDist = connectedOdps.map(odp => {
+                const dist = calculateDirectDistance(parseFloat(odc.latitude), parseFloat(odc.longitude), parseFloat(odp.latitude), parseFloat(odp.longitude));
+                const ontIds = new Set();
+                currentLinks.forEach(link => {
+                    const src = deviceMap[link.source_device_id], tgt = deviceMap[link.target_device_id];
+                    if (link.source_device_id == odp.id && (tgt?.device_type === 'customer')) ontIds.add(link.target_device_id);
+                    else if (link.target_device_id == odp.id && (src?.device_type === 'customer')) ontIds.add(link.source_device_id);
+                });
+                const linkedOnts = Array.from(ontIds).map(id => deviceMap[id]).filter(d => !!d);
+                onlineOnt += linkedOnts.filter(d => d.status === 'online').length;
+                offlineOnt += linkedOnts.filter(d => d.status === 'offline').length;
+                let capacity = 16;
+                try { const meta = typeof odp.metadata === 'string' ? JSON.parse(odp.metadata) : (odp.metadata || {}); capacity = parseInt(meta.capacity) || 16; } catch (e) { }
+                totalPorts += capacity; usedPorts += linkedOnts.length;
+                return { ...odp, distance: dist, onlineCount: linkedOnts.filter(d => d.status === 'online').length, linkedCount: linkedOnts.length, capacity };
+            }).sort((a, b) => a.distance - b.distance);
+
+            let odpListHtml = odpsWithDist.map((odp, i) => `
+                <div class="odp-item" onclick="map.setView([${odp.latitude}, ${odp.longitude}], 19); markers[${odp.id}]?.openPopup();">
+                    <div class="odp-info-main">
+                        <span class="odp-name">${odp.name}</span>
+                        <span class="odp-dist"><i class="fas fa-location-arrow"></i> ${odp.distance}m</span>
+                    </div>
+                    <div class="odp-badges">
+                        <span class="badge badge-port">${odp.linkedCount}/${odp.capacity} P</span>
+                        <span class="badge ${odp.onlineCount > 0 ? 'badge-online' : 'badge-offline'}">${odp.onlineCount} ON</span>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="p-4">
+                    <div class="odc-stats-grid mb-6">
+                        <div class="stat-card"><span class="label">Connected ODP</span><span class="value">${connectedOdps.length}</span></div>
+                        <div class="stat-card"><span class="label">Port Usage</span><span class="value">${usedPorts}/${totalPorts}</span></div>
+                        <div class="stat-card"><span class="label">Online ONT</span><span class="value text-green-500">${onlineOnt}</span></div>
+                        <div class="stat-card"><span class="label">Offline ONT</span><span class="value text-red-500">${offlineOnt}</span></div>
+                    </div>
+                    <div class="odp-list-container">
+                        <h3><i class="fas fa-cube text-blue-500"></i> Connected ODPs</h3>
+                        <div id="odpList">${odpListHtml || '<p class="text-center py-4 text-slate-400 italic">No ODPs found</p>'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getOdpSidebarContent(odp) {
+            const customerIds = new Set();
+            currentLinks.forEach(link => {
+                if (link.source_device_id == odp.id && deviceMap[link.target_device_id]?.device_type === 'customer') customerIds.add(link.target_device_id);
+                else if (link.target_device_id == odp.id && deviceMap[link.source_device_id]?.device_type === 'customer') customerIds.add(link.source_device_id);
+            });
+            Object.values(deviceMap).forEach(d => { if (d.device_type === 'customer' && d.parent_id == odp.id) customerIds.add(d.id); });
+
+            const customers = Array.from(customerIds).map(id => deviceMap[id]).filter(d => !!d);
+            const clientsHtml = customers.map(c => {
+                const cmeta = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : (c.metadata || {});
+                return `
+                <div class="odp-item" onclick="map.setView([${c.latitude}, ${c.longitude}], 19); markers[${c.id}]?.openPopup();">
+                    <div class="odp-info-main">
+                        <span class="odp-name">${c.name}</span>
+                        <span class="odp-dist text-slate-400">${cmeta.pppoe_username || '-'}</span>
+                    </div>
+                    <div class="odp-badges">
+                        <span class="status-badge ${c.status === 'online' ? 'status-online' : 'status-offline'}">${c.status}</span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="p-4">
+                    <div class="stat-card w-full mb-6 text-center bg-blue-50 border-blue-100">
+                        <span class="label text-blue-600">Active Customers</span>
+                        <span class="value text-3xl text-blue-700">${customers.length}</span>
+                    </div>
+                    <div class="odp-list-container">
+                        <h3><i class="fas fa-users text-blue-500"></i> Client List (${customers.length})</h3>
+                        <div id="clientList">${clientsHtml || '<p class="text-center py-4 text-slate-400 italic">No customers connected</p>'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getCustomerSidebarContent(c, meta) {
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Service Details</h4>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between pb-2 border-b border-slate-200/50"><span>PPPoE User</span><span class="font-bold text-blue-600">${meta.pppoe_username || '-'}</span></div>
+                            <div class="flex justify-between pb-2 border-b border-slate-200/50"><span>IP Address</span><span class="font-semibold text-slate-700">${c.ip_address || '-'}</span></div>
+                            <div class="flex justify-between"><span>Status</span><span class="font-bold ${c.status === 'online' ? 'text-green-600' : 'text-red-600'}">${c.status.toUpperCase()}</span></div>
+                        </div>
+                    </div>
+
+                    ${meta.signal ? `
+                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                        <h4 class="text-xs font-bold text-indigo-400 uppercase mb-3">Live ONT Diagnostics</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-2 rounded-lg border border-indigo-100/50">
+                                <span class="block text-[10px] text-indigo-400 font-bold uppercase">Rx Power</span>
+                                <span class="text-lg font-bold text-indigo-700">${meta.signal.rxPower || '-'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-lg border border-indigo-100/50">
+                                <span class="block text-[10px] text-indigo-400 font-bold uppercase">WiFi SSID</span>
+                                <span class="text-sm font-bold text-indigo-700 truncate block">${meta.genieacs?.ssid || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Map & Action</h4>
+                        <p class="text-xs text-slate-500 mb-3 leading-relaxed"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i> ${c.address || 'Address not set'}</p>
+                        <div class="flex flex-col gap-2">
+                             <div class="flex gap-2">
+                                 <a href="https://www.google.com/maps/search/?api=1&query=${c.latitude},${c.longitude}" target="_blank" 
+                                    class="flex-1 bg-slate-50 border border-slate-200 py-2.5 rounded-lg text-xs font-bold text-center hover:bg-slate-100 transition-colors">
+                                    <i class="fab fa-google text-blue-500 mr-1"></i> G-Maps
+                                 </a>
+                                 <button onclick="map.setView([${c.latitude}, ${c.longitude}], 19); markers[${c.id}]?.openPopup();" 
+                                    class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-200">
+                                    <i class="fas fa-crosshairs mr-1"></i> Focus
+                                 </button>
+                             </div>
+                             <button onclick="traceRouteToOlt(${c.id})" 
+                                class="w-full bg-purple-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200">
+                                <i class="fas fa-microchip mr-1"></i> Trace Path to OLT
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // Direct distance calculation in meters
@@ -2931,8 +3335,50 @@
             }
         });
 
+        // Handle audio alerts checkbox change directly if clicked
+        document.getElementById('audio-alerts-toggle').addEventListener('click', function (e) {
+            e.stopPropagation(); // Stop bubbling to div onclick
+
+            const checkbox = e.target;
+            isAudioEnabled = checkbox.checked;
+
+            const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+            const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+
+            if (isAudioEnabled) {
+                // Enable audio
+                checkbox.style.borderColor = '#8b5cf6';
+                checkbox.style.background = '#8b5cf6';
+                checkbox.nextElementSibling.style.background = '#ede9fe';
+                if (iconDiv) {
+                    iconDiv.style.background = '#8b5cf6';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-up"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#8b5cf6';
+            } else {
+                // Disable audio
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e5e7eb';
+                if (iconDiv) {
+                    iconDiv.style.background = '#9ca3af';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#6b7280';
+            }
+
+            localStorage.setItem('audioAlertsEnabled', isAudioEnabled);
+
+            // Play test sound if enabling
+            if (isAudioEnabled) {
+                playAlertSound('info');
+            }
+        });
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            initAudioSettings();
+            initAudioToggleState();
             initLiveTrafficState();
             initMap();
         });

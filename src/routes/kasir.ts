@@ -147,12 +147,20 @@ router.get('/print-odc/:odc_id', async (req, res) => {
             const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
 
             // Choose view based on format
-            const viewName = format === 'thermal'
-                ? 'billing/tagihan-print-odc'
-                : 'billing/tagihan-print-odc-a4';
+            let viewName: string;
+            if (odc_id === 'wireless') {
+                // Wireless – tidak ada ODC, gunakan template khusus
+                viewName = format === 'thermal'
+                    ? 'invoice/template-wireless'   // thermal 58mm
+                    : 'invoice/template-a4';       // PDF A4 (sama dengan standar)
+            } else {
+                viewName = format === 'thermal'
+                    ? 'invoice/template-thermal'   // ODC thermal
+                    : 'invoice/template-a4';       // ODC PDF A4
+            }
 
             res.render(viewName, {
-                title: `Print Tagihan Area ${odc.name}`,
+                title: odc_id === 'wireless' ? 'Print Tagihan Wireless' : `Print Tagihan Area ${odc.name}`,
                 odc,
                 invoices,
                 period: period || 'Semua Periode',

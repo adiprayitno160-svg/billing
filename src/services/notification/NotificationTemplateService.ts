@@ -1,295 +1,166 @@
-/**
- * Notification Template Service
- * Manages notification templates that can be customized
- */
-
-import { databasePool } from '../../db/pool';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
-
 export interface NotificationTemplate {
-  id?: number;
-  template_code: string;
-  template_name: string;
-  notification_type: string;
+  id: string;
+  scenario: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
+  message: string;
   channel: 'whatsapp' | 'email' | 'sms' | 'push';
-  title_template: string;
-  message_template: string;
   variables?: string[];
-  is_active: boolean;
-  priority: 'low' | 'normal' | 'high';
-  schedule_days_before?: number;
-  created_at?: Date;
-  updated_at?: Date;
 }
 
 export class NotificationTemplateService {
-  /**
-   * Get all templates
-   */
-  static async getAllTemplates(filters?: {
-    notification_type?: string;
-    channel?: string;
-    is_active?: boolean;
-  }): Promise<NotificationTemplate[]> {
-    const connection = await databasePool.getConnection();
-
-    try {
-      let query = 'SELECT * FROM notification_templates WHERE 1=1';
-      const params: any[] = [];
-
-      if (filters?.notification_type) {
-        query += ' AND notification_type = ?';
-        params.push(filters.notification_type);
-      }
-
-      if (filters?.channel) {
-        query += ' AND channel = ?';
-        params.push(filters.channel);
-      }
-
-      if (filters?.is_active !== undefined) {
-        query += ' AND is_active = ?';
-        params.push(filters.is_active);
-      }
-
-      query += ' ORDER BY notification_type, template_name';
-
-      const [rows] = await connection.query<RowDataPacket[]>(query, params);
-
-      return rows.map(row => ({
-        ...(row as any),
-        variables: (row as any).variables ? JSON.parse((row as any).variables) : []
-      }));
-    } finally {
-      connection.release();
+  private templates: NotificationTemplate[] = [
+    {
+      id: 'pppoe-anomaly-individual',
+      scenario: 'pppoe_individual_anomaly',
+      severity: 'medium',
+      title: 'Koneksi Bermasalah',
+      message: 'Halo {{customerName}}, kami mendeteksi koneksi internet Anda sedang bermasalah. Tim teknisi kami sedang mengeceknya.',
+      channel: 'whatsapp',
+      variables: ['customerName', 'location']
+    },
+    {
+      id: 'pppoe-anomaly-mass',
+      scenario: 'pppoe_mass_outage',
+      severity: 'high',
+      title: 'Gangguan Jaringan',
+      message: 'Halo {{customerName}}, saat ini kami sedang mengalami gangguan teknis di wilayah {{location}}. Tim teknisi sedang menuju lokasi untuk perbaikan.',
+      channel: 'whatsapp',
+      variables: ['customerName', 'location', 'affectedCount']
+    },
+    {
+      id: 'static-ip-anomaly-individual',
+      scenario: 'static_ip_individual_anomaly',
+      severity: 'medium',
+      title: 'Koneksi Bermasalah',
+      message: 'Halo {{customerName}}, kami mendeteksi IP statis {{ipAddress}} Anda sedang bermasalah. Tim teknisi kami sedang mengeceknya.',
+      channel: 'whatsapp',
+      variables: ['customerName', 'ipAddress', 'location']
+    },
+    {
+      id: 'static-ip-anomaly-mass',
+      scenario: 'static_ip_mass_outage',
+      severity: 'high',
+      title: 'Gangguan Jaringan',
+      message: 'Halo {{customerName}}, saat ini kami sedang mengalami gangguan teknis di wilayah {{location}} yang mempengaruhi banyak pelanggan termasuk layanan IP statis Anda. Tim teknisi sedang menuju lokasi untuk perbaikan.',
+      channel: 'whatsapp',
+      variables: ['customerName', 'location', 'affectedCount']
+    },
+    {
+      id: 'critical-outage',
+      scenario: 'critical_outage',
+      severity: 'critical',
+      title: 'Gangguan Jaringan Luas',
+      message: 'Pemberitahuan Penting: Kami sedang mengalami gangguan jaringan luas di wilayah {{location}}. Tim teknisi kami sedang bekerja keras untuk memperbaikinya. Kami mohon maaf atas ketidaknyamanan ini.',
+      channel: 'whatsapp',
+      variables: ['location', 'affectedCount']
+    },
+    {
+      id: 'service-restored',
+      scenario: 'service_restored',
+      severity: 'low',
+      title: 'Layanan Dipulihkan',
+      message: 'Halo {{customerName}}, layanan internet Anda telah kami pulihkan kembali. Terima kasih atas kesabarannya.',
+      channel: 'whatsapp',
+      variables: ['customerName']
     }
+  ];
+
+  /**
+   * Get a notification template by scenario and severity
+   */
+  getTemplate(scenario: string, severity: 'low' | 'medium' | 'high' | 'critical', channel: 'whatsapp' | 'email' | 'sms' | 'push' = 'whatsapp'): NotificationTemplate | null {
+    const template = this.templates.find(t => 
+      t.scenario === scenario && 
+      t.severity === severity && 
+      t.channel === channel
+    );
+
+    return template || null;
   }
 
   /**
-   * Get template by code
+   * Get a notification template by ID
    */
-  static async getTemplateByCode(templateCode: string): Promise<NotificationTemplate | null> {
-    const connection = await databasePool.getConnection();
-
-    try {
-      const [rows] = await connection.query<RowDataPacket[]>(
-        'SELECT * FROM notification_templates WHERE template_code = ?',
-        [templateCode]
-      );
-
-      if (rows.length === 0) {
-        return null;
-      }
-
-      const row = rows[0] as any;
-      return {
-        ...row,
-        variables: row.variables ? JSON.parse(row.variables) : []
-      };
-    } finally {
-      connection.release();
-    }
+  getTemplateById(id: string): NotificationTemplate | null {
+    return this.templates.find(t => t.id === id) || null;
   }
 
   /**
-   * Get template by notification type and channel
+   * Render a template with provided variables
    */
-  static async getTemplate(
-    notificationType: string,
-    channel: string = 'whatsapp'
-  ): Promise<NotificationTemplate | null> {
-    const connection = await databasePool.getConnection();
+  renderTemplate(template: NotificationTemplate, variables: Record<string, any>): string {
+    let renderedMessage = template.message;
 
-    try {
-      const [rows] = await connection.query<RowDataPacket[]>(
-        `SELECT * FROM notification_templates 
-         WHERE notification_type = ? AND channel = ? AND is_active = TRUE
-         ORDER BY priority DESC, id ASC
-         LIMIT 1`,
-        [notificationType, channel]
-      );
-
-      if (rows.length === 0) {
-        return null;
-      }
-
-      const row = rows[0] as any;
-      return {
-        ...row,
-        variables: row.variables ? JSON.parse(row.variables) : []
-      };
-    } finally {
-      connection.release();
-    }
-  }
-
-  /**
-   * Create new template
-   */
-  static async createTemplate(template: Omit<NotificationTemplate, 'id' | 'created_at' | 'updated_at'>): Promise<number> {
-    const connection = await databasePool.getConnection();
-
-    try {
-      const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO notification_templates 
-         (template_code, template_name, notification_type, channel, title_template, 
-          message_template, variables, is_active, priority, schedule_days_before)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          template.template_code,
-          template.template_name,
-          template.notification_type,
-          template.channel,
-          template.title_template,
-          template.message_template,
-          template.variables ? JSON.stringify(template.variables) : null,
-          template.is_active,
-          template.priority,
-          template.schedule_days_before || null
-        ]
-      );
-
-      return result.insertId;
-    } finally {
-      connection.release();
-    }
-  }
-
-  /**
-   * Update template
-   */
-  static async updateTemplate(
-    templateCode: string,
-    updates: Partial<Omit<NotificationTemplate, 'id' | 'template_code' | 'created_at' | 'updated_at'>>
-  ): Promise<boolean> {
-    const connection = await databasePool.getConnection();
-
-    try {
-      const updateFields: string[] = [];
-      const params: any[] = [];
-
-      if (updates.template_name !== undefined) {
-        updateFields.push('template_name = ?');
-        params.push(updates.template_name);
-      }
-
-      if (updates.notification_type !== undefined) {
-        updateFields.push('notification_type = ?');
-        params.push(updates.notification_type);
-      }
-
-      if (updates.channel !== undefined) {
-        updateFields.push('channel = ?');
-        params.push(updates.channel);
-      }
-
-      if (updates.title_template !== undefined) {
-        updateFields.push('title_template = ?');
-        params.push(updates.title_template);
-      }
-
-      if (updates.message_template !== undefined) {
-        updateFields.push('message_template = ?');
-        params.push(updates.message_template);
-      }
-
-      if (updates.variables !== undefined) {
-        updateFields.push('variables = ?');
-        params.push(JSON.stringify(updates.variables));
-      }
-
-      if (updates.is_active !== undefined) {
-        updateFields.push('is_active = ?');
-        params.push(updates.is_active);
-      }
-
-      if (updates.priority !== undefined) {
-        updateFields.push('priority = ?');
-        params.push(updates.priority);
-      }
-
-      if (updates.schedule_days_before !== undefined) {
-        updateFields.push('schedule_days_before = ?');
-        params.push(updates.schedule_days_before);
-      }
-
-      if (updateFields.length === 0) {
-        return false;
-      }
-
-      params.push(templateCode);
-
-      const [result] = await connection.query<ResultSetHeader>(
-        `UPDATE notification_templates 
-         SET ${updateFields.join(', ')} 
-         WHERE template_code = ?`,
-        params
-      );
-
-      return result.affectedRows > 0;
-    } finally {
-      connection.release();
-    }
-  }
-
-  /**
-   * Delete template
-   */
-  static async deleteTemplate(templateCode: string): Promise<boolean> {
-    const connection = await databasePool.getConnection();
-
-    try {
-      const [result] = await connection.query<ResultSetHeader>(
-        'DELETE FROM notification_templates WHERE template_code = ?',
-        [templateCode]
-      );
-
-      return result.affectedRows > 0;
-    } finally {
-      connection.release();
-    }
-  }
-
-  /**
-   * Replace template variables with actual values
-   */
-  static replaceVariables(template: string, variables: Record<string, any>): string {
-    let result = template;
-
+    // Replace variables in the message
     for (const [key, value] of Object.entries(variables)) {
-      const regex = new RegExp(`\\{${key}\\}`, 'g');
-      result = result.replace(regex, String(value || ''));
+      const placeholder = `{{${key}}}`;
+      renderedMessage = renderedMessage.replace(new RegExp(placeholder, 'g'), value?.toString() || '');
     }
 
-    return result;
+    return renderedMessage;
   }
 
   /**
-   * Format currency
+   * Get appropriate template based on anomaly event
    */
-  static formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
+  getTemplateForAnomaly(
+    connectionType: 'pppoe' | 'static_ip', 
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    isMassOutage: boolean,
+    isServiceRestored: boolean = false
+  ): NotificationTemplate | null {
+    if (isServiceRestored) {
+      return this.getTemplate('service_restored', 'low');
+    }
+
+    const scenarioPrefix = `${connectionType}_${isMassOutage ? 'mass' : 'individual'}_anomaly`;
+    return this.getTemplate(scenarioPrefix, severity);
   }
 
   /**
-   * Format date
+   * Format a notification message based on event data
    */
-  static formatDate(date: Date | string): string {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  formatNotificationMessage(
+    connectionType: 'pppoe' | 'static_ip',
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    isMassOutage: boolean,
+    eventData: {
+      customerName: string;
+      location?: string;
+      ipAddress?: string;
+      affectedCustomers?: number;
+      isServiceRestored?: boolean;
+    }
+  ): string {
+    const template = this.getTemplateForAnomaly(
+      connectionType,
+      severity,
+      isMassOutage,
+      eventData.isServiceRestored
+    );
+
+    if (!template) {
+      // Fallback message
+      if (eventData.isServiceRestored) {
+        return `Halo ${eventData.customerName}, layanan internet Anda telah kami pulihkan kembali. Terima kasih atas kesabarannya.`;
+      }
+      
+      const baseMessage = isMassOutage
+        ? `Halo ${eventData.customerName}, saat ini kami sedang mengalami gangguan teknis di wilayah ${eventData.location || 'Anda'}. Tim teknisi sedang menuju lokasi untuk perbaikan.`
+        : `Halo ${eventData.customerName}, kami mendeteksi koneksi ${connectionType} Anda sedang bermasalah. Tim teknisi kami sedang mengeceknya.`;
+      
+      return baseMessage;
+    }
+
+    // Prepare variables for template rendering
+    const variables: Record<string, any> = {
+      customerName: eventData.customerName,
+      location: eventData.location || 'wilayah Anda',
+      ipAddress: eventData.ipAddress,
+      affectedCount: eventData.affectedCustomers || 1
+    };
+
+    return this.renderTemplate(template, variables);
   }
 }
-
-
-
-
-
-

@@ -5,7 +5,7 @@
 
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
-import { WhatsAppServiceBaileys } from '../whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
 
 export class ExpiryReminderService {
     /**
@@ -149,10 +149,17 @@ export class ExpiryReminderService {
             }
 
             // Send WhatsApp message
-            const result = await WhatsAppServiceBaileys.sendMessage(
-                customer.phone,
-                message
-            );
+            const waClient = WhatsAppClient.getInstance();
+            let success = false;
+            let messageId = null;
+
+            try {
+                await waClient.sendMessage(customer.phone, message);
+                success = true;
+                messageId = 'unknown'; // whatsapp-web.js doesn't easily return ID on send
+            } catch (e) {
+                console.error("[ExpiryReminder] Failed to send message:", e);
+            }
 
             // Log notification
             await databasePool.query(
@@ -163,15 +170,15 @@ export class ExpiryReminderService {
                     customer.id,
                     notificationType,
                     expiryDate.toISOString().split('T')[0],
-                    result.messageId || null,
-                    result.success ? 'sent' : 'failed'
+                    messageId,
+                    success ? 'sent' : 'failed'
                 ]
             );
 
-            if (result.success) {
+            if (success) {
                 console.log(`[ExpiryReminder] Sent ${notificationType} reminder to ${customer.name} (${customer.phone})`);
             } else {
-                console.error(`[ExpiryReminder] Failed to send ${notificationType} reminder to ${customer.name}:`, result.error);
+                console.error(`[ExpiryReminder] Failed to send ${notificationType} reminder to ${customer.name}`);
             }
 
         } catch (error) {

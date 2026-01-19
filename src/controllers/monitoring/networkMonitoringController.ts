@@ -5,6 +5,31 @@
 
 import { Request, Response } from 'express';
 import { NetworkMonitoringService } from '../../services/monitoring/NetworkMonitoringService';
+import { AiSlaService } from '../../services/monitoring/AiSlaService';
+
+/**
+ * Get AI-Enhanced SLA Report
+ */
+export const getSlaReport = async (req: Request, res: Response) => {
+    try {
+        const { customerId, month, year } = req.query;
+
+        if (!customerId || !month || !year) {
+            return res.status(400).json({ success: false, error: 'Missing parameters: customerId, month, year' });
+        }
+
+        const report = await AiSlaService.generateSlaReport(
+            Number(customerId),
+            Number(month),
+            Number(year)
+        );
+
+        res.json({ success: true, data: report });
+    } catch (error) {
+        console.error('SLA Report Error:', error);
+        res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+};
 
 /**
  * Get network topology data (for map view)
@@ -158,6 +183,7 @@ export const checkDeviceStatus = async (req: Request, res: Response) => {
 /**
  * Render public network map page (no login required)
  */
+// Render classic network map
 export const renderPublicNetworkMap = async (req: Request, res: Response) => {
     try {
         res.render('monitoring/public-network-map', {
@@ -167,5 +193,18 @@ export const renderPublicNetworkMap = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error rendering network map:', error);
         res.status(500).send('Error loading network map');
+    }
+};
+
+// Render modern network map
+export const renderModernNetworkMap = async (req: Request, res: Response) => {
+    try {
+        res.render('monitoring/modern-network-map', {
+            title: 'Modern Network Monitoring Dashboard',
+            layout: false // No layout, standalone page
+        });
+    } catch (error) {
+        console.error('Error rendering modern network map:', error);
+        res.status(500).send('Error loading modern network map');
     }
 };

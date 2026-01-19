@@ -1,4 +1,4 @@
-﻿<style>
+<style>
     @keyframes pulse-slow {
 
         0%,
@@ -49,6 +49,57 @@
     </div>
 </div>
 
+<!-- Quick Offline Customers Alert -->
+<% const offlineCustomers=customers.filter(c=> !c.is_online); %>
+    <% if (offlineCustomers.length> 0) { %>
+        <div class="mb-6">
+            <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-lg"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-red-800 mb-1">
+                            ⚠️ <span class="text-red-600">
+                                <%= offlineCustomers.length %>
+                            </span> Pelanggan Sedang Offline
+                        </h3>
+                        <p class="text-red-700 text-sm mb-3">
+                            Berikut adalah pelanggan PPPoE yang saat ini tidak terhubung ke jaringan.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <% offlineCustomers.slice(0, 5).forEach(customer=> { %>
+                                <span
+                                    class="inline-flex items-center px-3 py-1 bg-white text-red-700 rounded-full text-xs font-medium border border-red-200 shadow-sm">
+                                    <i class="fas fa-user mr-1.5"></i>
+                                    <%= customer.name.split(' ').slice(0, 2).join(' ') %>
+                            <span class="ml-2 font-mono text-red-500">(<%= customer.pppoe_username %>)</span>
+                        </span>
+                    <% }); %>
+                    <% if (offlineCustomers.length > 5) { %>
+                        <span class="inline-flex items-center px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                            +<%= offlineCustomers.length - 5 %> lainnya
+                        </span>
+                    <% } %>
+                </div>
+                <div class="mt-3 flex gap-2">
+                    <button onclick="filterOfflineCustomers()" 
+                            class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-medium transition-colors flex items-center gap-1">
+                        <i class="fas fa-filter"></i>
+                        Tampilkan Semua Offline
+                    </button>
+                    <button onclick="location.reload()" 
+                            class="px-3 py-1.5 bg-white text-red-700 rounded-lg hover:bg-red-50 border border-red-200 text-xs font-medium transition-colors flex items-center gap-1">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh Status
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
 <!-- Stats Summary Cards -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
     <!-- Total Card -->
@@ -61,520 +112,526 @@
             <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">TOTAL</span>
         </div>
         <div class="text-3xl font-bold text-gray-900 mb-1">
-            <%= typeof stats !=='undefined' ? stats.total_secret : pagination.totalCount %>
-        </div>
-        <div class="text-sm text-gray-500">Total Pelanggan</div>
-    </div>
+            <%= typeof stats !==' undefined' ? stats.total_secret : pagination.totalCount %>
+                        </div>
+                        <div class="text-sm text-gray-500">Total Pelanggan</div>
+                    </div>
 
-    <!-- Online Card -->
-    <div
-        class="bg-white rounded-2xl shadow-sm border border-green-200 p-6 hover:shadow-md transition-shadow duration-200">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <i class="fas fa-signal text-green-600 text-xl animate-pulse-slow"></i>
-            </div>
-            <span class="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">ONLINE</span>
-        </div>
-        <div class="text-3xl font-bold text-green-600 mb-1">
-            <%= typeof stats !=='undefined' ? stats.realtime_online : customers.filter(c=> c.is_online).length %>
-        </div>
-        <div class="text-sm text-gray-500">Sedang Terhubung</div>
-    </div>
-
-    <!-- Offline Card -->
-    <div
-        class="bg-white rounded-2xl shadow-sm border border-red-200 p-6 hover:shadow-md transition-shadow duration-200">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                <i class="fas fa-signal-slash text-red-600 text-xl"></i>
-            </div>
-            <span class="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full">OFFLINE</span>
-        </div>
-        <div class="text-3xl font-bold text-red-600 mb-1">
-            <% const total=typeof stats !=='undefined' ? stats.total_secret : pagination.totalCount; const online=typeof
-                stats !=='undefined' ? stats.realtime_online : customers.filter(c=> c.is_online).length;
-                %>
-                <%= total - online %>
-        </div>
-        <div class="text-sm text-gray-500">Tidak Terhubung</div>
-    </div>
-
-    <!-- Uptime Rate Card -->
-    <div
-        class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-200">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <i class="fas fa-chart-line text-white text-xl"></i>
-            </div>
-            <span class="text-xs font-semibold bg-white/30 px-3 py-1 rounded-full">RATE</span>
-        </div>
-        <div class="text-3xl font-bold mb-1">
-            <% const rateTotal=typeof stats !=='undefined' ? stats.total_secret : pagination.totalCount; const
-                rateOnline=typeof stats !=='undefined' ? stats.realtime_online : customers.filter(c=>
-                c.is_online).length;
-                const rate = rateTotal > 0 ? ((rateOnline / rateTotal) * 100).toFixed(1) : 0;
-                %>
-                <%= rate %>%
-        </div>
-        <div class="text-sm text-purple-100">Uptime Rate</div>
-        <div class="mt-3 bg-white/30 rounded-full h-2">
-            <div class="bg-white rounded-full h-2 transition-all duration-500" style="width: <%= rate %>%">
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Filters Section -->
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-    <div class="flex items-center mb-4">
-        <i class="fas fa-filter text-gray-400 mr-2"></i>
-        <h3 class="font-semibold text-gray-700">Filter & Pencarian</h3>
-    </div>
-    <form method="GET" action="/monitoring/pppoe" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Status Filter -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                <i class="fas fa-toggle-on text-gray-400 mr-1"></i>
-                Status
-            </label>
-            <select name="status"
-                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all">
-                <option value="">Semua Status</option>
-                <option value="active" <%=filters.status==='active' ? 'selected' : '' %>>✓ Active</option>
-                <option value="inactive" <%=filters.status==='inactive' ? 'selected' : '' %>>✗ Inactive</option>
-                <option value="suspended" <%=filters.status==='suspended' ? 'selected' : '' %>>⏸ Suspended</option>
-            </select>
-        </div>
-
-        <!-- ODP Filter -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                <i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>
-                Area ODP
-            </label>
-            <select name="odp_id"
-                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all">
-                <option value="">Semua ODP</option>
-                <% if (typeof odpList !=='undefined' ) { %>
-                    <% odpList.forEach(odp=> { %>
-                        <option value="<%= odp.id %>" <%=filters.odp_id==odp.id ? 'selected' : '' %>>
-                            <%= odp.name %>
-                        </option>
-                        <% }); %>
-                            <% } %>
-            </select>
-        </div>
-
-        <!-- Search -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                <i class="fas fa-search text-gray-400 mr-1"></i>
-                Pencarian
-            </label>
-            <input type="text" name="search" value="<%= filters.search %>" placeholder="Nama, kode, username..."
-                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-        </div>
-
-        <!-- Buttons -->
-        <div class="flex items-end gap-2">
-            <button type="submit"
-                class="flex-1 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm font-medium">
-                <i class="fas fa-search mr-2"></i>Cari
-            </button>
-            <a href="/monitoring/pppoe"
-                class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200">
-                <i class="fas fa-redo"></i>
-            </a>
-        </div>
-    </form>
-</div>
-
-<!-- Table Section -->
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-    <!-- Table Header -->
-    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div class="flex items-center justify-between">
-            <h3 class="font-semibold text-gray-800 flex items-center">
-                <i class="fas fa-table text-gray-400 mr-2"></i>
-                Daftar Pelanggan PPPoE
-            </h3>
-            <span class="text-sm text-gray-500">
-                Menampilkan <%= customers.length %> dari <%= pagination.totalCount %> data
-            </span>
-        </div>
-    </div>
-
-    <!-- Table -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-circle-dot mr-1"></i> Status
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-user mr-1"></i> Pelanggan
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-key mr-1"></i> Username
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-box mr-1"></i> Paket
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-barcode mr-1"></i> SN
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-building mr-1"></i> ODP
-                    </th>
-                    <th
-                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                        <i class="fas fa-database mr-1"></i> Usage (24h)
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-info-circle mr-1"></i> Session
-                    </th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <i class="fas fa-cog mr-1"></i> Aksi
-                    </th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-100">
-                <% if (customers.length===0) { %>
-                    <tr>
-                        <td colspan="9" class="px-6 py-16 text-center">
-                            <div class="flex flex-col items-center justify-center">
-                                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                                    <i class="fas fa-inbox text-4xl text-gray-300"></i>
-                                </div>
-                                <p class="text-gray-500 font-medium mb-1">Tidak ada data pelanggan</p>
-                                <p class="text-sm text-gray-400">Coba ubah filter pencarian</p>
+                    <!-- Online Card -->
+                    <div
+                        class="bg-white rounded-2xl shadow-sm border border-green-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-signal text-green-600 text-xl animate-pulse-slow"></i>
                             </div>
-                        </td>
-                    </tr>
-                    <% } else { %>
-                        <% customers.forEach((customer, index)=> { %>
-                            <tr
-                                class="hover:bg-blue-50 transition-colors duration-150 <%= index % 2 === 0 ? 'bg-white' : 'bg-gray-50' %>">
-                                <!-- Status -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <% if (customer.is_online) { %>
-                                        <span
-                                            class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-                                            <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                                            Online
-                                        </span>
-                                        <% } else { %>
-                                            <span
-                                                class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                                <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
-                                                Offline
-                                            </span>
-                                            <% } %>
-                                </td>
+                            <span
+                                class="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">ONLINE</span>
+                        </div>
+                        <div class="text-3xl font-bold text-green-600 mb-1">
+                            <%= typeof stats !=='undefined' ? stats.realtime_online : customers.filter(c=>
+                                c.is_online).length %>
+                        </div>
+                        <div class="text-sm text-gray-500">Sedang Terhubung</div>
+                    </div>
 
-                                <!-- Customer Info -->
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center">
-                                        <div
-                                            class="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold mr-3">
-                                            <%= customer.name ? customer.name.charAt(0).toUpperCase() : '?' %>
-                                        </div>
-                                        <div>
-                                            <div class="font-semibold text-gray-900">
-                                                <%= customer.name %>
-                                            </div>
-                                            <div class="text-sm text-gray-500">
-                                                <i class="fas fa-hashtag text-xs"></i>
-                                                <%= customer.customer_code %>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
+                    <!-- Offline Card -->
+                    <div
+                        class="bg-white rounded-2xl shadow-sm border border-red-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-signal-slash text-red-600 text-xl"></i>
+                            </div>
+                            <span
+                                class="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full">OFFLINE</span>
+                        </div>
+                        <div class="text-3xl font-bold text-red-600 mb-1">
+                            <% const total=typeof stats !=='undefined' ? stats.total_secret : pagination.totalCount;
+                                const online=typeof stats !=='undefined' ? stats.realtime_online : customers.filter(c=>
+                                c.is_online).length;
+                                %>
+                                <%= total - online %>
+                        </div>
+                        <div class="text-sm text-gray-500">Tidak Terhubung</div>
+                    </div>
 
-                                <!-- Username -->
-                                <td class="px-6 py-4">
-                                    <code
-                                        class="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200 font-mono">
-                                        <%= customer.pppoe_username %>
-                                    </code>
-                                </td>
-
-                                <!-- Package -->
-                                <td class="px-6 py-4">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        <%= customer.package_name || '-' %>
-                                    </div>
-                                    <% if (customer.rate_limit_rx && customer.rate_limit_tx) { %>
-                                        <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                                            <span class="inline-flex items-center">
-                                                <i class="fas fa-download text-green-500 text-xs mr-1"></i>
-                                                <%= customer.rate_limit_rx %>
-                                            </span>
-                                            <span class="text-gray-300">|</span>
-                                            <span class="inline-flex items-center">
-                                                <i class="fas fa-upload text-blue-500 text-xs mr-1"></i>
-                                                <%= customer.rate_limit_tx %>
-                                            </span>
-                                        </div>
-                                        <% } else { %>
-                                            <div class="text-xs text-gray-400 mt-1">No speed limit</div>
-                                            <% } %>
-                                </td>
-
-                                <!-- Serial Number -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div
-                                        class="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block">
-                                        <%= customer.serial_number || '-' %>
-                                    </div>
-                                </td>
-
-                                <!-- ODP -->
-                                <td class="px-6 py-4">
-                                    <% if (customer.odp_name) { %>
-                                        <span
-                                            class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
-                                            <i class="fas fa-map-marker-alt mr-1.5"></i>
-                                            <%= customer.odp_name %>
-                                        </span>
-                                        <% } else { %>
-                                            <span class="text-gray-400 text-sm">-</span>
-                                            <% } %>
-                                </td>
-
-                                <!-- Usage (24h) -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-600">
-                                        <% if (customer.usage_24h) { %>
-                                            <span class="text-green-600"><i class="fas fa-download mr-1"></i>
-                                                <%= customer.usage_24h.rx || '-' %>
-                                            </span>
-                                            <span class="text-gray-300 mx-1">|</span>
-                                            <span class="text-blue-600"><i class="fas fa-upload mr-1"></i>
-                                                <%= customer.usage_24h.tx || '-' %>
-                                            </span>
-                                            <% } else { %>
-                                                <span class="text-gray-400">-</span>
-                                                <% } %>
-                                    </div>
-                                </td>
-
-                                <!-- Session Info -->
-                                <td class="px-6 py-4">
-                                    <% if (customer.session_info) { %>
-                                        <div class="text-sm">
-                                            <div class="text-gray-900 font-medium mb-1">
-                                                <i class="fas fa-network-wired text-blue-500 text-xs mr-1"></i>
-                                                <%= customer.session_info.address || '-' %>
-                                            </div>
-                                            <div class="text-xs text-gray-500">
-                                                <i class="fas fa-clock text-gray-400 mr-1"></i>
-                                                <%= customer.session_info.uptime || '-' %>
-                                            </div>
-                                        </div>
-                                        <% } else { %>
-                                            <span class="text-gray-400 text-sm">No session</span>
-                                            <% } %>
-                                </td>
-
-                                <!-- Actions -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-2">
-                                        <% if (customer.is_online && customer.session_info) { %>
-                                            <button
-                                                onclick="disconnectSession('<%= customer.session_info['.id'] %>', event)"
-                                                class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium border border-red-200"
-                                                title="Putus Koneksi">
-                                                <i class="fas fa-plug-circle-xmark mr-1.5"></i>
-                                                Putus
-                                            </button>
-                                            <% } %>
-                                                <button onclick="showCustomerDetail('<%= customer.id %>')"
-                                                    class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium border border-blue-200"
-                                                    title="Monitor Live">
-                                                    <i class="fas fa-desktop mr-1.5"></i>
-                                                    Monitor
-                                                </button>
-                                                <a href="/customers/<%= customer.id %>"
-                                                    class="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium border border-gray-200"
-                                                    title="Buka Halaman Pelanggan">
-                                                    <i class="fas fa-external-link-alt"></i>
-                                                </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <% }); %>
-                                <% } %>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Pagination -->
-    <% if (pagination.totalPages> 1) { %>
-        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="text-sm text-gray-700">
-                    Menampilkan
-                    <span class="font-semibold text-gray-900">
-                        <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>
-                    </span>
-                    -
-                    <span class="font-semibold text-gray-900">
-                        <%= Math.min(pagination.currentPage * pagination.limit, pagination.totalCount) %>
-                    </span>
-                    dari
-                    <span class="font-semibold text-gray-900">
-                        <%= pagination.totalCount %>
-                    </span>
-                    hasil
+                    <!-- Uptime Rate Card -->
+                    <div
+                        class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-shadow duration-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-chart-line text-white text-xl"></i>
+                            </div>
+                            <span class="text-xs font-semibold bg-white/30 px-3 py-1 rounded-full">RATE</span>
+                        </div>
+                        <div class="text-3xl font-bold mb-1">
+                            <% const rateTotal=typeof stats !=='undefined' ? stats.total_secret : pagination.totalCount;
+                                const rateOnline=typeof stats !=='undefined' ? stats.realtime_online :
+                                customers.filter(c=>
+                                c.is_online).length;
+                                const rate = rateTotal > 0 ? ((rateOnline / rateTotal) * 100).toFixed(1) : 0;
+                                %>
+                                <%= rate %>%
+                        </div>
+                        <div class="text-sm text-purple-100">Uptime Rate</div>
+                        <div class="mt-3 bg-white/30 rounded-full h-2">
+                            <div class="bg-white rounded-full h-2 transition-all duration-500"
+                                style="width: <%= rate %>%;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex gap-1">
-                    <% if (pagination.currentPage> 1) { %>
-                        <a href="?page=<%= pagination.currentPage - 1 %>&status=<%= filters.status %>&odc_id=<%= filters.odc_id %>&search=<%= filters.search %>"
-                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors bg-white">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                        <% } %>
 
-                            <% for (let i=Math.max(1, pagination.currentPage - 2); i <=Math.min(pagination.totalPages,
-                                pagination.currentPage + 2); i++) { %>
-                                <a href="?page=<%= i %>&status=<%= filters.status %>&odc_id=<%= filters.odc_id %>&search=<%= filters.search %>"
-                                    class="px-4 py-2 border rounded-lg text-sm transition-colors <%= i === pagination.currentPage ? 'bg-blue-600 text-white border-blue-600 font-semibold' : 'border-gray-300 hover:bg-gray-100 bg-white' %>">
-                                    <%= i %>
-                                </a>
-                                <% } %>
+                <!-- Filters Section -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+                    <!-- Quick Actions -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button onclick="showAllCustomers()"
+                            class="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 text-sm font-medium transition-colors">
+                            <i class="fas fa-users mr-1.5"></i>Semua Pelanggan
+                        </button>
+                        <button onclick="filterOnlineCustomers()"
+                            class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 text-sm font-medium transition-colors">
+                            <i class="fas fa-signal mr-1.5"></i>Hanya Online
+                        </button>
+                        <button onclick="filterOfflineCustomers()"
+                            class="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200 text-sm font-medium transition-colors">
+                            <i class="fas fa-signal-slash mr-1.5"></i>Hanya Offline
+                        </button>
+                        <% if (offlineCustomers.length> 0) { %>
+                            <span
+                                class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
+                                <i class="fas fa-exclamation-circle mr-1.5"></i>
+                                <%= offlineCustomers.length %> Offline
+                            </span>
+                            <% } %>
+                    </div>
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-filter text-gray-400 mr-2"></i>
+                        <h3 class="font-semibold text-gray-700">Filter & Pencarian</h3>
+                    </div>
+                    <form method="GET" action="/monitoring/pppoe"
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Status Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-toggle-on text-gray-400 mr-1"></i>
+                                Status
+                            </label>
+                            <select name="status"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all">
+                                <option value="">Semua Status</option>
+                                <option value="active" <%=filters.status==='active' ? 'selected' : '' %>>✓ Active
+                                </option>
+                                <option value="inactive" <%=filters.status==='inactive' ? 'selected' : '' %>>✗ Inactive
+                                </option>
+                                <option value="suspended" <%=filters.status==='suspended' ? 'selected' : '' %>>⏸
+                                    Suspended</option>
+                            </select>
+                        </div>
 
-                                    <% if (pagination.currentPage < pagination.totalPages) { %>
-                                        <a href="?page=<%= pagination.currentPage + 1 %>&status=<%= filters.status %>&odc_id=<%= filters.odc_id %>&search=<%= filters.search %>"
+                        <!-- ODP Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>
+                                Area ODP
+                            </label>
+                            <select name="odp_id"
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all">
+                                <option value="">Semua ODP</option>
+                                <% if (typeof odpList !=='undefined' ) { %>
+                                    <% odpList.forEach(odp=> { %>
+                                        <option value="<%= odp.id %>" <%=filters.odp_id==odp.id ? 'selected' : '' %>>
+                                            <%= odp.name %>
+                                        </option>
+                                        <% }); %>
+                                            <% } %>
+                            </select>
+                        </div>
+
+                        <!-- Search -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-search text-gray-400 mr-1"></i>
+                                Pencarian
+                            </label>
+                            <input type="text" name="search" value="<%= filters.search %>"
+                                placeholder="Nama, kode, username..."
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="flex items-end gap-2">
+                            <button type="submit"
+                                class="flex-1 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm font-medium">
+                                <i class="fas fa-search mr-2"></i>Cari
+                            </button>
+                            <a href="/monitoring/pppoe"
+                                class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Table Section -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <!-- Table Header -->
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-gray-800 flex items-center">
+                                <i class="fas fa-table text-gray-400 mr-2"></i>
+                                Daftar Pelanggan PPPoE
+                            </h3>
+                            <span class="text-sm text-gray-500">
+                                Menampilkan <%= customers.length %> dari <%= pagination.totalCount %> data
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        <i class="fas fa-circle-dot mr-1"></i> Status
+                                    </th>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        <i class="fas fa-user mr-1"></i> Pelanggan
+                                    </th>
+
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        <i class="fas fa-info-circle mr-1"></i> Session
+                                    </th>
+                                    <th
+                                        class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        <i class="fas fa-cog mr-1"></i> Aksi
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                <% if (customers.length===0) { %>
+                                    <tr>
+                                        <td colspan="4" class="px-6 py-16 text-center">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <div
+                                                    class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                                    <i class="fas fa-inbox text-4xl text-gray-300"></i>
+                                                </div>
+                                                <p class="text-gray-500 font-medium mb-1">Tidak ada data pelanggan</p>
+                                                <p class="text-sm text-gray-400">Coba ubah filter pencarian</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <% } else { %>
+                                        <% customers.forEach((customer, index)=> { %>
+                                            <tr
+                                                class="hover:bg-blue-50 transition-colors duration-150 <%= index % 2 === 0 ? 'bg-white' : 'bg-gray-50' %>">
+                                                <!-- Status -->
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <% if (customer.is_online) { %>
+                                                        <span
+                                                            class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
+                                                            <span
+                                                                class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                                                            Online
+                                                        </span>
+                                                        <% } else { %>
+                                                            <span
+                                                                class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                                                <span
+                                                                    class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                                                                Offline
+                                                            </span>
+                                                            <% } %>
+                                                </td>
+
+                                                <!-- Customer Info -->
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center">
+                                                        <div
+                                                            class="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                                                            <%= customer.name ? customer.name.charAt(0).toUpperCase()
+                                                                : '?' %>
+                                                        </div>
+                                                        <div>
+                                                            <div class="font-semibold text-gray-900">
+                                                                <%= customer.name %>
+                                                            </div>
+                                                            <div class="text-sm text-gray-500">
+                                                                <i class="fas fa-hashtag text-xs"></i>
+                                                                <%= customer.customer_code %>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <!-- Username -->
+
+
+                                                <!-- Session Info -->
+                                                <td class="px-6 py-4">
+                                                    <% if (customer.session_info) { %>
+                                                        <div class="text-sm">
+                                                            <div class="text-gray-900 font-medium mb-1">
+                                                                <i
+                                                                    class="fas fa-network-wired text-blue-500 text-xs mr-1"></i>
+                                                                <%= customer.session_info.address || '-' %>
+                                                            </div>
+                                                            <div class="text-xs text-gray-500">
+                                                                <i class="fas fa-clock text-gray-400 mr-1"></i>
+                                                                <%= customer.session_info.uptime || '-' %>
+                                                            </div>
+                                                        </div>
+                                                        <% } else { %>
+                                                            <span class="text-gray-400 text-sm">No session</span>
+                                                            <% } %>
+                                                </td>
+
+                                                <!-- Actions -->
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="flex items-center gap-2">
+                                                        <% if (customer.is_online && customer.session_info) { %>
+                                                            <button
+                                                                onclick="disconnectSession('<%= customer.session_info['.id'] || '' %>', event)"
+                                                                class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium border border-red-200"
+                                                                title="Putus Koneksi">
+                                                                <i class="fas fa-plug-circle-xmark mr-1.5"></i>
+                                                                Putus
+                                                            </button>
+                                                            <% } %>
+                                                                <button
+                                                                    onclick="showCustomerDetail('<%= customer.id %>')"
+                                                                    class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium border border-blue-200"
+                                                                    title="Monitor Live">
+                                                                    <i class="fas fa-desktop mr-1.5"></i>
+                                                                    Monitor
+                                                                </button>
+                                                                <a href="/customers/<%= customer.id %>"
+                                                                    class="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium border border-gray-200"
+                                                                    title="Buka Halaman Pelanggan">
+                                                                    <i class="fas fa-external-link-alt"></i>
+                                                                </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
+                                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <% if (pagination.totalPages> 1) { %>
+                        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div class="text-sm text-gray-700">
+                                    Menampilkan
+                                    <span class="font-semibold text-gray-900">
+                                        <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>
+                                    </span>
+
+                                    <span class="font-semibold text-gray-900">
+                                        <%= Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)
+                                            %>
+                                    </span>
+                                    dari
+                                    <span class="font-semibold text-gray-900">
+                                        <%= pagination.totalCount %>
+                                    </span>
+                                    hasil
+                                </div>
+                                <div class="flex gap-1">
+                                    <% if (pagination.currentPage> 1) { %>
+                                        <a href="?page=<%= pagination.currentPage - 1 %>&status=<%= filters.status %>&odc_id=<%= filters.odc_id %>&search=<%= filters.search %>"
                                             class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors bg-white">
-                                            <i class="fas fa-chevron-right"></i>
+                                            <i class="fas fa-chevron-left"></i>
                                         </a>
                                         <% } %>
+
+                                            <% for (let i=Math.max(1, pagination.currentPage - 2); i
+                                                <=Math.min(pagination.totalPages, pagination.currentPage + 2); i++) { %>
+                                                <a href="?page=<%= i %>&status=<%= filters.status %>&odc_id=<%= filters.odc_id %>&search=<%= filters.search %>"
+                                                    class="px-4 py-2 border rounded-lg text-sm transition-colors <%= i === pagination.currentPage ? 'bg-blue-600 text-white border-blue-600 font-semibold' : 'border-gray-300 hover:bg-gray-100 bg-white' %>">
+                                                    <%= i %>
+                                                </a>
+                                                <% } %>
+
+                                                    <% if (pagination.currentPage < pagination.totalPages) { %>
+                                                        <a href="?page=<%= pagination.currentPage + 1 %>&status=<%= filters.status %>&odc_id=<%= filters.odc_id %>&search=<%= filters.search %>"
+                                                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors bg-white">
+                                                            <i class="fas fa-chevron-right"></i>
+                                                        </a>
+                                                        <% } %>
+                                </div>
+                            </div>
+                        </div>
+                        <% } %>
+                </div>
+
+                <!-- Info Footer -->
+                <div class="mt-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-info-circle text-blue-600 text-lg"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-blue-900 mb-1">Informasi Monitoring</h4>
+                            <p class="text-sm text-blue-800">
+                                Data monitoring diperbarui secara real-time dari MikroTik Router.
+                                Status <span class="font-semibold">Online</span> menunjukkan pelanggan yang sedang
+                                terhubung ke
+                                jaringan.
+                                Halaman akan refresh otomatis setiap 60 detik.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <% } %>
-</div>
 
-<!-- Info Footer -->
-<div class="mt-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
-    <div class="flex items-start gap-3">
-        <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <i class="fas fa-info-circle text-blue-600 text-lg"></i>
-        </div>
-        <div class="flex-1">
-            <h4 class="font-semibold text-blue-900 mb-1">Informasi Monitoring</h4>
-            <p class="text-sm text-blue-800">
-                Data monitoring diperbarui secara real-time dari MikroTik Router.
-                Status <span class="font-semibold">Online</span> menunjukkan pelanggan yang sedang terhubung ke
-                jaringan.
-                Halaman akan refresh otomatis setiap 60 detik.
-            </p>
-        </div>
-    </div>
-</div>
-</div>
+            <script>
+                // Filtering Functions
+                function showAllCustomers() {
+                    // Clear all filters and reload
+                    window.location.href = '/monitoring/pppoe';
+                }
 
-<script>
-    async function disconnectSession(sessionId, evt) {
-        if (!confirm('⚠️ Yakin ingin memutus koneksi session ini?\n\nPelanggan akan terputus dari jaringan.')) return;
+                function filterOnlineCustomers() {
+                    // Add online filter to URL
+                    const url = new URL(window.location);
+                    url.searchParams.set('status_filter', 'online');
+                    window.location.href = url.toString();
+                }
 
-        const button = (evt && evt.target) ? evt.target.closest('button') : document.activeElement;
-        if (!button) return;
-        const originalHTML = button.innerHTML;
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Memutus...';
+                function filterOfflineCustomers() {
+                    // Add offline filter to URL
+                    const url = new URL(window.location);
+                    url.searchParams.set('status_filter', 'offline');
+                    window.location.href = url.toString();
+                }
 
-        try {
-            const response = await fetch('/monitoring/disconnect-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId })
-            });
+                // Highlight offline rows
+                function highlightOfflineRows() {
+                    document.querySelectorAll('tr[data-status="offline"]').forEach(row => {
+                        row.style.backgroundColor = '#fef2f2'; // Light red background
+                        row.style.borderLeft = '3px solid #ef4444'; // Red left border
+                    });
+                }
 
-            const result = await response.json();
-            if (result.success) {
-                // Show success message
-                button.innerHTML = '<i class="fas fa-check mr-1.5"></i>Berhasil';
-                button.className = button.className.replace('bg-red-50 text-red-700 border-red-200', 'bg-green-50 text-green-700 border-green-200');
+                // Auto-run on page load
+                document.addEventListener('DOMContentLoaded', function () {
+                    highlightOfflineRows();
 
-                setTimeout(() => {
-                    location.reload();
+                    // Update last update time
+                    const updateTimeElement = document.getElementById('last-update-time');
+                    if (updateTimeElement) {
+                        const now = new Date();
+                        updateTimeElement.textContent = now.toLocaleTimeString('id-ID');
+                    }
+                });
+
+                async function disconnectSession(sessionId, evt) {
+                    if (!confirm('⚠️ Yakin ingin memutus koneksi session ini?\n\nPelanggan akan terputus dari jaringan.')) return;
+
+                    const button = (evt && evt.target) ? evt.target.closest('button') : document.activeElement;
+                    if (!button) return;
+                    const originalHTML = button.innerHTML;
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Memutus...';
+
+                    try {
+                        const response = await fetch('/monitoring/disconnect-session', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sessionId })
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            // Show success message
+                            button.innerHTML = '<i class="fas fa-check mr-1.5"></i>Berhasil';
+                            button.className = button.className.replace('bg-red-50 text-red-700 border-red-200', 'bg-green-50 text-green-700 border-green-200');
+
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1000);
+                        } else {
+                            alert('❌ Gagal: ' + result.message);
+                            button.innerHTML = originalHTML;
+                            button.disabled = false;
+                        }
+                    } catch (error) {
+                        alert('❌ Error: ' + error.message);
+                        button.innerHTML = originalHTML;
+                        button.disabled = false;
+                    }
+                }
+
+                // Auto refresh setiap 60 detik
+                let refreshCountdown = 60;
+                const refreshInterval = setInterval(() => {
+                    refreshCountdown--;
+                    if (refreshCountdown <= 0) {
+                        location.reload();
+                    }
                 }, 1000);
-            } else {
-                alert('❌ Gagal: ' + result.message);
-                button.innerHTML = originalHTML;
-                button.disabled = false;
-            }
-        } catch (error) {
-            alert('❌ Error: ' + error.message);
-            button.innerHTML = originalHTML;
-            button.disabled = false;
-        }
-    }
 
-    // Auto refresh setiap 60 detik
-    let refreshCountdown = 60;
-    const refreshInterval = setInterval(() => {
-        refreshCountdown--;
-        if (refreshCountdown <= 0) {
-            location.reload();
-        }
-    }, 1000);
+                // Show countdown in console
+                console.log('Auto-refresh enabled. Page will refresh in 60 seconds.');
 
-    // Show countdown in console
-    console.log('Auto-refresh enabled. Page will refresh in 60 seconds.');
+                // Modal variables - initialized after DOM is ready
+                let modal, modalContent, trafficInterval;
 
-    // Modal variables - initialized after DOM is ready
-    let modal, modalContent, trafficInterval;
+                document.addEventListener('DOMContentLoaded', function () {
+                    modal = document.getElementById('detailModal');
+                    modalContent = document.getElementById('modalContent');
 
-    document.addEventListener('DOMContentLoaded', function () {
-        modal = document.getElementById('detailModal');
-        modalContent = document.getElementById('modalContent');
+                    // Close modal on ESC and outside click
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') closeModal();
+                    });
 
-        // Close modal on ESC and outside click
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
-        });
+                    if (modal) {
+                        modal.addEventListener('click', (e) => {
+                            if (e.target.id === 'detailModal') closeModal();
+                        });
+                    }
+                });
 
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target.id === 'detailModal') closeModal();
-            });
-        }
-    });
+                function closeModal() {
+                    if (modal) modal.classList.add('hidden');
+                    if (trafficInterval) clearInterval(trafficInterval);
+                }
 
-    function closeModal() {
-        if (modal) modal.classList.add('hidden');
-        if (trafficInterval) clearInterval(trafficInterval);
-    }
-
-    async function showCustomerDetail(customerId) {
-        if (!modal || !modalContent) {
-            console.error('Modal elements not found');
-            return;
-        }
-        modal.classList.remove('hidden');
-        modalContent.innerHTML = `
+                async function showCustomerDetail(customerId) {
+                    if (!modal || !modalContent) {
+                        console.error('Modal elements not found');
+                        return;
+                    }
+                    modal.classList.remove('hidden');
+                    modalContent.innerHTML = `
             <div class="flex items-center justify-center py-12">
                 <div class="text-center">
                     <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
                     <p class="text-gray-600">Memuat data pelanggan...</p>
                 </div>
+                </div>
             </div>
         `;
 
-        try {
-            const response = await fetch(`/monitoring/customer/${customerId}`);
-            const result = await response.json();
+                    try {
+                        const response = await fetch(`/monitoring/customer/${customerId}`);
+                        const result = await response.json();
 
-            if (result.success) {
-                const customer = result.customer;
-                const isOnline = customer.is_online;
-                const session = customer.session_info || {};
+                        if (result.success) {
+                            const customer = result.customer;
+                            const isOnline = customer.is_online;
+                            const session = customer.session_info || {};
 
-                let html = `
+                            let html = `
                     <div class="space-y-6">
                         <!-- Header Status -->
                         <div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
@@ -615,7 +672,7 @@
                                     </div>
                                     <div class="flex justify-between border-b border-gray-100 pb-2">
                                         <span class="text-gray-500 text-sm">Password</span>
-                                        <span class="text-gray-700 font-mono text-sm">********</span>
+                                        <span class="text-gray-700 font-mono text-sm">${customer.pppoe_password || '12345'}</span>
                                     </div>
                                     <div class="flex justify-between border-b border-gray-100 pb-2">
                                         <span class="text-gray-500 text-sm">Paket</span>
@@ -690,73 +747,74 @@
                             </a>
                         </div>
                     </div>
-                `;
+                style="width: <%= rate %>%;"
                 modalContent.innerHTML = html;
 
                 // Start polling traffic if online
                 if (isOnline) {
                     pollTraffic(customer.pppoe_username);
-                }
+                style="width: <%= rate %>%;"
 
             } else {
                 throw new Error(result.message || 'Gagal mengambil data');
-            }
+            style="width: <%= rate %>%;"
         } catch (error) {
             modalContent.innerHTML = `
-                <div class="text-center py-12">
+                                < div class="text-center py-12" >
                     <i class="fas fa-exclamation-circle text-4xl text-red-500 mb-4"></i>
                     <p class="text-gray-600">Terjadi kesalahan: ${error.message}</p>
                     <button onclick="closeModal()" class="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Tutup</button>
+                </div >
+                                style="width: <%= rate %>%;"
+                            style = "width: <%= rate %>%;"
+                            style = "width: <%= rate %>%;"
+
+                            function formatBytes(bytes, decimals = 2) {
+                                if (!+bytes) return '0 B';
+                                const k = 1024;
+                                const dm = decimals < 0 ? 0 : decimals;
+                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+                                style = "width: <%= rate %>%;"
+
+                                async function pollTraffic(username) {
+                                    // Initial fetch handled by HTML render, subsequent by interval
+                                    trafficInterval = setInterval(async () => {
+                                        try {
+                                            const url = `/monitoring/traffic/${encodeURIComponent(username)}`;
+                                            const response = await fetch(url);
+                                            const result = await response.json();
+
+                                            if (result.success && result.online) {
+                                                const rxEl = document.getElementById('modal-rx');
+                                                const txEl = document.getElementById('modal-tx');
+                                                if (rxEl) rxEl.textContent = formatBytes(result.data.download);
+                                                if (txEl) txEl.textContent = formatBytes(result.data.upload);
+                                                style = "width: <%= rate %>%;"
+                                            } catch (e) {
+                                                console.error('Traffic poll error:', e);
+                                                style = "width: <%= rate %>%;"
+                                            }, 2000);
+                                    style = "width: <%= rate %>%;"
+            </script>
+
+            <!-- Add Modal HTML at the end of body -->
+            <div id="detailModal"
+                class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                            Detail Pelanggan
+                        </h3>
+                        <button onclick="closeModal()"
+                            class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div id="modalContent" class="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                        <!-- Content loaded via JS -->
+                    </div>
                 </div>
-            `;
-        }
-    }
-
-    function formatBytes(bytes, decimals = 2) {
-        if (!+bytes) return '0 B';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-    }
-
-    async function pollTraffic(username) {
-        // Initial fetch handled by HTML render, subsequent by interval
-        trafficInterval = setInterval(async () => {
-            try {
-                const url = `/monitoring/traffic/${encodeURIComponent(username)}`;
-                const response = await fetch(url);
-                const result = await response.json();
-
-                if (result.success && result.online) {
-                    const rxEl = document.getElementById('modal-rx');
-                    const txEl = document.getElementById('modal-tx');
-                    if (rxEl) rxEl.textContent = formatBytes(result.data.download);
-                    if (txEl) txEl.textContent = formatBytes(result.data.upload);
-                }
-            } catch (e) {
-                console.error('Traffic poll error:', e);
-            }
-        }, 2000);
-    }
-</script>
-
-<!-- Add Modal HTML at the end of body -->
-<div id="detailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-        <div class="p-6 border-b border-gray-200 flex items-center justify-between">
-            <h3 class="text-xl font-bold text-gray-800">
-                <i class="fas fa-info-circle text-blue-600 mr-2"></i>
-                Detail Pelanggan
-            </h3>
-            <button onclick="closeModal()"
-                class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <div id="modalContent" class="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-            <!-- Content loaded via JS -->
-        </div>
-    </div>
-</div>
+            </div>

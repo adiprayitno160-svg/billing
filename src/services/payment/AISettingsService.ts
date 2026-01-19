@@ -28,7 +28,7 @@ export class AISettingsService {
                 CREATE TABLE IF NOT EXISTS ai_settings (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     api_key TEXT,
-                    model VARCHAR(100) DEFAULT 'gemini-2.5-flash',
+                    model VARCHAR(100) DEFAULT 'gemini-1.5-flash',
                     enabled TINYINT(1) DEFAULT 1,
                     auto_approve_enabled TINYINT(1) DEFAULT 1,
                     min_confidence INT DEFAULT 70,
@@ -237,7 +237,12 @@ export class AISettingsService {
             if (!settings) {
                 return false;
             }
-            return settings.enabled && (settings.api_key?.trim() !== '');
+            // Check if explicitly enabled in DB
+            if (!settings.enabled) return false;
+
+            // Check if we have a key (from DB or Env)
+            const apiKey = await this.getAPIKey();
+            return !!(apiKey && apiKey.trim() !== '');
         } catch (error) {
             return false;
         }
@@ -250,6 +255,7 @@ export class AISettingsService {
         try {
             const { GoogleGenerativeAI } = await import('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(apiKey);
+            // Use a currently valid model for testing connection
             const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
             // Simple test call

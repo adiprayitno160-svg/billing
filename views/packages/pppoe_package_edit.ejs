@@ -150,46 +150,93 @@
                         </div>
                     </div>
 
-                    <!-- Prepaid Pricing Section (NEW) -->
-                    <div class="border-t border-slate-200 pt-6">
-                        <h3 class="text-lg font-semibold text-slate-800 mb-2">💰 Harga Prabayar (Prepaid)</h3>
+                    <!-- Prepaid Pricing Configuration -->
+                    <div class="col-span-full border-t border-slate-200 pt-6 mt-2">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-2">Konfigurasi Harga Prepaid</h3>
                         <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
                             <p class="text-sm text-indigo-800">
                                 <i class="fas fa-info-circle mr-2"></i>
-                                <strong>Sistem Prabayar:</strong> Pelanggan membeli paket dengan durasi tertentu (7 hari
-                                atau 30 hari). Harga di bawah ini yang akan muncul di WhatsApp Bot saat pelanggan ketik
-                                <code>/beli</code>.
+                                <strong>Sistem Prabayar:</strong> Aktifkan paket dengan mengklik tombol toggle dan
+                                masukkan harga. Hanya paket yang aktif yang akan muncul di WhatsApp Bot.
                             </p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Harga 7 Hari -->
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    💵 Harga Mingguan (7 Hari)
-                                </label>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">Rp</span>
-                                    <input name="price_7_days" type="number" min="0" step="1000"
-                                        value="<%= package.price_7_days || '' %>"
-                                        class="w-full rounded-lg border border-slate-300 pl-12 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                        placeholder="25000" />
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- 7 Hari -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="text-sm font-semibold text-slate-700">Paket 7 Hari</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_enabled_7_days" value="1"
+                                            <%=package.is_enabled_7_days ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="togglePriceInput(this, 'price_7_days')">
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </label>
                                 </div>
-                                <p class="text-xs text-slate-500 mt-1">Kosongkan jika paket mingguan tidak tersedia</p>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
+                                    <input id="price_7_days" name="price_7_days" type="number" step="1000"
+                                        value="<%= package.price_7_days %>" <%=!package.is_enabled_7_days ? 'disabled'
+                                        : '' %>
+                                    class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 <%=
+                                        !package.is_enabled_7_days ? 'bg-slate-100 text-slate-400'
+                                        : 'bg-white text-slate-900' %> focus:outline-none focus:ring-2
+                                        focus:ring-blue-500 transition-all"
+                                        placeholder="0" />
+                                </div>
                             </div>
 
-                            <!-- Harga 30 Hari -->
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    💵 Harga Bulanan (30 Hari)
-                                </label>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">Rp</span>
-                                    <input name="price_30_days" type="number" min="0" step="1000"
-                                        value="<%= package.price_30_days || '' %>"
-                                        class="w-full rounded-lg border border-slate-300 pl-12 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                        placeholder="75000" />
+                            <!-- 14 Hari -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="text-sm font-semibold text-slate-700">Paket 14 Hari</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_enabled_14_days" value="1"
+                                            <%=package.is_enabled_14_days ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="togglePriceInput(this, 'price_14_days')">
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </label>
                                 </div>
-                                <p class="text-xs text-slate-500 mt-1">Kosongkan jika paket bulanan tidak tersedia</p>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
+                                    <input id="price_14_days" name="price_14_days" type="number" step="1000"
+                                        value="<%= package.price_14_days %>" <%=!package.is_enabled_14_days ? 'disabled'
+                                        : '' %>
+                                    class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 <%=
+                                        !package.is_enabled_14_days ? 'bg-slate-100 text-slate-400'
+                                        : 'bg-white text-slate-900' %> focus:outline-none focus:ring-2
+                                        focus:ring-blue-500 transition-all"
+                                        placeholder="0" />
+                                </div>
+                            </div>
+
+                            <!-- 30 Hari -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="text-sm font-semibold text-slate-700">Paket 30 Hari</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_enabled_30_days" value="1"
+                                            <%=package.is_enabled_30_days ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="togglePriceInput(this, 'price_30_days')">
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
+                                    <input id="price_30_days" name="price_30_days" type="number" step="1000"
+                                        value="<%= package.price_30_days %>" <%=!package.is_enabled_30_days ? 'disabled'
+                                        : '' %>
+                                    class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 <%=
+                                        !package.is_enabled_30_days ? 'bg-slate-100 text-slate-400'
+                                        : 'bg-white text-slate-900' %> focus:outline-none focus:ring-2
+                                        focus:ring-blue-500 transition-all"
+                                        placeholder="0" />
+                                </div>
                             </div>
                         </div>
 
@@ -206,6 +253,9 @@
                             <ul class="text-xs text-green-700 mt-2 ml-4 space-y-1">
                                 <li id="preview_weekly">• Paket 7 Hari: <strong>Rp <span id="price_7_preview">
                                             <%= package.price_7_days || '0' %>
+                                        </span></strong></li>
+                                <li id="preview_biweekly">• Paket 14 Hari: <strong>Rp <span id="price_14_preview">
+                                            <%= package.price_14_days || '0' %>
                                         </span></strong></li>
                                 <li id="preview_monthly">• Paket 30 Hari: <strong>Rp <span id="price_30_preview">
                                             <%= package.price_30_days || '0' %>
@@ -406,4 +456,19 @@
             });
         }
     });
+
+    // Toggle price input enable/disable state
+    function togglePriceInput(checkbox, inputId) {
+        const input = document.getElementById(inputId);
+        if (checkbox.checked) {
+            input.disabled = false;
+            input.classList.remove('bg-slate-100', 'text-slate-400');
+            input.classList.add('bg-white', 'text-slate-900');
+            input.focus();
+        } else {
+            input.disabled = true;
+            input.classList.add('bg-slate-100', 'text-slate-400');
+            input.classList.remove('bg-white', 'text-slate-900');
+        }
+    }
 </script>

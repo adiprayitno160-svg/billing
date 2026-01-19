@@ -14,7 +14,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
 
-import { WhatsAppServiceBaileys } from './services/whatsapp/WhatsAppServiceBaileys';
+// WhatsApp Service Import Removed
 import { createServer } from 'http';
 import { db } from './db/pool';
 import { AuthController } from './controllers/authController';
@@ -34,8 +34,9 @@ dotenv.config({ override: false });
 
 const app = express();
 // AntiGravity: Force 3001 if 3000 is detected (conflict with GenieACS), otherwise respect env
-const envPort = process.env.PORT ? Number(process.env.PORT) : 3001;
-const port = envPort === 3000 ? 3001 : envPort;
+const rawPort = process.env.PORT ? String(process.env.PORT).trim() : '3001';
+const parsedPort = !isNaN(Number(rawPort)) && Number(rawPort) > 0 ? Number(rawPort) : 3001;
+const port = parsedPort === 3000 ? 3001 : parsedPort;
 
 // CommonJS build: __dirname is available from TS transpilation
 
@@ -253,16 +254,17 @@ process.on('uncaughtException', (error) => {
 
 async function start() {
 	try {
-		console.log(`🔄 Restarting server due to code updates (AntiGravity trigger) at ${new Date().toISOString()}...`);
-		console.log(`Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
+		console.log(`[Startup] 🔄 Initializing server... Time: ${new Date().toISOString()}`);
+		console.log(`[Startup] Target Port: ${port}`);
+		console.log(`[Startup] Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
 
-		console.log('Ensuring initial schema...');
+		console.log('[Startup] Step 1: Ensuring initial schema...');
 		await ensureInitialSchema();
-		console.log('Schema ensured');
+		console.log('[Startup] ✅ Schema ensured.');
 
 		// Ensure AI settings table exists
 		try {
-			console.log('Ensuring AI settings table...');
+			console.log('[Startup] Step 2: Ensuring AI settings table...');
 			const { AISettingsService } = await import('./services/payment/AISettingsService');
 			await AISettingsService.ensureAISettingsTable();
 			console.log('✅ AI settings table ensured');
@@ -276,18 +278,18 @@ async function start() {
 			console.log('Ensuring notification templates...');
 			const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
 			await ensureNotificationTemplates();
-			console.log('✅ Notification templates ensured');
+			console.log('[Startup] ✅ Notification templates ensured');
 		} catch (error) {
-			console.error('⚠️ Error ensuring notification templates (non-critical):', error);
+			console.error('[Startup] ⚠️ Error ensuring notification templates (non-critical):', error);
 			// Non-critical, continue startup
 		}
 
-		console.log('Checking database connection...');
+		console.log('[Startup] Step 4: Checking database connection...');
 		await checkDatabaseConnection();
-		console.log('Database connection OK');
+		console.log('[Startup] ✅ Database connection OK');
 
 		// Initialize logging system
-		console.log('Initializing logging system...');
+		console.log('[Startup] Step 5: Initializing logging system...');
 		await BillingLogService.initialize();
 		const anomalyDetector = new AIAnomalyDetectionService();
 		await anomalyDetector.initialize();
@@ -299,8 +301,9 @@ async function start() {
 
 		// Ensure invoices and payments tables exist (CRITICAL for bookkeeping)
 		try {
+			console.log('[Startup] Step 6: Checking invoices/payments tables...');
 			await autoFixInvoicesAndPaymentsTables();
-			console.log('✅ Invoices and payments tables ensured');
+			console.log('[Startup] ✅ Invoices and payments tables ensured');
 		} catch (error) {
 			console.error('⚠️ Error ensuring invoices and payments tables (non-critical):', error);
 		}
@@ -321,6 +324,7 @@ async function start() {
 		console.log('Billing scheduler initialized');
 
 		// Initialize invoice auto-generation scheduler
+		console.log('[Startup] Step 7: Initializing schedulers...');
 		await InvoiceSchedulerService.initialize();
 
 		// Initialize prepaid scheduler (auto-disable expired customers)
@@ -348,18 +352,24 @@ async function start() {
 		const { MediaCleanupService } = await import('./services/cron/MediaCleanupService');
 		MediaCleanupService.startScheduler(90); // 90 days retention
 
-		// Initialize WhatsApp Business service
-		// Can be disabled via DISABLE_WHATSAPP=true environment variable
-		if (process.env.DISABLE_WHATSAPP === 'true') {
-			console.log('⚠️ WhatsApp service DISABLED (DISABLE_WHATSAPP=true)');
-		} else {
-			// Initialize WhatsApp Business service (non-blocking)
-			WhatsAppServiceBaileys.initialize()
-				.then(() => console.log('✅ WhatsApp Business service initialized (Baileys/Robust)'))
-				.catch(error => {
-					console.error('❌ Failed to initialize WhatsApp service:', error);
-				});
+		// Initialize Technician Log Cleanup Service (2 Months)
+		const { TechnicianCleanupService } = await import('./services/cron/TechnicianCleanupService');
+		TechnicianCleanupService.startScheduler();
+
+
+		// Initialize New Robust WhatsApp Service
+		if (process.env.DISABLE_WHATSAPP !== 'true') {
+			try {
+				const { WhatsAppClient, WhatsAppHandler } = await import('./services/whatsapp');
+				const waClient = WhatsAppClient.getInstance();
+				await waClient.initialize();
+				WhatsAppHandler.initialize();
+				console.log('✅ WhatsApp Service (Clean/WebJS) initialized');
+			} catch (waError) {
+				console.error('❌ Failed to init WhatsApp:', waError);
+			}
 		}
+
 
 		// Initialize default users
 		const authController = new AuthController();
@@ -376,21 +386,24 @@ async function start() {
 		let actualPort = preferredPort;
 
 		const startServer = (p: number) => {
-			server.listen(p, () => {
-				console.log(`Server running on http://localhost:${p}`);
-				console.log(`Server also accessible on http://0.0.0.0:${p}`);
-				console.log(`WebSocket available at ws://localhost:${p}/ws`);
+			console.log(`[Startup] Attempting to listen on port ${p}...`);
+			server.listen(p, '0.0.0.0', () => {
+				console.log(`\n🚀 SERVER SUCCESSFULLY STARTED!`);
+				console.log(`   - Local:    http://localhost:${p}`);
+				console.log(`   - Network:  http://0.0.0.0:${p}`);
+				console.log(`   - Time:     ${new Date().toISOString()}`);
 
 				// Signal PM2 that the app is ready (satisfied wait_ready: true)
 				if (process.send) {
 					process.send('ready');
+					console.log(`   - PM2:      Signal 'ready' sent.`);
 				}
 			}).on('error', (err: any) => {
 				if (err.code === 'EADDRINUSE') {
 					console.log(`⚠️ Port ${p} is busy, trying ${p + 1}...`);
 					startServer(p + 1);
 				} else {
-					console.error('Failed to start server:', err);
+					console.error('❌ CRITICAL: Failed to start server:', err);
 					process.exit(1);
 				}
 			});
@@ -408,6 +421,7 @@ async function start() {
 	}
 }
 
+console.log('[System] Force Restart Triggered at ' + new Date().toISOString());
 start();
 
 

@@ -1,6 +1,7 @@
 import { databasePool } from '../db/pool';
 import { StaticIpClient } from './staticIpPackageService';
 import { CustomerIdGenerator } from '../utils/customerIdGenerator';
+import { getMikrotikConfig } from '../utils/mikrotikConfigHelper';
 
 export type StaticIpClientWithPackage = StaticIpClient & {
     package_name: string;
@@ -161,6 +162,216 @@ export async function removeClientFromPackage(clientId: number): Promise<void> {
     } finally {
         conn.release();
     }
+}
+
+// Fungsi untuk mengganti paket IP statis pelanggan
+export async function changeCustomerStaticIpPackage(customerId: number, newPackageId: number): Promise<void> {
+    const conn = await databasePool.getConnection();
+    try {
+        await conn.beginTransaction();
+        
+        // Dapatkan data client lama
+        const [oldClientRows] = await conn.execute(
+            `SELECT sic.*, c.connection_type, c.is_active 
+             FROM static_ip_clients sic 
+             LEFT JOIN customers c ON c.id = sic.customer_id 
+             WHERE sic.customer_id = ?`,
+            [customerId]
+        );
+        
+        if (!Array.isArray(oldClientRows) || oldClientRows.length === 0) {
+            throw new Error('Client tidak ditemukan');
+        }
+        
+        const oldClient = oldClientRows[0] as any;
+        
+        // Dapatkan data paket lama dan baru
+        const [oldPackageRows] = await conn.execute(
+            'SELECT * FROM static_ip_packages WHERE id = ?',
+            [oldClient.package_id]
+        );
+        
+        const [newPackageRows] = await conn.execute(
+            'SELECT * FROM static_ip_packages WHERE id = ?',
+            [newPackageId]
+        );
+        
+        if (!Array.isArray(oldPackageRows) || oldPackageRows.length === 0) {
+            throw new Error('Paket lama tidak ditemukan');
+        }
+        
+        if (!Array.isArray(newPackageRows) || newPackageRows.length === 0) {
+            throw new Error('Paket baru tidak ditemukan');
+        }
+        
+        const oldPackage = oldPackageRows[0];
+        const newPackage = newPackageRows[0];
+        
+        // Validasi bahwa paket baru tidak penuh
+        const [currentClientsRows] = await conn.execute(
+            `SELECT COUNT(*) as count FROM static_ip_clients 
+             WHERE package_id = ? AND status = 'active'`,
+            [newPackageId]
+        );
+        
+        const currentClients = (currentClientsRows as any[])[0].count;
+        if (currentClients >= (newPackage as any).max_clients) {
+            throw new Error('Paket tujuan sudah penuh');
+        }
+        
+        // Update paket di database
+        await conn.execute(
+            'UPDATE static_ip_clients SET package_id = ? WHERE customer_id = ?',
+            [newPackageId, customerId]
+        );
+        
+        // Jika customer aktif, update MikroTik juga
+        if (oldClient.is_active) {
+            // Dapatkan konfigurasi MikroTik
+            const mikrotikConfig = await getMikrotikConfig();
+            if (mikrotikConfig) {
+                // Hapus konfigurasi lama dari MikroTik
+                await removeOldStaticIpConfiguration(mikrotikConfig, oldClient, oldPackage);
+                
+                // Buat konfigurasi baru sesuai paket baru
+                await createNewStaticIpConfiguration(mikrotikConfig, oldClient, newPackage);
+            }
+        }
+        
+        await conn.commit();
+        console.log(`Customer ${customerId} moved from package ${oldClient.package_id} to ${newPackageId}`);
+    } catch (error) {
+        await conn.rollback();
+        throw error;
+    } finally {
+        conn.release();
+    }
+}
+
+// Helper function untuk menghapus konfigurasi lama dari MikroTik
+async function removeOldStaticIpConfiguration(config: any, client: any, packageData: any) {
+    const mikrotikService = await import('./mikrotikService');
+    
+    // Hapus IP address lama
+    if (client.ip_address) {
+        await mikrotikService.removeIpAddress(config, client.ip_address);
+    }
+    
+    // Hapus mangle rules lama
+    const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+    const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+    const [ipOnlyRaw, prefixStrRaw] = String(client.ip_address || '').split('/');
+    const ipOnly: string = ipOnlyRaw || '';
+    const prefix: number = Number(prefixStrRaw || '0');
+    const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+    const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
+    let peerIp = ipOnly;
+    if (prefix === 30) {
+        const firstHost = networkInt + 1;
+        const secondHost = networkInt + 2;
+        const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
+        peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+    }
+    const downloadMark: string = peerIp;
+    const uploadMark: string = `UP-${peerIp}`;
+    await mikrotikService.removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
+    
+    // Hapus queue lama
+    await mikrotikService.deleteClientQueuesByClientName(config, client.client_name);
+}
+
+// Helper function untuk membuat konfigurasi baru di MikroTik
+async function createNewStaticIpConfiguration(config: any, client: any, newPackage: any) {
+    const mikrotikService = await import('./mikrotikService');
+    
+    // Tambahkan IP address baru
+    if (client.interface) {
+        await mikrotikService.addIpAddress(config, { 
+            interface: client.interface, 
+            address: client.ip_address, 
+            comment: `Client ${client.client_name}` 
+        });
+    }
+    
+    // Hitung peer dan marks
+    const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+    const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+    const [ipOnlyRaw, prefixStrRaw] = String(client.ip_address || '').split('/');
+    const ipOnly: string = ipOnlyRaw || '';
+    const prefix: number = Number(prefixStrRaw || '0');
+    const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
+    const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
+    let peerIp = ipOnly;
+    if (prefix === 30) {
+        const firstHost = networkInt + 1;
+        const secondHost = networkInt + 2;
+        const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
+        peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+    }
+    const downloadMark: string = peerIp;
+    const uploadMark: string = `UP-${peerIp}`;
+    await mikrotikService.addMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
+    
+    // Dapatkan limit baru
+    const mlDownload = newPackage.child_download_limit || newPackage.shared_download_limit || newPackage.max_limit_download;
+    const mlUpload = newPackage.child_upload_limit || newPackage.shared_upload_limit || newPackage.max_limit_upload;
+    
+    const packageDownloadQueue = newPackage.name;
+    const packageUploadQueue = `UP-${newPackage.name}`;
+    
+    // Buat parent queue jika belum ada
+    const ensureParentQueue = async (parentName: string, direction: 'upload' | 'download') => {
+        let pId = await mikrotikService.findQueueTreeIdByName(config, parentName);
+        if (!pId) {
+            console.log(`Parent queue "${parentName}" not found. Auto-creating...`);
+            const parentData = {
+                name: parentName,
+                parent: 'global',
+                queue: 'default',
+                maxLimit: direction === 'download' ? newPackage.max_limit_download : newPackage.max_limit_upload,
+                comment: `Auto-created Parent for ${newPackage.name} (${direction})`
+            };
+            await mikrotikService.createQueueTree(config, parentData);
+            console.log(`Parent queue "${parentName}" created.`);
+        }
+    };
+    
+    await ensureParentQueue(packageDownloadQueue, 'download');
+    await ensureParentQueue(packageUploadQueue, 'upload');
+    
+    // Buat queue download
+    const queueDownData = {
+        name: client.client_name,
+        parent: packageDownloadQueue,
+        packetMarks: downloadMark,
+        maxLimit: mlDownload,
+        limitAt: newPackage.child_limit_at_download || undefined,
+        burstLimit: newPackage.child_burst_download || undefined,
+        burstThreshold: newPackage.child_burst_threshold_download || undefined,
+        burstTime: newPackage.child_burst_time_download || undefined,
+        queue: newPackage.child_queue_type_download || 'pcq-download-default',
+        priority: newPackage.child_priority_download || '8',
+        comment: `Download for ${client.client_name}`
+    };
+    
+    await mikrotikService.createQueueTree(config, queueDownData);
+    
+    // Buat queue upload
+    const queueUpData = {
+        name: `UP-${client.client_name}`,
+        parent: packageUploadQueue,
+        packetMarks: uploadMark,
+        maxLimit: mlUpload,
+        limitAt: newPackage.child_limit_at_upload || undefined,
+        burstLimit: newPackage.child_burst_upload || undefined,
+        burstThreshold: newPackage.child_burst_threshold_upload || undefined,
+        burstTime: newPackage.child_burst_time_upload || undefined,
+        queue: newPackage.child_queue_type_upload || 'pcq-upload-default',
+        priority: newPackage.child_priority_upload || '8',
+        comment: `Upload for ${client.client_name}`
+    };
+    
+    await mikrotikService.createQueueTree(config, queueUpData);
 }
 
 // Fungsi untuk mendapatkan daftar client dalam paket

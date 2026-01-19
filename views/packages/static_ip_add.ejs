@@ -29,11 +29,26 @@
                     </select>
                 </div>
 
-                <!-- Baris 2: Harga & Durasi -->
+                <!-- Baris 2: Harga Reguler -->
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Harga (Rp) *</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Harga Reguler (Rp) *</label>
                     <input name="price" type="number" min="0" step="1000" required
                         class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+                <!-- Baris 2b: Harga Prepaid -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Harga Prepaid 7 Hari (Rp)</label>
+                    <input name="price_7_days" type="number" min="0" step="1000"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0 (kosongkan jika tidak digunakan untuk prepaid)" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Harga Prepaid 30 Hari (Rp)</label>
+                    <input name="price_30_days" type="number" min="0" step="1000"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0 (kosongkan jika tidak digunakan untuk prepaid)" />
                 </div>
 
 

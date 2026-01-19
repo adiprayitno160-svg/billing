@@ -19,7 +19,7 @@ export class AISettingsController {
                 currentPath: '/settings/ai',
                 settings: settings || {
                     api_key: '',
-                    model: 'gemini-2.5-flash',
+                    model: 'gemini-1.5-flash',
                     enabled: false,
                     auto_approve_enabled: true,
                     min_confidence: 70,
@@ -70,7 +70,7 @@ export class AISettingsController {
             // Update settings
             await AISettingsService.updateSettings({
                 api_key: api_key.trim(),
-                model: model || 'gemini-2.5-flash',
+                model: model || 'gemini-1.5-flash',
                 enabled: enabled === '1' || enabled === true,
                 auto_approve_enabled: auto_approve_enabled === '1' || auto_approve_enabled === true,
                 min_confidence: parseInt(min_confidence) || 70,

@@ -87,32 +87,87 @@ export class DatabaseBackupService {
         const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME } = process.env;
         const mysqldumpCmd = await this.getMysqldumpPath();
 
-        // Construct command with robust options for cross-platform compatibility
-        // --add-drop-table: Ensures tables are reset before restore (Good for overwriting)
-        // --hex-blob: Handles binary data correctly
-        // --default-character-set=utf8mb4: Ensures encoding compatibility
-        const passwordPart = DB_PASSWORD ? `-p"${DB_PASSWORD}"` : '';
-        const command = `"${mysqldumpCmd}" --add-drop-table --hex-blob --default-character-set=utf8mb4 --ignore-table=${DB_NAME || 'billing'}.system_logs --ignore-table=${DB_NAME || 'billing'}.whatsapp_qr_codes --ignore-table=${DB_NAME || 'billing'}.whatsapp_connection_logs -h ${DB_HOST || 'localhost'} -u ${DB_USER || 'root'} ${passwordPart} ${DB_NAME || 'billing'} > "${filePath}"`;
+        // Security: Create a temporary cnf file for credentials
+        // This avoids passing password in command line and handles special characters safely
+        const tempCnfPath = path.join(this.backupDir, `.temp-dump-${Date.now()}.cnf`);
+        const cnfContent = `[client]
+user="${DB_USER || 'root'}"
+password="${DB_PASSWORD || ''}"
+host="${DB_HOST || 'localhost'}"
+`;
+
+        try {
+            // Ensure strictly private permissions for security (600)
+            fs.writeFileSync(tempCnfPath, cnfContent, { mode: 0o600 });
+        } catch (e) {
+            console.error('[Backup] Failed to write temp config file:', e);
+            throw new Error('Gagal menyiapkan kredensial database sementara.');
+        }
+
+        console.log(`[Backup] Starting dump with tool: ${mysqldumpCmd}`);
 
         return new Promise((resolve, reject) => {
-            exec(command, async (error, stdout, stderr) => {
-                if (error) {
-                    // Check if file was created and is empty (common failure mode)
+            // Construct arguments: mysqldump --defaults-extra-file=... [options] dbname
+            const args = [
+                `--defaults-extra-file=${tempCnfPath}`,
+                '--add-drop-table',
+                '--hex-blob',
+                '--default-character-set=utf8mb4',
+                `--ignore-table=${DB_NAME || 'billing'}.system_logs`,
+                `--ignore-table=${DB_NAME || 'billing'}.whatsapp_qr_codes`,
+                `--ignore-table=${DB_NAME || 'billing'}.whatsapp_connection_logs`,
+                DB_NAME || 'billing'
+            ];
+
+            // Use spawn instead of exec for better stream handling and security
+            const child = spawn(mysqldumpCmd, args);
+            const writeStream = fs.createWriteStream(filePath);
+
+            let stderrData = '';
+
+            // Pipe stdout directly to file
+            child.stdout.pipe(writeStream);
+
+            child.stderr.on('data', (data) => {
+                stderrData += data.toString();
+            });
+
+            child.on('error', (err) => {
+                if (fs.existsSync(tempCnfPath)) fs.unlinkSync(tempCnfPath);
+                reject(new Error(`Failed to start mysqldump process: ${err.message}`));
+            });
+
+            child.on('close', async (code) => {
+                // Clean up temp file immediately
+                if (fs.existsSync(tempCnfPath)) fs.unlinkSync(tempCnfPath);
+
+                if (code === 0) {
+                    // Check if file is empty (common silent failure)
                     if (fs.existsSync(filePath) && fs.statSync(filePath).size === 0) {
                         fs.unlinkSync(filePath);
+                        return reject(new Error('Backup file created but empty.'));
                     }
-                    console.error('[Backup] Dump Error:', stderr);
-                    return reject(new Error(`Mysqldump failed: ${stderr || error.message}. Check path configuration.`));
-                }
 
-                // Auto-rotate backups (Keep max 5)
-                try {
-                    await this.rotateLocalBackups(5);
-                } catch (rotError) {
-                    console.warn('[Backup] Warning: Failed to rotate backups:', rotError);
-                }
+                    // Auto-rotate backups (Keep max 5)
+                    try {
+                        await this.rotateLocalBackups(5);
+                    } catch (rotError) {
+                        console.warn('[Backup] Warning: Failed to rotate backups:', rotError);
+                    }
 
-                resolve(filePath);
+                    resolve(filePath);
+                } else {
+                    console.error('[Backup] Dump Process exited with code', code);
+                    console.error('[Backup] Stderr:', stderrData);
+
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath); // Delete partial file
+                    reject(new Error(`Mysqldump failed (Code ${code}): ${stderrData}`));
+                }
+            });
+
+            writeStream.on('error', (err) => {
+                if (fs.existsSync(tempCnfPath)) fs.unlinkSync(tempCnfPath);
+                reject(new Error(`File write error: ${err.message}`));
             });
         });
     }

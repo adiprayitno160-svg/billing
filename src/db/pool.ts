@@ -102,8 +102,13 @@ export async function ensureInitialSchema(): Promise<void> {
 			username VARCHAR(191) NOT NULL,
 			password VARCHAR(191) NOT NULL,
 			use_tls TINYINT(1) NOT NULL DEFAULT 0,
+			device_name VARCHAR(100) DEFAULT 'Main MikroTik',
+			device_group ENUM('primary', 'secondary', 'other') DEFAULT 'primary',
+			is_active TINYINT(1) NOT NULL DEFAULT 1,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_device_group (device_group),
+			INDEX idx_is_active (is_active)
 		)`);
 
 		// Create users table

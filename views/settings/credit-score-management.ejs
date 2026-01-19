@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Score Management - Billing System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-star text-indigo-600 mr-3"></i>
+                        Credit Score Management
+                    </h1>
+                    <p class="mt-2 text-gray-600 font-medium">Customer trust analysis and payment reliability tracking
+                    </p>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="recalculateAll()"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg flex items-center transition-all shadow-md">
+                        <i class="fas fa-sync-alt mr-2"></i> Recalculate All
+                    </button>
+                    <button onclick="window.location.href='/settings/advanced-billing'"
+                        class="bg-white border text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Overview Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Avg Credit Score
+                </p>
+                <p class="text-4xl font-black text-center text-indigo-600" id="avgScore">742</p>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-600" style="width: 74%"></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Platinum Elite</p>
+                <p class="text-4xl font-black text-center text-blue-600" id="eliteCount">128</p>
+                <p class="text-xs text-green-500 font-bold text-center mt-2 flex items-center justify-center">
+                    <i class="fas fa-arrow-up mr-1"></i> +5% this month
+                </p>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Defaulter Risk</p>
+                <p class="text-4xl font-black text-center text-red-500" id="riskCount">12</p>
+                <p class="text-xs text-red-400 font-medium text-center mt-2">Requires immediate attention</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Untracked</p>
+                <p class="text-4xl font-black text-center text-gray-400" id="newCount">45</p>
+                <p class="text-xs text-gray-400 font-medium text-center mt-2">New customers last 30 days</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left: Charts & Analysis -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Score Distribution Chart -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                        <i class="fas fa-chart-line text-indigo-500 mr-2"></i>
+                        Score Distribution Analysis
+                    </h2>
+                    <canvas id="distributionChart" height="150"></canvas>
+                </div>
+
+                <!-- Score Rules -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-cogs text-gray-500 mr-2"></i>
+                            Scoring Algorithm Rules
+                        </h2>
+                        <button class="text-indigo-600 font-bold text-sm hover:underline">+ Add Rule</button>
+                    </div>
+                    <div class="space-y-4">
+                        <div
+                            class="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-100">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-green-600 shadow-sm">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="font-bold text-gray-900">On-Time Payment</p>
+                                    <p class="text-xs text-gray-500">Paid before due date</p>
+                                </div>
+                            </div>
+                            <span class="text-green-600 font-black text-lg">+15 pts</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-600 shadow-sm">
+                                    <i class="fas fa-handshake"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="font-bold text-gray-900">Subscription Longevity</p>
+                                    <p class="text-xs text-gray-500">Every 12 months active</p>
+                                </div>
+                            </div>
+                            <span class="text-blue-600 font-black text-lg">+20 pts</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-100">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-red-600 shadow-sm">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="font-bold text-gray-900">Overdue Payment</p>
+                                    <p class="text-xs text-gray-500">Per 7 days late</p>
+                                </div>
+                            </div>
+                            <span class="text-red-600 font-black text-lg">-10 pts</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: High Risk & Actions -->
+            <div class="space-y-8">
+                <!-- Tiers Summary -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-bold text-gray-900 mb-6">Credit Tiers</h2>
+                    <div class="space-y-6">
+                        <div class="flex items-end justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-blue-600 uppercase tracking-tighter">Excellent</p>
+                                <p class="text-sm text-gray-500">800 - 1000</p>
+                            </div>
+                            <span class="text-2xl font-black text-gray-900">42%</span>
+                        </div>
+                        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500" style="width: 42%"></div>
+                        </div>
+
+                        <div class="flex items-end justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-green-600 uppercase tracking-tighter">Good</p>
+                                <p class="text-sm text-gray-500">650 - 799</p>
+                            </div>
+                            <span class="text-2xl font-black text-gray-900">35%</span>
+                        </div>
+                        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-green-500" style="width: 35%"></div>
+                        </div>
+
+                        <div class="flex items-end justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-yellow-600 uppercase tracking-tighter">Fair</p>
+                                <p class="text-sm text-gray-500">400 - 649</p>
+                            </div>
+                            <span class="text-2xl font-black text-gray-900">15%</span>
+                        </div>
+                        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-yellow-500" style="width: 15%"></div>
+                        </div>
+
+                        <div class="flex items-end justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-red-600 uppercase tracking-tighter">Poor</p>
+                                <p class="text-sm text-gray-500">0 - 399</p>
+                            </div>
+                            <span class="text-2xl font-black text-gray-900">8%</span>
+                        </div>
+                        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-red-500" style="width: 8%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- High Risk List -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+                        Critical Risk (Defaulters)
+                    </h2>
+                    <div class="space-y-4" id="riskList">
+                        <!-- Sample data -->
+                        <div class="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-bold text-gray-900">John Doe Corp</p>
+                                <p class="text-xs text-red-600">Score: 245 (Poor)</p>
+                            </div>
+                            <button
+                                class="w-8 h-8 bg-white text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                        </div>
+                        <div class="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-bold text-gray-900">PT Maju Mundur</p>
+                                <p class="text-xs text-red-600">Score: 310 (Poor)</p>
+                            </div>
+                            <button
+                                class="w-8 h-8 bg-white text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-sm">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button class="w-full mt-6 text-sm font-bold text-indigo-600 hover:underline">View All Risk
+                        Analysis</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            initChart();
+        });
+
+        function initChart() {
+            const ctx = document.getElementById('distributionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-200', '201-400', '401-600', '601-800', '801-1000'],
+                    datasets: [{
+                        label: 'Customers count',
+                        data: [12, 45, 180, 520, 245],
+                        backgroundColor: [
+                            '#ef4444',
+                            '#f59e0b',
+                            '#3b82f6',
+                            '#10b981',
+                            '#8b5cf6'
+                        ],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function recalculateAll() {
+            alert('Re-calculating credit scores for all 1,247 customers... This may take a few minutes.');
+            // Implement background worker call here
+        }
+    </script>
+</body>
+
+</html>

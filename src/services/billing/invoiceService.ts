@@ -409,6 +409,14 @@ export class InvoiceService {
                         console.log(`[InvoiceService] Created invoice with ID: ${invoiceId}`);
                         invoiceIds.push(invoiceId);
 
+                        // --- FEATURE: Proactive SLA Compensation ---
+                        try {
+                            const { SLARebateService } = await import('./SLARebateService');
+                            await SLARebateService.applyRebateToInvoice(invoiceId);
+                        } catch (slaError) {
+                            console.error('[InvoiceService] SLA Rebate failed:', slaError);
+                        }
+
                         // If balance used, finalize the transaction (log and update customer)
                         if (amountFromBalance > 0) {
                             await databasePool.execute(
@@ -575,6 +583,14 @@ export class InvoiceService {
                         const invoiceId = await this.createInvoice(invoiceData, items);
                         console.log(`[InvoiceService] Created manual invoice for customer ${customer.customer_name} (${customer.customer_id}) with ID: ${invoiceId}`);
                         invoiceIds.push(invoiceId);
+
+                        // --- FEATURE: Proactive SLA Compensation ---
+                        try {
+                            const { SLARebateService } = await import('./SLARebateService');
+                            await SLARebateService.applyRebateToInvoice(invoiceId);
+                        } catch (slaError) {
+                            console.error('[InvoiceService] SLA Rebate fallback failed:', slaError);
+                        }
 
                         if (amountFromBalance > 0) {
                             await databasePool.execute(

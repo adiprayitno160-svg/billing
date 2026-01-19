@@ -169,6 +169,7 @@ export class MonitoringController {
             const offset = (page - 1) * limit;
             const search = req.query.search as string || '';
             const status = req.query.status as string || '';
+            const statusFilter = req.query.status_filter as string || ''; // New filter for online/offline
             const odc_id = req.query.odc_id as string || '';
 
             console.log('Query params:', { page, limit, offset, search, status, odc_id });
@@ -253,11 +254,20 @@ export class MonitoringController {
 
             // Merge online status
             console.log('Merging online status with customers...');
-            const customersWithStatus = customers.map(customer => ({
+            let customersWithStatus = customers.map(customer => ({
                 ...customer,
                 is_online: onlineSessions.some(session => session.name === customer.pppoe_username),
                 session_info: onlineSessions.find(session => session.name === customer.pppoe_username) || null
             }));
+
+            // Apply status filter if provided
+            if (statusFilter === 'online') {
+                customersWithStatus = customersWithStatus.filter(customer => customer.is_online);
+                console.log(`Filtered to ${customersWithStatus.length} online customers`);
+            } else if (statusFilter === 'offline') {
+                customersWithStatus = customersWithStatus.filter(customer => !customer.is_online);
+                console.log(`Filtered to ${customersWithStatus.length} offline customers`);
+            }
 
             // Calculate Global Stats (Separate from pagination)
             const [globalStats] = await databasePool.query(`
@@ -293,7 +303,7 @@ export class MonitoringController {
                     totalCount,
                     limit
                 },
-                filters: { search, status, odp_id: req.query.odp_id }
+                filters: { search, status, odp_id: req.query.odp_id, status_filter: statusFilter }
             });
             console.log('✅ View rendered successfully');
         } catch (error: any) {
@@ -511,7 +521,7 @@ export class MonitoringController {
                         COALESCE(s.package_name, pp_profile.name) as package_name, 
                         COALESCE(pp_sub.rate_limit_rx, pp_profile.rate_limit_rx) as rate_limit_rx, 
                         COALESCE(pp_sub.rate_limit_tx, pp_profile.rate_limit_tx) as rate_limit_tx,
-                        COALESCE(s.price, pp_profile.price, 0) as price,
+                        COALESCE(s.price, pp_sub.price, 0) as price,
                         odc.name as odc_name,
                         odc.location as odc_location,
                         odp.name as odp_name
@@ -1145,6 +1155,31 @@ export class MonitoringController {
             res.status(500).json({
                 success: false,
                 message: error.message || 'Gagal mendapatkan data pemakaian'
+            });
+        }
+    }
+
+    /**
+     * Trigger manual sync of customer devices
+     */
+    async syncManually(req: Request, res: Response): Promise<void> {
+        try {
+            console.log('[MonitoringController] Manual sync requested');
+
+            // Execute all sync tasks manually
+            await NetworkMonitoringService.syncCustomerDevices();
+            await NetworkMonitoringService.syncFTTHInfrastructure();
+            await NetworkMonitoringService.autoCreateLinks();
+
+            res.json({
+                success: true,
+                message: 'Sinkronisasi perangkat berhasil dijalankan'
+            });
+        } catch (error) {
+            console.error('[MonitoringController] Manual sync failed:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Gagal melakukan sinkronisasi'
             });
         }
     }

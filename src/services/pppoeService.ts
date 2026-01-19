@@ -36,6 +36,12 @@ export type PppoePackage = {
 	burst_threshold_tx?: string;
 	burst_time_rx?: string;
 	burst_time_tx?: string;
+	price_7_days?: number;  // ADDED for prepaid
+	price_14_days?: number; // ADDED for prepaid
+	price_30_days?: number; // ADDED for prepaid
+	is_enabled_7_days?: number;
+	is_enabled_14_days?: number;
+	is_enabled_30_days?: number;
 	max_clients?: number;
 	limit_at_rx?: string;
 	limit_at_tx?: string;
@@ -344,6 +350,12 @@ export async function createPackage(data: {
 	burst_threshold_tx?: string;
 	burst_time_rx?: string;
 	burst_time_tx?: string;
+	price_7_days?: number;  // ADDED for prepaid
+	price_14_days?: number; // ADDED for prepaid
+	price_30_days?: number; // ADDED for prepaid
+	is_enabled_7_days?: number;
+	is_enabled_14_days?: number;
+	is_enabled_30_days?: number;
 	max_clients?: number;
 	limit_at_download?: string;
 	limit_at_upload?: string;
@@ -357,9 +369,12 @@ export async function createPackage(data: {
 			INSERT INTO pppoe_packages
 			(name, profile_id, price, duration_days, auto_activation, status, description,
 				rate_limit_rx, rate_limit_tx, burst_limit_rx, burst_limit_tx,
-				burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			`, [
+				burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx,
+				price_7_days, price_14_days, price_30_days, 
+                is_enabled_7_days, is_enabled_14_days, is_enabled_30_days,
+                max_clients, limit_at_upload, limit_at_download)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				`, [
 			data.name,
 			data.profile_id || null,
 			data.price,
@@ -375,6 +390,12 @@ export async function createPackage(data: {
 			data.burst_threshold_tx || null,
 			data.burst_time_rx || null,
 			data.burst_time_tx || null,
+			data.price_7_days || null,
+			data.price_14_days || null,
+			data.price_30_days || null,
+			data.is_enabled_7_days || 0,
+			data.is_enabled_14_days || 0,
+			data.is_enabled_30_days || 0,
 			data.max_clients || 1,
 			data.limit_at_upload || null,
 			data.limit_at_download || null
@@ -459,7 +480,11 @@ export async function updatePackage(id: number, data: {
 	burst_time_rx?: string;
 	burst_time_tx?: string;
 	price_7_days?: number;  // ADDED for prepaid
+	price_14_days?: number; // ADDED for prepaid
 	price_30_days?: number; // ADDED for prepaid
+	is_enabled_7_days?: number;
+	is_enabled_14_days?: number;
+	is_enabled_30_days?: number;
 	max_clients?: number;
 	limit_at_download?: string;
 	limit_at_upload?: string;
@@ -495,7 +520,11 @@ export async function updatePackage(id: number, data: {
 			burst_time_rx = ?,
 			burst_time_tx = ?,
 			price_7_days = ?,
+            price_14_days = ?,
 			price_30_days = ?,
+            is_enabled_7_days = ?,
+            is_enabled_14_days = ?,
+            is_enabled_30_days = ?,
 			updated_at = NOW()
 			WHERE id = ?
 			`, [
@@ -514,7 +543,11 @@ export async function updatePackage(id: number, data: {
 			data.burst_time_rx !== undefined ? data.burst_time_rx : null,
 			data.burst_time_tx !== undefined ? data.burst_time_tx : null,
 			data.price_7_days !== undefined ? data.price_7_days : null,
+			data.price_14_days !== undefined ? data.price_14_days : null,
 			data.price_30_days !== undefined ? data.price_30_days : null,
+			data.is_enabled_7_days !== undefined ? data.is_enabled_7_days : 0,
+			data.is_enabled_14_days !== undefined ? data.is_enabled_14_days : 0,
+			data.is_enabled_30_days !== undefined ? data.is_enabled_30_days : 0,
 			data.max_clients !== undefined ? data.max_clients : 1,
 			data.limit_at_download !== undefined ? data.limit_at_download : null,
 			data.limit_at_upload !== undefined ? data.limit_at_upload : null,

@@ -698,45 +698,53 @@ export class IsolationService {
     }
 
     /**
+     * Get grace period days based on customer credit score
+     */
+    private static getGracePeriodDays(score: number): number {
+        if (score >= 800) return 7; // Excellent: +7 days
+        if (score >= 700) return 5; // Good: +5 days
+        if (score >= 600) return 3; // Fair: +3 days
+        return 1; // Poor/Bad: +1 day (Standard)
+    }
+
+    /**
      * Auto isolir pelanggan dengan tagihan bulan sebelumnya yang belum lunas
      * Dipanggil setiap hari untuk isolir berdasarkan tanggal yang ditentukan
-     * Supports both PPPoE and Static IP customers
+     * Supports both PPPoE and Static IP customers with Credit-Based Grace Period
      */
     static async autoIsolatePreviousMonthUnpaid(): Promise<{ isolated: number, failed: number }> {
         // Get previous month period (YYYY-MM)
         const now = new Date();
-        const currentDate = now.getDate();
+        const currentDay = now.getDate();
         const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const previousPeriod = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
 
-        // Get scheduler settings for isolation date
-        let targetIsolateDate = 1;
+        // Get scheduler settings for base isolation date
+        let baseIsolateDate = 1;
         try {
-            // Fetch config from scheduler_settings. We check invoice_generation as that's where isolir settings are stored
             const [rows] = await databasePool.query<RowDataPacket[]>(
                 "SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation'"
             );
 
             if (rows.length > 0) {
                 const row = rows[0];
-                // Parse config JSON
                 if (row.config) {
                     const config = typeof row.config === 'string' ? JSON.parse(row.config) : row.config;
                     if (config.isolir_date) {
-                        targetIsolateDate = config.isolir_date;
+                        baseIsolateDate = config.isolir_date;
                     }
                 }
             }
         } catch (err) {
-            console.warn("Could not fetch isolation settings, defaulting to date 1", err);
+            console.warn("[Isolation] Could not fetch base isolation settings, defaulting to date 1", err);
         }
 
-        // Only run if today is the target isolation date
-        if (currentDate !== targetIsolateDate) {
+        // Don't run before the base isolation date
+        if (currentDay < baseIsolateDate) {
             return { isolated: 0, failed: 0 };
         }
 
-        // Get customers with unpaid invoices from previous month
+        // Get customers with unpaid invoices from previous month + their credit scores
         const query = `
             SELECT DISTINCT 
                 c.id, 
@@ -744,9 +752,11 @@ export class IsolationService {
                 c.phone, 
                 c.email,
                 c.connection_type,
-                i.due_date
+                i.due_date,
+                ccs.score as credit_score
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
+            LEFT JOIN customer_credit_scores ccs ON c.id = ccs.customer_id
             WHERE i.period = ?
             AND i.status != 'paid'
             AND (i.due_date IS NULL OR i.due_date < CURDATE())
@@ -759,27 +769,35 @@ export class IsolationService {
         let isolated = 0;
         let failed = 0;
 
-        console.log(`[Auto Isolation] Checking unpaid invoices for period ${previousPeriod}`);
-        console.log(`[Auto Isolation] Found ${(result as any[]).length} customers with unpaid invoices`);
+        console.log(`[Auto Isolation] Checking unpaid invoices for period ${previousPeriod} (Base Date: ${baseIsolateDate})`);
 
-        for (const customer of (result as any)) {
+        const customers = result as any[];
+        for (const customer of customers) {
             try {
-                console.log(`[Auto Isolation] Processing: ${customer.name} (${customer.connection_type})`);
+                // Feature 1: Dynamic Grace Period
+                const score = customer.credit_score || 0;
+                const graceDays = this.getGracePeriodDays(score);
+                const effectiveIsolateDay = baseIsolateDate + graceDays;
+
+                if (currentDay < effectiveIsolateDay) {
+                    console.log(`[Auto Isolation] ⏳ Skipping ${customer.name} - In Grace Period (Score: ${score}, Grace: ${graceDays} days, Effective Day: ${effectiveIsolateDay})`);
+                    continue;
+                }
+
+                console.log(`[Auto Isolation] 🔒 Processing: ${customer.name} (Score: ${score}, Effective Day: ${effectiveIsolateDay})`);
 
                 const isolationData: IsolationData = {
                     customer_id: customer.id || 0,
                     action: 'isolate',
-                    reason: `Auto isolation: Unpaid invoice for period ${previousPeriod}`,
+                    reason: `Auto isolation: Unpaid ${previousPeriod}. Grace Period ended (Score: ${score}).`,
                     performed_by: 'system'
                 };
 
                 const success = await this.isolateCustomer(isolationData);
                 if (success) {
                     isolated++;
-                    console.log(`[Auto Isolation] ✓ Isolated customer: ${customer.name} (ID: ${customer.id}, Type: ${customer.connection_type})`);
                 } else {
                     failed++;
-                    console.log(`[Auto Isolation] ✗ Failed to isolate customer: ${customer.name} (ID: ${customer.id})`);
                 }
             } catch (error) {
                 console.error(`[Auto Isolation] ✗ Error isolating customer ${customer.id || 0}:`, error);

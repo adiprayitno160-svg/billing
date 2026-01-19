@@ -42,6 +42,7 @@ baileys-session-new/
 .wwebjs_auth/
 *.wwebjs_cache
 baileys_auth/
+.baileys_auth/
 
 # Uploads
 uploads/

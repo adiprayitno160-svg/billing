@@ -6,8 +6,30 @@ import { OltService } from '../../services/ftth/oltService';
 export async function getOdpList(req: Request, res: Response, next: NextFunction) {
     try {
         const odcId = req.query.odc_id ? Number(req.query.odc_id) : undefined;
-        const items = await listOdps(odcId);
-        res.render('ftth/odp', { title: 'FTTH - ODP', items, odcId, layout: 'layouts/main' });
+        const search = req.query.search ? String(req.query.search) : undefined;
+        const page = req.query.page ? Number(req.query.page) : 1;
+
+        // Default 10 items, Max 20 items per page
+        let limit = req.query.limit ? Number(req.query.limit) : 10;
+        if (limit > 20) limit = 20;
+
+        const offset = (page - 1) * limit;
+
+        const { items, total } = await listOdps(odcId, search, limit, offset);
+
+        const totalPages = Math.ceil(total / limit);
+
+        res.render('ftth/odp', {
+            title: 'FTTH - ODP',
+            items,
+            total,
+            odcId,
+            search,
+            page,
+            limit,
+            totalPages,
+            layout: 'layouts/main'
+        });
     } catch (err) { next(err); }
 }
 

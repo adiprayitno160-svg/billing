@@ -83,6 +83,8 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			child_burst_time_download,
 			child_burst_time_upload,
 			price,
+			price_7_days,
+			price_30_days,
 			duration_days,
 			status,
 			description
@@ -128,6 +130,8 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			child_burst_time_download: child_burst_time_download || undefined,
 			child_burst_time_upload: child_burst_time_upload || undefined,
 			price: Number(price),
+			price_7_days: price_7_days ? Number(price_7_days) : undefined,
+			price_30_days: price_30_days ? Number(price_30_days) : undefined,
 			duration_days: duration_days ? Number(duration_days) : 30, // Default 30 days
 			status: status as 'active' | 'inactive',
 			description: description || undefined

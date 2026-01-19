@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice #<%= invoice.invoice_number %>
+    </title>
+    <style>
+        @page {
+            size: 58mm auto;
+            margin: 0;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            font-size: 10px;
+            margin: 0;
+            padding: 4mm;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .bold {
+            font-weight: 600;
+        }
+
+        .line {
+            border-top: 1px dashed #333;
+            margin: 4px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 2px 0;
+        }
+
+        .right {
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="center bold">
+        <%= invoice.company_name || 'PT. Contoh' %>
+    </div>
+    <div class="center"><small>
+            <%= invoice.company_address || '-' %>
+        </small></div>
+
+    <div class="line"></div>
+
+    <div class="bold">INVOICE #<%= invoice.invoice_number %>
+    </div>
+    <div>Nama: <%= invoice.customer_name %>
+    </div>
+    <div>Alamat: <%= invoice.customer_address %>
+    </div>
+    <div>Tanggal: <%= new Date(invoice.created_at).toLocaleDateString('id-ID') %>
+    </div>
+
+    <div class="line"></div>
+
+    <table>
+        <% invoice.items.forEach(item=> { %>
+            <tr>
+                <td class="bold">
+                    <%= item.description %>
+                </td>
+                <td class="right">
+                    <%= Number(item.quantity).toLocaleString('id-ID') %>
+                </td>
+                <td class="right">Rp <%= Number(item.unit_price).toLocaleString('id-ID') %>
+                </td>
+                <td class="right">Rp <%= Number(item.amount).toLocaleString('id-ID') %>
+                </td>
+            </tr>
+            <% }) %>
+    </table>
+
+    <div class="line"></div>
+    <div class="right bold">TOTAL: Rp <%= Number(invoice.total_amount).toLocaleString('id-ID') %>
+    </div>
+    <div class="line"></div>
+
+    <div class="center"><small>Terima kasih atas kepercayaan Anda</small></div>
+</body>
+
+</html>

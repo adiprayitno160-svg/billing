@@ -26,6 +26,8 @@ export type StaticIpPackage = {
 	child_burst_time_download?: string;
 	child_burst_time_upload?: string;
 	price: number;
+	price_7_days?: number;  // ADDED for prepaid
+	price_30_days?: number; // ADDED for prepaid
 	duration_days: number;
 	status: 'active' | 'inactive';
 	description?: string;
@@ -137,6 +139,8 @@ export async function createStaticIpPackage(data: {
 	child_burst_time_download?: string;
 	child_burst_time_upload?: string;
 	price: number;
+	price_7_days?: number;  // ADDED for prepaid
+	price_30_days?: number; // ADDED for prepaid
 	duration_days: number;
 	status: 'active' | 'inactive';
 	description?: string;

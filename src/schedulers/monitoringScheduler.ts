@@ -8,6 +8,8 @@ import pingService from '../services/pingService';
 import bandwidthLogService from '../services/bandwidthLogService';
 import slaMonitoringService from '../services/slaMonitoringService';
 import alertRoutingService from '../services/alertRoutingService';
+import NetworkMonitoringService from '../services/monitoring/NetworkMonitoringService';
+import { TwoHourNotificationService } from '../services/monitoring/TwoHourNotificationService';
 
 export class MonitoringScheduler {
     private jobs: Map<string, cron.ScheduledTask> = new Map();
@@ -44,6 +46,12 @@ export class MonitoringScheduler {
 
         // 7. Prepaid Expiry Warnings (H-3, H-1) - Every day at 9:00 AM
         this.startPrepaidExpiryWarnings();
+
+        // 8. Enhanced Customer Monitoring (Timeout/Recovery Detection) - Every 15 minutes
+        this.startEnhancedCustomerMonitoring();
+
+        // 9. Two Hour Notification Service - Every 2 hours
+        this.startTwoHourNotificationService();
 
         this.isRunning = true;
         console.log('[MonitoringScheduler] All schedulers started successfully');
@@ -186,8 +194,57 @@ export class MonitoringScheduler {
     }
 
     /**
-     * 7. Prepaid Expiry Warnings (H-3, H-1) - Every day at 9:00 AM
+     * 8. Enhanced Customer Monitoring - Timeout/Recovery Detection - Every 15 minutes
      */
+    private startEnhancedCustomerMonitoring(): void {
+        const job = cron.schedule('*/15 * * * *', async () => {
+            try {
+                console.log('[EnhancedMonitoring] Starting enhanced customer monitoring...');
+                
+                // Detect timeout issues
+                await NetworkMonitoringService.detectTimeoutIssues();
+                
+                // Detect degraded performance
+                await NetworkMonitoringService.detectDegradedPerformance();
+                
+                // Update trouble customers with notifications
+                await NetworkMonitoringService.getTroubleCustomers(true);
+                
+                console.log('[EnhancedMonitoring] Enhanced monitoring cycle completed');
+            } catch (error) {
+                console.error('[EnhancedMonitoring] Error:', error);
+            }
+        });
+
+        this.jobs.set('enhanced-customer-monitoring', job);
+        console.log('[MonitoringScheduler] ✓ Enhanced Customer Monitoring scheduled (every 15 minutes)');
+    }
+
+    /**
+     * 9. Two Hour Notification Service - Every 2 hours
+     */
+    private startTwoHourNotificationService(): void {
+        const job = cron.schedule('0 */2 * * *', async () => {  // Every 2 hours
+            try {
+                console.log('[TwoHourNotification] Starting 2-hour notification cycle...');
+                
+                const notificationService = TwoHourNotificationService.getInstance();
+                
+                // Process customers that have been offline for 2+ hours
+                await notificationService.processLongTermOfflineCustomers();
+                
+                // Process customers that have recovered
+                await notificationService.processRecoveredCustomers();
+                
+                console.log('[TwoHourNotification] 2-hour notification cycle completed');
+            } catch (error) {
+                console.error('[TwoHourNotification] Error:', error);
+            }
+        });
+
+        this.jobs.set('two-hour-notification-service', job);
+        console.log('[MonitoringScheduler] ✓ Two Hour Notification Service scheduled (every 2 hours)');
+    }
     private startPrepaidExpiryWarnings(): void {
         const job = cron.schedule('0 9 * * *', async () => {
             try {
@@ -250,6 +307,12 @@ export class MonitoringScheduler {
                 case 'prepaid-warnings':
                     const { PrepaidService: PrepaidSvc } = await import('../services/billing/PrepaidService');
                     await PrepaidSvc.sendExpiryWarnings();
+                    break;
+
+                case 'enhanced-monitoring':
+                    await NetworkMonitoringService.detectTimeoutIssues();
+                    await NetworkMonitoringService.detectDegradedPerformance();
+                    await NetworkMonitoringService.getTroubleCustomers(true);
                     break;
 
                 default:

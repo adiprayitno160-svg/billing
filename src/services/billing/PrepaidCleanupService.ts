@@ -5,7 +5,7 @@
 
 import { databasePool } from '../../db/pool';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { WhatsAppServiceBaileys } from '../whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
 
 export class PrepaidCleanupService {
     /**
@@ -77,7 +77,15 @@ export class PrepaidCleanupService {
                 `Setelah transfer, kirim bukti foto/screenshot ke nomor ini.\n\n` +
                 `_Abaikan pesan ini jika sudah melakukan pembayaran._`;
 
-            const result = await WhatsAppServiceBaileys.sendMessage(request.phone, message);
+            const waClient = WhatsAppClient.getInstance();
+            let success = false;
+
+            try {
+                await waClient.sendMessage(request.phone, message);
+                success = true;
+            } catch (e) {
+                console.error("[PrepaidCleanup] Failed to send message:", e);
+            }
 
             // Mark as reminded
             await databasePool.query(
@@ -87,10 +95,10 @@ export class PrepaidCleanupService {
                 [request.id]
             );
 
-            if (result.success) {
+            if (success) {
                 console.log(`[PrepaidCleanup] Sent reminder to ${request.name} (${request.phone})`);
             } else {
-                console.error(`[PrepaidCleanup] Failed to send reminder:`, result.error);
+                console.error(`[PrepaidCleanup] Failed to send reminder to ${request.phone}`);
             }
         } catch (error) {
             console.error('[PrepaidCleanup] Error sending payment reminder:', error);

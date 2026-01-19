@@ -1,0 +1,29 @@
+// src/services/invoice/InvoicePdfService.ts
+import puppeteer from 'puppeteer';
+import { logger } from '../../services/logger';
+import { InvoiceDataService } from './InvoiceDataService';
+import { join } from 'path';
+import ejs from 'ejs';
+
+export class InvoicePdfService {
+    /**
+     * Generate PDF (A4) for given invoice id.
+     * Returns Buffer containing PDF data.
+     */
+    static async generatePdf(invoiceId: number): Promise<Buffer> {
+        const invoice = await InvoiceDataService.getInvoice(invoiceId);
+
+        // Render EJS template to HTML (A4 layout)
+        const templatePath = join(process.cwd(), 'views', 'invoice', 'template-a4.ejs');
+        const html = await ejs.renderFile(templatePath, { invoice }, { async: true });
+
+        const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0' });
+        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+        await browser.close();
+
+        logger.info(`✅ PDF (A4) generated for invoice ${invoiceId}`);
+        return pdfBuffer;
+    }
+}

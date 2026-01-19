@@ -1,9 +1,35 @@
 import { Request, Response } from 'express';
 import SLAMonitoringService from '../../services/slaMonitoringService';
+import { AiSlaService } from '../../services/monitoring/AiSlaService';
 import pool from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 
 export default class SLAController {
+    /**
+     * Get AI-Enhanced SLA Report
+     */
+    async getAiSlaReport(req: Request, res: Response): Promise<void> {
+        try {
+            const { customerId, month, year } = req.query;
+
+            if (!customerId || !month || !year) {
+                res.status(400).json({ success: false, error: 'Missing parameters: customerId, month, year' });
+                return;
+            }
+
+            const report = await AiSlaService.generateSlaReport(
+                Number(customerId),
+                Number(month),
+                Number(year)
+            );
+
+            res.json({ success: true, data: report });
+        } catch (error) {
+            console.error('SLA Report Error:', error);
+            res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+    }
+
     /**
      * Render SLA Dashboard with customer list
      */

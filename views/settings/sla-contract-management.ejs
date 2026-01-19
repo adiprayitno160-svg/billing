@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLA Contract Management - Billing System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">SLA Contract Management</h1>
+                    <p class="mt-2 text-gray-600">Manage custom SLA contracts for customers</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="showCreateForm()"
+                        class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                        <i class="fas fa-file-contract mr-2"></i> Add Contract
+                    </button>
+                    <button onclick="loadContracts()"
+                        class="bg-secondary hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <i class="fas fa-file-contract text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Contracts</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalContracts">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Active Contracts</p>
+                        <p class="text-2xl font-bold text-gray-900" id="activeContracts">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Expiring Soon</p>
+                        <p class="text-2xl font-bold text-gray-900" id="expiringContracts">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Overdue</p>
+                        <p class="text-2xl font-bold text-gray-900" id="overdueContracts">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="searchInput" placeholder="Search contracts..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="statusFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">All Statuses</option>
+                        <option value="draft">Draft</option>
+                        <option value="active">Active</option>
+                        <option value="expired">Expired</option>
+                        <option value="terminated">Terminated</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                    <input type="text" id="customerFilter" placeholder="Customer name..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="filterContracts()"
+                        class="w-full bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-filter mr-2"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contract List -->
+        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Contract #</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Customer</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                SLA Target</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Dates</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contractsTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Contract rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-6">
+            <div class="text-sm text-gray-700">
+                Showing <span id="startIndex">0</span> to <span id="endIndex">0</span> of <span id="totalCount">0</span>
+                results
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" onclick="previousPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Previous
+                </button>
+                <span class="px-3 py-2 bg-primary text-white rounded-md" id="currentPage">1</span>
+                <button id="nextPage" onclick="nextPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Next
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <div id="contractModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4">
+            <div class="border-b px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900" id="modalTitle">Add New Contract</h3>
+            </div>
+            <form id="contractForm" class="p-6">
+                <input type="hidden" id="contractId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Customer ID *</label>
+                        <input type="number" id="customerId" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Contract Number *</label>
+                        <input type="text" id="contractNumber" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Contract Title *</label>
+                        <input type="text" id="contractTitle" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">SLA Target (%) *</label>
+                        <input type="number" id="slaTarget" step="0.01" min="0" max="100" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                        <select id="status" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Status</option>
+                            <option value="draft">Draft</option>
+                            <option value="active">Active</option>
+                            <option value="expired">Expired</option>
+                            <option value="terminated">Terminated</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+                        <input type="date" id="startDate" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
+                        <input type="date" id="endDate" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 mt-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Penalty Clause</label>
+                        <textarea id="penaltyClause" rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Compensation Terms</label>
+                        <textarea id="compensationTerms" rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Special Conditions</label>
+                        <textarea id="specialConditions" rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700">
+                        Save Contract
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let contracts = [];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let filteredContracts = [];
+
+        // Load contracts on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadContracts();
+        });
+
+        // Load all contracts from API
+        async function loadContracts() {
+            try {
+                showLoading();
+                const response = await fetch('/settings/api/sla-contracts/active');
+                const result = await response.json();
+
+                if (result.success) {
+                    contracts = result.data || [];
+                    filteredContracts = [...contracts];
+                    updateStats();
+                    renderTable();
+                } else {
+                    showError('Failed to load contracts: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading contracts: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Update statistics cards
+        function updateStats() {
+            document.getElementById('totalContracts').textContent = contracts.length;
+
+            const active = contracts.filter(c => c.status === 'active').length;
+            const expiringSoon = contracts.filter(c => {
+                const endDate = new Date(c.end_date);
+                const today = new Date();
+                const diffTime = endDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return c.status === 'active' && diffDays <= 30 && diffDays >= 0;
+            }).length;
+            const overdue = contracts.filter(c => {
+                const endDate = new Date(c.end_date);
+                const today = new Date();
+                return c.status === 'active' && endDate < today;
+            }).length;
+
+            document.getElementById('activeContracts').textContent = active;
+            document.getElementById('expiringContracts').textContent = expiringSoon;
+            document.getElementById('overdueContracts').textContent = overdue;
+        }
+
+        // Render table with pagination
+        function renderTable() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredContracts.length);
+            const pageContracts = filteredContracts.slice(startIndex, endIndex);
+
+            const tbody = document.getElementById('contractsTableBody');
+            tbody.innerHTML = '';
+
+            if (pageContracts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No contracts found</td></tr>';
+                document.getElementById('startIndex').textContent = '0';
+                document.getElementById('endIndex').textContent = '0';
+                document.getElementById('totalCount').textContent = '0';
+                document.getElementById('currentPage').textContent = '0';
+                document.getElementById('prevPage').disabled = true;
+                document.getElementById('nextPage').disabled = true;
+                return;
+            }
+
+            pageContracts.forEach(contract => {
+                const startDate = new Date(contract.start_date).toLocaleDateString();
+                const endDate = new Date(contract.end_date).toLocaleDateString();
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${contract.contract_number}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">Customer ${contract.customer_id}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-900">${contract.contract_title}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            ${contract.sla_target}%
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${startDate} - ${endDate}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${contract.status === 'active' ? 'bg-green-100 text-green-800' :
+                        contract.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                            contract.status === 'expired' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                    }">
+                            ${contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="showEditForm(${contract.id})" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="printContract(${contract.id})" class="text-blue-600 hover:text-blue-900 mr-3" title="Print (A4)">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        <button onclick="deleteContract(${contract.id})" class="text-red-600 hover:text-red-900" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update pagination info
+            document.getElementById('startIndex').textContent = startIndex + 1;
+            document.getElementById('endIndex').textContent = endIndex;
+            document.getElementById('totalCount').textContent = filteredContracts.length;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = endIndex >= filteredContracts.length;
+        }
+
+        // Print contract in A4 format
+        function printContract(id) {
+            window.open(`/settings/sla-contracts/${id}/print`, '_blank');
+        }
+
+        // Show create form
+        function showCreateForm() {
+            document.getElementById('contractForm').reset();
+            document.getElementById('contractId').value = '';
+            document.getElementById('modalTitle').textContent = 'Add New Contract';
+            document.getElementById('contractModal').classList.remove('hidden');
+        }
+
+        // Show edit form
+        async function showEditForm(id) {
+            try {
+                const response = await fetch(`/settings/api/sla-contracts/${id}`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const contract = result.data;
+
+                    document.getElementById('contractId').value = contract.id;
+                    document.getElementById('customerId').value = contract.customer_id;
+                    document.getElementById('contractNumber').value = contract.contract_number;
+                    document.getElementById('contractTitle').value = contract.contract_title;
+                    document.getElementById('slaTarget').value = contract.sla_target;
+                    document.getElementById('status').value = contract.status;
+                    document.getElementById('startDate').value = contract.start_date.split('T')[0];
+                    document.getElementById('endDate').value = contract.end_date.split('T')[0];
+                    document.getElementById('penaltyClause').value = contract.penalty_clause || '';
+                    document.getElementById('compensationTerms').value = contract.compensation_terms || '';
+                    document.getElementById('specialConditions').value = contract.special_conditions || '';
+                    document.getElementById('modalTitle').textContent = 'Edit Contract';
+
+                    document.getElementById('contractModal').classList.remove('hidden');
+                } else {
+                    showError('Failed to load contract data: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading contract data: ' + error.message);
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('contractModal').classList.add('hidden');
+        }
+
+        // Handle form submission
+        document.getElementById('contractForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const id = document.getElementById('contractId').value;
+            const formData = {
+                customer_id: parseInt(document.getElementById('customerId').value),
+                contract_number: document.getElementById('contractNumber').value,
+                contract_title: document.getElementById('contractTitle').value,
+                sla_target: parseFloat(document.getElementById('slaTarget').value),
+                penalty_clause: document.getElementById('penaltyClause').value || null,
+                compensation_terms: document.getElementById('compensationTerms').value || null,
+                special_conditions: document.getElementById('specialConditions').value || null,
+                start_date: document.getElementById('startDate').value,
+                end_date: document.getElementById('endDate').value,
+                status: document.getElementById('status').value
+            };
+
+            try {
+                let response;
+                if (id) {
+                    // Update existing contract
+                    response = await fetch(`/settings/api/sla-contracts/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                } else {
+                    // Create new contract
+                    response = await fetch('/settings/api/sla-contracts', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(id ? 'Contract updated successfully!' : 'Contract created successfully!');
+                    closeModal();
+                    loadContracts();
+                } else {
+                    showError(result.message || 'Operation failed');
+                }
+            } catch (error) {
+                showError('Error saving contract: ' + error.message);
+            }
+        });
+
+        // Delete contract
+        async function deleteContract(id) {
+            if (!confirm('Are you sure you want to delete this contract?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/settings/api/sla-contracts/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Contract deleted successfully!');
+                    loadContracts();
+                } else {
+                    showError(result.message || 'Delete failed');
+                }
+            } catch (error) {
+                showError('Error deleting contract: ' + error.message);
+            }
+        }
+
+        // Print contract
+        function printContract(id) {
+            alert('Print functionality would be implemented here to print contract ID: ' + id);
+        }
+
+        // Filter contracts based on search and filters
+        function filterContracts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const customerFilter = document.getElementById('customerFilter').value.toLowerCase();
+
+            filteredContracts = contracts.filter(contract => {
+                const matchesSearch = contract.contract_number.toLowerCase().includes(searchTerm) ||
+                    contract.contract_title.toLowerCase().includes(searchTerm);
+                const matchesStatus = !statusFilter || contract.status === statusFilter;
+                const matchesCustomer = !customerFilter || contract.customer_id.toString().includes(customerFilter);
+
+                return matchesSearch && matchesStatus && matchesCustomer;
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Pagination functions
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        // Search on input
+        document.getElementById('searchInput').addEventListener('input', filterContracts);
+
+        // Filter on change
+        document.getElementById('statusFilter').addEventListener('change', filterContracts);
+        document.getElementById('customerFilter').addEventListener('input', filterContracts);
+
+        // Utility functions
+        function showSuccess(message) {
+            // Create success toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showError(message) {
+            // Create error toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showLoading() {
+            // Show loading indicator
+        }
+
+        function hideLoading() {
+            // Hide loading indicator
+        }
+
+        // Add animation for toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-20px); }
+                10% { opacity: 1; transform: translateY(0); }
+                90% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-20px); }
+            }
+            .animate-fadeInOut {
+                animation: fadeInOut 3s ease-in-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

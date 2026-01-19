@@ -5,12 +5,22 @@ import { BillingPaymentController } from '../controllers/payment/BillingPaymentC
 import { InvoiceSchedulerService } from '../services/billing/invoiceSchedulerService';
 import LatePaymentController from '../controllers/billing/LatePaymentController';
 import { SystemLogController } from '../controllers/billing/SystemLogController';
+import { VerificationController } from '../controllers/billing/VerificationController';
 
 const router = Router();
 const invoiceController = new InvoiceController();
 const paymentController = new PaymentController();
 const gatewayController = new BillingPaymentController();
 const latePaymentController = LatePaymentController;
+
+// ========================================
+// MANUAL VERIFICATION ROUTES
+// ========================================
+router.get('/verification', VerificationController.index);
+router.get('/verification/list', VerificationController.getList);
+router.get('/verification/detail/:id', VerificationController.getDetail);
+router.get('/verification/customer-invoices/:customerId', VerificationController.getCustomerInvoices);
+router.post('/verification/process', VerificationController.process);
 
 // ========================================
 // BILLING ROOT - Redirect to dashboard

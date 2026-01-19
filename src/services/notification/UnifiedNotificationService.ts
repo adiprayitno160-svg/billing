@@ -7,7 +7,7 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { NotificationTemplateService } from './NotificationTemplateService';
-import { WhatsAppServiceBaileys as WhatsAppService } from '../whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppClient } from '../whatsapp';
 import { UrlConfigService } from '../../utils/urlConfigService';
 
 export type NotificationType =
@@ -331,17 +331,16 @@ export class UnifiedNotificationService {
         }
 
         // Check WhatsApp client status before sending
-        const whatsappStatus = WhatsAppService.getStatus();
+        const waClient = WhatsAppClient.getInstance();
+        const whatsappStatus = waClient.getStatus();
         console.log(`[UnifiedNotification] 📱 WhatsApp Status:`, whatsappStatus);
 
         if (!whatsappStatus.ready) {
-          const errorMsg = whatsappStatus.hasQRCode
-            ? 'WhatsApp client is not ready. QR code needs to be scanned. Please check WhatsApp status.'
-            : 'WhatsApp client is not ready. Please initialize WhatsApp service first.';
+          const errorMsg = 'WhatsApp client is not ready. Please scan QR code in settings.';
 
           console.error(`[UnifiedNotification] ❌ WhatsApp not ready:`, {
             ready: whatsappStatus.ready,
-            initialized: whatsappStatus.initialized,
+            initializing: whatsappStatus.initializing,
             authenticated: whatsappStatus.authenticated,
             hasQRCode: whatsappStatus.hasQRCode,
             phone: customer.phone,
@@ -354,17 +353,15 @@ export class UnifiedNotificationService {
         console.log(`[UnifiedNotification] 📱 Sending WhatsApp to ${customer.phone}...`);
         console.log(`[UnifiedNotification] 📝 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
 
-        const whatsappResult = await WhatsAppService.sendMessage(
-          customer.phone,
-          fullMessage,
-          {
-            customerId: notification.customer_id,
-            template: notification.template_code || 'unified_notification'
-          }
-        );
+        try {
+          const whatsappResult = await waClient.sendMessage(customer.phone, fullMessage);
 
-        if (!whatsappResult.success) {
-          const errorMsg = whatsappResult.error || 'WhatsApp send failed';
+          console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {
+            messageId: whatsappResult.id?.id || 'unknown',
+            notification_id: notification.id
+          });
+        } catch (sendError: any) {
+          const errorMsg = sendError.message || 'WhatsApp send failed';
           console.error(`[UnifiedNotification] ❌ WhatsApp send failed:`, {
             error: errorMsg,
             phone: customer.phone,
@@ -374,11 +371,6 @@ export class UnifiedNotificationService {
           });
           throw new Error(errorMsg);
         }
-
-        console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {
-          messageId: whatsappResult.messageId,
-          notification_id: notification.id
-        });
         break;
 
       case 'email':

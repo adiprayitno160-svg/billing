@@ -7,6 +7,7 @@ import { listStaticIpPackages, syncClientQueues } from '../services/staticIpPack
 import { getInterfaces } from '../services/mikrotikService';
 import { calculateCustomerIP } from '../utils/ipHelper';
 import GenieacsService from '../services/genieacs/GenieacsService';
+import { NetworkMonitoringService } from '../services/monitoring/NetworkMonitoringService';
 
 /**
  * Get customer list page
@@ -434,6 +435,23 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
             invoices = [];
         }
 
+        // Get technician jobs history
+        let technicianJobs: RowDataPacket[] = [];
+        try {
+            const [jobsResult] = await databasePool.query<RowDataPacket[]>(
+                `SELECT tj.*, u.username as technician_name 
+                 FROM technician_jobs tj
+                 LEFT JOIN users u ON tj.technician_id = u.id
+                 WHERE tj.customer_id = ? 
+                 ORDER BY tj.created_at DESC`,
+                [customerId]
+            );
+            technicianJobs = Array.isArray(jobsResult) ? jobsResult : [];
+        } catch (jobError) {
+            console.error('Error fetching jobs:', jobError);
+            technicianJobs = [];
+        }
+
         // Initialize device details
         let deviceDetails = null;
 
@@ -485,6 +503,7 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
                 static_ip_package: customer.connection_type === 'static_ip' ? packageData : null
             },
             invoices: invoices || [],
+            technicianJobs: technicianJobs || [],
             deviceDetails,
             currentPath: `/customers/${customerId}`
         });
@@ -637,7 +656,10 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
  */
 export const updateCustomer = async (req: Request, res: Response) => {
     try {
-        console.log('[updateCustomer] Request received, method:', req.method, 'params:', req.params);
+        console.log('[updateCustomer] Request received, method:', req.method);
+        console.log('[updateCustomer] Params:', req.params);
+        console.log('[updateCustomer] Body Phone:', req.body.phone);
+        console.log('[updateCustomer] Body All Keys:', Object.keys(req.body));
         const { id } = req.params;
         if (!id) {
             return res.status(400).json({ success: false, error: 'ID is required' });
@@ -674,7 +696,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
             custom_isolate_days_after_deadline,
             serial_number,
             rental_mode,
-            rental_cost
+            rental_cost,
+            ignore_monitoring_start,
+            ignore_monitoring_end
         } = req.body;
 
         const conn = await databasePool.getConnection();
@@ -683,7 +707,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             // Check if customer exists and get old data
             const [customers] = await conn.query<RowDataPacket[]>(
-                'SELECT id, name, pppoe_username, connection_type, pppoe_password, serial_number FROM customers WHERE id = ?',
+                'SELECT id, name, status, pppoe_username, connection_type, pppoe_password, serial_number, phone FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -700,12 +724,14 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 return res.status(404).json({ success: false, error: 'Customer not found' });
             }
             const oldName = oldCustomer.name;
+            const oldStatus = oldCustomer.status;
             const oldPppoeUsername = oldCustomer.pppoe_username;
             const oldPppoePassword = oldCustomer.pppoe_password;
 
             // Update customer basic info
             const updateFields: string[] = [];
             const updateValues: any[] = [];
+            let newStatus = null;
 
             if (name !== undefined) {
                 updateFields.push('name = ?');
@@ -715,9 +741,15 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateFields.push('customer_code = ?');
                 updateValues.push(customer_code || null);
             }
-            if (phone !== undefined) {
+            if (req.body.phone !== undefined) {
+                console.log('[DEBUG PHONE] Phone from body:', req.body.phone);
                 updateFields.push('phone = ?');
-                updateValues.push(phone || null);
+                // Ensure phone is stored as string, clean whitespace
+                const phoneVal = req.body.phone ? String(req.body.phone).trim() : null;
+                console.log('[DEBUG PHONE] Phone value to save:', phoneVal);
+                updateValues.push(phoneVal);
+            } else {
+                console.log('[DEBUG PHONE] Phone is UNDEFINED in req.body');
             }
             if (email !== undefined) {
                 updateFields.push('email = ?');
@@ -730,10 +762,26 @@ export const updateCustomer = async (req: Request, res: Response) => {
             if (status !== undefined) {
                 updateFields.push('status = ?');
                 updateValues.push(status);
+                newStatus = status;
+
+                // Sync is_active column
+                updateFields.push('is_active = ?');
+                updateValues.push(status === 'active' ? 1 : 0);
             }
             if (connection_type !== undefined) {
                 updateFields.push('connection_type = ?');
                 updateValues.push(connection_type);
+            }
+            if (ip_address !== undefined) {
+                // Save IP to main table as well (for SelfHealingService)
+                updateFields.push('ip_address = ?');
+                updateValues.push(ip_address || null);
+
+                // If static IP, also save to static_ip column
+                if (connection_type === 'static_ip' || (oldCustomer.connection_type === 'static_ip' && !connection_type)) {
+                    updateFields.push('static_ip = ?');
+                    updateValues.push(ip_address || null);
+                }
             }
             if (odp_id !== undefined) {
                 updateFields.push('odp_id = ?');
@@ -760,13 +808,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
             // Checkbox behavior: sent as '1' if checked, missing if unchecked
             // We only update if billing_mode is also present (implying a form submission or full update)
             if (req.body.billing_mode !== undefined) {
-                if (req.body.is_taxable) {
-                    updateFields.push('is_taxable = ?');
-                    updateValues.push(1);
-                } else {
-                    updateFields.push('is_taxable = ?');
-                    updateValues.push(0);
-                }
+                updateFields.push('is_taxable = ?');
+                updateValues.push(req.body.is_taxable ? 1 : 0);
             } else if (req.body.is_taxable !== undefined) {
                 // Partial update explicitly targeting this field
                 updateFields.push('is_taxable = ?');
@@ -827,6 +870,17 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateValues.push(costVal);
             }
 
+            // Handle Ignore Monitoring Schedule
+            if (ignore_monitoring_start !== undefined) {
+                updateFields.push('ignore_monitoring_start = ?');
+                updateValues.push(ignore_monitoring_start || null);
+            }
+            if (ignore_monitoring_end !== undefined) {
+                updateFields.push('ignore_monitoring_end = ?');
+                updateValues.push(ignore_monitoring_end || null);
+            }
+
+
             // Handle billing mode change (Prepaid/Postpaid)
             const { billing_mode, prepaid_bonus_days } = req.body;
             let billingModeChanged = false;
@@ -860,10 +914,15 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             if (updateFields.length > 0) {
                 updateValues.push(customerId);
-                await conn.query(
-                    `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
-                    updateValues
-                );
+                const query = `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`;
+                console.log('[updateCustomer] Main Update Query:', query);
+                console.log('[updateCustomer] Main Update Values:', updateValues);
+
+                const [result] = await conn.query(query, updateValues);
+                console.log('[updateCustomer] Main Update Executed. Affected Rows:', (result as any).affectedRows);
+                console.log('[updateCustomer] Main Update Info:', (result as any).info);
+            } else {
+                console.log('[updateCustomer] No main fields to update');
             }
 
             // Sync with GenieACS logic
@@ -1217,233 +1276,46 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         console.log(`[Edit Customer PPPoE] Password provided: ${pppoe_password ? 'YES (length: ' + pppoe_password.length + ')' : 'NO'}`);
                         console.log(`[Edit Customer PPPoE] ========== DEBUG END ==========`);
 
-                        // Cek apakah secret sudah ada (dengan username baru, username lama, atau customer ID)
-                        let existingSecretId = null;
-                        let existingSecretByNewUsername = null;
-                        let existingSecretByCustomerId = null;
-                        let secretFoundBy = null; // Track which identifier found the secret
 
-                        // Check by new username first (priority)
-                        if (newUsername) {
-                            try {
-                                existingSecretByNewUsername = await findPppoeSecretIdByName(config, newUsername);
-                                if (existingSecretByNewUsername) {
-                                    console.log(`[Edit Customer PPPoE] ✅ Secret ditemukan dengan username baru: ${newUsername}`);
-                                    secretFoundBy = 'new_username';
-                                }
-                            } catch (findNewError: any) {
-                                // Ignore error, secret doesn't exist with this username
-                                console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan username baru: ${newUsername}`);
-                            }
+                        // ========== DATABASE UPDATE ONLY (NO MIKROTIK SYNC) ==========
+                        // User request: "buatkan logika sederahana saja tidak di isi otomatis sistem tidak menghubung ke mikrotik"
+
+                        console.log('[Edit Customer PPPoE] ⚠️ MikroTik Sync DISABLED (Database Only Mode)');
+
+                        // Update Username in DB
+                        if (newUsername && newUsername !== oldPppoeUsername) {
+                            await conn.query(
+                                'UPDATE customers SET pppoe_username = ? WHERE id = ?',
+                                [newUsername, customerId]
+                            );
+                            console.log(`[Edit Customer PPPoE] ✅ Username di database di-update ke: ${newUsername}`);
                         }
 
-                        // Check by old username (for backward compatibility)
-                        if (!existingSecretByNewUsername && oldSecretUsername && oldSecretUsername !== newUsername) {
-                            try {
-                                existingSecretId = await findPppoeSecretIdByName(config, oldSecretUsername);
-                                if (existingSecretId) {
-                                    console.log(`[Edit Customer PPPoE] ✅ Secret ditemukan dengan username lama: ${oldSecretUsername}`);
-                                    secretFoundBy = 'old_username';
-                                }
-                            } catch (findError: any) {
-                                // Ignore error
-                                console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan username lama: ${oldSecretUsername}`);
-                            }
-                        }
-
-                        // Check by customer ID (for legacy secrets created with customer ID)
-                        if (!existingSecretByNewUsername && !existingSecretId && customerId && !isNaN(customerId)) {
-                            const customerIdStr = customerId.toString();
-                            try {
-                                existingSecretByCustomerId = await findPppoeSecretIdByName(config, customerIdStr);
-                                if (existingSecretByCustomerId) {
-                                    console.log(`[Edit Customer PPPoE] ⚠️ Secret ditemukan dengan Customer ID (legacy): ${customerIdStr}`);
-                                    console.log(`[Edit Customer PPPoE] ⚠️ Secret ini akan di-update ke username baru: ${newUsername || 'N/A'}`);
-                                    secretFoundBy = 'customer_id';
-                                }
-                            } catch (findCustomerIdError: any) {
-                                // Ignore error
-                                console.log(`[Edit Customer PPPoE] ℹ️ Secret tidak ditemukan dengan Customer ID: ${customerIdStr}`);
-                            }
-                        }
-
-                        // Determine password to use: new password if provided (and not empty), otherwise use old password
-                        // IMPORTANT: Do NOT auto-generate random passwords - this was causing customer passwords to change unexpectedly
-                        let passwordToUse: string = '';
+                        // Update Password in DB
+                        // Jika password baru diisi, update. Jika kosong, biarkan yang lama.
                         if (pppoe_password && pppoe_password.trim() !== '') {
-                            // Password baru diisi, gunakan password baru
-                            passwordToUse = pppoe_password.trim();
-                            console.log(`[Edit Customer PPPoE] ✅ Menggunakan password baru dari form`);
-                        } else if (oldPppoePassword && oldPppoePassword.trim() !== '') {
-                            // Password tidak diisi, tapi ada password lama, gunakan password lama
-                            passwordToUse = oldPppoePassword;
-                            console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, menggunakan password lama`);
-                        } else {
-                            // Tidak ada password baru dan tidak ada password lama
-                            // JANGAN generate password random - ini menyebabkan password pelanggan berubah tanpa sepengetahuan mereka
-                            console.warn(`[Edit Customer PPPoE] ⚠️ Tidak ada password tersedia. Secret MikroTik TIDAK akan dibuat.`);
-                            console.warn(`[Edit Customer PPPoE] 💡 Silakan isi password PPPoE secara manual untuk membuat secret di MikroTik.`);
+                            await conn.query(
+                                'UPDATE customers SET pppoe_password = ? WHERE id = ?',
+                                [passwordToUse, customerId]
+                            );
+                            console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database`);
+                        } else if (!oldPppoePassword && passwordToUse) {
+                            // Case: No old password, but we have a generated/fallback one to save
+                            await conn.query(
+                                'UPDATE customers SET pppoe_password = ? WHERE id = ?',
+                                [passwordToUse, customerId]
+                            );
+                            console.log(`[Edit Customer PPPoE] ✅ Password initial disimpan di database`);
                         }
 
-                        if (existingSecretId || existingSecretByNewUsername || existingSecretByCustomerId) {
-                            // If secret found with customer ID (legacy), we need to delete and recreate with username
-                            if (secretFoundBy === 'customer_id' && customerId && !isNaN(customerId)) {
-                                console.log(`[Edit Customer PPPoE] ⚠️ Secret ditemukan dengan Customer ID (legacy), akan dihapus dan dibuat ulang dengan username`);
-                                const { deletePppoeSecret } = await import('../services/mikrotikService');
-
-                                // Delete old secret with customer ID
-                                await deletePppoeSecret(config, customerId.toString());
-                                console.log(`[Edit Customer PPPoE] ✅ Secret lama dengan Customer ID "${customerId}" berhasil dihapus`);
-
-                                // Create new secret with username
-                                await createPppoeSecret(config, {
-                                    name: secretName, // Use username, not customer ID
-                                    password: passwordToUse,
-                                    profile: profileName || undefined,
-                                    comment: newName
-                                });
-
-                                console.log(`[Edit Customer PPPoE] ✅ Secret baru dengan username "${secretName}" berhasil dibuat`);
-
-                                // Update username di database dengan username baru
-                                if (newUsername) {
-                                    await conn.query(
-                                        'UPDATE customers SET pppoe_username = ? WHERE id = ?',
-                                        [newUsername, customerId]
-                                    );
-                                    console.log(`[Edit Customer PPPoE] ✅ Username di database di-update ke: ${newUsername}`);
-                                }
-                            } else {
-                                // Update existing secret with username (normal update)
-                                const updateData: any = {
-                                    comment: newName // Use customer name as comment
-                                };
-
-                                // Update password jika ada (baik password baru maupun tetap pakai yang lama)
-                                if (passwordToUse) {
-                                    updateData.password = passwordToUse;
-                                }
-
-                                // Update profile jika ada (dari paket atau profile_id)
-                                if (profileName) {
-                                    updateData.profile = profileName;
-                                    console.log(`[Edit Customer PPPoE] Profile akan di-update ke: ${profileName}`);
-                                } else {
-                                    console.log(`[Edit Customer PPPoE] Profile tidak di-update (tidak ada profile dari paket)`);
-                                }
-
-                                // Determine which identifier to use for updating
-                                let secretToUpdate: string;
-                                if (existingSecretByNewUsername) {
-                                    secretToUpdate = newUsername;
-                                } else if (existingSecretId) {
-                                    secretToUpdate = oldSecretUsername;
-                                } else {
-                                    secretToUpdate = newUsername || oldSecretUsername;
-                                }
-
-                                console.log(`[Edit Customer PPPoE] Secret ditemukan dengan identifier: ${secretFoundBy}, akan di-update: ${secretToUpdate}`);
-
-                                // Update secret di MikroTik - use existing secret identifier
-                                await updatePppoeSecret(config, secretToUpdate, updateData);
-                            }
-
-                            // Update username di database dengan username baru
-                            if (newUsername && newUsername !== oldSecretUsername) {
-                                await conn.query(
-                                    'UPDATE customers SET pppoe_username = ? WHERE id = ?',
-                                    [newUsername, customerId]
-                                );
-                            }
-
-                            // Update password di database hanya jika password baru diisi (jika kosong, tetap gunakan password lama)
-                            if (pppoe_password && pppoe_password.trim() !== '') {
-                                // Password baru diisi, update ke database
-                                await conn.query(
-                                    'UPDATE customers SET pppoe_password = ? WHERE id = ?',
-                                    [passwordToUse, customerId]
-                                );
-                                console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database (${passwordToUse.length} characters)`);
-                            } else {
-                                // Password tidak diisi, tidak perlu update (tetap menggunakan password lama)
-                                console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, tetap menggunakan password yang ada`);
-                            }
-
-                            console.log(`✅ PPPoE secret dengan username "${secretName}" berhasil di-update di MikroTik`);
-                        } else {
-                            // Create secret baru jika belum ada (secret dihapus atau belum pernah dibuat)
-                            console.log(`[Edit Customer PPPoE] 🔄 Secret tidak ditemukan, akan membuat secret baru...`);
-
-                            console.log(`[Edit Customer PPPoE] Password baru: ${pppoe_password && pppoe_password.trim() !== '' ? 'ADA (length: ' + pppoe_password.length + ')' : 'TIDAK ADA'}`);
-                            console.log(`[Edit Customer PPPoE] Password lama: ${oldPppoePassword ? 'ADA (length: ' + oldPppoePassword.length + ')' : 'TIDAK ADA'}`);
-                            console.log(`[Edit Customer PPPoE] Password yang akan digunakan: ${passwordToUse ? 'ADA (length: ' + passwordToUse.length + ')' : 'TIDAK ADA'}`);
-
-                            if (passwordToUse && secretName) {
-                                console.log(`[Edit Customer PPPoE] ========== CREATING NEW SECRET ==========`);
-                                console.log(`[Edit Customer PPPoE] 📤 Membuat secret baru:`);
-                                console.log(`[Edit Customer PPPoE]    - Name (username): "${secretName}"`);
-                                console.log(`[Edit Customer PPPoE]    - Profile: ${profileName || 'tidak ada (MikroTik default)'}`);
-                                console.log(`[Edit Customer PPPoE]    - Comment: ${newName}`);
-                                console.log(`[Edit Customer PPPoE]    - Password: ${passwordToUse ? 'ADA' : 'TIDAK ADA'}`);
-                                console.log(`[Edit Customer PPPoE] ⚠️ IMPORTANT: Secret dibuat dengan username "${secretName}", BUKAN customer ID!`);
-
-                                await createPppoeSecret(config, {
-                                    name: secretName, // ALWAYS use username, NEVER customer ID
-                                    password: passwordToUse,
-                                    profile: profileName || undefined, // Don't set profile if not found, let MikroTik use default
-                                    comment: newName // Use customer name as comment
-                                });
-
-                                console.log(`[Edit Customer PPPoE] ✅ Secret berhasil dibuat dengan username: "${secretName}"`);
-
-                                // Update username di database dengan username baru
-                                if (newUsername) {
-                                    await conn.query(
-                                        'UPDATE customers SET pppoe_username = ? WHERE id = ?',
-                                        [newUsername, customerId]
-                                    );
-                                }
-
-                                // Update password di database hanya jika password baru diisi atau auto-generated (jika customer belum punya password)
-                                if (pppoe_password && pppoe_password.trim() !== '') {
-                                    // Password baru diisi, update ke database
-                                    await conn.query(
-                                        'UPDATE customers SET pppoe_password = ? WHERE id = ?',
-                                        [passwordToUse, customerId]
-                                    );
-                                    console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database (${passwordToUse.length} characters)`);
-                                } else if (!oldPppoePassword) {
-                                    // Tidak ada password lama dan tidak ada password baru, simpan password yang di-generate
-                                    await conn.query(
-                                        'UPDATE customers SET pppoe_password = ? WHERE id = ?',
-                                        [passwordToUse, customerId]
-                                    );
-                                    console.log(`[Edit Customer PPPoE] ✅ Password auto-generated disimpan di database (${passwordToUse.length} characters)`);
-                                } else {
-                                    // Password tidak diisi dan ada password lama, tidak perlu update (tetap menggunakan password lama)
-                                    console.log(`[Edit Customer PPPoE] ℹ️ Password tidak diubah, tetap menggunakan password yang ada`);
-                                }
-
-                                console.log(`✅ PPPoE secret dengan username "${secretName}" berhasil dibuat di MikroTik`);
-                            } else {
-                                console.error(`❌ Password atau username tidak tersedia, tidak bisa membuat secret baru`);
-                                console.error(`   💡 Saran: Isi username dan password saat edit pelanggan untuk membuat secret di MikroTik`);
-                                console.error(`   📋 Detail: Customer ID: ${customerId}, Name: ${newName}, Username: ${secretName || 'N/A'}`);
-                                // Don't throw error, just log it - customer update can still succeed
-                            }
-                        }
+                        /* 
+                           MIKROTIK SYNC DISABLED
+                           Logic for checking existingSecretId, deletePppoeSecret, createPppoeSecret, updatePppoeSecret 
+                           is skipped to prevent server crash/hang.
+                        */
                     }
                 } catch (mikrotikError: any) {
-                    console.error('\n');
-                    console.error('========================================');
-                    console.error('[Edit Customer] ========== MIKROTIK ERROR ==========');
-                    console.error('[Edit Customer] ⚠️ Gagal sync secret ke MikroTik:', mikrotikError.message);
-                    console.error('[Edit Customer] Error type:', typeof mikrotikError);
-                    console.error('[Edit Customer] Error details:', mikrotikError);
-                    console.error('[Edit Customer] Error stack:', mikrotikError.stack || 'No stack trace');
-                    console.error('========================================');
-                    console.error('\n');
-                    // Non-critical error - customer updated successfully
+                    console.error('[Edit Customer] Error in logic (non-critical):', mikrotikError);
                 }
             }
 
@@ -1513,20 +1385,14 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             console.log(`[UpdateCustomer] Updated static_ip_clients for customer ${customerId}`);
                         }
 
-                        // SYNC TO MIKROTIK
+                        // MIKROTIK SYNC DISABLED
+                        console.log('[UpdateCustomer] ⚠️ MikroTik Sync Skipped for Static IP (Safety Mode)');
+                        /*
                         const finalIp = ip_address || (staticClient[0] as any).ip_address;
                         const finalPackageId = static_ip_package || (staticClient[0] as any).package_id;
+                        if (finalIp && finalPackageId) { ... syncClientQueues ... }
+                        */
 
-                        if (finalIp && finalPackageId) {
-                            console.log(`[UpdateCustomer] Init sync to MikroTik for Static IP: ${finalIp}, Package: ${finalPackageId}`);
-                            try {
-                                await syncClientQueues(customerId, parseInt(finalPackageId), finalIp, name || oldName, {
-                                    oldClientName: oldName
-                                });
-                            } catch (syncErr: any) {
-                                console.error('[UpdateCustomer] ❌ Failed to sync MikroTik queues:', syncErr.message);
-                            }
-                        }
                     } else if (targetConnType === 'static_ip') {
                         // Create new static_ip_clients record if switching connection type
                         const pkgId = static_ip_package ? parseInt(static_ip_package) : null;
@@ -1537,10 +1403,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             );
                             console.log(`[UpdateCustomer] Created new static_ip_clients for customer ${customerId}`);
 
-                            // Sync to MikroTik
-                            await syncClientQueues(customerId, pkgId, ip_address, name || oldName, {
-                                oldClientName: oldName
-                            });
+                            // MIKROTIK SYNC DISABLED
+                            console.log('[UpdateCustomer] ⚠️ MikroTik Sync Skipped for New Static IP (Safety Mode)');
+                            /*
+                           await syncClientQueues(...);
+                           */
                         }
                     }
                 } catch (staticIpError) {
@@ -1550,7 +1417,16 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             await conn.commit();
             console.log('[updateCustomer] Update successful, redirecting to:', `/customers/${customerId}?success=updated`);
-            req.flash('success', 'Data pelanggan berhasil diperbarui');
+
+            // Network map sync also disabled to be safe if requested, but let's keep it unless it crashes too. 
+            // Usually internal DB sync is fine.
+            try {
+                await NetworkMonitoringService.syncCustomerDevices();
+            } catch (syncError) {
+                console.error('[updateCustomer] Error syncing network devices:', syncError);
+            }
+
+            req.flash('success', 'Data pelanggan berhasil diperbarui (Database Only)');
             res.redirect(`/customers/${customerId}?success=updated`);
         } catch (error: unknown) {
             await conn.rollback();
@@ -1559,6 +1435,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
             conn.release();
         }
     } catch (error: unknown) {
+
         console.error('Error updating customer:', error);
         const errorMessage = error instanceof Error ? error.message : 'Gagal memperbarui data pelanggan';
         req.flash('error', errorMessage);
@@ -1744,6 +1621,13 @@ export const deleteCustomer = async (req: Request, res: Response) => {
 
             // Delete customer
             await conn.query('DELETE FROM customers WHERE id = ?', [customerId]);
+
+            // Sync to network map
+            try {
+                await NetworkMonitoringService.syncCustomerDevices();
+            } catch (syncError) {
+                console.error('[deleteCustomer] Error syncing network devices:', syncError);
+            }
 
             res.json({
                 success: true,

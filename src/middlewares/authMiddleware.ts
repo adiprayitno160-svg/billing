@@ -27,6 +27,22 @@ export const isAuthenticated = async (req: AuthenticatedRequest, res: Response, 
         }
 
         if (!userId) {
+            // Check if this is an API or AJAX request
+            const isApi = req.headers.accept?.includes('application/json') ||
+                req.headers['content-type']?.includes('application/json');
+
+            const isAjax = req.xhr ||
+                req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+                req.headers['sec-fetch-dest'] === 'empty' ||
+                req.path.startsWith('/api/');
+
+            if (isApi || isAjax || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH') {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized: Anda harus login terlebih dahulu'
+                });
+            }
+
             req.flash('error', 'Anda harus login terlebih dahulu');
             return res.redirect('/login');
         }
@@ -98,21 +114,24 @@ export class AuthMiddleware {
             }
 
             if (!userId) {
-                // Check if this is an API request (JSON expected)
-                const acceptsJson = req.headers.accept?.includes('application/json') ||
+                // Check if this is an API or AJAX request
+                const isApi = req.headers.accept?.includes('application/json') ||
                     req.headers['content-type']?.includes('application/json');
 
-                if (acceptsJson || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH') {
-                    res.status(401).json({
+                const isAjax = req.xhr ||
+                    req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+                    req.headers['sec-fetch-dest'] === 'empty' ||
+                    req.path.startsWith('/api/');
+
+                if (isApi || isAjax || req.method === 'DELETE' || req.method === 'PUT' || req.method === 'PATCH') {
+                    return res.status(401).json({
                         success: false,
                         error: 'Unauthorized: Anda harus login terlebih dahulu'
                     });
-                    return;
                 }
 
                 req.flash('error', 'Anda harus login terlebih dahulu');
-                res.redirect('/login');
-                return;
+                return res.redirect('/login');
             }
 
             const user = await this.userService.getUserById(userId);

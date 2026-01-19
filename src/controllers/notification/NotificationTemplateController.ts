@@ -424,9 +424,10 @@ export class NotificationTemplateController {
    */
   async getWhatsAppStatus(req: Request, res: Response): Promise<any> {
     try {
-      const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
-      const status = WhatsAppService.getStatus();
-      const qrCode = WhatsAppService.getQRCode();
+      const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
+      const waClient = WhatsAppClient.getInstance();
+      const status = waClient.getStatus();
+      const qrCode = waClient.lastQR;
 
       res.json({
         success: true,
@@ -434,7 +435,7 @@ export class NotificationTemplateController {
           ...status,
           qrCode: qrCode,
           message: !status.ready
-            ? (status.hasQRCode
+            ? (qrCode
               ? 'WhatsApp client is waiting for QR code scan. Please scan the QR code to activate WhatsApp service.'
               : 'WhatsApp client is not initialized or disconnected. Please check server logs.')
             : 'WhatsApp client is ready and can send messages.'
@@ -586,8 +587,9 @@ export class NotificationTemplateController {
         });
 
         // Step 3: Check WhatsApp status
-        const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
-        const whatsappStatus = WhatsAppService.getStatus();
+        const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
+        const waClient = WhatsAppClient.getInstance();
+        const whatsappStatus = waClient.getStatus();
         debugInfo.whatsapp = whatsappStatus;
         debugInfo.steps.push({
           step: 3,
@@ -870,8 +872,10 @@ export class NotificationTemplateController {
         });
 
         // Check 2: WhatsApp status
-        const { WhatsAppServiceBaileys: WhatsAppService } = await import('../../services/whatsapp/WhatsAppServiceBaileys');
-        const whatsappStatus = WhatsAppService.getStatus();
+        // Check 2: WhatsApp status
+        const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
+        const waClient = WhatsAppClient.getInstance();
+        const whatsappStatus = waClient.getStatus();
         analysis.checks.push({
           check: 'WhatsApp Client',
           status: whatsappStatus.ready ? 'ready' : 'not_ready',

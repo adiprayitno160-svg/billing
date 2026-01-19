@@ -9,6 +9,7 @@ const router = express.Router();
 
 // Public route (no authentication required) - for office display
 router.get('/public/network-map', networkMonitoringController.renderPublicNetworkMap);
+router.get('/public/modern-network-map', networkMonitoringController.renderModernNetworkMap);
 
 // API routes for network monitoring data (public for now, can add auth later)
 router.get('/api/network-topology', networkMonitoringController.getNetworkTopology);

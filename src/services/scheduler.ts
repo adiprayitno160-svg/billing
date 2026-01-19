@@ -238,11 +238,20 @@ export class SchedulerService {
         cron.schedule('30 4 * * *', async () => {
             console.log('[Scheduler] 🔄 Running daily WhatsApp Service restart...');
             try {
-                const waModule = await import('./whatsapp/WhatsAppServiceBaileys') as any;
-                const waService = waModule.WhatsAppServiceBaileys || waModule.default;
+                const { WhatsAppClient } = await import('./whatsapp/WhatsAppClient');
+                const waClient = WhatsAppClient.getInstance();
 
-                if (waService && typeof waService.restart === 'function') {
-                    await waService.restart();
+                if (waClient) {
+                    // For whatsapp-web.js, we can just logout and re-initialize
+                    if (waClient.client) {
+                        try {
+                            console.log('[Scheduler] Destroying client for restart...');
+                            await waClient.client.destroy();
+                        } catch (e) {
+                            console.warn('Error destroying client:', e);
+                        }
+                    }
+                    await waClient.initialize();
                     console.log('[Scheduler] ✅ WhatsApp Service restarted successfully');
                 }
             } catch (error) {
@@ -251,6 +260,42 @@ export class SchedulerService {
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
+        });
+
+        // Self-Healing Network Anomaly Detection - Every 3 minutes
+        cron.schedule('*/3 * * * *', async () => {
+            console.log('[Scheduler] 🛡️ Running Self-Healing Network Anomaly Detection...');
+            try {
+                const { SelfHealingNotificationService } = await import('./notification/SelfHealingNotificationService');
+                const selfHealingService = new SelfHealingNotificationService();
+                await selfHealingService.runAnomalyDetection();
+            } catch (error) {
+                console.error('[Scheduler] ❌ Error in Self-Healing Network Detection:', error);
+            }
+        });
+
+        // Smart PPPoE Monitoring for Prepaid Customers - Every 2 minutes
+        cron.schedule('*/2 * * * *', async () => {
+            console.log('[Scheduler] 🚀 Running Smart PPPoE Monitoring for Prepaid Customers...');
+            try {
+                const { SmartPPPoEMonitoringService } = await import('./notification/SmartPPPoEMonitoringService');
+                const smartMonitoringService = new SmartPPPoEMonitoringService();
+                await smartMonitoringService.runSmartMonitoring();
+            } catch (error) {
+                console.error('[Scheduler] ❌ Error in Smart PPPoE Monitoring:', error);
+            }
+        });
+
+        // Smart Static IP Monitoring for Prepaid Customers - Every 15 minutes (for normal ping)
+        cron.schedule('*/15 * * * *', async () => {
+            console.log('[Scheduler] 🚀 Running Smart Static IP Monitoring for Prepaid Customers...');
+            try {
+                const { SmartStaticIPMonitoringService } = await import('./notification/SmartStaticIPMonitoringService');
+                const smartStaticIPService = new SmartStaticIPMonitoringService();
+                await smartStaticIPService.runSmartMonitoring();
+            } catch (error) {
+                console.error('[Scheduler] ❌ Error in Smart Static IP Monitoring:', error);
+            }
         });
 
         this.isInitialized = true;
@@ -414,7 +459,6 @@ export class SchedulerService {
                 'Auto restore (daily 06:00)',
                 'SLA calculation (1st day 06:00)',
                 'Overdue notifications (daily 10:00)',
-                'Telegram monitoring (every 5 minutes)',
                 'ONT status check (every 5 minutes)',
                 'Customer isolation check (every 5 minutes)',
                 'Daily system summary (daily 18:00)'

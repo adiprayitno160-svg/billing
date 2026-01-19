@@ -1,0 +1,664 @@
+<%# Removed duplicate header include to avoid double header %>
+
+    <div class="space-y-6">
+        <!-- Actions Row (Compact) -->
+        <div class="flex items-center justify-end gap-3 mb-2">
+            <button type="button" onclick="showAddJobModal()"
+                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold shadow-md hover:shadow-lg">
+                <i class="fas fa-plus-circle mr-2"></i> Tambah Pekerjaan
+            </button>
+            <span
+                class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                Status: Available
+            </span>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <div class="text-xs text-gray-500 font-medium uppercase">Pending Jobs</div>
+                <div class="text-2xl font-bold text-orange-600 mt-1">
+                    <%= stats.pending || 0 %>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <div class="text-xs text-gray-500 font-medium uppercase">In Progress</div>
+                <div class="text-2xl font-bold text-blue-600 mt-1">
+                    <%= stats.in_progress || 0 %>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <div class="text-xs text-gray-500 font-medium uppercase">Completed Today</div>
+                <div class="text-2xl font-bold text-green-600 mt-1">
+                    <%= stats.completed_today || 0 %>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <div class="text-xs text-gray-500 font-medium uppercase">Total Jobs</div>
+                <div class="text-2xl font-bold text-gray-900 mt-1">
+                    <%= stats.total_jobs || 0 %>
+                </div>
+            </div>
+            <!-- Wallet / Fee Stats -->
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-2 opacity-10"><i class="fas fa-wallet fa-3x text-red-600"></i>
+                </div>
+                <div class="text-xs text-gray-500 font-medium uppercase">Titipan Tunai</div>
+                <div class="text-xl font-bold text-red-600 mt-1">
+                    <%= Number(stats.wallet_balance || 0).toLocaleString('id-ID') %>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-2 opacity-10"><i
+                        class="fas fa-money-bill-wave fa-3x text-green-600"></i></div>
+                <div class="text-xs text-gray-500 font-medium uppercase">Est. Fee (Bulan Ini)</div>
+                <div class="text-xl font-bold text-green-600 mt-1">
+                    <%= Number(stats.monthly_fees || 0).toLocaleString('id-ID') %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Job List -->
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-50 flex justify-between items-center">
+                        <h2 class="font-bold text-gray-900">Daftar Pekerjaan</h2>
+                        <div class="flex gap-2">
+                            <select id="statusFilter" class="text-xs border-gray-200 rounded-lg">
+                                <option value="">Semua Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">Sedang Dikerjakan</option>
+                                <option value="completed">Selesai</option>
+                            </select>
+                            <button onclick="refreshJobs()" class="p-2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto max-h-[600px]" id="jobListContainer">
+                        <!-- Loaded via AJAX -->
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                            <p>Memuat data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map & Details Panel -->
+            <div class="space-y-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <h3 class="font-bold text-gray-900 mb-3">Peta Lokasi</h3>
+                    <div id="jobMap" class="h-64 bg-gray-100 rounded-lg w-full z-0"></div>
+                    <div id="locationDetails" class="mt-3 text-sm text-gray-600 hidden">
+                        <p class="font-semibold text-gray-900" id="mapCustomerName"></p>
+                        <p id="mapAddress"></p>
+                        <a href="#" id="gmapLink" target="_blank"
+                            class="text-blue-600 hover:underline mt-1 inline-block">
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka Google Maps
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Validation Panel (Hidden by default) -->
+                <div id="validationPanel" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hidden">
+                    <h3 class="font-bold text-gray-900 mb-3">Penyelesaian Pekerjaan</h3>
+                    <form id="completionForm" class="space-y-3">
+                        <input type="hidden" id="completeJobId">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Catatan Penyelesaian</label>
+                            <textarea id="completionNotes" rows="3" class="w-full text-sm border-gray-300 rounded-lg"
+                                required></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Bukti Foto
+                                (Wajib/Opsional)</label>
+                            <input type="file" id="completionProof" accept="image/*"
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                        <button type="submit"
+                            class="w-full py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700">
+                            Selesaikan Pekerjaan
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Card Template -->
+    <template id="jobCardTemplate">
+        <div class="job-card p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <span class="job-ticket text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded"></span>
+                    <span class="job-priority ml-2 text-xs font-semibold px-2 py-0.5 rounded-full"></span>
+                </div>
+                <span class="job-time text-xs text-gray-400"></span>
+            </div>
+            <h3 class="job-title font-bold text-gray-900 text-lg mb-1"></h3>
+            <p class="job-desc text-sm text-gray-600 mb-3"></p>
+
+            <div class="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                <span class="flex items-center gap-1 job-customer">
+                    <i class="fas fa-user"></i> <span></span>
+                </span>
+                <span class="flex items-center gap-1 job-area">
+                    <i class="fas fa-map-marker-alt"></i> <span></span>
+                </span>
+            </div>
+
+            <div class="job-actions flex gap-2">
+                <!-- Buttons injected via JS -->
+            </div>
+        </div>
+    </template>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+
+
+
+    <!-- Add Job Modal -->
+    <div id="addJobModal" class="hidden"
+        style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; width: 100vw !important; height: 100vh !important;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);"
+            onclick="hideAddJobModal()"></div>
+        <div
+            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; max-width: 28rem; background: white; border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); padding: 1.5rem;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-900">Buat Pekerjaan Baru</h2>
+                <button onclick="hideAddJobModal()" class="text-gray-400 hover:text-gray-600"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <form id="addJobForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Judul Pekerjaan</label>
+                    <input type="text" name="title" required placeholder="Contoh: Perbaikan Kabel Putus"
+                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-medium text-gray-700">Jenis Pekerjaan</label>
+                        <a href="/settings/job-types" target="_blank"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                            <i class="fas fa-cog mr-1"></i> Kelola / Tambah Baru
+                        </a>
+                    </div>
+                    <select name="job_type_id" id="jobTypeSelect"
+                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        onchange="updateFee()">
+                        <option value="">-- Manual / Lainnya --</option>
+                        <% if (locals.jobTypes) { %>
+                            <% jobTypes.forEach(function(type) { %>
+                                <option value="<%= type.id %>" data-fee="<%= type.base_fee %>">
+                                    <%= type.name %> (Rp <%= Number(type.base_fee).toLocaleString('id-ID') %>)
+                                </option>
+                                <% }); %>
+                                    <% } %>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fee Teknisi (Rp)</label>
+                    <input type="number" name="fee" id="jobFeeInput"
+                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cari Pelanggan (Opsional)</label>
+                    <div class="relative">
+                        <input type="text" id="customerSearch" placeholder="Ketik nama atau No HP..."
+                            class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <input type="hidden" name="customer_id" id="selectedCustomerId">
+                        <div id="customerResults"
+                            class="absolute z-10 w-full bg-white border border-gray-100 rounded-lg shadow-xl mt-1 hidden max-h-48 overflow-y-auto">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Alamat / Lokasi</label>
+                    <textarea name="address" rows="2" id="jobAddress"
+                        class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Alamat lengkap atau koordinat..."></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Prioritas</label>
+                        <select name="priority" class="w-full border-gray-300 rounded-lg">
+                            <option value="low">Rendah</option>
+                            <option value="medium" selected>Normal</option>
+                            <option value="high">Tinggi</option>
+                            <option value="critical">Kritis</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Koordinat (Lat,Lng)</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="coordinates" id="jobCoords" placeholder="-6.123, 106.123"
+                                class="w-full text-xs border-gray-300 rounded-lg">
+                            <button type="button" onclick="getCurrentLocation()"
+                                class="p-2 bg-gray-100 rounded-lg text-blue-600 hover:bg-gray-200">
+                                <i class="fas fa-location-arrow"></i>
+                            </button>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Peta Titik Lokasi</label>
+                            <div id="addJobMap" class="h-48 w-full bg-gray-100 rounded-lg border border-gray-300 mb-2">
+                            </div>
+                            <p class="text-xs text-gray-500 mb-2">* Klik pada peta untuk menandai lokasi</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
+                        <textarea name="description" rows="3"
+                            class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Detail kendala yang dialami..."></textarea>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" onclick="hideAddJobModal()"
+                            class="flex-1 py-2 text-gray-600 font-bold hover:bg-gray-50 rounded-lg">Batal</button>
+                        <button type="submit"
+                            class="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md">Simpan</button>
+                    </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CRITICAL: Define modal functions BEFORE footer loads -->
+    <script>
+        // Define these functions globally IMMEDIATELY so onclick handlers work
+        let addJobMapInstance = null;
+        let addJobMarker = null;
+
+        function initAddJobMap() {
+            if (addJobMapInstance) {
+                setTimeout(() => {
+                    addJobMapInstance.invalidateSize();
+                }, 200);
+                return;
+            }
+
+            // Default center Jakarta or current location if available
+            addJobMapInstance = L.map('addJobMap').setView([-6.200000, 106.816666], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(addJobMapInstance);
+
+            addJobMapInstance.on('click', function (e) {
+                const { lat, lng } = e.latlng;
+                document.getElementById('jobCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+                if (addJobMarker) {
+                    addJobMarker.setLatLng(e.latlng);
+                } else {
+                    addJobMarker = L.marker(e.latlng).addTo(addJobMapInstance);
+                }
+            });
+
+            // Try to get current location for initial center
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    addJobMapInstance.setView([lat, lng], 15);
+                });
+            }
+        }
+
+        function showAddJobModal() {
+            console.log('[TechDashboard] showAddJobModal called');
+            var modal = document.getElementById('addJobModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'block';
+                console.log('[TechDashboard] Modal shown');
+                // Init map after modal is visible
+                setTimeout(initAddJobMap, 100);
+            } else {
+                console.error('[TechDashboard] Modal element not found!');
+                alert('Error: Modal tidak ditemukan');
+            }
+        }
+
+        function hideAddJobModal() {
+            console.log('[TechDashboard] hideAddJobModal called');
+            var modal = document.getElementById('addJobModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                var form = document.getElementById('addJobForm');
+                if (form) form.reset();
+                var custId = document.getElementById('selectedCustomerId');
+                if (custId) custId.value = '';
+
+                // Clear marker
+                if (addJobMarker && addJobMapInstance) {
+                    addJobMapInstance.removeLayer(addJobMarker);
+                    addJobMarker = null;
+                }
+            }
+        }
+
+        function refreshJobs() {
+            // Will be overwritten by main script, but define placeholder
+            console.log('[TechDashboard] refreshJobs placeholder called');
+        }
+
+        function updateFee() {
+            var select = document.getElementById('jobTypeSelect');
+            var feeInput = document.getElementById('jobFeeInput');
+            if (select && feeInput) {
+                var selectedOption = select.options[select.selectedIndex];
+                var fee = selectedOption.getAttribute('data-fee');
+                feeInput.value = fee || '';
+            }
+        }
+        window.updateFee = updateFee;
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    var coordsInput = document.getElementById('jobCoords');
+                    if (coordsInput) {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        coordsInput.value = lat + ', ' + lng;
+
+                        // Update map if exists
+                        if (addJobMapInstance) {
+                            addJobMapInstance.setView([lat, lng], 16);
+                            if (addJobMarker) {
+                                addJobMarker.setLatLng([lat, lng]);
+                            } else {
+                                addJobMarker = L.marker([lat, lng]).addTo(addJobMapInstance);
+                            }
+                        }
+                    }
+                }, function (err) {
+                    alert('Gagal mengambil lokasi. Pastikan izin lokasi aktif.');
+                });
+            } else {
+                alert('Browser tidak mendukung Geolocation');
+            }
+        }
+
+        // Make available on window
+        window.showAddJobModal = showAddJobModal;
+        window.hideAddJobModal = hideAddJobModal;
+        window.refreshJobs = refreshJobs;
+        window.getCurrentLocation = getCurrentLocation;
+
+        console.log('[TechDashboard] Global functions defined');
+    </script>
+
+    <%- include('../partials/footer') %>
+
+        <script>
+            (function () {
+                let map;
+                let markers = [];
+                const userId = <%= (locals.user && user.id) ? user.id : 'null' %>;
+                let searchTimeout;
+
+                // Initialize Everything
+                document.addEventListener('DOMContentLoaded', () => {
+                    // NOTE: Do NOT teleport modal to body - this breaks CSS positioning
+                    // The modal now uses inline !important styles to ensure correct display
+
+                    initMap();
+                    // Ensure functions are available globally if not already (safeguard)
+                    if (!window.showAddJobModal) {
+                        window.showAddJobModal = function () {
+                            const m = document.getElementById('addJobModal');
+                            if (m) { m.classList.remove('hidden'); m.style.display = 'block'; }
+                        }
+                    }
+                    if (!window.hideAddJobModal) {
+                        window.hideAddJobModal = function () {
+                            const m = document.getElementById('addJobModal');
+                            if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+                        }
+                    }
+
+                    // Initial Load
+                    window.refreshJobs(); // Call the global one defined above which is a placeholder? 
+                    // Pivot: The global refreshJobs was a placeholder. We need to assign the REAL one to window.
+                    window.refreshJobs = refreshJobs;
+                    refreshJobs(); // Call it immediately
+
+                    const filter = document.getElementById('statusFilter');
+                    if (filter) filter.addEventListener('change', refreshJobs);
+
+                    const compForm = document.getElementById('completionForm');
+                    if (compForm) compForm.addEventListener('submit', handleCompletion);
+
+                    const addForm = document.getElementById('addJobForm');
+                    if (addForm) addForm.addEventListener('submit', handleAddJob);
+
+                    const custSearch = document.getElementById('customerSearch');
+                    if (custSearch) custSearch.addEventListener('input', handleCustomerSearch);
+                });
+
+                function initMap() {
+                    const mapEl = document.getElementById('jobMap');
+                    if (!mapEl) return;
+                    map = L.map('jobMap').setView([-6.2088, 106.8456], 10);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                }
+
+                async function refreshJobs() {
+                    const container = document.getElementById('jobListContainer');
+                    const status = document.getElementById('statusFilter').value;
+                    const template = document.getElementById('jobCardTemplate');
+                    if (!container || !template) return;
+
+                    try {
+                        const res = await fetch(`/api/technician/jobs?status=${status}`);
+                        const result = await res.json();
+                        // if (!result.success) throw new Error(result.error); 
+                        // Relax error checking slightly to prevent total crash
+
+                        container.innerHTML = '';
+                        markers.forEach(m => map.removeLayer(m));
+                        markers = [];
+
+                        if (!result.success || !result.data || result.data.length === 0) {
+                            container.innerHTML = '<div class="p-8 text-center text-gray-500">Tidak ada pekerjaan.</div>';
+                            return;
+                        }
+
+                        result.data.forEach(job => {
+                            const clone = template.content.cloneNode(true);
+                            clone.querySelector('.job-ticket').textContent = job.ticket_number;
+                            clone.querySelector('.job-title').textContent = job.title;
+                            clone.querySelector('.job-desc').textContent = job.description || '-';
+                            clone.querySelector('.job-customer span:last-child').textContent = job.customer_name || 'Umum';
+                            clone.querySelector('.job-area span:last-child').textContent = job.coordinates || 'No Coord';
+                            clone.querySelector('.job-time').textContent = new Date(job.created_at).toLocaleString('id-ID');
+
+                            const priorityEl = clone.querySelector('.job-priority');
+                            priorityEl.textContent = job.priority.toUpperCase();
+                            priorityEl.className = `job-priority ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${job.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                job.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                                }`;
+
+                            const actionsDiv = clone.querySelector('.job-actions');
+                            const detailBtn = document.createElement('a');
+                            detailBtn.href = `/technician/jobs/${job.id}`;
+                            detailBtn.className = 'px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded hover:bg-gray-200 flex items-center gap-1';
+                            detailBtn.innerHTML = '<i class="fas fa-eye"></i> Detail';
+                            actionsDiv.appendChild(detailBtn);
+
+                            if (job.status === 'pending') {
+                                const btn = document.createElement('button');
+                                btn.className = 'px-4 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700';
+                                btn.textContent = 'Ambil';
+                                btn.onclick = (e) => { e.preventDefault(); acceptJob(job.id); };
+                                actionsDiv.appendChild(btn);
+                                if (job.coordinates) addMarker(job, 'red');
+                            } else if (job.status === 'accepted' || job.status === 'in_progress') {
+                                if (job.technician_id === userId) {
+                                    const btn = document.createElement('button');
+                                    btn.className = 'px-4 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700';
+                                    btn.textContent = 'Selesaikan';
+                                    btn.onclick = (e) => { e.preventDefault(); showValidation(job); };
+                                    actionsDiv.appendChild(btn);
+                                } else {
+                                    const span = document.createElement('span');
+                                    span.className = 'text-[10px] text-gray-500 italic self-center';
+                                    span.textContent = `Oleh: ${job.technician_name}`;
+                                    actionsDiv.appendChild(span);
+                                }
+                                if (job.coordinates) addMarker(job, 'blue');
+                            } else if (job.status === 'completed') {
+                                const span = document.createElement('span');
+                                span.className = 'text-xs text-green-600 font-semibold self-center ml-auto';
+                                span.innerHTML = '<i class="fas fa-check-circle"></i> Selesai';
+                                actionsDiv.appendChild(span);
+                            }
+                            container.appendChild(clone);
+                        });
+
+                        if (markers.length > 0) {
+                            const group = new L.featureGroup(markers);
+                            try { map.fitBounds(group.getBounds().pad(0.1)); } catch (e) { }
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        container.innerHTML = '<div class="p-4 text-red-500 text-center">Gagal memuat data.</div>';
+                    }
+                }
+
+                function addMarker(job, color) {
+                    if (!job.coordinates) return;
+                    const [lat, lng] = job.coordinates.split(',').map(c => parseFloat(c.trim()));
+                    if (isNaN(lat) || isNaN(lng)) return;
+                    const marker = L.circleMarker([lat, lng], { color, fillColor: color, fillOpacity: 0.5, radius: 8 }).addTo(map);
+                    marker.bindPopup(`<b>${job.ticket_number}</b><br>${job.title}<br><a href="/technician/jobs/${job.id}" class="text-blue-600 font-bold text-xs hover:underline mt-1 inline-block">Lihat Detail &rarr;</a>`);
+                    marker.on('click', () => showLocation(job));
+                    markers.push(marker);
+                }
+
+                async function acceptJob(id) {
+                    if (!confirm('Ambil pekerjaan ini?')) return;
+                    try {
+                        const res = await fetch('/api/technician/jobs/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                        const result = await res.json();
+                        if (result.success) refreshJobs(); else alert(result.error);
+                    } catch (e) { alert('Error Connection'); }
+                }
+
+                function showValidation(job) {
+                    document.getElementById('validationPanel').classList.remove('hidden');
+                    document.getElementById('completeJobId').value = job.id;
+                    showLocation(job);
+                }
+
+                function showLocation(job) {
+                    const details = document.getElementById('locationDetails');
+                    if (!details) return;
+                    details.classList.remove('hidden');
+                    document.getElementById('mapCustomerName').textContent = job.customer_name || 'Umum';
+                    document.getElementById('mapAddress').textContent = job.address || job.coordinates || '-';
+                    if (job.coordinates) {
+                        const [lat, lng] = job.coordinates.split(',').map(c => c.trim());
+                        document.getElementById('gmapLink').href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                        map.setView([lat, lng], 15);
+                    }
+                }
+
+                async function handleCompletion(e) {
+                    e.preventDefault();
+                    const id = document.getElementById('completeJobId').value;
+                    const notes = document.getElementById('completionNotes').value;
+                    const proof = document.getElementById('completionProof').files[0];
+                    const formData = new FormData();
+                    formData.append('id', id); formData.append('notes', notes);
+                    if (proof) formData.append('proof', proof);
+                    try {
+                        const res = await fetch('/api/technician/jobs/complete', { method: 'POST', body: formData });
+                        const result = await res.json();
+                        if (result.success) {
+                            document.getElementById('validationPanel').classList.add('hidden');
+                            document.getElementById('completionForm').reset();
+                            refreshJobs();
+                        } else alert(result.error);
+                    } catch (e) { alert('Error Connection'); }
+                }
+
+                function handleCustomerSearch(e) {
+                    clearTimeout(searchTimeout);
+                    const val = e.target.value;
+                    if (val.length < 2) {
+                        document.getElementById('customerResults').classList.add('hidden');
+                        return;
+                    }
+                    searchTimeout = setTimeout(async () => {
+                        const res = await fetch(`/api/technician/customers/search?q=${val}`);
+                        const result = await res.json();
+                        const container = document.getElementById('customerResults');
+                        container.innerHTML = '';
+                        if (result.success && result.data.length > 0) {
+                            result.data.forEach(c => {
+                                const div = document.createElement('div');
+                                div.className = 'p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50';
+                                div.innerHTML = `<div class="text-sm font-bold text-gray-900">${c.name}</div><div class="text-xs text-gray-500">${c.phone} - ${c.address || ''}</div>`;
+                                div.onclick = () => {
+                                    document.getElementById('customerSearch').value = c.name;
+                                    document.getElementById('selectedCustomerId').value = c.id;
+                                    document.getElementById('jobAddress').value = c.address || '';
+
+                                    // Auto-fill coordinates and update map if available
+                                    if (c.coordinates) {
+                                        document.getElementById('jobCoords').value = c.coordinates;
+                                        const [lat, lng] = c.coordinates.split(',').map(coord => parseFloat(coord.trim()));
+
+                                        if (!isNaN(lat) && !isNaN(lng) && addJobMapInstance) {
+                                            addJobMapInstance.setView([lat, lng], 16);
+
+                                            // Update or create marker
+                                            if (addJobMarker) {
+                                                addJobMarker.setLatLng([lat, lng]);
+                                            } else {
+                                                addJobMarker = L.marker([lat, lng]).addTo(addJobMapInstance);
+                                            }
+                                        }
+                                    }
+
+                                    container.classList.add('hidden');
+                                };
+                                container.appendChild(div);
+                            });
+                            container.classList.remove('hidden');
+                        }
+                    }, 300);
+                }
+
+                // Global Helper needs to be explicitly exposed if used by HTML onclick
+                window.getCurrentLocation = function () {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition((pos) => {
+                            document.getElementById('jobCoords').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+                        }, (err) => alert('Gagal mengambil lokasi. Pastikan izin lokasi aktif.'));
+                    }
+                }
+
+                async function handleAddJob(e) {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const data = Object.fromEntries(formData.entries());
+                    try {
+                        const res = await fetch('/api/technician/jobs/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                        const result = await res.json();
+                        if (result.success) {
+                            window.hideAddJobModal(); // Global function usage
+                            refreshJobs();
+                            alert(result.message);
+                        } else alert(result.error);
+                    } catch (e) { alert('Gagal menyimpan pekerjaan'); }
+                }
+            })();
+        </script>

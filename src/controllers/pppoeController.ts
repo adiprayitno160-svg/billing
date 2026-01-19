@@ -79,7 +79,12 @@ export async function postPackageCreate(req: Request, res: Response, next: NextF
 			burst_threshold_rx,
 			burst_threshold_tx,
 			burst_time_rx,
-			burst_time_tx
+			burst_time_tx,
+			price_7_days,
+			price_30_days,
+			max_clients,
+			limit_at_download,
+			limit_at_upload
 		} = req.body;
 
 		if (!name) throw new Error('Nama paket wajib diisi');
@@ -101,7 +106,18 @@ export async function postPackageCreate(req: Request, res: Response, next: NextF
 			burst_threshold_rx: burst_threshold_rx || undefined,
 			burst_threshold_tx: burst_threshold_tx || undefined,
 			burst_time_rx: burst_time_rx || undefined,
-			burst_time_tx: burst_time_tx || undefined
+			burst_time_tx: burst_time_tx || undefined,
+			// Prepaid pricing (NEW)
+			price_7_days: price_7_days ? Number(price_7_days) : undefined,
+			price_14_days: price_14_days ? Number(price_14_days) : undefined,
+			price_30_days: price_30_days ? Number(price_30_days) : undefined,
+			is_enabled_7_days: req.body.is_enabled_7_days === '1' || req.body.is_enabled_7_days === 'on' ? 1 : 0,
+			is_enabled_14_days: req.body.is_enabled_14_days === '1' || req.body.is_enabled_14_days === 'on' ? 1 : 0,
+			is_enabled_30_days: req.body.is_enabled_30_days === '1' || req.body.is_enabled_30_days === 'on' ? 1 : 0,
+			// Shared bandwidth settings
+			max_clients: max_clients ? Number(max_clients) : 1,
+			limit_at_download: limit_at_download || undefined,
+			limit_at_upload: limit_at_upload || undefined
 		});
 
 		req.flash('success', 'Paket berhasil dibuat');
@@ -129,7 +145,12 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 			burst_threshold_rx,
 			burst_threshold_tx,
 			burst_time_rx,
-			burst_time_tx
+			burst_time_tx,
+			price_7_days,
+			price_30_days,
+			max_clients,
+			limit_at_download,
+			limit_at_upload
 		} = req.body;
 
 		if (!name) throw new Error('Nama paket wajib diisi');
@@ -152,7 +173,18 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 			burst_threshold_rx: burst_threshold_rx || undefined,
 			burst_threshold_tx: burst_threshold_tx || undefined,
 			burst_time_rx: burst_time_rx || undefined,
-			burst_time_tx: burst_time_tx || undefined
+			burst_time_tx: burst_time_tx || undefined,
+			// Prepaid pricing (NEW)
+			price_7_days: price_7_days ? Number(price_7_days) : undefined,
+			price_14_days: price_14_days ? Number(price_14_days) : undefined,
+			price_30_days: price_30_days ? Number(price_30_days) : undefined,
+			is_enabled_7_days: req.body.is_enabled_7_days === '1' || req.body.is_enabled_7_days === 'on' ? 1 : 0,
+			is_enabled_14_days: req.body.is_enabled_14_days === '1' || req.body.is_enabled_14_days === 'on' ? 1 : 0,
+			is_enabled_30_days: req.body.is_enabled_30_days === '1' || req.body.is_enabled_30_days === 'on' ? 1 : 0,
+			// Shared bandwidth settings
+			max_clients: max_clients ? Number(max_clients) : undefined,
+			limit_at_download: limit_at_download || undefined,
+			limit_at_upload: limit_at_upload || undefined
 		});
 
 		req.flash('success', 'Paket berhasil diupdate');

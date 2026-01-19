@@ -1,0 +1,35 @@
+import { Router } from 'express';
+import { TechnicianController } from '../controllers/technician/TechnicianController';
+import { isAuthenticated } from '../middlewares/authMiddleware';
+
+const router = Router();
+
+// Middleware to ensure user is logged in
+// We don't strictly enforce 'technician' role for ALL routes because 
+// Admins might want to see the dashboard too, or we can handle role checks in controller.
+// But typically, 'technician' dashboard is for technicians.
+// For now, let's allow authenticated users and handle data filtering in controller.
+
+router.get('/', isAuthenticated, TechnicianController.dashboard);
+router.get('/jobs', isAuthenticated, TechnicianController.getJobs);
+router.post('/jobs/accept', isAuthenticated, TechnicianController.acceptJob);
+router.post('/jobs/decline', isAuthenticated, TechnicianController.declineJob);
+import { technicianUpload } from '../middlewares/uploadMiddleware';
+
+router.post('/jobs/complete', isAuthenticated, technicianUpload.single('proof'), TechnicianController.completeJob);
+router.post('/jobs/save', isAuthenticated, TechnicianController.apiSaveJob);
+router.get('/customers/search', isAuthenticated, TechnicianController.apiSearchCustomers);
+router.get('/jobs/:id', isAuthenticated, TechnicianController.getJobDetail);
+
+// Attendance & Salary
+import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController';
+router.post('/attendance/check-in', isAuthenticated, TechnicianSalaryController.checkIn);
+
+// Installation Approval (Admin/Operator only)
+import { InstallationApprovalController } from '../controllers/technician/InstallationApprovalController';
+router.get('/installations/approval', isAuthenticated, InstallationApprovalController.list);
+router.get('/installations/:jobId', isAuthenticated, InstallationApprovalController.getDetail);
+router.post('/installations/approve', isAuthenticated, InstallationApprovalController.approve);
+router.post('/installations/reject', isAuthenticated, InstallationApprovalController.reject);
+
+export default router;

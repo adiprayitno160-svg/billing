@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Calculation Management - Billing System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Tax Calculation Management</h1>
+                    <p class="mt-2 text-gray-600">Manage automatic tax calculations for transactions</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="showCalculator()"
+                        class="bg-success hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center">
+                        <i class="fas fa-calculator mr-2"></i> Calculator
+                    </button>
+                    <button onclick="loadTaxCalculations()"
+                        class="bg-secondary hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <i class="fas fa-receipt text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Tax Calculations</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalCalculations">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Tax Amount</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalTaxAmount">$0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <i class="fas fa-file-invoice-dollar text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Base Amount</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalBaseAmount">$0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <i class="fas fa-percentage text-purple-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Avg Tax Rate</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgTaxRate">0%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="searchInput" placeholder="Search tax calculations..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-2">Transaction Type</label>
+                    <select id="typeFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">All Types</option>
+                        <option value="invoice">Invoice</option>
+                        <option value="payment">Payment</option>
+                        <option value="refund">Refund</option>
+                        <option value="adjustment">Adjustment</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                    <input type="date" id="startDate"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <input type="date" id="endDate"
+                        class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="filterTaxCalculations()"
+                        class="w-full bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-filter mr-2"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Calculation List -->
+        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Transaction ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Base Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Tax Rate</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Tax Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Total with Tax</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calculationsTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Tax calculation rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-6">
+            <div class="text-sm text-gray-700">
+                Showing <span id="startIndex">0</span> to <span id="endIndex">0</span> of <span id="totalCount">0</span>
+                results
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" onclick="previousPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Previous
+                </button>
+                <span class="px-3 py-2 bg-primary text-white rounded-md" id="currentPage">1</span>
+                <button id="nextPage" onclick="nextPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Next
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tax Calculator Modal -->
+    <div id="calculatorModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="border-b px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900">Tax Calculator</h3>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Base Amount</label>
+                        <input type="number" id="baseAmount" step="0.01"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tax Rate (%)</label>
+                        <input type="number" id="taxRate" step="0.01"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tax Amount</label>
+                            <input type="text" id="calculatedTaxAmount" readonly
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Total with Tax</label>
+                            <input type="text" id="calculatedTotalWithTax" readonly
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button type="button" onclick="calculateTax()"
+                        class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        Calculate
+                    </button>
+                    <button type="button" onclick="closeCalculator()"
+                        class="ml-3 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Report Modal -->
+    <div id="reportModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4">
+            <div class="border-b px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900">Monthly Tax Report</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                        <input type="number" id="reportYear" min="2000" max="2100"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                        <select id="reportMonth"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <button onclick="getMonthlyReport()"
+                        class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        Generate Report
+                    </button>
+                </div>
+
+                <div id="reportContent" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <p class="text-sm text-blue-800">Total Base Amount</p>
+                            <p class="text-xl font-bold text-blue-900" id="reportTotalBase">$0.00</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <p class="text-sm text-green-800">Total Tax Amount</p>
+                            <p class="text-xl font-bold text-green-900" id="reportTotalTax">$0.00</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <p class="text-sm text-purple-800">Total with Tax</p>
+                            <p class="text-xl font-bold text-purple-900" id="reportTotalWithTax">$0.00</p>
+                        </div>
+                    </div>
+
+                    <h4 class="text-lg font-semibold mb-4">Daily Breakdown</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Date</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Base Amount</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Tax Amount</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total with Tax</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyBreakdown" class="bg-white divide-y divide-gray-200">
+                                <!-- Daily breakdown rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t px-6 py-4 flex justify-end">
+                <button type="button" onclick="closeReport()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let taxCalculations = [];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let filteredCalculations = [];
+
+        // Load tax calculations on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTaxCalculations();
+        });
+
+        // Load all tax calculations from API
+        async function loadTaxCalculations() {
+            try {
+                showLoading();
+                const response = await fetch('/settings/api/tax-calculations/type/invoice?limit=100');
+                const result = await response.json();
+
+                if (result.success) {
+                    taxCalculations = result.data || [];
+                    filteredCalculations = [...taxCalculations];
+                    updateStats();
+                    renderTable();
+                } else {
+                    showError('Failed to load tax calculations: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading tax calculations: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Update statistics cards
+        function updateStats() {
+            document.getElementById('totalCalculations').textContent = taxCalculations.length;
+
+            if (taxCalculations.length > 0) {
+                const totalBase = taxCalculations.reduce((sum, calc) => sum + parseFloat(calc.base_amount), 0);
+                const totalTax = taxCalculations.reduce((sum, calc) => sum + parseFloat(calc.tax_amount), 0);
+                const avgTaxRate = (taxCalculations.reduce((sum, calc) => sum + parseFloat(calc.tax_rate), 0) / taxCalculations.length).toFixed(2);
+
+                document.getElementById('totalBaseAmount').textContent = '$' + totalBase.toFixed(2);
+                document.getElementById('totalTaxAmount').textContent = '$' + totalTax.toFixed(2);
+                document.getElementById('avgTaxRate').textContent = avgTaxRate + '%';
+            } else {
+                document.getElementById('totalBaseAmount').textContent = '$0.00';
+                document.getElementById('totalTaxAmount').textContent = '$0.00';
+                document.getElementById('avgTaxRate').textContent = '0%';
+            }
+        }
+
+        // Render table with pagination
+        function renderTable() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredCalculations.length);
+            const pageCalculations = filteredCalculations.slice(startIndex, endIndex);
+
+            const tbody = document.getElementById('calculationsTableBody');
+            tbody.innerHTML = '';
+
+            if (pageCalculations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No tax calculations found</td></tr>';
+                document.getElementById('startIndex').textContent = '0';
+                document.getElementById('endIndex').textContent = '0';
+                document.getElementById('totalCount').textContent = '0';
+                document.getElementById('currentPage').textContent = '0';
+                document.getElementById('prevPage').disabled = true;
+                document.getElementById('nextPage').disabled = true;
+                return;
+            }
+
+            pageCalculations.forEach(calc => {
+                const createdAt = new Date(calc.created_at).toLocaleString();
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${calc.transaction_id}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${calc.transaction_type === 'invoice' ? 'bg-blue-100 text-blue-800' :
+                        calc.transaction_type === 'payment' ? 'bg-green-100 text-green-800' :
+                            calc.transaction_type === 'refund' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
+                    }">
+                            ${calc.transaction_type.charAt(0).toUpperCase() + calc.transaction_type.slice(1)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        $${parseFloat(calc.base_amount).toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${parseFloat(calc.tax_rate).toFixed(2)}%
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        $${parseFloat(calc.tax_amount).toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        $${parseFloat(calc.total_with_tax).toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${createdAt}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update pagination info
+            document.getElementById('startIndex').textContent = startIndex + 1;
+            document.getElementById('endIndex').textContent = endIndex;
+            document.getElementById('totalCount').textContent = filteredCalculations.length;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = endIndex >= filteredCalculations.length;
+        }
+
+        // Show calculator modal
+        function showCalculator() {
+            document.getElementById('calculatorModal').classList.remove('hidden');
+        }
+
+        // Close calculator modal
+        function closeCalculator() {
+            document.getElementById('calculatorModal').classList.add('hidden');
+        }
+
+        // Calculate tax
+        function calculateTax() {
+            const baseAmount = parseFloat(document.getElementById('baseAmount').value);
+            const taxRate = parseFloat(document.getElementById('taxRate').value);
+
+            if (isNaN(baseAmount) || isNaN(taxRate)) {
+                showError('Please enter valid base amount and tax rate');
+                return;
+            }
+
+            // Simulate API call to calculate tax
+            const result = {
+                taxAmount: parseFloat((baseAmount * (taxRate / 100)).toFixed(2)),
+                totalWithTax: parseFloat((baseAmount + (baseAmount * (taxRate / 100))).toFixed(2))
+            };
+
+            document.getElementById('calculatedTaxAmount').value = '$' + result.taxAmount.toFixed(2);
+            document.getElementById('calculatedTotalWithTax').value = '$' + result.totalWithTax.toFixed(2);
+        }
+
+        // Show report modal
+        function showReport() {
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+
+            document.getElementById('reportYear').value = currentYear;
+            document.getElementById('reportMonth').value = currentMonth;
+            document.getElementById('reportModal').classList.remove('hidden');
+        }
+
+        // Close report modal
+        function closeReport() {
+            document.getElementById('reportModal').classList.add('hidden');
+        }
+
+        // Get monthly report
+        async function getMonthlyReport() {
+            const year = document.getElementById('reportYear').value;
+            const month = document.getElementById('reportMonth').value;
+
+            if (!year || !month) {
+                showError('Please select both year and month');
+                return;
+            }
+
+            try {
+                showLoading();
+
+                // Simulate API call to get monthly report
+                // In a real implementation, this would call the actual API
+                const report = {
+                    month: parseInt(month),
+                    year: parseInt(year),
+                    totalBaseAmount: 15420.50,
+                    totalTaxAmount: 1542.05,
+                    totalWithTax: 16962.55,
+                    breakdown: [
+                        { date: '2023-05-01', baseAmount: 1200.00, taxAmount: 120.00, totalWithTax: 1320.00 },
+                        { date: '2023-05-02', baseAmount: 950.75, taxAmount: 95.08, totalWithTax: 1045.83 },
+                        { date: '2023-05-03', baseAmount: 2100.00, taxAmount: 210.00, totalWithTax: 2310.00 },
+                        { date: '2023-05-04', baseAmount: 1800.00, taxAmount: 180.00, totalWithTax: 1980.00 },
+                        { date: '2023-05-05', baseAmount: 1500.00, taxAmount: 150.00, totalWithTax: 1650.00 }
+                    ]
+                };
+
+                // Update report content
+                document.getElementById('reportTotalBase').textContent = '$' + report.totalBaseAmount.toFixed(2);
+                document.getElementById('reportTotalTax').textContent = '$' + report.totalTaxAmount.toFixed(2);
+                document.getElementById('reportTotalWithTax').textContent = '$' + report.totalWithTax.toFixed(2);
+
+                const tbody = document.getElementById('dailyBreakdown');
+                tbody.innerHTML = '';
+
+                report.breakdown.forEach(day => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${day.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$${day.baseAmount.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$${day.taxAmount.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">$${day.totalWithTax.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('reportContent').classList.remove('hidden');
+            } catch (error) {
+                showError('Error generating report: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Filter tax calculations based on search and filters
+        function filterTaxCalculations() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            filteredCalculations = taxCalculations.filter(calc => {
+                const matchesSearch = calc.transaction_id.toString().includes(searchTerm);
+                const matchesType = !typeFilter || calc.transaction_type === typeFilter;
+
+                // Check date range if both dates are provided
+                let matchesDate = true;
+                if (startDate && endDate) {
+                    const calcDate = new Date(calc.created_at);
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    matchesDate = calcDate >= start && calcDate <= end;
+                } else if (startDate) {
+                    const calcDate = new Date(calc.created_at);
+                    const start = new Date(startDate);
+                    matchesDate = calcDate >= start;
+                } else if (endDate) {
+                    const calcDate = new Date(calc.created_at);
+                    const end = new Date(endDate);
+                    matchesDate = calcDate <= end;
+                }
+
+                return matchesSearch && matchesType && matchesDate;
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Pagination functions
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredCalculations.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        // Search on input
+        document.getElementById('searchInput').addEventListener('input', filterTaxCalculations);
+
+        // Filter on change
+        document.getElementById('typeFilter').addEventListener('change', filterTaxCalculations);
+
+        // Utility functions
+        function showSuccess(message) {
+            // Create success toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showError(message) {
+            // Create error toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showLoading() {
+            // Show loading indicator
+        }
+
+        function hideLoading() {
+            // Hide loading indicator
+        }
+
+        // Add animation for toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-20px); }
+                10% { opacity: 1; transform: translateY(0); }
+                90% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-20px); }
+            }
+            .animate-fadeInOut {
+                animation: fadeInOut 3s ease-in-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

@@ -11,6 +11,9 @@ type MikroTikSettings = {
 	username: string;
 	password: string;
 	use_tls: boolean;
+	device_name?: string;
+	device_group?: 'primary' | 'secondary' | 'other';
+	is_active?: boolean;
 };
 
 type SSHOLTSettings = {
@@ -295,6 +298,108 @@ export async function getSSHOLTStatistics(req: Request, res: Response): Promise<
 			success: false,
 			message: error?.message || 'Gagal mendapatkan statistik OLT'
 		});
+	}
+}
+
+
+
+export async function getCustomerTierManagement(req: Request, res: Response): Promise<void> {
+	try {
+		res.render('settings/customer-tier-management', {
+			title: 'Customer Tier Management',
+			activeTab: 'customer-tiers'
+		});
+	} catch (error: any) {
+		console.error('Error rendering customer tier management:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
+	}
+}
+
+export async function getSLAContractManagement(req: Request, res: Response): Promise<void> {
+	try {
+		res.render('settings/sla-contract-management', {
+			title: 'SLA Contract Management',
+			activeTab: 'sla-contracts'
+		});
+	} catch (error: any) {
+		console.error('Error rendering SLA contract management:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
+	}
+}
+
+export async function getPaymentReminderManagement(req: Request, res: Response): Promise<void> {
+	try {
+		res.render('settings/payment-reminder-management', {
+			title: 'Payment Reminder Management',
+			activeTab: 'payment-reminders'
+		});
+	} catch (error: any) {
+		console.error('Error rendering payment reminder management:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
+	}
+}
+
+export async function getTaxCalculationManagement(req: Request, res: Response): Promise<void> {
+	try {
+		res.render('settings/tax-calculation-management', {
+			title: 'Tax Calculation Management',
+			activeTab: 'tax-calculations'
+		});
+	} catch (error: any) {
+		console.error('Error rendering tax calculation management:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
+	}
+}
+
+export async function getCreditScoreManagement(req: Request, res: Response): Promise<void> {
+	try {
+		res.render('settings/credit-score-management', {
+			title: 'Credit Score Management',
+			activeTab: 'credit-score'
+		});
+	} catch (error: any) {
+		console.error('Error rendering credit score management:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
+	}
+}
+
+export async function getIntegrationSettings(req: Request, res: Response): Promise<void> {
+	try {
+		res.render('settings/integration-settings', {
+			title: 'Integration Settings',
+			activeTab: 'integrations'
+		});
+	} catch (error: any) {
+		console.error('Error rendering integration settings:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
+	}
+}
+
+export async function printSLAContract(req: Request, res: Response): Promise<void> {
+	try {
+		const id = parseInt(req.params.id);
+		const [rows] = await databasePool.query<RowDataPacket[]>(
+			`SELECT cc.*, c.name as customer_name, c.address as customer_address, 
+			        c.phone as customer_phone, c.email as customer_email
+			 FROM customer_contracts cc
+			 LEFT JOIN customers c ON cc.customer_id = c.id
+			 WHERE cc.id = ?`,
+			[id]
+		);
+
+		if (!rows || rows.length === 0) {
+			res.status(404).render('error', { title: 'Error', message: 'Contract not found' });
+			return;
+		}
+
+		res.render('settings/print-sla-contract', {
+			title: 'Print SLA Contract',
+			contract: rows[0],
+			layout: false // Render without sidebar
+		});
+	} catch (error: any) {
+		console.error('Error rendering print SLA contract:', error);
+		res.status(500).render('error', { title: 'Error', message: error.message });
 	}
 }
 

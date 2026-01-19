@@ -526,6 +526,81 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
     }
 }
 
+// Controller function untuk mengganti paket IP statis pelanggan
+export async function getChangePackageForm(req: Request, res: Response, next: NextFunction) {
+    try {
+        const customerId = Number(req.params.customerId);
+        
+        // Ambil data pelanggan dan paket yang tersedia
+        const conn = await databasePool.getConnection();
+        try {
+            const [customerResult] = await conn.execute(
+                `SELECT c.id as customer_id, c.name as customer_name, sic.package_id, sip.name as current_package_name 
+                 FROM customers c 
+                 JOIN static_ip_clients sic ON c.id = sic.customer_id 
+                 JOIN static_ip_packages sip ON sic.package_id = sip.id 
+                 WHERE c.id = ?`,
+                [customerId]
+            );
+            
+            const [packagesResult] = await conn.execute(
+                `SELECT id, name, max_clients 
+                 FROM static_ip_packages 
+                 WHERE status = 'active' 
+                 ORDER BY name`
+            );
+            
+            // Hitung jumlah client aktif per paket
+            const packagesWithCounts = [];
+            for (const pkg of packagesResult as any[]) {
+                const [countResult] = await conn.execute(
+                    `SELECT COUNT(*) as count FROM static_ip_clients 
+                     WHERE package_id = ? AND status = 'active'`,
+                    [pkg.id]
+                );
+                
+                const currentCount = (countResult as any[])[0].count;
+                packagesWithCounts.push({
+                    ...pkg,
+                    current_count: currentCount,
+                    available_slots: pkg.max_clients - currentCount,
+                    is_available: (pkg.max_clients - currentCount) > 0
+                });
+            }
+            
+            res.render('customers/change_static_ip_package', {
+                title: 'Ganti Paket IP Statis',
+                customer: (customerResult as any[])[0],
+                availablePackages: packagesWithCounts,
+                success: req.flash('success'),
+                error: req.flash('error')
+            });
+        } finally {
+            conn.release();
+        }
+    } catch (err) {
+        next(err);
+    }
+}
+
+export async function postChangePackage(req: Request, res: Response, next: NextFunction) {
+    try {
+        const customerId = Number(req.params.customerId);
+        const newPackageId = Number(req.body.new_package_id);
+        
+        // Import fungsi dari service
+        const { changeCustomerStaticIpPackage } = await import('../services/staticIpClientService');
+        
+        await changeCustomerStaticIpPackage(customerId, newPackageId);
+        
+        req.flash('success', 'Paket IP statis pelanggan berhasil diubah');
+        res.redirect(`/customers`);
+    } catch (err) {
+        req.flash('error', err instanceof Error ? err.message : 'Gagal mengganti paket IP statis');
+        res.redirect(`/customers/${req.params.customerId}/change-package`);
+    }
+}
+
 // Test endpoint untuk debug MikroTik
 export async function testMikrotikIpAdd(req: Request, res: Response, next: NextFunction) {
     try {

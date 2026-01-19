@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { databasePool } from '../db/pool';
 import { checkDatabaseSchema, fixMissingColumns, getDatabaseStatus, runMigration } from '../services/databaseService';
-import { up as runLatePaymentMigration } from '../db/migrations/add-late-payment-tracking';
+// import { up as runLatePaymentMigration } from '../db/migrations/add-late-payment-tracking';
 
 export async function getDatabaseManagement(req: Request, res: Response, next: NextFunction) {
     try {
         const dbStatus = await getDatabaseStatus();
         const schemaIssues = await checkDatabaseSchema();
-        
+
         res.render('database/management', {
             title: 'Database Management',
             dbStatus,
@@ -23,7 +23,7 @@ export async function getDatabaseManagement(req: Request, res: Response, next: N
 export async function fixDatabaseIssues(req: Request, res: Response, next: NextFunction) {
     try {
         const { issueType } = req.body;
-        
+
         switch (issueType) {
             case 'missing_columns':
                 await fixMissingColumns();
@@ -40,7 +40,7 @@ export async function fixDatabaseIssues(req: Request, res: Response, next: NextF
             default:
                 req.flash('error', 'Tipe perbaikan tidak valid');
         }
-        
+
         res.redirect('/database/management');
     } catch (err) {
         req.flash('error', `Gagal memperbaiki database: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -52,7 +52,7 @@ export async function runDatabaseMigration(req: Request, res: Response, next: Ne
     try {
         const { migrationType } = req.body;
         await runMigration(migrationType);
-        
+
         req.flash('success', 'Migrasi database berhasil dijalankan');
         res.redirect('/database/management');
     } catch (err) {
@@ -63,8 +63,9 @@ export async function runDatabaseMigration(req: Request, res: Response, next: Ne
 
 export async function runLatePaymentTrackingMigration(req: Request, res: Response, next: NextFunction) {
     try {
-        await runLatePaymentMigration();
-        
+        // await runLatePaymentMigration();
+        throw new Error('Migration file missing');
+
         req.flash('success', 'Migrasi late payment tracking berhasil dijalankan');
         res.redirect('/database/management');
     } catch (err) {
@@ -94,7 +95,7 @@ async function createMissingIndexes(): Promise<void> {
             'CREATE INDEX IF NOT EXISTS idx_static_ip_clients_package ON static_ip_clients (package_id)',
             'CREATE INDEX IF NOT EXISTS idx_static_ip_clients_status ON static_ip_clients (status)'
         ];
-        
+
         for (const index of indexes) {
             try {
                 await conn.execute(index);

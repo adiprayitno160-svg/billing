@@ -68,7 +68,7 @@ export class PrepaidService {
             // Send WhatsApp notification
             if (sendNotification && customer.phone) {
                 try {
-                    const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+                    const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
 
                     const message = `📢 *INFORMASI PENTING - PERUBAHAN SISTEM PEMBAYARAN*
 
@@ -104,7 +104,7 @@ Ada pertanyaan? Silakan balas pesan ini atau ketik */help*
 
 Terima kasih atas pengertiannya! 🙏`;
 
-                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message);
+                    await WhatsAppClient.sendMessage(customer.phone, message);
                     console.log(`✅ Prepaid migration notification sent to ${customer.name} (${customer.phone})`);
                 } catch (notifError) {
                     console.error('Failed to send WhatsApp notification:', notifError);
@@ -191,11 +191,12 @@ Terima kasih atas pengertiannya! 🙏`;
                 `SELECT id, name, 
                  CASE 
                      WHEN ? = 7 THEN price_7_days
+                     WHEN ? = 14 THEN price_14_days
                      WHEN ? = 30 THEN price_30_days
                      ELSE price
                  END as price
                  FROM pppoe_packages WHERE id = ?`,
-                [durationDays, durationDays, packageId]
+                [durationDays, durationDays, durationDays, packageId]
             );
 
             if (!packages || packages.length === 0) {
@@ -529,7 +530,7 @@ Terima kasih atas pengertiannya! 🙏`;
 
                         // Send WhatsApp Notification
                         if (custRows[0].phone) {
-                            const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+                            const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
 
                             const base = parseFloat(request.base_amount || 0);
                             const disc = parseFloat(request.voucher_discount || 0);
@@ -552,7 +553,7 @@ Terima kasih atas pengertiannya! 🙏`;
                             msg += `Aktif sampai: ${newExpiryDate.toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}\n\n`;
                             msg += `Terima kasih!`;
 
-                            await WhatsAppServiceBaileys.sendMessage(custRows[0].phone, msg);
+                            await WhatsAppClient.sendMessage(custRows[0].phone, msg);
                         }
                     }
                 }
@@ -610,7 +611,7 @@ Terima kasih atas pengertiannya! 🙏`;
         if (customers.length === 0) return { isolatedCount: 0, errors: [] };
 
         const { MikrotikService } = await import('../mikrotik/MikrotikService');
-        const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+        const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
 
         let mikrotik = null;
         try {
@@ -639,7 +640,7 @@ Terima kasih atas pengertiannya! 🙏`;
                 // 3. Notify
                 if (customer.phone) {
                     const message = `⚠️ *LAYANAN INTERNET BERAKHIR*\n\nHalo ${customer.name},\nMasa aktif paket internet Anda telah *HABIS*.\n\nLayanan internet Anda sementara dinonaktifkan.\nUntuk mengaktifkan kembali, silakan lakukan pembelian paket.\n\nKetik */menu* untuk membeli paket.\n\nTerima kasih.`;
-                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message).catch(err => console.error('WA Error:', err));
+                    await WhatsAppClient.sendMessage(customer.phone, message).catch((err: any) => console.error('WA Error:', err));
                 }
 
             } catch (error: any) {
@@ -700,7 +701,7 @@ Terima kasih atas pengertiannya! 🙏`;
         let h3Sent = 0;
         let h1Sent = 0;
 
-        const { WhatsAppServiceBaileys } = await import('../whatsapp/WhatsAppServiceBaileys');
+        const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
 
         // H-3 Notifications
         const customersH3 = await this.getExpiringCustomers(3);
@@ -722,7 +723,7 @@ Ketik */menu* untuk membeli paket.
 
 Terima kasih! 🙏`;
 
-                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message);
+                    await WhatsAppClient.sendMessage(customer.phone, message);
                     h3Sent++;
                     console.log(`📤 Prepaid H-3 reminder sent to ${customer.name}`);
                 } catch (err: any) {
@@ -753,7 +754,7 @@ Ketik */menu* untuk membeli paket.
 
 Terima kasih! 🙏`;
 
-                    await WhatsAppServiceBaileys.sendMessage(customer.phone, message);
+                    await WhatsAppClient.sendMessage(customer.phone, message);
                     h1Sent++;
                     console.log(`📤 Prepaid H-1 reminder sent to ${customer.name}`);
                 } catch (err: any) {

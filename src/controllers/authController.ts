@@ -39,17 +39,17 @@ export class AuthController {
                 req.flash('error', errorMessage);
             }
 
+            // Expose flash and previous username to view
+            res.locals.flash = req.flash();
+            res.locals.username = req.body?.username || '';
+
             res.render('auth/login', {
                 title: 'Login Portal',
-                currentPath: '/login',
                 layout: false // Tidak menggunakan layout untuk halaman login
             });
         } catch (error) {
             console.error('Error loading login form:', error);
-            res.status(500).render('error', {
-                title: 'Error',
-                message: 'Gagal memuat halaman login'
-            });
+            res.status(500).render('error', { title: 'Error', message: 'Gagal memuat halaman login' });
         }
     }
 

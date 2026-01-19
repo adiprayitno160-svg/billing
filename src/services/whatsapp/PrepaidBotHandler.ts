@@ -6,7 +6,7 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { PrepaidService } from '../billing/PrepaidService';
-import { WhatsAppServiceBaileys as WhatsAppService } from './WhatsAppServiceBaileys';
+import { WhatsAppClient } from './WhatsAppClient';
 import fs from 'fs';
 import path from 'path';
 
@@ -24,7 +24,8 @@ export class PrepaidBotHandler {
 
             // Get customer's current package
             const [packages] = await databasePool.query<RowDataPacket[]>(
-                `SELECT pp.id, pp.name, pp.price_7_days, pp.price_30_days,
+                `SELECT pp.id, pp.name, pp.price_7_days, pp.price_14_days, pp.price_30_days,
+                        pp.is_enabled_7_days, pp.is_enabled_14_days, pp.is_enabled_30_days,
                         pr.name as profile_name
                  FROM customers c
                  LEFT JOIN pppoe_profiles pr ON c.pppoe_profile_id = pr.id
@@ -40,10 +41,17 @@ export class PrepaidBotHandler {
 
             const pkg = packages[0];
             const price7Days = parseFloat(pkg.price_7_days || '0');
+            const price14Days = parseFloat(pkg.price_14_days || '0');
             const price30Days = parseFloat(pkg.price_30_days || '0');
 
-            if (price7Days === 0 && price30Days === 0) {
-                return `❌ *Harga Belum Dikonfigurasi*\n\nMaaf, harga paket prabayar belum diatur oleh admin.\nSilakan hubungi admin untuk bantuan.`;
+            const isEnabled7 = !!pkg.is_enabled_7_days;
+            const isEnabled14 = !!pkg.is_enabled_14_days;
+            const isEnabled30 = !!pkg.is_enabled_30_days;
+
+            if ((price7Days === 0 || !isEnabled7) &&
+                (price14Days === 0 || !isEnabled14) &&
+                (price30Days === 0 || !isEnabled30)) {
+                return `❌ *Layanan Prabayar Tidak Aktif*\n\nMaaf, saat ini tidak ada paket prabayar yang tersedia untuk paket Anda.\nSilakan hubungi admin untuk bantuan.`;
             }
 
             // Show package options
@@ -52,21 +60,27 @@ export class PrepaidBotHandler {
 
             message += `*Pilih Durasi:*\n\n`;
 
-            if (price7Days > 0) {
+            if (price7Days > 0 && isEnabled7) {
                 message += `1️⃣ *Paket Mingguan (7 Hari)*\n`;
                 message += `   💰 Harga: Rp ${price7Days.toLocaleString('id-ID')}\n\n`;
             }
 
-            if (price30Days > 0) {
-                message += `2️⃣ *Paket Bulanan (30 Hari)*\n`;
+            if (price14Days > 0 && isEnabled14) {
+                message += `2️⃣ *Paket 2 Minggu (14 Hari)*\n`;
+                message += `   💰 Harga: Rp ${price14Days.toLocaleString('id-ID')}\n\n`;
+            }
+
+            if (price30Days > 0 && isEnabled30) {
+                message += `3️⃣ *Paket Bulanan (30 Hari)*\n`;
                 message += `   💰 Harga: Rp ${price30Days.toLocaleString('id-ID')}\n`;
                 message += `   💡 Lebih hemat!\n\n`;
             }
 
             message += `*Cara Membeli:*\n`;
             message += `Ketik angka pilihan Anda:\n`;
-            if (price7Days > 0) message += `• Ketik *1* untuk paket mingguan\n`;
-            if (price30Days > 0) message += `• Ketik *2* untuk paket bulanan\n`;
+            if (price7Days > 0 && isEnabled7) message += `• Ketik *1* untuk paket mingguan\n`;
+            if (price14Days > 0 && isEnabled14) message += `• Ketik *2* untuk paket 2 minggu\n`;
+            if (price30Days > 0 && isEnabled30) message += `• Ketik *3* untuk paket bulanan\n`;
 
             // Show current expiry info
             if (customer.expiry_date) {
@@ -104,7 +118,7 @@ export class PrepaidBotHandler {
     ): Promise<string> {
         try {
             // Validate selection
-            if (selection !== '1' && selection !== '2') {
+            if (selection !== '1' && selection !== '2' && selection !== '3') {
                 return null; // Not a package selection command
             }
 
@@ -115,7 +129,8 @@ export class PrepaidBotHandler {
 
             // Get package info
             const [packages] = await databasePool.query<RowDataPacket[]>(
-                `SELECT pp.id, pp.name, pp.price_7_days, pp.price_30_days
+                `SELECT pp.id, pp.name, pp.price_7_days, pp.price_14_days, pp.price_30_days,
+                        pp.is_enabled_7_days, pp.is_enabled_14_days, pp.is_enabled_30_days
                  FROM customers c
                  LEFT JOIN pppoe_profiles pr ON c.pppoe_profile_id = pr.id
                  LEFT JOIN pppoe_packages pp ON pr.id = pp.profile_id
@@ -129,10 +144,21 @@ export class PrepaidBotHandler {
             }
 
             const pkg = packages[0];
-            const duration = selection === '1' ? 7 : 30;
-            const price = selection === '1'
-                ? parseFloat(pkg.price_7_days || '0')
-                : parseFloat(pkg.price_30_days || '0');
+            let duration = 0;
+            let price = 0;
+
+            if (selection === '1') {
+                duration = 7;
+                price = parseFloat(pkg.price_7_days || '0');
+            } else if (selection === '2') {
+                duration = 14;
+                price = parseFloat(pkg.price_14_days || '0');
+            } else if (selection === '3') {
+                duration = 30;
+                price = parseFloat(pkg.price_30_days || '0');
+            } else {
+                return `❌ Pilihan paket tidak valid. Silakan pilih 1, 2, atau 3.`;
+            }
 
             if (price === 0) {
                 return `❌ Harga paket ${duration} hari belum dikonfigurasi.\nSilakan pilih paket lain atau hubungi admin.`;
@@ -198,7 +224,8 @@ export class PrepaidBotHandler {
             message += `💡 Jika lewat 1 jam, ketik */beli* lagi untuk kode baru.`;
 
             // Send message first
-            await WhatsAppService.sendMessage(customerPhone, message);
+            const waClient = WhatsAppClient.getInstance();
+            await waClient.sendMessage(customerPhone, message);
 
             // Send QRIS image if exists
             const qrisPath = path.join(process.cwd(), 'public', 'images', 'payments', 'qris.png');
@@ -206,7 +233,8 @@ export class PrepaidBotHandler {
                 try {
                     console.log('[PrepaidBotHandler] 📤 Sending QRIS image...');
 
-                    await WhatsAppService.sendImage(
+                    const waClient = WhatsAppClient.getInstance();
+                    await waClient.sendImage(
                         customerPhone,
                         qrisPath,
                         '📱 Scan QR Code ini untuk pembayaran via QRIS'
@@ -280,7 +308,8 @@ export class PrepaidBotHandler {
 
             message += `Terima kasih telah menggunakan layanan kami! 🙏`;
 
-            await WhatsAppService.sendMessage(customerPhone, message);
+            const waClient = WhatsAppClient.getInstance();
+            await waClient.sendMessage(customerPhone, message);
 
         } catch (error) {
             console.error('[PrepaidBotHandler] Error sending confirmation:', error);

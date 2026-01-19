@@ -49,6 +49,8 @@ import {
     postStaticIpClientDelete,
     getStaticIpClientEdit,
     postStaticIpClientUpdate,
+    getChangePackageForm,
+    postChangePackage,
     testMikrotikIpAdd,
     autoDebugIpStatic
 } from '../controllers/staticIpClientController';
@@ -69,6 +71,7 @@ import whatsappRoutes from './whatsapp';
 import prepaidRoutes from './prepaid';
 import prepaidDashboardRoutes from './prepaidDashboard';
 import toolsRoutes from './tools';
+import technicianRoutes from './technician';
 
 import { pageRouter as notificationPageRouter, apiRouter as notificationApiRouter } from './notification';
 import genieacsRoutes from './genieacs';
@@ -95,6 +98,8 @@ import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 
 // import { BillingDashboardController } from '../controllers/billing/billingDashboardController';
+import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController';
+import { JobTypeController } from '../controllers/technician/JobTypeController';
 import {
     getCustomerList,
     getCustomerDetail,
@@ -277,8 +282,9 @@ router.get('/api/check-notification', async (req, res) => {
             // Cek WhatsApp status
             let whatsappStatus: any = { ready: false, error: 'Not checked' };
             try {
-                const { WhatsAppServiceBaileys: WhatsAppService } = await import('../services/whatsapp/WhatsAppServiceBaileys');
-                whatsappStatus = WhatsAppService.getStatus();
+                const { WhatsAppClient } = await import('../services/whatsapp');
+                const waClient = WhatsAppClient.getInstance();
+                whatsappStatus = waClient.getStatus();
             } catch (e: any) {
                 whatsappStatus = { ready: false, error: e.message };
             }
@@ -324,6 +330,49 @@ router.get('/api/check-notification', async (req, res) => {
 router.get('/', getDashboard);
 router.get('/api/interface-stats', getInterfaceStats);
 router.get('/api/mikrotik/info', getMikrotikInfoApi);
+
+// API endpoint for offline PPPoE customers dashboard alert
+router.get('/api/dashboard/offline-customers', async (req: Request, res: Response) => {
+    try {
+        // Import required services dynamically to avoid circular dependencies
+        const { getMikrotikConfig } = await import('../services/pppoeService');
+        const { getPppoeActiveConnections } = await import('../services/mikrotikService');
+
+        const mikrotikConfig = await getMikrotikConfig();
+        if (!mikrotikConfig) {
+            return res.json({ success: true, customers: [] });
+        }
+
+        const activeSessions = await getPppoeActiveConnections(mikrotikConfig);
+        const onlineUsernames = new Set(activeSessions.map(s => s.name));
+
+        const [allActivePppoe] = await databasePool.query(`
+            SELECT c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+                   c.odc_id, c.odp_id, c.address, c.phone
+            FROM customers c
+            WHERE c.status = 'active' 
+            AND c.connection_type = 'pppoe'
+            AND c.pppoe_username IS NOT NULL 
+            AND c.pppoe_username != ''
+        `) as [RowDataPacket[], any];
+
+        const offlineCustomers = allActivePppoe[0]
+            .filter((customer: any) => !onlineUsernames.has(customer.pppoe_username))
+            .slice(0, 5); // Limit to 5 for dashboard
+
+        res.json({
+            success: true,
+            customers: offlineCustomers
+        });
+    } catch (error: any) {
+        console.error('Error fetching offline customers:', error);
+        res.json({
+            success: true,
+            customers: [],
+            error: error.message
+        });
+    }
+});
 
 // ============ REAL-TIME CUSTOMER TRAFFIC API ============
 // Get real-time traffic for a specific customer from MikroTik
@@ -544,6 +593,33 @@ router.use('/genieacs', genieacsRoutes);
 
 // WiFi Admin routes
 router.use('/wifi-admin', wifiAdminRoutes);
+
+// Technician routes
+// Technician routes (already imported above at line 72)
+router.use('/technician', technicianRoutes);
+router.use('/api/technician', technicianRoutes);
+
+// Admin Specific Routes (manual add for now)
+// ============ NEW ROUTES ============
+
+// 1. Settings: Job Types (Jenis Pekerjaan)
+// import { JobTypeController } from '../controllers/technician/JobTypeController'; // Moved to top
+router.get('/settings/job-types', isAuthenticated, JobTypeController.index);
+router.post('/api/settings/job-types', isAuthenticated, JobTypeController.create);
+router.put('/api/settings/job-types/:id', isAuthenticated, JobTypeController.update);
+router.delete('/api/settings/job-types/:id', isAuthenticated, JobTypeController.delete);
+
+// 2. Admin Technician: Payment Summary & Slip
+// Fixes 404 on /admin/technician/payments/summary
+router.get('/admin/technician/payments/summary', isAuthenticated, TechnicianSalaryController.viewPaymentSummary);
+router.get('/admin/technician/payments/slip/:id', isAuthenticated, TechnicianSalaryController.printSalarySlip);
+// ====================================
+
+// Admin Specific Routes (manual add for now)
+// import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController'; // Moved to top
+router.get('/admin/technician/salary/approval', isAuthenticated, TechnicianSalaryController.viewMonthlyRecap);
+router.post('/admin/technician/salary/approve', isAuthenticated, TechnicianSalaryController.approveSalary);
+
 
 
 
@@ -1517,6 +1593,10 @@ router.post('/packages/static-ip/:id/delete', postStaticIpPackageDelete);
 router.post('/packages/static-ip/:id/update', postStaticIpPackageUpdate);
 router.post('/packages/static-ip/:id/delete-queues', postStaticIpPackageDeleteQueues);
 router.delete('/api/packages/static-ip/:id', apiDeletePackage);
+
+// Routes untuk mengganti paket IP statis pelanggan
+router.get('/customers/:customerId/change-static-ip-package', getChangePackageForm);
+router.post('/customers/:customerId/change-static-ip-package', postChangePackage);
 // Test route first
 router.post('/test-route', (req, res) => {
     console.log('=== TEST ROUTE HIT ===');

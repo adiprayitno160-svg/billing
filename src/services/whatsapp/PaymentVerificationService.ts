@@ -3,7 +3,7 @@
  * Handles payment proof verification using OCR and AI
  */
 
-// Baileys-compatible media interface
+// Media interface compatible with whatsapp-web.js
 interface MediaMessage {
     data: string | Buffer; // base64 string or Buffer
     mimetype?: string;

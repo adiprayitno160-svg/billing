@@ -21,6 +21,12 @@ router.use(isAuthenticated);
 router.get('/', controller.dashboard.bind(controller));
 
 /**
+ * GET /monitoring/sla/analysis/ai-report
+ * Get AI-Enhanced SLA Report
+ */
+router.get('/analysis/ai-report', controller.getAiSlaReport.bind(controller));
+
+/**
  * GET /monitoring/sla/analysis/:customerId
  * Customer SLA Analysis Data
  */

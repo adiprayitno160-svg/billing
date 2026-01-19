@@ -53,7 +53,7 @@ export class AIAnomalyDetectionService {
         results.push(await this.checkSecurityAnomalies(entry));
 
         // Select the highest scoring anomaly
-        const maxAnomaly = results.reduce((max, current) => 
+        const maxAnomaly = results.reduce((max, current) =>
             current.score > max.score ? current : max,
             { isAnomaly: false, type: 'none', score: 0, analysis: { reason: '', severity: 'low' as const } }
         );
@@ -322,7 +322,7 @@ export class AIAnomalyDetectionService {
         // Check for unusual error messages
         const unusualKeywords = ['hack', 'exploit', 'vulnerability', 'breach', 'attack'];
         const message = entry.message.toLowerCase();
-        
+
         for (const keyword of unusualKeywords) {
             if (message.includes(keyword)) {
                 return {
@@ -380,7 +380,7 @@ export class AIAnomalyDetectionService {
             if (entry.type === 'payment' && entry.context) {
                 const paymentAmount = entry.context.amount || 0;
                 const invoiceAmount = entry.context.invoice_amount || 0;
-                
+
                 if (invoiceAmount > 0 && paymentAmount > invoiceAmount * 1.5) {
                     return {
                         isAnomaly: true,
@@ -415,7 +415,7 @@ export class AIAnomalyDetectionService {
     private async checkPerformanceAnomalies(entry: LogEntry): Promise<AnomalyDetectionResult> {
         if (entry.context?.responseTime) {
             const responseTime = entry.context.responseTime;
-            
+
             // Response time > 5 seconds is unusual
             if (responseTime > 5000) {
                 return {
@@ -454,7 +454,7 @@ export class AIAnomalyDetectionService {
         ];
 
         const message = entry.message + (entry.context ? JSON.stringify(entry.context) : '');
-        
+
         for (const pattern of sqlInjectionPatterns) {
             if (pattern.test(message)) {
                 return {
@@ -619,7 +619,40 @@ export class AIAnomalyDetectionService {
             conn.release();
         }
     }
+
+
+    /**
+     * Generate response using Gemini AI
+     */
+    async generateResponse(prompt: string): Promise<string> {
+        try {
+            // Import the GeminiService dynamically to avoid circular dependencies
+            const { GeminiService } = await import('../payment/GeminiService');
+
+            if (!await GeminiService.isEnabled()) {
+                console.warn('Gemini AI is not enabled, using fallback response');
+                return prompt; // Return the prompt as-is for now
+            }
+
+            // Initialize Gemini model
+            await GeminiService['initialize']?.();
+
+            if (!GeminiService['model']) {
+                console.warn('Gemini model not initialized, using fallback response');
+                return prompt;
+            }
+
+            const model = GeminiService['model'];
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+
+            return response.text().trim();
+        } catch (error) {
+            console.error('Error generating AI response:', error);
+            // Fallback response
+            return prompt.split('. ')[0] || prompt; // Just return the first part of the prompt
+        }
+    }
 }
-
-
 

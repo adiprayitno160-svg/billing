@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Tier Management - Billing System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Customer Tier Management</h1>
+                    <p class="mt-2 text-gray-600">Manage customer service level tiers and SLA targets</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="showCreateForm()"
+                        class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                        <i class="fas fa-plus mr-2"></i> Add Tier
+                    </button>
+                    <button onclick="loadTiers()"
+                        class="bg-secondary hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <i class="fas fa-layer-group text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Tiers</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalTiers">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i class="fas fa-shield-alt text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Avg SLA Target</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgSlaTarget">0%</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <i class="fas fa-percentage text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Avg Discount Rate</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgDiscountRate">0%</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <i class="fas fa-users text-purple-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Customers</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalCustomers">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="searchInput" placeholder="Search tiers..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Priority Level</label>
+                    <select id="priorityFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">All Priorities</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="filterTiers()"
+                        class="w-full bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-filter mr-2"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tier List -->
+        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Description</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                SLA Target</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Discount Rate</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Max Discount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Priority</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tiersTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Tier rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-6">
+            <div class="text-sm text-gray-700">
+                Showing <span id="startIndex">0</span> to <span id="endIndex">0</span> of <span id="totalCount">0</span>
+                results
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" onclick="previousPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Previous
+                </button>
+                <span class="px-3 py-2 bg-primary text-white rounded-md" id="currentPage">1</span>
+                <button id="nextPage" onclick="nextPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Next
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <div id="tierModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div class="border-b px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900" id="modalTitle">Add New Tier</h3>
+            </div>
+            <form id="tierForm" class="p-6">
+                <input type="hidden" id="tierId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tier Name *</label>
+                        <input type="text" id="tierName" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Priority Level *</label>
+                        <select id="priorityLevel" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Priority</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">SLA Target (%) *</label>
+                        <input type="number" id="slaTarget" step="0.01" min="0" max="100" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Discount Rate (%) *</label>
+                        <input type="number" id="discountRate" step="0.01" min="0" max="100" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Max Discount (%) *</label>
+                        <input type="number" id="maxDiscountPercent" step="0.01" min="0" max="100" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea id="description" rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700">
+                        Save Tier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let tiers = [];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let filteredTiers = [];
+
+        // Load tiers on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTiers();
+        });
+
+        // Load all tiers from API
+        async function loadTiers() {
+            try {
+                showLoading();
+                const response = await fetch('/settings/api/customer-tiers');
+                const result = await response.json();
+
+                if (result.success) {
+                    tiers = result.data || [];
+                    filteredTiers = [...tiers];
+                    updateStats();
+                    renderTable();
+                } else {
+                    showError('Failed to load tiers: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading tiers: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Update statistics cards
+        function updateStats() {
+            document.getElementById('totalTiers').textContent = tiers.length;
+
+            if (tiers.length > 0) {
+                const avgSla = (tiers.reduce((sum, tier) => sum + parseFloat(tier.sla_target), 0) / tiers.length).toFixed(2);
+                const avgDiscount = (tiers.reduce((sum, tier) => sum + parseFloat(tier.discount_rate), 0) / tiers.length).toFixed(2);
+
+                document.getElementById('avgSlaTarget').textContent = avgSla + '%';
+                document.getElementById('avgDiscountRate').textContent = avgDiscount + '%';
+            } else {
+                document.getElementById('avgSlaTarget').textContent = '0%';
+                document.getElementById('avgDiscountRate').textContent = '0%';
+            }
+
+            // For demo purposes, using a fixed number of customers
+            document.getElementById('totalCustomers').textContent = '1,247';
+        }
+
+        // Render table with pagination
+        function renderTable() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredTiers.length);
+            const pageTiers = filteredTiers.slice(startIndex, endIndex);
+
+            const tbody = document.getElementById('tiersTableBody');
+            tbody.innerHTML = '';
+
+            if (pageTiers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No tiers found</td></tr>';
+                document.getElementById('startIndex').textContent = '0';
+                document.getElementById('endIndex').textContent = '0';
+                document.getElementById('totalCount').textContent = '0';
+                document.getElementById('currentPage').textContent = '0';
+                document.getElementById('prevPage').disabled = true;
+                document.getElementById('nextPage').disabled = true;
+                return;
+            }
+
+            pageTiers.forEach(tier => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${tier.name}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-gray-900">${tier.description || '-'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            ${tier.sla_target}%
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            ${tier.discount_rate}%
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            ${tier.max_discount_percent}%
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tier.priority_level === 'critical' ? 'bg-red-100 text-red-800' :
+                        tier.priority_level === 'high' ? 'bg-orange-100 text-orange-800' :
+                            tier.priority_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                    }">
+                            ${tier.priority_level.charAt(0).toUpperCase() + tier.priority_level.slice(1)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="showEditForm(${tier.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteTier(${tier.id})" class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update pagination info
+            document.getElementById('startIndex').textContent = startIndex + 1;
+            document.getElementById('endIndex').textContent = endIndex;
+            document.getElementById('totalCount').textContent = filteredTiers.length;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = endIndex >= filteredTiers.length;
+        }
+
+        // Show create form
+        function showCreateForm() {
+            document.getElementById('tierForm').reset();
+            document.getElementById('tierId').value = '';
+            document.getElementById('modalTitle').textContent = 'Add New Tier';
+            document.getElementById('tierModal').classList.remove('hidden');
+        }
+
+        // Show edit form
+        async function showEditForm(id) {
+            try {
+                const response = await fetch(`/settings/api/customer-tiers/${id}`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const tier = result.data;
+
+                    document.getElementById('tierId').value = tier.id;
+                    document.getElementById('tierName').value = tier.name;
+                    document.getElementById('description').value = tier.description || '';
+                    document.getElementById('slaTarget').value = tier.sla_target;
+                    document.getElementById('discountRate').value = tier.discount_rate;
+                    document.getElementById('maxDiscountPercent').value = tier.max_discount_percent;
+                    document.getElementById('priorityLevel').value = tier.priority_level;
+                    document.getElementById('modalTitle').textContent = 'Edit Tier';
+
+                    document.getElementById('tierModal').classList.remove('hidden');
+                } else {
+                    showError('Failed to load tier data: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading tier data: ' + error.message);
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('tierModal').classList.add('hidden');
+        }
+
+        // Handle form submission
+        document.getElementById('tierForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const id = document.getElementById('tierId').value;
+            const formData = {
+                name: document.getElementById('tierName').value,
+                description: document.getElementById('description').value,
+                sla_target: parseFloat(document.getElementById('slaTarget').value),
+                discount_rate: parseFloat(document.getElementById('discountRate').value),
+                max_discount_percent: parseFloat(document.getElementById('maxDiscountPercent').value),
+                priority_level: document.getElementById('priorityLevel').value
+            };
+
+            try {
+                let response;
+                if (id) {
+                    // Update existing tier
+                    response = await fetch(`/settings/api/customer-tiers/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                } else {
+                    // Create new tier
+                    response = await fetch('/settings/api/customer-tiers', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(id ? 'Tier updated successfully!' : 'Tier created successfully!');
+                    closeModal();
+                    loadTiers();
+                } else {
+                    showError(result.message || 'Operation failed');
+                }
+            } catch (error) {
+                showError('Error saving tier: ' + error.message);
+            }
+        });
+
+        // Delete tier
+        async function deleteTier(id) {
+            if (!confirm('Are you sure you want to delete this tier?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/settings/api/customer-tiers/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Tier deleted successfully!');
+                    loadTiers();
+                } else {
+                    showError(result.message || 'Delete failed');
+                }
+            } catch (error) {
+                showError('Error deleting tier: ' + error.message);
+            }
+        }
+
+        // Filter tiers based on search and priority
+        function filterTiers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const priorityFilter = document.getElementById('priorityFilter').value;
+
+            filteredTiers = tiers.filter(tier => {
+                const matchesSearch = tier.name.toLowerCase().includes(searchTerm) ||
+                    tier.description.toLowerCase().includes(searchTerm);
+                const matchesPriority = !priorityFilter || tier.priority_level === priorityFilter;
+
+                return matchesSearch && matchesPriority;
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Pagination functions
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredTiers.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        // Search on input
+        document.getElementById('searchInput').addEventListener('input', filterTiers);
+
+        // Priority filter change
+        document.getElementById('priorityFilter').addEventListener('change', filterTiers);
+
+        // Utility functions
+        function showSuccess(message) {
+            // Create success toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showError(message) {
+            // Create error toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showLoading() {
+            // Show loading indicator
+        }
+
+        function hideLoading() {
+            // Hide loading indicator
+        }
+
+        // Add animation for toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-20px); }
+                10% { opacity: 1; transform: translateY(0); }
+                90% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-20px); }
+            }
+            .animate-fadeInOut {
+                animation: fadeInOut 3s ease-in-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

@@ -46,6 +46,8 @@ router.get('/sla', (req, res) => controller.getSLAAnalyticsPage(req, res));
 router.get('/sla/analysis/:customerId', (req, res) => controller.getCustomerSLAAnalysis(req, res));
 
 // Monitoring AI page
+router.get('/ai', (req, res) => controller.getAIAnalyticsPage(req, res));
+
 // Usage monitoring
 router.get('/usage/:customerId/graph', (req, res) => controller.getBandwidthTrend(req, res));
 
@@ -57,5 +59,8 @@ router.get('/trouble/report', (req, res) => {
         currentPath: '/monitoring/trouble/report'
     });
 });
+
+// Manual sync route
+router.post('/sync', (req, res) => controller.syncManually(req, res));
 
 export default router;

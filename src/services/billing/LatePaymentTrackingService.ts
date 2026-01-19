@@ -427,19 +427,22 @@ Terima kasih.`;
 
         while (retries > 0 && !sent) {
           try {
-            const { WhatsAppServiceBaileys: WhatsAppService } = await import('../whatsapp/WhatsAppServiceBaileys');
-            const result = await WhatsAppService.sendMessage(customer.phone, message, {
-              customerId: customerId,
-              template: count === 3 ? 'late_payment_warning_3' : 'late_payment_warning_4'
-            });
-            sent = result.success;
+            // Use new client
+            const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
+            const waClient = WhatsAppClient.getInstance();
+            // WhatsAppClient message returns void currently, so we assume success if no throw
+            // or we might want to update sendmessage to return id
+            await waClient.sendMessage(customer.phone, message);
+            sent = true;
+
             if (sent) {
               console.log(`✅ Late payment warning sent to customer ${customerId}`);
             }
           } catch (error) {
             retries--;
+            console.error(`❌ Failed attempt ${3 - retries} to send warning to customer ${customerId}:`, error);
             if (retries === 0) {
-              console.error(`❌ Failed to send warning to customer ${customerId} after 3 retries:`, error);
+              console.error(`❌ Failed to send warning to customer ${customerId} after 3 retries.`);
             } else {
               await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
             }

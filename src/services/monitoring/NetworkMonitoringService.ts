@@ -8,9 +8,10 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { GenieacsService } from '../genieacs/GenieacsService';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { WhatsAppServiceBaileys } from '../whatsapp/WhatsAppServiceBaileys';
+import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
 import { getMikrotikConfig } from '../pppoeService';
 import { getPppoeActiveConnections } from '../mikrotikService';
+import notificationServiceInstance from './CustomerNotificationService';
 
 const execAsync = promisify(exec);
 
@@ -164,6 +165,7 @@ export class NetworkMonitoringService {
             const [customers] = await databasePool.query<RowDataPacket[]>(
                 `SELECT c.id, c.name, c.customer_code, c.connection_type, c.status, 
                         c.latitude, c.longitude, c.address, c.pppoe_username, c.odc_id, c.odp_id,
+                        c.ignore_monitoring_start, c.ignore_monitoring_end,
                         sic.ip_address as static_ip_address
                  FROM customers c
                  LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
@@ -198,7 +200,9 @@ export class NetworkMonitoringService {
                     color: customer.status === 'active' ? '#3B82F6' : '#9CA3AF',
                     metadata: JSON.stringify({
                         connection_type: customer.connection_type,
-                        pppoe_username: customer.pppoe_username
+                        pppoe_username: customer.pppoe_username,
+                        ignore_start: customer.ignore_monitoring_start,
+                        ignore_end: customer.ignore_monitoring_end
                     })
                 };
 
@@ -764,8 +768,32 @@ export class NetworkMonitoringService {
                         const metadata = device.metadata || {};
                         const username = metadata.pppoe_username;
 
+                        // Check Ignore Schedule (Warung Logic)
+                        let isIgnored = false;
+                        if (metadata.ignore_start && metadata.ignore_end) {
+                            const now = new Date();
+                            // If timezone is crucial, ensure server time is WIB (UTC+7) or use offset
+                            // Assuming server local time is correct for now (User said Windows OS presumably local)
+
+                            const [sH, sM] = metadata.ignore_start.split(':').map(Number);
+                            const [eH, eM] = metadata.ignore_end.split(':').map(Number);
+                            const currentMins = now.getHours() * 60 + now.getMinutes();
+                            const startMins = sH * 60 + sM;
+                            const endMins = eH * 60 + eM;
+
+                            if (startMins < endMins) {
+                                isIgnored = currentMins >= startMins && currentMins <= endMins;
+                            } else {
+                                isIgnored = currentMins >= startMins || currentMins <= endMins;
+                            }
+                        }
+
                         if (username) {
                             const isOnline = activeUsernames.has(username);
+                            // If IGNORED and OFFLINE, treat as "intentional_offline" (status offline but flag set)
+                            // OR maybe treat as online/unknown?
+                            // User wants it to NOT notify.
+
                             const newStatus = isOnline ? 'online' : 'offline';
 
                             const session = sessionMap.get(username);
@@ -774,6 +802,7 @@ export class NetworkMonitoringService {
                                 status: newStatus as any,
                                 metadata: {
                                     ...metadata,
+                                    is_ignored: isIgnored, // Flag for frontend
                                     session_info: session ? {
                                         uptime: session.uptime,
                                         address: session.address,
@@ -781,6 +810,15 @@ export class NetworkMonitoringService {
                                     } : null
                                 }
                             };
+                        } else {
+                            // Static IP or non-PPPoE also check schedule
+                            return {
+                                ...device,
+                                metadata: {
+                                    ...metadata,
+                                    is_ignored: isIgnored
+                                }
+                            }
                         }
                     }
                     return device;
@@ -962,10 +1000,7 @@ export class NetworkMonitoringService {
             console.log(`  📢 Sending mass outage notification to ${affectedCustomers.length} customers...`);
 
             // Send notifications
-            // Import WhatsAppService dynamically to avoid circular dependency issues if any, 
-            // or just use the imported class if I added the import. 
-            // I will add the import at top of file, but to be safe I'll assume it is available.
-            const { WhatsAppService } = require('../whatsapp/WhatsAppService');
+            const waClient = WhatsAppClient.getInstance();
 
             const message = `⚠️ *PEMBERITAHUAN GANGGUAN JARINGAN*\n\n` +
                 `Pelanggan Yth,\n` +
@@ -977,9 +1012,7 @@ export class NetworkMonitoringService {
             let sentCount = 0;
             for (const customer of affectedCustomers) {
                 try {
-                    // Send to customer phone
-                    // Need to format phone if needed, but WhatsAppService usually handles some
-                    await WhatsAppService.sendMessage(customer.phone, message);
+                    await waClient.sendMessage(customer.phone, message);
                     sentCount++;
                 } catch (err) {
                     console.error(`  ❌ Failed to send to ${customer.name}:`, err);
@@ -988,6 +1021,53 @@ export class NetworkMonitoringService {
 
             console.log(`  ✅ Notification sent to ${sentCount}/${affectedCustomers.length} customers.`);
 
+            // ============================================
+            // Auto-create Technician Job
+            // ============================================
+            const [existingJobs] = await databasePool.query<RowDataPacket[]>(
+                `SELECT id FROM technician_jobs 
+                 WHERE title LIKE ? AND status IN ('pending', 'in_progress', 'accepted') 
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 12 HOUR)
+                 LIMIT 1`,
+                [`%${deviceName} Down%`]
+            );
+
+            if (existingJobs.length === 0) {
+                console.log(`  🛠️ Creating technician job for device failure: ${deviceName}`);
+
+                let coordinates = null;
+                let description = `Perangkat ${deviceType.toUpperCase()} ${deviceName} terdeteksi down. Indikasi gangguan massal pada ${affectedCustomers.length} pelanggan.`;
+
+                // Attempt to get coordinates
+                const [deviceInfo] = await databasePool.query<RowDataPacket[]>(
+                    `SELECT latitude, longitude, address FROM network_devices WHERE id = ?`,
+                    [deviceId]
+                );
+
+                if (deviceInfo.length > 0) {
+                    const d = deviceInfo[0];
+                    if (d.latitude && d.longitude) {
+                        coordinates = `${d.latitude}, ${d.longitude}`;
+                    }
+                    if (d.address) {
+                        description += `\nAlamat: ${d.address}`;
+                    }
+                }
+
+                // Dynamic import to avoid circular dependency
+                const { TechnicianController } = await import('../../controllers/technician/TechnicianController');
+
+                await TechnicianController.createJob({
+                    title: `URGENT: ${deviceType.toUpperCase()} ${deviceName} Down`,
+                    description: description,
+                    priority: 'critical',
+                    coordinates: coordinates || undefined,
+                    reported_by: 'system_monitor'
+                });
+            } else {
+                console.log(`  ℹ️ Technician job for ${deviceName} already exists.`);
+            }
+
         } catch (error) {
             console.error('❌ Error handling mass outage:', error);
         }
@@ -995,10 +1075,11 @@ export class NetworkMonitoringService {
 
 
     /**
-     * Get all troubled customers (Offline, Maintenance, High Latency, etc.)
-     * Consolidated logic from dashboard
+     * Enhanced trouble customer detection with notifications
+     * Tracks offline, timeout, error, and recovery events
      */
-    static async getTroubleCustomers(): Promise<any[]> {
+    static async getTroubleCustomers(notify: boolean = false): Promise<any[]> {
+        const notificationService = notificationServiceInstance;
         try {
             // Check which tables exist
             const [tables] = await databasePool.query("SHOW TABLES") as any[];
@@ -1052,7 +1133,8 @@ export class NetworkMonitoringService {
                     FROM customers c
                     INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
                     WHERE m.status IN ('scheduled', 'in_progress')
-                        AND c.status IN ('active', 'suspended')
+                        AND c.status = 'active'
+                        ${isolatedFilter}
                 `);
             }
 
@@ -1070,7 +1152,7 @@ export class NetworkMonitoringService {
                     INNER JOIN static_ip_ping_status sips ON c.id = sips.customer_id
                     WHERE c.connection_type = 'static_ip'
                         AND sips.status = 'offline'
-                        AND c.status IN ('active', 'suspended')
+                        AND c.status = 'active'
                         ${isolatedFilter}
                         AND sips.last_check >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
                 `);
@@ -1099,7 +1181,7 @@ export class NetworkMonitoringService {
                         AND cl_latest.service_type = 'pppoe'
                     WHERE c.connection_type = 'pppoe'
                         AND cl_latest.status = 'offline'
-                        AND c.status IN ('active', 'suspended')
+                        AND c.status = 'active'
                         ${isolatedFilter}
                         AND NOT EXISTS (
                             SELECT 1 FROM connection_logs cl2
@@ -1123,7 +1205,8 @@ export class NetworkMonitoringService {
                     FROM customers c
                     INNER JOIN sla_incidents si ON c.id = si.customer_id
                     WHERE si.status = 'ongoing'
-                        AND c.status IN ('active', 'suspended')
+                        AND c.status = 'active'
+                        ${isolatedFilter}
                 `);
             }
 
@@ -1140,6 +1223,7 @@ export class NetworkMonitoringService {
                     FROM customers c
                     INNER JOIN tickets t ON c.id = t.customer_id
                     WHERE t.status = 'open'
+                        AND c.status = 'active'
                 `);
             }
 
@@ -1241,21 +1325,56 @@ export class NetworkMonitoringService {
                         }
                     }
 
-                    // Send notifications for newly offline customers (offline trouble_type)
-                    for (const cust of rows as any[]) {
-                        if (cust.trouble_type === 'offline') {
-                            const isOnline = onlineUsernames.has(cust.pppoe_username);
-                            if (!isOnline && cust.phone) {
-                                const message = `⚠️ *Pemberitahuan Gangguan*\n\nPelanggan ${cust.name} (${cust.customer_code}) terdeteksi offline. Tim kami sedang menindaklanjuti.`;
-                                try {
-                                    // Normally we should check if message was already sent recently
-                                    // Suppressing error to avoid breaking the dashboard view
-                                    await WhatsAppServiceBaileys.sendMessage(cust.phone, message);
-                                } catch (err) {
-                                    console.error('Failed to send trouble notification (suppressed):', err);
+                    // Enhanced notification system with recovery tracking
+                    if (notify) {
+                        // Track customer states for recovery detection
+                        const previousStates = await this.getPreviousCustomerStates();
+                                    
+                        for (const cust of rows as any[]) {
+                            if (cust.trouble_type === 'offline') {
+                                const isOnline = onlineUsernames.has(cust.pppoe_username);
+                                const wasOnlinePreviously = previousStates.get(cust.id) === 'online';
+                                            
+                                if (!isOnline) {
+                                    // New offline event - send trouble notification
+                                    await notificationService.sendTroubleNotification(
+                                        {
+                                            id: cust.id,
+                                            name: cust.name,
+                                            customer_code: cust.customer_code,
+                                            phone: cust.phone,
+                                            connection_type: cust.connection_type,
+                                            pppoe_username: cust.pppoe_username,
+                                            ip_address: cust.ip_address,
+                                            odc_id: cust.odc_id,
+                                            odp_id: cust.odp_id,
+                                            address: cust.address
+                                        },
+                                        'offline'
+                                    );
+                                } else if (wasOnlinePreviously) {
+                                    // Recovery event - customer came back online
+                                    await notificationService.sendTroubleNotification(
+                                        {
+                                            id: cust.id,
+                                            name: cust.name,
+                                            customer_code: cust.customer_code,
+                                            phone: cust.phone,
+                                            connection_type: cust.connection_type,
+                                            pppoe_username: cust.pppoe_username,
+                                            ip_address: cust.ip_address,
+                                            odc_id: cust.odc_id,
+                                            odp_id: cust.odp_id,
+                                            address: cust.address
+                                        },
+                                        'recovered'
+                                    );
                                 }
                             }
                         }
+                                    
+                        // Update customer states for next comparison
+                        await this.updateCustomerStates(rows as any[], onlineUsernames);
                     }
 
                 }
@@ -1325,6 +1444,144 @@ export class NetworkMonitoringService {
         } catch (error) {
             console.error('Error fetching trouble customers in service:', error);
             return [];
+        }
+    }
+
+    /**
+     * Get previous customer states for recovery detection
+     */
+    private static async getPreviousCustomerStates(): Promise<Map<number, string>> {
+        try {
+            const [states] = await databasePool.query<RowDataPacket[]>(
+                `SELECT customer_id, status FROM customer_current_states`
+            );
+            
+            const stateMap = new Map<number, string>();
+            (states as any[]).forEach(state => {
+                stateMap.set(state.customer_id, state.status);
+            });
+            
+            return stateMap;
+        } catch (error) {
+            console.error('Error fetching previous customer states:', error);
+            return new Map();
+        }
+    }
+
+    /**
+     * Update customer states for next comparison
+     */
+    private static async updateCustomerStates(customers: any[], onlineUsernames: Set<string>): Promise<void> {
+        try {
+            // Create temporary table if not exists
+            await databasePool.query(`
+                CREATE TABLE IF NOT EXISTS customer_current_states (
+                    customer_id INT PRIMARY KEY,
+                    status VARCHAR(20),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+            `);
+            
+            // Update states for all customers
+            for (const customer of customers) {
+                const status = customer.pppoe_username && onlineUsernames.has(customer.pppoe_username) 
+                    ? 'online' 
+                    : 'offline';
+                
+                await databasePool.query(
+                    `INSERT INTO customer_current_states (customer_id, status) 
+                     VALUES (?, ?) 
+                     ON DUPLICATE KEY UPDATE status = VALUES(status), updated_at = CURRENT_TIMESTAMP`,
+                    [customer.id, status]
+                );
+            }
+        } catch (error) {
+            console.error('Error updating customer states:', error);
+        }
+    }
+
+    /**
+     * Enhanced timeout detection for static IP customers
+     */
+    static async detectTimeoutIssues(): Promise<void> {
+        try {
+            const notificationService = notificationServiceInstance;
+            
+            // Find customers with consecutive failures indicating timeout
+            const [timeoutCustomers] = await databasePool.query<RowDataPacket[]>(`
+                SELECT 
+                    c.id, c.name, c.customer_code, c.phone, c.connection_type,
+                    sips.consecutive_failures, sips.last_check, sips.response_time_ms
+                FROM customers c
+                INNER JOIN static_ip_ping_status sips ON c.id = sips.customer_id
+                WHERE sips.consecutive_failures >= 3
+                AND c.status = 'active'
+                AND c.phone IS NOT NULL
+                AND c.notification_enabled = 1
+            `);
+
+            for (const customer of timeoutCustomers as any[]) {
+                await notificationService.sendTroubleNotification(
+                    {
+                        id: customer.id,
+                        name: customer.name,
+                        customer_code: customer.customer_code,
+                        phone: customer.phone,
+                        connection_type: customer.connection_type
+                    },
+                    'timeout',
+                    {
+                        consecutive_failures: customer.consecutive_failures,
+                        last_check: customer.last_check,
+                        response_time: customer.response_time_ms
+                    }
+                );
+            }
+
+        } catch (error) {
+            console.error('Error detecting timeout issues:', error);
+        }
+    }
+
+    /**
+     * Detect degraded performance issues
+     */
+    static async detectDegradedPerformance(): Promise<void> {
+        try {
+            const notificationService = notificationServiceInstance;
+            
+            // Find customers with degraded performance
+            const [degradedCustomers] = await databasePool.query<RowDataPacket[]>(`
+                SELECT 
+                    c.id, c.name, c.customer_code, c.phone, c.connection_type,
+                    sips.response_time_ms, sips.packet_loss_percent
+                FROM customers c
+                INNER JOIN static_ip_ping_status sips ON c.id = sips.customer_id
+                WHERE (sips.response_time_ms > 300 OR sips.packet_loss_percent > 10)
+                AND c.status = 'active'
+                AND c.phone IS NOT NULL
+                AND c.notification_enabled = 1
+            `);
+
+            for (const customer of degradedCustomers as any[]) {
+                await notificationService.sendTroubleNotification(
+                    {
+                        id: customer.id,
+                        name: customer.name,
+                        customer_code: customer.customer_code,
+                        phone: customer.phone,
+                        connection_type: customer.connection_type
+                    },
+                    'degraded',
+                    {
+                        latency: customer.response_time_ms,
+                        packetLoss: customer.packet_loss_percent
+                    }
+                );
+            }
+
+        } catch (error) {
+            console.error('Error detecting degraded performance:', error);
         }
     }
 

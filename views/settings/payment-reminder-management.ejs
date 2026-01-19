@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Reminder Management - Billing System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Payment Reminder Management</h1>
+                    <p class="mt-2 text-gray-600">Manage automated payment reminders for overdue invoices</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="sendPaymentReminders()"
+                        class="bg-warning hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center">
+                        <i class="fas fa-paper-plane mr-2"></i> Send Reminders
+                    </button>
+                    <button onclick="loadReminders()"
+                        class="bg-secondary hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <i class="fas fa-envelope-open-text text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Reminders</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalReminders">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Pending</p>
+                        <p class="text-2xl font-bold text-gray-900" id="pendingReminders">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Sent</p>
+                        <p class="text-2xl font-bold text-gray-900" id="sentReminders">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <i class="fas fa-inbox text-purple-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Delivered</p>
+                        <p class="text-2xl font-bold text-gray-900" id="deliveredReminders">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Failed</p>
+                        <p class="text-2xl font-bold text-gray-900" id="failedReminders">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white p-6 rounded-lg shadow-sm border mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="searchInput" placeholder="Search reminders..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="statusFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="sent">Sent</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Reminder Level</label>
+                    <select id="levelFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">All Levels</option>
+                        <option value="1">Level 1 (First Notice)</option>
+                        <option value="2">Level 2 (Second Notice)</option>
+                        <option value="3">Level 3 (Final Notice)</option>
+                        <option value="4">Level 4 (Collection)</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="filterReminders()"
+                        class="w-full bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-filter mr-2"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reminder List -->
+        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Customer</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Invoice</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Level</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Method</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Sent Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="remindersTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Reminder rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-6">
+            <div class="text-sm text-gray-700">
+                Showing <span id="startIndex">0</span> to <span id="endIndex">0</span> of <span id="totalCount">0</span>
+                results
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" onclick="previousPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Previous
+                </button>
+                <span class="px-3 py-2 bg-primary text-white rounded-md" id="currentPage">1</span>
+                <button id="nextPage" onclick="nextPage()"
+                    class="px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50">
+                    Next
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <div id="reminderModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div class="border-b px-6 py-4">
+                <h3 class="text-lg font-semibold text-gray-900" id="modalTitle">Add New Reminder</h3>
+            </div>
+            <form id="reminderForm" class="p-6">
+                <input type="hidden" id="reminderId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Customer ID *</label>
+                        <input type="number" id="customerId" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Invoice ID</label>
+                        <input type="number" id="invoiceId"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Reminder Level *</label>
+                        <select id="reminderLevel" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Level</option>
+                            <option value="1">Level 1 (First Notice)</option>
+                            <option value="2">Level 2 (Second Notice)</option>
+                            <option value="3">Level 3 (Final Notice)</option>
+                            <option value="4">Level 4 (Collection)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Method *</label>
+                        <select id="method" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Method</option>
+                            <option value="email">Email</option>
+                            <option value="sms">SMS</option>
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="phone">Phone</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                        <select id="status" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="sent">Sent</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                        <textarea id="notes" rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700">
+                        Save Reminder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let reminders = [];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let filteredReminders = [];
+
+        // Load reminders on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadReminders();
+        });
+
+        // Load all reminders from API
+        async function loadReminders() {
+            try {
+                showLoading();
+                const response = await fetch('/settings/api/payment-reminders/recent?limit=100');
+                const result = await response.json();
+
+                if (result.success) {
+                    reminders = result.data || [];
+                    filteredReminders = [...reminders];
+                    updateStats();
+                    renderTable();
+                } else {
+                    showError('Failed to load reminders: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading reminders: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Update statistics cards
+        function updateStats() {
+            document.getElementById('totalReminders').textContent = reminders.length;
+
+            const pending = reminders.filter(r => r.status === 'pending').length;
+            const sent = reminders.filter(r => r.status === 'sent').length;
+            const delivered = reminders.filter(r => r.status === 'delivered').length;
+            const failed = reminders.filter(r => r.status === 'failed').length;
+
+            document.getElementById('pendingReminders').textContent = pending;
+            document.getElementById('sentReminders').textContent = sent;
+            document.getElementById('deliveredReminders').textContent = delivered;
+            document.getElementById('failedReminders').textContent = failed;
+        }
+
+        // Render table with pagination
+        function renderTable() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredReminders.length);
+            const pageReminders = filteredReminders.slice(startIndex, endIndex);
+
+            const tbody = document.getElementById('remindersTableBody');
+            tbody.innerHTML = '';
+
+            if (pageReminders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No reminders found</td></tr>';
+                document.getElementById('startIndex').textContent = '0';
+                document.getElementById('endIndex').textContent = '0';
+                document.getElementById('totalCount').textContent = '0';
+                document.getElementById('currentPage').textContent = '0';
+                document.getElementById('prevPage').disabled = true;
+                document.getElementById('nextPage').disabled = true;
+                return;
+            }
+
+            pageReminders.forEach(reminder => {
+                const sentDate = new Date(reminder.sent_date).toLocaleString();
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">Customer ${reminder.customer_id}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${reminder.invoice_id ? 'INV-' + reminder.invoice_id : 'N/A'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${reminder.reminder_level === 1 ? 'bg-blue-100 text-blue-800' :
+                        reminder.reminder_level === 2 ? 'bg-yellow-100 text-yellow-800' :
+                            reminder.reminder_level === 3 ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                    }">
+                            Level ${reminder.reminder_level}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${reminder.method}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${reminder.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        reminder.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                            reminder.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                'bg-red-100 text-red-800'
+                    }">
+                            ${reminder.status.charAt(0).toUpperCase() + reminder.status.slice(1)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${sentDate}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="showEditForm(${reminder.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="updateStatus(${reminder.id})" class="text-green-600 hover:text-green-900 mr-3">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button onclick="deleteReminder(${reminder.id})" class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update pagination info
+            document.getElementById('startIndex').textContent = startIndex + 1;
+            document.getElementById('endIndex').textContent = endIndex;
+            document.getElementById('totalCount').textContent = filteredReminders.length;
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = endIndex >= filteredReminders.length;
+        }
+
+        // Show create form
+        function showCreateForm() {
+            document.getElementById('reminderForm').reset();
+            document.getElementById('reminderId').value = '';
+            document.getElementById('modalTitle').textContent = 'Add New Reminder';
+            document.getElementById('reminderModal').classList.remove('hidden');
+        }
+
+        // Show edit form
+        async function showEditForm(id) {
+            try {
+                const response = await fetch(`/settings/api/payment-reminders/${id}`);
+                // Since we don't have a direct API to get a single reminder, we'll simulate it
+                const reminder = reminders.find(r => r.id === id);
+
+                if (reminder) {
+                    document.getElementById('reminderId').value = reminder.id;
+                    document.getElementById('customerId').value = reminder.customer_id;
+                    document.getElementById('invoiceId').value = reminder.invoice_id || '';
+                    document.getElementById('reminderLevel').value = reminder.reminder_level;
+                    document.getElementById('method').value = reminder.method;
+                    document.getElementById('status').value = reminder.status;
+                    document.getElementById('notes').value = reminder.notes || '';
+                    document.getElementById('modalTitle').textContent = 'Edit Reminder';
+
+                    document.getElementById('reminderModal').classList.remove('hidden');
+                } else {
+                    showError('Reminder not found');
+                }
+            } catch (error) {
+                showError('Error loading reminder data: ' + error.message);
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('reminderModal').classList.add('hidden');
+        }
+
+        // Handle form submission
+        document.getElementById('reminderForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const id = document.getElementById('reminderId').value;
+            const formData = {
+                customer_id: parseInt(document.getElementById('customerId').value),
+                invoice_id: document.getElementById('invoiceId').value ? parseInt(document.getElementById('invoiceId').value) : null,
+                reminder_level: parseInt(document.getElementById('reminderLevel').value),
+                method: document.getElementById('method').value,
+                status: document.getElementById('status').value,
+                notes: document.getElementById('notes').value || null
+            };
+
+            try {
+                let response;
+                if (id) {
+                    // For now, we'll simulate updating the status only
+                    response = await fetch(`/settings/api/payment-reminders/${id}/status`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            status: formData.status,
+                            notes: formData.notes
+                        })
+                    });
+                } else {
+                    // Create new reminder
+                    response = await fetch('/settings/api/payment-reminders', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(id ? 'Reminder status updated successfully!' : 'Reminder created successfully!');
+                    closeModal();
+                    loadReminders();
+                } else {
+                    showError(result.message || 'Operation failed');
+                }
+            } catch (error) {
+                showError('Error saving reminder: ' + error.message);
+            }
+        });
+
+        // Update status
+        async function updateStatus(id) {
+            const reminder = reminders.find(r => r.id === id);
+            if (!reminder) {
+                showError('Reminder not found');
+                return;
+            }
+
+            const newStatus = prompt('Enter new status (pending, sent, delivered, failed):', reminder.status);
+            if (!newStatus) return;
+
+            const validStatuses = ['pending', 'sent', 'delivered', 'failed'];
+            if (!validStatuses.includes(newStatus)) {
+                showError('Invalid status. Must be one of: pending, sent, delivered, failed');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/settings/api/payment-reminders/${id}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Reminder status updated successfully!');
+                    loadReminders();
+                } else {
+                    showError(result.message || 'Update failed');
+                }
+            } catch (error) {
+                showError('Error updating reminder status: ' + error.message);
+            }
+        }
+
+        // Delete reminder
+        async function deleteReminder(id) {
+            if (!confirm('Are you sure you want to delete this reminder?')) {
+                return;
+            }
+
+            try {
+                // Note: Our API doesn't have a delete endpoint for reminders, so we'll just show a message
+                alert('Delete functionality would be implemented here to remove reminder ID: ' + id);
+                // In a real implementation, this would be:
+                /*
+                const response = await fetch(`/settings/payment-reminders/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess('Reminder deleted successfully!');
+                    loadReminders();
+                } else {
+                    showError(result.message || 'Delete failed');
+                }
+                */
+            } catch (error) {
+                showError('Error deleting reminder: ' + error.message);
+            }
+        }
+
+        // Send payment reminders
+        async function sendPaymentReminders() {
+            if (!confirm('Are you sure you want to send payment reminders for all overdue invoices?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/settings/api/payment-reminders/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(`Payment reminders processing completed. Sent: ${result.data.sent}, Failed: ${result.data.failed}`);
+                    loadReminders();
+                } else {
+                    showError(result.message || 'Sending reminders failed');
+                }
+            } catch (error) {
+                showError('Error sending payment reminders: ' + error.message);
+            }
+        }
+
+        // Filter reminders based on search and filters
+        function filterReminders() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const levelFilter = document.getElementById('levelFilter').value;
+
+            filteredReminders = reminders.filter(reminder => {
+                const matchesSearch = reminder.customer_id.toString().includes(searchTerm) ||
+                    (reminder.invoice_id && reminder.invoice_id.toString().includes(searchTerm));
+                const matchesStatus = !statusFilter || reminder.status === statusFilter;
+                const matchesLevel = !levelFilter || reminder.reminder_level.toString() === levelFilter;
+
+                return matchesSearch && matchesStatus && matchesLevel;
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Pagination functions
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredReminders.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        // Search on input
+        document.getElementById('searchInput').addEventListener('input', filterReminders);
+
+        // Filter on change
+        document.getElementById('statusFilter').addEventListener('change', filterReminders);
+        document.getElementById('levelFilter').addEventListener('change', filterReminders);
+
+        // Utility functions
+        function showSuccess(message) {
+            // Create success toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showError(message) {
+            // Create error toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fadeInOut';
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showLoading() {
+            // Show loading indicator
+        }
+
+        function hideLoading() {
+            // Hide loading indicator
+        }
+
+        // Add animation for toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-20px); }
+                10% { opacity: 1; transform: translateY(0); }
+                90% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-20px); }
+            }
+            .animate-fadeInOut {
+                animation: fadeInOut 3s ease-in-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

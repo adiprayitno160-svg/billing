@@ -11,7 +11,11 @@
                 <span class="w-2 h-2 mr-2 rounded-full bg-green-500 animate-pulse"></span>
                 System Live
             </span>
-            <button onclick="window.location.reload()"
+            <button onclick="syncNetworkMap()" title="Sinkronisasi Peta & Perangkat"
+                class="p-2 transition-colors rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-orange-600 hover:border-orange-100 shadow-sm">
+                <i class="fas fa-project-diagram"></i>
+            </button>
+            <button onclick="window.location.reload()" title="Refresh Halaman"
                 class="p-2 transition-colors rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-100 shadow-sm">
                 <i class="fas fa-sync-alt"></i>
             </button>
@@ -334,6 +338,38 @@
                 <!-- Decoration -->
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                 <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-400/20 rounded-full blur-3xl"></div>
+
+                <script>
+                    async function syncNetworkMap() {
+                        if (!confirm('Jalankan sinkronisasi manual? Proses ini akan memperbarui data peta, ODP, dan pelanggan.')) return;
+
+                        const btn = document.querySelector('button[onclick="syncNetworkMap()"]');
+                        const originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        btn.disabled = true;
+
+                        try {
+                            const res = await fetch('/monitoring/sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            const result = await res.json();
+
+                            if (result.success) {
+                                alert('Sinkronisasi berhasil!');
+                                window.location.reload();
+                            } else {
+                                alert('Gagal: ' + result.message);
+                            }
+                        } catch (e) {
+                            alert('Terjadi kesalahan koneksi');
+                            console.error(e);
+                        } finally {
+                            btn.innerHTML = originalHtml;
+                            btn.disabled = false;
+                        }
+                    }
+                </script>
             </div>
         </div>
     </div>

@@ -14,7 +14,7 @@ export interface OdpRecord {
 	notes?: string | null;
 }
 
-export async function listOdps(odcId?: number): Promise<any[]> {
+export async function listOdps(odcId?: number, search?: string, limit?: number, offset?: number): Promise<{ items: any[], total: number }> {
 	let sql = `
 		SELECT 
 			p.*, 
@@ -23,13 +23,37 @@ export async function listOdps(odcId?: number): Promise<any[]> {
 		LEFT JOIN ftth_odc o ON p.odc_id = o.id
 	`;
 	const params: any[] = [];
+	const whereClauses: string[] = [];
+
 	if (odcId) {
-		sql += ' WHERE p.odc_id = ?';
+		whereClauses.push('p.odc_id = ?');
 		params.push(odcId);
 	}
+
+	if (search) {
+		whereClauses.push('(p.name LIKE ? OR p.location LIKE ? OR o.name LIKE ?)');
+		const searchVal = `%${search}%`;
+		params.push(searchVal, searchVal, searchVal);
+	}
+
+	if (whereClauses.length > 0) {
+		sql += ' WHERE ' + whereClauses.join(' AND ');
+	}
+
+	// Get total count before applying limit/offset
+	const countSql = `SELECT COUNT(*) as total FROM (${sql}) as t`;
+	const [countRows]: any = await databasePool.query(countSql, params);
+	const total = countRows[0]?.total || 0;
+
 	sql += ' ORDER BY p.id DESC';
+
+	if (limit !== undefined && offset !== undefined) {
+		sql += ' LIMIT ? OFFSET ?';
+		params.push(limit, offset);
+	}
+
 	const [rows] = await databasePool.query(sql, params);
-	return rows as any[];
+	return { items: rows as any[], total };
 }
 
 export async function getOdpById(id: number): Promise<OdpRecord | null> {
