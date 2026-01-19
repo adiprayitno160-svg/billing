@@ -44,7 +44,7 @@ export async function createSystemLogsTable() {
             log_level VARCHAR(20),
             log_count INT DEFAULT 0,
             error_count INT DEFAULT 0,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE KEY (stat_date, service_name, log_level)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `;
