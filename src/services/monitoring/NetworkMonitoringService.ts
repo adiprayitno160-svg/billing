@@ -1652,6 +1652,13 @@ export class NetworkMonitoringService {
         }
         return status;
     }
+    /**
+     * Check for auto-outage jobs
+     */
+    static async checkAutoOutageJobs(): Promise<void> {
+        // Implementation for auto-detecting outages and creating jobs
+        // Currently placeholder to prevent build error
+    }
 }
 
 
