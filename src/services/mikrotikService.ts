@@ -376,6 +376,17 @@ export async function getQueueTrees(cfg: MikroTikConfig): Promise<any[]> {
 
 export async function createQueueTree(cfg: MikroTikConfig, data: any): Promise<void> {
     try {
+        // Import and use queue validation
+        const { preValidateQueueCreation } = await import('../utils/queueValidationHelper');
+        
+        // Validate queue data before creation
+        const validation = await preValidateQueueCreation(data);
+        if (!validation.valid) {
+            throw new Error(`Queue validation failed: ${validation.errors.join(', ')}`);
+        }
+        
+        const validatedData = validation.sanitizedData;
+        
         const params: string[] = [];
         const mapping: any = {
             name: 'name',
@@ -390,17 +401,33 @@ export async function createQueueTree(cfg: MikroTikConfig, data: any): Promise<v
             burstTime: 'burst-time',
             comment: 'comment'
         };
-        for (const [k, v] of Object.entries(data)) {
+        
+        for (const [k, v] of Object.entries(validatedData)) {
             const mikrotikKey = mapping[k] || k;
             if (v !== undefined && v !== null && v !== '') params.push(`=${mikrotikKey}=${v}`);
         }
+        
+        console.log('[createQueueTree] Creating queue with params:', params);
         await mikrotikPool.execute(cfg, '/queue/tree/add', params);
         mikrotikPool.clearCache();
-    } catch (err: any) { throw err; }
+        
+    } catch (err: any) { 
+        console.error('[createQueueTree] Failed to create queue:', err.message);
+        throw err; 
+    }
 }
 
 export async function updateQueueTree(cfg: MikroTikConfig, id: string, data: any): Promise<void> {
     try {
+        // Import and use queue validation
+        const { validateQueueType } = await import('../utils/queueValidationHelper');
+        
+        // Validate queue type if present
+        const validatedData = { ...data };
+        if (validatedData.queue) {
+            validatedData.queue = await validateQueueType(validatedData.queue);
+        }
+        
         const params: string[] = [`=.id=${id}`];
         const mapping: any = {
             name: 'name',
@@ -415,13 +442,17 @@ export async function updateQueueTree(cfg: MikroTikConfig, id: string, data: any
             burstTime: 'burst-time',
             comment: 'comment'
         };
-        for (const [k, v] of Object.entries(data)) {
+        for (const [k, v] of Object.entries(validatedData)) {
             const mikrotikKey = mapping[k] || k;
             if (v !== undefined && v !== null && v !== '') params.push(`=${mikrotikKey}=${v}`);
         }
+        console.log('[updateQueueTree] Updating queue with params:', params);
         await mikrotikPool.execute(cfg, '/queue/tree/set', params);
         mikrotikPool.clearCache();
-    } catch (err: any) { throw err; }
+    } catch (err: any) { 
+        console.error('[updateQueueTree] Failed to update queue:', err.message);
+        throw err; 
+    }
 }
 
 export async function deleteQueueTree(cfg: MikroTikConfig, id: string): Promise<void> {
@@ -577,6 +608,22 @@ export async function findQueueTreeIdByName(cfg: MikroTikConfig, name: string): 
     try {
         const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [`?name=${name}`], `qt_name:${name}`, 5000);
         return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
+
+export async function findMangleIdByComment(cfg: MikroTikConfig, comment: string): Promise<string | null> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/ip/firewall/mangle/print', [`?comment=${comment}`], `mangle_chk:${comment}`, 1000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
+
+export async function findQueueTreeIdByPacketMark(cfg: MikroTikConfig, packetMark: string): Promise<string | null> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [`?packet-mark=${packetMark}`], `qt_mark:${packetMark}`, 5000);
+        return res?.[0]?.['.id'] || null;
+    } catch { return null; }
+}
     } catch { return null; }
 }
 
