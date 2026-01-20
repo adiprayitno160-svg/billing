@@ -62,13 +62,20 @@ export class GeminiService {
 
         // Get API key from database (with env fallback)
         const apiKey = await AISettingsService.getAPIKey();
-        if (!apiKey) {
+
+        console.log(`[GeminiService] Initializing...`);
+        console.log(`[GeminiService] AI Enabled: ${isEnabled}`);
+
+        if (!apiKey || apiKey.trim() === '') {
+            console.error('[GeminiService] ❌ API Key is MISSING or EMPTY (checked DB and .env)');
             throw new Error('Gemini API key is not configured. Please set it in Settings > AI Settings');
+        } else {
+            console.log(`[GeminiService] ✅ API Key found (Length: ${apiKey.length})`);
         }
 
         // Get settings for model name
         const settings = await AISettingsService.getSettings();
-        const modelName = settings?.model || 'gemini-2.5-flash';
+        const modelName = settings?.model || 'gemini-flash-latest';
 
         try {
             this.genAI = new GoogleGenerativeAI(apiKey);

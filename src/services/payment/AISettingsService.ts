@@ -57,7 +57,7 @@ export class AISettingsService {
             };
 
             // Ensure columns exist (for migration)
-            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-1.5-flash"', 'api_key');
+            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-flash-latest"', 'api_key');
             await ensureColumn('enabled', 'TINYINT(1) DEFAULT 1', 'model');
             await ensureColumn('auto_approve_enabled', 'TINYINT(1) DEFAULT 1', 'enabled');
             await ensureColumn('min_confidence', 'INT DEFAULT 70', 'auto_approve_enabled');
@@ -79,7 +79,7 @@ export class AISettingsService {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 `, [
                     process.env.GEMINI_API_KEY || '',
-                    'gemini-1.5-flash',
+                    'gemini-flash-latest',
                     0, // Disabled by default until API key is set
                     1,
                     70,
@@ -111,7 +111,7 @@ export class AISettingsService {
             console.log(`[AISettings] Loaded model: ${settings.model || 'DEFAULT'}`);
             return {
                 api_key: settings.api_key || '',
-                model: settings.model || 'gemini-1.5-flash',
+                model: settings.model || 'gemini-flash-latest',
                 enabled: settings.enabled === 1,
                 auto_approve_enabled: settings.auto_approve_enabled === 1,
                 min_confidence: settings.min_confidence || 70,
@@ -195,7 +195,7 @@ export class AISettingsService {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 `, [
                     settings.api_key || '',
-                    settings.model || 'gemini-1.5-flash',
+                    settings.model || 'gemini-flash-latest',
                     settings.enabled ? 1 : 0,
                     settings.auto_approve_enabled ? 1 : 0,
                     settings.min_confidence || 70,
@@ -251,25 +251,63 @@ export class AISettingsService {
     /**
      * Test API key
      */
+    /**
+     * Test API key
+     */
     static async testAPIKey(apiKey: string): Promise<{ success: boolean; message: string }> {
         try {
+            console.log('[AISettingsService] Testing API Key...');
             const { GoogleGenerativeAI } = await import('@google/generative-ai');
+
+            // 1. Diagnostics: Check connectivity to google
+            try {
+                // Use built-in fetch if available, or try a simple lookup
+                console.log('[AISettingsService] Checking reachability of generativelanguage.googleapis.com...');
+                const testFetch = await fetch('https://generativelanguage.googleapis.com', { method: 'HEAD' }).catch(e => e);
+                console.log('[AISettingsService] Reachability check status:', (testFetch as Response).status || testFetch);
+            } catch (netErr: any) {
+                console.warn('[AISettingsService] Reachability warning (ignoring):', netErr.message);
+            }
+
+            // 2. Test with Gemini
             const genAI = new GoogleGenerativeAI(apiKey);
-            // Use a currently valid model for testing connection
-            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            // Use gemini-1.5-flash which is generally available
+            const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
             // Simple test call
-            const result = await model.generateContent('Test');
-            await result.response;
+            console.log('[AISettingsService] Sending test prompt to Gemini...');
+            const result = await model.generateContent('Hello');
+            const response = await result.response;
+            const text = response.text();
+
+            console.log('[AISettingsService] ✅ Gemini Test Success. Response:', text);
 
             return {
                 success: true,
                 message: 'API key valid dan berhasil terhubung ke Gemini'
             };
         } catch (error: any) {
+            console.error('[AISettingsService] ❌ Test Failed:', error);
+
+            // Detailed error analysis
+            let msg = error.message || 'Gagal menguji API key';
+            if (msg.includes('fetch failed')) {
+                msg += ' (Koneksi jaringan gagal. Cek firewall/DNS)';
+            } else if (msg.includes('403')) {
+                msg += ' (API Key tidak valid atau tidak memiliki izin)';
+            } else if (msg.includes('404')) {
+                msg += ' (Model tidak ditemukan/Validapi key required)';
+            } else if (msg.includes('400')) {
+                msg += ' (Bad Request - Format salah)';
+            }
+
+            if (error.cause) {
+                msg += ` [Cause: ${error.cause.message || error.cause}]`;
+            }
+
             return {
                 success: false,
-                message: error.message || 'Gagal menguji API key'
+                message: msg
             };
         }
     }

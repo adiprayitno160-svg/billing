@@ -1170,9 +1170,37 @@ Terima kasih atas kerja keras Anda! 💪`);
 
     // Helpers
     private static async getCustomerByPhone(phone: string): Promise<any> {
+        // Normalize: remove all non-digits
+        const cleanPhone = phone.replace(/\D/g, '');
+
+        let body = cleanPhone;
+        // remove leading 62
+        if (body.startsWith('62')) body = body.substring(2);
+        // remove leading 0
+        if (body.startsWith('0')) body = body.substring(1);
+
+        // Ensure body is long enough to be unique (at least 7 digits)
+        if (body.length < 7) {
+            // Fallback to exact match if too short
+            const [rows] = await databasePool.query(
+                `SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1`,
+                [cleanPhone, cleanPhone.replace(/^62/, '0')]
+            );
+            return (rows as RowDataPacket[])[0] || null;
+        }
+
         const [rows] = await databasePool.query(
-            `SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1`,
-            [phone, phone.replace(/^62/, '0')]
+            `SELECT * FROM customers WHERE 
+             phone = ? OR 
+             phone = ? OR 
+             phone LIKE ? OR
+             phone LIKE ? LIMIT 1`,
+            [
+                cleanPhone,              // 62812...
+                '0' + body,              // 0812...
+                `%${body}`,              // ...812...
+                `%${body}%`              // ...812... (wider match)
+            ]
         );
         const res = rows as RowDataPacket[];
         return res[0] || null;
@@ -1180,9 +1208,23 @@ Terima kasih atas kerja keras Anda! 💪`);
 
     private static async getUserByPhone(phone: string): Promise<any> {
         try {
+            const cleanPhone = phone.replace(/\D/g, '');
+
+            let body = cleanPhone;
+            if (body.startsWith('62')) body = body.substring(2);
+            if (body.startsWith('0')) body = body.substring(1);
+
+            if (body.length < 7) {
+                const [rows] = await databasePool.query(
+                    `SELECT * FROM users WHERE phone = ? OR phone = ? LIMIT 1`,
+                    [cleanPhone, cleanPhone.replace(/^62/, '0')]
+                );
+                return (rows as RowDataPacket[])[0] || null;
+            }
+
             const [rows] = await databasePool.query(
-                `SELECT * FROM users WHERE phone = ? OR phone = ? LIMIT 1`,
-                [phone, phone.replace(/^62/, '0')]
+                `SELECT * FROM users WHERE phone LIKE ? OR phone = ? OR phone = ? LIMIT 1`,
+                [`%${body}`, cleanPhone, '0' + body]
             );
             const res = rows as RowDataPacket[];
             return res[0] || null;

@@ -5,30 +5,65 @@ import { RowDataPacket } from 'mysql2';
 
 export class GenieacsWhatsAppController {
     /**
+     * Helper to get customer by phone
+     */
+    private static async getCustomer(phone: string): Promise<RowDataPacket | null> {
+        // Normalize: remove all non-digits
+        const cleanPhone = phone.replace(/\D/g, '');
+
+        let body = cleanPhone;
+        // remove leading 62
+        if (body.startsWith('62')) body = body.substring(2);
+        // remove leading 0
+        if (body.startsWith('0')) body = body.substring(1);
+
+        // Ensure body is long enough to be unique (at least 7 digits)
+        if (body.length < 7) {
+            // Fallback to exact match if too short
+            const [rows] = await databasePool.query(
+                `SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1`,
+                [cleanPhone, cleanPhone.replace(/^62/, '0')]
+            );
+            return (rows as RowDataPacket[])[0] || null;
+        }
+
+        const [rows] = await databasePool.query(
+            `SELECT * FROM customers WHERE 
+             phone = ? OR 
+             phone = ? OR 
+             phone LIKE ? OR
+             phone LIKE ? LIMIT 1`,
+            [
+                cleanPhone,              // 62812...
+                '0' + body,              // 0812...
+                `%${body}`,              // ...812...
+                `%${body}%`              // ...812... (wider match)
+            ]
+        );
+        const res = rows as RowDataPacket[];
+        return res[0] || null;
+    }
+
+    /**
      * Handle WiFi password change via WhatsApp
      */
     static async changeWiFiPassword(phone: string, newPassword: string): Promise<{ success: boolean; message: string }> {
         try {
             // Get customer by phone
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, serial_number, pppoe_username FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                [phone, phone.replace(/^62/, '0')]
-            );
+            const customer = await this.getCustomer(phone);
 
-            if (customers.length === 0) {
-                return { 
-                    success: false, 
-                    message: '❌ Nomor tidak terdaftar. Silakan daftar terlebih dahulu.' 
+            if (!customer) {
+                return {
+                    success: false,
+                    message: '❌ Nomor tidak terdaftar. Silakan daftar terlebih dahulu.'
                 };
             }
 
-            const customer = customers[0];
-
             // Validate password length
             if (newPassword.length < 8) {
-                return { 
-                    success: false, 
-                    message: '⚠️ Password terlalu pendek. Minimal 8 karakter.' 
+                return {
+                    success: false,
+                    message: '⚠️ Password terlalu pendek. Minimal 8 karakter.'
                 };
             }
 
@@ -45,16 +80,16 @@ export class GenieacsWhatsAppController {
 
             // Fallback: Try by PPPoE Username
             if (!device && customer.pppoe_username) {
-                const devices = await genieacs.getDevices(1, 0, [], { 
-                    "VirtualParameters.pppoeUsername": customer.pppoe_username 
+                const devices = await genieacs.getDevices(1, 0, [], {
+                    "VirtualParameters.pppoeUsername": customer.pppoe_username
                 });
                 if (devices.length > 0) device = devices[0];
             }
 
             if (!device) {
-                return { 
-                    success: false, 
-                    message: '❌ Gagal menemukan perangkat Anda. Hubungi CS untuk bantuan.' 
+                return {
+                    success: false,
+                    message: '❌ Gagal menemukan perangkat Anda. Hubungi CS untuk bantuan.'
                 };
             }
 
@@ -68,7 +103,7 @@ export class GenieacsWhatsAppController {
             if (result.success) {
                 // Update database
                 await databasePool.query(
-                    'UPDATE customers SET wifi_password = ? WHERE id = ?', 
+                    'UPDATE customers SET wifi_password = ? WHERE id = ?',
                     [newPassword, customer.id]
                 );
 
@@ -103,19 +138,16 @@ Mohon sambungkan ulang perangkat Anda.`
     static async restartONT(phone: string): Promise<{ success: boolean; message: string }> {
         try {
             // Get customer by phone
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, serial_number, pppoe_username FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                [phone, phone.replace(/^62/, '0')]
-            );
+            const customer = await this.getCustomer(phone);
 
-            if (customers.length === 0) {
-                return { 
-                    success: false, 
-                    message: '❌ Nomor tidak terdaftar.' 
+            if (!customer) {
+                return {
+                    success: false,
+                    message: '❌ Nomor tidak terdaftar.'
                 };
             }
 
-            const customer = customers[0];
+
             const genieacs = await GenieacsService.getInstanceFromDb();
 
             // Find device
@@ -127,16 +159,16 @@ Mohon sambungkan ulang perangkat Anda.`
             }
 
             if (!device && customer.pppoe_username) {
-                const devices = await genieacs.getDevices(1, 0, [], { 
-                    "VirtualParameters.pppoeUsername": customer.pppoe_username 
+                const devices = await genieacs.getDevices(1, 0, [], {
+                    "VirtualParameters.pppoeUsername": customer.pppoe_username
                 });
                 if (devices.length > 0) device = devices[0];
             }
 
             if (!device) {
-                return { 
-                    success: false, 
-                    message: '❌ Perangkat tidak ditemukan. Hubungi CS.' 
+                return {
+                    success: false,
+                    message: '❌ Perangkat tidak ditemukan. Hubungi CS.'
                 };
             }
 
@@ -169,19 +201,16 @@ Mohon sambungkan ulang perangkat Anda.`
      */
     static async getCurrentWiFiInfo(phone: string): Promise<{ success: boolean; message: string }> {
         try {
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, wifi_ssid, wifi_password, serial_number, pppoe_username FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                [phone, phone.replace(/^62/, '0')]
-            );
+            const customer = await this.getCustomer(phone);
 
-            if (customers.length === 0) {
-                return { 
-                    success: false, 
-                    message: '❌ Nomor tidak terdaftar.' 
+            if (!customer) {
+                return {
+                    success: false,
+                    message: '❌ Nomor tidak terdaftar.'
                 };
             }
 
-            const customer = customers[0];
+
 
             // Check if WiFi info exists in database
             if (customer.wifi_ssid && customer.wifi_password) {
@@ -201,8 +230,8 @@ Mohon sambungkan ulang perangkat Anda.`
             }
 
             if (!device && customer.pppoe_username) {
-                const devices = await genieacs.getDevices(1, 0, [], { 
-                    "VirtualParameters.pppoeUsername": customer.pppoe_username 
+                const devices = await genieacs.getDevices(1, 0, [], {
+                    "VirtualParameters.pppoeUsername": customer.pppoe_username
                 });
                 if (devices.length > 0) device = devices[0];
             }
@@ -242,19 +271,16 @@ Mohon sambungkan ulang perangkat Anda.`
      */
     static async getDeviceStatus(phone: string): Promise<{ success: boolean; message: string }> {
         try {
-            const [customers] = await databasePool.query<RowDataPacket[]>(
-                'SELECT id, name, serial_number, pppoe_username FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                [phone, phone.replace(/^62/, '0')]
-            );
+            const customer = await this.getCustomer(phone);
 
-            if (customers.length === 0) {
-                return { 
-                    success: false, 
-                    message: '❌ Nomor tidak terdaftar.' 
+            if (!customer) {
+                return {
+                    success: false,
+                    message: '❌ Nomor tidak terdaftar.'
                 };
             }
 
-            const customer = customers[0];
+
             const genieacs = await GenieacsService.getInstanceFromDb();
 
             // Find device
@@ -266,16 +292,16 @@ Mohon sambungkan ulang perangkat Anda.`
             }
 
             if (!device && customer.pppoe_username) {
-                const devices = await genieacs.getDevices(1, 0, [], { 
-                    "VirtualParameters.pppoeUsername": customer.pppoe_username 
+                const devices = await genieacs.getDevices(1, 0, [], {
+                    "VirtualParameters.pppoeUsername": customer.pppoe_username
                 });
                 if (devices.length > 0) device = devices[0];
             }
 
             if (!device) {
-                return { 
-                    success: false, 
-                    message: '❌ Perangkat tidak ditemukan.' 
+                return {
+                    success: false,
+                    message: '❌ Perangkat tidak ditemukan.'
                 };
             }
 
@@ -285,7 +311,7 @@ Mohon sambungkan ulang perangkat Anda.`
             const wifiInfo = genieacs.getWiFiDetails(device);
 
             let status = deviceInfo.online ? '🟢 ONLINE' : '🔴 OFFLINE';
-            let uptime = deviceInfo.uptime > 0 
+            let uptime = deviceInfo.uptime > 0
                 ? `${Math.floor(deviceInfo.uptime / 3600)}h ${Math.floor((deviceInfo.uptime % 3600) / 60)}m`
                 : '-';
 
@@ -294,12 +320,12 @@ Mohon sambungkan ulang perangkat Anda.`
             message += `Uptime: ${uptime}\n`;
             message += `IP Address: ${deviceInfo.ipAddress}\n`;
             message += `Model: ${deviceInfo.model}\n\n`;
-            
+
             message += `📶 *SINYAL OPTIK*\n`;
             message += `RX Power: ${signalInfo.rxPower} dBm\n`;
             message += `TX Power: ${signalInfo.txPower} dBm\n`;
             message += `Suhu: ${signalInfo.temperature}°C\n\n`;
-            
+
             message += `📡 *WIFI*\n`;
             message += `SSID: ${wifiInfo.ssid}\n`;
             message += `Clients: ${signalInfo.wifiClients} perangkat`;
