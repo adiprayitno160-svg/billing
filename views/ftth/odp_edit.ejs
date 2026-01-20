@@ -105,8 +105,15 @@
                     </div>
 
                     <!-- Hidden but required field for the form -->
+                    <!-- Hidden but required field for the form -->
                     <input type="hidden" name="latitude" id="latInput" value="<%= item.latitude || '' %>">
                     <input type="hidden" name="longitude" id="lngInput" value="<%= item.longitude || '' %>">
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-700">Koordinat (Lat, Long)</label>
+                        <input id="coordinates" placeholder="-6.xxxx, 106.xxxx" type="text"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono" />
+                    </div>
 
                     <div class="flex items-center gap-4 pt-4">
                         <button type="submit"
@@ -241,6 +248,7 @@
                         const position = marker.getLatLng();
                         document.getElementById('latInput').value = position.lat.toFixed(7);
                         document.getElementById('lngInput').value = position.lng.toFixed(7);
+                        document.getElementById('coordinates').value = `${position.lat.toFixed(7)}, ${position.lng.toFixed(7)}`;
                     });
 
                     map.on('click', function (e) {
@@ -249,7 +257,31 @@
                         marker.setLatLng([lat, lng]);
                         document.getElementById('latInput').value = lat.toFixed(7);
                         document.getElementById('lngInput').value = lng.toFixed(7);
+                        document.getElementById('coordinates').value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
                     });
+
+                    // Set initial value
+                    if (hasLocation) {
+                        document.getElementById('coordinates').value = `${initialLat.toFixed(7)}, ${initialLng.toFixed(7)}`;
+                    }
+
+                    // Manual Type Listener
+                    const coordInput = document.getElementById('coordinates');
+                    if (coordInput) {
+                        coordInput.addEventListener('change', () => {
+                            const parts = coordInput.value.split(',').map(s => s.trim());
+                            if (parts.length === 2) {
+                                const lat = parseFloat(parts[0]);
+                                const lng = parseFloat(parts[1]);
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    marker.setLatLng([lat, lng]);
+                                    map.setView([lat, lng], 16);
+                                    document.getElementById('latInput').value = lat.toFixed(7);
+                                    document.getElementById('lngInput').value = lng.toFixed(7);
+                                }
+                            }
+                        });
+                    }
 
                     // Force redraw
                     setTimeout(() => {
@@ -290,6 +322,7 @@
                             }
                             document.getElementById('latInput').value = lat.toFixed(7);
                             document.getElementById('lngInput').value = lng.toFixed(7);
+                            document.getElementById('coordinates').value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
                             locBtn.innerHTML = originalContent;
                         }, err => {
                             console.error(err);

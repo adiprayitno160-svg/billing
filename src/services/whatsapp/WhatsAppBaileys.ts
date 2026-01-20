@@ -54,9 +54,22 @@ export class WhatsAppBaileys {
                     WhatsAppEvents.emit('qr', qr);
                 }
                 if (connection === 'close') {
-                    const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
-                    console.error('[WhatsAppBaileys] 🚨 Connection closed. Reconnecting?', shouldReconnect, (lastDisconnect?.error as any)?.message);
+                    const error = lastDisconnect?.error as any;
+                    const statusCode = error?.output?.statusCode;
+                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                    const errorMessage = error?.message || '';
+
+                    console.error('[WhatsAppBaileys] 🚨 Connection closed. Reconnecting?', shouldReconnect, errorMessage);
                     this.isReady = false;
+
+                    // Detect conflict specifically
+                    if (errorMessage.includes('conflict')) {
+                        console.warn('[WhatsAppBaileys] ⚠️ Conflict detected (Session mismatch). Clearing session and restarting...');
+                        // Delay slightly to ensure cleanup
+                        setTimeout(() => this.restart(), 1000);
+                        return;
+                    }
+
                     if (shouldReconnect) {
                         // Delay reconnect slightly
                         setTimeout(() => this.initialize(), 3000);
@@ -153,7 +166,11 @@ export class WhatsAppBaileys {
     public async restart(): Promise<void> {
         console.log('[WhatsAppBaileys] restarting...');
         if (this.socket) {
-            await this.socket.logout();
+            try {
+                await this.socket.logout();
+            } catch (err) {
+                console.warn('[WhatsAppBaileys] Logout failed (ignoring):', err);
+            }
         }
         // delete auth folder
         const authPath = path.join(process.cwd(), '.baileys_auth');

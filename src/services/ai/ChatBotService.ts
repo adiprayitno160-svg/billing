@@ -157,7 +157,7 @@ export class ChatBotService {
             }
 
             // Graceful Degradation
-            return "Maaf, sistem AI sedang mengalami gangguan sementara (API Key bermasalah). Silakan ketik */menu* untuk melihat opsi layanan.";
+            return "Maaf, sistem AI sedang sibuk. Silakan ketik */menu* untuk melihat opsi layanan.";
         }
     }
 

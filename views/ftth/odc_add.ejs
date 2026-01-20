@@ -128,16 +128,13 @@
                     <!-- Map Container -->
                     <div id="mapOdc" class="w-full h-64 bg-slate-100 relative z-0"></div>
 
-                    <div class="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
+                    <div class="p-3 bg-slate-50 border-t border-slate-100">
                         <div>
-                            <label class="text-[10px] uppercase font-bold text-slate-500">Latitude</label>
-                            <input type="number" step="0.0000001" name="latitude" id="latInput"
-                                class="w-full text-xs text-center border p-1 rounded bg-white" placeholder="Lat">
-                        </div>
-                        <div>
-                            <label class="text-[10px] uppercase font-bold text-slate-500">Longitude</label>
-                            <input type="number" step="0.0000001" name="longitude" id="lngInput"
-                                class="w-full text-xs text-center border p-1 rounded bg-white" placeholder="Lng">
+                            <label class="text-[10px] uppercase font-bold text-slate-500">Koordinat (Lat, Long)</label>
+                            <input type="text" id="coordinates" placeholder="-6.xxxx, 106.xxxx"
+                                class="w-full text-xs border p-2 rounded bg-white font-mono" />
+                            <input type="hidden" name="latitude" id="latInput">
+                            <input type="hidden" name="longitude" id="lngInput">
                         </div>
                     </div>
                     <div class="p-4 border-t border-slate-100">
@@ -225,8 +222,26 @@
                 marker = L.marker([-6.2, 106.8]).addTo(map);
 
                 // Get form input elements
-                const latInput = document.querySelector('input[name="latitude"]');
-                const lngInput = document.querySelector('input[name="longitude"]');
+                const latInput = document.getElementById('latInput');
+                const lngInput = document.getElementById('lngInput');
+                const coordInput = document.getElementById('coordinates');
+
+                // Manual Type Listener
+                if (coordInput) {
+                    coordInput.addEventListener('change', () => {
+                        const parts = coordInput.value.split(',').map(s => s.trim());
+                        if (parts.length === 2) {
+                            const lat = parseFloat(parts[0]);
+                            const lng = parseFloat(parts[1]);
+                            if (!isNaN(lat) && !isNaN(lng)) {
+                                latInput.value = lat;
+                                lngInput.value = lng;
+                                marker.setLatLng([lat, lng]);
+                                map.setView([lat, lng], 16);
+                            }
+                        }
+                    });
+                }
 
                 // Event click pada map untuk mengubah lokasi
                 map.on('click', function (e) {
@@ -239,6 +254,7 @@
                     // Update form fields
                     if (latInput) latInput.value = lat.toFixed(7);
                     if (lngInput) lngInput.value = lng.toFixed(7);
+                    if (coordInput) coordInput.value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
                 });
 
                 // Trigger resize untuk memastikan map ter-render dengan benar
@@ -264,6 +280,7 @@
                             // Update form fields
                             if (latInput) latInput.value = lat.toFixed(7);
                             if (lngInput) lngInput.value = lng.toFixed(7);
+                            if (coordInput) coordInput.value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
                         }, function (error) {
                             console.log('Tidak dapat mengambil lokasi otomatis:', error.message);
                             // Tidak menampilkan error, hanya log saja karena ini opsional
@@ -300,8 +317,11 @@
                         // Update form fields
                         const latInput = document.querySelector('input[name="latitude"]');
                         const lngInput = document.querySelector('input[name="longitude"]');
+                        const coordInput = document.getElementById('coordinates');
+
                         if (latInput) latInput.value = lat.toFixed(7);
                         if (lngInput) lngInput.value = lng.toFixed(7);
+                        if (coordInput) coordInput.value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
 
                         btn.disabled = false;
                         btn.innerHTML = originalText;

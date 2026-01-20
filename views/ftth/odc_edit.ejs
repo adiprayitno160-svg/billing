@@ -129,11 +129,12 @@
                             Saya</button>
                     </div>
                     <div id="mapOdc" class="w-full h-64 bg-slate-100 relative z-0"></div>
-                    <div class="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
-                        <input type="text" name="latitude" id="latInput" value="<%= item.latitude || '' %>"
-                            class="text-xs text-center border p-1 rounded bg-white" readonly placeholder="Lat">
-                        <input type="text" name="longitude" id="lngInput" value="<%= item.longitude || '' %>"
-                            class="text-xs text-center border p-1 rounded bg-white" readonly placeholder="Lng">
+                    <div class="p-3 bg-slate-50 border-t border-slate-100">
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Koordinat (Lat, Long)</label>
+                        <input type="text" id="coordinates" placeholder="-6.xxxx, 106.xxxx"
+                            class="w-full text-xs text-center border p-1 rounded bg-white font-mono" />
+                        <input type="hidden" name="latitude" id="latInput" value="<%= item.latitude || '' %>">
+                        <input type="hidden" name="longitude" id="lngInput" value="<%= item.longitude || '' %>">
                     </div>
                 </div>
 
@@ -185,6 +186,29 @@
             function updateInput(lat, lng) {
                 document.getElementById('latInput').value = lat.toFixed(7);
                 document.getElementById('lngInput').value = lng.toFixed(7);
+                document.getElementById('coordinates').value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
+            }
+
+            // Init coords
+            if (hasLoc) {
+                updateInput(initialLat, initialLng);
+            }
+
+            // Manual Type Listener
+            const coordInput = document.getElementById('coordinates');
+            if (coordInput) {
+                coordInput.addEventListener('change', () => {
+                    const parts = coordInput.value.split(',').map(s => s.trim());
+                    if (parts.length === 2) {
+                        const lat = parseFloat(parts[0]);
+                        const lng = parseFloat(parts[1]);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            marker.setLatLng([lat, lng]);
+                            map.setView([lat, lng], 16);
+                            updateInput(lat, lng);
+                        }
+                    }
+                });
             }
 
             map.on('click', e => {

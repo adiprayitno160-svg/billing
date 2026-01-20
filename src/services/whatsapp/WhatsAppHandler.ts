@@ -9,6 +9,7 @@ import { ChatBotService } from '../ai/ChatBotService';
 import { WhatsAppSessionService } from './WhatsAppSessionService';
 import { PaymentProofVerificationService } from '../payments/PaymentProofVerificationService';
 import { FraudLogService } from '../security/FraudLogService'; // Assuming this exists or will be stubbed, if not I'll implement inline logging or skip
+import { WhatsAppRegistrationService } from './WhatsAppRegistrationService';
 
 
 export class WhatsAppHandler {
@@ -46,7 +47,6 @@ export class WhatsAppHandler {
                                      VALUES (?, 'inbound', 'text', ?, 'delivered', NOW())`,
                                     [phone, body]
                                 );
-                            } else {
                                 console.error('[WhatsAppHandler] Log Incoming DB Error:', logErr.message);
                             }
                         }
@@ -80,6 +80,7 @@ export class WhatsAppHandler {
                 console.error('[WhatsAppHandler] Log outgoing error:', err);
             }
         });
+
 
         this.isInitialized = true;
     }
@@ -139,6 +140,7 @@ export class WhatsAppHandler {
     }
 
     private static async handleIncomingMessage(msg: proto.IWebMessageInfo) {
+
         try {
             // DEBUG: Print FULL message structure for analysis
             // console.log(JSON.stringify(msg, null, 2));
@@ -176,15 +178,13 @@ export class WhatsAppHandler {
                     isLid = false;
                 } else {
                     console.log(`[WhatsAppHandler] ⚠️ LID detected but NO Alt JID found! Using raw LID as specific ID.`);
-                    // We might fail to match customer phone here if we rely on phone number in DB.
-                    // But we continue to try.
                 }
-            }
-            // === LID FIX END ===
+            } // === LID FIX END ===
 
             // 1. Identify User
             let customer = await this.getCustomerByPhone(senderPhone);
             let user = await this.getUserByPhone(senderPhone);
+
             // Also check LID for identification
             if (isLid && !customer && !user) {
                 user = await this.getUserByPhone(senderJid);
@@ -198,7 +198,7 @@ export class WhatsAppHandler {
 
             // 2. Check Session State (For Multi-step flows)
             let session = await WhatsAppSessionService.getSession(senderPhone);
-            const body = this.getMessageBody(msg).trim();
+            const body = (this.getMessageBody(msg) || '').trim();
             const lowerBody = body.toLowerCase();
             const isImage = !!msg.message?.imageMessage;
 
@@ -215,9 +215,10 @@ export class WhatsAppHandler {
             if (globalCommands.includes(lowerBody) || lowerBody.startsWith('/menu') || lowerBody.startsWith('!menu')) {
                 if (session) {
                     await WhatsAppSessionService.clearSession(senderPhone);
-                    session = null; // Prevent entering state machine blocks below
+                    session = null;
                 }
             }
+
 
             // === STATE MACHINE LOGIC ===
             // A. Registration Flow (Unregistered Logic)
@@ -320,20 +321,20 @@ Untuk mengambil, balas:
                     if (tech.phone) {
                         await waClient.sendMessage(tech.phone, techNotification).catch(console.warn);
                     }
+
+                    // Send confirmation to customer
+                    await this.sendMessage(replyToJid,
+                        `✅ *PENDAFTARAN DITERIMA*\n\n` +
+                        `Nama: *${regData.name}*\n` +
+                        `Alamat: ${regData.address}\n` +
+                        `No. Tiket: *${ticketNumber}*\n\n` +
+                        `Tim teknisi kami akan segera menghubungi Anda untuk survei dan pemasangan.\n\n` +
+                        `Terima kasih telah memilih layanan kami! 🙏`
+                    );
+
+                    await WhatsAppSessionService.clearSession(senderPhone);
+                    return;
                 }
-
-                // Send confirmation to customer
-                await this.sendMessage(replyToJid,
-                    `✅ *PENDAFTARAN DITERIMA*\n\n` +
-                    `Nama: *${regData.name}*\n` +
-                    `Alamat: ${regData.address}\n` +
-                    `No. Tiket: *${ticketNumber}*\n\n` +
-                    `Tim teknisi kami akan segera menghubungi Anda untuk survei dan pemasangan.\n\n` +
-                    `Terima kasih telah memilih layanan kami! 🙏`
-                );
-
-                await WhatsAppSessionService.clearSession(senderPhone);
-                return;
             }
 
             // B. Prepaid Purchase Flow
@@ -472,11 +473,11 @@ Jika sudah selesai, kirim FOTO bukti dengan caption:
                         await this.sendMessage(replyToJid, `📸 Untuk menyelesaikan job, silakan **Kirim Foto Bukti** dengan caption:\n\n*!selesai ${ticketRef || 'JOB-XXXXX'} <catatan>*`);
                         return;
                     }
-                }
-                // --- END TECHNICIAN FLOW ---
+                } // --- END TECHNICIAN FLOW ---
 
                 // --- ADMIN / OPERATOR ACTIVATION ---
                 if (['admin', 'operator', 'superadmin'].includes(user.role)) {
+
                     if (lowerBody.startsWith('!aktifkan') || lowerBody.startsWith('!activate')) {
                         const targetRef = lowerBody.split(' ')[1]; // Phone or ID
                         if (!targetRef) {
@@ -506,205 +507,204 @@ Jika sudah selesai, kirim FOTO bukti dengan caption:
                         }
                         return;
                     }
-                }
-                // --- END ADMIN FLOW ---
+                    // --- END ADMIN FLOW ---
 
-                // ... existing admin logic ...
-                if (lowerBody === '/menu' || lowerBody === 'menu') {
-                    await this.sendMessage(replyToJid, `🛠️ *MENU ADMIN/TEKNISI*
+                    // ... existing admin logic ...
+                    if (lowerBody === '/menu' || lowerBody === 'menu') {
+                        await this.sendMessage(replyToJid, `🛠️ *MENU ADMIN/TEKNISI*
 1. /status
 2. /cek <nomor>
 3. !ambil <Tiket>
 4. !selesai <Tiket> (Caption Foto)`);
-                } else if (lowerBody === '/status') {
-                    await this.sendMessage(replyToJid, '✅ Server Online');
-                } else {
-                    // AI Chat
-                    const aiResponse = await ChatBotService.ask(body, { role: user.role, user });
-                    await this.sendMessage(replyToJid, aiResponse);
-                }
-                return;
-            }
-
-            // 2. REGISTERED CUSTOMER
-            if (customer) {
-                if (lowerBody === '/menu' || lowerBody === 'menu' || lowerBody === 'halo') {
-                    let menu = `👋 Halo *${customer.name}*!\n\n` +
-                        `📋 *MENU PELANGGAN*\n` +
-                        `1. *Cek Tagihan Terbaru* (Ketik: Tagihan)\n` +
-                        `2. *Cek Sisa Kurang/Hutang* (Ketik: Kurang)\n` +
-                        `3. *Info WiFi & Password* (Ketik: WiFi)\n` +
-                        `4. *Cek Password WiFi* (Ketik: Cek WiFi)\n` +
-                        `5. *Ganti Password WiFi* (Ketik: Ganti Password)\n` +
-                        `6. *Restart ONT* (Ketik: Restart)\n` +
-                        `7. *Status Perangkat* (Ketik: Status)\n`;
-
-                    // Hanya pelanggan prepaid yang boleh akses fitur /beli
-                    if (customer.billing_mode === 'prepaid') {
-                        menu += `8. *Beli Voucher* (Ketik: Beli)\n`;
+                    } else if (lowerBody === '/status') {
+                        await this.sendMessage(replyToJid, '✅ Server Online');
+                    } else {
+                        // AI Chat
+                        const aiResponse = await ChatBotService.ask(body, { role: user.role, user });
+                        await this.sendMessage(replyToJid, aiResponse);
                     }
-                    menu += `9. *Info Bayar / Beda Nama* (Ketik: 9)\n`;
-
-                    menu += `\n*Bantuan* (Ketik pesan Anda)\n`;
-                    await this.sendMessage(replyToJid, menu);
                     return;
                 }
 
-                // --- CHANGE WIFI PASSWORD FLOW ---
-                // --- GENIEACS DEVICE MANAGEMENT MENU ---
-                // Perintah WiFi Management
-                if (lowerBody === 'wifi' || lowerBody === 'info wifi') {
-                    await WhatsAppSessionService.setSession(senderPhone, 'CHANGE_WIFI_PWD_1');
-                    await this.sendMessage(replyToJid, `🔐 *MANAJEMEN WIFI*
+                // 2. REGISTERED CUSTOMER
+                if (customer) {
+                    if (lowerBody === '/menu' || lowerBody === 'menu' || lowerBody === 'halo') {
+                        let menu = `👋 Halo *${customer.name}*!\n\n` +
+                            `📋 *MENU PELANGGAN*\n` +
+                            `1. *Cek Tagihan Terbaru* (Ketik: Tagihan)\n` +
+                            `2. *Cek Sisa Kurang/Hutang* (Ketik: Kurang)\n` +
+                            `3. *Info WiFi & Password* (Ketik: WiFi)\n` +
+                            `4. *Cek Password WiFi* (Ketik: Cek WiFi)\n` +
+                            `5. *Ganti Password WiFi* (Ketik: Ganti Password)\n` +
+                            `6. *Restart ONT* (Ketik: Restart)\n` +
+                            `7. *Status Perangkat* (Ketik: Status)\n`;
+
+                        // Hanya pelanggan prepaid yang boleh akses fitur /beli
+                        if (customer.billing_mode === 'prepaid') {
+                            menu += `8. *Beli Voucher* (Ketik: Beli)\n`;
+                        }
+                        menu += `9. *Info Bayar / Beda Nama* (Ketik: 9)\n`;
+
+                        menu += `\n*Bantuan* (Ketik pesan Anda)\n`;
+                        await this.sendMessage(replyToJid, menu);
+                        return;
+                    }
+
+                    // --- CHANGE WIFI PASSWORD FLOW ---
+                    // --- GENIEACS DEVICE MANAGEMENT MENU ---
+                    // Perintah WiFi Management
+                    if (lowerBody === 'wifi' || lowerBody === 'info wifi') {
+                        await WhatsAppSessionService.setSession(senderPhone, 'CHANGE_WIFI_PWD_1');
+                        await this.sendMessage(replyToJid, `🔐 *MANAJEMEN WIFI*
 
 Pilih opsi:
 1. *Ganti Password* - Ketik password baru
 2. *Cek Password* - Ketik: Cek WiFi`);
-                    return;
-                }
+                        return;
+                    }
 
-                if (lowerBody === 'ganti password' || lowerBody === 'ubah password') {
-                    await WhatsAppSessionService.setSession(senderPhone, 'CHANGE_WIFI_PWD_1');
-                    await this.sendMessage(replyToJid, `🔐 *GANTI PASSWORD WIFI*\n\nSilakan ketik **Password Baru** yang Anda inginkan (Min 8 karakter):`);
-                    return;
-                }
+                    if (lowerBody === 'ganti password' || lowerBody === 'ubah password') {
+                        await WhatsAppSessionService.setSession(senderPhone, 'CHANGE_WIFI_PWD_1');
+                        await this.sendMessage(replyToJid, `🔐 *GANTI PASSWORD WIFI*\n\nSilakan ketik **Password Baru** yang Anda inginkan (Min 8 karakter):`);
+                        return;
+                    }
 
-                if (lowerBody === 'cek wifi' || lowerBody === 'password wifi') {
-                    await this.sendMessage(replyToJid, `🔍 Sedang mengambil info WiFi...`);
+                    if (lowerBody === 'cek wifi' || lowerBody === 'password wifi') {
+                        await this.sendMessage(replyToJid, `🔍 Sedang mengambil info WiFi...`);
 
-                    const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
-                    const result = await GenieacsWhatsAppController.getCurrentWiFiInfo(senderPhone);
-                    await this.sendMessage(replyToJid, result.message);
-                    return;
-                }
+                        const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
+                        const result = await GenieacsWhatsAppController.getCurrentWiFiInfo(senderPhone);
+                        await this.sendMessage(replyToJid, result.message);
+                        return;
+                    }
 
-                if (lowerBody === 'restart' || lowerBody === 'restart ont') {
-                    await this.sendMessage(replyToJid, `🔄 Sedang merestart perangkat Anda...`);
+                    if (lowerBody === 'restart' || lowerBody === 'restart ont') {
+                        await this.sendMessage(replyToJid, `🔄 Sedang merestart perangkat Anda...`);
 
-                    const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
-                    const result = await GenieacsWhatsAppController.restartONT(senderPhone);
-                    await this.sendMessage(replyToJid, result.message);
-                    return;
-                }
+                        const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
+                        const result = await GenieacsWhatsAppController.restartONT(senderPhone);
+                        await this.sendMessage(replyToJid, result.message);
+                        return;
+                    }
 
-                if (lowerBody === 'status' || lowerBody === 'cek status') {
-                    await this.sendMessage(replyToJid, `🔍 Sedang mengambil status perangkat...`);
+                    if (lowerBody === 'status' || lowerBody === 'cek status') {
+                        await this.sendMessage(replyToJid, `🔍 Sedang mengambil status perangkat...`);
 
-                    const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
-                    const result = await GenieacsWhatsAppController.getDeviceStatus(senderPhone);
-                    await this.sendMessage(replyToJid, result.message);
-                    return;
-                }
+                        const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
+                        const result = await GenieacsWhatsAppController.getDeviceStatus(senderPhone);
+                        await this.sendMessage(replyToJid, result.message);
+                        return;
+                    }
 
-                if (session?.step === 'CHANGE_WIFI_PWD_1') {
-                    const newPass = body.trim();
+                    if (session?.step === 'CHANGE_WIFI_PWD_1') {
+                        const newPass = body.trim();
 
-                    const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
-                    const result = await GenieacsWhatsAppController.changeWiFiPassword(senderPhone, newPass);
-                    await this.sendMessage(replyToJid, result.message);
+                        const { GenieacsWhatsAppController } = await import('../../controllers/whatsapp/GenieacsWhatsAppController');
+                        const result = await GenieacsWhatsAppController.changeWiFiPassword(senderPhone, newPass);
+                        await this.sendMessage(replyToJid, result.message);
+                        await WhatsAppSessionService.clearSession(senderPhone);
+                        return;
+                    }
 
-                    await WhatsAppSessionService.clearSession(senderPhone);
-                    return;
-                }
 
-                // --- MENU 4: INFO BAYAR / BEDA NAMA ---
-                if (lowerBody === '4' || lowerBody === 'beda nama' || lowerBody === 'info bayar') {
-                    await this.sendMessage(replyToJid,
-                        `💳 *INFO PEMBAYARAN TAGIHAN*\n\n` +
-                        `Apakah Nama di Rekening Pengirim SAMA dengan Nama Pelanggan (*${customer.name}*)?\n\n` +
-                        `Ketik:\n` +
-                        `*Y* 👉 Jika Nama SAMA\n` +
-                        `*N* 👉 Jika Nama BEDA (Pakai rekening Istri/Suami/Teman)`
-                    );
-                    await WhatsAppSessionService.setSession(senderPhone, 'CONFIRM_NAME_MATCH');
-                    return;
-                }
-
-                if (session?.step === 'CONFIRM_NAME_MATCH') {
-                    if (lowerBody === 'y' || lowerBody === 'ya' || lowerBody === 'sama') {
-                        // Logic SAMA: Instruksi standar
+                    // --- MENU 4: INFO BAYAR / BEDA NAMA ---
+                    if (lowerBody === '4' || lowerBody === 'beda nama' || lowerBody === 'info bayar') {
                         await this.sendMessage(replyToJid,
-                            `✅ *NAMA SAMA*\n\n` +
-                            `Silakan transfer sesuai nominal tagihan.\n` +
-                            `Sistem akan otomatis memverifikasi nama *${customer.name}*.\n\n` +
-                            `📸 Setelah transfer, kirim BUKTI di sini.`
+                            `💳 *INFO PEMBAYARAN TAGIHAN*\n\n` +
+                            `Apakah Nama di Rekening Pengirim SAMA dengan Nama Pelanggan (*${customer.name}*)?\n\n` +
+                            `Ketik:\n` +
+                            `*Y* 👉 Jika Nama SAMA\n` +
+                            `*N* 👉 Jika Nama BEDA (Pakai rekening Istri/Suami/Teman)`
                         );
-                    } else {
-                        // Logic BEDA: Generate Kode Unik
-                        // Cari tagihan unpaid
+                        await WhatsAppSessionService.setSession(senderPhone, 'CONFIRM_NAME_MATCH');
+                        return;
+                    }
+
+                    if (session?.step === 'CONFIRM_NAME_MATCH') {
+                        if (lowerBody === 'y' || lowerBody === 'ya' || lowerBody === 'sama') {
+                            // Logic SAMA: Instruksi standar
+                            await this.sendMessage(replyToJid,
+                                `✅ *NAMA SAMA*\n\n` +
+                                `Silakan transfer sesuai nominal tagihan.\n` +
+                                `Sistem akan otomatis memverifikasi nama *${customer.name}*.\n\n` +
+                                `📸 Setelah transfer, kirim BUKTI di sini.`
+                            );
+                        } else {
+                            // Logic BEDA: Generate Kode Unik
+                            // Cari tagihan unpaid
+                            const [rows] = await databasePool.query<RowDataPacket[]>(
+                                `SELECT * FROM invoices WHERE customer_id = ? AND status != 'paid' ORDER BY id DESC LIMIT 1`,
+                                [customer.id]
+                            );
+
+                            if (rows.length === 0) {
+                                await this.sendMessage(replyToJid, `✅ Tidak ada tagihan yang perlu dibayar saat ini.`);
+                            } else {
+                                const inv = rows[0];
+                                const baseAmount = Number(inv.remaining_amount);
+                                // Generate Unique Code (1-999)
+                                const uniqueCode = Math.floor(Math.random() * 899) + 100;
+                                const totalWithCode = baseAmount + uniqueCode;
+
+                                // Simpan/Update Payment Request untuk deteksi
+                                // Kita pakai tabel payment_requests atau update logs sementara
+                                // Di sini kita update notes invoice sementara atau buat payment_req baru
+                                // Simple approach: Create Payment Request Type 'invoice_payment'
+
+                                await databasePool.query(
+                                    `INSERT INTO payment_requests (customer_id, invoice_id, type, status, base_amount, unique_code, total_amount, method, created_at)
+                                VALUES (?, ?, 'bill_payment', 'pending', ?, ?, ?, 'transfer', NOW())`,
+                                    [customer.id, inv.id, baseAmount, uniqueCode, totalWithCode]
+                                );
+
+                                await this.sendMessage(replyToJid,
+                                    `🔄 *NAMA BEDA - KODE KHUSUS*\n\n` +
+                                    `Karena nama rekening berbeda, mohon transfer dengan **NOMINAL UNIK** agar terbaca sistem:\n\n` +
+                                    `💰 Transfer: *Rp ${totalWithCode.toLocaleString('id-ID')}*\n` +
+                                    `⚠️ (Mohon transfer persis sampai 3 digit terakhir: *${uniqueCode}*)\n\n` +
+                                    `Sistem akan otomatis mengenali nominal ini walau nama pengirim berbeda.`
+                                );
+                            }
+                            await WhatsAppSessionService.clearSession(senderPhone);
+                            return;
+                        }
+                    } // --- END MENU 4 ---
+
+
+                    if (lowerBody === 'tagihan' || lowerBody === '/tagihan') {
+                        // Fetch Latest Invoice
                         const [rows] = await databasePool.query<RowDataPacket[]>(
-                            `SELECT * FROM invoices WHERE customer_id = ? AND status != 'paid' ORDER BY id DESC LIMIT 1`,
+                            `SELECT * FROM invoices WHERE customer_id = ? ORDER BY due_date DESC LIMIT 1`,
                             [customer.id]
                         );
 
                         if (rows.length === 0) {
-                            await this.sendMessage(replyToJid, `✅ Tidak ada tagihan yang perlu dibayar saat ini.`);
+                            await this.sendMessage(replyToJid, `✅ Anda belum memiliki riwayat tagihan.`);
                         } else {
                             const inv = rows[0];
-                            const baseAmount = Number(inv.remaining_amount);
-                            // Generate Unique Code (1-999)
-                            const uniqueCode = Math.floor(Math.random() * 899) + 100;
-                            const totalWithCode = baseAmount + uniqueCode;
-
-                            // Simpan/Update Payment Request untuk deteksi
-                            // Kita pakai tabel payment_requests atau update logs sementara
-                            // Di sini kita update notes invoice sementara atau buat payment_req baru
-                            // Simple approach: Create Payment Request Type 'invoice_payment'
-
-                            await databasePool.query(
-                                `INSERT INTO payment_requests (customer_id, invoice_id, type, status, base_amount, unique_code, total_amount, method, created_at)
-                                VALUES (?, ?, 'bill_payment', 'pending', ?, ?, ?, 'transfer', NOW())`,
-                                [customer.id, inv.id, baseAmount, uniqueCode, totalWithCode]
-                            );
+                            let statusText = inv.status;
+                            if (inv.status === 'paid') statusText = 'LUNAS ✅';
+                            else if (inv.status === 'overdue') statusText = 'TERTUNGGAK ⚠️';
+                            else if (inv.status === 'partial') statusText = 'DIBAYAR SEBAGIAN 🔸';
 
                             await this.sendMessage(replyToJid,
-                                `🔄 *NAMA BEDA - KODE KHUSUS*\n\n` +
-                                `Karena nama rekening berbeda, mohon transfer dengan **NOMINAL UNIK** agar terbaca sistem:\n\n` +
-                                `💰 Transfer: *Rp ${totalWithCode.toLocaleString('id-ID')}*\n` +
-                                `⚠️ (Mohon transfer persis sampai 3 digit terakhir: *${uniqueCode}*)\n\n` +
-                                `Sistem akan otomatis mengenali nominal ini walau nama pengirim berbeda.`
+                                `📄 *TAGIHAN TERBARU*\n\n` +
+                                `No: ${inv.invoice_number}\n` +
+                                `Periode: ${inv.period}\n` +
+                                `Jatuh Tempo: ${new Date(inv.due_date).toLocaleDateString('id-ID')}\n` +
+                                `Total: Rp ${Number(inv.total_amount).toLocaleString('id-ID')}\n` +
+                                `Sisa: Rp ${Number(inv.remaining_amount).toLocaleString('id-ID')}\n` +
+                                `Status: *${statusText}*`
                             );
                         }
+                        return;
                     }
-                    await WhatsAppSessionService.clearSession(senderPhone);
-                    return;
-                }
-                // --- END MENU 4 ---
-
-
-                if (lowerBody === 'tagihan' || lowerBody === '/tagihan') {
-                    // Fetch Latest Invoice
-                    const [rows] = await databasePool.query<RowDataPacket[]>(
-                        `SELECT * FROM invoices WHERE customer_id = ? ORDER BY due_date DESC LIMIT 1`,
-                        [customer.id]
-                    );
-
-                    if (rows.length === 0) {
-                        await this.sendMessage(replyToJid, `✅ Anda belum memiliki riwayat tagihan.`);
-                    } else {
-                        const inv = rows[0];
-                        let statusText = inv.status;
-                        if (inv.status === 'paid') statusText = 'LUNAS ✅';
-                        else if (inv.status === 'overdue') statusText = 'TERTUNGGAK ⚠️';
-                        else if (inv.status === 'partial') statusText = 'DIBAYAR SEBAGIAN 🔸';
-
-                        await this.sendMessage(replyToJid,
-                            `📄 *TAGIHAN TERBARU*\n\n` +
-                            `No: ${inv.invoice_number}\n` +
-                            `Periode: ${inv.period}\n` +
-                            `Jatuh Tempo: ${new Date(inv.due_date).toLocaleDateString('id-ID')}\n` +
-                            `Total: Rp ${Number(inv.total_amount).toLocaleString('id-ID')}\n` +
-                            `Sisa: Rp ${Number(inv.remaining_amount).toLocaleString('id-ID')}\n` +
-                            `Status: *${statusText}*`
-                        );
-                    }
-                    return;
                 }
 
                 if (lowerBody === 'kurang' || lowerBody === '/kurang' || lowerBody === 'hutang') {
                     // Fetch All Unpaid/Partial Invoices
                     const [rows] = await databasePool.query<RowDataPacket[]>(
-                        `SELECT * FROM invoices WHERE customer_id = ? AND status IN ('sent', 'overdue', 'partial') AND remaining_amount > 0 ORDER BY due_date ASC`,
+                        `SELECT * FROM invoices WHERE customer_id = ? AND status IN ('sent', 'overdue', 'partial') AND remaining_amount>0 ORDER BY due_date ASC`,
                         [customer.id]
                     );
 
@@ -759,8 +759,9 @@ Untuk informasi lebih lanjut, silakan hubungi admin.`);
             // 3. UNREGISTERED (NEW NUMBER)
             if (!customer && !user) {
                 if (lowerBody === 'daftar' || lowerBody === '1') {
-                    await WhatsAppSessionService.setSession(senderPhone, 'REGISTER_NAME');
-                    await this.sendMessage(replyToJid, `📝 *PENDAFTARAN BARU*\n\nSilakan ketik *Nama Lengkap* Anda:`);
+                    // Use the dedicated registration service
+                    const response = await WhatsAppRegistrationService.processStep(senderPhone, body);
+                    await this.sendMessage(replyToJid, response);
                     return;
                 }
                 if (lowerBody === 'beli' || lowerBody === '2' || lowerBody === 'voucher') {
@@ -770,29 +771,24 @@ Silakan daftar terlebih dahulu dengan mengetik *Daftar*.`);
                     return;
                 }
                 if (lowerBody === '/menu' || lowerBody === 'menu' || lowerBody === 'halo') {
-                    await this.sendMessage(replyToJid,
-                        `👋 Selamat Datang di *ISP Billing*!\n` +
-                        `Nomor Anda belum terdaftar.\n\n` +
-                        `Silakan pilih menu:\n` +
-                        `1️⃣ *Pasang Baru (Postpaid)*\n` +
-                        `   (Ketik: *Daftar*)\n` +
-                        `2️⃣ *Bantuan CS*\n` +
-                        `   (Balas pesan ini)`
-                    );
+                    // Use the dedicated registration service for welcome message
+                    const response = await WhatsAppRegistrationService.processStep(senderPhone, body);
+                    await this.sendMessage(replyToJid, response);
                     return;
                 }
 
                 // AI Chat Fallback for Guest
+                // AI Chat Fallback for Guest
                 const aiResponse = await ChatBotService.ask(body, { status: 'guest' });
                 await this.sendMessage(replyToJid, aiResponse);
             }
-
         } catch (error: any) {
             console.error('[WhatsAppHandler] FATAL ERROR:', error);
-            // SILENT ERROR: User request to remove "terjadi kesalahan" message.
-            // Do nothing to user, just log it.
         }
     }
+
+
+
 
     private static async handleImageMessage(msg: proto.IWebMessageInfo, replyTo: string, senderPhone: string, session: any) {
         try {
@@ -907,21 +903,21 @@ Silakan daftar terlebih dahulu dengan mengetik *Daftar*.`);
                             fundNote += `\n⚠️ Gagal auto-aktivasi`;
                         }
                     }
-                }
 
-                await databasePool.query(
-                    "UPDATE technician_jobs SET status = 'completed', completed_at = NOW(), completion_proof = ?, completion_notes = ?, collected_funds = ? WHERE id = ?",
-                    [proofUrl, notes, collectedAmount, job.id]
-                );
+                    await databasePool.query(
+                        "UPDATE technician_jobs SET status = 'completed', completed_at = NOW(), completion_proof = ?, completion_notes = ?, collected_funds = ? WHERE id = ?",
+                        [proofUrl, notes, collectedAmount, job.id]
+                    );
 
-                await this.sendMessage(replyTo, `✅ *JOB COMPLETED*
+                    await this.sendMessage(replyTo, `✅ *JOB COMPLETED*
 
 Tiket: ${ticket}
 Status: **Selesai**
 Catatan: ${notes}${fundNote}
 
 Terima kasih atas kerja keras Anda! 💪`);
-                return;
+                    return;
+                }
             }
 
 
@@ -954,6 +950,7 @@ Terima kasih atas kerja keras Anda! 💪`);
                 customerPhone
             );
             console.log('[WA Payment] Verify Result:', verification);
+
 
             // AUTO UPDATE IF PREPAID AND VALID
             const { PrepaidService } = await import('../billing/PrepaidService');
@@ -1024,7 +1021,7 @@ Terima kasih atas kerja keras Anda! 💪`);
                 if (!requestId && amount) {
                     const [reqRows] = await databasePool.query<RowDataPacket[]>(
                         `SELECT id, type, pending_registration_id FROM payment_requests 
-                         WHERE total_amount = ? AND status = 'pending' AND expires_at > NOW() 
+                         WHERE total_amount = ? AND status = 'pending' AND expires_at>NOW() 
                          LIMIT 1`,
                         [amount]
                     );
@@ -1043,94 +1040,100 @@ Terima kasih atas kerja keras Anda! 💪`);
                                 }
                             }
                         }
-                    }
-                }
 
-                // A. PREPAID / ACTIVATION (Session Based or Found ID)
-                if (requestId) {
-                    try {
-                        // Check if it's activation
-                        const [reqInfo] = await databasePool.query<RowDataPacket[]>(
-                            "SELECT * FROM payment_requests WHERE id = ?", [requestId]
-                        );
+                        // A. PREPAID / ACTIVATION (Session Based or Found ID)
+                        if (requestId) {
+                            try {
+                                // Check if it's activation
+                                const [reqInfo] = await databasePool.query<RowDataPacket[]>(
+                                    "SELECT * FROM payment_requests WHERE id = ?", [requestId]
+                                );
 
-                        if (reqInfo.length > 0 && reqInfo[0].type === 'activation') {
-                            const { ActivationService } = await import('../billing/ActivationService');
-                            await databasePool.query("UPDATE payment_requests SET status = 'paid', proof_image = ? WHERE id = ?", [proofUrl, requestId]);
-                            await ActivationService.activate(reqInfo[0].pending_registration_id);
-                            await WhatsAppSessionService.clearSession(senderPhone);
-                            return;
-                        }
+                                if (reqInfo.length > 0 && reqInfo[0].type === 'activation') {
+                                    const { ActivationService } = await import('../billing/ActivationService');
+                                    await databasePool.query("UPDATE payment_requests SET status = 'paid', proof_image = ? WHERE id = ?", [proofUrl, requestId]);
+                                    await ActivationService.activate(reqInfo[0].pending_registration_id);
+                                    await WhatsAppSessionService.clearSession(senderPhone);
+                                    return;
+                                }
 
-                        // Normal Prepaid Renewal
-                        const result = await PrepaidService.confirmPayment(
-                            requestId,
-                            null, // verified by system
-                            'transfer_auto_ai'
-                        );
+                                // Normal Prepaid Renewal
+                                const result = await PrepaidService.confirmPayment(
+                                    requestId,
+                                    null, // verified by system
+                                    'transfer_auto_ai'
+                                );
 
-                        await databasePool.query(
-                            "UPDATE payment_requests SET proof_image = ?, verification_status = 'verified' WHERE id = ?",
-                            [proofUrl, requestId]
-                        );
+                                await databasePool.query(
+                                    "UPDATE payment_requests SET proof_image = ?, verification_status = 'verified' WHERE id = ?",
+                                    [proofUrl, requestId]
+                                );
 
-                        await databasePool.query(`
+                                await databasePool.query(`
                             UPDATE prepaid_transactions 
                             SET proof_image = ? 
                             WHERE payment_request_id = ?`,
-                            [proofUrl, requestId]
-                        );
+                                    [proofUrl, requestId]
+                                );
 
-                        await this.sendMessage(replyTo, `✅ *Pembayaran Berhasil!* (Auto-Verify)\n\nLayanan internet Anda telah diperpanjang hingga: *${new Date(result.newExpiryDate || Date.now()).toLocaleDateString('id-ID')}*`);
-                        await WhatsAppSessionService.clearSession(senderPhone);
+                                await this.sendMessage(replyTo, `✅ *Pembayaran Berhasil!* (Auto-Verify)\n\nLayanan internet Anda telah diperpanjang hingga: *${new Date(result.newExpiryDate || Date.now()).toLocaleDateString('id-ID')}*`);
+                                await WhatsAppSessionService.clearSession(senderPhone);
 
-                    } catch (err: any) {
-                        console.error('Auto-approve payment error:', err);
-                        await this.sendMessage(replyTo, `⚠️ Pembayaran valid tapi gagal memproses aktivasi otomatis. Admin akan mengeceknya.`);
+                            } catch (err: any) {
+                                console.error('Auto-approve payment error:', err);
+                                await this.sendMessage(replyTo, `⚠️ Pembayaran valid tapi gagal memproses aktivasi otomatis. Admin akan mengeceknya.`);
+                            }
+                            return;
+                        }
                     }
-                    return;
                 }
 
                 // B. POSTPAID (Invoice match)
                 // ... (Similar simplified logic for postpaid invoices)
                 if (verification.extractedData) {
-                    // Try find unpaid invoice
-                    const [invRows] = await databasePool.query<RowDataPacket[]>(
-                        `SELECT id, invoice_number FROM invoices WHERE customer_id = (SELECT id FROM customers WHERE phone = ? LIMIT 1) AND status != 'paid' AND remaining_amount <= ? LIMIT 1`,
-                        [senderPhone, amount + 5000] // simple range check
-                    );
+                    try {
 
-                    if (invRows.length > 0) {
-                        const inv = invRows[0];
-                        await databasePool.query(
-                            `UPDATE invoices SET status = 'paid', paid_amount = ?, remaining_amount = 0, proof_image_hash = ?, paid_at = NOW() WHERE id = ?`,
-                            [amount, verification.proofHash, inv.id]
+                        // Try find unpaid invoice
+                        const [invRows] = await databasePool.query<RowDataPacket[]>(
+                            `SELECT id, invoice_number FROM invoices WHERE customer_id = (SELECT id FROM customers WHERE phone = ? LIMIT 1) AND status != 'paid' AND remaining_amount <= ? LIMIT 1`,
+                            [senderPhone, amount + 5000] // simple range check
                         );
-                        await this.sendMessage(replyTo, `✅ *Pembayaran Tagihan Diterima*\nInvoice: ${inv.invoice_number}\nStatus: LUNAS (Auto-Verify)`);
-                        return;
-                    }
-                }
 
-                // Fallback: Valid amount/proof but no matching invoice found automatically
-                let custId = null;
-                const cust = await this.getCustomerByPhone(senderPhone);
-                if (cust) custId = cust.id;
+                        if (invRows.length > 0) {
+                            const inv = invRows[0];
+                            await databasePool.query(
+                                `UPDATE invoices SET status = 'paid', paid_amount = ?, remaining_amount = 0, proof_image_hash = ?, paid_at = NOW() WHERE id = ?`,
+                                [amount, verification.proofHash, inv.id]
+                            );
+                            await this.sendMessage(replyTo, `✅ *Pembayaran Tagihan Diterima*\nInvoice: ${inv.invoice_number}\nStatus: LUNAS (Auto-Verify)`);
+                            return;
+                        }
 
-                await databasePool.query(
-                    `INSERT INTO manual_payment_verifications 
+                        // Fallback: Valid amount/proof but no matching invoice found automatically
+                        let custId = null;
+                        const cust = await this.getCustomerByPhone(senderPhone);
+                        if (cust) custId = cust.id;
+
+                        await databasePool.query(
+                            `INSERT INTO manual_payment_verifications 
                     (customer_id, proof_image, amount, status, notes, proof_hash, created_at)
                     VALUES (?, ?, ?, 'pending', ?, ?, NOW())`,
-                    [custId, proofUrl, amount, 'Valid but no invoice matched', verification.proofHash]
-                );
+                            [custId, proofUrl, amount, 'Valid but no invoice matched', verification.proofHash]
+                        );
 
-                await this.sendMessage(replyTo, `✅ Pembayaran Rp ${amount.toLocaleString()} valid, tapi tidak ditemukan tagihan yang cocok. Admin akan memproses manual.`);
+                        await this.sendMessage(replyTo, `✅ Pembayaran Rp ${amount.toLocaleString()} valid, tapi tidak ditemukan tagihan yang cocok. Admin akan memproses manual.`);
+                    } catch (error) {
+                        console.error('[WhatsAppHandler] Error processing image:', error);
+                        await this.sendMessage(replyTo, '❗ Terjadi kesalahan saat memproses bukti pembayaran.');
+                    }
+                }
             }
-
-        } catch (error) {
-            console.error('[WhatsAppHandler] Error processing image:', error);
-            await this.sendMessage(replyTo, '❗ Terjadi kesalahan saat memproses bukti pembayaran.');
+        } catch (error: any) {
+            console.error('[WhatsAppHandler] handleImageMessage fatal error:', error);
+            await this.sendMessage(replyTo, '❌ Terjadi kesalahan sistem saat memproses gambar.');
         }
     }
+
 
     private static async showPrepaidMenu(to: string, senderPhone: string) {
         const [rows] = await databasePool.query<RowDataPacket[]>('SELECT * FROM prepaid_packages WHERE is_active = 1');
@@ -1166,24 +1169,23 @@ Terima kasih atas kerja keras Anda! 💪`);
     }
 
     // Helpers
-    private static async getCustomerByPhone(phone: string): Promise<any | null> {
-        const [rows] = await databasePool.query<RowDataPacket[]>(
+    private static async getCustomerByPhone(phone: string): Promise<any> {
+        const [rows] = await databasePool.query(
             `SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1`,
             [phone, phone.replace(/^62/, '0')]
         );
-        return rows[0] || null;
+        const res = rows as RowDataPacket[];
+        return res[0] || null;
     }
 
-    private static async getUserByPhone(phone: string): Promise<any | null> {
+    private static async getUserByPhone(phone: string): Promise<any> {
         try {
-            // Check if whatsapp_lid column exists first or simplify query
-            // Assuming the column DOES NOT EXIST based on the error log, we remove it from the query temporarily
-            // to allow the bot to function.
-            const [rows] = await databasePool.query<RowDataPacket[]>(
+            const [rows] = await databasePool.query(
                 `SELECT * FROM users WHERE phone = ? OR phone = ? LIMIT 1`,
                 [phone, phone.replace(/^62/, '0')]
             );
-            return rows[0] || null;
+            const res = rows as RowDataPacket[];
+            return res[0] || null;
         } catch (error) {
             console.error('[WhatsAppHandler] getUserByPhone error:', error);
             return null;

@@ -112,22 +112,58 @@ export class BillingLogService {
      * Write log to file
      */
     private static async writeToFile(entry: LogEntry): Promise<void> {
-        const timestamp = new Date().toISOString();
-        const logFile = path.join(this.logDir, `billing-${new Date().toISOString().split('T')[0]}.log`);
-        const errorLogFile = path.join(this.logDir, 'err.log');
+        try {
+            // Ensure logs directory exists
+            if (!fs.existsSync(this.logDir)) {
+                fs.mkdirSync(this.logDir, { recursive: true });
+            }
+            
+            const timestamp = new Date().toISOString();
+            const logFile = path.join(this.logDir, `billing-${new Date().toISOString().split('T')[0]}.log`);
+            const errorLogFile = path.join(this.logDir, 'err.log');
 
-        const logLine = `[${timestamp}] [${entry.level.toUpperCase()}] [${entry.type}] [${entry.service}] ${entry.message}${entry.context ? ' ' + JSON.stringify(entry.context) : ''}${entry.error ? '\n' + entry.error.stack : ''}\n`;
+            const logLine = `[${timestamp}] [${entry.level.toUpperCase()}] [${entry.type}] [${entry.service}] ${entry.message}${entry.context ? ' ' + JSON.stringify(entry.context) : ''}${entry.error ? '\n' + entry.error.stack : ''}\n`;
 
-        // Write to combined log
-        fs.appendFile(logFile, logLine, (err) => {
-            if (err) console.error('Error writing to log file:', err);
-        });
-
-        // Write errors to error log
-        if (entry.level === 'error' || entry.level === 'critical') {
-            fs.appendFile(errorLogFile, logLine, (err) => {
-                if (err) console.error('Error writing to error log file:', err);
+            // Write to combined log
+            fs.appendFile(logFile, logLine, (err) => {
+                if (err) {
+                    console.error('Error writing to log file:', err);
+                    // Try to write to a fallback location if primary fails
+                    this.writeToFallbackLog(logLine, err);
+                }
             });
+
+            // Write errors to error log
+            if (entry.level === 'error' || entry.level === 'critical') {
+                fs.appendFile(errorLogFile, logLine, (err) => {
+                    if (err) console.error('Error writing to error log file:', err);
+                });
+            }
+        } catch (error) {
+            console.error('Critical error in writeToFile:', error);
+        }
+    }
+
+    /**
+     * Write log to fallback location when primary fails
+     */
+    private static writeToFallbackLog(logLine: string, originalError: any): void {
+        try {
+            // Try to write to a more accessible location like the temp directory
+            const fallbackLogPath = path.join(require('os').tmpdir(), 'billing-fallback-logs', `billing-${new Date().toISOString().split('T')[0]}.log`);
+            const fallbackDir = path.dirname(fallbackLogPath);
+            
+            if (!fs.existsSync(fallbackDir)) {
+                fs.mkdirSync(fallbackDir, { recursive: true });
+            }
+            
+            fs.appendFileSync(fallbackLogPath, logLine);
+            console.log(`Log written to fallback location: ${fallbackLogPath}`);
+        } catch (fallbackError) {
+            console.error('Failed to write to fallback log location:', fallbackError);
+            console.error('Original error:', originalError);
+            // As last resort, just log to console
+            console.error('FAILED TO WRITE LOG:', logLine);
         }
     }
 

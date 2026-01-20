@@ -182,8 +182,7 @@
                                                     <span class="text-red-500">*</span></label>
                                                 <div class="flex gap-2">
                                                     <input name="password" id="pppoe_password" type="text" required
-                                                        placeholder="Secret"
-                                                        value="12345"
+                                                        placeholder="Secret" value="12345"
                                                         class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-mono text-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all" />
                                                     <button type="button" onclick="generatePassword()"
                                                         class="px-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 border border-blue-100 transition-colors"
@@ -227,7 +226,8 @@
                                                     class="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors select-none">
                                                     <input type="checkbox" name="enable_billing" value="1" checked
                                                         class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-blue-300">
-                                                    <span class="text-xs font-bold text-blue-700">✅ Aktifkan Tagihan Otomatis</span>
+                                                    <span class="text-xs font-bold text-blue-700">✅ Aktifkan Tagihan
+                                                        Otomatis</span>
                                                 </label>
                                             </div>
                                             <div class="flex items-end gap-3 pb-1">
@@ -386,18 +386,16 @@
                                             </div>
 
                                             <!-- Coords Inputs -->
-                                            <div class="grid grid-cols-2 gap-4">
+                                            <div class="grid grid-cols-1 gap-4">
                                                 <div>
                                                     <label
-                                                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Latitude</label>
-                                                    <input name="latitude" id="latitude" placeholder="-6.xxxx"
+                                                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Koordinat
+                                                        (Lat, Long)</label>
+                                                    <input name="coordinates" id="coordinates"
+                                                        placeholder="-6.xxxx, 106.xxxx"
                                                         class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-700 focus:ring-2 focus:ring-green-100 outline-none" />
-                                                </div>
-                                                <div>
-                                                    <label
-                                                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Longitude</label>
-                                                    <input name="longitude" id="longitude" placeholder="106.xxxx"
-                                                        class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-700 focus:ring-2 focus:ring-green-100 outline-none" />
+                                                    <input type="hidden" name="latitude" id="latitude">
+                                                    <input type="hidden" name="longitude" id="longitude">
                                                 </div>
                                             </div>
                                         </div>
@@ -579,6 +577,7 @@
 
         // === 4. Maps Integration (Robust with HTTP Fallback) ===
         const btnGetLocation = document.getElementById('btnGetLocation');
+        const coordInput = document.getElementById('coordinates');
         const latInput = document.getElementById('latitude');
         const lngInput = document.getElementById('longitude');
 
@@ -626,6 +625,7 @@
                                 const p = e.target.getLatLng();
                                 latInput.value = p.lat.toFixed(6);
                                 lngInput.value = p.lng.toFixed(6);
+                                coordInput.value = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
                                 updateAddress(p.lat, p.lng);
                             });
                         }
@@ -636,11 +636,28 @@
                     map.on('click', (e) => {
                         latInput.value = e.latlng.lat.toFixed(6);
                         lngInput.value = e.latlng.lng.toFixed(6);
+                        coordInput.value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
                         setMarker(e.latlng.lat, e.latlng.lng, map.getZoom()); // Keep current zoom
                         updateAddress(e.latlng.lat, e.latlng.lng); // Update address field
                     });
 
-                    
+
+
+                    // Manual Type Listener
+                    if (coordInput) {
+                        coordInput.addEventListener('change', () => {
+                            const parts = coordInput.value.split(',').map(s => s.trim());
+                            if (parts.length === 2) {
+                                const lat = parseFloat(parts[0]);
+                                const lng = parseFloat(parts[1]);
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    latInput.value = lat;
+                                    lngInput.value = lng;
+                                    setMarker(lat, lng);
+                                }
+                            }
+                        });
+                    }
 
                     // Map Search Logic
                     const searchInput = document.getElementById('map_search');
@@ -660,6 +677,7 @@
                                                 const lon = parseFloat(res.lon);
                                                 latInput.value = lat.toFixed(6);
                                                 lngInput.value = lon.toFixed(6);
+                                                coordInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
                                                 setMarker(lat, lon, 16);
                                                 searchInput.value = res.display_name; // Show found name
                                                 updateAddress(lat, lon); // Update address field
@@ -687,6 +705,7 @@
                                     if (data && (data.status === 'success' || data.lat)) {
                                         latInput.value = data.lat;
                                         lngInput.value = data.lon;
+                                        coordInput.value = `${data.lat}, ${data.lon}`;
                                         setMarker(data.lat, data.lon, 13);
                                         btnGetLocation.textContent = 'IP OK';
                                         alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
@@ -712,6 +731,7 @@
                                     const { latitude, longitude } = pos.coords;
                                     latInput.value = latitude.toFixed(6);
                                     lngInput.value = longitude.toFixed(6);
+                                    coordInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                                     setMarker(latitude, longitude);
                                     updateAddress(latitude, longitude); // Update address field
                                     btnGetLocation.textContent = 'OK';
