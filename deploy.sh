@@ -1,44 +1,30 @@
+
 #!/bin/bash
-# Billing App Deployment Script
-# Usage: ./deploy.sh
 
-echo "----------------------------------------"
-echo "🚀 STARTING DEPLOYMENT"
-echo "----------------------------------------"
+# Configuration
+APP_DIR="/var/www/billing" # Change this to your actual app directory on the server
+BRANCH="main"
 
-# 1. Update Code
-echo "📥 Pulling latest code..."
-git pull origin main
-if [ $? -ne 0 ]; then
-    echo "❌ Git Pull Failed!"
-    exit 1
-fi
+echo "🚀 Starting Deployment..."
 
-# 2. Install Dependencies
-echo "📦 Installing Dependencies..."
-npm install
+# Navigate to app directory
+cd $APP_DIR || { echo "❌ Directory not found: $APP_DIR"; exit 1; }
 
-# 3. Build Project
-echo "🔨 Compiling TypeScript..."
-npm run build
-if [ $? -ne 0 ]; then
-    echo "❌ Build Failed!"
-    exit 1
-fi
+# Pull latest changes
+echo "📥 Pulling latest changes from git..."
+git fetch origin
+git reset --hard origin/$BRANCH
 
-# 4. Run Database Migrations (Critical!)
-echo "💾 Running Database Migrations..."
-node scripts/run_migration.js
+# Install dependencies
+echo "📦 Installing dependencies..."
+npm install --production
 
-# 5. Restart Application
-echo "🔄 Reloading PM2..."
-if pm2 list | grep -q "billing-app"; then
-    pm2 reload billing-app
-else
-    echo "ℹ️ App not running, starting it..."
-    pm2 start dist/server.js --name billing-app
-fi
+# Build application (if using TypeScript)
+echo "🔨 Building application..."
+npm run build 
 
-echo "----------------------------------------"
-echo "✅ DEPLOYMENT SUCCESSFUL"
-echo "----------------------------------------"
+# Restart PM2
+echo "🔄 Restarting application..."
+pm2 restart billing-app || pm2 restart all
+
+echo "✅ Deployment Complete!"
