@@ -66,13 +66,13 @@ export class WhatsAppBaileys {
                     if (errorMessage.includes('conflict')) {
                         console.warn('[WhatsAppBaileys] ⚠️ Conflict detected (Session mismatch). Clearing session and restarting...');
                         // Delay slightly to ensure cleanup
-                        setTimeout(() => this.restart(), 1000);
+                        setTimeout(() => this.restart().catch(e => console.error('[WhatsAppBaileys] Restart failed:', e)), 1000);
                         return;
                     }
 
                     if (shouldReconnect) {
                         // Delay reconnect slightly
-                        setTimeout(() => this.initialize(), 3000);
+                        setTimeout(() => this.initialize().catch(e => console.error('[WhatsAppBaileys] Recon failed:', e)), 3000);
                     }
                 } else if (connection === 'open') {
                     console.log('[WhatsAppBaileys] ✅ Connection opened');
@@ -143,7 +143,7 @@ export class WhatsAppBaileys {
                 if (!this.socket) {
                     console.warn('[WhatsAppBaileys] 🚨 Watchdog: Socket missing while Ready=true. Reconnecting...');
                     this.isReady = false;
-                    this.initialize();
+                    this.initialize().catch(e => console.error('[WhatsAppBaileys] Watchdog init failed:', e));
                     return;
                 }
 

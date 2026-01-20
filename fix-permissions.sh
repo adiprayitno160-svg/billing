@@ -24,42 +24,46 @@ for dir in $DOCS_DIRS; do
 done
 
 # 2. Fix Ownership
-# Detect the real user if running via sudo
+# Detect the real user (who should own the files)
 REAL_USER=${SUDO_USER:-$(whoami)}
+# Fallback: If running in /var/www/billing, we likely want the 'adi' user
+if [ "$REAL_USER" == "root" ] && id "adi" &>/dev/null; then
+    REAL_USER="adi"
+fi
+
 TARGET_GROUP="www-data"
 
-echo "Current Build User: $REAL_USER"
+echo "Detected Owner User: $REAL_USER"
 echo "Target Web Group: $TARGET_GROUP"
 
 # Ensure group exists
 if ! getent group $TARGET_GROUP > /dev/null; then
-    echo "⚠️  Group $TARGET_GROUP not found. Creating it..."
     sudo groupadd $TARGET_GROUP
 fi
 
-# Add user to group if not already in it
-if ! groups $REAL_USER | grep -q $TARGET_GROUP; then
-    echo "Adding $REAL_USER to $TARGET_GROUP group..."
-    sudo usermod -a -G $TARGET_GROUP $REAL_USER
-fi
+# Add user to group
+sudo usermod -a -G $TARGET_GROUP $REAL_USER
 
-echo "Setting ownership to $REAL_USER:$TARGET_GROUP..."
-sudo chown -R $REAL_USER:$TARGET_GROUP .
+echo "Resetting ownership to $REAL_USER:$TARGET_GROUP (Deep Clean)..."
+# Use -h to affect symlinks too, and be very aggressive
+sudo chown -R $REAL_USER:$TARGET_GROUP $APP_DIR
 
 # 3. Fix Permissions
-echo "Setting permissions (775: User/Group can write)..."
-# Make the whole project readable (755)
-sudo chmod -R 755 .
+echo "Setting permissions (Full control for $REAL_USER)..."
+sudo chmod -R 755 $APP_DIR
 
-# Make specific runtime directories writable by group (775)
-echo "Setting 775 on runtime directories..."
-sudo chmod -R 775 .baileys_auth
-sudo chmod -R 775 logs
-sudo chmod -R 775 dist
-sudo chmod -R 777 public/uploads
+# Specific runtime directories need group write access for www-data and full access for $REAL_USER
+echo "Unlocking runtime directories..."
+RUNTIME_DIRS=".baileys_auth logs dist public/uploads"
+for dir in $RUNTIME_DIRS; do
+    if [ -d "$dir" ]; then
+        sudo chown -R $REAL_USER:$TARGET_GROUP "$dir"
+        sudo chmod -R 777 "$dir" # Open fully for now to stop the EACCES bleeding
+    fi
+done
 
 echo "========================================================"
 echo "   PERMISSIONS FIXED! 🚀"
-echo "   1. You can now run: npm run build"
-echo "   2. Then restart: pm2 restart billing-app"
+echo "   Running: pm2 restart billing-app"
 echo "========================================================"
+pm2 restart billing-app
