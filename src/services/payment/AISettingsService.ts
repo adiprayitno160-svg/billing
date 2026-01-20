@@ -57,7 +57,7 @@ export class AISettingsService {
             };
 
             // Ensure columns exist (for migration)
-            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-2.5-flash"', 'api_key');
+            await ensureColumn('model', 'VARCHAR(100) DEFAULT "gemini-1.5-flash"', 'api_key');
             await ensureColumn('enabled', 'TINYINT(1) DEFAULT 1', 'model');
             await ensureColumn('auto_approve_enabled', 'TINYINT(1) DEFAULT 1', 'enabled');
             await ensureColumn('min_confidence', 'INT DEFAULT 70', 'auto_approve_enabled');
@@ -79,7 +79,7 @@ export class AISettingsService {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 `, [
                     process.env.GEMINI_API_KEY || '',
-                    'gemini-2.5-flash',
+                    'gemini-1.5-flash',
                     0, // Disabled by default until API key is set
                     1,
                     70,
@@ -111,7 +111,7 @@ export class AISettingsService {
             console.log(`[AISettings] Loaded model: ${settings.model || 'DEFAULT'}`);
             return {
                 api_key: settings.api_key || '',
-                model: settings.model || 'gemini-2.5-flash',
+                model: settings.model || 'gemini-1.5-flash',
                 enabled: settings.enabled === 1,
                 auto_approve_enabled: settings.auto_approve_enabled === 1,
                 min_confidence: settings.min_confidence || 70,
@@ -195,7 +195,7 @@ export class AISettingsService {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 `, [
                     settings.api_key || '',
-                    settings.model || 'gemini-2.5-flash',
+                    settings.model || 'gemini-1.5-flash',
                     settings.enabled ? 1 : 0,
                     settings.auto_approve_enabled ? 1 : 0,
                     settings.min_confidence || 70,
@@ -256,7 +256,7 @@ export class AISettingsService {
             const { GoogleGenerativeAI } = await import('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(apiKey);
             // Use a currently valid model for testing connection
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
             // Simple test call
             const result = await model.generateContent('Test');

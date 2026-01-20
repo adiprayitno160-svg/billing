@@ -516,7 +516,7 @@ export async function syncClientQueues(
 		packetMarks: downloadMark,
 		limitAt: laDownload,
 		maxLimit: mlDownload,
-		queue: options?.overrides?.queueDownload || pkg.child_queue_type_download || 'pcq-download-default',
+		queue: options?.overrides?.queueDownload || pkg.child_queue_type_download || 'pcq',
 		priority: options?.overrides?.priorityDownload || pkg.child_priority_download || '8',
 		...(useBurst ? {
 			burstLimit: options?.overrides?.burstLimitDownload || pkg.child_burst_download,
@@ -532,7 +532,7 @@ export async function syncClientQueues(
 		packetMarks: uploadMark,
 		limitAt: laUpload,
 		maxLimit: mlUpload,
-		queue: options?.overrides?.queueUpload || pkg.child_queue_type_upload || 'pcq-upload-default',
+		queue: options?.overrides?.queueUpload || pkg.child_queue_type_upload || 'pcq',
 		priority: options?.overrides?.priorityUpload || pkg.child_priority_upload || '8',
 		...(useBurst ? {
 			burstLimit: options?.overrides?.burstLimitUpload || pkg.child_burst_upload,

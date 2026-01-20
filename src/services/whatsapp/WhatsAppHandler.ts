@@ -20,8 +20,54 @@ export class WhatsAppHandler {
         this.ensureTables();
 
         WhatsAppEvents.on('message', async (msg: proto.IWebMessageInfo) => {
+            // Log Incoming First
+            try {
+                const senderJid = msg.key.remoteJid;
+                if (senderJid && !senderJid.includes('status@broadcast') && !msg.key.fromMe) {
+                    const phone = senderJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                    const body = this.getMessageBody(msg);
+
+                    // Async lookup customer (optional but good for history)
+                    const [cust] = await databasePool.query<RowDataPacket[]>('SELECT id FROM customers WHERE phone LIKE ? LIMIT 1', [`%${phone}%`]);
+                    const customerId = cust.length > 0 ? cust[0].id : null;
+
+                    if (body) {
+                        await databasePool.query(
+                            `INSERT INTO whatsapp_bot_messages (phone_number, customer_id, direction, message_type, message_content, status, created_at)
+                             VALUES (?, ?, 'inbound', 'text', ?, 'delivered', NOW())`,
+                            [phone, customerId, body]
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('[WhatsAppHandler] Log incoming error:', err);
+            }
+
             await this.handleIncomingMessage(msg);
         });
+
+        // Listen for OUTGOING messages (emitted by WhatsAppClient)
+        WhatsAppEvents.on('message_sent', async (data: any) => {
+            try {
+                let phone = data.to || '';
+                if (phone.includes('@')) phone = phone.split('@')[0];
+                phone = phone.replace(/\D/g, '');
+
+                const [cust] = await databasePool.query<RowDataPacket[]>('SELECT id FROM customers WHERE phone LIKE ? LIMIT 1', [`%${phone}%`]);
+                const customerId = cust.length > 0 ? cust[0].id : null;
+
+                const content = typeof data.content === 'object' ? JSON.stringify(data.content) : String(data.content);
+
+                await databasePool.query(
+                    `INSERT INTO whatsapp_bot_messages (phone_number, customer_id, direction, message_type, message_content, status, created_at)
+                     VALUES (?, ?, 'outbound', ?, ?, 'sent', NOW())`,
+                    [phone, customerId, data.type || 'text', content]
+                );
+            } catch (err) {
+                console.error('[WhatsAppHandler] Log outgoing error:', err);
+            }
+        });
+
         this.isInitialized = true;
     }
 
@@ -34,6 +80,22 @@ export class WhatsAppHandler {
                 fraud_score DECIMAL(5,4),
                 confidence DECIMAL(5,4),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Create whatsapp_bot_messages if not exists (History Log)
+        await databasePool.query(`
+            CREATE TABLE IF NOT EXISTS whatsapp_bot_messages (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                phone_number VARCHAR(20),
+                customer_id INT NULL,
+                direction ENUM('inbound', 'outbound') DEFAULT 'outbound',
+                message_type VARCHAR(20) DEFAULT 'text',
+                message_content TEXT,
+                status VARCHAR(20) DEFAULT 'sent',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_phone (phone_number),
+                INDEX idx_customer (customer_id)
             )
         `);
     }
@@ -66,8 +128,17 @@ export class WhatsAppHandler {
     private static async handleIncomingMessage(msg: proto.IWebMessageInfo) {
         try {
             const senderJid = msg.key.remoteJid;
-            if (!senderJid || senderJid === 'status@broadcast' || senderJid.includes('@g.us')) return;
-            if (msg.key.fromMe) return;
+            if (!senderJid || senderJid === 'status@broadcast') return;
+            // Ignore group messages for now unless mentioned (future feature)
+            if (senderJid.includes('@g.us')) {
+                // process.stdout.write(`\n[WhatsAppHandler] Ignored Group Message: ${senderJid}`);
+                return;
+            }
+
+            if (msg.key.fromMe) {
+                process.stdout.write(`\n[WhatsAppHandler] Ignored message from SELF (fromMe=true)\n`);
+                return;
+            }
 
             // DEBUG LOG
             process.stdout.write(`\n[WhatsAppHandler] MSG FROM: ${senderJid}\n`);

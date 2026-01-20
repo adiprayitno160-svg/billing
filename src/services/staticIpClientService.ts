@@ -349,7 +349,7 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
         burstLimit: newPackage.child_burst_download || undefined,
         burstThreshold: newPackage.child_burst_threshold_download || undefined,
         burstTime: newPackage.child_burst_time_download || undefined,
-        queue: newPackage.child_queue_type_download || 'pcq-download-default',
+        queue: newPackage.child_queue_type_download || 'pcq',
         priority: newPackage.child_priority_download || '8',
         comment: `Download for ${client.client_name}`
     };
@@ -366,7 +366,7 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
         burstLimit: newPackage.child_burst_upload || undefined,
         burstThreshold: newPackage.child_burst_threshold_upload || undefined,
         burstTime: newPackage.child_burst_time_upload || undefined,
-        queue: newPackage.child_queue_type_upload || 'pcq-upload-default',
+        queue: newPackage.child_queue_type_upload || 'pcq',
         priority: newPackage.child_priority_upload || '8',
         comment: `Upload for ${client.client_name}`
     };

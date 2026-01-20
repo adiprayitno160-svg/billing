@@ -88,12 +88,38 @@ export class WhatsAppBaileys {
             while (!this.isReady && Date.now() - start < timeout) {
                 await delay(1000);
             }
+
+            // Start Watchdog after initialization attempt
+            this.startWatchdog();
+
         } catch (error) {
             console.error('[WhatsAppBaileys] ❌ Initialization failed:', error);
             this.isReady = false;
         } finally {
             this.isInitializing = false;
         }
+    }
+
+    /** Watchdog to ensure connection stays alive */
+    private startWatchdog() {
+        // Clear existing interval to avoid duplicates
+        if ((this as any).watchdogTimer) clearInterval((this as any).watchdogTimer);
+
+        (this as any).watchdogTimer = setInterval(() => {
+            // Check if supposed to be ready but socket is missing or closed
+            if (this.isReady) {
+                if (!this.socket) {
+                    console.warn('[WhatsAppBaileys] 🚨 Watchdog: Socket missing while Ready=true. Reconnecting...');
+                    this.isReady = false;
+                    this.initialize();
+                    return;
+                }
+
+                // Optional: Check ws state if accessible, otherwise rely on last activity timestamp if implemented
+                // For now, we rely on the fact that if socket.ws is closed, 'close' event usually fires.
+                // But sometimes it hangs. We can try a simple ping check (not supported directly in simple API)
+            }
+        }, 30000); // Check every 30 seconds
     }
 
     /** Send a text message or object content */

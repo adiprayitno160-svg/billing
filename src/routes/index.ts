@@ -2483,19 +2483,29 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 // Tapi kita log dengan detail untuk debugging
             }
 
-            // Create subscription if enable_billing is checked
+            // Create subscription if package_id is present (Always link package)
             const enableBilling = enable_billing === '1' || enable_billing === 'on';
-            if (enableBilling && package_id) {
+
+            console.log('   Step 6: Processing Subscription...');
+            console.log(`   Package ID provided: ${package_id} (${typeof package_id})`);
+            console.log(`   Enable Billing: ${enableBilling}`);
+
+            if (package_id) {
                 try {
                     const { getPackageById } = await import('../services/pppoeService');
-                    const pkg = await getPackageById(Number(package_id));
+                    const pkgIdNum = Number(package_id);
+                    const pkg = await getPackageById(pkgIdNum);
 
                     if (pkg) {
+                        console.log(`   ✅ Package found: ${pkg.name} (ID: ${pkg.id}) - Price: ${pkg.price}`);
+
                         const registrationDate = new Date();
                         const startDate = registrationDate.toISOString().slice(0, 10);
                         const endDate = new Date(registrationDate);
                         endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
                         const endDateStr = endDate.toISOString().slice(0, 10);
+
+                        console.log(`   Creating subscription with Start: ${startDate}, End: ${endDateStr}`);
 
                         // Insert subscription
                         const [subResult] = await conn.execute(`
@@ -2512,22 +2522,26 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
                         `, [
                             customerId,
-                            package_id,
+                            pkg.id,
                             pkg.name,
                             pkg.price,
                             startDate,
                             endDateStr
                         ]);
 
-                        console.log('✅ Subscription created for customer:', customerId);
+                        console.log('   ✅ Subscription created successfully for customer:', customerId);
                         console.log(`   Package: ${pkg.name}, Price: Rp ${pkg.price}, Start: ${startDate}`);
                     } else {
-                        console.warn('⚠️ Package not found for ID:', package_id);
+                        console.warn(`   ⚠️ Package not found for ID: ${package_id} (Parsed: ${pkgIdNum})`);
+                        throw new Error(`Paket dengan ID ${package_id} tidak ditemukan`);
                     }
-                } catch (subError) {
-                    console.error('❌ Failed to create subscription:', subError);
-                    // Non-critical error - customer created successfully
+                } catch (subError: any) {
+                    console.error('   ❌ Failed to create subscription:', subError);
+                    console.error('   Transaction will be rolled back.');
+                    throw new Error(`Gagal membuat subscription: ${subError.message}`);
                 }
+            } else {
+                console.warn('   ⚠️ No package_id provided! Customer will be created without a package/subscription.');
             }
 
             // Commit transaction before sending welcome message
@@ -3066,7 +3080,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
                 parent: packageDownloadQueue,
                 packetMarks: newDownloadMark,
                 maxLimit: mlDownload,
-                queue: (pkg as any).child_queue_type_download || 'pcq-download-default',
+                queue: (pkg as any).child_queue_type_download || 'pcq',
                 priority: (pkg as any).child_priority_download || '8'
             });
             await createQueueTree(cfg, {
@@ -3074,7 +3088,7 @@ router.post('/customers/edit-static-ip/:id', async (req, res) => {
                 parent: packageUploadQueue,
                 packetMarks: newUploadMark,
                 maxLimit: mlUpload,
-                queue: (pkg as any).child_queue_type_upload || 'pcq-upload-default',
+                queue: (pkg as any).child_queue_type_upload || 'pcq',
                 priority: (pkg as any).child_priority_upload || '8'
             });
         }
@@ -3483,9 +3497,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
             }
         }
 
-        // Create subscription if enable_billing is checked
+        // Create subscription if package_id is present (Always link package)
+        // Fix: Previously required enableBilling, causing package to be lost if billing disabled
         const enableBilling = enable_billing === '1' || enable_billing === 'on';
-        if (enableBilling && package_id) {
+        if (package_id) {
             try {
                 const pkg = await getStaticIpPackageById(pkgId);
 

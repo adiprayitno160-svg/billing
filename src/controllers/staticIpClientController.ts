@@ -266,7 +266,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                 burstLimit: (pkg as any).child_burst_download || undefined, // New: Burst
                 burstThreshold: (pkg as any).child_burst_threshold_download || undefined, // New: Burst Threshold
                 burstTime: (pkg as any).child_burst_time_download || undefined, // New: Burst Time
-                queue: (pkg as any).child_queue_type_download || 'pcq-download-default',
+                queue: (pkg as any).child_queue_type_download || 'pcq',
                 priority: (pkg as any).child_priority_download || '8',
                 comment: `Download for ${client_name}`
             };
@@ -294,7 +294,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                 burstLimit: (pkg as any).child_burst_upload || undefined, // New: Burst
                 burstThreshold: (pkg as any).child_burst_threshold_upload || undefined, // New: Burst Threshold
                 burstTime: (pkg as any).child_burst_time_upload || undefined, // New: Burst Time
-                queue: (pkg as any).child_queue_type_upload || 'pcq-upload-default',
+                queue: (pkg as any).child_queue_type_upload || 'pcq',
                 priority: (pkg as any).child_priority_upload || '8',
                 comment: `Upload for ${client_name}`
             };
@@ -489,7 +489,7 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
                     parent: pkg.parent_download_name,
                     packetMarks: downloadMark,
                     maxLimit: mlDownload,
-                    queue: (pkg as any).child_queue_type_download || 'pcq-download-default',
+                    queue: (pkg as any).child_queue_type_download || 'pcq',
                     priority: (pkg as any).child_priority_download || '8',
                     comment: `Download queue for ${client_name}`
                 });
@@ -498,7 +498,7 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
                     parent: pkg.parent_upload_name,
                     packetMarks: uploadMark,
                     maxLimit: mlUpload,
-                    queue: (pkg as any).child_queue_type_upload || 'pcq-upload-default',
+                    queue: (pkg as any).child_queue_type_upload || 'pcq',
                     priority: (pkg as any).child_priority_upload || '8',
                     comment: `Upload queue for ${client_name}`
                 });

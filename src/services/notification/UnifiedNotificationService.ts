@@ -336,17 +336,19 @@ export class UnifiedNotificationService {
         console.log(`[UnifiedNotification] 📱 WhatsApp Status:`, whatsappStatus);
 
         if (!whatsappStatus.ready) {
-          const errorMsg = 'WhatsApp client is not ready. Please scan QR code in settings.';
-
-          console.error(`[UnifiedNotification] ❌ WhatsApp not ready:`, {
-            ready: whatsappStatus.ready,
-            initializing: whatsappStatus.initializing,
-            hasQRCode: whatsappStatus.hasQRCode,
-            phone: customer.phone,
-            notification_id: notification.id
-          });
-
-          throw new Error(errorMsg);
+          console.warn(`[UnifiedNotification] ⚠️ WhatsApp not ready, attempting to initialize...`);
+          try {
+            await waClient.initialize();
+            // Wait a moment for connection
+            await new Promise(r => setTimeout(r, 5000));
+            // Check again
+            if (!waClient.getStatus().ready) {
+              const status = waClient.getStatus();
+              throw new Error(`WhatsApp client not ready after init attempt (Ready: ${status.ready}, QR: ${status.hasQRCode}). Check Settings.`);
+            }
+          } catch (initErr: any) {
+            throw new Error(`WhatsApp initialization failed: ${initErr.message}`);
+          }
         }
 
         console.log(`[UnifiedNotification] 📱 Sending WhatsApp to ${customer.phone}...`);
