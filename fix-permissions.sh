@@ -14,11 +14,14 @@ fi
 echo "Target Directory: $APP_DIR"
 cd $APP_DIR
 
-# 1. Create auth dir if not exists
-if [ ! -d ".baileys_auth" ]; then
-    echo "Creating .baileys_auth directory..."
-    mkdir -p .baileys_auth
-fi
+# 1. Create necessary dirs if not exists
+DOCS_DIRS=".baileys_auth dist public/uploads logs"
+for dir in $DOCS_DIRS; do
+    if [ ! -d "$dir" ]; then
+        echo "Creating $dir directory..."
+        mkdir -p "$dir"
+    fi
+done
 
 # 2. Fix Ownership
 # Detect the real user if running via sudo
@@ -42,13 +45,16 @@ fi
 
 echo "Setting ownership to $REAL_USER:$TARGET_GROUP..."
 sudo chown -R $REAL_USER:$TARGET_GROUP .
-sudo chown -R $REAL_USER:$TARGET_GROUP .baileys_auth dist public/uploads
 
 # 3. Fix Permissions
 echo "Setting permissions (775: User/Group can write)..."
-# Make the whole project readable, but specific dirs writable by group
+# Make the whole project readable (755)
 sudo chmod -R 755 .
+
+# Make specific runtime directories writable by group (775)
+echo "Setting 775 on runtime directories..."
 sudo chmod -R 775 .baileys_auth
+sudo chmod -R 775 logs
 sudo chmod -R 775 dist
 sudo chmod -R 777 public/uploads
 

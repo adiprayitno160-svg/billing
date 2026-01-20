@@ -194,7 +194,24 @@ export class WhatsAppBaileys {
         // delete auth folder
         const authPath = path.join(process.cwd(), '.baileys_auth');
         if (fs.existsSync(authPath)) {
-            fs.rmSync(authPath, { recursive: true, force: true });
+            try {
+                fs.rmSync(authPath, { recursive: true, force: true });
+                console.log('[WhatsAppBaileys] Auth folder cleared successfully');
+            } catch (err: any) {
+                console.error('[WhatsAppBaileys] Error clearing auth folder:', err.message);
+                if (err.code === 'EACCES') {
+                    console.error('💡 PRO TIP: Permission denied. Please run: sudo ./fix-permissions.sh');
+                }
+                // Fallback: try to delete contents instead of the whole directory
+                try {
+                    const files = fs.readdirSync(authPath);
+                    for (const file of files) {
+                        try {
+                            fs.unlinkSync(path.join(authPath, file));
+                        } catch (e) { }
+                    }
+                } catch (e) { }
+            }
         }
         this.isReady = false;
         this.socket = null;
