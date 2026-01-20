@@ -35,6 +35,13 @@ export async function validateQueueType(queueName: string): Promise<string> {
     return 'default-small';
 }
 
-export async function preValidateQueueCreation(data: any): Promise<{ valid: boolean, errors: string[] }> {
-    return { valid: true, errors: [] };
+export async function preValidateQueueCreation(data: any): Promise<{ valid: boolean, errors: string[], sanitizedData: any }> {
+    const sanitizedData = { ...data };
+
+    // Auto-fix queue type if present in creation data
+    if (sanitizedData.queue) {
+        sanitizedData.queue = await validateQueueType(sanitizedData.queue);
+    }
+
+    return { valid: true, errors: [], sanitizedData };
 }
