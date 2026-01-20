@@ -768,9 +768,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateValues.push(status);
                 newStatus = status;
 
-                // Sync is_active column
-                updateFields.push('is_active = ?');
-                updateValues.push(status === 'active' ? 1 : 0);
+
             }
             if (connection_type !== undefined) {
                 updateFields.push('connection_type = ?');
