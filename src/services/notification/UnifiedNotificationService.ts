@@ -447,6 +447,7 @@ export class UnifiedNotificationService {
 
       const invoice = invoiceRows[0]!;
       const dueDate = new Date(invoice.due_date);
+      const bank = await this.getBankSettings();
 
       await this.queueNotification({
         customer_id: invoice.customer_id,
@@ -456,7 +457,10 @@ export class UnifiedNotificationService {
           invoice_number: invoice.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
           due_date: NotificationTemplateService.formatDate(dueDate),
-          period: invoice.period
+          period: invoice.period,
+          bank_name: bank.bankName,
+          bank_account_number: bank.accountNumber,
+          bank_account_name: bank.accountName
         }
       });
     } finally {
@@ -487,6 +491,7 @@ export class UnifiedNotificationService {
       const dueDate = new Date(invoice.due_date);
       const now = new Date();
       const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const bank = await this.getBankSettings();
 
       await this.queueNotification({
         customer_id: invoice.customer_id,
@@ -497,7 +502,10 @@ export class UnifiedNotificationService {
           invoice_number: invoice.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
           due_date: NotificationTemplateService.formatDate(dueDate),
-          days_overdue: daysOverdue
+          days_overdue: daysOverdue,
+          bank_name: bank.bankName,
+          bank_account_number: bank.accountNumber,
+          bank_account_name: bank.accountName
         }
       });
     } finally {
@@ -523,6 +531,7 @@ export class UnifiedNotificationService {
 
       const invoice = invoiceRows[0]!;
       const dueDate = new Date(invoice.due_date);
+      const bank = await this.getBankSettings();
 
       await this.queueNotification({
         customer_id: invoice.customer_id,
@@ -533,9 +542,33 @@ export class UnifiedNotificationService {
           invoice_number: invoice.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
           due_date: NotificationTemplateService.formatDate(dueDate),
-          period: invoice.period || '-'
+          period: invoice.period || '-',
+          bank_name: bank.bankName,
+          bank_account_number: bank.accountNumber,
+          bank_account_name: bank.accountName
         }
       });
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Get Bank Settings
+   */
+  private static async getBankSettings(): Promise<{ bankName: string, accountNumber: string, accountName: string }> {
+    const connection = await databasePool.getConnection();
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name')"
+      );
+      const settings: any = {};
+      rows.forEach(r => settings[r.setting_key] = r.setting_value);
+      return {
+        bankName: settings['bank_name'] || 'BCA',
+        accountNumber: settings['bank_account_number'] || '-',
+        accountName: settings['bank_account_name'] || 'Provider'
+      };
     } finally {
       connection.release();
     }

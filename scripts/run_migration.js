@@ -26,7 +26,8 @@ async function run() {
     // List of migration files to run in order
     const migrationFiles = [
         'migration_autocomplaint.sql',
-        'migration_customers_monitoring.sql'
+        'migration_customers_monitoring.sql',
+        'migration_add_bank_settings.sql'
     ];
 
     for (const file of migrationFiles) {
