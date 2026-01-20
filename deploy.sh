@@ -1,39 +1,37 @@
 #!/bin/bash
-# Billing App Deployment Script for Ubuntu
+# Billing App Deployment Script
+# Usage: ./deploy.sh
 
 echo "----------------------------------------"
 echo "🚀 STARTING DEPLOYMENT"
-date
 echo "----------------------------------------"
 
-# 1. Update Code from GitHub
-echo "📥 Pulling latest code from 'main'..."
+# 1. Update Code
+echo "📥 Pulling latest code..."
 git pull origin main
-
 if [ $? -ne 0 ]; then
-    echo "❌ Git Pull Failed! Please check your internet connection or git status."
+    echo "❌ Git Pull Failed!"
     exit 1
 fi
 
 # 2. Install Dependencies
-echo "📦 Installing Node Dependencies..."
+echo "📦 Installing Dependencies..."
 npm install
 
-# 3. Build TypeScript Project
+# 3. Build Project
 echo "🔨 Compiling TypeScript..."
 npm run build
-
 if [ $? -ne 0 ]; then
     echo "❌ Build Failed!"
     exit 1
 fi
 
-# 4. Run Database Migration (Safe Mode)
+# 4. Run Database Migrations (Critical!)
 echo "💾 Running Database Migrations..."
 node scripts/run_migration.js
 
-# 5. Reload PM2 Process
-echo "🔄 Reloading Application..."
+# 5. Restart Application
+echo "🔄 Reloading PM2..."
 if pm2 list | grep -q "billing-app"; then
     pm2 reload billing-app
 else
@@ -42,5 +40,5 @@ else
 fi
 
 echo "----------------------------------------"
-echo "✅ DEPLOYMENT FINISHED SUCCESSFULLY"
+echo "✅ DEPLOYMENT SUCCESSFUL"
 echo "----------------------------------------"
