@@ -506,6 +506,42 @@ export class UnifiedNotificationService {
   }
 
   /**
+   * Send invoice reminder (Monthly 20th)
+   */
+  static async notifyInvoiceReminder(invoiceId: number): Promise<void> {
+    const connection = await databasePool.getConnection();
+    try {
+      const [invoiceRows] = await connection.query<RowDataPacket[]>(
+        `SELECT i.*, c.name as customer_name
+         FROM invoices i
+         JOIN customers c ON i.customer_id = c.id
+         WHERE i.id = ?`,
+        [invoiceId]
+      );
+
+      if (invoiceRows.length === 0) return;
+
+      const invoice = invoiceRows[0]!;
+      const dueDate = new Date(invoice.due_date);
+
+      await this.queueNotification({
+        customer_id: invoice.customer_id,
+        invoice_id: invoiceId,
+        notification_type: 'invoice_reminder',
+        priority: 'normal',
+        variables: {
+          invoice_number: invoice.invoice_number,
+          amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+          due_date: NotificationTemplateService.formatDate(dueDate),
+          period: invoice.period || '-'
+        }
+      });
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
    * Send payment received notification
    */
   static async notifyPaymentReceived(paymentId: number): Promise<void> {

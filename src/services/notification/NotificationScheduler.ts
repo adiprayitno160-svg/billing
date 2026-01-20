@@ -53,12 +53,22 @@ export class NotificationScheduler {
       }
     });
 
-    // Also run daily at 8 AM to check for overdue invoices
+    // Run daily at 8 AM to check for overdue invoices
     cron.schedule('0 8 * * *', async () => {
       try {
         await this.checkOverdueInvoices();
       } catch (error) {
         console.error('[NotificationScheduler] Error checking overdue invoices:', error);
+      }
+    });
+
+    // Run Monthly on 20th at 9 AM for Payment Reminders
+    cron.schedule('0 9 20 * *', async () => {
+      try {
+        console.log('[NotificationScheduler] Running monthly payment reminders (20th)...');
+        await this.checkMonthlyInvoiceReminders();
+      } catch (error) {
+        console.error('[NotificationScheduler] Error sending monthly reminders:', error);
       }
     });
 
@@ -97,6 +107,41 @@ export class NotificationScheduler {
           await UnifiedNotificationService.notifyInvoiceOverdue(invoice.id);
         } catch (error) {
           console.error(`[NotificationScheduler] Error notifying invoice ${invoice.id}:`, error);
+        }
+      }
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Check and notify monthly reminders (20th)
+   */
+  private static async checkMonthlyInvoiceReminders(): Promise<void> {
+    const connection = await databasePool.getConnection();
+
+    try {
+      // Get unpaid invoices
+      const [invoices] = await connection.query<RowDataPacket[]>(
+        `SELECT i.id
+         FROM invoices i
+         WHERE i.status IN ('sent', 'partial')
+           AND i.remaining_amount > 0
+           AND NOT EXISTS (
+             SELECT 1 FROM unified_notifications_queue unq
+             WHERE unq.invoice_id = i.id
+               AND unq.notification_type = 'invoice_reminder'
+               AND DATE(unq.created_at) = CURDATE()
+           )`
+      );
+
+      console.log(`[NotificationScheduler] Found ${invoices.length} invoices for monthly reminder`);
+
+      for (const invoice of invoices) {
+        try {
+          await UnifiedNotificationService.notifyInvoiceReminder(invoice.id);
+        } catch (error) {
+          console.error(`[NotificationScheduler] Error notifying reminder for invoice ${invoice.id}:`, error);
         }
       }
     } finally {
