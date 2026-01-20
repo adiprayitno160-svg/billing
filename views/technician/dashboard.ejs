@@ -505,19 +505,42 @@
                     btn.onclick = function (e) {
                         e.preventDefault();
                         e.stopPropagation();
+                        // 1. Try Accurate GPS
                         navigator.geolocation.getCurrentPosition(pos => {
                             const { latitude, longitude } = pos.coords;
-                            jobMap.setView([latitude, longitude], 17);
-                            if (jobMarker) jobMap.removeLayer(jobMarker);
-                            jobMarker = L.marker([latitude, longitude]).addTo(jobMap);
-                            document.getElementById('jobCoordinates').value = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-                            document.getElementById('manualLat').value = latitude.toFixed(6);
-                            document.getElementById('manualLng').value = longitude.toFixed(6);
+                            updateMapLocation(latitude, longitude, 'GPS');
                         }, err => {
-                            alert('Gagal mengambil lokasi: ' + err.message + '. Gunakan HTTPS atau Input Manual.');
+                            console.warn('GPS fail, trying IP:', err);
+                            // 2. Try Client-Side IP (For HTTP access)
+                            fetch('http://ip-api.com/json')
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.status === 'success') {
+                                        updateMapLocation(data.lat, data.lon, 'IP');
+                                        alert(`Lokasi dari IP Internet (${data.city}). Akurasi rendah.`);
+                                    } else throw new Error('IP API Fail');
+                                })
+                                .catch(() => {
+                                    // 3. Fallback: Server Proxy
+                                    fetch('/api/proxy/ip-location').then(r => r.json()).then(d => {
+                                        if (d.lat) {
+                                            updateMapLocation(d.lat, d.lon, 'Server IP');
+                                            alert(`Lokasi dari Server IP (${d.city || 'Unknown'}).`);
+                                        } else alert('Gagal total mengambil lokasi. Gunakan Manual Input.');
+                                    });
+                                });
                         });
                         return false;
                     };
+
+                    function updateMapLocation(lat, lng, source) {
+                        jobMap.setView([lat, lng], 17);
+                        if (jobMarker) jobMap.removeLayer(jobMarker);
+                        jobMarker = L.marker([lat, lng]).addTo(jobMap);
+                        document.getElementById('jobCoordinates').value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+                        document.getElementById('manualLat').value = lat.toFixed(6);
+                        document.getElementById('manualLng').value = lng.toFixed(6);
+                    }
                     return btn;
                 }
             });
