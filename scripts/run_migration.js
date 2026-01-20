@@ -27,7 +27,8 @@ async function run() {
     const migrationFiles = [
         'migration_autocomplaint.sql',
         'migration_customers_monitoring.sql',
-        'migration_add_bank_settings.sql'
+        'migration_add_bank_settings.sql',
+        'migration_ignore_monitoring_start.sql'
     ];
 
     for (const file of migrationFiles) {
