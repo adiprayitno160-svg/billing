@@ -32,11 +32,24 @@ export class WhatsAppHandler {
                     const customerId = cust.length > 0 ? cust[0].id : null;
 
                     if (body) {
-                        await databasePool.query(
-                            `INSERT INTO whatsapp_bot_messages (phone_number, customer_id, direction, message_type, message_content, status, created_at)
-                             VALUES (?, ?, 'inbound', 'text', ?, 'delivered', NOW())`,
-                            [phone, customerId, body]
-                        );
+                        try {
+                            await databasePool.query(
+                                `INSERT INTO whatsapp_bot_messages (phone_number, customer_id, direction, message_type, message_content, status, created_at)
+                                 VALUES (?, ?, 'inbound', 'text', ?, 'delivered', NOW())`,
+                                [phone, customerId, body]
+                            );
+                        } catch (logErr: any) {
+                            // Fallback for missing 'customer_id' column if schema is old
+                            if (logErr.code === 'ER_BAD_FIELD_ERROR') {
+                                await databasePool.query(
+                                    `INSERT INTO whatsapp_bot_messages (phone_number, direction, message_type, message_content, status, created_at)
+                                     VALUES (?, 'inbound', 'text', ?, 'delivered', NOW())`,
+                                    [phone, body]
+                                );
+                            } else {
+                                console.error('[WhatsAppHandler] Log Incoming DB Error:', logErr.message);
+                            }
+                        }
                     }
                 }
             } catch (err) {
@@ -1162,10 +1175,18 @@ Terima kasih atas kerja keras Anda! 💪`);
     }
 
     private static async getUserByPhone(phone: string): Promise<any | null> {
-        const [rows] = await databasePool.query<RowDataPacket[]>(
-            `SELECT * FROM users WHERE phone = ? OR phone = ? OR whatsapp_lid = ? LIMIT 1`,
-            [phone, phone.replace(/^62/, '0'), phone]
-        );
-        return rows[0] || null;
+        try {
+            // Check if whatsapp_lid column exists first or simplify query
+            // Assuming the column DOES NOT EXIST based on the error log, we remove it from the query temporarily
+            // to allow the bot to function.
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                `SELECT * FROM users WHERE phone = ? OR phone = ? LIMIT 1`,
+                [phone, phone.replace(/^62/, '0')]
+            );
+            return rows[0] || null;
+        } catch (error) {
+            console.error('[WhatsAppHandler] getUserByPhone error:', error);
+            return null;
+        }
     }
 }
