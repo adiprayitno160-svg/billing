@@ -201,10 +201,16 @@ app.use(errorLoggingMiddleware);
 import paymentRoutes from './routes/payment';
 app.use('/payment', paymentRoutes);
 
-// Proxy for IP Location (Fixed in Server)
+// Proxy for IP Location (Using Client IP for better estimation)
 app.get('/api/proxy/ip-location', async (req, res) => {
 	try {
-		const response = await axios.get('http://ip-api.com/json');
+		// Ambil IP pengunjung (handle proxy/cloudflare jika ada)
+		const clientIp = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '').split(',')[0].trim();
+
+		// Jika local atau IPv6 loopback, gunakan default (IP Server)
+		const query = (clientIp && clientIp !== '::1' && clientIp !== '127.0.0.1') ? `/${clientIp}` : '';
+
+		const response = await axios.get(`http://ip-api.com/json${query}`);
 		res.json(response.data);
 	} catch (error: any) {
 		console.error('Error fetching IP location:', error);
