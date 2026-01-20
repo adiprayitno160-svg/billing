@@ -29,216 +29,66 @@ let schemaCache: {
 // function getRecentAlerts() removed to clean logs
 
 async function getTroubleCustomers(): Promise<any[]> {
-	// ... (rest of function unchanged, just need to make sure I don't break the return)
 	try {
-		// Initialize cache if null
-		if (!schemaCache) {
-			const [tables] = await databasePool.query("SHOW TABLES") as any[];
-			const tableNames = Array.isArray(tables) ? tables.map((t: any) => Object.values(t)[0]) : [];
-			const hasMaintenance = tableNames.includes('maintenance_schedules');
-			const hasConnectionLogs = tableNames.includes('connection_logs');
-			const hasStaticIpStatus = tableNames.includes('static_ip_ping_status');
-			const hasSlaIncidents = tableNames.includes('sla_incidents');
+		// Query Maintenance Schedules
+		const [maintenance] = await databasePool.query(`
+            SELECT 
+                c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+                m.status as maintenance_status, 
+                COALESCE(m.issue_type, 'Maintenance') as issue_type, 
+                m.created_at as trouble_since,
+                'maintenance' as trouble_type
+            FROM maintenance_schedules m
+            JOIN customers c ON m.customer_id = c.id
+            WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
+              AND c.status = 'active'
+        `) as any[];
 
-			let hasIsolated = false;
-			try {
-				const [cols] = await databasePool.query(
-					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'is_isolated'"
-				) as any[];
-				hasIsolated = Array.isArray(cols) && cols.length > 0;
-			} catch { hasIsolated = false; }
+		// Query Network Devices (Unified PPPoE & Static IP Monitoring)
+		// Shows Offline first, then Online (limit 50 total)
+		const [devices] = await databasePool.query(`
+            SELECT 
+                c.id, c.name, c.customer_code, c.pppoe_username, c.status as customer_status, c.connection_type,
+                NULL as maintenance_status,
+                CONCAT(UCASE(LEFT(d.status, 1)), SUBSTRING(d.status, 2)) as issue_type, -- Online/Offline
+                d.last_seen as trouble_since,
+                'monitoring' as trouble_type,
+                d.status as device_status
+            FROM network_devices d
+            JOIN customers c ON d.customer_id = c.id
+            WHERE d.device_type = 'customer'
+              AND c.status = 'active'
+            ORDER BY 
+                CASE WHEN d.status = 'offline' THEN 1 ELSE 2 END ASC,
+                d.last_seen DESC
+            LIMIT 50
+        `) as any[];
 
-			let hasIssueType = false;
-			let hasCustomerId = false;
-			if (hasMaintenance) {
-				try {
-					const [cols] = await databasePool.query(
-						"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME IN ('issue_type', 'customer_id')"
-					) as any[];
-					const columnNames = (cols as any[]).map(c => c.COLUMN_NAME);
-					hasIssueType = columnNames.includes('issue_type');
-					hasCustomerId = columnNames.includes('customer_id');
-				} catch {
-					hasIssueType = false;
-					hasCustomerId = false;
-				}
+		// Combine
+		// Maintenance takes precedence
+		const result = [
+			...(Array.isArray(maintenance) ? maintenance : []),
+			...(Array.isArray(devices) ? devices : [])
+		];
+
+		// Unique by ID (Maintenance details override monitoring if duplicate)
+		const unique = new Map();
+		result.forEach(r => {
+			if (!unique.has(r.id)) {
+				unique.set(r.id, r);
 			}
+		});
 
-			schemaCache = {
-				checked: true,
-				hasMaintenance,
-				hasConnectionLogs,
-				hasStaticIpStatus,
-				hasSlaIncidents,
-				hasIsolated,
-				hasIssueType,
-				hasCustomerId
+		return Array.from(unique.values()).sort((a, b) => {
+			// Sorot Priority: Maintenance > Offline > Online
+			const getScore = (item: any) => {
+				if (item.trouble_type === 'maintenance') return 1;
+				if (item.device_status === 'offline') return 2;
+				return 3;
 			};
-		}
+			return getScore(a) - getScore(b);
+		}).slice(0, 50);
 
-		// Use cached values
-		const {
-			hasMaintenance,
-			hasConnectionLogs,
-			hasStaticIpStatus,
-			hasSlaIncidents,
-			hasIsolated,
-			hasIssueType,
-			hasCustomerId
-		} = schemaCache;
-
-		// Build UNION query for all trouble sources
-		const queries: string[] = [];
-		const isolatedFilter = hasIsolated ? 'AND (c.is_isolated = 0 OR c.is_isolated IS NULL)' : '';
-
-		// 1. Customers with maintenance schedules
-		if (hasMaintenance) {
-			const issueTypeColumn = hasIssueType ? "COALESCE(m.issue_type, 'Maintenance')" : "'Maintenance'";
-
-			// If customer_id exists, use simple JOIN. If not, use JSON_CONTAINS on affected_customers
-			if (hasCustomerId) {
-				queries.push(`
-					SELECT DISTINCT
-						c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-						m.status as maintenance_status, 
-						${issueTypeColumn} as issue_type, 
-						m.created_at as trouble_since,
-						'maintenance' as trouble_type
-					FROM customers c
-					INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
-					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
-						AND c.status = 'active'
-				`);
-			} else {
-				// Fallback if table uses affected_customers (JSON) instead of customer_id
-				queries.push(`
-					SELECT DISTINCT
-						c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-						m.status as maintenance_status, 
-						${issueTypeColumn} as issue_type, 
-						m.created_at as trouble_since,
-						'maintenance' as trouble_type
-					FROM customers c
-					INNER JOIN maintenance_schedules m ON (
-						JSON_CONTAINS(m.affected_customers, CAST(c.id AS JSON))
-						OR m.affected_area = c.address
-					)
-					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
-						AND c.status = 'active'
-				`);
-			}
-		}
-
-		// 2. Static IP customers who are offline (not isolated, ACTIVE only)
-		// Removed time limit to show ALL offline active customers
-		if (hasStaticIpStatus) {
-			queries.push(`
-				SELECT DISTINCT
-					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-					NULL as maintenance_status,
-					'Offline' as issue_type,
-					COALESCE(sips.last_offline_at, sips.last_check) as trouble_since,
-					'offline' as trouble_type
-				FROM customers c
-				INNER JOIN static_ip_ping_status sips ON c.id = sips.customer_id
-				WHERE c.connection_type = 'static_ip'
-					AND sips.status = 'offline'
-					AND c.status = 'active'
-					${isolatedFilter}
-			`);
-		}
-
-		// 3. PPPoE customers who are offline (from connection_logs, not isolated, ACTIVE only)
-		// Expanded time window to 24 hours to match recent connection logs
-		if (hasConnectionLogs) {
-			queries.push(`
-				SELECT DISTINCT
-					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-					NULL as maintenance_status,
-					'Offline' as issue_type,
-					cl_latest.timestamp as trouble_since,
-					'offline' as trouble_type
-				FROM customers c
-				INNER JOIN (
-					SELECT customer_id, MAX(timestamp) as max_timestamp
-					FROM connection_logs
-					WHERE service_type = 'pppoe'
-						AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-					GROUP BY customer_id
-				) cl_max ON c.id = cl_max.customer_id
-				INNER JOIN connection_logs cl_latest ON c.id = cl_latest.customer_id 
-					AND cl_latest.timestamp = cl_max.max_timestamp
-					AND cl_latest.service_type = 'pppoe'
-				WHERE c.connection_type = 'pppoe'
-					AND cl_latest.status = 'offline'
-					AND c.status = 'active'
-					${isolatedFilter}
-					AND NOT EXISTS (
-						SELECT 1 FROM connection_logs cl2
-						WHERE cl2.customer_id = c.id
-							AND cl2.status = 'online'
-							AND cl2.timestamp > cl_latest.timestamp
-							AND cl2.timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-					)
-			`);
-		}
-
-		// 4. Customers with ongoing SLA incidents
-		if (hasSlaIncidents) {
-			queries.push(`
-				SELECT DISTINCT
-					c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-					NULL as maintenance_status,
-					CONCAT('SLA: ', si.incident_type) as issue_type,
-					si.start_time as trouble_since,
-					'sla_incident' as trouble_type
-				FROM customers c
-				INNER JOIN sla_incidents si ON c.id = si.customer_id
-				WHERE si.status = 'ongoing'
-					AND c.status = 'active'
-			`);
-		}
-
-		if (queries.length === 0) {
-			return [];
-		}
-
-		// Combine all queries with UNION and get unique customers (prioritize maintenance, then offline, then SLA)
-		// Use GROUP BY to get only one record per customer (prioritize by trouble_type)
-		const unionQuery = `
-			SELECT 
-				trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, 
-				trouble.status, trouble.connection_type,
-				COALESCE(
-					MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.maintenance_status END),
-					MAX(trouble.maintenance_status)
-				) as maintenance_status,
-				COALESCE(
-					MAX(CASE WHEN trouble.trouble_type = 'maintenance' THEN trouble.issue_type END),
-					MAX(CASE WHEN trouble.trouble_type = 'offline' THEN trouble.issue_type END),
-					MAX(CASE WHEN trouble.trouble_type = 'sla_incident' THEN trouble.issue_type END),
-					MAX(trouble.issue_type)
-				) as issue_type,
-				MAX(trouble.trouble_since) as trouble_since,
-				MIN(CASE trouble.trouble_type
-					WHEN 'maintenance' THEN 1
-					WHEN 'offline' THEN 2
-					WHEN 'sla_incident' THEN 3
-					ELSE 4
-				END) as priority_type
-			FROM (
-				${queries.join(' UNION ALL ')}
-			) as trouble
-			GROUP BY trouble.id, trouble.name, trouble.customer_code, trouble.pppoe_username, trouble.status, trouble.connection_type
-			ORDER BY 
-				priority_type,
-				MAX(trouble.trouble_since) DESC
-			LIMIT 50
-		`;
-
-		const [rows] = await databasePool.query(unionQuery);
-
-		return rows as any[];
 	} catch (error) {
 		console.error('Error fetching trouble customers:', error);
 		return [];

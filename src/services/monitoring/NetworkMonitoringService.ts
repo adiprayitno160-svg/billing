@@ -1360,12 +1360,12 @@ export class NetworkMonitoringService {
                     if (notify) {
                         // Track customer states for recovery detection
                         const previousStates = await this.getPreviousCustomerStates();
-                                    
+
                         for (const cust of rows as any[]) {
                             if (cust.trouble_type === 'offline') {
                                 const isOnline = onlineUsernames.has(cust.pppoe_username);
                                 const wasOnlinePreviously = previousStates.get(cust.id) === 'online';
-                                            
+
                                 if (!isOnline) {
                                     // New offline event - send trouble notification
                                     await notificationService.sendTroubleNotification(
@@ -1403,7 +1403,7 @@ export class NetworkMonitoringService {
                                 }
                             }
                         }
-                                    
+
                         // Update customer states for next comparison
                         await this.updateCustomerStates(rows as any[], onlineUsernames);
                     }
@@ -1486,12 +1486,12 @@ export class NetworkMonitoringService {
             const [states] = await databasePool.query<RowDataPacket[]>(
                 `SELECT customer_id, status FROM customer_current_states`
             );
-            
+
             const stateMap = new Map<number, string>();
             (states as any[]).forEach(state => {
                 stateMap.set(state.customer_id, state.status);
             });
-            
+
             return stateMap;
         } catch (error) {
             console.error('Error fetching previous customer states:', error);
@@ -1512,13 +1512,13 @@ export class NetworkMonitoringService {
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )
             `);
-            
+
             // Update states for all customers
             for (const customer of customers) {
-                const status = customer.pppoe_username && onlineUsernames.has(customer.pppoe_username) 
-                    ? 'online' 
+                const status = customer.pppoe_username && onlineUsernames.has(customer.pppoe_username)
+                    ? 'online'
                     : 'offline';
-                
+
                 await databasePool.query(
                     `INSERT INTO customer_current_states (customer_id, status) 
                      VALUES (?, ?) 
@@ -1537,7 +1537,7 @@ export class NetworkMonitoringService {
     static async detectTimeoutIssues(): Promise<void> {
         try {
             const notificationService = notificationServiceInstance;
-            
+
             // Find customers with consecutive failures indicating timeout
             const [timeoutCustomers] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
@@ -1580,7 +1580,7 @@ export class NetworkMonitoringService {
     static async detectDegradedPerformance(): Promise<void> {
         try {
             const notificationService = notificationServiceInstance;
-            
+
             // Find customers with degraded performance
             const [degradedCustomers] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 

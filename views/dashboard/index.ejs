@@ -34,56 +34,59 @@
 		</div>
 		<% } %>
 
-		<!-- Offline PPPoE Customers Alert -->
-		<div id="offlineCustomersAlert" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center">
-					<div class="flex-shrink-0">
-						<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-						</svg>
-					</div>
-					<div class="ml-3">
-						<p class="text-sm font-bold text-red-800">
-							Pelanggan PPPoE Offline! (<span id="offlineCount">0</span> Pelanggan)
-						</p>
-						<div class="text-xs text-red-700 mt-1" id="offlineCustomerList">
-							Memuat data...
+			<!-- Offline PPPoE Customers Alert -->
+			<div id="offlineCustomersAlert"
+				class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center">
+						<div class="flex-shrink-0">
+							<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+						</div>
+						<div class="ml-3">
+							<p class="text-sm font-bold text-red-800">
+								Pelanggan PPPoE Offline! (<span id="offlineCount">0</span> Pelanggan)
+							</p>
+							<div class="text-xs text-red-700 mt-1" id="offlineCustomerList">
+								Memuat data...
+							</div>
 						</div>
 					</div>
-				</div>
-				<div>
-					<a href="/monitoring/pppoe?status_filter=offline"
-						class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 transition">Lihat Semua</a>
+					<div>
+						<a href="/monitoring/pppoe?status_filter=offline"
+							class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 transition">Lihat
+							Semua</a>
+					</div>
 				</div>
 			</div>
-		</div>
 
-		<script>
-			// Fetch offline customers on page load
-			document.addEventListener('DOMContentLoaded', function() {
-				fetch('/api/dashboard/offline-customers')
-					.then(response => response.json())
-					.then(data => {
-						if (data.success && data.customers && data.customers.length > 0) {
-							document.getElementById('offlineCount').textContent = data.customers.length;
-							
-							const customerList = document.getElementById('offlineCustomerList');
-							const customersHtml = data.customers.slice(0, 3).map(customer => 
-								`<span class="font-semibold">${customer.name}</span> (${customer.customer_code || '-'})`
-							).join('; ');
-							
-							customerList.innerHTML = customersHtml + 
-								(data.customers.length > 3 ? `; ...dan ${data.customers.length - 3} lainnya` : '');
-							
-							document.getElementById('offlineCustomersAlert').classList.remove('hidden');
-						}
+			<script>
+				// Fetch offline customers on page load
+				document.addEventListener('DOMContentLoaded', function () {
+					fetch('/api/dashboard/offline-customers')
+						.then(response => response.json())
+						.then(data => {
+							if (data.success && data.customers && data.customers.length > 0) {
+								document.getElementById('offlineCount').textContent = data.customers.length;
+
+								const customerList = document.getElementById('offlineCustomerList');
+								const customersHtml = data.customers.slice(0, 3).map(customer =>
+									`<span class="font-semibold">${customer.name}</span> (${customer.customer_code || '-'})`
+								).join('; ');
+
+								customerList.innerHTML = customersHtml +
+									(data.customers.length > 3 ? `; ...dan ${data.customers.length - 3} lainnya` : '');
+
+								document.getElementById('offlineCustomersAlert').classList.remove('hidden');
+							}
 						})
 						.catch(error => {
 							console.error('Error fetching offline customers:', error);
 						});
-			});
-		</script>
+				});
+			</script>
 
 			<!-- KPI Cards - Modern Grid Design -->
 			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
@@ -741,7 +744,7 @@
 			<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
 				style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 				<div class="flex items-center justify-between mb-4">
-					<h2 class="text-lg font-semibold text-gray-900">Monitor Pelanggan Trouble</h2>
+					<h2 class="text-lg font-semibold text-gray-900">Monitor Status Koneksi (Live)</h2>
 					<a href="/monitoring/trouble" class="text-sm text-blue-600 hover:text-blue-800">Lihat Semua</a>
 				</div>
 				<div class="overflow-x-auto">
@@ -752,9 +755,9 @@
 								<th class="py-3 pr-4 font-medium">Nama Pelanggan</th>
 								<th class="py-3 pr-4 font-medium">Username</th>
 								<th class="py-3 pr-4 font-medium">Tipe</th>
-								<th class="py-3 pr-4 font-medium">Issue</th>
-								<th class="py-3 pr-4 font-medium">Status</th>
-								<th class="py-3 pr-4 font-medium">Sejak</th>
+								<th class="py-3 pr-4 font-medium">Status Terkini</th>
+								<th class="py-3 pr-4 font-medium">Maintenance</th>
+								<th class="py-3 pr-4 font-medium">Terakhir Terlihat</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -787,8 +790,20 @@
 														</span>
 														<% } %>
 										</td>
-										<td class="py-3 pr-4 text-gray-600">
-											<%= customer.issue_type || '-' %>
+										<td class="py-3 pr-4">
+											<% if (customer.issue_type && customer.issue_type.toLowerCase()==='online' )
+												{ %>
+												<span
+													class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-800">Online</span>
+												<% } else if (customer.issue_type &&
+													customer.issue_type.toLowerCase()==='offline' ) { %>
+													<span
+														class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-800">Offline</span>
+													<% } else { %>
+														<span class="text-gray-600">
+															<%= customer.issue_type || '-' %>
+														</span>
+														<% } %>
 										</td>
 										<td class="py-3 pr-4">
 											<% if (customer.maintenance_status==='in_progress' ) { %>

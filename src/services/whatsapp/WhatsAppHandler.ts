@@ -352,15 +352,11 @@ Untuk mengambil, balas:
                                 [user.id, jobs[0].id]
                             );
 
-                            // 2. Auto Check-In (Absensi) Logic
-                            const { TechnicianAttendanceService } = await import('../technician/TechnicianAttendanceService');
-                            await TechnicianAttendanceService.checkIn(user.id, 100000);
+
 
                             await this.sendMessage(replyToJid, `✅ *JOB ACCEPTED*
 Tiket: ${ticket}
 Status: *In Progress*
-
-🕒 *ABSENSI*: Kehadiran hari ini otomatis tercatat.
 
 Jika sudah selesai, kirim FOTO bukti dengan caption:
 *!selesai ${ticket} <catatan>*`);

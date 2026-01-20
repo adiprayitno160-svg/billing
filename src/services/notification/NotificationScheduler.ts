@@ -5,6 +5,8 @@
 
 import * as cron from 'node-cron';
 import { UnifiedNotificationService } from './UnifiedNotificationService';
+import NetworkMonitoringService from '../monitoring/NetworkMonitoringService';
+import { AIDiagnosticsService } from '../ai/AIDiagnosticsService';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 
@@ -37,6 +39,17 @@ export class NotificationScheduler {
         console.error('[NotificationScheduler] Error processing notifications:', error);
       } finally {
         this.isRunning = false;
+      }
+    });
+
+    // Run Network Monitoring Check every 5 minutes
+    cron.schedule('*/5 * * * *', async () => {
+      try {
+        await NetworkMonitoringService.checkAutoOutageJobs();
+        // Check for Auto-Complaint Escalations
+        await AIDiagnosticsService.processEscalations();
+      } catch (error) {
+        console.error('[NotificationScheduler] Error in monitoring check:', error);
       }
     });
 

@@ -175,7 +175,7 @@
                                         </span>
                                     </div>
                                     <div class="w-full bg-slate-200 rounded-full h-2">
-                                        <div class="<%= barColor %> h-2 rounded-full" style="width: <%= percentage %>%">
+                                        <div class="h-2 rounded-full <%= barColor %>" style="width: <%= percentage %>%;">
                                         </div>
                                     </div>
                                     <div class="mt-1 flex gap-2 text-[10px] text-slate-400">
@@ -260,7 +260,7 @@
                     resultsDiv.innerHTML = data.results.map(odp => `
                     <a href="/ftth/odp?odc_id=${odp.odc_id}&highlight=${odp.id}" 
                        class="block px-4 py-3 hover:bg-indigo-50 border-b border-slate-100 last:border-0 transition-colors">
-                        <div class="font-semibold text-slate-800">${odp.name}</div>
+                        <div class="font-semibold text-slate-800">${odp.odp_name}</div>
                         <div class="text-xs text-slate-500 mt-1">
                             <span class="inline-block bg-purple-100 text-purple-700 px-2 py-0.5 rounded mr-2">ODC: ${odp.odc_name || '-'}</span>
                             <span class="text-slate-400">Port: ${odp.used_ports || 0}/${odp.total_ports || 0}</span>

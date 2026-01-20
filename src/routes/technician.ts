@@ -27,9 +27,7 @@ router.get('/customers/search', isAuthenticated, TechnicianController.apiSearchC
 router.get('/jobs/:id', isAuthenticated, TechnicianController.getJobDetail);
 router.get('/history', isAuthenticated, TechnicianController.getJobHistory);
 
-// Attendance & Salary
-import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController';
-router.post('/attendance/check-in', isAuthenticated, TechnicianSalaryController.checkIn);
+
 
 // Installation Approval (Admin/Operator only)
 import { InstallationApprovalController } from '../controllers/technician/InstallationApprovalController';

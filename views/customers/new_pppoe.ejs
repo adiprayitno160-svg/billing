@@ -595,7 +595,7 @@
 
                     // Function to update address from coords (Reverse Geocoding)
                     const updateAddress = (lat, lng) => {
-                        const addressInput = document.getElementById('address');
+                        const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
                         if (addressInput) {
                             addressInput.placeholder = 'Mengambil alamat...';
                             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
@@ -637,7 +637,10 @@
                         latInput.value = e.latlng.lat.toFixed(6);
                         lngInput.value = e.latlng.lng.toFixed(6);
                         setMarker(e.latlng.lat, e.latlng.lng, map.getZoom()); // Keep current zoom
+                        updateAddress(e.latlng.lat, e.latlng.lng); // Update address field
                     });
+
+                    
 
                     // Map Search Logic
                     const searchInput = document.getElementById('map_search');
@@ -659,6 +662,7 @@
                                                 lngInput.value = lon.toFixed(6);
                                                 setMarker(lat, lon, 16);
                                                 searchInput.value = res.display_name; // Show found name
+                                                updateAddress(lat, lon); // Update address field
                                             } else {
                                                 alert('Lokasi tidak ditemukan');
                                             }
@@ -709,6 +713,7 @@
                                     latInput.value = latitude.toFixed(6);
                                     lngInput.value = longitude.toFixed(6);
                                     setMarker(latitude, longitude);
+                                    updateAddress(latitude, longitude); // Update address field
                                     btnGetLocation.textContent = 'OK';
                                     setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
                                 }, (err) => {

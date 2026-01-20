@@ -143,6 +143,62 @@ export async function ensureNotificationTemplates(): Promise<void> {
         variables: JSON.stringify(['customer_name', 'details']),
         priority: 'high',
         is_active: true
+      },
+      // Technician Job Templates
+      {
+        template_code: 'technician_job_created',
+        template_name: 'Pekerjaan Baru Untuk Teknisi',
+        notification_type: 'technician_job',
+        channel: 'whatsapp',
+        title_template: '🛠️ PEKERJAAN BARU TERSEDIA',
+        message_template: '*🛠️ PEKERJAAN BARU TERSEDIA*\n\n🎫 Tiket: *{ticket_number}*\n📂 Tipe: *{job_type}*\n📝 Judul: {title}\n🚨 Prioritas: {priority}\n📍 Lokasi: {location}\n\nUntuk mengambil, balas:\n*!ambil {ticket_number}*\n\nTerima kasih.',
+        variables: JSON.stringify(['ticket_number', 'job_type', 'title', 'priority', 'location']),
+        priority: 'normal',
+        is_active: true
+      },
+      {
+        template_code: 'technician_job_accepted',
+        template_name: 'Pekerjaan Diterima Teknisi',
+        notification_type: 'technician_job',
+        channel: 'whatsapp',
+        title_template: '✅ PEKERJAAN DIAMBIL',
+        message_template: '*✅ PEKERJAAN DIAMBIL*\n\nHalo {customer_name},\n\nPekerjaan Anda telah diterima oleh teknisi kami.\n\n📋 *DETAIL PEKERJAAN*:\n• Tiket: #{ticket_number}\n• Teknisi: {technician_name}\n• Tanggal: {accept_date}\n\n🔧 Teknisi akan segera menghubungi Anda untuk penjadwalan.\n\nTerima kasih.',
+        variables: JSON.stringify(['customer_name', 'ticket_number', 'technician_name', 'accept_date']),
+        priority: 'normal',
+        is_active: true
+      },
+      {
+        template_code: 'technician_job_completed',
+        template_name: 'Pekerjaan Selesai',
+        notification_type: 'technician_job',
+        channel: 'whatsapp',
+        title_template: '✅ PEKERJAAN SELESAI',
+        message_template: '*✅ PEKERJAAN SELESAI*\n\nHalo {customer_name},\n\nPekerjaan *{title}* (# {ticket_number}) telah diselesaikan oleh teknisi kami.\n\n📅 Waktu: {completion_date}\n📋 Catatan: {completion_notes}\n{proof_info}\n\nTerima kasih telah menggunakan layanan kami.',
+        variables: JSON.stringify(['customer_name', 'title', 'ticket_number', 'completion_date', 'completion_notes', 'proof_info']),
+        priority: 'normal',
+        is_active: true
+      },
+      {
+        template_code: 'technician_job_cancelled',
+        template_name: 'Pekerjaan Dibatalkan',
+        notification_type: 'technician_job',
+        channel: 'whatsapp',
+        title_template: '❌ PEKERJAAN DIBATALKAN',
+        message_template: '*❌ PEKERJAAN DIBATALKAN*\n\nHalo {customer_name},\n\nMohon maaf, pekerjaan *{title}* (# {ticket_number}) telah dibatalkan.\n\n📋 *ALASAN PEMBATALAN*:\n{cancellation_reason}\n\n💡 *INFORMASI*:\n• Jika ada pertanyaan, silakan hubungi customer service\n• Kami akan membuat tiket baru jika diperlukan\n\nTerima kasih atas pengertiannya.',
+        variables: JSON.stringify(['customer_name', 'title', 'ticket_number', 'cancellation_reason']),
+        priority: 'high',
+        is_active: true
+      },
+      {
+        template_code: 'technician_report_submitted',
+        template_name: 'Laporan Teknisi Dikirim',
+        notification_type: 'technician_job',
+        channel: 'whatsapp',
+        title_template: '📋 LAPORAN TEKNISI',
+        message_template: '*📋 LAPORAN TEKNISI*\n\nTiket: *{ticket_number}*\nStatus: *{status}*\nCustomer: {customer_name}\nWaktu: {report_time}\nCatatan: {notes}\n\nLaporan telah tersimpan di sistem.',
+        variables: JSON.stringify(['ticket_number', 'status', 'customer_name', 'report_time', 'notes']),
+        priority: 'normal',
+        is_active: true
       }
     ];
 

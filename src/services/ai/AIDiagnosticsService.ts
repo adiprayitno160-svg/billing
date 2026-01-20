@@ -47,6 +47,10 @@ export class AIDiagnosticsService {
             if (complaint.toLowerCase().includes('lemot') || complaint.toLowerCase().includes('mati') || complaint.toLowerCase().includes('reset')) {
                 const fixResult = await this.performSelfHealing(customer, techData);
                 actionTaken = fixResult.description;
+
+                // Start Monitoring
+                await this.queueMonitoring(customer.id, complaint);
+
                 // Refresh technical data after fix
                 const newData = await this.getTechnicalData(customer);
                 Object.assign(techData, newData);
@@ -164,6 +168,28 @@ export class AIDiagnosticsService {
         return { success: true, description: description || 'Pengecekan sistem selesai.' };
     }
 
+    private static async queueMonitoring(customerId: number, complaint: string): Promise<void> {
+        try {
+            // Check if already monitoring
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                "SELECT id FROM auto_complaints WHERE customer_id = ? AND status = 'monitoring'",
+                [customerId]
+            );
+
+            if (rows.length === 0) {
+                // Insert new monitoring task (10 minutes from now)
+                await databasePool.query(
+                    `INSERT INTO auto_complaints (customer_id, complaint_text, status, created_at, escalate_at)
+                     VALUES (?, ?, 'monitoring', NOW(), DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+                    [customerId, complaint]
+                );
+                console.log(`[AIDiagnostics] Queued monitoring for Customer ${customerId} (10 mins)`);
+            }
+        } catch (error) {
+            console.error('[AIDiagnostics] Queue monitoring error:', error);
+        }
+    }
+
     private static async generateAIAdvice(customer: any, techData: any, complaint: string, actionTaken: string): Promise<string> {
         // Construct technical brief for AI
         const brief = `
@@ -177,14 +203,76 @@ Action Taken: ${actionTaken}
 
 Jika Rx Power < -27, beritahu bahwa sinyal lemah (kemungkinan kabel tekuk).
 Jika ONT Offline, suruh cek adaptor/listrik.
-Jika Baru saja di-reset (Action Taken ada), suruh tunggu 1 menit.
+Jika Baru saja di-reset (Action Taken ada), suruh tunggu 1 menit. beritahu bahwa sistem akan memantau dalam 10 menit, jika masih gagal akan dibuatkan tiket teknisi otomatis.
 Balas dengan bahasa yang membantu dan ramah ala Customer Service ISP.
 `.trim();
 
         try {
             return await ChatBotService.ask(brief, { status: 'technical_diagnostic' });
         } catch (e) {
-            return `Saya telah ${actionTaken}. Status internet Kakak saat ini ${techData.isOnline ? 'Aktif' : 'Mati'} dengan sinyal ${techData.rxPower} dBm. Jika masih lemot, mohon coba matikan lalu nyalakan kembali modemnya selama 30 detik ya Kak.`;
+            return `Saya telah ${actionTaken}. Status internet Kakak saat ini ${techData.isOnline ? 'Aktif' : 'Mati'} dengan sinyal ${techData.rxPower} dBm. Mohon tunggu 1-2 menit. Sistem kami akan memantau koneksi Kakak selama 10 menit ke depan. Jika masih terkendala, Tiket bantuan akan dibuatkan otomatis.`;
+        }
+    }
+
+    /**
+     * Process escalations (Called by Scheduler)
+     * Checks auto_complaints for expired timers
+     */
+    static async processEscalations(): Promise<void> {
+        try {
+            const [complaints] = await databasePool.query<RowDataPacket[]>(
+                `SELECT ac.*, c.name, c.address, c.customer_code 
+                 FROM auto_complaints ac
+                 JOIN customers c ON ac.customer_id = c.id
+                 WHERE ac.status = 'monitoring' 
+                   AND ac.escalate_at <= NOW()`
+            );
+
+            if (complaints.length === 0) return;
+
+            console.log(`[AIDiagnostics] Processing ${complaints.length} overdue complaints...`);
+            const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+
+            for (const complaint of complaints) {
+                // Create Ticket
+                const ticketNumber = `AUTO-${Math.floor(1000 + Math.random() * 9000)}`;
+
+                // Insert Job with 'verifying' status (Operator needs to approve)
+                const [res]: any = await databasePool.query(
+                    `INSERT INTO technician_jobs 
+                     (ticket_number, title, description, priority, status, customer_id, address, reported_by, job_type_id, total_fee, created_at)
+                     VALUES (?, ?, ?, 'high', 'verifying', ?, ?, 'system_auto', 1, 0, NOW())`,
+                    [
+                        ticketNumber,
+                        `[AUTO] Keluhan: ${complaint.name}`,
+                        `Keluhan Otomatis (Gagal Reset 10 Menit).\nMasalah: ${complaint.complaint_text}\nPelanggan: ${complaint.name}\nKode: ${complaint.customer_code}`,
+                        complaint.customer_id,
+                        complaint.address
+                    ]
+                );
+
+                const jobId = res.insertId;
+
+                // Update Complaint Status
+                await databasePool.query(
+                    "UPDATE auto_complaints SET status = 'escalated', ticket_id = ? WHERE id = ?",
+                    [jobId, complaint.id]
+                );
+
+                // Notify ADMIN (Operator) only
+                const msg = `⚠️ *BUTUH VERIFIKASI (AUTO-COMPLAINT)*\n\n` +
+                    `Pelanggan: *${complaint.name}*\n` +
+                    `Masalah: ${complaint.complaint_text}\n` +
+                    `Status: Reset Gagal setelah 10 menit.\n` +
+                    `Tiket: *${ticketNumber}* created (Pending Verification).\n\n` +
+                    `Mohon cek dashboard & Approve jika valid.`;
+
+                // Send to Admin Numbers
+                await UnifiedNotificationService.broadcastToAdmins(msg);
+            }
+
+        } catch (error) {
+            console.error('[AIDiagnostics] Error processing escalations:', error);
         }
     }
 }

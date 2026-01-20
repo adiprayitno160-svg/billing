@@ -748,6 +748,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 const phoneVal = req.body.phone ? String(req.body.phone).trim() : null;
                 console.log('[DEBUG PHONE] Phone value to save:', phoneVal);
                 updateValues.push(phoneVal);
+            } else if (req.body.phone === '') {
+                // Handle empty string case
+                updateFields.push('phone = ?');
+                updateValues.push(null);
             } else {
                 console.log('[DEBUG PHONE] Phone is UNDEFINED in req.body');
             }
@@ -755,9 +759,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateFields.push('email = ?');
                 updateValues.push(email || null);
             }
-            if (address !== undefined) {
+            if (req.body.address !== undefined) {
                 updateFields.push('address = ?');
-                updateValues.push(address || null);
+                updateValues.push(req.body.address || null);
             }
             if (status !== undefined) {
                 updateFields.push('status = ?');
@@ -772,28 +776,28 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateFields.push('connection_type = ?');
                 updateValues.push(connection_type);
             }
-            if (ip_address !== undefined) {
+            if (req.body.ip_address !== undefined) {
                 // Save IP to main table as well (for SelfHealingService)
                 updateFields.push('ip_address = ?');
-                updateValues.push(ip_address || null);
+                updateValues.push(req.body.ip_address || null);
 
                 // If static IP, also save to static_ip column
                 if (connection_type === 'static_ip' || (oldCustomer.connection_type === 'static_ip' && !connection_type)) {
                     updateFields.push('static_ip = ?');
-                    updateValues.push(ip_address || null);
+                    updateValues.push(req.body.ip_address || null);
                 }
             }
-            if (odp_id !== undefined) {
+            if (req.body.odp_id !== undefined) {
                 updateFields.push('odp_id = ?');
-                updateValues.push(odp_id || null);
+                updateValues.push(req.body.odp_id || null);
             }
-            if (odc_id !== undefined) {
+            if (req.body.odc_id !== undefined) {
                 updateFields.push('odc_id = ?');
-                updateValues.push(odc_id || null);
+                updateValues.push(req.body.odc_id || null);
             }
-            if (serial_number !== undefined) {
+            if (req.body.serial_number !== undefined) {
                 updateFields.push('serial_number = ?');
-                updateValues.push(serial_number || null);
+                updateValues.push(req.body.serial_number || null);
             }
             if (req.body.latitude !== undefined) {
                 updateFields.push('latitude = ?');
@@ -817,21 +821,21 @@ export const updateCustomer = async (req: Request, res: Response) => {
             }
 
             // Handle custom deadline fields
-            if (custom_payment_deadline !== undefined && custom_payment_deadline !== '') {
-                const deadline = parseInt(custom_payment_deadline);
+            if (req.body.custom_payment_deadline !== undefined && req.body.custom_payment_deadline !== '') {
+                const deadline = parseInt(req.body.custom_payment_deadline);
                 if (deadline >= 1 && deadline <= 31) {
                     updateFields.push('custom_payment_deadline = ?');
                     updateValues.push(deadline);
                 } else {
                     updateFields.push('custom_payment_deadline = NULL');
                 }
-            } else if (custom_payment_deadline === '') {
+            } else if (req.body.custom_payment_deadline === '') {
                 // Empty string means reset to NULL
                 updateFields.push('custom_payment_deadline = NULL');
             }
 
-            if (custom_isolate_days_after_deadline !== undefined && custom_isolate_days_after_deadline !== '') {
-                const days = parseInt(custom_isolate_days_after_deadline);
+            if (req.body.custom_isolate_days_after_deadline !== undefined && req.body.custom_isolate_days_after_deadline !== '') {
+                const days = parseInt(req.body.custom_isolate_days_after_deadline);
                 if (days >= 1 && days <= 7) {
                     updateFields.push('custom_isolate_days_after_deadline = ?');
                     updateValues.push(days);
@@ -856,28 +860,28 @@ export const updateCustomer = async (req: Request, res: Response) => {
             }
 
             // Handle Rental Mode and Cost
-            if (rental_mode !== undefined) {
+            if (req.body.rental_mode !== undefined) {
                 updateFields.push('rental_mode = ?');
-                updateValues.push(rental_mode);
+                updateValues.push(req.body.rental_mode);
             }
-            if (rental_cost !== undefined) {
+            if (req.body.rental_cost !== undefined) {
                 // If empty screen, set to null. If value provided, ensure numeric.
                 let costVal = null;
-                if (rental_cost !== null && rental_cost !== '') {
-                    costVal = parseFloat(String(rental_cost).replace(/[^0-9.]/g, ''));
+                if (req.body.rental_cost !== null && req.body.rental_cost !== '') {
+                    costVal = parseFloat(String(req.body.rental_cost).replace(/[^0-9.]/g, ''));
                 }
                 updateFields.push('rental_cost = ?');
                 updateValues.push(costVal);
             }
 
             // Handle Ignore Monitoring Schedule
-            if (ignore_monitoring_start !== undefined) {
+            if (req.body.ignore_monitoring_start !== undefined) {
                 updateFields.push('ignore_monitoring_start = ?');
-                updateValues.push(ignore_monitoring_start || null);
+                updateValues.push(req.body.ignore_monitoring_start || null);
             }
-            if (ignore_monitoring_end !== undefined) {
+            if (req.body.ignore_monitoring_end !== undefined) {
                 updateFields.push('ignore_monitoring_end = ?');
-                updateValues.push(ignore_monitoring_end || null);
+                updateValues.push(req.body.ignore_monitoring_end || null);
             }
 
 
@@ -969,19 +973,23 @@ export const updateCustomer = async (req: Request, res: Response) => {
             }
 
             // Handle connection type specific updates (basic fields only, password will be handled after MikroTik sync)
-            if (connection_type === 'pppoe' && pppoe_username) {
+            if (connection_type === 'pppoe' && req.body.pppoe_username) {
                 updateFields.length = 0;
                 updateValues.length = 0;
                 updateFields.push('pppoe_username = ?');
-                updateValues.push(pppoe_username);
-                if (pppoe_profile_id) {
-                    const profileIdNum = parseInt(pppoe_profile_id);
+                updateValues.push(req.body.pppoe_username);
+                if (req.body.pppoe_profile_id) {
+                    const profileIdNum = parseInt(req.body.pppoe_profile_id);
                     if (!isNaN(profileIdNum) && profileIdNum > 0) {
                         updateFields.push('pppoe_profile_id = ?');
                         updateValues.push(profileIdNum);
                     }
                 }
-                // Note: Password update will be handled after MikroTik sync to ensure consistency
+                // Update password if provided
+                if (req.body.pppoe_password) {
+                    updateFields.push('pppoe_password = ?');
+                    updateValues.push(req.body.pppoe_password);
+                }
                 updateValues.push(customerId);
                 await conn.query(
                     `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
@@ -1367,9 +1375,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     const staticIpUpdates: string[] = [];
                     const staticIpValues: any[] = [];
 
-                    if (ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(ip_address); }
-                    if (interfaceName) { staticIpUpdates.push('interface = ?'); staticIpValues.push(interfaceName); }
-                    if (static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(static_ip_package); }
+                    if (req.body.ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(req.body.ip_address); }
+                    if (req.body.interface) { staticIpUpdates.push('interface = ?'); staticIpValues.push(req.body.interface); }
+                    if (req.body.static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(req.body.static_ip_package); }
 
                     if (staticClient && staticClient.length > 0) {
                         if (staticIpUpdates.length > 0) {
@@ -1388,11 +1396,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
                     } else if (targetConnType === 'static_ip') {
                         // Create new static_ip_clients record if switching connection type
-                        const pkgId = static_ip_package ? parseInt(static_ip_package) : null;
-                        if (ip_address && pkgId) {
+                        const pkgId = req.body.static_ip_package ? parseInt(req.body.static_ip_package) : null;
+                        if (req.body.ip_address && pkgId) {
                             await conn.query(
                                 'INSERT INTO static_ip_clients (customer_id, client_name, ip_address, interface, package_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, "active", NOW(), NOW())',
-                                [customerId, name || oldName, ip_address, interfaceName, pkgId]
+                                [customerId, req.body.name || oldName, req.body.ip_address, req.body.interface, pkgId]
                             );
                             console.log(`[UpdateCustomer] Created new static_ip_clients for customer ${customerId}`);
 

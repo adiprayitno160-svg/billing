@@ -10,12 +10,31 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+
             body {
-                -webkit-print-color-adjust: exact;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                margin: 0;
+                padding: 0;
+                background-color: white !important;
             }
 
             .no-print {
-                display: none;
+                display: none !important;
+            }
+
+            /* Ensure container fills the page or centers correctly */
+            .slip-container {
+                width: 100% !important;
+                max-width: none !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
             }
         }
 
@@ -45,7 +64,8 @@
     </div>
 
     <!-- Slip Container -->
-    <div class="bg-white w-full max-w-2xl shadow-xl rounded-none md:rounded-lg overflow-hidden border border-gray-200">
+    <div
+        class="slip-container bg-white w-full max-w-[210mm] shadow-xl rounded-none md:rounded-lg overflow-hidden border border-gray-200 mx-auto">
 
         <!-- Header -->
         <div class="bg-blue-900 text-white p-6">

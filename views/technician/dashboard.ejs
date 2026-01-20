@@ -1,157 +1,117 @@
-<div class="space-y-8 animate-fadeIn">
-    <!-- Premium Header Section -->
-    <div
-        class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-3xl p-8 text-white shadow-2xl border border-white/10">
-        <!-- Decorative background elements -->
-        <div class="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-blue-500/20 blur-[100px] rounded-full"></div>
-        <div class="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-indigo-500/20 blur-[100px] rounded-full"></div>
-
-        <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div class="space-y-2">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-12 h-12 bg-blue-500/30 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
-                        <i class="fas fa-user-gear text-2xl text-blue-400"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-3xl font-extrabold tracking-tight">Halo, <%= user?.full_name || user?.username
-                                || 'Teknisi' %>!</h2>
-                        <p class="text-blue-200/80 font-medium">Dashboard Management Pekerjaan Lapangan</p>
-                    </div>
-                </div>
+<div class="space-y-6 animate-fadeIn">
+    <!-- Standard Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Dashboard Teknisi</h1>
+            <p class="text-slate-500 text-sm">Selamat datang kembali, <%= user.username %>! Semangat bekerja.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div
+                class="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold flex items-center gap-2 border border-green-200 shadow-sm">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                System Online
             </div>
-
-            <div class="flex items-center gap-4">
-                <button type="button" onclick="showAddJobModal()"
-                    class="group relative px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl transition-all duration-300 shadow-lg shadow-blue-900/40 hover:shadow-blue-500/40 flex items-center gap-3 font-bold active:scale-95">
-                    <div
-                        class="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center group-hover:rotate-90 transition-transform">
-                        <i class="fas fa-plus"></i>
-                    </div>
-                    <span>Tambah Pekerjaan</span>
-                </button>
-                <div
-                    class="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center gap-2">
-                    <span
-                        class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></span>
-                    <span class="text-sm font-bold uppercase tracking-wider">Online</span>
-                </div>
-            </div>
+            <button onclick="showAddJobModal()"
+                class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-blue-700 hover:shadow-blue-500/30 transition-all active:scale-95 flex items-center gap-2">
+                <i class="fas fa-plus"></i>
+                <span>Tambah Pekerjaan</span>
+            </button>
         </div>
     </div>
 
-    <!-- Smart Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Stat Card: Pending -->
+    <!-- Stats Cards (Standardized Gradients) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Pending (Waiting) -> Orange Gradient -->
         <div
-            class="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
-                    <i class="fas fa-clock text-xl"></i>
-                </div>
-                <span
-                    class="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase tracking-tighter">Waiting</span>
+            class="bg-gradient-to-br from-orange-400 via-amber-500 to-yellow-500 rounded-xl p-4 shadow-xl text-white text-center border border-white/70 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                <i class="fas fa-clock text-5xl text-white"></i>
             </div>
-            <div class="text-4xl font-black text-slate-800 tracking-tighter">
+            <div class="flex items-center justify-center gap-2 mb-2 relative z-10">
+                <i class="fas fa-clock opacity-90"></i>
+            </div>
+            <div class="text-3xl font-bold leading-none mb-1 relative z-10">
                 <%= stats.pending || 0 %>
             </div>
-            <div class="text-slate-500 text-sm font-semibold mt-1">Pekerjaan Tertunda</div>
-            <div class="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full bg-orange-500 w-1/3 rounded-full"></div>
-            </div>
+            <div class="text-xs opacity-90 font-semibold uppercase tracking-wide relative z-10">Waiting</div>
         </div>
 
-        <!-- Stat Card: In Progress -->
+        <!-- In Progress (Active) -> Blue/Indigo Gradient -->
         <div
-            class="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-                    <i class="fas fa-spinner fa-spin text-xl"></i>
-                </div>
-                <span
-                    class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 uppercase tracking-tighter">Active</span>
+            class="bg-gradient-to-br from-blue-500 via-indigo-600 to-indigo-700 rounded-xl p-4 shadow-xl text-white text-center border border-white/70 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                <i class="fas fa-spinner text-5xl text-white"></i>
             </div>
-            <div class="text-4xl font-black text-slate-800 tracking-tighter">
+            <div class="flex items-center justify-center gap-2 mb-2 relative z-10">
+                <i class="fas fa-spinner fa-spin opacity-90"></i>
+            </div>
+            <div class="text-3xl font-bold leading-none mb-1 relative z-10">
                 <%= stats.in_progress || 0 %>
             </div>
-            <div class="text-slate-500 text-sm font-semibold mt-1">Sedang Dikerjakan</div>
-            <div class="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500 w-1/2 rounded-full"></div>
-            </div>
+            <div class="text-xs opacity-90 font-semibold uppercase tracking-wide relative z-10">Pengerjaan</div>
         </div>
 
-        <!-- Stat Card: Completed -->
+        <!-- Completed (Done) -> Green/Emerald Gradient -->
         <div
-            class="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
-                    <i class="fas fa-check-double text-xl"></i>
-                </div>
-                <span
-                    class="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100 uppercase tracking-tighter">Done</span>
+            class="bg-gradient-to-br from-teal-500 via-emerald-600 to-green-600 rounded-xl p-4 shadow-xl text-white text-center border border-white/70 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                <i class="fas fa-check-double text-5xl text-white"></i>
             </div>
-            <div class="text-4xl font-black text-slate-800 tracking-tighter">
+            <div class="flex items-center justify-center gap-2 mb-2 relative z-10">
+                <i class="fas fa-check-double opacity-90"></i>
+            </div>
+            <div class="text-3xl font-bold leading-none mb-1 relative z-10">
                 <%= stats.completed_today || 0 %>
             </div>
-            <div class="text-slate-500 text-sm font-semibold mt-1">Selesai Hari Ini</div>
-            <div class="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full bg-green-500 w-full rounded-full"></div>
-            </div>
+            <div class="text-xs opacity-90 font-semibold uppercase tracking-wide relative z-10">Selesai Hari Ini</div>
         </div>
 
-        <!-- Stat Card: Wallet/Balance -->
+        <!-- Balance -> Violet/Purple Gradient -->
         <div
-            class="group bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 shadow-lg shadow-indigo-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 text-white">
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                    <i class="fas fa-wallet text-xl"></i>
-                </div>
-                <span
-                    class="text-xs font-bold text-white bg-white/20 px-3 py-1 rounded-full border border-white/30 uppercase tracking-tighter">Balance</span>
+            class="bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 rounded-xl p-4 shadow-xl text-white text-center border border-white/70 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                <i class="fas fa-wallet text-5xl text-white"></i>
             </div>
-            <div class="text-2xl font-black tracking-tighter mb-1">Rp <%= Number(stats.wallet_balance ||
-                    0).toLocaleString('id-ID') %>
+            <div class="flex items-center justify-center gap-2 mb-2 relative z-10">
+                <i class="fas fa-wallet opacity-90"></i>
             </div>
-            <div class="text-indigo-100/80 text-sm font-medium">Titipan Tunai (Belum Setor)</div>
-            <div class="mt-4 flex items-center gap-2 text-xs font-bold text-indigo-100">
-                <i class="fas fa-circle-info"></i>
-                <span>Harap hubungi kasir untuk penyetoran</span>
+            <div class="text-xl md:text-2xl font-bold leading-none mb-1 truncate relative z-10">
+                Rp <%= Number(stats.wallet_balance || 0).toLocaleString('id-ID') %>
             </div>
+            <div class="text-xs opacity-90 font-semibold uppercase tracking-wide relative z-10">Balance / Titipan</div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Jobs Feed -->
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2">
                         <i class="fas fa-list-ul text-blue-600"></i>
-                        Daftar Pekerjaan Lapangan
+                        Daftar Pekerjaan
                     </h3>
-                    <div class="flex gap-2">
-                        <button onclick="refreshJobs()"
-                            class="p-2 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors text-slate-600">
-                            <i class="fas fa-rotate" id="refresh-icon"></i>
-                        </button>
-                    </div>
+                    <button onclick="refreshJobs()"
+                        class="p-2 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-colors text-slate-500 shadow-sm">
+                        <i class="fas fa-rotate" id="refresh-icon"></i>
+                    </button>
                 </div>
 
-                <div id="jobs-container" class="divide-y divide-slate-100 min-h-[400px]">
+                <div id="jobs-container" class="space-y-4 p-4 min-h-[400px] bg-slate-50/50">
                     <!-- Skeleton Loader -->
-                    <div class="p-8 text-center" id="jobs-loading">
+                    <div class="p-12 text-center" id="jobs-loading">
                         <div
-                            class="inline-block animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full mb-4">
+                            class="inline-block animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4">
                         </div>
-                        <p class="text-slate-500 font-medium tracking-tight">Memuat data pekerjaan...</p>
+                        <p class="text-slate-500 font-medium tracking-tight">Memuat data...</p>
                     </div>
                 </div>
 
-                <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-                    <span class="text-sm text-slate-500 font-medium" id="jobs-count">Menampilkan 0 pekerjaan</span>
+                <div class="px-6 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-500 font-medium" id="jobs-count">Menampilkan 0 pekerjaan</span>
                     <a href="/technician/history"
-                        class="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
-                        Lihat Semua Riwayat
+                        class="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
+                        Lihat Riwayat
                         <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>
                 </div>
@@ -160,110 +120,131 @@
 
         <!-- Sidebar / Tools -->
         <div class="space-y-6">
-            <!-- Job Map Section (Quick View) -->
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-location-dot text-red-500"></i>
-                    Lokasi Pekerjaan
+            <!-- Job Map Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm">
+                    <i class="fas fa-map-marker-alt text-red-500"></i>
+                    Peta Lokasi
                 </h3>
                 <div id="quick-map"
-                    class="h-64 rounded-2xl bg-slate-100 border border-slate-200 mb-4 overflow-hidden z-10"></div>
-                <p class="text-xs text-slate-500 italic text-center font-medium">Klik marker untuk melihat detail lokasi
-                    pelanggan</p>
-            </div>
-
-            <!-- Attendance Card -->
-            <div
-                class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-lg shadow-emerald-200 text-white">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shadow-inner">
-                        <i class="fas fa-id-badge text-3xl"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-lg leading-tight text-white">Kehadiran Harian</h4>
-                        <p class="text-emerald-100/80 text-xs font-medium uppercase tracking-widest mt-0.5">Attendance
-                            System</p>
-                    </div>
+                    class="h-56 rounded-xl bg-slate-100 border border-slate-200 mb-2 overflow-hidden z-10 w-full relative">
                 </div>
-
-                <button onclick="handleCheckIn()" id="btn-checkin"
-                    class="w-full py-4 bg-white text-emerald-600 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:shadow-white/20 hover:scale-[1.02] active:scale-95 transition-all duration-300">
-                    <i class="fas fa-sign-in-alt mr-2"></i>
-                    Check-In Sekarang
-                </button>
-
-                <p class="mt-4 text-xs text-center text-emerald-100/70 font-medium">Jangan lupa check-in sebelum memulai
-                    pekerjaan!</p>
+                <p class="text-[10px] text-slate-400 text-center">Klik marker untuk detail</p>
             </div>
+
+
         </div>
     </div>
 </div>
 
 <!-- JOB MODALS & HIDDEN ELEMENTS -->
+<!-- JOB MODALS & HIDDEN ELEMENTS -->
 <div id="addJobModal"
-    class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+    class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[2050] flex items-center justify-center p-4 transition-all duration-300">
     <div
-        class="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 animate-zoomIn transform transition-all">
-        <div class="px-8 py-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-zoomIn transform transition-all relative">
+
+        <!-- Gradient Header -->
+        <div
+            class="px-8 py-5 bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-between shadow-lg relative z-10">
             <div>
-                <h3 class="text-xl font-bold text-slate-800 tracking-tight">Tambah Pekerjaan Baru</h3>
-                <p class="text-sm text-slate-500 font-medium">Input data pekerjaan teknisi di lapangan</p>
+                <h3 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                    <i class="fas fa-plus-circle text-blue-200"></i>
+                    Tambah Pekerjaan Baru
+                </h3>
+                <p class="text-xs text-blue-100 font-medium mt-0.5">Input data pekerjaan teknisi di lapangan</p>
             </div>
             <button onclick="closeAddJobModal()"
-                class="w-10 h-10 rounded-xl hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+                class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all backdrop-blur-md">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form id="addJobForm" class="p-8 space-y-5">
+        <form id="addJobForm" class="p-8 space-y-6">
+            <!-- Customer Search -->
             <div class="space-y-1.5">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nama / ID
-                    Pelanggan</label>
-                <div class="relative">
-                    <input type="text" id="customerSearch" placeholder="Cari pelanggan..."
-                        class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium">
-                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <label
+                    class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center justify-between">
+                    <span>Nama / ID Pelanggan</span>
+                    <span class="text-[10px] text-blue-500 font-normal normal-case italic">*Wajib Diisi</span>
+                </label>
+                <div class="relative group">
+                    <input type="text" id="customerSearch" placeholder="Ketik nama atau ID pelanggan..."
+                        class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium group-hover:bg-white text-sm">
+                    <i
+                        class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
                     <div id="customerResults"
-                        class="absolute z-[1001] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                        class="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden ring-4 ring-slate-100/50">
                     </div>
                 </div>
-                <input type="hidden" id="selectedCustomerId" name="customer_id">
+                <input type="hidden" id="selectedCustomerId" name="customer_id" required>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Job Type -->
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Jenis
                         Pekerjaan</label>
-                    <select name="job_type_id"
-                        class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium appearance-none">
-                        <% jobTypes.forEach(type=> { %>
-                            <option value="<%= type.id %>">
-                                <%= type.name %>
-                            </option>
-                            <% }) %>
-                    </select>
+                    <div class="relative">
+                        <select name="job_type_id"
+                            class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium appearance-none text-sm cursor-pointer hover:bg-white">
+                            <% jobTypes.forEach(type=> { %>
+                                <option value="<%= type.id %>">
+                                    <%= type.name %>
+                                </option>
+                                <% }) %>
+                        </select>
+                        <i
+                            class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                    </div>
                 </div>
+                <!-- Priority -->
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Prioritas</label>
-                    <select name="priority"
-                        class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium appearance-none">
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
-                    </select>
+                    <div class="relative">
+                        <select name="priority"
+                            class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium appearance-none text-sm cursor-pointer hover:bg-white">
+                            <option value="low">Low (Rendah)</option>
+                            <option value="medium" selected>Medium (Normal)</option>
+                            <option value="high">High (Tinggi)</option>
+                            <option value="critical">Critical (Darurat)</option>
+                        </select>
+                        <i
+                            class="fas fa-sort-amount-up absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                    </div>
                 </div>
             </div>
 
+            <!-- Description -->
             <div class="space-y-1.5">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Deskripsi / Judul</label>
-                <textarea name="title" rows="2" placeholder="Masukan judul atau deskripsi singkat..."
-                    class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium resize-none"></textarea>
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Judul / Deskripsi</label>
+                <textarea name="title" rows="2" placeholder="Contoh: Perbaikan kabel putus di tiang..."
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium resize-none text-sm hover:bg-white"></textarea>
             </div>
 
+            <!-- Map -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <label
+                        class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
+                        <i class="fas fa-map-marked-alt text-blue-500"></i>
+                        Lokasi Pengerjaan
+                    </label>
+                    <span class="text-[10px] text-slate-400 italic bg-slate-100 px-2 py-0.5 rounded-full">Klik peta
+                        untuk pin lokasi</span>
+                </div>
+                <div id="jobMapContainer"
+                    class="h-56 rounded-xl border-2 border-slate-100 overflow-hidden relative z-0 shadow-inner group-hover:border-blue-200 transition-colors">
+                    <!-- Map will be initialized here -->
+                </div>
+                <input type="hidden" name="coordinates" id="jobCoordinates">
+            </div>
+
+            <!-- Submit Button -->
             <button type="submit"
-                class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 active:scale-[0.98] transition-all">
-                Simpan Pekerjaan
+                class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group">
+                <span>Simpan Pekerjaan</span>
+                <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
             </button>
         </form>
     </div>
@@ -271,12 +252,14 @@
 
 <!-- Scripts for the dashboard -->
 <script>
-    let map, jobMarkers = [];
+    let map, jobMap, jobMarkers = [], jobMarker;
 
     document.addEventListener('DOMContentLoaded', () => {
         initMap();
         refreshJobs();
         setupSearch();
+        // Auto refresh every 15 seconds for realtime feel
+        setInterval(refreshJobs, 15000);
     });
 
     function initMap() {
@@ -330,59 +313,91 @@
 
         container.innerHTML = jobs.map(job => {
             const statusColors = {
-                'pending': 'bg-orange-100 text-orange-700 border-orange-200',
-                'accepted': 'bg-blue-100 text-blue-700 border-blue-200',
-                'in_progress': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                'completed': 'bg-green-100 text-green-700 border-green-200',
-                'cancelled': 'bg-red-100 text-red-700 border-red-200'
+                'pending': 'bg-orange-100 text-orange-700 ring-orange-500/20',
+                'accepted': 'bg-blue-100 text-blue-700 ring-blue-500/20',
+                'in_progress': 'bg-indigo-100 text-indigo-700 ring-indigo-500/20',
+                'completed': 'bg-green-100 text-green-700 ring-green-500/20',
+                'cancelled': 'bg-red-100 text-red-700 ring-red-500/20'
             };
 
-            const priorityColors = {
-                'low': 'text-gray-400',
-                'medium': 'text-blue-400',
-                'high': 'text-orange-400',
-                'critical': 'text-red-500'
+            const priorityBorder = {
+                'low': 'border-l-slate-400',
+                'medium': 'border-l-blue-500',
+                'high': 'border-l-orange-500',
+                'critical': 'border-l-red-500'
+            };
+
+            const priorityText = {
+                'low': 'text-slate-500',
+                'medium': 'text-blue-600',
+                'high': 'text-orange-600',
+                'critical': 'text-red-600'
             };
 
             return `
-                <div class="group p-6 hover:bg-slate-50 transition-colors flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-ticket text-slate-400"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">${job.ticket_number}</span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full border font-black uppercase tracking-widest ${statusColors[job.status]}">${job.status}</span>
+                <div class="relative bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden border-l-4 ${priorityBorder[job.priority] || 'border-l-blue-500'}">
+                    
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                               <div class="flex items-center gap-2 mb-2">
+                                   <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold tracking-wider uppercase border border-slate-200">${job.ticket_number}</span>
+                                   <span class="px-2.5 py-1 rounded-lg ${statusColors[job.status]} text-[10px] font-bold tracking-wider uppercase ring-1 ring-inset">${job.status}</span>
+                                   ${job.priority === 'critical' || job.priority === 'high' ?
+                    `<span class="px-2 py-0.5 rounded-md bg-red-50 text-red-600 text-[10px] font-bold flex items-center gap-1"><i class="fas fa-exclamation-circle"></i> ${job.priority}</span>` : ''
+                }
+                               </div>
+                               <h4 class="font-bold text-slate-800 text-lg leading-snug md:truncate md:max-w-lg group-hover:text-blue-600 transition-colors">${job.title}</h4>
+                            </div>
+                            <div class="text-right flex flex-col items-end">
+                                 <span class="text-xs font-bold text-slate-500 block">${new Date(job.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                                 <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap">${new Date(job.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
+                            </div>
                         </div>
-                        <h4 class="font-bold text-slate-800 truncate mb-1">${job.title}</h4>
-                        <p class="text-sm text-slate-500 font-medium line-clamp-1">${job.customer_name || 'Generic Service'} • ${job.address || 'No location'}</p>
                         
-                        <div class="flex items-center gap-4 mt-3">
-                            <div class="flex items-center gap-1.5">
-                                <i class="fas fa-circle text-[8px] ${priorityColors[job.priority]}"></i>
-                                <span class="text-xs font-bold text-slate-400 capitalize">${job.priority} Priority</span>
+                        <div class="space-y-2 mb-4">
+                            <div class="flex items-center gap-2.5 text-sm text-slate-700">
+                                 <div class="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0">
+                                     <i class="fas fa-user text-xs text-slate-400"></i>
+                                 </div>
+                                 <span class="font-semibold">${job.customer_name || 'Umum / Internal'}</span>
                             </div>
-                            <span class="text-[10px] text-slate-300">|</span>
-                            <div class="flex items-center gap-1.5 text-slate-400">
-                                <i class="far fa-calendar text-[10px]"></i>
-                                <span class="text-xs font-semibold">${new Date(job.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                             <div class="flex items-center gap-2.5 text-xs text-slate-500">
+                                 <div class="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center flex-shrink-0">
+                                     <i class="fas fa-map-marker-alt text-xs text-slate-400"></i>
+                                 </div>
+                                 <span class="truncate max-w-sm font-medium">${job.address || 'Lokasi tidak tersedia'}</span>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex-shrink-0 flex gap-2">
-                        ${job.status === 'pending' ? `
-                            <button onclick="updateJobStatus(${job.id}, 'accepted')" class="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-90">
-                                <i class="fas fa-handshake"></i>
-                            </button>
-                        ` : ''}
-                        ${job.status === 'accepted' || job.status === 'in_progress' ? `
-                            <button onclick="showCompleteModal(${job.id})" class="p-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all active:scale-90">
-                                <i class="fas fa-check"></i>
-                            </button>
-                        ` : ''}
-                        <button onclick="viewJobDetail(${job.id})" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all active:scale-90">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-50">
+                            <div class="flex items-center gap-2">
+                                ${job.technician_name ?
+                    `<div class="flex items-center gap-2">
+                                        <div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">
+                                            ${job.technician_name.charAt(0)}
+                                        </div>
+                                        <span class="text-xs text-slate-600 font-medium">${job.technician_name}</span>
+                                    </div>`
+                    : `<span class="text-xs text-slate-400 italic font-medium flex items-center gap-1"><i class="far fa-clock"></i> Menunggu Teknisi</span>`
+                }
+                            </div>
+                            <div class="flex gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
+                                 ${job.status === 'pending' ? `
+                                     <button onclick="updateJobStatus(${job.id}, 'accepted')" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                                        <i class="fas fa-hand-paper"></i> Ambil
+                                     </button>` : ''
+                }
+                                 ${job.status === 'accepted' || job.status === 'in_progress' ? `
+                                     <button onclick="showCompleteModal(${job.id})" class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                                        <i class="fas fa-check-circle"></i> Selesai
+                                     </button>` : ''
+                }
+                                 <button onclick="viewJobDetail(${job.id})" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                                    <i class="fas fa-chevron-right"></i>
+                                 </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -419,6 +434,35 @@
     function showAddJobModal() {
         document.getElementById('addJobModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        setTimeout(initJobMap, 300); // Init map after modal animation
+    }
+
+    function initJobMap() {
+        if (!document.getElementById('jobMapContainer')) return;
+        if (jobMap) {
+            jobMap.invalidateSize();
+            return;
+        }
+
+        jobMap = L.map('jobMapContainer').setView([-7.0, 110.0], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(jobMap);
+
+        jobMap.on('click', function (e) {
+            const { lat, lng } = e.latlng;
+            if (jobMarker) jobMap.removeLayer(jobMarker);
+            jobMarker = L.marker([lat, lng]).addTo(jobMap);
+            document.getElementById('jobCoordinates').value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+        });
+
+        // Try to get user location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                const { latitude, longitude } = pos.coords;
+                jobMap.setView([latitude, longitude], 15);
+            });
+        }
     }
 
     function closeAddJobModal() {
@@ -426,42 +470,7 @@
         document.body.style.overflow = '';
     }
 
-    async function handleCheckIn() {
-        const btn = document.getElementById('btn-checkin');
-        const originalText = btn.innerHTML;
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
-
-        try {
-            const res = await fetch('/technician/attendance/check-in', { method: 'POST' });
-            const result = await res.json();
-
-            if (result.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: result.message,
-                    background: '#ffffff',
-                    confirmButtonColor: '#10b981'
-                });
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Checked In Today';
-                btn.className = btn.className.replace('from-emerald-500 to-teal-600', 'from-slate-400 to-slate-500').replace('bg-white', 'bg-emerald-100');
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: result.error || 'Gagal check-in',
-                });
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        } catch (error) {
-            console.error('Check-in error:', error);
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
 
     // Search Autocomplete
     function setupSearch() {

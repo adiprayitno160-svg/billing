@@ -127,7 +127,7 @@ export class TechnicianController {
         try {
             const userId = (req as any).user?.id;
             const userRole = (req as any).user?.role;
-            
+
             let query = `
                 SELECT j.*, c.name as customer_name, c.phone as customer_phone, u.full_name as technician_name
                 FROM technician_jobs j
@@ -136,18 +136,18 @@ export class TechnicianController {
                 WHERE 1=1
             `;
             const params: any[] = [];
-            
+
             if (userRole === 'teknisi') {
                 // Technician sees their own jobs only
                 query += ` AND j.technician_id = ?`;
                 params.push(userId);
             }
-            
+
             // Order by created_at descending to show latest jobs first
             query += ` ORDER BY j.created_at DESC`;
-            
+
             const [rows] = await databasePool.query<any[]>(query, params);
-            
+
             res.render('technician/history', {
                 title: 'Riwayat Pekerjaan',
                 jobs: rows,
@@ -291,11 +291,6 @@ Untuk mengambil, balas:
                 [userId, id]
             );
 
-            // AUTO CHECK-IN Logic
-            const { TechnicianAttendanceService } = await import('../../services/technician/TechnicianAttendanceService');
-            // Assuming 100k daily wage
-            await TechnicianAttendanceService.checkIn(Number(userId), 100000);
-
             res.json({ success: true, message: 'Pekerjaan berhasil diambil' });
         } catch (error) {
             console.error('Accept job error:', error);
@@ -380,13 +375,60 @@ Untuk mengambil, balas:
                 proofPath = '/uploads/technician/' + file.filename;
             }
 
-            // Using parameterized query for optional proof
-            await databasePool.query(
-                "UPDATE technician_jobs SET status = 'completed', completed_at = NOW(), completion_notes = ?, completion_proof = ? WHERE id = ? AND technician_id = ?",
-                [notes, proofPath, id, userId]
+            // 1. Fetch Job & Customer Details first
+            const [jobs] = await databasePool.query<any[]>(`
+                SELECT j.*, c.name as customer_name, c.phone as customer_phone, u.full_name as technician_name, u.phone as technician_phone
+                FROM technician_jobs j
+                LEFT JOIN customers c ON j.customer_id = c.id
+                LEFT JOIN users u ON j.technician_id = u.id
+                WHERE j.id = ?
+            `, [id]);
+
+            if (jobs.length === 0) return res.json({ success: false, error: 'Job not found' });
+            const job = jobs[0];
+
+            // 2. Update Status
+            // Allow admin or the assigned technician to complete
+            // (Using technician_id check only if not admin? For now stick to strict technician check or if job is accepted)
+            const [result] = await databasePool.query<any>(
+                "UPDATE technician_jobs SET status = 'completed', completed_at = NOW(), completion_notes = ?, completion_proof = ? WHERE id = ? AND (technician_id = ? OR ? IN (SELECT id FROM users WHERE role = 'admin'))",
+                [notes, proofPath, id, userId, userId]
             );
 
-            res.json({ success: true, message: 'Pekerjaan selesai' });
+            if (result.affectedRows === 0) {
+                return res.json({ success: false, error: 'Gagal menyelesaikan pekerjaan. Pastikan Anda teknisi yang bertugas.' });
+            }
+
+            // 3. SEND WHATSAPP NOTIFICATIONS
+            const waClient = WhatsAppClient.getInstance();
+            const timeString = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+
+            // Notification content
+            const customerMsg = `*✅ PEKERJAAN SELESAI*\n\nHalo Kak *${job.customer_name}*,\nPekerjaan *${job.title}* (#${job.ticket_number}) telah diselesaikan oleh teknisi kami.\n\n📅 Waktu: ${timeString}\n📋 Catatan: ${notes || '-'}\n\nTerima kasih atas kepercayaannya.`;
+
+            const techMsg = `*✅ LAPORAN TERKIRIM*\n\nTiket: *${job.ticket_number}* (#${job.id})\nStatus: *Completed*\nCustomer: ${job.customer_name}\nWaktu: ${timeString}\nCatatan: ${notes}`;
+
+            // A. To Customer
+            if (job.customer_phone) {
+                if (file && file.path) {
+                    // Send Image with Caption
+                    await waClient.sendImage(job.customer_phone, file.path, customerMsg).catch(err => console.warn('Failed to send Customer WA Image:', err));
+                } else {
+                    // Send Text Only
+                    await waClient.sendMessage(job.customer_phone, customerMsg).catch(err => console.warn('Failed to send Customer WA:', err));
+                }
+            }
+
+            // B. To Technician (Report/Receipt)
+            if (job.technician_phone) {
+                if (file && file.path) {
+                    await waClient.sendImage(job.technician_phone, file.path, techMsg).catch(err => console.warn('Failed to send Tech WA Image:', err));
+                } else {
+                    await waClient.sendMessage(job.technician_phone, techMsg).catch(err => console.warn('Failed to send Tech WA:', err));
+                }
+            }
+
+            res.json({ success: true, message: 'Pekerjaan selesai dan notifikasi terkirim' });
         } catch (error) {
             console.error('Complete job error:', error);
             res.json({ success: false, error: 'Failed to complete job' });

@@ -227,11 +227,12 @@ router.all('/packages/static-ip/sync-all', postStaticIpPackageSyncAll);
 
 // Middleware untuk mencegah kasir mengakses halaman admin
 router.use(async (req, res, next) => {
-    // Skip untuk route kasir, auth, API routes, notification, dan sync-all
+    // Skip untuk route kasir, auth, API routes, notification, technician, dan sync-all
     if (req.path.startsWith('/kasir') ||
         req.path.startsWith('/auth') ||
         req.path.startsWith('/api') ||
         req.path.startsWith('/notification') ||
+        req.path.startsWith('/technician') ||
         req.path === '/login' ||
         req.path === '/logout' ||
         req.path === '/packages/static-ip/sync-all') {
@@ -1101,7 +1102,7 @@ router.get('/api/ftth/odp/search', async (req: Request, res: Response) => {
             let sql = `
                 SELECT 
                     odp.id, 
-                    odp.name, 
+                    odp.name as odp_name, 
                     odp.odc_id,
                     odp.total_ports,
                     odp.used_ports,
@@ -7053,5 +7054,6 @@ router.post('/ftth/odc/:id', postOdcUpdate); // Update action
 router.post('/ftth/odc/:id/delete', postOdcDelete);
 
 export default router;
+
 
 

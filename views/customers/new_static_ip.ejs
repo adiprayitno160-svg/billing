@@ -508,7 +508,7 @@
 
                     // Function to update address from coords (Reverse Geocoding)
                     const updateAddress = (lat, lng) => {
-                        const addressInput = document.getElementById('address');
+                        const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
                         if (addressInput) {
                             addressInput.placeholder = 'Mengambil alamat...';
                             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
@@ -550,6 +550,7 @@
                         latInput.value = e.latlng.lat.toFixed(6);
                         lngInput.value = e.latlng.lng.toFixed(6);
                         setMarker(e.latlng.lat, e.latlng.lng, map.getZoom());
+                        updateAddress(e.latlng.lat, e.latlng.lng); // Update address field
                     });
 
                     // Map Search Logic
@@ -572,6 +573,7 @@
                                                 lngInput.value = lon.toFixed(6);
                                                 setMarker(lat, lon, 16);
                                                 searchInput.value = res.display_name;
+                                                updateAddress(lat, lon); // Update address field
                                             } else {
                                                 alert('Lokasi tidak ditemukan');
                                             }
@@ -586,23 +588,28 @@
                     if (btnGetLocation) {
                         const fallbackToIP = () => {
                             btnGetLocation.textContent = 'IP Loc...';
-                            // Use HTTP-friendly IP API
-                            fetch('http://ip-api.com/json')
-                                .then(r => r.json())
+                            // Use server-side proxy to avoid Mixed Content / CORS / AdBlockers
+                            fetch('/api/proxy/ip-location')
+                                .then(r => {
+                                    if (!r.ok) throw new Error('Proxy API Error: ' + r.status);
+                                    return r.json();
+                                })
                                 .then(data => {
-                                    if (data.status === 'success') {
+                                    if (data && (data.status === 'success' || data.lat)) {
                                         latInput.value = data.lat;
                                         lngInput.value = data.lon;
                                         setMarker(data.lat, data.lon, 13);
                                         btnGetLocation.textContent = 'IP OK';
-                                        alert('⚠️ Info: GPS Akurat gagal karena koneksi HTTP.\nLokasi diperkirakan berdasarkan IP Internet Anda (' + data.city + ').\nSilakan geser pin ke lokasi tepat.');
+                                        alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
                                     } else {
-                                        throw new Error('IP API Fail');
+                                        console.error('IP-API response invalid:', data);
+                                        throw new Error('IP API Data Invalid');
                                     }
                                 })
                                 .catch(err => {
+                                    console.error('Fallback IP Failed:', err);
                                     btnGetLocation.textContent = 'Gagal';
-                                    alert('Gagal mendapatkan lokasi (GPS & IP).\nSilakan klik lokasi di peta secara manual.');
+                                    alert('Gagal mendapatkan lokasi (GPS & IP Fallback).\n\nPenyebab:\n1. Browser memblokir GPS (Non-HTTPS)\n2. Server gagal koneksi ke IP-API (No Internet?)\n\nSilakan klik lokasi manual di peta.');
                                 })
                                 .finally(() => {
                                     setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
@@ -617,6 +624,7 @@
                                     latInput.value = latitude.toFixed(6);
                                     lngInput.value = longitude.toFixed(6);
                                     setMarker(latitude, longitude);
+                                    updateAddress(latitude, longitude); // Update address field
                                     btnGetLocation.textContent = 'OK';
                                     setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
                                 }, (err) => {

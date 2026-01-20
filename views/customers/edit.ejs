@@ -440,6 +440,22 @@
                         </button>
                     </div>
                     <div class="p-8 flex flex-col gap-6">
+                        <!-- Search Location Box -->
+                        <div class="relative">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input type="text" id="map_search"
+                                placeholder="Cari desa, jalan, atau kota..."
+                                class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-green-100 focus:border-green-400 outline-none transition-all placeholder:text-slate-300"
+                                autocomplete="off">
+                        </div>
                         <div
                             class="w-full h-[400px] bg-slate-100 rounded-3xl border-2 border-slate-100 overflow-hidden relative z-0">
                             <div id="map" class="w-full h-full z-0" style="min-height: 400px;"></div>
@@ -652,6 +668,7 @@
                             const position = e.target.getLatLng();
                             latInput.value = position.lat.toFixed(6);
                             lngInput.value = position.lng.toFixed(6);
+                            updateAddress(position.lat, position.lng); // Update address field
                         });
                     }
                     // Determine zoom level: if it was default (5), zoom in. If already zoomed, keep it.
@@ -675,6 +692,31 @@
                     setMarker(lat, lng);
                 });
 
+                // Function to update address from coords (Reverse Geocoding)
+                const updateAddress = (lat, lng) => {
+                    const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
+                    if (addressInput) {
+                        addressInput.placeholder = 'Mengambil alamat...';
+                        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data && data.display_name) {
+                                    // Make it cleaner: Road, Village, District
+                                    const addr = data.address;
+                                    const parts = [];
+                                    if (addr.road) parts.push(addr.road);
+                                    if (addr.village || addr.suburb || addr.hamlet) parts.push(addr.village || addr.suburb || addr.hamlet);
+                                    if (addr.city || addr.town || addr.county) parts.push(addr.city || addr.town || addr.county);
+
+                                    const cleanAddr = parts.length > 0 ? parts.join(', ') : data.display_name;
+                                    addressInput.value = cleanAddr;
+                                }
+                            })
+                            .catch(e => console.warn('Reverse geocode failed:', e))
+                            .finally(() => addressInput.placeholder = 'Alamat lengkap...');
+                    }
+                };
+
                 // Input change event (manual typing)
                 [latInput, lngInput].forEach(input => {
                     input.addEventListener('change', () => {
@@ -686,28 +728,91 @@
                     });
                 });
 
+                // Map Search Logic
+                const searchInput = document.getElementById('map_search');
+                if (searchInput) {
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault(); // Prevent form submit
+                            const q = searchInput.value.trim();
+                            if (q.length > 2) {
+                                searchInput.classList.add('opacity-50');
+                                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                    .then(r => r.json())
+                                    .then(data => {
+                                        if (data && data.length > 0) {
+                                            const res = data[0];
+                                            const lat = parseFloat(res.lat);
+                                            const lon = parseFloat(res.lon);
+                                            latInput.value = lat.toFixed(6);
+                                            lngInput.value = lon.toFixed(6);
+                                            setMarker(lat, lon, 16);
+                                            searchInput.value = res.display_name; // Show found name
+                                            updateAddress(lat, lon); // Update address field
+                                        } else {
+                                            alert('Lokasi tidak ditemukan');
+                                        }
+                                    })
+                                    .catch(err => console.error('Map search err:', err))
+                                    .finally(() => searchInput.classList.remove('opacity-50'));
+                            }
+                        }
+                    });
+                }
+
                 // Get Location Button
                 if (btnGetLocation) {
+                    const fallbackToIP = () => {
+                        btnGetLocation.textContent = 'IP Loc...';
+                        // Use server-side proxy to avoid Mixed Content / CORS / AdBlockers
+                        fetch('/api/proxy/ip-location')
+                            .then(r => {
+                                if (!r.ok) throw new Error('Proxy API Error: ' + r.status);
+                                return r.json();
+                            })
+                            .then(data => {
+                                if (data && (data.status === 'success' || data.lat)) {
+                                    latInput.value = data.lat;
+                                    lngInput.value = data.lon;
+                                    setMarker(data.lat, data.lon, 13);
+                                    btnGetLocation.textContent = 'IP OK';
+                                    alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
+                                } else {
+                                    console.error('IP-API response invalid:', data);
+                                    throw new Error('IP API Data Invalid');
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Fallback IP Failed:', err);
+                                btnGetLocation.textContent = 'Gagal';
+                                alert('Gagal mendapatkan lokasi (GPS & IP Fallback).\n\nPenyebab:\n1. Browser memblokir GPS (Non-HTTPS)\n2. Server gagal koneksi ke IP-API (No Internet?)\n\nSilakan klik lokasi manual di peta.');
+                            })
+                            .finally(() => {
+                                setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
+                            });
+                    };
+
                     btnGetLocation.addEventListener('click', () => {
-                        btnGetLocation.textContent = '⌛ Mencari...';
+                        btnGetLocation.textContent = '...';
                         if ("geolocation" in navigator) {
-                            navigator.geolocation.getCurrentPosition((pos) => {
-                                const lat = pos.coords.latitude;
-                                const lng = pos.coords.longitude;
-
-                                latInput.value = lat.toFixed(6);
-                                lngInput.value = lng.toFixed(6);
-
-                                setMarker(lat, lng);
-
-                                btnGetLocation.innerHTML = '<span>✅</span> Lokasi Didapat';
-                                setTimeout(() => btnGetLocation.innerHTML = '<span>📍</span> Auto GPS', 2000);
+                            navigator.geolocation.getCurrentPosition(pos => {
+                                const { latitude, longitude } = pos.coords;
+                                latInput.value = latitude.toFixed(6);
+                                lngInput.value = longitude.toFixed(6);
+                                setMarker(latitude, longitude);
+                                updateAddress(latitude, longitude); // Update address field
+                                btnGetLocation.textContent = 'OK';
+                                setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
                             }, (err) => {
-                                alert('Gagal mengambil lokasi: ' + err.message);
-                                btnGetLocation.textContent = '❌ Gagal';
+                                console.warn('GPS Failed, trying IP fallback...');
+                                fallbackToIP();
+                            }, {
+                                enableHighAccuracy: true,
+                                timeout: 5000,
+                                maximumAge: 0
                             });
                         } else {
-                            alert('Geolocation tidak didukung browser ini.');
+                            fallbackToIP();
                         }
                     });
                 }
