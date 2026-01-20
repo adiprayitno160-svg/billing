@@ -59,20 +59,22 @@ export class WhatsAppBaileys {
                     const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
                     const errorMessage = error?.message || '';
 
-                    console.error('[WhatsAppBaileys] 🚨 Connection closed. Reconnecting?', shouldReconnect, errorMessage);
+                    console.error(`[WhatsAppBaileys] 🚨 Connection closed. Status: ${statusCode}, Reconnecting: ${shouldReconnect}, Message: ${errorMessage}`);
                     this.isReady = false;
 
                     // Detect conflict specifically
-                    if (errorMessage.includes('conflict')) {
-                        console.warn('[WhatsAppBaileys] ⚠️ Conflict detected (Session mismatch). Clearing session and restarting...');
-                        // Delay slightly to ensure cleanup
-                        setTimeout(() => this.restart().catch(e => console.error('[WhatsAppBaileys] Restart failed:', e)), 1000);
+                    if (errorMessage.includes('conflict') || statusCode === DisconnectReason.restartRequired) {
+                        console.warn('[WhatsAppBaileys] ⚠️ Session Conflict/Restart Required. Clearing session and restarting...');
+                        setTimeout(() => this.restart().catch(e => console.error('[WhatsAppBaileys] Restart failed:', e)), 2000);
                         return;
                     }
 
                     if (shouldReconnect) {
-                        // Delay reconnect slightly
-                        setTimeout(() => this.initialize().catch(e => console.error('[WhatsAppBaileys] Recon failed:', e)), 3000);
+                        const delayTime = statusCode === DisconnectReason.connectionLost ? 5000 : 10000;
+                        console.log(`[WhatsAppBaileys] 🔄 Attempting reconnection in ${delayTime / 1000}s...`);
+                        setTimeout(() => this.initialize().catch(e => console.error('[WhatsAppBaileys] Recon failed:', e)), delayTime);
+                    } else {
+                        console.error('[WhatsAppBaileys] ❌ Permanent connection failure (Logged Out). Manual intervention required.');
                     }
                 } else if (connection === 'open') {
                     console.log('[WhatsAppBaileys] ✅ Connection opened');
