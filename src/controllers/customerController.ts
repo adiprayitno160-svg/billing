@@ -875,11 +875,23 @@ export const updateCustomer = async (req: Request, res: Response) => {
             // Handle Ignore Monitoring Schedule
             if (req.body.ignore_monitoring_start !== undefined) {
                 updateFields.push('ignore_monitoring_start = ?');
-                updateValues.push(req.body.ignore_monitoring_start || null);
+                // Convert time format HH:MM to datetime (use today's date)
+                if (req.body.ignore_monitoring_start) {
+                    const today = new Date().toISOString().split('T')[0];
+                    updateValues.push(`${today} ${req.body.ignore_monitoring_start}:00`);
+                } else {
+                    updateValues.push(null);
+                }
             }
             if (req.body.ignore_monitoring_end !== undefined) {
                 updateFields.push('ignore_monitoring_end = ?');
-                updateValues.push(req.body.ignore_monitoring_end || null);
+                // Convert time format HH:MM to datetime (use today's date)
+                if (req.body.ignore_monitoring_end) {
+                    const today = new Date().toISOString().split('T')[0];
+                    updateValues.push(`${today} ${req.body.ignore_monitoring_end}:00`);
+                } else {
+                    updateValues.push(null);
+                }
             }
 
 
