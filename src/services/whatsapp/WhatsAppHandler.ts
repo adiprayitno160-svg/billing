@@ -112,6 +112,16 @@ export class WhatsAppHandler {
                 INDEX idx_customer (customer_id)
             )
         `);
+
+        // Create whatsapp_sessions if not exists (Conversation State)
+        await databasePool.query(`
+            CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+                phone_number VARCHAR(20) PRIMARY KEY,
+                current_step VARCHAR(50),
+                temp_data JSON,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
     }
 
     private static getMessageBody(msg: proto.IWebMessageInfo): string {
