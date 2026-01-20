@@ -23,23 +23,37 @@ async function run() {
         process.exit(1);
     }
 
-    const sqlFile = path.join(__dirname, '../migration_autocomplaint.sql');
-    if (!fs.existsSync(sqlFile)) {
-        console.log('ℹ️ No migration file found (migration_autocomplaint.sql).');
-        await connection.end();
-        return;
-    }
+    // List of migration files to run in order
+    const migrationFiles = [
+        'migration_autocomplaint.sql',
+        'migration_customers_monitoring.sql'
+    ];
 
-    const sql = fs.readFileSync(sqlFile, 'utf8');
+    for (const file of migrationFiles) {
+        const sqlFile = path.join(__dirname, '../' + file);
+        if (!fs.existsSync(sqlFile)) {
+            console.log(`ℹ️ Migration file not found: ${file}`);
+            continue;
+        }
 
-    try {
-        await connection.query(sql);
-        console.log('✅ Migration (Auto-Complaint Tables) executed successfully.');
-    } catch (err) {
-        if (err.code === 'ER_DUP_FIELDNAME' || err.code === 'ER_TABLE_EXISTS_ERROR') {
-            console.log('ℹ️ Migration already applied (Skipping).');
-        } else {
-            console.warn('⚠️ Migration Warning:', err.message);
+        const sql = fs.readFileSync(sqlFile, 'utf8');
+        console.log(`Applying ${file}...`);
+
+        try {
+            await connection.query(sql);
+            console.log(`✅ ${file} executed successfully.`);
+        } catch (err) {
+            // Check for duplicate column or table exists (ER_DUP_FIELDNAME / 42S21)
+            const isDuplicate = err.code === 'ER_DUP_FIELDNAME' ||
+                err.code === 'ER_TABLE_EXISTS_ERROR' ||
+                err.code === '42S21' ||
+                (err.sqlMessage && err.sqlMessage.includes('Duplicate column'));
+
+            if (isDuplicate) {
+                console.log(`ℹ️ ${file} already applied (Skipping).`);
+            } else {
+                console.warn(`⚠️ Migration Warning in ${file}:`, err.message);
+            }
         }
     }
 
