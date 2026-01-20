@@ -105,8 +105,19 @@ export class WhatsAppBaileys {
             // Start Watchdog after initialization attempt
             this.startWatchdog();
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('[WhatsAppBaileys] ❌ Initialization failed:', error);
+
+            // Helpful hint for permission errors
+            if (error.code === 'EACCES') {
+                console.error('=================================================================');
+                console.error('🚨 PERMISSION ERROR DETECTED');
+                console.error('The application cannot write to the authentication directory.');
+                console.error('Please run the following command on your server to fix permissions:');
+                console.error('sudo chown -R www-data:www-data .baileys_auth && sudo chmod -R 775 .baileys_auth');
+                console.error('=================================================================');
+            }
+
             this.isReady = false;
         } finally {
             this.isInitializing = false;
