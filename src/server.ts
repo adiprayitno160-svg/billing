@@ -51,7 +51,8 @@ app.use(helmet({
 				"https://cdn.jsdelivr.net",
 				"https://fonts.googleapis.com",
 				"https://cdnjs.cloudflare.com",
-				"https://unpkg.com"
+				"https://unpkg.com",
+				"https://cdn.tailwindcss.com"
 			],
 			scriptSrc: [
 				"'self'",
