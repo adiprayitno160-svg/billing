@@ -133,7 +133,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			mtSettingsP,
 			troubleCustomersP,
 			latePaymentHighRiskP,
-			latePaymentWarning4P
+			latePaymentWarning4P,
+			verifyingJobsP
 		] = await Promise.all([
 			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -164,7 +165,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 					const [result] = await databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE COALESCE(late_payment_count, 0) >= 4") as any;
 					return result;
 				} catch { return [[{ cnt: 0 }]]; }
-			})()
+			})(),
+			databasePool.query("SELECT j.*, c.name as customer_name, c.customer_code FROM technician_jobs j LEFT JOIN customers c ON j.customer_id = c.id WHERE j.status = 'verifying' ORDER BY j.created_at DESC")
 		]);
 
 		const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -185,6 +187,7 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		const recentAlerts: any[] = []; // Forced empty
 		const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
 		const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
+		const verifyingJobs = Array.isArray(verifyingJobsP) ? (verifyingJobsP[0] as any[]) : [];
 
 		const labels = getLastNDatesLabels(7);
 		const pointsMap: Record<string, number> = Object.create(null);
@@ -229,6 +232,7 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				highRisk: latePaymentHighRisk,
 				warning4: latePaymentWarning4
 			},
+			verifyingJobs,
 			recentRequests,
 			troubleCustomers,
 			recentAlerts,

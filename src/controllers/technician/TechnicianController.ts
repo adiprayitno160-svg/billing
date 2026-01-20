@@ -473,4 +473,70 @@ Untuk mengambil, balas:
             res.status(500).render('error', { title: 'Error', message: 'Internal Server Error' });
         }
     }
+    // Verify & Broadcast Job (Admin Operator)
+    static async verifyJob(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const user = (req as any).user;
+
+            // Check Permissions
+            if (!user || !['admin', 'superadmin', 'operator'].includes(user.role)) {
+                return res.status(403).json({ success: false, message: 'Unauthorized' });
+            }
+
+            // Check Status First
+            const [check] = await databasePool.query<RowDataPacket[]>("SELECT status FROM technician_jobs WHERE id = ?", [id]);
+            if (check.length === 0 || check[0].status !== 'verifying') {
+                return res.status(400).json({ success: false, message: 'Job not found or not in verifying status' });
+            }
+
+            // Update Status
+            await databasePool.query(
+                "UPDATE technician_jobs SET status = 'pending', priority = 'high' WHERE id = ?",
+                [id]
+            );
+
+            // Fetch Job Details for Broadcast
+            const [jobs] = await databasePool.query<RowDataPacket[]>(
+                `SELECT j.*, c.name as customer_name, c.phone as customer_phone 
+                 FROM technician_jobs j
+                 LEFT JOIN customers c ON j.customer_id = c.id
+                 WHERE j.id = ?`,
+                [id]
+            );
+
+            const job = jobs[0];
+            const waClient = WhatsAppClient.getInstance();
+
+            // Get Techs
+            const [techs] = await databasePool.query<RowDataPacket[]>(
+                "SELECT phone FROM users WHERE role = 'teknisi' AND is_active = 1"
+            );
+
+            const msg = `
+*🛠️ JOB TIKET BARU (VERIFIED)*
+
+🎫 Tiket: *${job.ticket_number}*
+📂 Tipe: *Perbaikan / Keluhan (Bot)*
+
+👤 Nama: *${job.customer_name}*
+📞 HP: ${job.customer_phone || '-'}
+📍 Alamat: ${job.address}
+📝 Info: ${job.description}
+
+Untuk mengambil:
+*!ambil ${job.ticket_number}*
+`.trim();
+
+            for (const tech of techs) {
+                if (tech.phone) await waClient.sendMessage(tech.phone, msg).catch(() => { });
+            }
+
+            res.json({ success: true, message: 'Job verified and broadcasted.' });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Server Error' });
+        }
+    }
 }

@@ -740,134 +740,193 @@
 										</div>
 			</div>
 
-			<!-- Monitor Pelanggan Trouble -->
-			<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
-				style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
-				<div class="flex items-center justify-between mb-4">
-					<h2 class="text-lg font-semibold text-gray-900">Monitor Status Koneksi (Live)</h2>
-					<a href="/monitoring/trouble" class="text-sm text-blue-600 hover:text-blue-800">Lihat Semua</a>
+			<!-- Pending Verification Widget (Added by Bot) -->
+			<% if (typeof verifyingJobs !=='undefined' && verifyingJobs && verifyingJobs.length> 0) { %>
+				<div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 shadow-md mb-6">
+					<div class="flex items-center justify-between mb-4">
+						<div class="flex items-center gap-2">
+							<span class="text-2xl">⚠️</span>
+							<h2 class="text-lg font-bold text-yellow-800">Tiket Butuh Verifikasi (<%=
+									verifyingJobs.length %>)</h2>
+						</div>
+					</div>
+					<div class="space-y-3">
+						<% verifyingJobs.forEach(function(job) { %>
+							<div
+								class="bg-white p-4 rounded-xl border border-yellow-100 flex items-center justify-between shadow-sm">
+								<div>
+									<div class="flex items-center gap-2 mb-1">
+										<span class="font-mono text-xs font-bold bg-gray-100 px-2 py-0.5 rounded">
+											<%= job.ticket_number %>
+										</span>
+										<span class="text-sm font-semibold text-gray-900">
+											<%= job.customer_name %>
+										</span>
+									</div>
+									<p class="text-sm text-gray-600 line-clamp-1">
+										<%= job.description ? job.description.split('\n')[1] : '-' %>
+									</p>
+									<p class="text-xs text-gray-400 mt-1">
+										<%= new Date(job.created_at).toLocaleString('id-ID') %>
+									</p>
+								</div>
+								<button onclick="verifyTicket(<%= job.id %>)"
+									class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+									Approve
+								</button>
+							</div>
+							<% }); %>
+					</div>
+					<script>
+						async function verifyTicket(id) {
+							if (!confirm('Approve tiket ini dan sebarkan ke teknisi?')) return;
+							try {
+								const res = await fetch(`/technician/jobs/${id}/verify`, { method: 'POST' });
+								const data = await res.json();
+								if (data.success) {
+									alert('Tiket Terverifikasi!');
+									location.reload();
+								} else {
+									alert('Gagal: ' + data.message);
+								}
+							} catch (e) {
+								alert('Error koneksi');
+							}
+						}
+					</script>
 				</div>
-				<div class="overflow-x-auto">
-					<table class="min-w-full text-sm">
-						<thead>
-							<tr class="text-left text-gray-600 border-b border-gray-200">
-								<th class="py-3 pr-4 font-medium">Kode</th>
-								<th class="py-3 pr-4 font-medium">Nama Pelanggan</th>
-								<th class="py-3 pr-4 font-medium">Username</th>
-								<th class="py-3 pr-4 font-medium">Tipe</th>
-								<th class="py-3 pr-4 font-medium">Status Terkini</th>
-								<th class="py-3 pr-4 font-medium">Maintenance</th>
-								<th class="py-3 pr-4 font-medium">Terakhir Terlihat</th>
-							</tr>
-						</thead>
-						<tbody>
-							<% if (typeof troubleCustomers !=='undefined' && troubleCustomers &&
-								troubleCustomers.length> 0) {
-								%>
-								<% troubleCustomers.forEach(function(customer) { %>
-									<tr class="border-b border-gray-100 hover:bg-gray-50">
-										<td class="py-3 pr-4 text-gray-800 font-medium">
-											<%= customer.customer_code || '-' %>
-										</td>
-										<td class="py-3 pr-4 text-gray-900">
-											<%= customer.name %>
-										</td>
-										<td class="py-3 pr-4 text-gray-600">
-											<%= customer.pppoe_username || '-' %>
-										</td>
-										<td class="py-3 pr-4">
-											<% if (customer.connection_type==='pppoe' ) { %>
-												<span
-													class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800">PPPoE</span>
-												<% } else if (customer.connection_type==='static_ip' ) { %>
-													<span
-														class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-1 text-xs text-indigo-800">Static
-														IP</span>
-													<% } else { %>
-														<span
-															class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">
-															<%= customer.connection_type || '-' %>
-														</span>
-														<% } %>
-										</td>
-										<td class="py-3 pr-4">
-											<% if (customer.issue_type && customer.issue_type.toLowerCase()==='online' )
-												{ %>
-												<span
-													class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-800">Online</span>
-												<% } else if (customer.issue_type &&
-													customer.issue_type.toLowerCase()==='offline' ) { %>
-													<span
-														class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-800">Offline</span>
-													<% } else { %>
-														<span class="text-gray-600">
-															<%= customer.issue_type || '-' %>
-														</span>
-														<% } %>
-										</td>
-										<td class="py-3 pr-4">
-											<% if (customer.maintenance_status==='in_progress' ) { %>
-												<span
-													class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Sedang
-													Ditangani</span>
-												<% } else if (customer.maintenance_status==='scheduled' ) { %>
-													<span
-														class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Terjadwal</span>
-													<% } else if (customer.issue_type==='Offline' ) { %>
-														<span
-															class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">🔴
-															Offline</span>
-														<% } else if (customer.issue_type &&
-															customer.issue_type.startsWith('SLA:')) { %>
-															<span
-																class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">⚠️
-																<%= customer.issue_type %>
-															</span>
-															<% } else if (customer.status==='active' ) { %>
-																<span
-																	class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Normal</span>
-																<% } else if (customer.status==='suspended' ) { %>
-																	<span
-																		class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Isolir</span>
-																	<% } else { %>
-																		<span
-																			class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">
-																			<%= customer.status %>
-																		</span>
-																		<% } %>
-										</td>
-										<td class="py-3 pr-4 text-gray-600">
-											<% if (customer.trouble_since) { %>
-												<%= new Date(customer.trouble_since).toLocaleString('id-ID', {
-													day: '2-digit' , month: 'short' , year: 'numeric' , hour: '2-digit'
-													, minute: '2-digit' }) %>
-													<% } else { %>
-														-
-														<% } %>
-										</td>
+				<% } %>
+
+					<!-- Monitor Pelanggan Trouble -->
+					<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+						style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+						<div class="flex items-center justify-between mb-4">
+							<h2 class="text-lg font-semibold text-gray-900">Monitor Status Koneksi (Live)</h2>
+							<a href="/monitoring/trouble" class="text-sm text-blue-600 hover:text-blue-800">Lihat
+								Semua</a>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="min-w-full text-sm">
+								<thead>
+									<tr class="text-left text-gray-600 border-b border-gray-200">
+										<th class="py-3 pr-4 font-medium">Kode</th>
+										<th class="py-3 pr-4 font-medium">Nama Pelanggan</th>
+										<th class="py-3 pr-4 font-medium">Username</th>
+										<th class="py-3 pr-4 font-medium">Tipe</th>
+										<th class="py-3 pr-4 font-medium">Status Terkini</th>
+										<th class="py-3 pr-4 font-medium">Maintenance</th>
+										<th class="py-3 pr-4 font-medium">Terakhir Terlihat</th>
 									</tr>
-									<% }) %>
-										<% } else { %>
-											<tr>
-												<td class="py-8 text-center text-gray-500" colspan="7">
-													<div class="flex flex-col items-center">
-														<svg xmlns="http://www.w3.org/2000/svg"
-															class="h-12 w-12 text-gray-400 mb-2" fill="none"
-															viewBox="0 0 24 24" stroke="currentColor">
-															<path stroke-linecap="round" stroke-linejoin="round"
-																stroke-width="2"
-																d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-														</svg>
-														<p>Tidak ada pelanggan yang mengalami
-															trouble</p>
-													</div>
+								</thead>
+								<tbody>
+									<% if (typeof troubleCustomers !=='undefined' && troubleCustomers &&
+										troubleCustomers.length> 0) {
+										%>
+										<% troubleCustomers.forEach(function(customer) { %>
+											<tr class="border-b border-gray-100 hover:bg-gray-50">
+												<td class="py-3 pr-4 text-gray-800 font-medium">
+													<%= customer.customer_code || '-' %>
+												</td>
+												<td class="py-3 pr-4 text-gray-900">
+													<%= customer.name %>
+												</td>
+												<td class="py-3 pr-4 text-gray-600">
+													<%= customer.pppoe_username || '-' %>
+												</td>
+												<td class="py-3 pr-4">
+													<% if (customer.connection_type==='pppoe' ) { %>
+														<span
+															class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800">PPPoE</span>
+														<% } else if (customer.connection_type==='static_ip' ) { %>
+															<span
+																class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-1 text-xs text-indigo-800">Static
+																IP</span>
+															<% } else { %>
+																<span
+																	class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">
+																	<%= customer.connection_type || '-' %>
+																</span>
+																<% } %>
+												</td>
+												<td class="py-3 pr-4">
+													<% if (customer.issue_type &&
+														customer.issue_type.toLowerCase()==='online' ) { %>
+														<span
+															class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-800">Online</span>
+														<% } else if (customer.issue_type &&
+															customer.issue_type.toLowerCase()==='offline' ) { %>
+															<span
+																class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-800">Offline</span>
+															<% } else { %>
+																<span class="text-gray-600">
+																	<%= customer.issue_type || '-' %>
+																</span>
+																<% } %>
+												</td>
+												<td class="py-3 pr-4">
+													<% if (customer.maintenance_status==='in_progress' ) { %>
+														<span
+															class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">Sedang
+															Ditangani</span>
+														<% } else if (customer.maintenance_status==='scheduled' ) { %>
+															<span
+																class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Terjadwal</span>
+															<% } else if (customer.issue_type==='Offline' ) { %>
+																<span
+																	class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">🔴
+																	Offline</span>
+																<% } else if (customer.issue_type &&
+																	customer.issue_type.startsWith('SLA:')) { %>
+																	<span
+																		class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">⚠️
+																		<%= customer.issue_type %>
+																	</span>
+																	<% } else if (customer.status==='active' ) { %>
+																		<span
+																			class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Normal</span>
+																		<% } else if (customer.status==='suspended' ) {
+																			%>
+																			<span
+																				class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">Isolir</span>
+																			<% } else { %>
+																				<span
+																					class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">
+																					<%= customer.status %>
+																				</span>
+																				<% } %>
+												</td>
+												<td class="py-3 pr-4 text-gray-600">
+													<% if (customer.trouble_since) { %>
+														<%= new Date(customer.trouble_since).toLocaleString('id-ID', {
+															day: '2-digit' , month: 'short' , year: 'numeric' ,
+															hour: '2-digit' , minute: '2-digit' }) %>
+															<% } else { %>
+																-
+																<% } %>
 												</td>
 											</tr>
-											<% } %>
-						</tbody>
-					</table>
-				</div>
-			</div>
+											<% }) %>
+												<% } else { %>
+													<tr>
+														<td class="py-8 text-center text-gray-500" colspan="7">
+															<div class="flex flex-col items-center">
+																<svg xmlns="http://www.w3.org/2000/svg"
+																	class="h-12 w-12 text-gray-400 mb-2" fill="none"
+																	viewBox="0 0 24 24" stroke="currentColor">
+																	<path stroke-linecap="round" stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+																</svg>
+																<p>Tidak ada pelanggan yang mengalami
+																	trouble</p>
+															</div>
+														</td>
+													</tr>
+													<% } %>
+								</tbody>
+							</table>
+						</div>
+					</div>
 
-			<script>
-				// Dashboard scripts
+					<script>
+						// Dashboard scripts

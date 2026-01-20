@@ -26,6 +26,7 @@ router.post('/jobs/save', isAuthenticated, TechnicianController.apiSaveJob);
 router.get('/customers/search', isAuthenticated, TechnicianController.apiSearchCustomers);
 router.get('/jobs/:id', isAuthenticated, TechnicianController.getJobDetail);
 router.get('/history', isAuthenticated, TechnicianController.getJobHistory);
+router.post('/jobs/:id/verify', isAuthenticated, TechnicianController.verifyJob);
 
 
 
