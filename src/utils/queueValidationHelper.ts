@@ -4,22 +4,22 @@
  * Prevents "input does not match any value of queue" error
  */
 
-export async function validateQueueType(queueName: string): Promise<string> {
-    // Common standard types
-    const validTypes = [
-        'default',
-        'default-small',
-        'ethernet-default',
-        'wireless-default',
-        'synchronous-default',
-        'hotspot-default',
-        'pcq-upload-default',
-        'pcq-download-default',
-        'only-hardware-queue',
-        'mq-pfifo',
-        'pfifo'
-    ];
 
+export const validTypes = [
+    'default',
+    'default-small',
+    'ethernet-default',
+    'wireless-default',
+    'synchronous-default',
+    'hotspot-default',
+    'pcq-upload-default',
+    'pcq-download-default',
+    'only-hardware-queue',
+    'mq-pfifo',
+    'pfifo'
+];
+
+export async function validateQueueType(queueName: string): Promise<string> {
     if (!queueName || typeof queueName !== 'string') return 'default-small';
 
     if (validTypes.includes(queueName)) {
@@ -45,3 +45,8 @@ export async function preValidateQueueCreation(data: any): Promise<{ valid: bool
 
     return { valid: true, errors: [], sanitizedData };
 }
+
+export async function getAvailableQueueTypes(): Promise<string[]> {
+    return validTypes;
+}
+
