@@ -21,24 +21,39 @@ if [ ! -d ".baileys_auth" ]; then
 fi
 
 # 2. Fix Ownership
-# Try to detect user running user
-CURRENT_USER=$(whoami)
-echo "Current User: $CURRENT_USER"
+# Detect the real user if running via sudo
+REAL_USER=${SUDO_USER:-$(whoami)}
+TARGET_GROUP="www-data"
 
-# Assuming standard web server setup, we want www-data
-TARGET_USER="www-data"
+echo "Current Build User: $REAL_USER"
+echo "Target Web Group: $TARGET_GROUP"
 
-echo "Setting ownership to $TARGET_USER:$TARGET_USER..."
-sudo chown -R $TARGET_USER:$TARGET_USER .baileys_auth
-sudo chown -R $TARGET_USER:$TARGET_USER dist
-sudo chown -R $TARGET_USER:$TARGET_USER public/uploads
+# Ensure group exists
+if ! getent group $TARGET_GROUP > /dev/null; then
+    echo "⚠️  Group $TARGET_GROUP not found. Creating it..."
+    sudo groupadd $TARGET_GROUP
+fi
+
+# Add user to group if not already in it
+if ! groups $REAL_USER | grep -q $TARGET_GROUP; then
+    echo "Adding $REAL_USER to $TARGET_GROUP group..."
+    sudo usermod -a -G $TARGET_GROUP $REAL_USER
+fi
+
+echo "Setting ownership to $REAL_USER:$TARGET_GROUP..."
+sudo chown -R $REAL_USER:$TARGET_GROUP .
+sudo chown -R $REAL_USER:$TARGET_GROUP .baileys_auth dist public/uploads
 
 # 3. Fix Permissions
-echo "Setting write permissions..."
+echo "Setting permissions (775: User/Group can write)..."
+# Make the whole project readable, but specific dirs writable by group
+sudo chmod -R 755 .
 sudo chmod -R 775 .baileys_auth
+sudo chmod -R 775 dist
 sudo chmod -R 777 public/uploads
 
 echo "========================================================"
 echo "   PERMISSIONS FIXED! 🚀"
-echo "   Please restart your app: pm2 restart billing-app"
+echo "   1. You can now run: npm run build"
+echo "   2. Then restart: pm2 restart billing-app"
 echo "========================================================"

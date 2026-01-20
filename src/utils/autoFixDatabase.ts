@@ -144,6 +144,171 @@ export async function autoFixInvoicesAndPaymentsTables(): Promise<void> {
     console.log('✅ [AutoFix] Invoices and payments tables ensured');
   } catch (error: any) {
     console.error('❌ [AutoFix] Error ensuring invoices and payments tables:', error);
-    // Don't throw, continue startup
+  }
+}
+
+/**
+ * Auto-fix WhatsApp and Registration tables
+ */
+export async function autoFixWhatsAppTables(): Promise<void> {
+  try {
+    console.log('🔧 [AutoFix] Checking WhatsApp and Registration tables...');
+
+    // 1. WhatsApp Sessions
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+        phone_number VARCHAR(20) PRIMARY KEY,
+        current_step VARCHAR(50),
+        temp_data JSON,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 2. Pending Registrations
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pending_registrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(191) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        address TEXT,
+        coordinates VARCHAR(100),
+        status ENUM('pending', 'waiting_payment', 'approved', 'rejected') DEFAULT 'pending',
+        package_id INT NULL,
+        approved_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 3. Payment Requests
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS payment_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NULL,
+        pending_registration_id INT NULL,
+        invoice_id INT NULL,
+        package_id INT NULL,
+        duration_days INT DEFAULT 30,
+        type ENUM('activation', 'bill_payment', 'prepaid_purchase') DEFAULT 'bill_payment',
+        status ENUM('pending', 'paid', 'expired', 'failed') DEFAULT 'pending',
+        base_amount DECIMAL(15,2) NOT NULL,
+        unique_code INT NOT NULL,
+        total_amount DECIMAL(15,2) NOT NULL,
+        subtotal_amount DECIMAL(15,2) DEFAULT 0,
+        ppn_rate DECIMAL(5,2) DEFAULT 0,
+        ppn_amount DECIMAL(15,2) DEFAULT 0,
+        device_fee DECIMAL(15,2) DEFAULT 0,
+        voucher_id INT NULL,
+        voucher_discount DECIMAL(15,2) DEFAULT 0,
+        payment_method_id INT NULL,
+        method VARCHAR(50) DEFAULT 'transfer',
+        paid_at TIMESTAMP NULL,
+        expires_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_customer (customer_id),
+        INDEX idx_registration (pending_registration_id),
+        INDEX idx_status (status),
+        INDEX idx_total (total_amount)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 4. PPPoE Packages
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pppoe_packages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(191) NOT NULL,
+        code VARCHAR(50) UNIQUE,
+        profile_id INT NULL,
+        price DECIMAL(15,2) DEFAULT 0,
+        price_7_days DECIMAL(15,2) DEFAULT 0,
+        price_14_days DECIMAL(15,2) DEFAULT 0,
+        price_30_days DECIMAL(15,2) DEFAULT 0,
+        duration_days INT DEFAULT 30,
+        description TEXT,
+        is_active TINYINT(1) DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 5. Technician Fee Distributions
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS technician_fee_distributions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        technician_job_id INT NOT NULL,
+        technician_id INT NOT NULL,
+        role VARCHAR(50) DEFAULT 'member',
+        amount DECIMAL(15,2) DEFAULT 0,
+        paid_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_job (technician_job_id),
+        INDEX idx_tech (technician_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 6. Vouchers
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vouchers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(191) NOT NULL,
+        description TEXT,
+        discount_type ENUM('percentage', 'fixed', 'free_days') DEFAULT 'fixed',
+        discount_value DECIMAL(15,2) DEFAULT 0,
+        min_purchase DECIMAL(15,2) DEFAULT 0,
+        valid_from TIMESTAMP NULL,
+        valid_until TIMESTAMP NULL,
+        usage_limit INT NULL,
+        used_count INT DEFAULT 0,
+        customer_type ENUM('all', 'new', 'existing', 'prepaid', 'postpaid') DEFAULT 'all',
+        status ENUM('active', 'inactive') DEFAULT 'active',
+        sort_order INT DEFAULT 0,
+        created_by INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 7. Voucher Usage
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS voucher_usage (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        voucher_id INT NOT NULL,
+        customer_id INT NOT NULL,
+        payment_request_id INT NULL,
+        original_amount DECIMAL(15,2) DEFAULT 0,
+        discount_amount DECIMAL(15,2) DEFAULT 0,
+        final_amount DECIMAL(15,2) DEFAULT 0,
+        used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_voucher (voucher_id),
+        INDEX idx_customer (customer_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 8. Prepaid Transactions
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS prepaid_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        payment_request_id INT NULL,
+        invoice_id INT NULL,
+        package_id INT NULL,
+        duration_days INT DEFAULT 30,
+        amount DECIMAL(15,2) DEFAULT 0,
+        ppn_amount DECIMAL(15,2) DEFAULT 0,
+        device_fee DECIMAL(15,2) DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'transfer',
+        previous_expiry_date TIMESTAMP NULL,
+        new_expiry_date TIMESTAMP NULL,
+        verified_by INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_customer (customer_id),
+        INDEX idx_invoice (invoice_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    console.log('✅ [AutoFix] WhatsApp and Registration tables ensured');
+  } catch (error: any) {
+    console.error('❌ [AutoFix] Error ensuring WhatsApp tables:', error);
   }
 }

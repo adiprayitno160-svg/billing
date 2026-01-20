@@ -22,7 +22,8 @@ import { companyInfoMiddleware } from './middlewares/companyInfoMiddleware';
 import { autoLogoutMiddleware } from './middlewares/autoLogoutMiddleware';
 import { injectAppVersion } from './middlewares/versionMiddleware';
 import {
-	autoFixInvoicesAndPaymentsTables
+	autoFixInvoicesAndPaymentsTables,
+	autoFixWhatsAppTables
 } from './utils/autoFixDatabase';
 import { loggingMiddleware, errorLoggingMiddleware } from './middlewares/loggingMiddleware';
 import { BillingLogService } from './services/billing/BillingLogService';
@@ -308,11 +309,12 @@ async function start() {
 
 		// Ensure invoices and payments tables exist (CRITICAL for bookkeeping)
 		try {
-			console.log('[Startup] Step 6: Checking invoices/payments tables...');
+			console.log('[Startup] Step 10: Checking invoices/payments/whatsapp tables...');
 			await autoFixInvoicesAndPaymentsTables();
-			console.log('[Startup] ✅ Invoices and payments tables ensured');
+			await autoFixWhatsAppTables();
+			console.log('[Startup] ✅ Invoices, payments and WhatsApp tables ensured');
 		} catch (error) {
-			console.error('⚠️ Error ensuring invoices and payments tables (non-critical):', error);
+			console.error('⚠️ Error ensuring bookkeeping/whatsapp tables (non-critical):', error);
 		}
 
 		// Initialize WiFi management database (auto-create tables)
