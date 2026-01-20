@@ -24,46 +24,35 @@ for dir in $DOCS_DIRS; do
 done
 
 # 2. Fix Ownership
-# Detect the real user (who should own the files)
-REAL_USER=${SUDO_USER:-$(whoami)}
-# Fallback: If running in /var/www/billing, we likely want the 'adi' user
-if [ "$REAL_USER" == "root" ] && id "adi" &>/dev/null; then
-    REAL_USER="adi"
+# Target user is 'adi' as seen in PM2 logs
+REAL_USER="adi"
+if ! id "$REAL_USER" &>/dev/null; then
+    REAL_USER=${SUDO_USER:-$(whoami)}
 fi
 
 TARGET_GROUP="www-data"
 
-echo "Detected Owner User: $REAL_USER"
+echo "Using Owner User: $REAL_USER"
 echo "Target Web Group: $TARGET_GROUP"
-
-# Ensure group exists
-if ! getent group $TARGET_GROUP > /dev/null; then
-    sudo groupadd $TARGET_GROUP
-fi
 
 # Add user to group
 sudo usermod -a -G $TARGET_GROUP $REAL_USER
 
-echo "Resetting ownership to $REAL_USER:$TARGET_GROUP (Deep Clean)..."
-# Use -h to affect symlinks too, and be very aggressive
+# FORCE CLEANUP: Delete problematic folders that are stuck with root permissions
+echo "Force cleaning sticky runtime folders..."
+sudo rm -rf .baileys_auth
+sudo rm -rf logs
+mkdir -p .baileys_auth logs
+
+echo "Resetting ownership to $REAL_USER:$TARGET_GROUP..."
 sudo chown -R $REAL_USER:$TARGET_GROUP $APP_DIR
 
 # 3. Fix Permissions
-echo "Setting permissions (Full control for $REAL_USER)..."
-sudo chmod -R 755 $APP_DIR
-
-# Specific runtime directories need group write access for www-data and full access for $REAL_USER
-echo "Unlocking runtime directories..."
-RUNTIME_DIRS=".baileys_auth logs dist public/uploads"
-for dir in $RUNTIME_DIRS; do
-    if [ -d "$dir" ]; then
-        sudo chown -R $REAL_USER:$TARGET_GROUP "$dir"
-        sudo chmod -R 777 "$dir" # Open fully for now to stop the EACCES bleeding
-    fi
-done
+echo "Setting permissions (775: Full access for user and group)..."
+sudo chmod -R 775 $APP_DIR
+sudo chmod -R 777 .baileys_auth logs public/uploads dist # Full open on runtimes
 
 echo "========================================================"
 echo "   PERMISSIONS FIXED! 🚀"
-echo "   Running: pm2 restart billing-app"
+echo "   Next steps: git pull && npm run build && pm2 restart billing-app"
 echo "========================================================"
-pm2 restart billing-app
