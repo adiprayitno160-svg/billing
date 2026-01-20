@@ -624,6 +624,30 @@ export class UnifiedNotificationService {
       connection.release();
     }
   }
+
+  /**
+   * Broadcast message to all Admins/Operators
+   */
+  static async broadcastToAdmins(message: string): Promise<void> {
+    try {
+      // Use pool directly to avoid queue overhead for system alerts
+      const [users] = await databasePool.query<RowDataPacket[]>(
+        "SELECT phone FROM users WHERE role IN ('admin', 'superadmin', 'operator') AND is_active = 1 AND phone IS NOT NULL"
+      );
+
+      if (users.length === 0) return;
+
+      const waClient = WhatsAppClient.getInstance();
+      for (const user of users) {
+        // Send directly
+        await waClient.sendMessage(user.phone, message).catch(err => {
+          console.warn(`[UnifiedNotification] Failed to broadcast to admin ${user.phone}:`, err.message);
+        });
+      }
+    } catch (error) {
+      console.error('[UnifiedNotification] Broadcast Error:', error);
+    }
+  }
 }
 
 
