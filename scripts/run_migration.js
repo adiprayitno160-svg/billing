@@ -6,7 +6,7 @@ require('dotenv').config();
 async function run() {
     console.log('🔄 Checking for Database Migrations...');
 
-    // Create connection with multipleStatements enabled
+    // Create connection
     const config = {
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'root',
@@ -36,23 +36,34 @@ async function run() {
             continue;
         }
 
-        const sql = fs.readFileSync(sqlFile, 'utf8');
-        console.log(`Applying ${file}...`);
+        console.log(`Processing ${file}...`);
+        const sqlContent = fs.readFileSync(sqlFile, 'utf8');
 
-        try {
-            await connection.query(sql);
-            console.log(`✅ ${file} executed successfully.`);
-        } catch (err) {
-            // Check for duplicate column or table exists (ER_DUP_FIELDNAME / 42S21)
-            const isDuplicate = err.code === 'ER_DUP_FIELDNAME' ||
-                err.code === 'ER_TABLE_EXISTS_ERROR' ||
-                err.code === '42S21' ||
-                (err.sqlMessage && err.sqlMessage.includes('Duplicate column'));
+        // Split by semicolon to run statements individually
+        // This ensures that if one statement fails (e.g. duplicate column), others still run
+        const statements = sqlContent
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
 
-            if (isDuplicate) {
-                console.log(`ℹ️ ${file} already applied (Skipping).`);
-            } else {
-                console.warn(`⚠️ Migration Warning in ${file}:`, err.message);
+        for (const statement of statements) {
+            try {
+                await connection.query(statement);
+                console.log(`   ✅ Executed: ${statement.substring(0, 50)}...`);
+            } catch (err) {
+                // Check for duplicate column or table exists
+                const isDuplicate = err.code === 'ER_DUP_FIELDNAME' ||
+                    err.code === 'ER_TABLE_EXISTS_ERROR' ||
+                    err.code === '42S21' ||
+                    (err.sqlMessage && err.sqlMessage.includes('Duplicate column')) ||
+                    (err.sqlMessage && err.sqlMessage.includes('already exists'));
+
+                if (isDuplicate) {
+                    console.log(`   ℹ️ Skipped (Already exists): ${statement.substring(0, 50)}...`);
+                } else {
+                    console.warn(`   ⚠️ Warning: ${err.message}`);
+                    // Don't stop execution, proceed to next statement
+                }
             }
         }
     }
