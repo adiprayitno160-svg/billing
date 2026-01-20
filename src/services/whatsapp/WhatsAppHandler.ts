@@ -127,21 +127,25 @@ export class WhatsAppHandler {
 
     private static async handleIncomingMessage(msg: proto.IWebMessageInfo) {
         try {
+            // DEBUG: Print FULL message structure for analysis
+            // console.log(JSON.stringify(msg, null, 2));
+
             const senderJid = msg.key.remoteJid;
             if (!senderJid || senderJid === 'status@broadcast') return;
-            // Ignore group messages for now unless mentioned (future feature)
+
+            // DEBUG LOG
+            console.log(`\n[WhatsAppHandler] 📩 RECEIVED MSG | JID: ${senderJid} | Name: ${msg.pushName} | ID: ${msg.key.id}`);
+
+            // Ignore group messages for now
             if (senderJid.includes('@g.us')) {
-                // process.stdout.write(`\n[WhatsAppHandler] Ignored Group Message: ${senderJid}`);
+                console.log(`[WhatsAppHandler] ⏭️ Ignored Group Message: ${senderJid}`);
                 return;
             }
 
             if (msg.key.fromMe) {
-                process.stdout.write(`\n[WhatsAppHandler] Ignored message from SELF (fromMe=true)\n`);
+                console.log(`[WhatsAppHandler] ⏭️ Ignored message from SELF (fromMe=true)`);
                 return;
             }
-
-            // DEBUG LOG
-            process.stdout.write(`\n[WhatsAppHandler] MSG FROM: ${senderJid}\n`);
 
             // === LID FIX START ===
             // @ts-ignore
@@ -150,11 +154,18 @@ export class WhatsAppHandler {
             let isLid = senderJid.includes('@lid');
             let replyToJid = senderJid;
 
-            if (isLid && remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
-                process.stdout.write(`\n[WhatsAppHandler] LID Detected (${senderJid}) -> Alt JID: ${remoteJidAlt}\n`);
-                senderPhone = remoteJidAlt.split('@')[0].split(':')[0];
-                replyToJid = remoteJidAlt;
-                isLid = false;
+            if (isLid) {
+                console.log(`[WhatsAppHandler] 🆔 LID Detected: ${senderJid}`);
+                if (remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
+                    console.log(`[WhatsAppHandler] 🔄 LID Resolved to Alt JID: ${remoteJidAlt}`);
+                    senderPhone = remoteJidAlt.split('@')[0].split(':')[0];
+                    replyToJid = remoteJidAlt;
+                    isLid = false;
+                } else {
+                    console.log(`[WhatsAppHandler] ⚠️ LID detected but NO Alt JID found! Using raw LID as specific ID.`);
+                    // We might fail to match customer phone here if we rely on phone number in DB.
+                    // But we continue to try.
+                }
             }
             // === LID FIX END ===
 

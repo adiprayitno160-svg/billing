@@ -1,100 +1,50 @@
 
+import { WhatsAppBaileys as WhatsAppClient, WhatsAppEvents } from '../services/whatsapp/WhatsAppBaileys';
+import { WhatsAppHandler } from '../services/whatsapp/WhatsAppHandler';
 import { databasePool } from '../db/pool';
-import { WhatsAppClient } from '../services/whatsapp/WhatsAppClient';
-import { ChatBotService } from '../services/ai/ChatBotService';
 
 async function diagnose() {
-    console.log('🔍 Starting WhatsApp & AI Diagnostics...');
-    console.log('----------------------------------------');
+    console.log('--- STARTING WHATSAPP DIAGNOSIS ---');
 
-    // 1. Check Database Table
+    // 1. Check DB Connection
     try {
-        console.log('Checking database table `whatsapp_bot_messages`...');
-        const [rows] = await databasePool.query('SHOW TABLES LIKE "whatsapp_bot_messages"');
-        if ((rows as any[]).length > 0) {
-            console.log('✅ Table `whatsapp_bot_messages` EXISTS.');
-
-            // Check columns
-            const [cols] = await databasePool.query('SHOW COLUMNS FROM whatsapp_bot_messages');
-            const colNames = (cols as any[]).map(c => c.Field);
-            console.log('   Columns:', colNames.join(', '));
-            if (!colNames.includes('direction')) console.error('   ❌ Column `direction` MISSING!');
-        } else {
-            console.error('❌ Table `whatsapp_bot_messages` DOES NOT EXIST.');
-            console.log('   Attempting to create it...');
-            await databasePool.query(`
-                CREATE TABLE IF NOT EXISTS whatsapp_bot_messages (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    phone_number VARCHAR(20),
-                    customer_id INT NULL,
-                    direction ENUM('inbound', 'outbound') DEFAULT 'outbound',
-                    message_type VARCHAR(20) DEFAULT 'text',
-                    message_content TEXT,
-                    status VARCHAR(20) DEFAULT 'sent',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_phone (phone_number),
-                    INDEX idx_created (created_at)
-                )
-            `);
-            console.log('   ✅ Table created successfully.');
-        }
-    } catch (err: any) {
-        console.error('❌ Database Error:', err.message);
+        await databasePool.query('SELECT 1');
+        console.log('✅ Database connection OK');
+    } catch (e) {
+        console.error('❌ Database connection FAILED:', e);
+        process.exit(1);
     }
 
-    // 2. Check WhatsApp Client
-    console.log('\nChecking WhatsApp Client Status...');
-    const wa = WhatsAppClient.getInstance();
-    const status = wa.getStatus();
-    console.log('   Status:', status);
+    // 2. Initialize Client
+    console.log('Initializing WhatsApp Client...');
+    const client = WhatsAppClient.getInstance();
 
-    if (status.ready) {
-        console.log('✅ WhatsApp is READY.');
-    } else {
-        console.error('❌ WhatsApp is NOT READY.');
-        if ((status as any).qr || status.hasQRCode) console.log('   QR Code is available (scan required).');
-    }
+    // Hook events directly here to see if they fire
+    WhatsAppEvents.on('message', (msg) => {
+        console.log('🔍 [DIAGNOSTIC] Event "message" fired!');
+        console.log('   from:', msg.key.remoteJid);
+        console.log('   content:', JSON.stringify(msg.message).substring(0, 50) + '...');
+    });
 
+    WhatsAppEvents.on('ready', () => {
+        console.log('🔍 [DIAGNOSTIC] Event "ready" fired!');
+    });
 
-    // 3. Check AI Service & Settings
-    console.log('\nChecking AI Service Configuration...');
-    try {
-        // Check DB for stored settings
-        try {
-            const [rows] = await databasePool.query('SELECT * FROM ai_settings');
-            console.log('   Stored Settings (ai_settings):', rows);
+    WhatsAppEvents.on('qr', (qr) => {
+        console.log('🔍 [DIAGNOSTIC] Event "qr" fired!');
+    });
 
-            // AUTO-FIX: If we see invalid model, fix it
-            const [modelRows] = await databasePool.query('SELECT * FROM ai_settings WHERE model = "gemini-2.5-flash"');
-            if ((modelRows as any[]).length > 0) {
-                console.log('   ⚠️ Found INVALID model "gemini-2.5-flash" in DB. Fixing it...');
-                await databasePool.query('UPDATE ai_settings SET model = "gemini-1.5-flash" WHERE model = "gemini-2.5-flash"');
-                console.log('   ✅ Fixed model to "gemini-1.5-flash".');
-            }
-        } catch (e) {
-            console.log('   (Could not read ai_settings table:', (e as any).message, ')');
-        }
+    await client.initialize();
+    WhatsAppHandler.initialize();
 
-        // Access private property logic or test simple prompt
+    console.log('✅ Initialization Sequence Complete');
+    console.log('⏳ Waiting for events... (Press Ctrl+C to stop)');
 
-        console.log('   Testing AI with "Halo"...');
-        const response = await ChatBotService.ask('Halo, test diagnosa', { status: 'guest' });
-        console.log('   AI Response:', response);
-        if (response && response.length > 0) {
-            console.log('✅ AI Service is RESPONDING.');
-        } else {
-            console.warn('⚠️ AI returned empty response.');
-        }
-    } catch (err: any) {
-        console.error('❌ AI Service FAILED:', err.message);
-        if (err.message.includes('404') || err.message.includes('model')) {
-            console.error('   👉 Likely invalid model name. Check ChatBotService.ts default model.');
-        }
-    }
-
-    console.log('\n----------------------------------------');
-    console.log('Diagnostics Complete.');
-    process.exit(0);
+    // Keep alive
+    setInterval(() => {
+        const status = client.getStatus();
+        console.log(`[STATUS CHECK] Ready: ${status.ready}, Init: ${status.initializing}, QR: ${status.hasQRCode}`);
+    }, 5000);
 }
 
-diagnose();
+diagnose().catch(console.error);
