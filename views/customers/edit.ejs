@@ -460,20 +460,20 @@
                             class="w-full h-[400px] bg-slate-100 rounded-3xl border-2 border-slate-100 overflow-hidden relative z-0">
                             <div id="map" class="w-full h-full z-0" style="min-height: 400px;"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label
-                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Latitude</label>
-                                <input name="latitude" id="latitude" value="<%= customer.latitude || '' %>"
-                                    placeholder="-6.xxxx"
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Koordinat
+                                    (Latitude, Longitude)</label>
+                                <input name="coordinates" id="coordinates"
+                                    value="<% if(customer.latitude && customer.longitude) { %><%= customer.latitude %>, <%= customer.longitude %><% } %>"
+                                    placeholder="-6.xxxx, 106.xxxx"
                                     class="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-green-50 focus:border-green-300 transition-all font-mono text-xs font-bold text-slate-800 bg-slate-50/50 outline-none" />
-                            </div>
-                            <div>
-                                <label
-                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Longitude</label>
-                                <input name="longitude" id="longitude" value="<%= customer.longitude || '' %>"
-                                    placeholder="106.xxxx"
-                                    class="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-green-50 focus:border-green-300 transition-all font-mono text-xs font-bold text-slate-800 bg-slate-50/50 outline-none" />
+                                <!-- Hidden inputs for backend compatibility if needed, or handle splitting in backend -->
+                                <input type="hidden" name="latitude" id="latitude"
+                                    value="<%= customer.latitude || '' %>">
+                                <input type="hidden" name="longitude" id="longitude"
+                                    value="<%= customer.longitude || '' %>">
                             </div>
                         </div>
                         <% if (customer.latitude && customer.longitude) { %>
@@ -623,6 +623,7 @@
 
         // === Maps & Get Location ===
         const btnGetLocation = document.getElementById('btnGetLocation');
+        const coordInput = document.getElementById('coordinates');
         const latInput = document.getElementById('latitude');
         const lngInput = document.getElementById('longitude');
 
@@ -666,8 +667,10 @@
                         // Drag event
                         marker.on('dragend', function (e) {
                             const position = e.target.getLatLng();
+                            const position = e.target.getLatLng();
                             latInput.value = position.lat.toFixed(6);
                             lngInput.value = position.lng.toFixed(6);
+                            coordInput.value = `${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`;
                             updateAddress(position.lat, position.lng); // Update address field
                         });
                     }
@@ -688,6 +691,7 @@
 
                     latInput.value = lat.toFixed(6);
                     lngInput.value = lng.toFixed(6);
+                    coordInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
                     setMarker(lat, lng);
                 });
@@ -718,14 +722,15 @@
                 };
 
                 // Input change event (manual typing)
-                [latInput, lngInput].forEach(input => {
-                    input.addEventListener('change', () => {
-                        const lat = parseFloat(latInput.value);
-                        const lng = parseFloat(lngInput.value);
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            setMarker(lat, lng);
-                        }
-                    });
+                coordInput.addEventListener('change', () => {
+                    const parts = coordInput.value.split(',').map(s => s.trim());
+                    if (parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+                        const lat = parseFloat(parts[0]);
+                        const lng = parseFloat(parts[1]);
+                        latInput.value = lat;
+                        lngInput.value = lng;
+                        setMarker(lat, lng);
+                    }
                 });
 
                 // Map Search Logic
@@ -746,6 +751,7 @@
                                             const lon = parseFloat(res.lon);
                                             latInput.value = lat.toFixed(6);
                                             lngInput.value = lon.toFixed(6);
+                                            coordInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
                                             setMarker(lat, lon, 16);
                                             searchInput.value = res.display_name; // Show found name
                                             updateAddress(lat, lon); // Update address field
@@ -774,6 +780,7 @@
                                 if (data && (data.status === 'success' || data.lat)) {
                                     latInput.value = data.lat;
                                     lngInput.value = data.lon;
+                                    coordInput.value = `${data.lat}, ${data.lon}`;
                                     setMarker(data.lat, data.lon, 13);
                                     btnGetLocation.textContent = 'IP OK';
                                     alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
@@ -801,6 +808,7 @@
                                 const { latitude, longitude } = pos.coords;
                                 latInput.value = latitude.toFixed(6);
                                 lngInput.value = longitude.toFixed(6);
+                                coordInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                                 setMarker(latitude, longitude);
                                 updateAddress(latitude, longitude);
                                 btnGetLocation.textContent = 'GPS OK';
@@ -813,6 +821,7 @@
                                         if (data && data.status === 'success') {
                                             latInput.value = data.lat;
                                             lngInput.value = data.lon;
+                                            coordInput.value = `${data.lat}, ${data.lon}`;
                                             setMarker(data.lat, data.lon, 13);
                                             btnGetLocation.textContent = 'IP OK';
                                             alert(`Info: GPS Browser diblokir.\nLokasi didapat dari IP Internet Anda (${data.city}, ${data.isp}).\n\nGeser pin untuk menetapkan posisi akurat.`);
