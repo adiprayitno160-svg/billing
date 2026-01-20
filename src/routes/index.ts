@@ -100,6 +100,7 @@ import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 // import { BillingDashboardController } from '../controllers/billing/billingDashboardController';
 import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController';
 import { JobTypeController } from '../controllers/technician/JobTypeController';
+import { TechnicianController } from '../controllers/technician/TechnicianController';
 import {
     getCustomerList,
     getCustomerDetail,
@@ -198,10 +199,14 @@ const upload = multer({
 });
 
 // Registered early to avoid issues with complex middleware
-router.use('/', authRoutes);
-// router.get('/technician', (req, res) => res.redirect('/technician/'));
+// Registered early to avoid issues with complex middleware
+// Priority Technician Routes to fix 404
+router.get('/ping-tech', (req, res) => res.send('Technician Ping OK'));
+router.get('/technician', isAuthenticated, TechnicianController.dashboard);
 router.use('/technician', technicianRoutes);
 router.use('/api/technician', technicianRoutes);
+
+router.use('/', authRoutes);
 
 // NOTIFICATION ROUTES - Mount notification page router
 // Mount notification page router at /notification BEFORE middleware
