@@ -92,7 +92,15 @@ export class WhatsAppBaileys {
             });
 
             this.socket.ev.on('creds.update', async () => {
-                await this.authState.saveCreds();
+                try {
+                    await this.authState.saveCreds();
+                } catch (saveError: any) {
+                    if (saveError.code === 'EACCES') {
+                        console.error('[WhatsAppBaileys] 🚨 CRITICAL: Cannot save credentials due to permission error (EACCES).');
+                    } else {
+                        console.error('[WhatsAppBaileys] ❌ Error saving credentials:', saveError);
+                    }
+                }
             });
 
             // Wait until ready (or timeout after 45s)
