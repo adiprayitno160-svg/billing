@@ -23,6 +23,11 @@ export class WhatsAppClient {
         return WhatsAppClient.instance;
     }
 
+    /** Helper for static calls in older parts of the code */
+    public static async sendMessage(to: string, message: string): Promise<any> {
+        return WhatsAppClient.getInstance().sendMessage(to, message);
+    }
+
     /** Ensure only one instance runs */
     private async ensureSingleInstance(): Promise<void> {
         if (fs.existsSync(WhatsAppClient.LOCK_FILE)) {
@@ -145,7 +150,11 @@ export class WhatsAppClient {
     }
 
     public getStatus() {
-        return { ready: this.isReady, initializing: this.initializing };
+        return {
+            ready: this.isReady,
+            initializing: this.initializing,
+            hasQRCode: !!this.lastQR
+        };
     }
 
     public async sendMessage(to: string, message: string): Promise<Message> {
@@ -171,6 +180,25 @@ export class WhatsAppClient {
             }
         }
         throw lastError;
+    }
+
+    public async sendImage(to: string, filePath: string, caption?: string): Promise<any> {
+        if (!this.client || !this.isReady) {
+            throw new Error('WhatsApp client not ready');
+        }
+        const { MessageMedia } = require('whatsapp-web.js');
+        if (!fs.existsSync(filePath)) {
+            throw new Error(`File not found: ${filePath}`);
+        }
+        const media = MessageMedia.fromFilePath(filePath);
+
+        // Format JID correctly
+        let chatId = to.replace(/\D/g, '');
+        if (chatId.startsWith('0')) chatId = '62' + chatId.substring(1);
+        if (!chatId.includes('@')) chatId = `${chatId}@c.us`;
+
+        console.log(`[WhatsAppClient] Sending Image to JID: ${chatId}`);
+        return this.client.sendMessage(chatId, media, { caption });
     }
 
     /** Restart client and clear session */
