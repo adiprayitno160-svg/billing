@@ -368,8 +368,13 @@ router.get('/api/dashboard/offline-customers', async (req: Request, res: Respons
             AND c.pppoe_username != ''
         `) as [RowDataPacket[], any];
 
-        const offlineCustomers = allActivePppoe[0]
-            .filter((customer: any) => !onlineUsernames.has(customer.pppoe_username))
+        // Defensive check for rows array to prevent TypeError
+        const rows = Array.isArray(allActivePppoe) ? allActivePppoe : [];
+        const offlineCustomers = rows
+            .filter((customer: any) => {
+                if (!customer || !customer.pppoe_username) return false;
+                return !onlineUsernames.has(customer.pppoe_username);
+            })
             .slice(0, 5); // Limit to 5 for dashboard
 
         res.json({

@@ -31,18 +31,24 @@ let schemaCache: {
 async function getTroubleCustomers(): Promise<any[]> {
 	try {
 		// Query Maintenance Schedules
-		const [maintenance] = await databasePool.query(`
-            SELECT 
-                c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                m.status as maintenance_status, 
-                COALESCE(m.issue_type, 'Maintenance') as issue_type, 
-                m.created_at as trouble_since,
-                'maintenance' as trouble_type
-            FROM maintenance_schedules m
-            JOIN customers c ON m.customer_id = c.id
-            WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
-              AND c.status = 'active'
-        `) as any[];
+		let maintenance: any[] = [];
+		try {
+			const [rows] = await databasePool.query(`
+                SELECT 
+                    c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+                    m.status as maintenance_status, 
+                    COALESCE(m.issue_type, 'Maintenance') as issue_type, 
+                    m.created_at as trouble_since,
+                    'maintenance' as trouble_type
+                FROM maintenance_schedules m
+                JOIN customers c ON m.customer_id = c.id
+                WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
+                  AND c.status = 'active'
+            `) as any[];
+			maintenance = rows;
+		} catch (err: any) {
+			console.error('[Dashboard] Error in maintenance query:', err.message);
+		}
 
 		// Query Network Devices (Unified PPPoE & Static IP Monitoring)
 		// Shows Offline first, then Online (limit 50 total)

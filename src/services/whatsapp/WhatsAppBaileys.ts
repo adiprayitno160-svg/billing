@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, delay, WASocket, MessageUpsertType, proto } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, delay, WASocket, MessageUpsertType, proto, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import path from 'path';
@@ -35,23 +35,77 @@ export class WhatsAppBaileys {
         if (this.isInitializing) return;
         this.isInitializing = true;
         try {
-            const { state, saveCreds } = await useMultiFileAuthState(path.join(process.cwd(), '.baileys_auth'));
-            this.authState = { state, saveCreds };
+            // Use path from .env or fallback to .baileys_auth
+            const sessionPath = process.env.WA_SESSION_PATH || '.baileys_auth';
+            const authPath = path.isAbsolute(sessionPath) ? sessionPath : path.join(process.cwd(), sessionPath);
+
+            // Ensure directory exists
+            if (!fs.existsSync(authPath)) {
+                console.log(`[WhatsAppBaileys] Creating session directory: ${authPath}`);
+                fs.mkdirSync(authPath, { recursive: true });
+            }
+
+            console.log(`[WhatsAppBaileys] Initializing with session path: ${authPath}`);
+            const { state, saveCreds } = await useMultiFileAuthState(authPath);
+            this.authState = { state, saveCreds, authPath };
+
             const { version } = await fetchLatestBaileysVersion();
+            console.log(`[WhatsAppBaileys] Using Baileys version: ${version.join('.')}`);
+
+            const logger = pino({ level: 'debug' });
+            // Wrap state keys in a cacheable store for better performance and reliability
+            state.keys = makeCacheableSignalKeyStore(state.keys, logger);
+
             this.socket = makeWASocket({
                 version,
                 auth: state,
-                logger: pino({ level: 'silent' }),
+                logger,
                 printQRInTerminal: false,
-                browser: ['ISP Billing Support', 'Chrome', '1.0.0'], // Add browser identification
-                connectTimeoutMs: 60000, // Increase timeout
+                browser: ['Ubuntu', 'Chrome', '20.0.04'],
+                connectTimeoutMs: 60000,
+                defaultQueryTimeoutMs: 0,
+                keepAliveIntervalMs: 30000,
+                syncFullHistory: false,
+                markOnlineOnConnect: true,
+                qrTimeout: 120000,
+                patchMessageBeforeSending: (message) => {
+                    const requiresPatch = !!(
+                        message.buttonsMessage ||
+                        message.templateMessage ||
+                        message.listMessage
+                    );
+                    if (requiresPatch) {
+                        message = {
+                            viewOnceMessage: {
+                                message: {
+                                    messageContextInfo: {
+                                        deviceListMetadata: {},
+                                        deviceListMetadataVersion: 2
+                                    },
+                                    ...message
+                                }
+                            }
+                        };
+                    }
+                    return message;
+                }
             });
 
             this.socket.ev.on('connection.update', (update) => {
-                const { connection, lastDisconnect, qr } = update;
+                const { connection, lastDisconnect, qr, receivedPendingNotifications } = update;
+
                 if (qr) {
+                    console.log(`[WhatsAppBaileys] 🆕 New QR Code received (${qr.substring(0, 10)}...)`);
                     this.lastQR = qr;
                     WhatsAppEvents.emit('qr', qr);
+                }
+
+                if (connection) {
+                    console.log(`[WhatsAppBaileys] 📡 Connection Status: ${connection}`);
+                }
+
+                if (receivedPendingNotifications) {
+                    console.log(`[WhatsAppBaileys] 📩 Received pending notifications`);
                 }
                 if (connection === 'close') {
                     const error = lastDisconnect?.error as any;
@@ -110,6 +164,7 @@ export class WhatsAppBaileys {
 
             this.socket.ev.on('creds.update', async () => {
                 try {
+                    console.log('[WhatsAppBaileys] 💾 Saving credentials...');
                     await this.authState.saveCreds();
                 } catch (saveError: any) {
                     if (saveError.code === 'EACCES') {
@@ -209,11 +264,11 @@ export class WhatsAppBaileys {
             }
         }
         // delete auth folder
-        const authPath = path.join(process.cwd(), '.baileys_auth');
+        const authPath = this.authState?.authPath || path.join(process.cwd(), '.baileys_auth');
         if (fs.existsSync(authPath)) {
             try {
                 fs.rmSync(authPath, { recursive: true, force: true });
-                console.log('[WhatsAppBaileys] Auth folder cleared successfully');
+                console.log(`[WhatsAppBaileys] Auth folder at ${authPath} cleared successfully`);
             } catch (err: any) {
                 console.error('[WhatsAppBaileys] Error clearing auth folder:', err.message);
                 if (err.code === 'EACCES') {
