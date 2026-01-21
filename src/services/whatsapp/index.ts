@@ -1,2 +1,2 @@
-export { WhatsAppBaileys as WhatsAppClient, WhatsAppEvents } from './WhatsAppBaileys';
+export { WhatsAppClient, WhatsAppEvents } from './WhatsAppClient';
 export * from './WhatsAppHandler';

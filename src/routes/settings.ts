@@ -56,6 +56,7 @@ router.get('/whatsapp', WhatsAppSettingsController.showSettings);
 router.get('/whatsapp/status', WhatsAppSettingsController.getStatus);
 router.post('/whatsapp/regenerate-qr', WhatsAppSettingsController.regenerateQR);
 router.post('/whatsapp/test-send', WhatsAppSettingsController.testSendMessage);
+router.post('/whatsapp/update-foonte', WhatsAppSettingsController.updateFoonteToken);
 
 // WhatsApp Monitor - Message Log & Manual Verification
 router.get('/whatsapp/monitor', WhatsAppSettingsController.showMonitor);

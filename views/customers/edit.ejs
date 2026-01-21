@@ -667,7 +667,6 @@
                         // Drag event
                         marker.on('dragend', function (e) {
                             const position = e.target.getLatLng();
-                            const position = e.target.getLatLng();
                             latInput.value = position.lat.toFixed(6);
                             lngInput.value = position.lng.toFixed(6);
                             coordInput.value = `${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`;
@@ -770,29 +769,22 @@
                 if (btnGetLocation) {
                     const fallbackToIP = () => {
                         btnGetLocation.textContent = 'IP Loc...';
-                        // Use server-side proxy to avoid Mixed Content / CORS / AdBlockers
                         fetch('/api/proxy/ip-location')
-                            .then(r => {
-                                if (!r.ok) throw new Error('Proxy API Error: ' + r.status);
-                                return r.json();
-                            })
+                            .then(r => r.json())
                             .then(data => {
                                 if (data && (data.status === 'success' || data.lat)) {
-                                    latInput.value = data.lat;
-                                    lngInput.value = data.lon;
-                                    coordInput.value = `${data.lat}, ${data.lon}`;
-                                    setMarker(data.lat, data.lon, 13);
+                                    const lat = data.lat;
+                                    const lon = data.lon || data.lng;
+                                    latInput.value = lat;
+                                    lngInput.value = lon;
+                                    coordInput.value = `${lat}, ${lon}`;
+                                    setMarker(lat, lon, 13);
                                     btnGetLocation.textContent = 'IP OK';
-                                    alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
-                                } else {
-                                    console.error('IP-API response invalid:', data);
-                                    throw new Error('IP API Data Invalid');
                                 }
                             })
                             .catch(err => {
                                 console.error('Fallback IP Failed:', err);
                                 btnGetLocation.textContent = 'Gagal';
-                                alert('Gagal mendapatkan lokasi (GPS & IP Fallback).\n\nPenyebab:\n1. Browser memblokir GPS (Non-HTTPS)\n2. Server gagal koneksi ke IP-API (No Internet?)\n\nSilakan klik lokasi manual di peta.');
                             })
                             .finally(() => {
                                 setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
@@ -801,8 +793,6 @@
 
                     btnGetLocation.addEventListener('click', () => {
                         btnGetLocation.textContent = '...';
-
-                        // Strategy 1: Real GPS (Secure Context)
                         if ("geolocation" in navigator) {
                             navigator.geolocation.getCurrentPosition(pos => {
                                 const { latitude, longitude } = pos.coords;
@@ -812,188 +802,155 @@
                                 setMarker(latitude, longitude);
                                 updateAddress(latitude, longitude);
                                 btnGetLocation.textContent = 'GPS OK';
+                                setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 2000);
                             }, err => {
-                                console.warn('GPS failed, falling back to IP...', err);
-                                // Strategy 2: Client-side IP API (HTTP only - works for your case)
-                                fetch('http://ip-api.com/json')
-                                    .then(r => r.json())
-                                    .then(data => {
-                                        if (data && data.status === 'success') {
-                                            latInput.value = data.lat;
-                                            lngInput.value = data.lon;
-                                            coordInput.value = `${data.lat}, ${data.lon}`;
-                                            setMarker(data.lat, data.lon, 13);
-                                            btnGetLocation.textContent = 'IP OK';
-                                            alert(`Info: GPS Browser diblokir.\nLokasi didapat dari IP Internet Anda (${data.city}, ${data.isp}).\n\nGeser pin untuk menetapkan posisi akurat.`);
-                                        } else {
-                                            fallbackToProxy();
-                                        }
-                                    })
-                                    .catch(e => {
-                                        fallbackToProxy();
-                                    });
+                                console.warn('GPS failed, trying IP fallback...');
+                                fallbackToIP();
+                            }, {
+                                enableHighAccuracy: true,
+                                timeout: 5000,
+                                maximumAge: 0
                             });
                         } else {
-                            fallbackToProxy();
+                            fallbackToIP();
                         }
-                    });
-
-                    const fallbackToProxy = () => {
-                        // Strategy 3: Server-side Proxy (Final Fallback)
-                        fetch('/api/proxy/ip-location')
-                        lngInput.value = longitude.toFixed(6);
-                        setMarker(latitude, longitude);
-                        updateAddress(latitude, longitude); // Update address field
-                        btnGetLocation.textContent = 'OK';
-                        setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
-                    }, (err) => {
-                        console.warn('GPS Failed, trying IP fallback...');
-                        fallbackToIP();
-                    }, {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
-                    });
-                        } else {
-        fallbackToIP();
-    }
                     });
                 }
 
-    // Resolve rendering issues (map hidden/shown in tabs or just loaded)
-    setTimeout(() => { map.invalidateSize(); }, 200);
+                // Resolve rendering issues (map hidden/shown in tabs or just loaded)
+                setTimeout(() => { map.invalidateSize(); }, 200);
             } catch (err) {
-        console.error('Error initializing map:', err);
-    }
+                console.error('Error initializing map:', err);
+            }
         }
 
-    // === Infrastruktur (Wireless vs FTTH) ===
-    const isWireless = document.getElementById('is_wireless');
-    const infraWrapper = document.getElementById('infra_wrapper');
-    const odpId = document.getElementById('odp_id');
-    const odcId = document.getElementById('odc_id');
-    const odpSearchInput = document.getElementById('odp_search');
+        // === Infrastruktur (Wireless vs FTTH) ===
+        const isWireless = document.getElementById('is_wireless');
+        const infraWrapper = document.getElementById('infra_wrapper');
+        const odpId = document.getElementById('odp_id');
+        const odcId = document.getElementById('odc_id');
+        const odpSearchInput = document.getElementById('odp_search');
 
-    function updateWirelessState() {
-        if (isWireless.checked) {
-            // Wireless Mode: Disable ODC/ODP interaction and remove requirements
-            infraWrapper.classList.add('opacity-40', 'pointer-events-none');
+        function updateWirelessState() {
+            if (isWireless.checked) {
+                // Wireless Mode: Disable ODC/ODP interaction and remove requirements
+                infraWrapper.classList.add('opacity-40', 'pointer-events-none');
 
-            // Remove required attributes
-            if (odpId) {
-                odpId.required = false;
-                odpId.removeAttribute('required'); // Force remove
+                // Remove required attributes
+                if (odpId) {
+                    odpId.required = false;
+                    odpId.removeAttribute('required'); // Force remove
+                }
+                if (odpSearchInput) {
+                    odpSearchInput.required = false;
+                    odpSearchInput.removeAttribute('required');
+                }
+
+            } else {
+                // FTTH Mode: Enable interaction and enforce ODP if needed
+                infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
+
+                // Enforce required only if strict mode is desired (usually yes for FTTH)
+                if (odpId) odpId.required = true;
+                if (odpSearchInput) odpSearchInput.required = false;
             }
-            if (odpSearchInput) {
-                odpSearchInput.required = false;
-                odpSearchInput.removeAttribute('required');
-            }
-
-        } else {
-            // FTTH Mode: Enable interaction and enforce ODP if needed
-            infraWrapper.classList.remove('opacity-40', 'pointer-events-none');
-
-            // Enforce required only if strict mode is desired (usually yes for FTTH)
-            if (odpId) odpId.required = true;
-            if (odpSearchInput) odpSearchInput.required = false;
         }
-    }
 
-    if (isWireless) {
-        isWireless.addEventListener('change', updateWirelessState);
-        // Run immediately
-        setTimeout(updateWirelessState, 100);
-    }
+        if (isWireless) {
+            isWireless.addEventListener('change', updateWirelessState);
+            // Run immediately
+            setTimeout(updateWirelessState, 100);
+        }
 
-    // === ODC/ODP Search ===
-    const odcSearch = document.getElementById('odc_search');
-    const odcResults = document.getElementById('odc_search_results');
-    //const odcId = document.getElementById('odc_id'); // Defined above
-    const resetOdc = document.getElementById('reset_odc_btn');
-    const odpSearch = document.getElementById('odp_search');
-    const odpResults = document.getElementById('odp_search_results');
-    const odpIdInput = document.getElementById('odp_id');
-    const odpWrapper = document.getElementById('odp_section_wrapper');
-    const oltDisplay = document.getElementById('olt_display');
-    const oltId = document.getElementById('olt_id');
+        // === ODC/ODP Search ===
+        const odcSearch = document.getElementById('odc_search');
+        const odcResults = document.getElementById('odc_search_results');
+        //const odcId = document.getElementById('odc_id'); // Defined above
+        const resetOdc = document.getElementById('reset_odc_btn');
+        const odpSearch = document.getElementById('odp_search');
+        const odpResults = document.getElementById('odp_search_results');
+        const odpIdInput = document.getElementById('odp_id');
+        const odpWrapper = document.getElementById('odp_section_wrapper');
+        const oltDisplay = document.getElementById('olt_display');
+        const oltId = document.getElementById('olt_id');
 
-    let t;
-    if (odcSearch) {
-        odcSearch.addEventListener('input', (e) => {
-            clearTimeout(t);
-            const q = e.target.value.trim();
-            odcId.value = '';
-            odpWrapper.classList.add('opacity-50', 'pointer-events-none');
-            if (q.length < 1) { odcResults.classList.add('hidden'); return; }
-            t = setTimeout(() => {
-                fetch('/api/ftth/odc/search?q=' + encodeURIComponent(q))
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.results && data.results.length) {
-                            odcResults.innerHTML = data.results.map(o => `
+        let t;
+        if (odcSearch) {
+            odcSearch.addEventListener('input', (e) => {
+                clearTimeout(t);
+                const q = e.target.value.trim();
+                odcId.value = '';
+                odpWrapper.classList.add('opacity-50', 'pointer-events-none');
+                if (q.length < 1) { odcResults.classList.add('hidden'); return; }
+                t = setTimeout(() => {
+                    fetch('/api/ftth/odc/search?q=' + encodeURIComponent(q))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.results && data.results.length) {
+                                odcResults.innerHTML = data.results.map(o => `
                                 <div class="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-light" onclick="selOdc('${o.id}', '${o.name}')">
                                     <div class="font-bold text-slate-800 text-sm">${o.name}</div>
                                     <div class="text-[10px] text-slate-500">${o.location || ''}</div>
                                 </div>
                             `).join('');
-                            odcResults.classList.remove('hidden');
-                        }
-                    });
-            }, 300);
-        });
+                                odcResults.classList.remove('hidden');
+                            }
+                        });
+                }, 300);
+            });
 
-        odpSearch.addEventListener('input', (e) => {
-            clearTimeout(t);
-            const q = e.target.value.trim();
-            const curOdc = odcId.value;
-            if (!curOdc) return;
-            t = setTimeout(() => {
-                fetch(`/api/ftth/odp/search?q=${encodeURIComponent(q)}&odc_id=${curOdc}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.results && data.results.length) {
-                            odpResults.innerHTML = data.results.map(o => `
+            odpSearch.addEventListener('input', (e) => {
+                clearTimeout(t);
+                const q = e.target.value.trim();
+                const curOdc = odcId.value;
+                if (!curOdc) return;
+                t = setTimeout(() => {
+                    fetch(`/api/ftth/odp/search?q=${encodeURIComponent(q)}&odc_id=${curOdc}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.results && data.results.length) {
+                                odpResults.innerHTML = data.results.map(o => `
                             <div class="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-light" 
                                      onclick="selOdp('${o.id}', '${o.odp_name}', '${o.olt_id}', '${o.olt_name}')">
                                     <div class="font-bold text-slate-800 text-sm">${o.odp_name}</div>
                                     <div class="text-[10px] text-slate-500">Free: ${o.available_ports} Ports</div>
                                 </div>
                             `).join('');
-                            odpResults.classList.remove('hidden');
-                        }
-                    });
-            }, 300);
+                                odpResults.classList.remove('hidden');
+                            }
+                        });
+                }, 300);
+            });
+        }
+
+        window.selOdc = (id, name) => {
+            odcSearch.value = name;
+            odcId.value = id;
+            odcResults.classList.add('hidden');
+            odpWrapper.classList.remove('opacity-50', 'pointer-events-none');
+            odpSearch.value = '';
+            odpIdInput.value = '';
+            odpSearch.focus();
+        };
+
+        window.selOdp = (id, name, oltIdVal, oltNameVal) => {
+            odpSearch.value = name;
+            odpIdInput.value = id;
+            odpResults.classList.add('hidden');
+            if (oltId) oltId.value = oltIdVal || '';
+            if (oltDisplay) oltDisplay.value = oltNameVal || 'Auto';
+        };
+
+        if (resetOdc) {
+            resetOdc.addEventListener('click', () => {
+                odcSearch.value = ''; odcId.value = '';
+                odpWrapper.classList.add('opacity-50', 'pointer-events-none');
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#odc_search')) odcResults.classList.add('hidden');
+            if (!e.target.closest('#odp_search')) odpResults.classList.add('hidden');
         });
-    }
-
-    window.selOdc = (id, name) => {
-        odcSearch.value = name;
-        odcId.value = id;
-        odcResults.classList.add('hidden');
-        odpWrapper.classList.remove('opacity-50', 'pointer-events-none');
-        odpSearch.value = '';
-        odpIdInput.value = '';
-        odpSearch.focus();
-    };
-
-    window.selOdp = (id, name, oltIdVal, oltNameVal) => {
-        odpSearch.value = name;
-        odpIdInput.value = id;
-        odpResults.classList.add('hidden');
-        if (oltId) oltId.value = oltIdVal || '';
-        if (oltDisplay) oltDisplay.value = oltNameVal || 'Auto';
-    };
-
-    if (resetOdc) {
-        resetOdc.addEventListener('click', () => {
-            odcSearch.value = ''; odcId.value = '';
-            odpWrapper.classList.add('opacity-50', 'pointer-events-none');
-        });
-    }
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('#odc_search')) odcResults.classList.add('hidden');
-        if (!e.target.closest('#odp_search')) odpResults.classList.add('hidden');
-    });
     });
 </script>

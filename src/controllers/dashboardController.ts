@@ -33,19 +33,28 @@ async function getTroubleCustomers(): Promise<any[]> {
 		// Query Maintenance Schedules
 		let maintenance: any[] = [];
 		try {
-			const [rows] = await databasePool.query(`
-                SELECT 
-                    c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
-                    m.status as maintenance_status, 
-                    COALESCE(m.issue_type, 'Maintenance') as issue_type, 
-                    m.created_at as trouble_since,
-                    'maintenance' as trouble_type
-                FROM maintenance_schedules m
-                JOIN customers c ON m.customer_id = c.id
-                WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
-                  AND c.status = 'active'
-            `) as any[];
-			maintenance = rows;
+			// Check if customer_id column exists in maintenance_schedules
+			const [cols] = await databasePool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME = 'customer_id'") as any;
+
+			if (cols.length > 0) {
+				const [rows] = await databasePool.query(`
+					SELECT 
+						c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
+						m.status as maintenance_status, 
+						COALESCE(m.issue_type, 'Maintenance') as issue_type, 
+						m.created_at as trouble_since,
+						'maintenance' as trouble_type
+					FROM maintenance_schedules m
+					JOIN customers c ON m.customer_id = c.id
+					WHERE m.status IN ('scheduled', 'in_progress', 'ongoing')
+					  AND c.status = 'active'
+				`) as any[];
+				maintenance = rows;
+			} else {
+				// If no customer_id, maintenance is likely area-based or uses JSON field. 
+				// For now, we return empty or handle area-based if needed.
+				console.log('[Dashboard] Skipping maintenance-customer join: customer_id column missing.');
+			}
 		} catch (err: any) {
 			console.error('[Dashboard] Error in maintenance query:', err.message);
 		}

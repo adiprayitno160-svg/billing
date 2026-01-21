@@ -18,7 +18,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         <!-- LEFT COLUMN: Connection Status -->
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-1 space-y-6">
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <!-- Status Header -->
                 <div class="p-6 border-b border-gray-50">
@@ -60,6 +60,10 @@
                             <button onclick="regenerateQRCode()"
                                 class="w-full py-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors">
                                 Putuskan Koneksi
+                            </button>
+                            <button onclick="clearSession()"
+                                class="w-full py-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors">
+                                Hapus Session & Regenerate QR
                             </button>
                         </div>
                         <% } else { %>
@@ -112,6 +116,45 @@
                             <div class="text-xs text-gray-500 mt-1">Gagal</div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Foonte Configuration (Backup Provider) -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-gray-50">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                            <i class="fas fa-shield-alt text-blue-500 mr-2"></i> Backup Provider (Foonte)
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-2 h-2 rounded-full <%= status.secondaryConfigured ? 'bg-green-500' : 'bg-gray-300' %>">
+                            </div>
+                            <span class="text-xs font-medium text-gray-500">
+                                <%= status.secondaryConfigured ? 'Active' : 'Inactive' %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <p class="text-xs text-gray-500 mb-4">
+                        Sistem backup otomatis yang akan digunakan jika koneksi utama (WhatsApp Web) gagal.
+                    </p>
+                    <form id="foonteConfigForm" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Foonte Token</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="foonteToken" name="foonteToken"
+                                    value="<%= status.secondaryConfigured ? '••••••••••••••••' : '' %>"
+                                    placeholder="Token Foonte"
+                                    class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-full">
+                                <button type="submit"
+                                    class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap">
+                                    Simpan
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -316,31 +359,23 @@
 </div>
 
 <script>
-    let statusCheckInterval;
-    let qrCodeRefreshInterval;
-    let isRegenerating = false;
+    let lastSeenQR = '';
 
     function startStatusCheck() {
         const isReady = <%= status.ready ? 'true' : 'false' %>;
         if (!isReady) {
             statusCheckInterval = setInterval(refreshStatus, 3000);
-            qrCodeRefreshInterval = setInterval(refreshQRCodeImage, 5000);
         }
     }
 
     startStatusCheck();
 
-    function refreshQRCodeImage() {
-        const img = document.getElementById('qrCodeImage');
-        if (img && img.src && !isRegenerating) {
-            const baseUrl = img.src.split('?')[0];
-            img.src = baseUrl + '?t=' + Date.now();
-        }
-    }
+    // Removed redundant refreshQRCodeImage to verify if it causes conflicts
 
     async function refreshStatus() {
         try {
-            const response = await fetch('/settings/whatsapp/status');
+            // Add timestamp to prevent caching (304 Not Modified issues)
+            const response = await fetch('/settings/whatsapp/status?t=' + Date.now());
             if (!response.ok) return;
             const result = await response.json();
 
@@ -350,15 +385,28 @@
 
                 if (status.ready) {
                     clearInterval(statusCheckInterval);
-                    clearInterval(qrCodeRefreshInterval);
                     window.location.reload();
+                    return;
                 }
 
                 const img = document.getElementById('qrCodeImage');
+                // Only update image if QR code string has changed
                 if (data.qrCodeUrl && data.qrCode && img) {
-                    img.src = data.qrCodeUrl + '?t=' + Date.now();
-                    document.getElementById('qrCodeEmpty')?.classList.add('hidden');
-                    document.getElementById('qrCodeDisplay')?.classList.remove('hidden');
+                    if (data.qrCode !== lastSeenQR) {
+                        lastSeenQR = data.qrCode;
+                        console.log('New QR Code detected, updating image...');
+                        img.onload = () => {
+                            document.getElementById('qrCodeLoading')?.classList.add('hidden');
+                            document.getElementById('qrCodeEmpty')?.classList.add('hidden');
+                            document.getElementById('qrCodeDisplay')?.classList.remove('hidden');
+                            isRegenerating = false;
+                        };
+                        img.onerror = () => {
+                            console.error('Failed to load QR image, retrying in 1s...');
+                            setTimeout(() => { img.src = data.qrCodeUrl + '?t=' + Date.now(); }, 1000);
+                        };
+                        img.src = data.qrCodeUrl + '?t=' + Date.now();
+                    }
                 }
             }
         } catch (error) {
@@ -366,26 +414,61 @@
         }
     }
 
+    async function clearSession() {
+        if (!confirm('Session akan dihapus. Lanjutkan?')) return;
+        isRegenerating = true;
+        document.getElementById('qrCodeLoading')?.classList.remove('hidden');
+        document.getElementById('qrCodeDisplay')?.classList.add('hidden');
+        document.getElementById('qrCodeEmpty')?.classList.add('hidden');
+        try {
+            const response = await fetch('/whatsapp/clear-session', { method: 'POST' });
+            const result = await response.json();
+            if (result.success) {
+                // Wait a bit for new QR generation
+                setTimeout(refreshStatus, 2000);
+            } else {
+                alert('Gagal menghapus session: ' + (result.error || 'Unknown error'));
+                isRegenerating = false;
+            }
+        } catch (e) {
+            alert('Error menghapus session');
+            isRegenerating = false;
+        }
+    }
+
+    // Regenerate QR Code (clears session and generates new QR)
     async function regenerateQRCode() {
         if (!confirm('Session saat ini akan dihapus. Device harus scan ulang QR code baru. Lanjutkan?')) return;
 
         isRegenerating = true;
+        // Hide button to prevent multiple clicks
+        const btn = document.querySelector('button[onclick="regenerateQRCode()"]');
+        if (btn) btn.classList.add('hidden');
+
         document.getElementById('qrCodeLoading')?.classList.remove('hidden');
         document.getElementById('qrCodeDisplay')?.classList.add('hidden');
         document.getElementById('qrCodeEmpty')?.classList.add('hidden');
 
         try {
-            const response = await fetch('/settings/whatsapp/regenerate-qr', { method: 'POST' });
+            const response = await fetch('/whatsapp/regenerate-qr', { method: 'POST' });
             const result = await response.json();
             if (result.success) {
+                // If success but no QR yet (timeout), refreshStatus will handle it
+                // If immediate QR, it will also handle it
                 setTimeout(refreshStatus, 2000);
             } else {
                 alert('Gagal: ' + (result.error || 'Unknown error'));
                 isRegenerating = false;
+                document.getElementById('qrCodeLoading')?.classList.add('hidden');
+                document.getElementById('qrCodeEmpty')?.classList.remove('hidden');
+                if (btn) btn.classList.remove('hidden');
             }
         } catch (error) {
             isRegenerating = false;
             alert('Error: Connection failed');
+            document.getElementById('qrCodeLoading')?.classList.add('hidden');
+            document.getElementById('qrCodeEmpty')?.classList.remove('hidden');
+            if (btn) btn.classList.remove('hidden');
         }
     }
 
@@ -399,11 +482,12 @@
     document.getElementById('testSendForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        const isOnline = <%= status.ready ? 'true' : 'false' %>;
-        if (!isOnline) {
-            showToast('Sistem offline. Hubungkan device terlebih dahulu.', 'bg-red-600 text-white');
-            return;
-        }
+        // Allow testing even if offline (to test Foonte backup)
+        // const isOnline = <%= status.ready ? 'true' : 'false' %>;
+        // if (!isOnline) {
+        //     showToast('Sistem offline. Hubungkan device terlebih dahulu.', 'bg-red-600 text-white');
+        //     return;
+        // }
 
         const submitBtn = document.getElementById('submitBtn');
         const phone = document.getElementById('testPhone').value.trim();
@@ -449,4 +533,43 @@
         resultDiv.classList.remove('hidden');
         setTimeout(() => resultDiv.classList.add('hidden'), 4000);
     }
+
+    document.getElementById('foonteConfigForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const tokenInput = document.getElementById('foonteToken');
+        const token = tokenInput.value.trim();
+
+        if (!token) {
+            alert('Token tidak boleh kosong');
+            return;
+        }
+
+        try {
+            const btn = this.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = '...';
+            btn.disabled = true;
+
+            const response = await fetch('/settings/whatsapp/update-foonte', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Token berhasil disimpan! Reload sistem mungkin diperlukan agar perubahan efektif.');
+                window.location.reload();
+            } else {
+                alert('Gagal menyimpan token: ' + result.error);
+            }
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        } catch (error) {
+            alert('Error saving token');
+            console.error(error);
+        }
+    });
 </script>

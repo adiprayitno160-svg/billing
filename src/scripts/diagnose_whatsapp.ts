@@ -1,5 +1,5 @@
 
-import { WhatsAppBaileys as WhatsAppClient, WhatsAppEvents } from '../services/whatsapp/WhatsAppBaileys';
+import { WhatsAppClient, WhatsAppEvents } from '../services/whatsapp/WhatsAppClient';
 import { WhatsAppHandler } from '../services/whatsapp/WhatsAppHandler';
 import { databasePool } from '../db/pool';
 

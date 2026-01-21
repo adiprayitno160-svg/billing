@@ -433,4 +433,21 @@ async function start() {
 console.log('[System] Force Restart Triggered at ' + new Date().toISOString());
 start();
 
+// Graceful Shutdown Handler - Prevents zombie Puppeteer processes
+const gracefulShutdown = async (signal: string) => {
+	console.log(`\n[System] 🛑 ${signal} received. Starting graceful shutdown...`);
+	try {
+		// Destroy WhatsApp client first (this closes Puppeteer browser)
+		const { WhatsAppClient } = await import('./services/whatsapp/WhatsAppClient');
+		await WhatsAppClient.getInstance().destroy();
+		console.log('[System] ✅ WhatsApp client destroyed');
+	} catch (e) {
+		console.error('[System] Error during shutdown:', e);
+	}
+	console.log('[System] 👋 Goodbye!');
+	process.exit(0);
+};
 
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('beforeExit', () => gracefulShutdown('beforeExit'));

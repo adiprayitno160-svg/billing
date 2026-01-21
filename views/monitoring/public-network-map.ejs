@@ -1072,8 +1072,8 @@
                 const lng = parseFloat(device.longitude);
                 if (isNaN(lat) || isNaN(lng)) return;
 
-                // Hapus OLT icon di monitoring map
-                if (device.device_type === 'olt') return;
+                // OLT icon is now visible
+                // if (device.device_type === 'olt') return;
 
                 if (!activeFilters[device.device_type]) {
                     if (markers[device.id]) {
@@ -1714,8 +1714,8 @@
                 let color = '#10b981'; // Default green
 
                 if (isOltOdc) {
-                    // Skip rendering OLT-ODC links as per user request
-                    return;
+                    linkClass += ' link-olt-odc';
+                    color = '#8B5CF6';
                 } else if (isOdcOdp) {
                     linkClass += ' link-odc-odp';
                     color = '#3B82F6';
