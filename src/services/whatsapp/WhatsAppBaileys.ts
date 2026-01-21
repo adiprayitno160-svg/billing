@@ -56,25 +56,40 @@ export class WhatsAppBaileys {
                 if (connection === 'close') {
                     const error = lastDisconnect?.error as any;
                     const statusCode = error?.output?.statusCode;
-                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
                     const errorMessage = error?.message || '';
+
+                    // Logic to determine if we should attempt a simple reconnect or a full restart
+                    const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+                    const isConflict = errorMessage.includes('conflict') || statusCode === DisconnectReason.connectionReplaced;
+                    const isRestartRequired = statusCode === DisconnectReason.restartRequired;
+
+                    const shouldReconnect = !isLoggedOut;
 
                     console.error(`[WhatsAppBaileys] 🚨 Connection closed. Status: ${statusCode}, Reconnecting: ${shouldReconnect}, Message: ${errorMessage}`);
                     this.isReady = false;
 
-                    // Detect conflict specifically
-                    if (errorMessage.includes('conflict') || statusCode === DisconnectReason.restartRequired) {
-                        console.warn('[WhatsAppBaileys] ⚠️ Session Conflict/Restart Required. Clearing session and restarting...');
+                    // Handle Conflict or Restart Required
+                    if (isConflict || isRestartRequired) {
+                        console.warn(`[WhatsAppBaileys] ⚠️ Session ${isConflict ? 'Conflict' : 'Restart Required'}. Clearing session and restarting...`);
                         setTimeout(() => this.restart().catch(e => console.error('[WhatsAppBaileys] Restart failed:', e)), 2000);
+                        return;
+                    }
+
+                    // Handle Logged Out (New Logic: Auto-restart to get new QR)
+                    if (isLoggedOut) {
+                        console.error('[WhatsAppBaileys] ❌ Permanent connection failure (Logged Out). Clearing session and generating new QR...');
+                        setTimeout(() => this.restart().catch(e => console.error('[WhatsAppBaileys] Restart failed during logout recovery:', e)), 5000);
                         return;
                     }
 
                     if (shouldReconnect) {
                         const delayTime = statusCode === DisconnectReason.connectionLost ? 5000 : 10000;
                         console.log(`[WhatsAppBaileys] 🔄 Attempting reconnection in ${delayTime / 1000}s...`);
-                        setTimeout(() => this.initialize().catch(e => console.error('[WhatsAppBaileys] Recon failed:', e)), delayTime);
+                        setTimeout(() => this.initialize().catch(e => console.error('[WhatsAppBaileys] Reconnection failed:', e)), delayTime);
                     } else {
-                        console.error('[WhatsAppBaileys] ❌ Permanent connection failure (Logged Out). Manual intervention required.');
+                        // Fallback backup if something weird happened
+                        console.warn('[WhatsAppBaileys] ⚠️ Unhandled disconnect state. Will attempt fresh restart in 30s as fallback.');
+                        setTimeout(() => this.restart().catch(e => console.error('[WhatsAppBaileys] Fallback restart failed:', e)), 30000);
                     }
                 } else if (connection === 'open') {
                     console.log('[WhatsAppBaileys] ✅ Connection opened');
