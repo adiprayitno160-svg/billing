@@ -89,10 +89,9 @@ export class PrepaidScheduler {
      */
     private static async sendExpiryNotification(customer: any): Promise<void> {
         try {
-            const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
-            const waClient = WhatsAppClient.getInstance();
+            const { whatsappService } = await import('../whatsapp/WhatsAppService');
             const message = `Halo ${customer.name}, masa aktif layanan prepaid Anda telah berakhir hari ini. Layanan Anda sementara dinonaktifkan. Silakan lakukan pembayaran tagihan untuk mengaktifkan kembali layanan Anda. Terima kasih.`;
-            await waClient.sendMessage(customer.phone, message);
+            await whatsappService.sendMessage(customer.phone, message);
             console.log(`[PrepaidScheduler] 📱 Notification sent to ${customer.name} (${customer.phone})`);
 
         } catch (notifError: any) {

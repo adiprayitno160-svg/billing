@@ -54,8 +54,19 @@
                                 <label
                                     class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Nama
                                     Lengkap <span class="text-red-500">*</span></label>
-                                <input type="text" name="name" value="<%= customer.name %>" required
-                                    class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all font-bold text-slate-800 outline-none text-sm placeholder:text-slate-300" />
+                                <% if (customer.name_edited_at) { %>
+                                    <input type="text" name="name" value="<%= customer.name %>" readonly
+                                        class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 bg-slate-100 text-slate-500 cursor-not-allowed font-bold outline-none text-sm" />
+                                    <p class="text-[10px] text-orange-500 mt-1.5 flex items-center gap-1 font-bold">
+                                        <span>🔒</span> Nama sudah pernah diubah dan dikunci. Hubungi Super Admin untuk
+                                        perubahan lebih lanjut.
+                                    </p>
+                                    <% } else { %>
+                                        <input type="text" name="name" value="<%= customer.name %>" required
+                                            class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all font-bold text-slate-800 outline-none text-sm placeholder:text-slate-300" />
+                                        <p class="text-[10px] text-slate-400 mt-1.5 font-medium">⚠️ Kesempatan ubah nama
+                                            hanya 1x setelah registrasi.</p>
+                                        <% } %>
                             </div>
 
                             <div>

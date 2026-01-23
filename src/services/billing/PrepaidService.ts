@@ -68,7 +68,7 @@ export class PrepaidService {
             // Send WhatsApp notification
             if (sendNotification && customer.phone) {
                 try {
-                    const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
+                    const { whatsappService } = await import('../whatsapp/WhatsAppService');
 
                     const message = `📢 *INFORMASI PENTING - PERUBAHAN SISTEM PEMBAYARAN*
 
@@ -104,8 +104,7 @@ Ada pertanyaan? Silakan balas pesan ini atau ketik */help*
 
 Terima kasih atas pengertiannya! 🙏`;
 
-                    const waInstance = WhatsAppClient.getInstance();
-                    await waInstance.sendMessage(customer.phone, message);
+                    await whatsappService.sendMessage(customer.phone, message);
                     console.log(`✅ Prepaid migration notification sent to ${customer.name} (${customer.phone})`);
                 } catch (notifError) {
                     console.error('Failed to send WhatsApp notification:', notifError);
@@ -531,7 +530,7 @@ Terima kasih atas pengertiannya! 🙏`;
 
                         // Send WhatsApp Notification
                         if (custRows[0].phone) {
-                            const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
+                            const { whatsappService } = await import('../whatsapp/WhatsAppService');
 
                             const base = parseFloat(request.base_amount || 0);
                             const disc = parseFloat(request.voucher_discount || 0);
@@ -554,7 +553,7 @@ Terima kasih atas pengertiannya! 🙏`;
                             msg += `Aktif sampai: ${newExpiryDate.toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}\n\n`;
                             msg += `Terima kasih!`;
 
-                            await WhatsAppClient.sendMessage(custRows[0].phone, msg);
+                            await whatsappService.sendMessage(custRows[0].phone, msg);
                         }
                     }
                 }
@@ -612,7 +611,7 @@ Terima kasih atas pengertiannya! 🙏`;
         if (customers.length === 0) return { isolatedCount: 0, errors: [] };
 
         const { MikrotikService } = await import('../mikrotik/MikrotikService');
-        const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
+        const { whatsappService } = await import('../whatsapp/WhatsAppService');
 
         let mikrotik = null;
         try {
@@ -641,7 +640,7 @@ Terima kasih atas pengertiannya! 🙏`;
                 // 3. Notify
                 if (customer.phone) {
                     const message = `⚠️ *LAYANAN INTERNET BERAKHIR*\n\nHalo ${customer.name},\nMasa aktif paket internet Anda telah *HABIS*.\n\nLayanan internet Anda sementara dinonaktifkan.\nUntuk mengaktifkan kembali, silakan lakukan pembelian paket.\n\nKetik */menu* untuk membeli paket.\n\nTerima kasih.`;
-                    await WhatsAppClient.sendMessage(customer.phone, message).catch((err: any) => console.error('WA Error:', err));
+                    await whatsappService.sendMessage(customer.phone, message).catch((err: any) => console.error('WA Error:', err));
                 }
 
             } catch (error: any) {
@@ -702,7 +701,7 @@ Terima kasih atas pengertiannya! 🙏`;
         let h3Sent = 0;
         let h1Sent = 0;
 
-        const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
+        const { whatsappService } = await import('../whatsapp/WhatsAppService');
 
         // H-3 Notifications
         const customersH3 = await this.getExpiringCustomers(3);
@@ -724,7 +723,7 @@ Ketik */menu* untuk membeli paket.
 
 Terima kasih! 🙏`;
 
-                    await WhatsAppClient.sendMessage(customer.phone, message);
+                    await whatsappService.sendMessage(customer.phone, message);
                     h3Sent++;
                     console.log(`📤 Prepaid H-3 reminder sent to ${customer.name}`);
                 } catch (err: any) {
@@ -755,7 +754,7 @@ Ketik */menu* untuk membeli paket.
 
 Terima kasih! 🙏`;
 
-                    await WhatsAppClient.sendMessage(customer.phone, message);
+                    await whatsappService.sendMessage(customer.phone, message);
                     h1Sent++;
                     console.log(`📤 Prepaid H-1 reminder sent to ${customer.name}`);
                 } catch (err: any) {

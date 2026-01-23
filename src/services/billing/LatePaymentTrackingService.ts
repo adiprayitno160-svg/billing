@@ -428,11 +428,11 @@ Terima kasih.`;
         while (retries > 0 && !sent) {
           try {
             // Use new client
-            const { WhatsAppClient } = await import('../whatsapp/WhatsAppClient');
-            const waClient = WhatsAppClient.getInstance();
+            const { whatsappService } = await import('../whatsapp/WhatsAppService');
+            // whatsappService is already an instance
             // WhatsAppClient message returns void currently, so we assume success if no throw
             // or we might want to update sendmessage to return id
-            await waClient.sendMessage(customer.phone, message);
+            await whatsappService.sendMessage(customer.phone, message);
             sent = true;
 
             if (sent) {

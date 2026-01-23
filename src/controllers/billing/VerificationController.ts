@@ -1,7 +1,7 @@
 
 import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
-import { WhatsAppClient } from '../../services/whatsapp';
+import { whatsappService } from '../../services/whatsapp';
 
 export class VerificationController {
     /**
@@ -166,8 +166,8 @@ export class VerificationController {
                 // Send rejection notification
                 if (verRows[0]?.phone) {
                     try {
-                        const { WhatsAppClient } = await import('../../services/whatsapp');
-                        await WhatsAppClient.sendMessage(
+                        const { whatsappService } = await import('../../services/whatsapp');
+                        await whatsappService.sendMessage(
                             verRows[0].phone,
                             `❌ *VERIFIKASI PEMBAYARAN DITOLAK*\n\n` +
                             `Alasan: ${notes || 'Tidak valid'}\n\n` +
@@ -299,8 +299,8 @@ export class VerificationController {
                     );
                     const customerName = custNameRows[0]?.name || 'Pelanggan';
 
-                    const { WhatsAppClient } = await import('../../services/whatsapp');
-                    await WhatsAppClient.sendMessage(
+                    const { whatsappService } = await import('../../services/whatsapp');
+                    await whatsappService.sendMessage(
                         custRows[0].phone,
                         `✅ *BUKTI PEMBAYARAN*\n\n` +
                         `━━━━━━━━━━━━━━━━━━\n` +

@@ -27,6 +27,7 @@ router.get('/customers/search', isAuthenticated, TechnicianController.apiSearchC
 router.get('/jobs/:id', isAuthenticated, TechnicianController.getJobDetail);
 router.get('/history', isAuthenticated, TechnicianController.getJobHistory);
 router.post('/jobs/:id/verify', isAuthenticated, TechnicianController.verifyJob);
+router.delete('/jobs/:id', isAuthenticated, TechnicianController.deleteJob);
 
 
 
@@ -36,5 +37,10 @@ router.get('/installations/approval', isAuthenticated, InstallationApprovalContr
 router.get('/installations/:jobId', isAuthenticated, InstallationApprovalController.getDetail);
 router.post('/installations/approve', isAuthenticated, InstallationApprovalController.approve);
 router.post('/installations/reject', isAuthenticated, InstallationApprovalController.reject);
+
+// Salary Routes for Technician
+import { TechnicianSalaryController } from '../controllers/technician/TechnicianSalaryController';
+router.get('/salary/my-history', isAuthenticated, TechnicianSalaryController.viewMySalaryHistory);
+router.get('/salary/slip/:id', isAuthenticated, TechnicianSalaryController.printSalarySlip);
 
 export default router;

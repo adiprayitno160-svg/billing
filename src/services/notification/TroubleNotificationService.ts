@@ -5,7 +5,7 @@
 
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
-import { WhatsAppClient } from '../whatsapp';
+import { whatsappService } from '../whatsapp';
 
 export interface TroubleReport {
     customer_id: number;
@@ -166,7 +166,7 @@ export class TroubleNotificationService {
             const message = this.buildTroubleMessage(report);
 
             // Check WhatsApp status
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
             const waStatus = waClient.getStatus();
             if (!waStatus.ready) {
                 console.error('[TroubleNotification] WhatsApp not ready');
@@ -183,7 +183,7 @@ export class TroubleNotificationService {
                 try {
                     const formattedPhone = this.formatPhoneNumber(user.phone);
 
-                    await WhatsAppClient.sendMessage(formattedPhone, message);
+                    await waClient.sendMessage(formattedPhone, message);
 
                     sent_to.push(user.full_name);
                     console.log(`[TroubleNotification] ✅ Sent to ${user.full_name} (${user.role})`);

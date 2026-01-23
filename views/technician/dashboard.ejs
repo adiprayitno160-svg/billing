@@ -266,6 +266,7 @@
 
 <!-- Scripts for the dashboard -->
 <script>
+    const userRole = '<%= user.role %>'; // Inject user role securely
     let map, jobMap, jobMarkers = [], jobMarker;
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -427,9 +428,15 @@
                                         <i class="fas fa-check-circle"></i> Selesai
                                      </button>` : ''
                 }
-                                 <button onclick="viewJobDetail(${job.id})" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                                 <button onclick="viewJobDetail(${job.id})" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors" title="Lihat Detail">
                                     <i class="fas fa-chevron-right"></i>
                                  </button>
+                                 
+                                 ${['admin', 'superadmin', 'operator'].includes(userRole) ? `
+                                     <button onclick="deleteJob(${job.id})" class="w-9 h-9 flex items-center justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Hapus Pekerjaan">
+                                        <i class="fas fa-trash"></i>
+                                     </button>
+                                 ` : ''}
                             </div>
                         </div>
                     </div>
@@ -704,6 +711,35 @@
         // Implementation for completion modal (upload proof, etc.)
         window.location.href = `/technician/jobs/${id}`;
     }
+    async function deleteJob(id) {
+        const result = await Swal.fire({
+            title: 'Hapus Pekerjaan?',
+            text: "Data yang dihapus tidak bisa dikembalikan!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/technician/jobs/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (data.success) {
+                    Swal.fire('Terhapus!', 'Pekerjaan berhasil dihapus.', 'success');
+                    refreshJobs();
+                } else {
+                    Swal.fire('Gagal!', data.message || 'Gagal menghapus pekerjaan.', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error!', 'Terjadi kesalahan sistem.', 'error');
+            }
+        }
+    }
 </script>
 
 <style>
@@ -744,5 +780,6 @@
         -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        line-clamp: 1;
     }
 </style>

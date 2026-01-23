@@ -1,34 +1,32 @@
 
-import { databasePool } from '../../db/pool';
-import { RowDataPacket } from 'mysql2';
+interface SessionData {
+    step?: string;
+    data?: any;
+    lastInteraction?: number;
+}
+
+const sessions: Record<string, SessionData> = {};
 
 export class WhatsAppSessionService {
-
-    // Set Status
-    static async setSession(phone: string, step: string, data: any = {}) {
-        const jsonData = JSON.stringify(data);
-        await databasePool.query(`
-            INSERT INTO whatsapp_sessions (phone_number, current_step, temp_data)
-            VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE current_step = ?, temp_data = ?
-        `, [phone, step, jsonData, step, jsonData]);
+    static async getSession(phone: string): Promise<SessionData | null> {
+        return sessions[phone] || null;
     }
 
-    // Get Status
-    static async getSession(phone: string): Promise<{ step: string, data: any } | null> {
-        const [rows] = await databasePool.query<RowDataPacket[]>(
-            `SELECT * FROM whatsapp_sessions WHERE phone_number = ?`,
-            [phone]
-        );
-        if (rows.length === 0) return null;
-        return {
-            step: rows[0].current_step,
-            data: rows[0].temp_data // MySQL driver usually parses JSON automatically or returns obj
+    static async setSession(phone: string, data: SessionData) {
+        sessions[phone] = {
+            ...data,
+            lastInteraction: Date.now()
         };
     }
 
-    // Clear Status
     static async clearSession(phone: string) {
-        await databasePool.query(`DELETE FROM whatsapp_sessions WHERE phone_number = ?`, [phone]);
+        delete sessions[phone];
+    }
+
+    static async updateSession(phone: string, updates: Partial<SessionData>) {
+        if (!sessions[phone]) {
+            sessions[phone] = { step: '', data: {}, lastInteraction: Date.now() };
+        }
+        sessions[phone] = { ...sessions[phone], ...updates, lastInteraction: Date.now() };
     }
 }

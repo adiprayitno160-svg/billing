@@ -187,4 +187,37 @@ export class TechnicianSalaryController {
             res.status(500).send('Internal Server Error');
         }
     }
+    // Technician: View My Own Salary History
+    static async viewMySalaryHistory(req: Request, res: Response) {
+        try {
+            const user = (req as any).user;
+            const userId = user?.id;
+
+            if (user?.role !== 'teknisi') {
+                req.flash('error', 'Akses ditolak. Halaman ini hanya untuk teknisi.');
+                return res.redirect('/');
+            }
+
+            // Ensure payment table exists
+            await TechnicianSalaryController.ensurePaymentTable();
+
+            const [history] = await databasePool.query<any[]>(`
+                SELECT tp.*, u.full_name as approved_by_name 
+                FROM technician_payments tp
+                LEFT JOIN users u ON tp.approved_by = u.id
+                WHERE tp.technician_id = ?
+                ORDER BY tp.created_at DESC
+            `, [userId]);
+
+            res.render('technician/salary/my_history', {
+                title: 'Gaji Saya',
+                history,
+                currentPath: '/technician/salary/my-history',
+                user: (req as any).user
+            });
+        } catch (error) {
+            console.error('View my salary history error:', error);
+            res.status(500).render('error', { error: 'Internal Error' });
+        }
+    }
 }

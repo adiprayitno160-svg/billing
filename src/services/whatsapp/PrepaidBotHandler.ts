@@ -6,7 +6,7 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { PrepaidService } from '../billing/PrepaidService';
-import { WhatsAppClient } from './WhatsAppClient';
+import { whatsappService } from './WhatsAppService';
 import fs from 'fs';
 import path from 'path';
 
@@ -224,8 +224,7 @@ export class PrepaidBotHandler {
             message += `💡 Jika lewat 1 jam, ketik */beli* lagi untuk kode baru.`;
 
             // Send message first
-            const waClient = WhatsAppClient.getInstance();
-            await waClient.sendMessage(customerPhone, message);
+            await whatsappService.sendMessage(customerPhone, message);
 
             // Send QRIS image if exists
             const qrisPath = path.join(process.cwd(), 'public', 'images', 'payments', 'qris.png');
@@ -233,8 +232,7 @@ export class PrepaidBotHandler {
                 try {
                     console.log('[PrepaidBotHandler] 📤 Sending QRIS image...');
 
-                    const waClient = WhatsAppClient.getInstance();
-                    await waClient.sendImage(
+                    await whatsappService.sendImage(
                         customerPhone,
                         qrisPath,
                         '📱 Scan QR Code ini untuk pembayaran via QRIS'
@@ -308,8 +306,7 @@ export class PrepaidBotHandler {
 
             message += `Terima kasih telah menggunakan layanan kami! 🙏`;
 
-            const waClient = WhatsAppClient.getInstance();
-            await waClient.sendMessage(customerPhone, message);
+            await whatsappService.sendMessage(customerPhone, message);
 
         } catch (error) {
             console.error('[PrepaidBotHandler] Error sending confirmation:', error);

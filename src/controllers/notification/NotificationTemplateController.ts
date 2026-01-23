@@ -424,10 +424,10 @@ export class NotificationTemplateController {
    */
   async getWhatsAppStatus(req: Request, res: Response): Promise<any> {
     try {
-      const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
-      const waClient = WhatsAppClient.getInstance();
+      const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+      const waClient = whatsappService;
       const status = waClient.getStatus();
-      const qrCode = waClient.lastQR;
+      const qrCode = status.qr;
 
       res.json({
         success: true,
@@ -587,8 +587,8 @@ export class NotificationTemplateController {
         });
 
         // Step 3: Check WhatsApp status
-        const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
-        const waClient = WhatsAppClient.getInstance();
+        const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+        const waClient = whatsappService;
         const whatsappStatus = waClient.getStatus();
         debugInfo.whatsapp = whatsappStatus;
         debugInfo.steps.push({

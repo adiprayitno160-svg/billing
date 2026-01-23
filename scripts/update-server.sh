@@ -5,8 +5,8 @@
 # ========================================
 
 # Ganti dengan informasi server Anda
-SERVER_USER="root"
-SERVER_HOST="your-server-ip"
+SERVER_USER="adi"
+SERVER_HOST="192.168.239.154"
 APP_PATH="/var/www/billing"
 
 echo "========================================"

@@ -5,7 +5,7 @@
 
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 
 export class ExpiryReminderService {
     /**
@@ -149,7 +149,7 @@ export class ExpiryReminderService {
             }
 
             // Send WhatsApp message
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
             let success = false;
             let messageId = null;
 

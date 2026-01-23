@@ -7,7 +7,7 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { NotificationTemplateService } from './NotificationTemplateService';
-import { WhatsAppClient } from '../whatsapp';
+import { whatsappService } from '../whatsapp';
 import { UrlConfigService } from '../../utils/urlConfigService';
 
 export type NotificationType =
@@ -331,7 +331,7 @@ export class UnifiedNotificationService {
         }
 
         // Check WhatsApp client status before sending
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
         const whatsappStatus = waClient.getStatus();
         console.log(`[UnifiedNotification] 📱 WhatsApp Status:`, whatsappStatus);
 
@@ -344,7 +344,7 @@ export class UnifiedNotificationService {
             // Check again
             if (!waClient.getStatus().ready) {
               const status = waClient.getStatus();
-              throw new Error(`WhatsApp client not ready after init attempt (Ready: ${status.ready}, QR: ${status.hasQRCode}). Check Settings.`);
+              throw new Error(`WhatsApp client not ready after init attempt (Ready: ${status.ready}, QR: ${!!status.qr}). Check Settings.`);
             }
           } catch (initErr: any) {
             throw new Error(`WhatsApp initialization failed: ${initErr.message}`);
@@ -708,7 +708,7 @@ export class UnifiedNotificationService {
 
       if (users.length === 0) return;
 
-      const waClient = WhatsAppClient.getInstance();
+      const waClient = whatsappService;
       for (const user of users) {
         // Send directly
         await waClient.sendMessage(user.phone, message).catch(err => {

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
-import { WhatsAppClient } from '../../services/whatsapp';
+import { whatsappService } from '../../services/whatsapp/WhatsAppService';
 import { RowDataPacket } from 'mysql2';
 
 export class TechnicianController {
@@ -259,7 +259,7 @@ Untuk mengambil, balas:
             );
 
             if (techs.length > 0) {
-                const waClient = WhatsAppClient.getInstance();
+                const waClient = whatsappService;
                 for (const tech of techs) {
                     if (tech.phone) {
                         // Send WA
@@ -400,7 +400,7 @@ Untuk mengambil, balas:
             }
 
             // 3. SEND WHATSAPP NOTIFICATIONS
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
             const timeString = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 
             // Notification content
@@ -506,7 +506,7 @@ Untuk mengambil, balas:
             );
 
             const job = jobs[0];
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
 
             // Get Techs
             const [techs] = await databasePool.query<RowDataPacket[]>(
@@ -537,6 +537,34 @@ Untuk mengambil:
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: 'Server Error' });
+        }
+    }
+
+    // Delete Job (Admin/Operator only)
+    static async deleteJob(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const user = (req as any).user;
+
+            // Check Permissions
+            if (!user || !['admin', 'superadmin', 'operator'].includes(user.role)) {
+                return res.status(403).json({ success: false, message: 'Unauthorized. Only Admin/Operator can delete jobs.' });
+            }
+
+            // Check if job exists
+            const [check] = await databasePool.query<RowDataPacket[]>("SELECT id FROM technician_jobs WHERE id = ?", [id]);
+            if (check.length === 0) {
+                return res.status(404).json({ success: false, message: 'Job not found' });
+            }
+
+            // Delete Job
+            await databasePool.query("DELETE FROM technician_jobs WHERE id = ?", [id]);
+
+            res.json({ success: true, message: 'Pekerjaan berhasil dihapus' });
+
+        } catch (error) {
+            console.error('Error deleting job:', error);
+            res.status(500).json({ success: false, message: 'Gagal menghapus pekerjaan' });
         }
     }
 }

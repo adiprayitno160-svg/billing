@@ -8,7 +8,7 @@
 
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService, WhatsAppService } from '../whatsapp/WhatsAppService';
 
 interface NotificationEvent {
     customer_id: number;
@@ -34,10 +34,10 @@ interface CustomerInfo {
 
 export class CustomerNotificationService {
     private static instance: CustomerNotificationService;
-    private waClient: WhatsAppClient;
+    private waClient: WhatsAppService;
 
     private constructor() {
-        this.waClient = WhatsAppClient.getInstance();
+        this.waClient = whatsappService;
     }
 
     static getInstance(): CustomerNotificationService {
@@ -122,7 +122,7 @@ export class CustomerNotificationService {
 
             // Send WhatsApp notification
             await this.waClient.sendMessage(customer.phone, message);
-            
+
             // Log notification event
             await this.logNotificationEvent({
                 customer_id: customer.id,
@@ -154,9 +154,9 @@ export class CustomerNotificationService {
             );
 
             if (prefs.length === 0) return true;
-            
+
             const customerPref = prefs[0];
-            
+
             // If notifications disabled for customer
             if (customerPref.notification_enabled === 0) {
                 return false;

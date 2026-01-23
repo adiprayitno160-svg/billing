@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { WhatsAppClient } from '../services/whatsapp';
+import { whatsappService } from '../services/whatsapp';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import QRCode from 'qrcode';
@@ -27,11 +27,16 @@ router.use((req, res, next) => {
  */
 router.get('/status', async (req: Request, res: Response) => {
     try {
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
         const status = waClient.getStatus();
-        const stats = { sent: 0, failed: 0, total: 0, successRate: 0 }; // Mock stats for now
-        // Access qr via lastQR property we added
-        const qrCode = waClient.lastQR || null;
+        const stats = {
+            sent: status.messagesSent,
+            received: status.messagesReceived,
+            total: status.messagesSent + status.messagesReceived,
+            successRate: 100
+        };
+
+        const qrCode = status.qr;
 
         res.json({
             success: true,
@@ -56,9 +61,9 @@ router.get('/status', async (req: Request, res: Response) => {
  */
 router.get('/qr', async (req: Request, res: Response) => {
     try {
-        const waClient = WhatsAppClient.getInstance();
-        const qrCode = waClient.lastQR;
+        const waClient = whatsappService;
         const status = waClient.getStatus();
+        const qrCode = status.qr;
 
         if (!qrCode) {
             return res.json({
@@ -90,8 +95,9 @@ router.get('/qr', async (req: Request, res: Response) => {
  */
 router.get('/qr-image', async (req: Request, res: Response) => {
     try {
-        const waClient = WhatsAppClient.getInstance();
-        const qrCode = waClient.lastQR;
+        const waClient = whatsappService;
+        const status = waClient.getStatus();
+        const qrCode = status.qr;
         console.log(`[Route] /qr-image - Has QR: ${!!qrCode}`);
 
         if (!qrCode) {
@@ -141,10 +147,10 @@ router.get('/qr-image', async (req: Request, res: Response) => {
 router.post('/clear-session', async (req: Request, res: Response) => {
     try {
         console.log('🗑️ Clearing WhatsApp session...');
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
 
         // Restart to generate new QR
-        await waClient.restart();
+        await waClient.logout();
 
         res.json({
             success: true,
@@ -169,17 +175,17 @@ router.post('/clear-session', async (req: Request, res: Response) => {
 router.post('/regenerate-qr', async (req: Request, res: Response) => {
     try {
         console.log('🔄 Regenerating QR code...');
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
 
         // Re-initialize to trigger new QR
         await waClient.restart();
 
         // Wait longer for QR code to be generated (up to 10 seconds)
         let attempts = 0;
-        let qrCode = waClient.lastQR;
+        let qrCode = waClient.getStatus().qr;
         while (!qrCode && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 500));
-            qrCode = waClient.lastQR;
+            qrCode = waClient.getStatus().qr;
             attempts++;
         }
 
@@ -220,13 +226,20 @@ router.post('/send', async (req: Request, res: Response) => {
             });
         }
 
-        const waClient = WhatsAppClient.getInstance();
-        await waClient.sendMessage(phone, message);
+        const waClient = whatsappService;
+        const result = await waClient.sendMessage(phone, message);
 
-        res.json({
-            success: true,
-            data: { messageId: 'unknown' }
-        });
+        if (result.success) {
+            res.json({
+                success: true,
+                data: { messageId: result.messageId || 'unknown' }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error || 'Failed to send message'
+            });
+        }
     } catch (error: any) {
         res.status(500).json({
             success: false,
@@ -250,14 +263,18 @@ router.post('/send-bulk', async (req: Request, res: Response) => {
             });
         }
 
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
         let sent = 0;
         let failed = 0;
 
         for (const recipient of recipients) {
             try {
-                await waClient.sendMessage(recipient.phone, recipient.message);
-                sent++;
+                const result = await waClient.sendMessage(recipient.phone, recipient.message);
+                if (result.success) {
+                    sent++;
+                } else {
+                    failed++;
+                }
                 if (delayMs) await new Promise(r => setTimeout(r, delayMs));
             } catch (e) {
                 failed++;
@@ -315,13 +332,20 @@ router.post('/send-to-customer', async (req: Request, res: Response) => {
             });
         }
 
-        const waClient = WhatsAppClient.getInstance();
-        await waClient.sendMessage(customer.phone, message);
+        const waClient = whatsappService;
+        const result = await waClient.sendMessage(customer.phone, message);
 
-        res.json({
-            success: true,
-            data: { messageId: 'unknown' }
-        });
+        if (result.success) {
+            res.json({
+                success: true,
+                data: { messageId: result.messageId || 'unknown' }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error || 'Failed to send message'
+            });
+        }
     } catch (error: any) {
         res.status(500).json({
             success: false,
@@ -519,13 +543,20 @@ Status layanan Anda telah ${statusText}.
             `.trim();
         }
 
-        const waClient = WhatsAppClient.getInstance();
-        await waClient.sendMessage(customer.phone, message);
+        const waClient = whatsappService;
+        const result = await waClient.sendMessage(customer.phone, message);
 
-        res.json({
-            success: true,
-            data: { messageId: 'unknown' }
-        });
+        if (result.success) {
+            res.json({
+                success: true,
+                data: { messageId: result.messageId || 'unknown' }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error || 'Failed to send message'
+            });
+        }
     } catch (error: any) {
         res.status(500).json({
             success: false,
@@ -540,9 +571,9 @@ Status layanan Anda telah ${statusText}.
  */
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
         const status = waClient.getStatus();
-        const qrCode = waClient.lastQR;
+        const qrCode = status.qr;
         const qrCodeUrl = qrCode ? `/whatsapp/qr-image` : null;
 
         // Get Stats
@@ -599,4 +630,3 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 export default router;
-

@@ -668,20 +668,56 @@ export class InvoiceController {
                 return;
             }
 
-            // Construct message
-            const message = `Halo ${invoice.customer_name},\n\n` +
-                `Berikut adalah detail tagihan internet Anda:\n` +
-                `Nomor Tagihan: *${invoice.invoice_number}*\n` +
-                `Periode: ${invoice.period}\n` +
-                `Total: *Rp ${parseInt(invoice.total_amount).toLocaleString('id-ID')}*\n` +
-                `Status: ${invoice.status.toUpperCase()}\n` +
-                `Jatuh Tempo: ${new Date(invoice.due_date).toLocaleDateString('id-ID')}\n\n` +
-                `Silakan melakukan pembayaran sebelum jatuh tempo. Terima kasih.`;
+            // Format Currency
+            const formatter = new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            });
+
+            // Get Month Name from Period (YYYY-MM)
+            const periodDate = new Date(invoice.period + '-01');
+            const periodName = periodDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+            // Format Due Date
+            const dueDate = new Date(invoice.due_date).toLocaleDateString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+
+            let message = '';
+
+            if (invoice.status === 'paid') {
+                message = `✅ *PEMBAYARAN DITERIMA*\n\n` +
+                    `Halo Kak *${invoice.customer_name}*,\n` +
+                    `Terima kasih, pembayaran tagihan internet Anda telah kami terima.\n\n` +
+                    `📝 *Rincian Pembayaran:*\n` +
+                    `• No. Invoice: *${invoice.invoice_number}*\n` +
+                    `• Periode: ${periodName}\n` +
+                    `• Nominal: ${formatter.format(invoice.total_amount)}\n` +
+                    `• Status: *LUNAS* ✅\n\n` +
+                    `Terima kasih telah berlangganan layanan kami. 🙏`;
+            } else {
+                message = `📢 *TAGIHAN INTERNET BULAN ${periodName.toUpperCase()}*\n\n` +
+                    `Halo Kak *${invoice.customer_name}*,\n` +
+                    `Berikut adalah rincian tagihan internet Anda:\n\n` +
+                    `📄 *Detail Tagihan:*\n` +
+                    `• No. Invoice: *${invoice.invoice_number}*\n` +
+                    `• Periode: ${periodName}\n` +
+                    `• Total Tagihan: *${formatter.format(invoice.total_amount)}*\n` +
+                    `• Jatuh Tempo: *${dueDate}*\n\n` +
+                    `💳 *Cara Pembayaran:*\n` +
+                    `Silakan transfer ke rekening:\n` +
+                    `BCA: 1234567890 a/n ISP Billing\n` +
+                    `BRI: 0987654321 a/n ISP Billing\n\n` +
+                    `⚠️ Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari isolir otomatis.\n\n` +
+                    `_Balas pesan ini dengan bukti transfer jika sudah melakukan pembayaran._\n` +
+                    `Terima kasih. 🙏`;
+            }
 
             // Import dynamically to avoid circular dependency issues if any
             // Import dynamically to avoid circular dependency issues if any
-            const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
-            const waClient = WhatsAppClient.getInstance();
+            const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+            const waClient = whatsappService;
 
             let success = false;
             try {

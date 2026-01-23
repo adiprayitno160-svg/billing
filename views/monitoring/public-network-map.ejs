@@ -18,119 +18,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
-
-
     <link rel="stylesheet" href="/assets/css/network-map.css">
-
-
-</head>
-
-<!-- NUCLEAR ANTI-EXTENSION PROTECTION -->
-<style>
-    /* Block every known AI sidebar ID and Class */
-    #sider-sidebar-root,
-    #monica-root-host,
-    #check-sidebar-root,
-    #chatgpt-sidebar-root,
-    #__chsidebar,
-    .sider-sidebar-container,
-    .chsidebar-container,
-    #CRX-container,
-    #aiinhbfoop-sidebar,
-    [id*="sider-"],
-    [id*="monica-"],
-    [class*="chatgpt"],
-    [id*="chatgpt"],
-    [id^="ai-sidebar"],
-    [id^="aiinhbfoop"],
-    [class^="aiinhbfoop"],
-    [id*="deepseek"],
-    [class*="deepseek"],
-    chat-gpt-sidebar,
-    side-bar,
-    sidebar-component,
-    /* Specific Z-Index blockers for overlays */
-    div[style*="z-index: 2147483647"]:not(#loadingOverlay):not(.leaflet-control):not(.stats-panel),
-    div[style*="z-index: 999999"]:not(#loadingOverlay):not(.leaflet-control) {
-        display: none !important;
-        opacity: 0 !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        width: 0 !important;
-        height: 0 !important;
-        position: absolute !important;
-        top: -9999px !important;
-        left: -9999px !important;
-        z-index: -1 !important;
-    }
-</style>
 </head>
 
 <body>
-    <!-- EXTENSION SIDEBAR BLOCKER OVERLAY -->
-    <!-- This element FORCEFULLY covers any sidebar on the right -->
-    <div id="extensionBlocker" style="
-        position: fixed !important;
-        top: 0 !important;
-        right: 0 !important;
-        width: 400px !important;
-        height: 100vh !important;
-        background-color: #0f172a !important; /* Matches generic dark theme */
-        z-index: 2147483647 !important; /* Max 32-bit integer */
-        pointer-events: auto !important; /* Blocks clicks to the extension */
-        display: block !important;
-        transform: translateZ(9999px) !important; /* Force GPU layer on top */
-    ">
-        <div
-            style="display:flex; align-items:center; justify-content:center; height:100%; color:#334155; font-size:10px; transform: rotate(90deg);">
-            NO EXTENSIONS ALLOWED
-        </div>
-    </div>
-
-    <!-- ROOT LEVEL FORENSIC CLEANER -->
-    <script>
-        (function () {
-            const blocker = document.getElementById('extensionBlocker');
-
-            function enforceRootCleaning() {
-                // DOM DOMINANCE V2: Append to HTML (Parent of Body) not Body
-                // This forces our blocker to be a sibling of the extension
-                if (document.documentElement && document.documentElement.lastElementChild !== blocker) {
-                    try {
-                        document.documentElement.appendChild(blocker);
-                        // Also force style update in case extension fights back
-                        blocker.style.display = 'block';
-                        blocker.style.zIndex = '2147483647';
-                    } catch (e) {
-                        // Fallback
-                        if (document.body) document.body.appendChild(blocker);
-                    }
-                }
-
-                // ROOT SCAN
-                const children = document.documentElement.children;
-                for (let i = 0; i < children.length; i++) {
-                    const el = children[i];
-                    if (el === document.body || el === document.head || el === blocker) continue;
-
-                    const id = el.id ? el.id.toLowerCase() : '';
-                    if (id.includes('aiinhbfoop') || el.className.toString().includes('aiinhbfoop')) {
-                        try { el.remove(); } catch (e) { }
-                    }
-                }
-            }
-
-            // Continuous scanning
-            setInterval(enforceRootCleaning, 100);
-        })();
-    </script>
-
-
-
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading Network Map...</div>
+        <div id="loadingErrors" style="color: red; font-size: 12px; margin-top: 10px; display: none;"></div>
     </div>
 
     <!-- Stats Panel -->
@@ -486,7 +382,7 @@
         // Global variables
         let map;
         let markers = {};
-        let linkLayers = L.layerGroup(); // Use layer group for links
+        let linkLayers = null; // Use layer group for links
         let currentLinks = []; // Store active links
         let activeFilters = {
             customer: true,
@@ -503,44 +399,64 @@
         let isOfflineOnly = false;
         let isHeatmapActive = false;
         let allDevices = []; // Cache for filtering without re-fetching
-        let traceLayer = L.layerGroup();
+        let traceLayer = null;
         let heatLayer = null;
+
+        console.log('Main network-map script loaded');
 
         // Initialize map
         function initMap() {
-            // Start with default center (will be updated after loading data)
-            map = L.map('map').setView([-6.200000, 106.816666], 13);
+            try {
+                console.log('Initializing Map...');
 
-            // Enable audio interaction on first click (browser policy)
-            document.body.addEventListener('click', () => {
-                if (window.audioCtx && window.audioCtx.state === 'suspended') {
-                    window.audioCtx.resume();
+                if (typeof L === 'undefined') {
+                    throw new Error('Leaflet library not loaded');
                 }
-            }, { once: true });
 
-            // Map click handler to close sidebar
-            map.on('click', (e) => {
-                if (!e.originalEvent.target.closest('.leaflet-marker-icon')) {
-                    closeDeviceSidebar();
+                // Start with default center (will be updated after loading data)
+                map = L.map('map').setView([-6.200000, 106.816666], 13);
+
+                // Enable audio interaction on first click (browser policy)
+                document.body.addEventListener('click', () => {
+                    if (window.audioCtx && window.audioCtx.state === 'suspended') {
+                        window.audioCtx.resume();
+                    }
+                }, { once: true });
+
+                // Map click handler to close sidebar
+                map.on('click', (e) => {
+                    if (!e.originalEvent.target.closest('.leaflet-marker-icon')) {
+                        closeDeviceSidebar();
+                    }
+                });
+
+                // Add tile layer with dark theme
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(map);
+
+                // Add link layers to map
+                linkLayers = L.layerGroup();
+                traceLayer = L.layerGroup();
+
+                linkLayers.addTo(map);
+                traceLayer.addTo(map);
+
+                // Load data
+                loadNetworkData();
+
+                // Auto refresh every 10 seconds for "live" feel
+                setInterval(refreshData, 10000);
+            } catch (e) {
+                console.error('Init Map Failed:', e);
+                const errorDiv = document.getElementById('loadingErrors');
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Init Error: ' + e.message;
                 }
-            });
-
-            // Add tile layer with dark theme
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 20
-            }).addTo(map);
-
-            // Add link layers to map
-            linkLayers.addTo(map);
-            traceLayer.addTo(map);
-
-            // Load data
-            loadNetworkData();
-
-            // Auto refresh every 10 seconds for "live" feel
-            setInterval(refreshData, 10000);
+            }
         }
 
         // Search logic
@@ -1624,56 +1540,56 @@
 
                 content += `</div></div>`;
             }
-        }
 
 
-        // Calculate Distance to ODP - REMOVED DUPLICATE (Handled in Customer Block)
+
+            // Calculate Distance to ODP - REMOVED DUPLICATE (Handled in Customer Block)
 
 
-        if (device.ip_address || (metadata.ip_address)) {
-            content += `
+            if (device.ip_address || (metadata.ip_address)) {
+                content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">IP:</span>
                         <span class="device-popup-value">${device.ip_address || metadata.ip_address}</span>
                     </div>
                 `;
-        }
+            }
 
-        if (device.latency_ms) {
-            content += `
+            if (device.latency_ms) {
+                content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">Latency:</span>
                         <span class="device-popup-value">${device.latency_ms.toFixed(1)} ms</span>
                     </div>
                 `;
-        }
+            }
 
-        if (device.packet_loss_percent) {
-            content += `
+            if (device.packet_loss_percent) {
+                content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">Packet Loss:</span>
                         <span class="device-popup-value">${device.packet_loss_percent.toFixed(1)}%</span>
                     </div>
                 `;
-        }
+            }
 
-        if (device.last_seen) {
-            const lastSeen = new Date(device.last_seen);
-            content += `
+            if (device.last_seen) {
+                const lastSeen = new Date(device.last_seen);
+                content += `
                     <div class="device-popup-row">
                         <span class="device-popup-label">Last Seen:</span>
                         <span class="device-popup-value">${formatDateTime(lastSeen)}</span>
                     </div>
                 `;
-        }
+            }
 
-        content += `
+            content += `
                     </div>
                 </div>
             `;
 
-        return content;
-    }
+            return content;
+        }
 
         // Render network links using Leaflet Polylines
         function renderLinks(linkData) {

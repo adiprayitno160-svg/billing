@@ -1,7 +1,7 @@
 
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 
 export class ActivationService {
 
@@ -103,7 +103,7 @@ Selamat! Pembayaran aktivasi Anda telah kami terima dan diverifikasi. Layanan in
 Silakan masukkan data akun tersebut ke dalam router Anda. Jika membutuhkan bantuan, hubungi teknisi kami. Terima kasih telah berlangganan! 🙏
 `.trim();
 
-            const wa = WhatsAppClient.getInstance();
+            const wa = whatsappService;
             await wa.sendMessage(reg.phone, waMessage);
 
             return { success: true, message: 'Aktivasi berhasil', customerId };

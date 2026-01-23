@@ -238,22 +238,9 @@ export class SchedulerService {
         cron.schedule('30 4 * * *', async () => {
             console.log('[Scheduler] 🔄 Running daily WhatsApp Service restart...');
             try {
-                const { WhatsAppClient } = await import('./whatsapp/WhatsAppClient');
-                const waClient = WhatsAppClient.getInstance();
-
-                if (waClient) {
-                    // For whatsapp-web.js, we can just logout and re-initialize
-                    if (waClient.client) {
-                        try {
-                            console.log('[Scheduler] Destroying client for restart...');
-                            await waClient.client.destroy();
-                        } catch (e) {
-                            console.warn('Error destroying client:', e);
-                        }
-                    }
-                    await waClient.initialize();
-                    console.log('[Scheduler] ✅ WhatsApp Service restarted successfully');
-                }
+                const { whatsappService } = await import('./whatsapp/WhatsAppService');
+                await whatsappService.restart();
+                console.log('[Scheduler] ✅ WhatsApp Service restarted successfully');
             } catch (error) {
                 console.error('[Scheduler] ❌ Error restarting WhatsApp Service:', error);
             }

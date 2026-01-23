@@ -8,7 +8,7 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { GenieacsService } from '../genieacs/GenieacsService';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 import { getMikrotikConfig } from '../pppoeService';
 import { getPppoeActiveConnections } from '../mikrotikService';
 import notificationServiceInstance from './CustomerNotificationService';
@@ -1031,7 +1031,7 @@ export class NetworkMonitoringService {
             console.log(`  📢 Sending mass outage notification to ${affectedCustomers.length} customers...`);
 
             // Send notifications
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
 
             const message = `⚠️ *PEMBERITAHUAN GANGGUAN JARINGAN*\n\n` +
                 `Pelanggan Yth,\n` +

@@ -7,7 +7,7 @@
 
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService, WhatsAppService } from '../whatsapp/WhatsAppService';
 
 export interface OfflineCustomer {
     id: number;
@@ -24,10 +24,10 @@ export interface OfflineCustomer {
 
 export class TwoHourNotificationService {
     private static instance: TwoHourNotificationService;
-    private waClient: WhatsAppClient;
+    private waClient: WhatsAppService;
 
     private constructor() {
-        this.waClient = WhatsAppClient.getInstance();
+        this.waClient = whatsappService;
     }
 
     static getInstance(): TwoHourNotificationService {
@@ -43,15 +43,15 @@ export class TwoHourNotificationService {
      */
     async processLongTermOfflineCustomers(): Promise<void> {
         console.log('[TwoHourNotification] Processing long-term offline customers...');
-        
+
         try {
             // Find customers that have been offline for 2+ hours
             const offlineCustomers = await this.getLongTermOfflineCustomers();
-            
+
             for (const customer of offlineCustomers) {
                 await this.handleOfflineCustomerNotification(customer);
             }
-            
+
             console.log(`[TwoHourNotification] Processed ${offlineCustomers.length} long-term offline customers`);
         } catch (error) {
             console.error('[TwoHourNotification] Error processing long-term offline customers:', error);
@@ -112,7 +112,7 @@ export class TwoHourNotificationService {
             `;
 
             const [rows] = await databasePool.query<RowDataPacket[]>(query);
-            
+
             return rows.map(row => ({
                 id: row.id,
                 name: row.name,
@@ -136,17 +136,17 @@ export class TwoHourNotificationService {
         try {
             // Check if we need to send a notification (based on 2-hour intervals)
             const shouldNotify = await this.shouldSendNotification(customer.id, 'offline');
-            
+
             if (!shouldNotify) {
                 return;
             }
 
             // Get or create a ticket for this customer's issue
             const ticketInfo = await this.getOrCreateTicketForCustomer(customer);
-            
+
             // Send notification to customer
             const notificationSent = await this.sendOfflineNotification(customer, ticketInfo);
-            
+
             if (notificationSent) {
                 // Log the notification
                 await this.logNotificationEvent({
@@ -178,7 +178,7 @@ export class TwoHourNotificationService {
                 console.log(`[TwoHourNotification] Skipping notification for ${customer.name} - no phone number`);
                 return false;
             }
-            
+
             // Skip notification for Bu Nanik (testing customer)
             if (customer.name.toLowerCase().includes('nanik') || customer.name.toLowerCase().includes('nantik')) {
                 console.log(`[TwoHourNotification] Skipping notification for ${customer.name} - testing customer`);
@@ -186,7 +186,7 @@ export class TwoHourNotificationService {
             }
 
             const hoursOffline = Math.floor((Date.now() - customer.offline_since.getTime()) / (1000 * 60 * 60));
-            
+
             const message = `🚨 *PEMBERITAHUAN GANGGUAN BERLANJUT*\n\n` +
                 `Pelanggan Yth. *${customer.name}*,\n` +
                 `Koneksi internet Anda masih *OFFLINE* selama lebih dari *${hoursOffline} jam*.\n\n` +
@@ -217,7 +217,7 @@ export class TwoHourNotificationService {
                 console.log(`[TwoHourNotification] Skipping recovery notification for ${customer.name} - no phone number`);
                 return false;
             }
-            
+
             // Skip notification for Bu Nanik (testing customer)
             if (customer.name.toLowerCase().includes('nanik') || customer.name.toLowerCase().includes('nantik')) {
                 console.log(`[TwoHourNotification] Skipping recovery notification for ${customer.name} - testing customer`);
@@ -225,7 +225,7 @@ export class TwoHourNotificationService {
             }
 
             const offlineDuration = Math.floor((Date.now() - customer.offline_since.getTime()) / (1000 * 60 * 60));
-            
+
             const message = `✅ *KONEKSI TELAH PULIH*\n\n` +
                 `Pelanggan Yth. *${customer.name}*,\n` +
                 `Koneksi internet Anda telah *NORMAL KEMBALI* setelah *${offlineDuration} jam*.\n\n` +
@@ -294,7 +294,7 @@ export class TwoHourNotificationService {
 
             // Create a new ticket if none exists
             const ticketNumber = `TKT-${Math.floor(10000 + Math.random() * 90000)}`;
-            
+
             await databasePool.query(`
                 INSERT INTO technician_jobs (
                     ticket_number, 
@@ -328,7 +328,7 @@ export class TwoHourNotificationService {
             };
         } catch (error) {
             console.error(`[TwoHourNotification] Error getting/creating ticket for customer ${customer.id}:`, error);
-            
+
             // Return a dummy ticket if we can't create one
             return {
                 ticket_id: 0,
@@ -403,11 +403,11 @@ export class TwoHourNotificationService {
      */
     async processRecoveredCustomers(): Promise<void> {
         console.log('[TwoHourNotification] Processing recovered customers...');
-        
+
         try {
             // Find customers that were offline for 2+ hours but are now online
             const recoveredCustomers = await this.getRecentlyRecoveredCustomers();
-            
+
             for (const customer of recoveredCustomers) {
                 // Get the most recent ticket for this customer
                 const [recentTickets] = await databasePool.query<RowDataPacket[]>(`
@@ -419,7 +419,7 @@ export class TwoHourNotificationService {
                     ORDER BY created_at DESC
                     LIMIT 1
                 `, [customer.id]);
-                
+
                 if (recentTickets.length > 0) {
                     // Close the ticket
                     await databasePool.query(`
@@ -427,12 +427,12 @@ export class TwoHourNotificationService {
                         SET status = 'completed', completed_at = NOW(), completion_notes = 'Closed automatically - customer connection recovered'
                         WHERE ticket_number = ?
                     `, [recentTickets[0].ticket_number]);
-                    
+
                     // Send recovery notification
                     await this.sendRecoveryNotification(customer, recentTickets[0].ticket_number);
                 }
             }
-            
+
             console.log(`[TwoHourNotification] Processed ${recoveredCustomers.length} recovered customers`);
         } catch (error) {
             console.error('[TwoHourNotification] Error processing recovered customers:', error);
@@ -495,7 +495,7 @@ export class TwoHourNotificationService {
             `;
 
             const [rows] = await databasePool.query<RowDataPacket[]>(query);
-            
+
             return rows.map(row => ({
                 id: row.id,
                 name: row.name,

@@ -361,25 +361,35 @@ async function start() {
 		const { MediaCleanupService } = await import('./services/cron/MediaCleanupService');
 		MediaCleanupService.startScheduler(90); // 90 days retention
 
-		// Initialize Technician Log Cleanup Service (2 Months)
-		const { TechnicianCleanupService } = await import('./services/cron/TechnicianCleanupService');
-		TechnicianCleanupService.startScheduler();
+		// Initialize PPPoE Static IP Monitor (checks every 10 minutes)
+		try {
+			const { pppoeStaticMonitor } = await import('./services/monitoring/PPPoEStaticMonitor');
+			pppoeStaticMonitor.startScheduler();
+			console.log('✅ PPPoE Static IP Monitor initialized');
+		} catch (error) {
+			console.error('⚠️ Error initializing PPPoE Static IP Monitor (non‑critical):', error);
+		}
+
+		// Initialize WhatsApp Auth Cleanup Service (remove old JSON files > 2 weeks)
+		try {
+			const { startWhatsAppCleanupScheduler } = await import('./services/cron/WhatsAppCleanupService');
+			startWhatsAppCleanupScheduler();
+			console.log('✅ WhatsApp Auth Cleanup Scheduler initialized (daily 03:00)');
+		} catch (error) {
+			console.error('⚠️ Error initializing WhatsApp Cleanup Scheduler (non-critical):', error);
+		}
 
 
 		// Initialize New Robust WhatsApp Service
 		if (process.env.DISABLE_WHATSAPP !== 'true') {
 			try {
-				const { WhatsAppClient, WhatsAppHandler } = await import('./services/whatsapp');
-				const waClient = WhatsAppClient.getInstance();
-				await waClient.initialize();
-				WhatsAppHandler.initialize();
-				console.log('✅ WhatsApp Service (Clean/WebJS) initialized');
+				const { whatsappService } = await import('./services/whatsapp');
+				await whatsappService.initialize();
+				console.log('✅ WhatsApp Service (Baileys) initialized');
 			} catch (waError) {
 				console.error('❌ Failed to init WhatsApp:', waError);
 			}
 		}
-
-
 		// Initialize default users
 		const authController = new AuthController();
 		await authController.initializeDefaultUsers();
@@ -389,6 +399,20 @@ async function start() {
 
 		// Create HTTP server
 		const server = createServer(app);
+
+		// Initialize Socket.IO
+		const { Server } = await import('socket.io');
+		const io = new Server(server, {
+			cors: {
+				origin: "*", // Adjust for production security
+				methods: ["GET", "POST"]
+			}
+		});
+
+		// Initialize Realtime Monitoring Service
+		const { RealtimeMonitoringService } = await import('./services/monitoring/RealtimeMonitoringService');
+		const monitoringService = new RealtimeMonitoringService(io);
+		monitoringService.start();
 
 		// SMART PORT STARTUP: Try preferred port, if busy increment and retry
 		const preferredPort = port;
@@ -438,9 +462,8 @@ const gracefulShutdown = async (signal: string) => {
 	console.log(`\n[System] 🛑 ${signal} received. Starting graceful shutdown...`);
 	try {
 		// Destroy WhatsApp client first (this closes Puppeteer browser)
-		const { WhatsAppClient } = await import('./services/whatsapp/WhatsAppClient');
-		await WhatsAppClient.getInstance().destroy();
-		console.log('[System] ✅ WhatsApp client destroyed');
+		// Baileys doesn't need explicit destroy but we can log
+		console.log('[System] ✅ WhatsApp client stopping (Baileys)');
 	} catch (e) {
 		console.error('[System] Error during shutdown:', e);
 	}

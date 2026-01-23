@@ -206,8 +206,8 @@ export class MonitoringController {
                     s.price,
                     odp.name as odp_name,
                     odp.location as odp_location,
-                    (SELECT ROUND(SUM(bytes_in) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as usage_rx_gb,
-                    (SELECT ROUND(SUM(bytes_out) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as usage_tx_gb
+                    (SELECT ROUND(SUM(bytes_in) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_FORMAT(NOW() ,'%Y-%m-01')) as usage_rx_gb,
+                    (SELECT ROUND(SUM(bytes_out) / 1024 / 1024 / 1024, 2) FROM bandwidth_logs WHERE customer_id = c.id AND timestamp >= DATE_FORMAT(NOW() ,'%Y-%m-01')) as usage_tx_gb
                 FROM customers c
                 LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
                 LEFT JOIN pppoe_packages pp ON s.package_id = pp.id

@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { WhatsAppClient, WhatsAppEvents } from '../../services/whatsapp';
+import { whatsappService } from '../../services/whatsapp/WhatsAppService';
 import { databasePool } from '../../db/pool';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,7 +16,7 @@ export class WhatsAppSettingsController {
      */
     static async showSettings(req: Request, res: Response): Promise<void> {
         try {
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
             let status = waClient.getStatus();
 
             // Force initialize if not ready
@@ -29,11 +29,7 @@ export class WhatsAppSettingsController {
 
             // Stats (Mock for now or implement in DB)
             const stats = { total: 0, sent: 0, failed: 0, successRate: 0 };
-
-            // Get QR code via events or state
-            // We'll need a way to store the last QR code in WhatsAppClient
-            // Let's modify WhatsAppClient to store lastQR
-            const qrCode = (waClient as any).lastQR || null;
+            const qrCode = waClient.qrCode || null;
 
             // Get recent failed notifications
             let failedNotifications: any[] = [];
@@ -114,9 +110,9 @@ export class WhatsAppSettingsController {
      */
     static async getStatus(req: Request, res: Response): Promise<void> {
         try {
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
             const status = waClient.getStatus();
-            const qrCode = (waClient as any).lastQR || null;
+            const qrCode = waClient.qrCode || null;
 
             res.json({
                 success: true,
@@ -162,25 +158,9 @@ export class WhatsAppSettingsController {
                 return;
             }
 
-            // Use WhatsAppService which has REDUNDANCY (Primary + Backup Foonte)
-            // We instantiate it here or we could make it singleton export
-            // Assuming we can import the new service class we created earlier
-            // Wait, we need to import it first. 
-            // Let's dynamically import or better yet, assume WhatsAppService is available.
-            // But wait, the previous code used WhatsAppClient directly.
-            // We need to switch to WhatsAppService to get the backup feature!
-
-            // Re-importing inside method to avoid modifying imports at top for now or let's assume I fix imports later?
-            // No, TS requires top imports usually.
-            // Let's check if I can modify imports. Yes I can.
-            // But for now, let's use dynamic import if needed, or better, just use the class we created.
-
-            const { WhatsAppService } = require('../../services/whatsapp/WhatsAppService');
-            const waService = new WhatsAppService();
-
-            // Send test message via Service (Back-up aware)
+            // Send test message via Service
             try {
-                await waService.sendMessage(phone.trim(), message.trim());
+                await whatsappService.sendMessage(phone.trim(), message.trim());
                 res.json({
                     success: true,
                     message: 'Pesan test berhasil dikirim (via Service)!'
@@ -205,7 +185,7 @@ export class WhatsAppSettingsController {
      */
     static async regenerateQR(req: Request, res: Response): Promise<void> {
         console.log('🔄 Starting QR code regeneration...');
-        const waClient = WhatsAppClient.getInstance();
+        const waClient = whatsappService;
 
         // Use robust restart mechanism
         try {
@@ -222,11 +202,11 @@ export class WhatsAppSettingsController {
         // Wait for QR code to be generated (up to 15 seconds)
         console.log('⏳ Waiting for QR code generation...');
         let attempts = 0;
-        let qrCode = waClient.lastQR;
+        let qrCode = waClient.qrCode;
         const maxAttempts = 90; // 45 seconds (90 * 500ms)
         while (!qrCode && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 500));
-            qrCode = waClient.lastQR;
+            qrCode = waClient.qrCode;
             attempts++;
 
             if (attempts % 5 === 0) {
@@ -455,7 +435,7 @@ export class WhatsAppSettingsController {
                 // Send rejection notification
                 if (verRows[0]?.phone) {
                     try {
-                        await WhatsAppClient.getInstance().sendMessage(
+                        await whatsappService.sendMessage(
                             verRows[0].phone,
                             `❌ *VERIFIKASI PEMBAYARAN DITOLAK*\n\n` +
                             `Alasan: ${notes || 'Tidak valid'}\n\n` +
@@ -573,7 +553,7 @@ export class WhatsAppSettingsController {
             // Send success notification
             if (custRows[0]?.phone) {
                 try {
-                    await WhatsAppClient.getInstance().sendMessage(
+                    await whatsappService.sendMessage(
                         custRows[0].phone,
                         `✅ *PEMBAYARAN BERHASIL DIVERIFIKASI*\n\n` +
                         `📄 Invoice: ${invoice.invoice_number}\n` +

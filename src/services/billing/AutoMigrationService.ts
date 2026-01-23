@@ -1,7 +1,7 @@
 import { databasePool } from '../../db/pool';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AISettingsService } from '../payment/AISettingsService';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 import { ArrearsAnalysisPrompts } from '../ai/ArrearsAnalysisPrompts';
 
 export class AutoMigrationService {
@@ -122,8 +122,7 @@ export class AutoMigrationService {
                 if (result && result.whatsappMessage) {
                     // 2. Kirim WA
                     if (customer.phone) {
-                        const waClient = WhatsAppClient.getInstance();
-                        await waClient.sendMessage(customer.phone, result.whatsappMessage);
+                        await whatsappService.sendMessage(customer.phone, result.whatsappMessage);
 
                         // 3. Log Notifikasi
                         await connection.query(`
@@ -173,8 +172,7 @@ export class AutoMigrationService {
 
             // 3. Kirim Notifikasi WA (dari hasil AI)
             if (customer.phone && aiResult.whatsappMessage) {
-                const waClient = WhatsAppClient.getInstance();
-                await waClient.sendMessage(customer.phone, aiResult.whatsappMessage);
+                await whatsappService.sendMessage(customer.phone, aiResult.whatsappMessage);
 
                 // Log Notifikasi
                 await connection.query(`

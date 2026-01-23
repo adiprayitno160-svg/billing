@@ -207,7 +207,7 @@ export class InstallationApprovalController {
 
             // 5. Send Notification to Customer via WhatsApp
             try {
-                const { WhatsAppClient } = await import('../../services/whatsapp');
+                const { whatsappService } = await import('../../services/whatsapp');
                 const [pkgRows] = await databasePool.query<RowDataPacket[]>("SELECT name FROM pppoe_packages WHERE id = ?", [packageId]);
                 const packageName = pkgRows[0]?.name || 'Internet';
 
@@ -232,7 +232,7 @@ BCA: 123456789 (A/N ISP BILLING)
 Setelah transfer, kirimkan foto bukti pembayaran di sini. Internet akan otomatis aktif segera setelah pembayaran diverifikasi.
 `.trim();
 
-                const waClient = WhatsAppClient.getInstance();
+                const waClient = whatsappService;
                 await waClient.sendMessage(regData.phone, message);
             } catch (err) {
                 console.error('Failed to send activation notification:', err);

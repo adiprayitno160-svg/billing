@@ -160,6 +160,8 @@ import {
 
 
 
+import { RegistrationRequestController } from '../controllers/customers/RegistrationRequestController';
+
 const router = Router();
 const authMiddleware = new AuthMiddleware();
 
@@ -207,6 +209,11 @@ router.use('/technician', technicianRoutes);
 router.use('/api/technician', technicianRoutes);
 
 router.use('/', authRoutes);
+
+// Registration Request Routes
+router.get('/customers/registration-requests', isAuthenticated, RegistrationRequestController.index);
+router.post('/customers/registration-requests/:id/approve', isAuthenticated, RegistrationRequestController.approve);
+router.post('/customers/registration-requests/:id/reject', isAuthenticated, RegistrationRequestController.reject);
 
 // NOTIFICATION ROUTES - Mount notification page router
 // Mount notification page router at /notification BEFORE middleware
@@ -294,8 +301,8 @@ router.get('/api/check-notification', async (req, res) => {
             // Cek WhatsApp status
             let whatsappStatus: any = { ready: false, error: 'Not checked' };
             try {
-                const { WhatsAppClient } = await import('../services/whatsapp');
-                const waClient = WhatsAppClient.getInstance();
+                const { whatsappService } = await import('../services/whatsapp');
+                const waClient = whatsappService;
                 whatsappStatus = waClient.getStatus();
             } catch (e: any) {
                 whatsappStatus = { ready: false, error: e.message };

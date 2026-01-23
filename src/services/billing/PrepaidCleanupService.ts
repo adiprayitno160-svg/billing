@@ -5,7 +5,7 @@
 
 import { databasePool } from '../../db/pool';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { WhatsAppClient } from '../whatsapp/WhatsAppClient';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 
 export class PrepaidCleanupService {
     /**
@@ -77,7 +77,7 @@ export class PrepaidCleanupService {
                 `Setelah transfer, kirim bukti foto/screenshot ke nomor ini.\n\n` +
                 `_Abaikan pesan ini jika sudah melakukan pembayaran._`;
 
-            const waClient = WhatsAppClient.getInstance();
+            const waClient = whatsappService;
             let success = false;
 
             try {

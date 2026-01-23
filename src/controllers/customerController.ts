@@ -707,7 +707,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             // Check if customer exists and get old data
             const [customers] = await conn.query<RowDataPacket[]>(
-                'SELECT id, name, status, pppoe_username, connection_type, pppoe_password, serial_number, phone FROM customers WHERE id = ?',
+                'SELECT id, name, status, pppoe_username, connection_type, pppoe_password, serial_number, phone, name_edited_at FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -734,6 +734,18 @@ export const updateCustomer = async (req: Request, res: Response) => {
             let newStatus = null;
 
             if (name !== undefined) {
+                // RESTRICTION: Name can only be edited once
+                if (name !== oldName) {
+                    if (oldCustomer.name_edited_at) {
+                        await conn.rollback();
+                        return res.status(403).json({
+                            success: false,
+                            error: 'Nama pelanggan hanya dapat diubah satu kali setelah registrasi.'
+                        });
+                    }
+                    updateFields.push('name_edited_at = NOW()');
+                }
+
                 updateFields.push('name = ?');
                 updateValues.push(name);
             }
