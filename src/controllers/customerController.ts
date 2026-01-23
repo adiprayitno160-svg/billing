@@ -2310,3 +2310,34 @@ export const switchToPostpaid = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Get active PPPoE connections from Mikrotik that are not yet in billing
+ */
+export const getActivePppoeConnections = async (req: Request, res: Response) => {
+    try {
+        const mikrotikConfig = await getMikrotikConfig();
+        if (!mikrotikConfig) {
+            res.status(500).json({ status: 'error', message: 'Mikrotik configuration not found' });
+            return;
+        }
+
+        const { getPppoeActiveConnections } = await import('../services/mikrotikService');
+        const actives = await getPppoeActiveConnections({
+            ...mikrotikConfig,
+            use_tls: mikrotikConfig.use_tls ?? false
+        });
+
+        // Get all registered pppoe usernames
+        const [rows] = await databasePool.query<RowDataPacket[]>('SELECT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL');
+        const registeredUsernames = new Set(rows.map(r => r.pppoe_username));
+
+        // Filter: only those NOT in database
+        const unregistered = actives.filter(a => !registeredUsernames.has(a.name));
+
+        res.json({ status: 'success', data: unregistered });
+    } catch (e) {
+        console.error('[getActivePppoeConnections] Error:', e);
+        res.status(500).json({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+    }
+};

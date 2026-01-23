@@ -109,7 +109,8 @@ import {
     syncAllCustomersToGenieacs,
     // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
     // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    testMikrotikAddressLists
+    testMikrotikAddressLists,
+    getActivePppoeConnections
 } from '../controllers/customerController';
 import { GenieacsService } from '../services/genieacs/GenieacsService';
 import {
