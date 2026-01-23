@@ -265,6 +265,11 @@
                                             <% } else { %>
                                                 <code
                                                     class="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono"><%= client.ip_address %></code>
+                                                <a href="/api/debug/ping/<%= client.ip_address %>" target="_blank"
+                                                    class="ml-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                                    title="Test Ping Manual (Debug)">
+                                                    <i class="fas fa-terminal"></i>
+                                                </a>
                                                 <% } %>
                                     </td>
 
