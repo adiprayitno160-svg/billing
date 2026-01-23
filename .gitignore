@@ -96,6 +96,8 @@ coverage/
 *.test.js
 *.spec.js
 __tests__/
+.test_auth_session/
+test-results/
 
 # Migration SQL files (sudah ada di TypeScript)
 migrations/*.sql
