@@ -244,6 +244,10 @@
                                                 </option>
                                                 <% } %>
                                     </select>
+                                    <button type="button" id="import_mikrotik_ip_btn"
+                                        class="mt-2 text-xs text-green-600 hover:text-green-800 font-bold flex items-center gap-1">
+                                        📥 Import IP dari ARP/Leases Mikrotik
+                                    </button>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label
@@ -963,5 +967,82 @@
             if (!e.target.closest('#odc_search')) odcResults.classList.add('hidden');
             if (!e.target.closest('#odp_search')) odpResults.classList.add('hidden');
         });
+
+        // === Import Mikrotik IP ===
+        const importBtn = document.getElementById('import_mikrotik_ip_btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', async () => {
+                const originalText = importBtn.innerHTML;
+                importBtn.innerHTML = '⏳ Loading...';
+                importBtn.disabled = true;
+
+                try {
+                    // Fetch ARP/Leases from API
+                    const response = await fetch('/api/mikrotik/arp-leases');
+                    const data = await response.json();
+
+                    if (!data.success) throw new Error(data.message);
+
+                    if (data.results.length === 0) {
+                        alert('Tidak ada data ARP/Leases yang ditemukan di Mikrotik.');
+                        return;
+                    }
+
+                    // Create a simple modal/dialog to select IP
+                    const modal = document.createElement('div');
+                    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4';
+
+                    const content = document.createElement('div');
+                    content.className = 'bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]';
+
+                    content.innerHTML = `
+                        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <h3 class="font-bold text-gray-800">Pilih IP dari Mikrotik</h3>
+                            <button class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
+                        </div>
+                        <div class="overflow-y-auto p-2 space-y-1">
+                            ${data.results.map(item => `
+                                <div class="p-3 hover:bg-blue-50 cursor-pointer rounded-xl border border-transparent hover:border-blue-100 transition-all flex justify-between items-center group"
+                                     onclick="selectMikrotikIP('${item.ip}', '${item.mac}', '${item.comment}')">
+                                    <div>
+                                        <div class="font-mono font-bold text-blue-600">${item.ip}</div>
+                                        <div class="text-xs text-gray-400">${item.mac} ${item.comment ? '• ' + item.comment : ''}</div>
+                                    </div>
+                                    <div class="text-xs font-bold text-gray-300 group-hover:text-blue-500">PILIH</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+
+                    modal.appendChild(content);
+                    document.body.appendChild(modal);
+
+                    // Close handler
+                    const closeBtn = content.querySelector('button');
+                    const close = () => document.body.removeChild(modal);
+                    closeBtn.onclick = close;
+                    modal.onclick = (e) => { if (e.target === modal) close(); };
+
+                    // Selection handler (global function for onclick)
+                    window.selectMikrotikIP = (ip, mac, comment) => {
+                        const ipInput = document.querySelector('input[name="ip_address"]');
+                        if (ipInput) {
+                            ipInput.value = ip;
+                            // Trigger pulse effect
+                            ipInput.classList.add('ring-4', 'ring-green-200');
+                            setTimeout(() => ipInput.classList.remove('ring-4', 'ring-green-200'), 500);
+                        }
+                        close();
+                    };
+
+                } catch (error) {
+                    console.error('Error fetching Mikrotik IPs:', error);
+                    alert('Gagal mengambil data dari Mikrotik: ' + error.message);
+                } finally {
+                    importBtn.innerHTML = originalText;
+                    importBtn.disabled = false;
+                }
+            });
+        }
     });
 </script>
