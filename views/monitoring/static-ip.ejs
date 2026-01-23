@@ -369,7 +369,7 @@
                                                 <div class="flex items-center">
                                                     <div class="w-16 h-2 bg-gray-200 rounded-full mr-2">
                                                         <div class="h-full rounded-full <%= uptimePercent >= 95 ? 'bg-green-500' : uptimePercent >= 80 ? 'bg-yellow-500' : 'bg-red-500' %>"
-                                                            style="width: <%= uptimePercent %>%">
+                                                            style="width: <%= uptimePercent + '%' %>">
                                                         </div>
                                                     </div>
                                                     <span
@@ -415,7 +415,7 @@
 
                                     <!-- Actions -->
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <button onclick="showClientDetail(<%= client.customer_id || client.id %>)"
+                                        <button onclick="showClientDetail('<%= client.customer_id || client.id %>')"
                                             class="text-purple-600 hover:text-purple-800 mr-3" title="Detail & History">
                                             <i class="fas fa-chart-line"></i>
                                         </button>

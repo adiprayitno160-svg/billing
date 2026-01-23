@@ -3,7 +3,7 @@ import multer from 'multer';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { getDashboard, getInterfaceStats } from '../controllers/dashboardController';
-import { getActivePppoeConnections, viewRegistrationRequests } from '../controllers/customerController';
+
 import { getMikrotikSettingsForm, postMikrotikSettings, postMikrotikTest, getMikrotikInfoApi } from '../controllers/settingsController';
 import { UserController } from '../controllers/userController';
 import { KasirController } from '../controllers/kasirController';
@@ -111,7 +111,8 @@ import {
     // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
     // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
     testMikrotikAddressLists,
-    getActivePppoeConnections
+    getActivePppoeConnections,
+    viewRegistrationRequests
 } from '../controllers/customerController';
 import { GenieacsService } from '../services/genieacs/GenieacsService';
 import {
