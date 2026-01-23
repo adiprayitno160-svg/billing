@@ -219,6 +219,27 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		let interfaces: any[] = [];
 		let connectionStatus = { connected: false, error: null }; // Default status
 
+		// Attempt to fetch interfaces for Live Traffic widget (Timeout 2s to prevent dashboard lag)
+		if (mtSettings) {
+			try {
+				const config: MikroTikConfig = {
+					host: mtSettings.host,
+					port: mtSettings.port,
+					username: mtSettings.username,
+					password: mtSettings.password,
+					use_tls: mtSettings.use_tls
+				};
+
+				// Fast timeout 2s
+				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard interface fetch timeout')), 2000));
+				const fetchPromise = getInterfaces(config);
+
+				interfaces = await Promise.race([fetchPromise, timeoutPromise]) as any[];
+			} catch (err) {
+				console.warn('[Dashboard] Skipping interface fetch (slow network/offline):', err);
+			}
+		}
+
 		// Get server monitoring status
 		let serverMonitoring = null;
 		try {

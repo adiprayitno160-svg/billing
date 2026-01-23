@@ -55,9 +55,10 @@
 						</div>
 					</div>
 					<div>
-						<a href="/monitoring/pppoe?status_filter=offline"
-							class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 transition">Lihat
-							Semua</a>
+						<a href="/monitoring/pppoe"
+							class="relative z-10 bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 transition shadow-sm pointer-events-auto">
+							Lihat Monitor
+						</a>
 					</div>
 				</div>
 			</div>
@@ -770,7 +771,7 @@
 										<%= new Date(job.created_at).toLocaleString('id-ID') %>
 									</p>
 								</div>
-								<button onclick="verifyTicket(<%= job.id %>)"
+								<button onclick="verifyTicket('<%= job.id %>')"
 									class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
 									Approve
 								</button>
