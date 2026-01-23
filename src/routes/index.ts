@@ -230,6 +230,18 @@ router.get('/api/health-check', (req, res) => {
     });
 });
 
+// DEBUG LINK: Check Ping from Server directly
+router.get('/api/debug/ping/:ip', (req, res) => {
+    const ip = req.params.ip;
+    if (!/^[0-9\.]+$/.test(ip)) return res.send('Invalid IP format');
+    const cmd = process.platform === 'win32' ? `ping -n 4 ${ip}` : `ping -c 4 ${ip}`;
+    const { exec } = require('child_process');
+    exec(cmd, (err: any, stdout: string, stderr: string) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(`--- DEBUG PING FROM SERVER ---\nTarget: ${ip}\nCommand: ${cmd}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}\n\nSYS ERROR:\n${err ? err.message : 'None'}`);
+    });
+});
+
 // Direct Route for Static IP Sync (Exempt from auth middleware to avoid redirect loops)
 router.all('/packages/static-ip/sync-all', postStaticIpPackageSyncAll);
 
