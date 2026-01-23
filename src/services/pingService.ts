@@ -118,16 +118,20 @@ export class PingService {
                 last_check,
                 last_online_at,
                 last_offline_at
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 status = VALUES(status),
                 response_time_ms = VALUES(response_time_ms),
                 packet_loss_percent = VALUES(packet_loss_percent),
                 consecutive_failures = VALUES(consecutive_failures),
-                last_check = NOW(),
-                last_online_at = IF(VALUES(status) = 'online', NOW(), last_online_at),
-                last_offline_at = IF(VALUES(status) = 'offline', NOW(), last_offline_at)
+                last_check = VALUES(last_check),
+                last_online_at = IF(VALUES(status) = 'online', VALUES(last_check), last_online_at),
+                last_offline_at = IF(VALUES(status) = 'offline', VALUES(last_check), last_offline_at)
         `;
+
+        const now = new Date();
+        const lastOnline = status.status === 'online' ? now : null;
+        const lastOffline = status.status === 'offline' ? now : null;
 
         await pool.query(query, [
             status.customer_id,
@@ -136,8 +140,9 @@ export class PingService {
             status.response_time_ms,
             status.packet_loss_percent,
             status.consecutive_failures,
-            status.status === 'online' ? new Date() : null,
-            status.status === 'offline' ? new Date() : null
+            now,
+            lastOnline,
+            lastOffline
         ]);
     }
 
