@@ -369,7 +369,7 @@
                                                 <div class="flex items-center">
                                                     <div class="w-16 h-2 bg-gray-200 rounded-full mr-2">
                                                         <div class="h-full rounded-full <%= uptimePercent >= 95 ? 'bg-green-500' : uptimePercent >= 80 ? 'bg-yellow-500' : 'bg-red-500' %>"
-                                                            style="width: <%= uptimePercent + '%' %>">
+                                                            style="width: <%= Math.floor(uptimePercent) %>%;">
                                                         </div>
                                                     </div>
                                                     <span

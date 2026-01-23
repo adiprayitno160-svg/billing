@@ -2063,6 +2063,15 @@ router.get('/customers/new-pppoe', async (req, res) => {
                 ORDER BY o.name
             `);
 
+            // Check for registration request (auto-fill)
+            let registrationData: any = null;
+            if (req.query.request_id) {
+                try {
+                    const [regRows] = await conn.query<RowDataPacket[]>('SELECT * FROM registration_requests WHERE id = ?', [req.query.request_id]);
+                    if (regRows.length > 0) registrationData = regRows[0];
+                } catch (e) { console.error('Err fetching registration:', e); }
+            }
+
             // Generate customer code dengan format YYYYMMDDHHMMSS
             const initial_customer_code = CustomerIdGenerator.generateCustomerId();
 
@@ -2076,6 +2085,7 @@ router.get('/customers/new-pppoe', async (req, res) => {
                 odcList: odcRows,
                 odpData: odpRows,
                 initial_customer_code,
+                registrationData,
                 error: req.query.error || null
             });
         } finally {
@@ -2121,6 +2131,15 @@ router.get('/customers/new-static-ip', async (req, res) => {
             ORDER BY o.name
         `);
 
+        // Check for registration requests
+        let registrationData: any = null;
+        if (req.query.request_id) {
+            try {
+                const [regRows] = await conn.query<RowDataPacket[]>('SELECT * FROM registration_requests WHERE id = ?', [req.query.request_id]);
+                if (regRows.length > 0) registrationData = regRows[0];
+            } catch (e) { console.error('Reg fetch err', e); }
+        }
+
         // Get interfaces from MikroTik
         const interfaces = cfg ? await getInterfaces(cfg) : [];
 
@@ -2132,6 +2151,7 @@ router.get('/customers/new-static-ip', async (req, res) => {
             odpData: odpRows,
             initial_customer_code,
             timestamp,
+            registrationData,
             error: req.query.error || null
         });
     } finally {

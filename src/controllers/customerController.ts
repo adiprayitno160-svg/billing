@@ -2349,8 +2349,19 @@ export const getActivePppoeConnections = async (req: Request, res: Response) => 
             return res.json({ status: 'success', data: [] });
         }
 
+        // Get exclude_id from query (for edit page, to show current customer's active connection)
+        const excludeId = req.query.exclude_id ? parseInt(req.query.exclude_id as string) : null;
+
         // Get all registered pppoe usernames
-        const [rows] = await databasePool.query<RowDataPacket[]>('SELECT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL');
+        let query = 'SELECT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL';
+        const params: any[] = [];
+
+        if (excludeId && !isNaN(excludeId)) {
+            query += ' AND id != ?';
+            params.push(excludeId);
+        }
+
+        const [rows] = await databasePool.query<RowDataPacket[]>(query, params);
         const registeredUsernames = new Set(rows.map(r => r.pppoe_username));
 
         // Filter: only those NOT in database

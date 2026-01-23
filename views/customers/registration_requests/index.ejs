@@ -119,14 +119,16 @@
                                     </td>
                                     <td class="px-6 py-4 text-right space-x-2">
                                         <% if (request.status==='pending' ) { %>
-                                            <form action="/customers/registration-requests/<%= request.id %>/approve"
-                                                method="POST" class="inline"
-                                                onsubmit="return confirm('Apakah Anda yakin ingin menyetujui registrasi ini? Data pelanggan akan dibuat otomatis.');">
-                                                <button type="submit"
-                                                    class="px-3 py-1.5 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-300 transition-colors">
-                                                    Setujui
-                                                </button>
-                                            </form>
+                                            <div class="flex flex-col gap-1">
+                                                <a href="/customers/new-pppoe?request_id=<%= request.id %>"
+                                                    class="px-3 py-1.5 text-xs text-center font-bold text-white bg-blue-500 rounded-lg hover:bg-blue-600 shadow-sm transition-all whitespace-nowrap">
+                                                    ✅ Buat PPPoE
+                                                </a>
+                                                <a href="/customers/new-static-ip?request_id=<%= request.id %>"
+                                                    class="px-3 py-1.5 text-xs text-center font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 shadow-sm transition-all whitespace-nowrap">
+                                                    ✅ Buat Static IP
+                                                </a>
+                                            </div>
                                             <button type="button" onclick="openRejectModal(<%= request.id %>)"
                                                 class="px-3 py-1.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 focus:ring-2 focus:ring-red-300 transition-colors">
                                                 Tolak
