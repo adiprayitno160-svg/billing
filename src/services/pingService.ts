@@ -231,8 +231,14 @@ export class PingService {
         try {
             // Calculate router IP (peer/client IP) from CIDR
             // If stored IP is MikroTik gateway (192.168.1.1), this returns router IP (192.168.1.2)
-            const peerIP = this.calculatePeerIP(customer.ip_address);
-            console.log(`[PingService] Monitoring customer ${customer.customer_id} (${customer.customer_name}): Stored IP=${customer.ip_address}, Router IP to Ping=${peerIP}`);
+            let peerIP = this.calculatePeerIP(customer.ip_address);
+
+            // EXTRA SAFETY: Ensure no CIDR remains
+            if (peerIP.includes('/')) {
+                peerIP = peerIP.split('/')[0];
+            }
+
+            console.log(`[PingService] Monitoring customer ${customer.customer_id} (${customer.customer_name}): Stored IP=${customer.ip_address} -> Ping Target=${peerIP}`);
 
             // Ping the router IP (client router), NOT the MikroTik gateway IP
             const pingResult = await this.pingHost(peerIP);

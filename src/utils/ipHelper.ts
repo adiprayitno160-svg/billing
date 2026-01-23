@@ -63,7 +63,9 @@ export function calculateCustomerIP(cidrAddress: string): string {
       }
     }
 
-    // Untuk subnet lain, return IP tanpa CIDR
+    // Untuk subnet lain (selain /30), atau jika logika /30 tidak match (misal bukan .1 atau .2)
+    // KITA HARUS SELALU MENGEMBALIKAN IP TANPA CIDR
+    // Agar command ping bisa berjalan
     return ipPart || '';
   } catch (error) {
     // Jika error, return IP part saja (tanpa CIDR)

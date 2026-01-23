@@ -201,23 +201,69 @@ export class WhatsAppHandler {
     }
 
     private static async getCustomerByPhone(phone: string): Promise<any> {
-        // Normalize 628... to 08... or vice versa logic if needed. 
-        // Best approach: try multiple formats
-        // Also handle if phone is actually an LID (very long number), it won't be in DB probably.
+        // Normalize phone number - strip all non-digits first
+        const cleanPhone = phone.replace(/\D/g, '');
 
-        const formats = [
-            phone,
-            phone.replace(/^62/, '0'),
-            `62${phone.replace(/^0/, '')}`
-        ];
-
-        for (const fmt of formats) {
-            const [rows] = await databasePool.query<RowDataPacket[]>(
-                'SELECT * FROM customers WHERE phone = ? OR phone = ? LIMIT 1',
-                [fmt, fmt]
-            );
-            if (rows.length > 0) return rows[0];
+        // If phone is too short or too long (LID), skip
+        if (cleanPhone.length < 9 || cleanPhone.length > 15) {
+            console.log(`[WhatsAppHandler] Phone ${phone} invalid length, skipping lookup`);
+            return null;
         }
+
+        // Generate all possible formats
+        const formats: string[] = [];
+
+        // Original
+        formats.push(cleanPhone);
+
+        // If starts with 62, try without it (convert to 0xxx)
+        if (cleanPhone.startsWith('62')) {
+            formats.push('0' + cleanPhone.substring(2));
+            formats.push(cleanPhone.substring(2)); // raw without prefix
+        }
+
+        // If starts with 0, try with 62
+        if (cleanPhone.startsWith('0')) {
+            formats.push('62' + cleanPhone.substring(1));
+            formats.push(cleanPhone.substring(1)); // raw without 0
+        }
+
+        // If starts with 8 (raw), try 08 and 628
+        if (cleanPhone.startsWith('8')) {
+            formats.push('0' + cleanPhone);
+            formats.push('62' + cleanPhone);
+        }
+
+        // Remove duplicates
+        const uniqueFormats = [...new Set(formats)];
+
+        console.log(`[WhatsAppHandler] Looking up phone: ${phone} -> formats:`, uniqueFormats);
+
+        for (const fmt of uniqueFormats) {
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT * FROM customers WHERE phone = ? LIMIT 1',
+                [fmt]
+            );
+            if (rows.length > 0) {
+                console.log(`[WhatsAppHandler] ✅ Found customer: ${rows[0].name} (phone: ${rows[0].phone})`);
+                return rows[0];
+            }
+        }
+
+        // Fallback: Try partial LIKE match (last 9 digits)
+        if (cleanPhone.length >= 9) {
+            const last9 = cleanPhone.slice(-9);
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT * FROM customers WHERE phone LIKE ? LIMIT 1',
+                [`%${last9}`]
+            );
+            if (rows.length > 0) {
+                console.log(`[WhatsAppHandler] ✅ Found customer via partial match: ${rows[0].name}`);
+                return rows[0];
+            }
+        }
+
+        console.log(`[WhatsAppHandler] ❌ No customer found for phone: ${phone}`);
         return null;
     }
 
