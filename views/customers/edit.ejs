@@ -1060,10 +1060,27 @@
                 importPppoeBtn.disabled = true;
 
                 try {
+                    console.log('Fetching active PPPoE connections...');
                     const response = await fetch('/api/mikrotik/pppoe/active-unregistered');
-                    const result = await response.json();
 
-                    if (result.status !== 'success') throw new Error(result.message || 'Unknown error');
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error('Server Error Response:', text);
+                        // Try to parse JSON from error response if possible
+                        try {
+                            const jsonErr = JSON.parse(text);
+                            throw new Error(jsonErr.message || `Server Error ${response.status}`);
+                        } catch (e) {
+                            throw new Error(`Gagal mengambil data (${response.status}): ${text.substring(0, 50)}...`);
+                        }
+                    }
+
+                    const result = await response.json();
+                    console.log('Data received:', result);
+
+                    if (result.status !== 'success') {
+                        throw new Error(result.message || 'Unknown error from backend');
+                    }
 
                     const users = result.data || [];
 

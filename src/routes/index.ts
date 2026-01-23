@@ -728,6 +728,9 @@ router.get('/api/mikrotik/secrets/search', async (req, res) => {
     }
 });
 
+// API endpoint for active PPPoE connections (not in billing)
+router.get('/api/mikrotik/pppoe/active-unregistered', isAuthenticated, getActivePppoeConnections);
+
 // API endpoint untuk get customers with device_id (for WiFi admin)
 router.get('/api/customers', async (req, res) => {
     try {
