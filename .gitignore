@@ -43,7 +43,10 @@ baileys-session-new/
 *.wwebjs_cache
 baileys_auth/
 .baileys_auth/
+.baileys_auth/
 .whatsapp_lock
+whatsapp_auth/
+whatsapp_auth/*
 
 # Uploads
 uploads/
