@@ -194,12 +194,6 @@
                             Status Ping</th>
                         <th
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                            Response / Loss</th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                            SN</th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             ODP</th>
                         <th
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -272,11 +266,6 @@
                                                 <code
                                                     class="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono"><%= client.ip_address %></code>
                                                 <% } %>
-                                                    <% if (client.customer_code) { %>
-                                                        <div class="text-xs text-gray-500 mt-1">
-                                                            <%= client.customer_code %>
-                                                        </div>
-                                                        <% } %>
                                     </td>
 
                                     <!-- Ping Status Detail -->
@@ -336,16 +325,6 @@
                                                                                     di-check
                                                                                 </div>
                                                                                 <% } %>
-                                    </td>
-
-                                    </td>
-
-                                    <!-- Serial Number -->
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div
-                                            class="text-xs font-mono text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                            <%= client.serial_number || '-' %>
-                                        </div>
                                     </td>
 
                                     <!-- ODP -->
