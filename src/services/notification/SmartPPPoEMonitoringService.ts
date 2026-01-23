@@ -2,7 +2,7 @@ import { databasePool } from '../../db/pool';
 import { getPppoeActiveConnections } from '../mikrotikService';
 import { getMikrotikConfig } from '../pppoeService';
 import { mikrotikPool } from '../MikroTikConnectionPool';
-import { WhatsAppService } from '../whatsapp/WhatsAppService';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 
 interface PrepaidCustomer {
   id: number;
@@ -17,10 +17,9 @@ interface PrepaidCustomer {
 }
 
 export class SmartPPPoEMonitoringService {
-  private whatsappService: WhatsAppService;
+  private whatsappService = whatsappService;
 
   constructor() {
-    this.whatsappService = new WhatsAppService();
   }
 
   /**

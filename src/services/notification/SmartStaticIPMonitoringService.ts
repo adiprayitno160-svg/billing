@@ -1,5 +1,5 @@
 import { databasePool } from '../../db/pool';
-import { WhatsAppService } from '../whatsapp/WhatsAppService';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -20,10 +20,9 @@ interface StaticIPCustomer {
 }
 
 export class SmartStaticIPMonitoringService {
-  private whatsappService: WhatsAppService;
+  private whatsappService = whatsappService;
 
   constructor() {
-    this.whatsappService = new WhatsAppService();
   }
 
   /**

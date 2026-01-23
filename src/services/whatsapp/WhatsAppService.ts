@@ -604,7 +604,7 @@ export class WhatsAppService extends EventEmitter {
 
       // Send message
       const sent = await this.sock.sendMessage(to, content, {
-        quoted: options?.quoted
+        quoted: options?.quoted as any
       });
 
       // Clear typing

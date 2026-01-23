@@ -358,7 +358,7 @@ export class UnifiedNotificationService {
           const whatsappResult = await waClient.sendMessage(customer.phone, fullMessage);
 
           console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {
-            messageId: whatsappResult.id?.id || 'unknown',
+            messageId: whatsappResult.messageId || 'unknown',
             notification_id: notification.id
           });
         } catch (sendError: any) {

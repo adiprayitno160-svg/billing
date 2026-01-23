@@ -873,8 +873,8 @@ export class NotificationTemplateController {
 
         // Check 2: WhatsApp status
         // Check 2: WhatsApp status
-        const { WhatsAppClient } = await import('../../services/whatsapp/WhatsAppClient');
-        const waClient = WhatsAppClient.getInstance();
+        const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+        const waClient = whatsappService;
         const whatsappStatus = waClient.getStatus();
         analysis.checks.push({
           check: 'WhatsApp Client',

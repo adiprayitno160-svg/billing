@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
 import { AIAnomalyDetectionService } from '../billing/AIAnomalyDetectionService';
-import { WhatsAppService } from '../whatsapp/WhatsAppService';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 import { StaticIPMonitoringService } from './StaticIPMonitoringService';
 import { NotificationTemplateService } from './NotificationTemplateService';
 
@@ -35,14 +35,13 @@ interface AnomalyEvent {
 
 export class SelfHealingNotificationService {
   private aiService: AIAnomalyDetectionService;
-  private whatsappService: WhatsAppService;
+  private whatsappService = whatsappService;
   private notificationTemplateService: NotificationTemplateService;
   private anomalyThresholdMinutes = 3; // 3 minutes threshold
   private massOutageThreshold = 5; // Considered mass outage if 5+ customers affected in same area
 
   constructor() {
     this.aiService = new AIAnomalyDetectionService();
-    this.whatsappService = new WhatsAppService();
     this.notificationTemplateService = new NotificationTemplateService();
   }
 

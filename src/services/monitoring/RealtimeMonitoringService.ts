@@ -98,7 +98,7 @@ export class RealtimeMonitoringService {
 
             const poolConfig = {
                 host: config.host,
-                port: config.port || config.api_port || 8728,
+                port: config.port || (config as any).api_port || 8728,
                 username: config.username,
                 password: config.password
             };

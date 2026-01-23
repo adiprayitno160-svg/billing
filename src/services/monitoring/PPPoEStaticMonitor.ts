@@ -36,7 +36,14 @@ export class PPPoEStaticMonitor extends EventEmitter {
         else if (level === 'warn') console.warn(logMsg, data || '');
         else console.log(logMsg, data || '');
         // Also write to billing log service
-        BillingLogService?.log(level, message, data);
+        // Also write to billing log service
+        BillingLogService?.log({
+            level: level as any,
+            type: 'mikrotik',
+            service: 'PPPoEStaticMonitor',
+            message: message,
+            context: data
+        });
     }
 
     /**
@@ -50,7 +57,7 @@ export class PPPoEStaticMonitor extends EventEmitter {
         this.scheduler = cron.schedule(cronExpression, async () => {
             this.log('info', 'Running PPPoE static IP health check');
             try {
-                const { rows } = await databasePool.query(
+                const [rows]: any = await databasePool.query(
                     `SELECT id, name, static_ip FROM customers WHERE static_ip IS NOT NULL AND static_ip <> ''`
                 );
                 // @ts-ignore – rows is any[] from mysql2
