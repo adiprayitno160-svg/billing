@@ -3,6 +3,7 @@ import multer from 'multer';
 import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { getDashboard, getInterfaceStats } from '../controllers/dashboardController';
+import { getActivePppoeConnections, viewRegistrationRequests } from '../controllers/customerController';
 import { getMikrotikSettingsForm, postMikrotikSettings, postMikrotikTest, getMikrotikInfoApi } from '../controllers/settingsController';
 import { UserController } from '../controllers/userController';
 import { KasirController } from '../controllers/kasirController';
@@ -360,6 +361,7 @@ router.get('/api/check-notification', async (req, res) => {
 });
 
 router.get('/', getDashboard);
+router.get('/customers/registration-requests', isAuthenticated, viewRegistrationRequests);
 router.get('/api/interface-stats', getInterfaceStats);
 router.get('/api/mikrotik/info', getMikrotikInfoApi);
 

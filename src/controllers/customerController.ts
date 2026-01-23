@@ -2364,3 +2364,31 @@ export const getActivePppoeConnections = async (req: Request, res: Response) => 
         res.status(500).json({ status: 'error', message: e.message || 'Terjadi kesalahan sistem internal saat mengambil data Mikrotik.' });
     }
 };
+
+/**
+ * View Registration Requests
+ */
+export const viewRegistrationRequests = async (req: Request, res: Response) => {
+    try {
+        // Ambil data permintaan registrasi dari database
+        let requests: any[] = [];
+        try {
+            const [rows] = await databasePool.query<RowDataPacket[]>('SELECT * FROM registration_requests ORDER BY created_at DESC');
+            requests = rows;
+        } catch (dbError) {
+            console.warn('Tabel registration_requests mungkin belum ada:', dbError);
+        }
+
+        res.render('customers/registration_requests/index', {
+            title: 'Permintaan Registrasi',
+            currentPath: '/customers/registration-requests',
+            requests,
+            layout: 'layouts/main',
+            user: (req as any).user
+        });
+    } catch (error: any) {
+        console.error('Error viewing registration requests:', error);
+        req.flash('error', 'Gagal memuat halaman permintaan registrasi.');
+        res.redirect('/customers/list');
+    }
+};
