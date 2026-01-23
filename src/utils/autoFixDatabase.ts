@@ -312,3 +312,26 @@ export async function autoFixWhatsAppTables(): Promise<void> {
     console.error('❌ [AutoFix] Error ensuring WhatsApp tables:', error);
   }
 }
+
+/**
+ * Auto-fix Customer columns
+ */
+export async function autoFixCustomerColumns(): Promise<void> {
+  try {
+    console.log('🔧 [AutoFix] Checking Customer table columns...');
+
+    // Check for name_edited_at
+    const [columns]: any = await pool.query("SHOW COLUMNS FROM customers LIKE 'name_edited_at'");
+
+    if (columns.length === 0) {
+      console.log("⚠️ [AutoFix] Column 'name_edited_at' missing in customers, adding...");
+      await pool.query("ALTER TABLE customers ADD COLUMN name_edited_at DATETIME DEFAULT NULL");
+      console.log("✅ [AutoFix] Column 'name_edited_at' added successfully");
+    } else {
+      console.log("✅ [AutoFix] Column 'name_edited_at' exists");
+    }
+
+  } catch (error: any) {
+    console.error('❌ [AutoFix] Error checking customer columns:', error);
+  }
+}

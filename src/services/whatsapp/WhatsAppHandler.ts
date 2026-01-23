@@ -178,6 +178,12 @@ export class WhatsAppHandler {
                 }
             }
 
+            // 6.5 Admin/Operator Request
+            if (keyword === 'admin' || keyword === 'operator' || cleanText.includes('hubungi admin')) {
+                await service.sendMessage(senderJid, `👨‍💼 *Kontak Admin/Operator*\n\nSilakan hubungi kami di:\nwa.me/628123456789 (Admin Utama)\n\n_Jam Operasional: 08:00 - 17:00_`);
+                return;
+            }
+
             // 7. AI ChatBot Fallback
             try {
                 // If customer is null, treat as guest. AI will handle generic Q&A.
