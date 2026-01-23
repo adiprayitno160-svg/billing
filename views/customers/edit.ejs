@@ -164,13 +164,14 @@
                                     <label
                                         class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Username
                                         PPPoE <span class="text-red-500">*</span></label>
-                                    <div class="space-y-1">
+                                    <div class="flex gap-2">
                                         <input type="text" name="pppoe_username"
                                             value="<%= customer.pppoe_username || '' %>" id="pppoe_username"
                                             class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all font-bold text-blue-700 outline-none text-sm" />
                                         <button type="button" id="btn-import-active-pppoe"
-                                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 px-2">
-                                            📥 Import dari Active Connection (MikroTik)
+                                            class="shrink-0 px-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 border border-blue-100 transition-colors text-xs font-bold flex items-center gap-1"
+                                            title="Import dari Active Connection">
+                                            📥 Import
                                         </button>
                                     </div>
                                 </div>
@@ -1007,7 +1008,8 @@
 
                     // Create a simple modal/dialog to select IP
                     const modal = document.createElement('div');
-                    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4';
+                    modal.className = 'flex items-center justify-center bg-black/50 backdrop-blur-sm p-4';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999;';
 
                     const content = document.createElement('div');
                     content.className = 'bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]';
@@ -1102,7 +1104,8 @@
 
                     // Create Modal
                     const modal = document.createElement('div');
-                    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in px-4';
+                    modal.className = 'flex items-center justify-center bg-black/50 backdrop-blur-sm px-4';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999;';
 
                     const content = document.createElement('div');
                     content.className = 'bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]';
