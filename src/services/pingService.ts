@@ -41,9 +41,14 @@ export class PingService {
      */
     async pingHost(ipAddress: string): Promise<PingResult> {
         try {
+            // Determine OS-specific arguments
+            // Windows uses -n for count, Linux/Unix uses -c
+            const isWindows = process.platform === 'win32';
+            const extraArgs = isWindows ? ['-n', '4'] : ['-c', '4'];
+
             const result = await ping.promise.probe(ipAddress, {
                 timeout: this.PING_TIMEOUT,
-                extra: ['-n', '4'], // Windows: 4 packets
+                extra: extraArgs,
             });
 
             return {

@@ -2316,17 +2316,38 @@ export const switchToPostpaid = async (req: Request, res: Response) => {
  */
 export const getActivePppoeConnections = async (req: Request, res: Response) => {
     try {
+        console.log('[API] getActivePppoeConnections called');
+
         const mikrotikConfig = await getMikrotikConfig();
         if (!mikrotikConfig) {
-            res.status(500).json({ status: 'error', message: 'Mikrotik configuration not found' });
-            return;
+            console.error('[API] getActivePppoeConnections: No Mikrotik Config found');
+            return res.status(500).json({ status: 'error', message: 'Konfigurasi Mikrotik belum diset atau tidak ditemukan di database.' });
         }
 
-        const { getPppoeActiveConnections } = await import('../services/mikrotikService');
-        const actives = await getPppoeActiveConnections({
+        // Import service safely
+        let getPppoeActiveConnections;
+        try {
+            const service = await import('../services/mikrotikService');
+            getPppoeActiveConnections = service.getPppoeActiveConnections;
+        } catch (impErr: any) {
+            console.error('[API] Failed to import mikrotikService:', impErr);
+            return res.status(500).json({ status: 'error', message: 'Gagal memuat service mikrotik: ' + impErr.message });
+        }
+
+        console.log('[API] Connecting to Mikrotik to fetch active connections...');
+
+        // Pass config ensuring all required fields are present
+        const safeConfig = {
             ...mikrotikConfig,
             use_tls: mikrotikConfig.use_tls ?? false
-        });
+        };
+
+        const actives = await getPppoeActiveConnections(safeConfig);
+        console.log(`[API] Got ${actives ? actives.length : 0} active connections`);
+
+        if (!actives || !Array.isArray(actives)) {
+            return res.json({ status: 'success', data: [] });
+        }
 
         // Get all registered pppoe usernames
         const [rows] = await databasePool.query<RowDataPacket[]>('SELECT pppoe_username FROM customers WHERE pppoe_username IS NOT NULL');
@@ -2334,10 +2355,12 @@ export const getActivePppoeConnections = async (req: Request, res: Response) => 
 
         // Filter: only those NOT in database
         const unregistered = actives.filter(a => !registeredUsernames.has(a.name));
+        console.log(`[API] Filtering complete. Returning ${unregistered.length} unregistered active connections.`);
 
         res.json({ status: 'success', data: unregistered });
-    } catch (e) {
-        console.error('[getActivePppoeConnections] Error:', e);
-        res.status(500).json({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+    } catch (e: any) {
+        console.error('[getActivePppoeConnections] Critical Error:', e);
+        // Ensure we send JSON even on crash
+        res.status(500).json({ status: 'error', message: e.message || 'Terjadi kesalahan sistem internal saat mengambil data Mikrotik.' });
     }
 };
