@@ -137,13 +137,29 @@ export class InvoiceController {
             }
 
             // Get active customers list for manual billing
-            const customerQuery = `
+            // Filter out customers who already have invoices for the selected period (if provided)
+            let excludedIds: number[] = [];
+            if (period) {
+                try {
+                    const [existing] = await databasePool.query<RowDataPacket[]>('SELECT customer_id FROM invoices WHERE period = ?', [period]);
+                    excludedIds = existing.map((r: any) => r.customer_id);
+                } catch (e) { console.error('Error fetching excluded IDs:', e); }
+            }
+
+            let customerQuery = `
                 SELECT c.id, c.name, c.customer_code, o.name as odc_name
                 FROM customers c
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
                 WHERE c.status = 'active'
-                ORDER BY c.name ASC
             `;
+
+            // Add exclusion clause safely
+            if (excludedIds.length > 0) {
+                customerQuery += ` AND c.id NOT IN (${excludedIds.join(',')})`;
+            }
+
+            customerQuery += ` ORDER BY c.name ASC`;
+
             const [activeResult] = await databasePool.query(customerQuery);
             const activeCustomers = activeResult as RowDataPacket[];
 
@@ -487,23 +503,26 @@ export class InvoiceController {
                     const normalizedSubId = (subscription.id && subscription.id > 0) ? subscription.id : 0;
                     const exactKey = `${subscription.customer_id}_${normalizedSubId}`;
 
-                    // Check if invoice already exists for this period
-                    // Priority: 1) Exact match (same customer + subscription), 2) Legacy invoice for same customer
-                    const hasExactMatch = exactMatchSet.has(exactKey);
-                    const hasLegacyInvoice = customersWithLegacyInvoices.has(subscription.customer_id);
+                    const hasActiveSubscription = subscription.id && subscription.id > 0;
 
-                    if (hasExactMatch || hasLegacyInvoice) {
+                    // Check if invoice already exists for this period
+                    const hasExactMatch = exactMatchSet.has(exactKey);
+
+                    // Only block based on legacy invoice (sub_id=0) IF we are currently trying to create a sub_id=0 invoice
+                    // This allows specific subscription invoices to be created even if a general invoice exists
+                    const isLegacyConflict = (normalizedSubId === 0) && customersWithLegacyInvoices.has(subscription.customer_id);
+
+                    if (hasExactMatch || isLegacyConflict) {
                         skippedCount++;
-                        const subscriptionInfo = subscription.id && subscription.id > 0 ? `subscription_id: ${subscription.id}` : 'no subscription';
+                        const subscriptionInfo = hasActiveSubscription ? `subscription_id: ${subscription.id}` : 'no subscription';
                         const reason = hasExactMatch
-                            ? `exact match found (customer_id: ${subscription.customer_id}, subscription_id: ${subscription.id || 'NULL'})`
-                            : `customer has legacy invoice with NULL/0 subscription_id for this period (customer_id: ${subscription.customer_id})`;
-                        console.log(`⚠ Invoice already exists for customer ${subscription.customer_name} (${subscriptionInfo}) - ${reason}`);
+                            ? `exact match found`
+                            : `customer has legacy invoice`;
+                        console.log(`⚠ Invoice already exists (Merged Log: ${reason})`);
                         continue;
                     }
 
-                    const hasActiveSubscription = subscription.id && subscription.id > 0;
-                    console.log(`✓ Processing customer ${subscription.customer_name} (customer_id: ${subscription.customer_id}${hasActiveSubscription ? `, subscription_id: ${subscription.id}` : ', no active subscription - using default price'})`);
+                    console.log(`✓ Processing customer ${subscription.customer_name} (customer_id: ${subscription.customer_id})`);
 
                     // Calculate due date (Consistent with Scheduler)
                     const periodDate = new Date(currentPeriod + '-01');
