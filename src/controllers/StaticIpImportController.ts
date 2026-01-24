@@ -3,6 +3,8 @@ import { StaticIpImportService } from '../services/mikrotik/StaticIpImportServic
 import { databasePool } from '../db/pool';
 import { listStaticIpPackages, syncClientQueues } from '../services/staticIpPackageService';
 import { CustomerIdGenerator } from '../utils/customerIdGenerator';
+import CustomerNotificationService from '../services/customer/CustomerNotificationService';
+import { RowDataPacket } from 'mysql2';
 
 const importService = new StaticIpImportService();
 
@@ -225,6 +227,28 @@ export class StaticIpImportController {
             );
 
             await conn.commit();
+
+            // SEND NOTIFICATION
+            try {
+                const [pkgRowsNotif] = await databasePool.query<RowDataPacket[]>('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
+                const packageName = (pkgRowsNotif as any)[0]?.name;
+
+                // Fire and forget notification
+                CustomerNotificationService.notifyNewCustomer({
+                    customerId: newCustomerId,
+                    customerName: name,
+                    customerCode: customerCode,
+                    phone: phone,
+                    connectionType: 'static_ip',
+                    address: address,
+                    packageName: packageName,
+                    createdBy: (req.user as any)?.username || 'System Import'
+                }).catch(err => console.error('Background notification failed:', err));
+
+            } catch (notifErr) {
+                console.error('Notification setup failed:', notifErr);
+            }
+
             res.json({ success: true, message: 'Pelanggan berhasil diadopsi!', customerId: newCustomerId });
 
         } catch (error) {
