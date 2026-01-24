@@ -27,9 +27,17 @@ git fetch --all
 git reset --hard origin/main
 git pull origin main
 
-# 3. Install Dependencies
-echo "📦 Menginstall/Update dependencies..."
-npm install
+# 3. Clean & Install Dependencies
+echo "🧹 Membersihkan build lama..."
+rm -rf dist/
+
+echo "📦 Menginstall dependencies (Clean Install)..."
+# Gunakan 'npm ci' jika ada package-lock.json untuk instalasi yang lebih cepat dan akurat
+if [ -f "package-lock.json" ]; then
+    npm ci
+else
+    npm install
+fi
 
 # 4. Build TypeScript
 echo "🔨 Membangun ulang project (Build)..."
