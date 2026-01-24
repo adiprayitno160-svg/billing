@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { StaticIpImportService } from '../services/mikrotik/StaticIpImportService';
 import { databasePool } from '../db/pool';
-import { listStaticIpPackages } from '../services/staticIpPackageService';
+import { listStaticIpPackages, syncClientQueues } from '../services/staticIpPackageService';
 import { CustomerIdGenerator } from '../utils/customerIdGenerator';
 
 const importService = new StaticIpImportService();
@@ -214,6 +214,15 @@ export class StaticIpImportController {
             if (!renameSuccess) {
                 throw new Error('Gagal update MikroTik. Transaksi dibatalkan.');
             }
+
+            // 6. FULL SYNC: Enforce Package, Parent, and Queue Structure
+            console.log('[Import] 🔄 Syncing Queues to enforce Package Parent...');
+            await syncClientQueues( // Import this function
+                newCustomerId,
+                parseInt(String(packageId)),
+                ipAddress,
+                name
+            );
 
             await conn.commit();
             res.json({ success: true, message: 'Pelanggan berhasil diadopsi!', customerId: newCustomerId });
