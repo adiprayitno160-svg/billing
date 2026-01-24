@@ -13,6 +13,7 @@ import { RowDataPacket } from 'mysql2';
 export class NotificationScheduler {
   private static cronJob: cron.ScheduledTask | null = null;
   private static isRunning = false;
+  private static lastRunTime: number = 0;
 
   /**
    * Initialize scheduler
@@ -23,23 +24,38 @@ export class NotificationScheduler {
       return;
     }
 
-    // Run every 2 minutes to process pending notifications
-    this.cronJob = cron.schedule('*/2 * * * *', async () => {
+    // Run every 30 seconds to process pending notifications (High Frequency)
+    this.cronJob = cron.schedule('*/30 * * * * *', async () => {
       if (this.isRunning) {
-        console.log('[NotificationScheduler] Already running, skipping...');
-        return;
+        // If running for more than 2 minutes, force reset (zombie check)
+        const diff = Date.now() - (this.lastRunTime || 0);
+        if (diff > 120000 && this.lastRunTime > 0) {
+          console.warn('[NotificationScheduler] ⚠️ Force resetting stuck scheduler (stalled for >2m)');
+          this.isRunning = false;
+        } else {
+          // console.log('[NotificationScheduler] Already running, skipping...');
+          return;
+        }
       }
 
       this.isRunning = true;
+      this.lastRunTime = Date.now();
 
       try {
         const result = await UnifiedNotificationService.sendPendingNotifications(50);
-        console.log(`[NotificationScheduler] Processed: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
+        if (result.sent > 0 || result.failed > 0) {
+          console.log(`[NotificationScheduler] 📨 Processed: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
+        }
       } catch (error) {
-        console.error('[NotificationScheduler] Error processing notifications:', error);
+        console.error('[NotificationScheduler] ❌ Error processing notifications:', error);
       } finally {
         this.isRunning = false;
       }
+    });
+
+    // Run Cleanup Daily 3 AM
+    cron.schedule('0 3 * * *', async () => {
+      await this.cleanupOldLogs();
     });
 
     // Run Network Monitoring Check every 5 minutes
@@ -150,6 +166,24 @@ export class NotificationScheduler {
   }
 
 
+
+  /**
+   * Cleanup old notification logs
+   */
+  private static async cleanupOldLogs(): Promise<void> {
+    console.log('[NotificationScheduler] 🧹 Starting notification cleanup...');
+    const connection = await databasePool.getConnection();
+    try {
+      const [result] = await connection.query(
+        "DELETE FROM unified_notifications_queue WHERE created_at < DATE_SUB(NOW(), INTERVAL 60 DAY) AND status IN ('sent', 'skipped')"
+      );
+      console.log(`[NotificationScheduler] 🧹 Cleaned up ${(result as any).affectedRows} old notifications`);
+    } catch (error) {
+      console.error('[NotificationScheduler] ❌ Cleanup failed:', error);
+    } finally {
+      connection.release();
+    }
+  }
 
   /**
    * Stop scheduler
