@@ -39,7 +39,9 @@ router.post('/system/check-update', SystemSettingsController.checkUpdate);
 router.post('/system/perform-update', SystemSettingsController.performUpdate);
 
 // Routes untuk System Update (Git-based)
-router.get('/system-update', SystemUpdateController.showUpdatePage);
+import { getSystemUpdatePage } from '../controllers/settings/SystemUpdatePageController';
+router.get('/system-update', getSystemUpdatePage);
+// router.get('/system-update', SystemUpdateController.showUpdatePage); // Deprecated/Replaced
 router.get('/system-update/check', SystemUpdateController.checkForUpdates);
 router.post('/system-update/perform', SystemUpdateController.performUpdate);
 router.get('/system-update/history', SystemUpdateController.getUpdateHistory);

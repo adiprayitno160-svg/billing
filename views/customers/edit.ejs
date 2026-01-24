@@ -644,14 +644,82 @@
             }
         }));
 
-        // === Device Rental Toggle ===
-        const rentalCheck = document.getElementById('use_device_rental');
-        const rentalOptions = document.getElementById('rental_options');
-        if (rentalCheck && rentalOptions) {
-            rentalCheck.addEventListener('change', function () {
-                if (this.checked) rentalOptions.classList.remove('hidden');
-                else rentalOptions.classList.add('hidden');
+        // === Check PPPoE Username Availability ===
+        const pppoeInput = document.getElementById('pppoe_username');
+        if (pppoeInput) {
+            const pppoeMsg = document.createElement('div');
+            pppoeMsg.id = 'pppoe-check-msg';
+            pppoeMsg.className = 'text-xs font-bold mt-1 min-h-[20px]';
+            // Insert after the input group (flex container)
+            pppoeInput.closest('div').parentNode.appendChild(pppoeMsg);
+
+            let pppoeCheckTimeout;
+            pppoeInput.addEventListener('input', function () {
+                clearTimeout(pppoeCheckTimeout);
+                pppoeMsg.innerHTML = '';
+                pppoeInput.classList.remove('border-green-500', 'border-red-500', 'border-yellow-500');
+
+                const username = this.value.trim();
+                const currentId = '<%= customer.id %>';
+
+                if (username.length < 3) return;
+
+                pppoeCheckTimeout = setTimeout(() => {
+                    pppoeMsg.innerHTML = '<span class="text-blue-500 animate-pulse">🔍 Memeriksa ketersediaan...</span>';
+
+                    fetch('/api/customers/check-pppoe?username=' + encodeURIComponent(username) + '&exclude_id=' + currentId)
+                        .then(r => r.json())
+                        .then(data => {
+                            pppoeInput.classList.remove('border-green-500', 'border-red-500', 'border-yellow-500');
+
+                            if (data.existsInDb) {
+                                // Used by another customer
+                                pppoeInput.classList.add('border-red-500');
+                                pppoeMsg.innerHTML = `<span class="text-red-500 flex items-center gap-1">⛔ Digunakan oleh: <strong>${data.customerName}</strong> (#${data.customerCode})</span>`;
+                            } else if (data.existsInMikrotik) {
+                                // Exists in MikroTik (Unlinked or Orphaned)
+                                pppoeInput.classList.add('border-yellow-500');
+                                // Store data in window/global to verify
+                                window.foundMikrotikData = data;
+
+                                pppoeMsg.innerHTML = `
+                                    <div class="flex flex-col gap-1 items-start text-yellow-700 bg-yellow-50 p-2 rounded-lg border border-yellow-200">
+                                        <div class="flex items-center gap-1">
+                                            <span>⚠️ Ditemukan di MikroTik (Belum terdaftar di DB).</span>
+                                        </div>
+                                        <button type="button" onclick="importMikrotikPppoeData()" class="px-3 py-1 bg-yellow-200 hover:bg-yellow-300 rounded-lg text-xs font-bold shadow-sm transition-all">
+                                            📥 Import Password & Profile
+                                        </button>
+                                    </div>
+                                 `;
+                            } else {
+                                // Available
+                                pppoeInput.classList.add('border-green-500');
+                                pppoeMsg.innerHTML = '<span class="text-green-600 flex items-center gap-1">✅ Username tersedia (Baru)</span>';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Check failed:', err);
+                            pppoeMsg.innerHTML = '<span class="text-slate-400">Gagal memeriksa (Offline?)</span>';
+                        });
+                }, 800); // 800ms debounce
             });
+
+            window.importMikrotikPppoeData = () => {
+                if (window.foundMikrotikData) {
+                    const d = window.foundMikrotikData;
+                    const passInput = document.getElementById('pppoe_password');
+
+                    if (passInput && d.password) {
+                        passInput.value = d.password;
+                        passInput.classList.add('bg-yellow-50', 'transition-all');
+                        setTimeout(() => passInput.classList.remove('bg-yellow-50'), 1000);
+                    }
+
+                    // Attempt to select profile/package if matched logic exists (optional)
+                    alert('✅ Data MikroTik Berhasil Di-load:\nPassword: ' + (d.password || '*****') + '\nProfile: ' + (d.profile || '-'));
+                }
+            };
         }
 
         // === Maps & Get Location ===

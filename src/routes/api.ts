@@ -52,4 +52,12 @@ router.get('/proxy/ip-location', async (req: Request, res: Response) => {
     }
 });
 
+import customerApiRoutes from './api/customerApiRoutes';
+router.use(customerApiRoutes);
+
+import { checkSystemUpdate, performSystemUpdate } from '../controllers/api/SystemUpdateController';
+
+router.get('/system/check-update', checkSystemUpdate);
+router.post('/system/update', performSystemUpdate);
+
 export default router;
