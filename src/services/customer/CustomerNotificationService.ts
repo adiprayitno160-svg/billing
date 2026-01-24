@@ -33,47 +33,45 @@ export class CustomerNotificationService {
    */
   private async ensureTemplateExists(): Promise<boolean> {
     try {
-      // Check if template exists
+      // 1. Check if template exists by type and channel (active only)
       let template = await NotificationTemplateService.getTemplate('customer_created', 'whatsapp');
+      if (template) return true;
 
-      if (!template) {
-        console.log('[CustomerNotification] Template customer_created not found, creating...');
+      console.log('[CustomerNotification] Active template customer_created not found, checking by code...');
 
-        // Try to find inactive template first
-        const [inactiveRows] = await databasePool.query<RowDataPacket[]>(
-          `SELECT template_code, is_active FROM notification_templates 
-           WHERE notification_type = 'customer_created' AND channel = 'whatsapp'`,
-          []
-        );
+      // 2. Check if template exists by code (regardless of status/type/channel)
+      const existingByCode = await NotificationTemplateService.getTemplateByCode('customer_created');
 
-        if (inactiveRows.length > 0) {
-          // Template exists but inactive, activate it
-          await NotificationTemplateService.updateTemplate(inactiveRows[0].template_code, { is_active: true });
-          console.log(`[CustomerNotification] ✅ Activated existing template: ${inactiveRows[0].template_code}`);
-          return true;
-        }
-
-        // Create new template
-        const templateId = await NotificationTemplateService.createTemplate({
-          template_code: 'customer_created',
-          template_name: 'Pelanggan Baru',
+      if (existingByCode) {
+        console.log('[CustomerNotification] Template found by code. Updating/Activating...');
+        // Update to correct type/channel and activate it
+        await NotificationTemplateService.updateTemplate('customer_created', {
           notification_type: 'customer_created',
           channel: 'whatsapp',
-          title_template: 'Selamat Datang - {customer_code}',
-          message_template: '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support',
-          variables: ['customer_name', 'customer_code', 'connection_type', 'package_info', 'pppoe_info', 'ip_info'],
-          is_active: true,
-          priority: 'normal'
+          is_active: true
         });
-
-        console.log(`[CustomerNotification] ✅ Created template customer_created (ID: ${templateId})`);
         return true;
       }
 
-      // Template exists and is active
+      // 3. Create new template since it doesn't exist at all
+      console.log('[CustomerNotification] Creating new template: customer_created');
+      const templateId = await NotificationTemplateService.createTemplate({
+        template_code: 'customer_created',
+        template_name: 'Pelanggan Baru',
+        notification_type: 'customer_created',
+        channel: 'whatsapp',
+        title_template: 'Selamat Datang - {customer_code}',
+        message_template: '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support',
+        variables: ['customer_name', 'customer_code', 'connection_type', 'package_info', 'pppoe_info', 'ip_info'],
+        is_active: true,
+        priority: 'normal'
+      });
+
+      console.log(`[CustomerNotification] ✅ Created template customer_created (ID: ${templateId})`);
       return true;
     } catch (error: any) {
       console.error('[CustomerNotification] Error ensuring template exists:', error);
+      // We still try to continue if it's a minor error, but return false to signal setup failed if it's fatal
       return false;
     }
   }

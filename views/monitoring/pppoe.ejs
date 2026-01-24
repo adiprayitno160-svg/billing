@@ -786,17 +786,15 @@
                             </a>
                         </div>
                     </div>
-                style="width: <%= rate %>%;"
                 modalContent.innerHTML = html;
 
                 // Start polling traffic if online
                 if (isOnline) {
                     pollTraffic(customer.pppoe_username);
-                style="width: <%= rate %>%;"
-
+                }
             } else {
                 throw new Error(result.message || 'Gagal mengambil data');
-            style="width: <%= rate %>%;"
+            }
         } catch (error) {
             modalContent.innerHTML = `
                                 < div class="text-center py-12" >
@@ -804,38 +802,38 @@
                     <p class="text-gray-600">Terjadi kesalahan: ${error.message}</p>
                     <button onclick="closeModal()" class="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Tutup</button>
                 </div >
-                                style="width: <%= rate %>%;"
-                            style = "width: <%= rate %>%;"
-                            style = "width: <%= rate %>%;"
+                                `;
+        }
+    }
 
-                            function formatBytes(bytes, decimals = 2) {
-                                if (!+bytes) return '0 B';
-                                const k = 1024;
-                                const dm = decimals < 0 ? 0 : decimals;
-                                const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-                                style = "width: <%= rate %>%;"
+    function formatBytes(bytes, decimals = 2) {
+        if (!+bytes) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${ parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) } ${ sizes[i] } `;
+    }
 
-                                async function pollTraffic(username) {
-                                    // Initial fetch handled by HTML render, subsequent by interval
-                                    trafficInterval = setInterval(async () => {
-                                        try {
-                                            const url = `/monitoring/traffic/${encodeURIComponent(username)}`;
-                                            const response = await fetch(url);
-                                            const result = await response.json();
+    async function pollTraffic(username) {
+        // Initial fetch handled by HTML render, subsequent by interval
+        trafficInterval = setInterval(async () => {
+            try {
+                const url = `/ monitoring / traffic / ${ encodeURIComponent(username) }`;
+                const response = await fetch(url);
+                const result = await response.json();
 
-                                            if (result.success && result.online) {
-                                                const rxEl = document.getElementById('modal-rx');
-                                                const txEl = document.getElementById('modal-tx');
-                                                if (rxEl) rxEl.textContent = formatBytes(result.data.download);
-                                                if (txEl) txEl.textContent = formatBytes(result.data.upload);
-                                                style = "width: <%= rate %>%;"
-                                            } catch (e) {
-                                                console.error('Traffic poll error:', e);
-                                                style = "width: <%= rate %>%;"
-                                            }, 2000);
-                                    style = "width: <%= rate %>%;"
+                if (result.success && result.online) {
+                    const rxEl = document.getElementById('modal-rx');
+                    const txEl = document.getElementById('modal-tx');
+                    if (rxEl) rxEl.textContent = formatBytes(result.data.download);
+                    if (txEl) txEl.textContent = formatBytes(result.data.upload);
+                }
+            } catch (e) {
+                console.error('Traffic poll error:', e);
+            }
+        }, 2000);
+    }
             </script>
 
             <!-- Add Modal HTML at the end of body -->

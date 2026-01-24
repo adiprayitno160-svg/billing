@@ -415,7 +415,6 @@ export class InvoiceController {
 
             const subscriptionsQuery = `
                 SELECT 
-                    COALESCE(s.id, 0) as id,
                     c.id as customer_id,
                     c.name as customer_name,
                     c.customer_code,
@@ -423,15 +422,15 @@ export class InvoiceController {
                     c.account_balance,
                     c.status as customer_status,
                     c.connection_type,
-                    s.package_name,
-                    COALESCE(s.price, 0) as price,
-                    s.status as subscription_status,
+                    COALESCE(s.id, (SELECT id FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as id,
+                    COALESCE(s.package_name, (SELECT package_name FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 'Paket Internet') as package_name,
+                    COALESCE(s.price, (SELECT price FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as price,
+                    COALESCE(s.status, (SELECT status FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 'inactive') as subscription_status,
                     s.start_date,
                     s.end_date
                 FROM customers c
                 LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
                 WHERE c.status = 'active'
-                ${billingModeFilter}
                 AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
                 ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
             `;
