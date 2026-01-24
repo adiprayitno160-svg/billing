@@ -139,34 +139,66 @@ export class StaticIpImportController {
         try {
             await conn.beginTransaction();
 
-            // 1. Generate Customer Code (Format: YYYYMMDDHHMMSS)
-            const customerCode = CustomerIdGenerator.generateCustomerId();
+            // 1. Cek Apakah Customer Sudah Ada (By IP) - UPSERT Logic
+            const [existing] = await conn.execute('SELECT id, customer_code FROM customers WHERE ip_address = ? LIMIT 1', [ipAddress]);
 
-            // 2. Insert Customer Baru (dengan gateway info)
-            const [custResult] = await conn.execute(`
-                INSERT INTO customers (
-                    customer_code, name, phone, address, ip_address,
-                    gateway_ip, gateway_ip_id, interface,
-                    connection_type, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', NOW(), NOW())
-            `, [customerCode, name, phone || null, address || null, ipAddress,
-                gatewayIp || null, gatewayIpId || null, iface || null]);
+            let newCustomerId;
+            let customerCode;
 
-            const newCustomerId = (custResult as any).insertId;
-            console.log(`[Import] Customer Created ID: ${newCustomerId}, Code: ${customerCode}`);
+            if ((existing as any[]).length > 0) {
+                // UPDATE EXISTING
+                const found = (existing as any[])[0];
+                newCustomerId = found.id;
+                customerCode = found.customer_code;
+
+                await conn.execute(`
+                    UPDATE customers SET 
+                        name = ?, phone = coalesce(?, phone), address = coalesce(?, address),
+                        gateway_ip = ?, gateway_ip_id = ?, interface = ?, 
+                        updated_at = NOW()
+                    WHERE id = ?
+                `, [name, phone || null, address || null, gatewayIp || null, gatewayIpId || null, iface || null, newCustomerId]);
+
+                console.log(`[Import] Updated Existing Customer ID: ${newCustomerId}`);
+            } else {
+                // CREATE NEW
+                customerCode = CustomerIdGenerator.generateCustomerId();
+                const [custResult] = await conn.execute(`
+                    INSERT INTO customers (
+                        customer_code, name, phone, address, ip_address,
+                        gateway_ip, gateway_ip_id, interface,
+                        connection_type, status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', NOW(), NOW())
+                `, [customerCode, name, phone || null, address || null, ipAddress,
+                    gatewayIp || null, gatewayIpId || null, iface || null]);
+
+                newCustomerId = (custResult as any).insertId;
+                console.log(`[Import] Customer Created ID: ${newCustomerId}, Code: ${customerCode}`);
+            }
 
             // 3. Get Package Limit
             const [pkgRows] = await conn.execute('SELECT max_limit_download as max_limit FROM static_ip_packages WHERE id = ?', [packageId]);
             const pkgLimit = (pkgRows as any)[0]?.max_limit || '0M';
 
-            // 4. Insert Static IP Client (dengan gateway info untuk isolir)
-            await conn.execute(`
-                INSERT INTO static_ip_clients 
-                (package_id, client_name, ip_address, customer_id, customer_code, 
-                 interface, gateway_ip, gateway_ip_id, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
-            `, [packageId, name, ipAddress, newCustomerId, customerCode,
-                iface || null, gatewayIp || null, gatewayIpId || null]);
+            // 4. Upsert Static IP Client
+            const [existingClient] = await conn.execute('SELECT id FROM static_ip_clients WHERE ip_address = ? LIMIT 1', [ipAddress]);
+
+            if ((existingClient as any[]).length > 0) {
+                await conn.execute(`
+                    UPDATE static_ip_clients SET
+                        client_name = ?, package_id = ?, customer_id = ?, 
+                        interface = ?, gateway_ip = ?, gateway_ip_id = ?, updated_at = NOW()
+                    WHERE ip_address = ?
+                `, [name, packageId, newCustomerId, iface || null, gatewayIp || null, gatewayIpId || null, ipAddress]);
+            } else {
+                await conn.execute(`
+                    INSERT INTO static_ip_clients 
+                    (package_id, client_name, ip_address, customer_id, customer_code, 
+                     interface, gateway_ip, gateway_ip_id, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                `, [packageId, name, ipAddress, newCustomerId, customerCode,
+                    iface || null, gatewayIp || null, gatewayIpId || null]);
+            }
 
             // 5. Update MikroTik (Standardize)
             const uniqueSuffix = customerCode.slice(-4);

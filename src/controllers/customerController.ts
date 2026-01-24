@@ -734,16 +734,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
             let newStatus = null;
 
             if (name !== undefined) {
-                // RESTRICTION: Name can only be edited once
                 if (name !== oldName) {
-                    if (oldCustomer.name_edited_at) {
-                        await conn.rollback();
-                        return res.status(403).json({
-                            success: false,
-                            error: 'Nama pelanggan hanya dapat diubah satu kali setelah registrasi.'
-                        });
-                    }
-                    updateFields.push('name_edited_at = NOW()');
+                    // Admin can change name unlimited times. 
+                    // We DO NOT update 'name_edited_at' here so it doesn't affect WhatsApp self-service limit.
+                    // Or we could, but better to keep them separate unless Admin wants to lock it.
                 }
 
                 updateFields.push('name = ?');
