@@ -1,30 +1,51 @@
-
 #!/bin/bash
 
-# Configuration
-APP_DIR="/var/www/billing" # Change this to your actual app directory on the server
-BRANCH="main"
+# ==========================================
+# AUTOMATED DEPLOYMENT SCRIPT (UBUNTU VPS)
+# ==========================================
 
-echo "🚀 Starting Deployment..."
+# CONFIGURATION
+# Ubah path ini sesuai lokasi project di VPS Anda
+APP_DIR="/var/www/billing"
+PM2_APP_NAME="billing" # Sesuaikan nama app di PM2 (cek dengan 'pm2 list')
 
-# Navigate to app directory
-cd $APP_DIR || { echo "❌ Directory not found: $APP_DIR"; exit 1; }
+echo "🚀 Memulai Proses Update..."
 
-# Pull latest changes
-echo "📥 Pulling latest changes from git..."
-git fetch origin
-git reset --hard origin/$BRANCH
+# 1. Cek Direktori
+if [ -d "$APP_DIR" ]; then
+    cd "$APP_DIR"
+    echo "📂 Masuk ke direktori: $APP_DIR"
+else
+    echo "❌ Error: Direktori $APP_DIR tidak ditemukan."
+    echo "👉 Silakan edit file ini dan sesuaikan variabel APP_DIR."
+    exit 1
+fi
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install --production
+# 2. Git Pull
+echo "📥 Menarik kode terbaru dari Git..."
+git fetch --all
+git reset --hard origin/main
+git pull origin main
 
-# Build application (if using TypeScript)
-echo "🔨 Building application..."
-npm run build 
+# 3. Install Dependencies
+echo "📦 Menginstall/Update dependencies..."
+npm install
 
-# Restart PM2
-echo "🔄 Restarting application..."
-pm2 restart billing-app || pm2 restart all
+# 4. Build TypeScript
+echo "🔨 Membangun ulang project (Build)..."
+npm run build
 
-echo "✅ Deployment Complete!"
+# 5. Restart PM2
+echo "🔄 Merestart aplikasi..."
+if pm2 list | grep -q "$PM2_APP_NAME"; then
+    pm2 restart "$PM2_APP_NAME"
+    echo "✅ Service '$PM2_APP_NAME' berhasil direstart."
+else
+    echo "⚠️  Service '$PM2_APP_NAME' tidak ditemukan di PM2."
+    echo "   Mencoba restart 'all'..."
+    pm2 restart all
+fi
+
+echo "=========================================="
+echo "✅ UPDATE SELESAI!"
+echo "=========================================="
