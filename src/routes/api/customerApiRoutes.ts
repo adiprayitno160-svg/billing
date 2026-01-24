@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { checkPppoeAvailability } from '../controllers/api/CustomerApiController';
+import { checkPppoeAvailability } from '../../controllers/api/CustomerApiController';
 
 const router = Router();
 
