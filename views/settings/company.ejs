@@ -540,33 +540,4 @@
         }
     }
 
-    // Auto-save draft every 30 seconds
-    setInterval(() => {
-        const formData = new FormData(document.getElementById('companyForm'));
-        const data = {};
-        formData.forEach((value, key) => {
-            if (key !== 'company_logo') { // Don't save file in localStorage
-                data[key] = value;
-            }
-        });
-        localStorage.setItem('companySettingsDraft', JSON.stringify(data));
-    }, 30000);
-
-    // Load draft on page load
-    window.addEventListener('load', function () {
-        const draft = localStorage.getItem('companySettingsDraft');
-        if (draft && confirm('Ada draft yang tersimpan. Muat draft tersebut?')) {
-            try {
-                const data = JSON.parse(draft);
-                Object.keys(data).forEach(key => {
-                    const input = document.querySelector(`[name="${key}"]`);
-                    if (input && input.type !== 'file') {
-                        input.value = data[key];
-                    }
-                });
-            } catch (e) {
-                console.error('Error loading draft:', e);
-            }
-        }
-    });
 </script>

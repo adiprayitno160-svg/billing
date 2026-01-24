@@ -9,6 +9,7 @@ import {
 	deleteMikrotikQueuesOnly,
 	syncAllMikrotikQueues
 } from '../services/staticIpPackageService';
+import { getMikrotikInterfaces } from '../services/mikrotikInterfaceService';
 
 export async function getStaticIpPackageList(req: Request, res: Response, next: NextFunction) {
 	try {
@@ -26,9 +27,11 @@ export async function getStaticIpPackageList(req: Request, res: Response, next: 
 
 export async function getStaticIpPackageAdd(req: Request, res: Response, next: NextFunction) {
 	try {
+		const interfaces = await getMikrotikInterfaces();
 		res.render('packages/static_ip_add', {
 			title: 'Tambah Paket IP Static',
-			error: req.flash('error')
+			error: req.flash('error'),
+			interfaces
 		});
 	} catch (err) {
 		next(err);
@@ -39,6 +42,7 @@ export async function getStaticIpPackageEdit(req: Request, res: Response, next: 
 	try {
 		const id = Number(req.params.id);
 		const packageData = await getStaticIpPackageById(id);
+		const interfaces = await getMikrotikInterfaces();
 
 		if (!packageData) {
 			req.flash('error', 'Paket tidak ditemukan');
@@ -48,7 +52,8 @@ export async function getStaticIpPackageEdit(req: Request, res: Response, next: 
 		res.render('packages/static_ip_edit', {
 			title: 'Edit Paket IP Static',
 			package: packageData,
-			error: req.flash('error')
+			error: req.flash('error'),
+			interfaces
 		});
 	} catch (err) {
 		next(err);

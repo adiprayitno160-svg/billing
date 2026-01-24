@@ -567,7 +567,7 @@ export async function syncPackageQueueTrees(config: MikroTikConfig, pkg: StaticI
 		parent: (pkg.parent_download_name && pkg.parent_download_name !== 'SIMPLE_QUEUE_PARENT') ? pkg.parent_download_name : 'global',
 		maxLimit: pkg.max_limit_download,
 		limitAt: pkg.limit_at_download || undefined,
-		comment: `[BILLING] Package Download Parent: ${pkg.name}`
+		comment: pkg.name
 	};
 	if (dlId) await updateQueueTree(config, dlId, dlData);
 	else await createQueueTree(config, dlData);
@@ -580,7 +580,7 @@ export async function syncPackageQueueTrees(config: MikroTikConfig, pkg: StaticI
 		parent: (pkg.parent_upload_name && pkg.parent_upload_name !== 'SIMPLE_QUEUE_PARENT') ? pkg.parent_upload_name : 'global',
 		maxLimit: pkg.max_limit_upload || '1M',
 		limitAt: pkg.limit_at_upload || undefined,
-		comment: `[BILLING] Package Upload Parent: ${pkg.name}`
+		comment: `${pkg.name} Upload`
 	};
 	if (upId) await updateQueueTree(config, upId, upData);
 	else await createQueueTree(config, upData);

@@ -26,4 +26,26 @@ export class InvoicePdfService {
         logger.info(`✅ PDF (A4) generated for invoice ${invoiceId}`);
         return Buffer.from(pdfBuffer);
     }
+    /**
+     * Generate PDF and save to filesystem.
+     * Returns absolute path to the generated PDF file.
+     */
+    static async generateInvoicePdf(invoiceId: number): Promise<string> {
+        // 1. Generate Buffer
+        const buffer = await this.generatePdf(invoiceId);
+
+        // 2. Prepare Directory
+        const invoicesDir = join(process.cwd(), 'public', 'invoices');
+        if (!require('fs').existsSync(invoicesDir)) {
+            require('fs').mkdirSync(invoicesDir, { recursive: true });
+        }
+
+        // 3. Save File
+        const filename = `invoice-${invoiceId}.pdf`;
+        const filePath = join(invoicesDir, filename);
+
+        require('fs').writeFileSync(filePath, buffer);
+
+        return filePath;
+    }
 }

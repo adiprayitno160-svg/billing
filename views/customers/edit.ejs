@@ -1161,6 +1161,65 @@
                 }
             });
         }
+
+        // === Sync PPPoE Secret Handler ===
+        const syncPppoeBtn = document.getElementById('create_pppoe_secret_btn');
+        if (syncPppoeBtn) {
+            syncPppoeBtn.addEventListener('click', async () => {
+                const usernameInput = document.getElementById('pppoe_username');
+                const passwordInput = document.getElementById('pppoe_password');
+                const pkgSelect = document.querySelector('select[name="pppoe_package"]');
+
+                if (!usernameInput || !passwordInput) return;
+
+                const payload = {
+                    customerId: '<%= customer.id %>',
+                    customerName: '<%= customer.name %>',
+                    username: usernameInput.value,
+                    password: passwordInput.value,
+                    packageId: pkgSelect ? pkgSelect.value : ''
+                };
+
+                if (!payload.username || !payload.password) {
+                    alert('Username dan Password harus diisi!');
+                    return;
+                }
+
+                if (!confirm('Apakah Anda yakin ingin melakukan sinkronisasi data PPPoE ini ke MikroTik? Data di Router akan ditimpa/dibuat baru.')) return;
+
+                const originalText = syncPppoeBtn.innerHTML;
+                syncPppoeBtn.innerHTML = '⏳ Processing...';
+                syncPppoeBtn.disabled = true;
+
+                try {
+                    const res = await fetch('/api/pppoe/secret/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (err) {
+                        console.error('JSON Parse error', err);
+                        throw new Error('Server returned invalid response');
+                    }
+
+                    if (data.success) {
+                        alert('✅ Sukses! Data PPPoE berhasil disinkronisasi ke MikroTik.');
+                    } else {
+                        alert('❌ Gagal: ' + (data.error || data.message || 'Unknown error'));
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('❌ Terjadi kesalahan sistem: ' + e.message);
+                } finally {
+                    syncPppoeBtn.innerHTML = originalText;
+                    syncPppoeBtn.disabled = false;
+                }
+            });
+        }
     });
 </script>
 

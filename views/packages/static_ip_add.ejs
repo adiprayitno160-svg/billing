@@ -53,17 +53,42 @@
 
 
                 <!-- Baris 3: Parent Upload & Parent Download (HIDDEN - handled automatically) -->
-                <div class="hidden">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Parent Upload *</label>
-                    <input name="parent_upload_name" type="text" value="SIMPLE_QUEUE_PARENT"
-                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p class="text-xs text-slate-500 mt-1">Ketik nama parent upload yang sudah ada di MikroTik</p>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Parent Upload</label>
+                    <select name="parent_upload_name"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white">
+                        <option value="UPLOAD ALL" selected>UPLOAD ALL (Default)</option>
+                        <option value="global">global</option>
+                        <% if (typeof interfaces !=='undefined' && interfaces.length> 0) { %>
+                            <optgroup label="Interfaces">
+                                <% interfaces.forEach(iface=> { %>
+                                    <option value="<%= iface %>">
+                                        <%= iface %>
+                                    </option>
+                                    <% }); %>
+                            </optgroup>
+                            <% } %>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1">Pilih parent queue untuk Upload (Default: UPLOAD ALL).</p>
                 </div>
-                <div class="hidden">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Parent Download *</label>
-                    <input name="parent_download_name" type="text" value="SIMPLE_QUEUE_PARENT"
-                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p class="text-xs text-slate-500 mt-1">Ketik nama parent download yang sudah ada di MikroTik</p>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Parent Download</label>
+                    <select name="parent_download_name"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white">
+                        <option value="DOWNLOAD ALL" selected>DOWNLOAD ALL (Default)</option>
+                        <option value="global">global</option>
+                        <% if (typeof interfaces !=='undefined' && interfaces.length> 0) { %>
+                            <optgroup label="Interfaces">
+                                <% interfaces.forEach(iface=> { %>
+                                    <option value="<%= iface %>">
+                                        <%= iface %>
+                                    </option>
+                                    <% }); %>
+                            </optgroup>
+                            <% } %>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1">Pilih parent queue untuk Download (Default: DOWNLOAD ALL).
+                    </p>
                 </div>
 
                 <!-- Baris 4: Limit Upload & Download -->
@@ -95,15 +120,26 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">Max Clients *</label>
                     <input name="max_clients" type="number" min="1" required placeholder="1"
                         class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <p class="text-xs text-slate-500 mt-1">Jumlah maksimal client yang bisa menggunakan paket ini</p>
+                    <p class="text-xs text-slate-500 mt-1">Total pelanggan yang akan dimasukkan ke paket ini</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Sistem Share</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Rasio Sharing (1 : X)</label>
+                    <input name="sharing_ratio" type="number" min="1" value="1" required
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div class="mt-1 text-xs text-slate-500">
+                        <p>• Isi <b>1</b> untuk Dedicated (1:1)</p>
+                        <p>• Isi <b>X</b> untuk Sharing (misal: 10M bagi 5 = 2M/user, isi 5)</p>
+                    </div>
+                </div>
+                <div class="sm:col-span-2">
                     <div class="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                        <p class="font-medium mb-1">ℹ️ Informasi Sistem Share:</p>
-                        <p>• Jika Max Clients > 1, bandwidth akan dibagi rata</p>
-                        <p>• Contoh: 10M untuk 2 clients = 5M per client</p>
-                        <p>• Child parent akan diambil dari parent paket (view only)</p>
+                        <p class="font-medium mb-1">ℹ️ Simulasi Hitungan Otomatis:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li><b>Max Limit Pelanggan</b> = Total Bandwidth / Rasio</li>
+                            <li><b>Limit-At (Garansi)</b> = Total Bandwidth / Max Clients</li>
+                            <li><i>Contoh: Pipa 10M, Client 20, Rasio 5 (1:5)</i></li>
+                            <li><i>Hasil: Max 2M "Up To", Garansi 512k/user</i></li>
+                        </ul>
                     </div>
                 </div>
 
@@ -298,47 +334,58 @@
                         return Math.round(bits);
                     }
 
-                    function autoCalculateAll() {
-                        const maxUp = document.querySelector('input[name="max_limit_upload"]').value;
-                        const maxDown = document.querySelector('input[name="max_limit_download"]').value;
+                    function autoCalculateAll(silent = false) {
+                        const maxUpRaw = document.querySelector('input[name="max_limit_upload"]').value;
+                        const maxDownRaw = document.querySelector('input[name="max_limit_download"]').value;
                         const maxClients = parseInt(document.querySelector('input[name="max_clients"]').value) || 1;
+                        const ratio = parseInt(document.querySelector('input[name="sharing_ratio"]').value) || 1;
 
-                        if (!maxUp || !maxDown) {
-                            alert('Silakan isi Max Limit Upload & Download terlebih dahulu!');
+                        if (!maxUpRaw || !maxDownRaw) {
+                            if (!silent) alert('Silakan isi Max Limit Upload & Download terlebih dahulu!');
                             return;
                         }
 
-                        const upBits = parseBandwidth(maxUp);
-                        const downBits = parseBandwidth(maxDown);
+                        const upBits = parseBandwidth(maxUpRaw);
+                        const downBits = parseBandwidth(maxDownRaw);
 
-                        // 1. Limit-At (Shared) - Default 1/2 of max limit
+                        // 1. Parent Limit-At (Optional, usually same as Max or half)
+                        // Kita set setengahnya sebagai default safety untuk parent
                         document.querySelector('input[name="limit_at_upload"]').value = formatBandwidth(upBits / 2);
                         document.querySelector('input[name="limit_at_download"]').value = formatBandwidth(downBits / 2);
 
-                        // 2. Child Limits
-                        const childUp = upBits / maxClients;
-                        const childDown = downBits / maxClients;
-                        document.querySelector('input[name="child_upload_limit"]').value = formatBandwidth(childUp);
-                        document.querySelector('input[name="child_download_limit"]').value = formatBandwidth(childDown);
+                        // 2. Child Max Limit (Janji "Up To") -> Dibagi Rasio
+                        // Jika Rasio 1 (Dedicated), maka dapat Full Parent
+                        const childUpMax = upBits / ratio;
+                        const childDownMax = downBits / ratio;
 
-                        // 3. Child Limit-At (Default 1/4 of child max)
-                        document.querySelector('input[name="child_limit_at_upload"]').value = formatBandwidth(childUp / 2);
-                        document.querySelector('input[name="child_limit_at_download"]').value = formatBandwidth(childDown / 2);
+                        document.querySelector('input[name="child_upload_limit"]').value = formatBandwidth(childUpMax);
+                        document.querySelector('input[name="child_download_limit"]').value = formatBandwidth(childDownMax);
 
-                        // 4. Burst Calculator
-                        // Burst Limit: 2x Max Limit
-                        document.querySelector('input[name="child_burst_upload"]').value = formatBandwidth(childUp * 2);
-                        document.querySelector('input[name="child_burst_download"]').value = formatBandwidth(childDown * 2);
+                        // 3. Child Limit-At (Garansi Pasti) -> Dibagi Total Client
+                        // Ini memastikan queue tidak merah/drop saat penuh
+                        const childUpGuaranteed = upBits / maxClients;
+                        const childDownGuaranteed = downBits / maxClients;
 
-                        // Burst Threshold: 80% of Max Limit
-                        document.querySelector('input[name="child_burst_threshold_upload"]').value = formatBandwidth(childUp * 0.8);
-                        document.querySelector('input[name="child_burst_threshold_download"]').value = formatBandwidth(childDown * 0.8);
+                        document.querySelector('input[name="child_limit_at_upload"]').value = formatBandwidth(childUpGuaranteed);
+                        document.querySelector('input[name="child_limit_at_download"]').value = formatBandwidth(childDownGuaranteed);
+
+                        // 4. Burst Calculator (Berdasarkan Child Max)
+                        // Burst Limit: 2x dari Child Max (Biar ngebut sebentar)
+                        document.querySelector('input[name="child_burst_upload"]').value = formatBandwidth(childUpMax * 2);
+                        document.querySelector('input[name="child_burst_download"]').value = formatBandwidth(childDownMax * 2);
+
+                        // Burst Threshold: 80% dari Child Max
+                        document.querySelector('input[name="child_burst_threshold_upload"]').value = formatBandwidth(childUpMax * 0.8);
+                        document.querySelector('input[name="child_burst_threshold_download"]').value = formatBandwidth(childDownMax * 0.8);
 
                         // Burst Time: 20s (default stable)
                         document.querySelector('input[name="child_burst_time_upload"]').value = '20s';
                         document.querySelector('input[name="child_burst_time_download"]').value = '20s';
 
-                        alert('✅ Kalkulasi otomatis selesai! Silakan sesuaikan kembali jika diperlukan.');
+
+                        if (!silent) {
+                            alert(`✅ Kalkulasi Selesai!\n\n📋 Simulasi:\n• Total Pipa: ${maxDownRaw}\n• User: ${maxClients} orang\n• Rasio: 1:${ratio}\n\n👉 Hasil:\n• User dapat Speed: ${formatBandwidth(childDownMax)} (Up To)\n• Garansi Macet: ${formatBandwidth(childDownGuaranteed)}`);
+                        }
                     }
 
                     (function () {
@@ -378,9 +425,26 @@
                             `📅 Jika aktivasi hari ini: Berakhir pada ${formattedDate}`;
                     }
 
+
                     // Initialize on page load
                     document.addEventListener('DOMContentLoaded', function () {
                         calculateStaticIpExpiry();
+
+                        // Auto-calculate on input change for main package limits
+                        const triggerInputs = ['input[name="max_limit_upload"]', 'input[name="max_limit_download"]', 'input[name="max_clients"]', 'input[name="sharing_ratio"]'];
+                        triggerInputs.forEach(selector => {
+                            const el = document.querySelector(selector);
+                            if (el) {
+                                el.addEventListener('input', function () {
+                                    // Use a small timeout/debounce to wait for user to finish typing
+                                    if (this.dataset.timeout) clearTimeout(this.dataset.timeout);
+                                    this.dataset.timeout = setTimeout(() => {
+                                        // Silent mode (no alert) for automatic updates
+                                        autoCalculateAll(true);
+                                    }, 800);
+                                });
+                            }
+                        });
                     });
                 </script>
             </form>

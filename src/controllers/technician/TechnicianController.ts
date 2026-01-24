@@ -410,13 +410,8 @@ Untuk mengambil, balas:
 
             // A. To Customer
             if (job.customer_phone) {
-                if (file && file.path) {
-                    // Send Image with Caption
-                    await waClient.sendImage(job.customer_phone, file.path, customerMsg).catch(err => console.warn('Failed to send Customer WA Image:', err));
-                } else {
-                    // Send Text Only
-                    await waClient.sendMessage(job.customer_phone, customerMsg).catch(err => console.warn('Failed to send Customer WA:', err));
-                }
+                // Send Text Only to Customer (per request)
+                await waClient.sendMessage(job.customer_phone, customerMsg).catch(err => console.warn('Failed to send Customer WA:', err));
             }
 
             // B. To Technician (Report/Receipt)

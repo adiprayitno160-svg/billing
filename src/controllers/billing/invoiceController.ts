@@ -625,6 +625,39 @@ export class InvoiceController {
                 [status, id]
             );
 
+            // AUTO-SEND PAID INVOICE PDF via WhatsApp
+            if (status === 'paid') {
+                try {
+                    const { InvoicePdfService } = await import('../../services/invoice/InvoicePdfService');
+                    const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+
+                    // 1. Generate PDF
+                    const pdfPath = await InvoicePdfService.generateInvoicePdf(parseInt(id));
+
+                    // 2. Get Customer Phone
+                    const [rows] = await databasePool.query<RowDataPacket[]>(`
+                        SELECT c.phone, c.name, i.invoice_number 
+                        FROM invoices i 
+                        JOIN customers c ON i.customer_id = c.id 
+                        WHERE i.id = ?
+                    `, [id]);
+
+                    if (rows.length > 0 && rows[0].phone) {
+                        const { phone, name, invoice_number } = rows[0];
+
+                        // 3. Send WhatsApp with PDF
+                        const caption = `✅ *PEMBAYARAN LUNAS*\n\nHalo Kak *${name}*,\nTerima kasih, pembayaran tagihan *${invoice_number}* telah berhasil kami verifikasi LUNAS.\n\nBerikut terlampir e-invoice (Lunas) sebagai bukti pembayaran yang sah.\n\nTerima kasih telah berlangganan! 🙏`;
+
+                        // Send Document
+                        await whatsappService.sendDocument(phone, pdfPath, `Invoice-${invoice_number}.pdf`, caption);
+                        console.log(`[Invoice] Paid PDF sent to ${name} (${phone})`);
+                    }
+                } catch (pdfError) {
+                    console.error('[Invoice] Failed to generate/send PDF:', pdfError);
+                    // Don't fail the response, just log error
+                }
+            }
+
             res.json({
                 success: true,
                 message: 'Status invoice berhasil diperbarui'

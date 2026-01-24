@@ -381,6 +381,15 @@ async function start() {
 			console.error('⚠️ Error initializing WhatsApp Cleanup Scheduler (non-critical):', error);
 		}
 
+		// Initialize Invoice PDF Cleanup Service (Daily)
+		try {
+			const { InvoiceCleanupService } = await import('./services/cron/InvoiceCleanupService');
+			InvoiceCleanupService.startScheduler();
+			console.log('✅ Invoice PDF Cleanup Scheduler initialized');
+		} catch (error) {
+			console.error('⚠️ Error initializing Invoice Cleanup Scheduler:', error);
+		}
+
 
 		// Initialize New Robust WhatsApp Service
 		if (process.env.DISABLE_WHATSAPP !== 'true') {
