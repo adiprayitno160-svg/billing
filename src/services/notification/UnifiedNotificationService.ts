@@ -48,6 +48,7 @@ export interface NotificationData {
   channels?: NotificationChannel[];
   scheduled_for?: Date;
   priority?: 'low' | 'normal' | 'high';
+  attachment_path?: string;
 }
 
 export class UnifiedNotificationService {
@@ -128,8 +129,8 @@ export class UnifiedNotificationService {
         const [result] = await connection.query<ResultSetHeader>(
           `INSERT INTO unified_notifications_queue 
            (customer_id, subscription_id, invoice_id, payment_id, notification_type,
-            template_code, channel, title, message, status, priority, scheduled_for)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+            template_code, channel, title, message, attachment_path, status, priority, scheduled_for)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
           [
             data.customer_id,
             data.subscription_id || null,
@@ -140,6 +141,7 @@ export class UnifiedNotificationService {
             channel,
             title,
             message,
+            data.attachment_path || null,
             data.priority || template.priority,
             data.scheduled_for || null
           ]
@@ -355,10 +357,15 @@ export class UnifiedNotificationService {
         console.log(`[UnifiedNotification] 📝 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
 
         try {
-          const whatsappResult = await waClient.sendMessage(customer.phone, fullMessage);
+          let whatsappResult: any;
+          if (notification.attachment_path) {
+            whatsappResult = await waClient.sendDocument(customer.phone, notification.attachment_path, undefined, fullMessage);
+          } else {
+            whatsappResult = await waClient.sendMessage(customer.phone, fullMessage);
+          }
 
           console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {
-            messageId: whatsappResult.messageId || 'unknown',
+            messageId: whatsappResult?.messageId || 'unknown',
             notification_id: notification.id
           });
         } catch (sendError: any) {
@@ -644,11 +651,24 @@ export class UnifiedNotificationService {
       // Determine notification type
       const notificationType = remainingAmount > 0 ? 'payment_partial' : 'payment_received';
 
+      // Generate PDF if full payment
+      let attachmentPath = undefined;
+      if (remainingAmount <= 0) {
+        try {
+          const { InvoicePdfService } = await import('../invoice/InvoicePdfService');
+          attachmentPath = await InvoicePdfService.generateInvoicePdf(payment.invoice_id);
+          console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
+        } catch (pdfError) {
+          console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
+        }
+      }
+
       await this.queueNotification({
         customer_id: payment.customer_id,
         invoice_id: payment.invoice_id,
         payment_id: paymentId,
         notification_type: notificationType as NotificationType,
+        attachment_path: attachmentPath,
         variables: {
           invoice_number: payment.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),

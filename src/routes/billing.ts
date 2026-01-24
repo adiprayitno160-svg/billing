@@ -714,7 +714,17 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
         try {
             console.log('[Payment Form] Fetching invoice data...');
             const [invoices] = await conn.query(
-                'SELECT i.*, c.id as customer_id, c.connection_type, c.custom_sla_target FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id WHERE i.id = ?',
+                `SELECT 
+                    i.*, 
+                    c.id as customer_id, 
+                    c.name as customer_name, 
+                    c.phone as customer_phone,
+                    c.customer_code,
+                    c.connection_type, 
+                    c.custom_sla_target 
+                FROM invoices i 
+                LEFT JOIN customers c ON i.customer_id = c.id 
+                WHERE i.id = ?`,
                 [req.params.invoiceId]
             ) as any;
 
@@ -724,7 +734,7 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
             }
 
             const invoice = invoices[0];
-            console.log('[Payment Form] Invoice found:', invoice.id, 'for customer:', invoice.customer_id);
+            console.log('[Payment Form] Invoice found:', invoice.id, 'for customer:', invoice.customer_name);
 
             // Get SLA target from customer or package
             let slaTarget = 90.0; // Default fallback
@@ -858,12 +868,37 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                 };
             }
 
+            // Default SLA values
+            let uptime = 100.0;
+            let slaMet = true;
+
+            if (slaDiscount) {
+                uptime = slaDiscount.uptime_percentage;
+                slaMet = slaDiscount.sla_met;
+            }
+
             console.log('[Payment Form] Rendering view with SLA discount:', slaDiscount);
-            res.render('billing/payment-form', {
-                title: 'Form Pembayaran',
+            // Get total unpaid debt across all invoices for this customer
+            const [debtResult] = await conn.query(
+                `SELECT SUM(remaining_amount) as total_debt 
+                 FROM invoices 
+                 WHERE customer_id = ? AND status IN ('sent', 'partial')`,
+                [invoice.customer_id]
+            );
+            const totalDebt = (debtResult as any)[0]?.total_debt || 0;
+
+            console.log(`[Payment Form] Customer total debt: ${totalDebt}`);
+
+            return res.render('billing/payment-form', {
+                title: 'Pembayaran Tagihan',
                 invoice,
-                slaDiscount,
-                user: req.user
+                totalDebt,
+                slaTarget,
+                uptime,
+                slaStatus: slaMet,
+                layout: 'layouts/main',
+                user: (req as any).user,
+                slaDiscount
             });
         } finally {
             conn.release();

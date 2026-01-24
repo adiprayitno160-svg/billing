@@ -422,7 +422,11 @@ export class InvoiceController {
                     c.account_balance,
                     c.status as customer_status,
                     c.connection_type,
-                    COALESCE(s.id, (SELECT id FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as id,
+                    c.is_taxable,
+                    c.use_device_rental,
+                    c.rental_mode,
+                    c.rental_cost,
+                    COALESCE(s.id, (SELECT id FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as id, 
                     COALESCE(s.package_name, (SELECT package_name FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 'Paket Internet') as package_name,
                     COALESCE(s.price, (SELECT price FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as price,
                     COALESCE(s.status, (SELECT status FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 'inactive') as subscription_status,
@@ -441,6 +445,13 @@ export class InvoiceController {
             }
 
             const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
+
+            // Fetch global settings for tax and rental
+            const { SettingsService } = await import('../../services/SettingsService');
+            const ppnEnabled = await SettingsService.getBoolean('ppn_enabled');
+            const ppnRate = ppnEnabled ? await SettingsService.getNumber('ppn_rate') : 0;
+            const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
+            const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
 
             console.log(`Found ${subscriptions.length} active customers for billing`);
 
@@ -577,13 +588,35 @@ export class InvoiceController {
                         }
                     }
 
+                    // Calculate final total including Tax and Device Rental
+                    let subtotal = price;
+                    let deviceFee = 0;
+                    if (deviceRentalEnabled && subscription.use_device_rental) {
+                        const rentalCost = subscription.rental_cost !== null ? parseFloat(subscription.rental_cost) : deviceRentalFee;
+                        if (subscription.rental_mode === 'daily') {
+                            const daysInMonth = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0).getDate();
+                            deviceFee = rentalCost * daysInMonth;
+                        } else {
+                            deviceFee = rentalCost;
+                        }
+                    }
+
+                    let ppnAmount = 0;
+                    if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
+                        ppnAmount = Math.round((subtotal + deviceFee) * (ppnRate / 100));
+                    }
+
+                    const totalAmount = subtotal + deviceFee + ppnAmount;
+                    remainingAmount = totalAmount - paidAmount;
+
                     // Insert invoice
                     const invoiceInsertQuery = `
                         INSERT INTO invoices (
                             invoice_number, customer_id, subscription_id, period, due_date,
-                            subtotal, discount_amount, total_amount, paid_amount, remaining_amount,
+                            subtotal, discount_amount, ppn_rate, ppn_amount, device_fee, 
+                            total_amount, paid_amount, remaining_amount,
                             status, notes, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NOW(), NOW())
+                        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                     `;
 
                     const [invoiceResult] = await conn.execute<ResultSetHeader>(invoiceInsertQuery, [
@@ -592,8 +625,11 @@ export class InvoiceController {
                         finalSubscriptionId,
                         currentPeriod,
                         dueDateStr,
-                        price,
-                        price,
+                        subtotal,
+                        ppnEnabled ? ppnRate : 0,
+                        ppnAmount,
+                        deviceFee,
+                        totalAmount,
                         paidAmount,
                         remainingAmount,
                         status,
@@ -611,23 +647,29 @@ export class InvoiceController {
                         `, [subscription.customer_id, balanceDeduction, `Pembayaran otomatis invoice ${invoiceNumber}`, invoiceId.toString()]);
                     }
 
-                    // Insert invoice item
+                    // Insert items
                     const itemInsertQuery = `
                         INSERT INTO invoice_items (
                             invoice_id, description, quantity, unit_price, total_price, created_at
                         ) VALUES (?, ?, 1, ?, ?, NOW())
                     `;
 
+                    // 1. Internet Package
                     const description = subscriptionPrice > 0
                         ? `Paket ${packageName} - ${currentPeriod}`
                         : `Paket Internet Bulanan - ${currentPeriod}`;
 
-                    await conn.execute(itemInsertQuery, [
-                        invoiceId,
-                        description,
-                        price,
-                        price
-                    ]);
+                    await conn.execute(itemInsertQuery, [invoiceId, description, subtotal, subtotal]);
+
+                    // 2. Device Rental
+                    if (deviceFee > 0) {
+                        await conn.execute(itemInsertQuery, [
+                            invoiceId,
+                            `Sewa Perangkat - ${currentPeriod}`,
+                            deviceFee,
+                            deviceFee
+                        ]);
+                    }
 
                     createdCount++;
                     console.log(`✓ Invoice created for customer ${subscription.customer_name} (${invoiceNumber})`);

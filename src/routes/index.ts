@@ -165,6 +165,7 @@ import {
 
 
 import { RegistrationRequestController } from '../controllers/customers/RegistrationRequestController';
+import { isPppoePackageFull, isStaticIpPackageFull } from '../utils/packageLimit';
 
 const router = Router();
 const authMiddleware = new AuthMiddleware();
@@ -2223,6 +2224,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
             throw new Error('Kode pelanggan tidak boleh kosong');
         }
 
+        // Validate package limit
+        const isFull = await isPppoePackageFull(Number(package_id));
+        if (isFull) {
+            throw new Error('Paket PPPoE sudah penuh, tidak bisa menambah pelanggan baru');
+        }
+
         // Simpan ke database
         const conn = await databasePool.getConnection();
         try {
@@ -3415,6 +3422,12 @@ router.post('/customers/new-static-ip', async (req, res) => {
         if (!client_name) throw new Error('Nama pelanggan wajib diisi');
         if (!ip_address) throw new Error('IP statis wajib diisi (contoh: 192.168.1.1/30)');
         if (!package_id) throw new Error('Paket wajib dipilih');
+
+        // Validate package limit
+        const isFull = await isStaticIpPackageFull(Number(package_id));
+        if (isFull) {
+            throw new Error('Paket Static IP sudah penuh, tidak bisa menambah pelanggan baru');
+        }
 
         // Validation: ODP required only if NOT wireless mode
         if (!is_wireless && !odp_id) throw new Error('ODP wajib dipilih (kecuali Mode Wireless)');
