@@ -96,16 +96,16 @@ export async function getAppVersion(): Promise<AppVersion> {
             latest: updateCheck.latestVersion,
             releaseDate: updateCheck.publishedAt || new Date().toISOString(),
             changelog: changelog.length > 0 ? changelog : [
-                'Sistem Billing Management dengan integrasi MikroTik',
-                'WhatsApp Bot untuk notifikasi otomatis',
-                'Telegram Bot untuk monitoring dan manajemen',
-                'Dashboard monitoring real-time',
-                'Payment Gateway Integration',
+                'AI Payment Verification via Gemini 1.5 Flash',
+                'Credit Score Analysis & Customer Trust Tracking',
+                'Enhanced Bank Management with Enable/Disable Toggle',
+                'Technician Work Type & Performance Management',
+                'Modern UI Redesign with Premium Aesthetics',
+                'WhatsApp & Telegram Bot Integration',
                 'FTTH Management (OLT, ODC, ODP)',
-                'SLA Monitoring & Reporting',
-                'Backup & Restore System',
-                'Multi-user Management',
-                'Kasir / POS System'
+                'Real-time Network Monitoring Dashboard',
+                'Payment Gateway & Automatic Invoicing',
+                'Multi-user Access Control & POS System'
             ],
             isUpdateAvailable: updateCheck.available
         };
@@ -129,6 +129,34 @@ export async function getAppFeatures(): Promise<AppFeature[]> {
     const currentVersion = await GitHubService.getCurrentVersion();
 
     return [
+        {
+            name: 'AI Payment Verification',
+            description: 'Verifikasi bukti bayar otomatis via WhatsApp menggunakan Gemini AI (1.5 Flash)',
+            version: currentVersion,
+            status: 'active',
+            category: 'billing'
+        },
+        {
+            name: 'Credit Score Analysis',
+            description: 'Analisis tingkat kepercayaan pelanggan berdasarkan riwayat pembayaran',
+            version: currentVersion,
+            status: 'active',
+            category: 'monitoring'
+        },
+        {
+            name: 'Bank & Payment Settings',
+            description: 'Manajemen multi-rekening bank dengan fitur aktif/nonaktif untuk invoice',
+            version: currentVersion,
+            status: 'active',
+            category: 'billing'
+        },
+        {
+            name: 'Technician Management',
+            description: 'Manajemen jenis pekerjaan teknisi, absensi, dan performa tim lapangan',
+            version: currentVersion,
+            status: 'active',
+            category: 'system'
+        },
         {
             name: 'Billing Management',
             description: 'Manajemen tagihan pelanggan, pembayaran, dan pelaporan keuangan',
