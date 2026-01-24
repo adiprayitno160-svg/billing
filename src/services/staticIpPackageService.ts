@@ -1,5 +1,6 @@
 import { databasePool } from '../db/pool';
 import { createQueueTree, updateQueueTree, deleteQueueTree, getQueueTrees, MikroTikConfig, addMangleRulesForClient, findQueueTreeIdByName } from './mikrotikService';
+import { getPackageClients } from '../services/staticIpClientService';
 
 export type StaticIpPackage = {
 	id: number;
@@ -352,6 +353,24 @@ export async function updateStaticIpPackage(id: number, data: {
 				}
 
 				await syncPackageQueueTrees(config, updatedPkg);
+
+				// RE-SYNC ALL CLIENTS to apply new limits (shared/burst) immediately
+				try {
+					const clients = await getPackageClients(id);
+					if (clients.length > 0) {
+						console.log(`[Package] Auto-syncing ${clients.length} clients to apply new package settings...`);
+						for (const client of clients) {
+							if (client.customer_id && client.ip_address) {
+								// Ensure we pass the updated package ID (id)
+								await syncClientQueues(client.customer_id, id, client.ip_address, client.client_name).catch(e => {
+									console.error(`[Package] Failed to sync client ${client.client_name}:`, e.message);
+								});
+							}
+						}
+					}
+				} catch (clientSyncErr) {
+					console.error(`[Package] Failed to get clients for auto-sync:`, clientSyncErr);
+				}
 			}
 		} catch (e) {
 			console.error(`[Package] Failed to update Queue Tree on MikroTik:`, e);
