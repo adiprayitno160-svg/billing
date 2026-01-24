@@ -160,107 +160,136 @@
             </button>
         </div>
 
-        <form id="addJobForm" class="p-8 space-y-6">
-            <!-- Customer Search -->
-            <div class="space-y-1.5">
-                <label
-                    class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center justify-between">
-                    <span>Nama / ID Pelanggan</span>
-                    <span class="text-[10px] text-blue-500 font-normal normal-case italic">*Wajib Diisi</span>
-                </label>
-                <div class="relative group">
-                    <input type="text" id="customerSearch" placeholder="Ketik nama atau ID pelanggan..."
-                        class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium group-hover:bg-white text-sm">
-                    <i
-                        class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
-                    <div id="customerResults"
-                        class="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden ring-4 ring-slate-100/50">
-                    </div>
-                </div>
-                <input type="hidden" id="selectedCustomerId" name="customer_id" required>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <!-- Job Type -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Jenis
-                        Pekerjaan</label>
-                    <div class="relative">
-                        <select name="job_type_id"
-                            class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium appearance-none text-sm cursor-pointer hover:bg-white">
-                            <% jobTypes.forEach(type=> { %>
-                                <option value="<%= type.id %>">
-                                    <%= type.name %>
-                                </option>
-                                <% }) %>
-                        </select>
-                        <i
-                            class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
-                    </div>
-                </div>
-                <!-- Priority -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Prioritas</label>
-                    <div class="relative">
-                        <select name="priority"
-                            class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium appearance-none text-sm cursor-pointer hover:bg-white">
-                            <option value="low">Low (Rendah)</option>
-                            <option value="medium" selected>Medium (Normal)</option>
-                            <option value="high">High (Tinggi)</option>
-                            <option value="critical">Critical (Darurat)</option>
-                        </select>
-                        <i
-                            class="fas fa-sort-amount-up absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Description -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Judul / Deskripsi</label>
-                <textarea name="title" rows="2" placeholder="Contoh: Perbaikan kabel putus di tiang..."
-                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium resize-none text-sm hover:bg-white"></textarea>
-            </div>
-
-            <!-- Manual Coordinates Input -->
-            <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Latitude</label>
-                    <input type="text" id="manualLat" placeholder="-7.xxxx"
-                        class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm">
-                </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Longitude</label>
-                    <input type="text" id="manualLng" placeholder="110.xxxx"
-                        class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm">
-                </div>
-            </div>
-
-            <!-- Map -->
-            <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <label
-                        class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-                        <i class="fas fa-map-marked-alt text-blue-500"></i>
-                        Lokasi Pengerjaan
-                    </label>
-                    <span class="text-[10px] text-slate-400 italic bg-slate-100 px-2 py-0.5 rounded-full">Klik peta
-                        untuk pin lokasi</span>
-                </div>
-                <div id="jobMapContainer"
-                    class="h-56 rounded-xl border-2 border-slate-100 overflow-hidden relative z-0 shadow-inner group-hover:border-blue-200 transition-colors">
-                    <!-- Map will be initialized here -->
-                </div>
-                <input type="hidden" name="coordinates" id="jobCoordinates">
-            </div>
-
-            <!-- Submit Button -->
-            <button type="submit"
-                class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group">
-                <span>Simpan Pekerjaan</span>
-                <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+        <!-- Tabs for Job Type -->
+        <div class="px-8 pt-4 flex gap-4 border-b border-slate-100 bg-slate-50/30">
+            <button type="button" onclick="setJobType('customer')" id="tab-customer"
+                class="pb-3 px-4 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-all flex items-center gap-2">
+                <i class="fas fa-user"></i>
+                Pelanggan
             </button>
-        </form>
+            <button type="button" onclick="setJobType('general')" id="tab-general"
+                class="pb-3 px-4 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all flex items-center gap-2">
+                <i class="fas fa-globe"></i>
+                Umum / Internal
+            </button>
+        </div>
+
+        <div class="max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <form id="addJobForm" class="p-8 space-y-6">
+                <!-- Customer Search Section -->
+                <div id="customer-section" class="space-y-1.5 transition-all duration-300">
+                    <label
+                        class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center justify-between">
+                        <span>Nama / ID Pelanggan</span>
+                        <span class="text-[10px] text-blue-500 font-normal normal-case italic">*Wajib Diisi</span>
+                    </label>
+                    <div class="relative group">
+                        <input type="text" id="customerSearch" placeholder="Ketik nama atau ID pelanggan..."
+                            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium group-hover:bg-white text-sm">
+                        <i
+                            class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                        <div id="customerResults"
+                            class="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden ring-4 ring-slate-100/50">
+                        </div>
+                    </div>
+                    <input type="hidden" id="selectedCustomerId" name="customer_id" required>
+                </div>
+
+                <!-- Job Identity for General -->
+                <div id="general-section" class="space-y-1.5 hidden transition-all duration-300">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nama Lokasi /
+                        Pekerjaan</label>
+                    <input type="text" name="manual_location_name"
+                        placeholder="Misal: Perbaikan Tiang J10 atau Lokasi X..."
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm hover:bg-white">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- Job Type -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Jenis
+                            Pekerjaan</label>
+                        <div class="relative">
+                            <select name="job_type_id"
+                                class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium appearance-none text-sm cursor-pointer hover:bg-white">
+                                <% jobTypes.forEach(type=> { %>
+                                    <option value="<%= type.id %>">
+                                        <%= type.name %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <i
+                                class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                        </div>
+                    </div>
+                    <!-- Priority -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Prioritas</label>
+                        <div class="relative">
+                            <select name="priority"
+                                class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium appearance-none text-sm cursor-pointer hover:bg-white">
+                                <option value="low">Low (Rendah)</option>
+                                <option value="medium" selected>Medium (Normal)</option>
+                                <option value="high">High (Tinggi)</option>
+                                <option value="critical">Critical (Darurat)</option>
+                            </select>
+                            <i
+                                class="fas fa-sort-amount-up absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Judul /
+                        Deskripsi</label>
+                    <textarea name="title" rows="2" placeholder="Contoh: Perbaikan kabel putus di tiang..."
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium resize-none text-sm hover:bg-white"
+                        required></textarea>
+                </div>
+
+                <!-- Manual Coordinates Input -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Latitude</label>
+                        <input type="text" id="manualLat" placeholder="-7.xxxx"
+                            class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Longitude</label>
+                        <input type="text" id="manualLng" placeholder="110.xxxx"
+                            class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm">
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label
+                            class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
+                            <i class="fas fa-map-marked-alt text-blue-500"></i>
+                            Lokasi Pengerjaan
+                        </label>
+                        <span class="text-[10px] text-slate-400 italic bg-slate-100 px-2 py-0.5 rounded-full">Klik peta
+                            untuk pin lokasi</span>
+                    </div>
+                    <div id="jobMapContainer"
+                        class="h-56 rounded-xl border-2 border-slate-100 overflow-hidden relative z-0 shadow-inner group-hover:border-blue-200 transition-colors">
+                        <!-- Map will be initialized here -->
+                    </div>
+                    <input type="hidden" name="coordinates" id="jobCoordinates">
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-2">
+                    <button type="submit"
+                        class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group mb-4">
+                        <span>Simpan Pekerjaan</span>
+                        <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -471,6 +500,30 @@
         }
     }
 
+    function setJobType(type) {
+        const customerSec = document.getElementById('customer-section');
+        const generalSec = document.getElementById('general-section');
+        const tabCust = document.getElementById('tab-customer');
+        const tabGen = document.getElementById('tab-general');
+        const customerInput = document.getElementById('selectedCustomerId');
+
+        if (type === 'customer') {
+            customerSec.classList.remove('hidden');
+            generalSec.classList.add('hidden');
+            tabCust.className = 'pb-3 px-4 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-all flex items-center gap-2';
+            tabGen.className = 'pb-3 px-4 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all flex items-center gap-2';
+            customerInput.setAttribute('required', '');
+        } else {
+            customerSec.classList.add('hidden');
+            generalSec.classList.remove('hidden');
+            tabCust.className = 'pb-3 px-4 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all flex items-center gap-2';
+            tabGen.className = 'pb-3 px-4 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-all flex items-center gap-2';
+            customerInput.removeAttribute('required');
+            customerInput.value = '';
+            document.getElementById('customerSearch').value = '';
+        }
+    }
+
     // Modal Helpers
     function showAddJobModal() {
         document.getElementById('addJobModal').classList.remove('hidden');
@@ -568,8 +621,6 @@
         document.body.style.overflow = '';
     }
 
-
-
     // Search Autocomplete
     function setupSearch() {
         const input = document.getElementById('customerSearch');
@@ -656,6 +707,11 @@
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
 
+        // Use manual location name as description or address if customer not selected
+        if (!data.customer_id && data.manual_location_name) {
+            data.address = data.manual_location_name;
+        }
+
         try {
             const res = await fetch('/technician/jobs/save', {
                 method: 'POST',
@@ -673,6 +729,8 @@
                 });
                 closeAddJobModal();
                 e.target.reset();
+                // Reset Job Type tab
+                setJobType('customer');
                 refreshJobs();
             } else {
                 Swal.fire({ icon: 'error', title: 'Gagal', text: result.error });
@@ -781,5 +839,23 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         line-clamp: 1;
+    }
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
 </style>

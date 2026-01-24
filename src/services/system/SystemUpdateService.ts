@@ -45,6 +45,17 @@ export class SystemUpdateService {
         try {
             console.log('[SystemUpdate] Starting update process...');
 
+            // Notify Admins about update start
+            try {
+                const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                await UnifiedNotificationService.broadcastToAdmins(
+                    `⚙️ *SYSTEM UPDATE INITIATED*\n\n` +
+                    `Sistem akan memulai proses pembaruan. Aplikasi mungkin akan restart sebentar.`
+                );
+            } catch (e) {
+                console.warn('Failed to notify admins about update start:', e);
+            }
+
             // 1. Force Sync with Remote (Reset Hard to avoid merge conflicts)
             console.log('[SystemUpdate] Fetching and Resetting...');
             await git.fetch();
@@ -77,17 +88,39 @@ export class SystemUpdateService {
             // 4. Restart (PM2)
             console.log('[SystemUpdate] Restarting application...');
 
+            // Notify Admins about update success
+            try {
+                const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                await UnifiedNotificationService.broadcastToAdmins(
+                    `🚀 *SYSTEM UPDATE SUCCESS*\n\n` +
+                    `Sistem berhasil diperbarui ke versi terbaru di branch main.\n` +
+                    `Aplikasi sedang melakukan restart otomatis.`
+                );
+            } catch (e) {
+                console.warn('Failed to notify admins about update success:', e);
+            }
+
             // Allow time for response to be sent to client
             setTimeout(() => {
                 // Try PM2 restart first if available globally, OR just exit and let PM2 autostart
                 // We use process.exit(0) effectively mostly.
                 process.exit(0);
-            }, 2000);
+            }, 5000);
 
             return { success: true, message: 'Update berhasil. Sistem akan restart dalam beberapa detik.' };
 
         } catch (error: any) {
             console.error('[SystemUpdate] Update failed:', error);
+            // Notify Admins about update failure
+            try {
+                const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                await UnifiedNotificationService.broadcastToAdmins(
+                    `❌ *SYSTEM UPDATE FAILED*\n\n` +
+                    `Pembaruan sistem gagal dengan error: ${error.message || 'Unknown error'}.`
+                );
+            } catch (e) {
+                console.warn('Failed to notify admins about update failure:', e);
+            }
             throw new Error(error.message || 'Update gagal');
         }
     }

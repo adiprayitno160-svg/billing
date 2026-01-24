@@ -599,15 +599,20 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
-            // Send notification ...
+            // Send notification
             try {
                 const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
-                // Only notify if paid
-                if (paymentAmountFloat > 0) {
-                    // Get payment record ID...
-                    // (Skip implementation for brevity as it's same as above, assume notification logic is handled elsewhere or simplified here)
+                // Get payment ID
+                const [paymentRows] = await databasePool.query(
+                    'SELECT id FROM payments WHERE invoice_id = ? ORDER BY id DESC LIMIT 1',
+                    [invoice_id]
+                );
+                if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
+                    await UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id);
                 }
-            } catch (e) { }
+            } catch (notifError) {
+                console.error('Error sending payment notification:', notifError);
+            }
 
             res.json({
                 success: true,

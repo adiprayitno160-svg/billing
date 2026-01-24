@@ -8,6 +8,7 @@ import { GenieacsWhatsAppController } from '../../controllers/whatsapp/GenieacsW
 import { ChatBotService } from '../ai/ChatBotService';
 import { AdvancedPaymentVerificationService } from '../ai/AdvancedPaymentVerificationService';
 import path from 'path';
+import fs from 'fs';
 
 export class WhatsAppHandler {
 
@@ -149,6 +150,32 @@ export class WhatsAppHandler {
                             reason = 'Menunggu verifikasi admin (Manual Review).';
                         }
 
+                        // SAVE TO MANUAL VERIFICATION TABLE
+                        try {
+                            const imageBase64 = (buffer as Buffer).toString('base64');
+                            const extractedAmount = result.data?.extractedAmount || 0;
+                            const expectedAmount = result.data?.expectedAmount || 0;
+
+                            await databasePool.query(
+                                `INSERT INTO manual_payment_verifications 
+                                 (customer_id, status, image_data, image_mimetype, extracted_amount, expected_amount, reason, created_at)
+                                 VALUES (?, 'pending', ?, 'image/jpeg', ?, ?, ?, NOW())`,
+                                [customer.id, imageBase64, extractedAmount, expectedAmount, reason]
+                            );
+
+                            // Notify Admins
+                            const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                            await UnifiedNotificationService.broadcastToAdmins(
+                                `🔔 *PEMBAYARAN BUTUH VERIFIKASI*\n\n` +
+                                `Pelanggan: ${customer.name}\n` +
+                                `Nominal: Rp ${extractedAmount.toLocaleString('id-ID')}\n` +
+                                `Alasan: ${reason}\n\n` +
+                                `Silakan cek menu WhatsApp Monitor untuk memverifikasi.`
+                            );
+                        } catch (saveErr) {
+                            console.error('Failed to save manual verification:', saveErr);
+                        }
+
                         await service.sendMessage(senderJid, `⚠️ *Verifikasi Manual Diperlukan*\n\n${reason}\n\nData Anda telah diteruskan ke Admin untuk pengecekan manual. Mohon tunggu konfirmasi selanjutnya.`);
                     }
                 } catch (err) {
@@ -215,10 +242,103 @@ export class WhatsAppHandler {
                 return;
             }
 
+            // HANDLE TECHNICIAN !ambil COMMAND
+            if (cleanText.startsWith('!ambil')) {
+                const ticketNumber = cleanText.replace('!ambil', '').trim().toUpperCase();
+
+                if (!ticketNumber) {
+                    await service.sendMessage(senderJid, '⚠️ Mohon masukkan nomor tiket.\nContoh: *!ambil JOB-12345*');
+                    return;
+                }
+
+                try {
+                    // Identify if sender is a technician
+                    const [techRows] = await databasePool.query<RowDataPacket[]>(
+                        "SELECT id, full_name, role FROM users WHERE phone = ? AND role = 'teknisi' AND is_active = 1 LIMIT 1",
+                        [senderPhone]
+                    );
+
+                    if (!techRows || techRows.length === 0) {
+                        // formats check (re-use generic lookup if needed, but phone should be exact for users)
+                        // but sometimes senderPhone has 62 while DB has 0
+                        // let's try a bit wider
+                        const formats = [senderPhone];
+                        if (senderPhone.startsWith('62')) formats.push('0' + senderPhone.substring(2));
+                        if (senderPhone.startsWith('0')) formats.push('62' + senderPhone.substring(1));
+
+                        const [techRowsRetry] = await databasePool.query<RowDataPacket[]>(
+                            "SELECT id, full_name, role FROM users WHERE phone IN (?) AND role = 'teknisi' AND is_active = 1 LIMIT 1",
+                            [formats]
+                        );
+
+                        if (!techRowsRetry || techRowsRetry.length === 0) {
+                            await service.sendMessage(senderJid, '🚫 Maaf, perintah ini hanya untuk teknisi terdaftar.');
+                            return;
+                        }
+                        techRows[0] = techRowsRetry[0];
+                    }
+
+                    const technician = techRows[0] as any;
+
+                    // Find job by ticket number
+                    const [jobRows] = await databasePool.query<RowDataPacket[]>(
+                        `SELECT j.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address 
+                         FROM technician_jobs j 
+                         LEFT JOIN customers c ON j.customer_id = c.id 
+                         WHERE j.ticket_number = ?`,
+                        [ticketNumber]
+                    );
+
+                    if (!jobRows || jobRows.length === 0) {
+                        await service.sendMessage(senderJid, `❌ Maaf, tiket *${ticketNumber}* tidak ditemukan.`);
+                        return;
+                    }
+
+                    const job = jobRows[0] as any;
+
+                    if (job.status !== 'pending') {
+                        if (job.status === 'accepted' && job.technician_id === technician.id) {
+                            await service.sendMessage(senderJid, `✅ Tiket *${ticketNumber}* sudah Anda ambil sebelumnya.`);
+                        } else {
+                            await service.sendMessage(senderJid, `⚠️ Maaf, tiket *${ticketNumber}* sudah diambil oleh teknisi lain atau sedang diproses.`);
+                        }
+                        return;
+                    }
+
+                    // Update job status
+                    await databasePool.query(
+                        "UPDATE technician_jobs SET status = 'accepted', technician_id = ?, accepted_at = NOW() WHERE id = ?",
+                        [technician.id, job.id]
+                    );
+
+                    // Send success to technician
+                    const successMsg = `✅ *BERHASIL MENGAMBIL JOB*\n\n` +
+                        `🎫 Tiket: *${job.ticket_number}*\n` +
+                        `👤 Customer: ${job.customer_name || 'Umum'}\n` +
+                        `📍 Alamat: ${job.customer_address || job.address || '-'}\n` +
+                        `📞 Telp: ${job.customer_phone || '-'}\n` +
+                        `📝 Deskripsi: ${job.title}\n\n` +
+                        `Selamat bekerja! Hubungi customer untuk konfirmasi waktu.`;
+
+                    await service.sendMessage(senderJid, successMsg);
+
+                    // Notify Customer if exists
+                    if (job.customer_phone) {
+                        const custMsg = `✅ *TEKNISI MENUJU LOKASI*\n\nHalo Kak *${job.customer_name}*,\nLaporan Anda (#${job.ticket_number}) telah diambil oleh teknisi kami:\n\n👤 Nama: *${technician.full_name}*\n\nTeknisi akan segera menghubungi Kakak. Terima kasih.`;
+                        await service.sendMessage(job.customer_phone, custMsg).catch(() => { });
+                    }
+
+                } catch (err) {
+                    console.error('[WA !ambil] Error:', err);
+                    await service.sendMessage(senderJid, '❌ Terjadi kesalahan saat mengambil pekerjaan.');
+                }
+                return;
+            }
+
             // QRIS Feature
             if (keyword === 'qris' || keyword === 'bayar' || cleanText.includes('qr code')) {
                 const qrisPath = path.join(process.cwd(), 'public', 'images', 'payments', 'qris.png');
-                if (require('fs').existsSync(qrisPath)) {
+                if (fs.existsSync(qrisPath)) {
                     await service.sendMessage(senderJid, 'Tunggu sebentar, sedang mengambil kode QRIS...');
                     await service.sendImage(senderJid, qrisPath, 'Scan QRIS ini untuk melakukan pembayaran.\n\n*Otomatis Terverifikasi* ✅');
                 } else {

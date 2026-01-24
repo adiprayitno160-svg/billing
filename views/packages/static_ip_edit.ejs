@@ -261,14 +261,6 @@
                                         </option>
                                         <% } %>
                                 </select>
-                                <div class="mt-3">
-                                    <label class="block text-sm font-medium text-slate-600 mb-1">Child Burst
-                                        Download</label>
-                                    <input name="child_burst_download" value="<%= package.child_burst_download || '' %>"
-                                        placeholder="10M"
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                    <p class="text-xs text-slate-500 mt-1">Nilai burst-limit download (opsional)</p>
-                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Priority Upload</label>
@@ -281,14 +273,6 @@
                                         </option>
                                         <% } %>
                                 </select>
-                                <div class="mt-3">
-                                    <label class="block text-sm font-medium text-slate-600 mb-1">Child Burst
-                                        Upload</label>
-                                    <input name="child_burst_upload" value="<%= package.child_burst_upload || '' %>"
-                                        placeholder="10M"
-                                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                    <p class="text-xs text-slate-500 mt-1">Nilai burst-limit upload (opsional)</p>
-                                </div>
                             </div>
                         </div>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -468,3 +452,22 @@
                     });
 
                     (function () {
+                        var nameInput = document.querySelector('input[name="name"]');
+                        var upload = document.querySelector('input[name="child_upload_name"]');
+                        var download = document.querySelector('input[name="child_download_name"]');
+                        function sync() {
+                            var raw = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
+                            // Make it safe for MikroTik names (no spaces, special chars)
+                            var safeRaw = raw.replace(/[^a-zA-Z0-9-]/g, '_');
+
+                            if (upload) upload.value = safeRaw ? safeRaw + '_UPLOAD' : '';
+                            if (download) download.value = safeRaw ? safeRaw + '_DOWNLOAD' : '';
+                        }
+                        if (nameInput) {
+                            nameInput.addEventListener('input', sync);
+                            window.addEventListener('DOMContentLoaded', sync);
+                        }
+                    })();
+                </script>
+            </form>
+</div>
