@@ -1,11 +1,12 @@
 
-import { WAMessage, proto } from '@whiskeysockets/baileys';
+import { WAMessage, proto, downloadMediaMessage } from '@whiskeysockets/baileys';
 import { WhatsAppService } from './WhatsAppService';
 import { databasePool } from '../../db/pool';
 import { WhatsAppSessionService } from './WhatsAppSessionService';
 import { RowDataPacket } from 'mysql2';
 import { GenieacsWhatsAppController } from '../../controllers/whatsapp/GenieacsWhatsAppController';
 import { ChatBotService } from '../ai/ChatBotService';
+import { AdvancedPaymentVerificationService } from '../ai/AdvancedPaymentVerificationService';
 import path from 'path';
 
 export class WhatsAppHandler {
@@ -41,10 +42,13 @@ export class WhatsAppHandler {
             const isLocation = !!(msg.message?.locationMessage || msg.message?.ephemeralMessage?.message?.locationMessage);
             const locationData = isLocation ? (msg.message?.locationMessage || msg.message?.ephemeralMessage?.message?.locationMessage) : null;
 
-            // Allow processing if it's a location message OR has text content
-            if (!messageContent && !isLocation) return;
+            // Handle Media (Image)
+            const isImage = !!msg.message?.imageMessage;
 
-            console.log(`📩 [WhatsAppHandler] From: ${senderPhone} (LID: ${isLid}) | Text: "${cleanText}" | Location: ${isLocation}`);
+            // Allow processing if it's a location message OR has text content OR image
+            if (!messageContent && !isLocation && !isImage) return;
+
+            console.log(`📩 [WhatsAppHandler] From: ${senderPhone} (LID: ${isLid}) | Text: "${cleanText}" | Location: ${isLocation} | Img: ${isImage}`);
 
             // Self ignore
             if (msg.key.fromMe) return;
@@ -101,9 +105,56 @@ export class WhatsAppHandler {
                 return;
             }
 
-            // 5. Customer Logic
-            if (keyword === 'tagihan' || keyword === 'cek' || keyword === 'cektagihan') {
-                await this.handleCheckBill(service, senderJid, customer);
+            // 5.5 IMAGE RECOGNITION (Payment Proof Scan)
+            if (isImage) {
+                const sock = service.getSocket();
+                if (!sock) {
+                    console.error('Socket not available for image processing');
+                    return;
+                }
+
+                if (!customer) {
+                    await service.sendMessage(senderJid, 'Maaf, nomor Anda belum terdaftar. Silakan registrasi terlebih dahulu.');
+                    return;
+                }
+
+                await service.sendMessage(senderJid, '🔍 *Menganalisis bukti pembayaran...*\nMohon tunggu sebentar, AI kami sedang memverifikasi.');
+
+                try {
+                    const buffer = await downloadMediaMessage(
+                        msg as WAMessage,
+                        'buffer',
+                        {},
+                        {
+                            logger: console as any,
+                            reuploadRequest: sock.updateMediaMessage
+                        }
+                    );
+
+                    const result = await AdvancedPaymentVerificationService.verifyPaymentAdvanced(
+                        buffer as Buffer,
+                        customer.id
+                    );
+
+                    if (result.success && result.data?.autoApproved) {
+                        // Auto Approved
+                        const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
+                        const invStr = result.data.invoiceNumber || 'Tagihan';
+
+                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉`);
+                    } else {
+                        // Failed / Manual Review Needed
+                        let reason = result.error || 'Bukti tidak dapat dibaca otomatis/Nominal tidak sesuai.';
+                        if (result.data && result.data.confidence > 50) {
+                            reason = 'Menunggu verifikasi admin (Manual Review).';
+                        }
+
+                        await service.sendMessage(senderJid, `⚠️ *Verifikasi Manual Diperlukan*\n\n${reason}\n\nData Anda telah diteruskan ke Admin untuk pengecekan manual. Mohon tunggu konfirmasi selanjutnya.`);
+                    }
+                } catch (err) {
+                    console.error('Image processing error:', err);
+                    await service.sendMessage(senderJid, 'Maaf, gagal memproses gambar. Silakan kirim ulang atau hubungi admin.');
+                }
                 return;
             }
 

@@ -1,4 +1,5 @@
 import { databasePool } from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 
 export interface InvoiceData {
     customer_id: number;
@@ -257,6 +258,32 @@ export class InvoiceService {
             const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
             const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
 
+            // Get Scheduler Settings for Due Date
+            let fixedDay = 28;
+            let dayOffset = 7;
+            let useFixedDay = true;
+
+            try {
+                const [schedRows] = await databasePool.query<RowDataPacket[]>(`
+                    SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation' LIMIT 1
+                `);
+
+                if (schedRows.length > 0 && schedRows[0].config) {
+                    const config = typeof schedRows[0].config === 'string'
+                        ? JSON.parse(schedRows[0].config)
+                        : schedRows[0].config;
+
+                    if (config.due_date_fixed_day) fixedDay = parseInt(config.due_date_fixed_day);
+                    if (config.due_date_offset) dayOffset = parseInt(config.due_date_offset);
+
+                    // Logic: If fixed day is defined and > 0, use it. Otherwise use offset.
+                    // Default config usually has both, so we prioritize fixed day for monthly invoices.
+                    useFixedDay = fixedDay > 0;
+                }
+            } catch (err) {
+                console.warn('[InvoiceService] Failed to load scheduler settings, using defaults:', err);
+            }
+
             // Coba dengan tabel subscriptions terlebih dahulu
             // Generate invoice berdasarkan DAY(start_date) untuk billing mengikuti tanggal daftar
             let subscriptionQuery = `
@@ -303,10 +330,23 @@ export class InvoiceService {
                     try {
                         console.log(`[InvoiceService] Processing subscription: ${subscription.subscription_id} for customer: ${subscription.customer_name}`);
 
-                        // Jatuh tempo: tanggal 28 bulan ini
+                        // Jatuh tempo: Dynamic based on scheduler settings
                         const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                         const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
-                        const dueDate = new Date(periodYear, periodMonth - 1, 28); // Tanggal 28 bulan invoice
+                        let dueDate: Date;
+
+                        if (useFixedDay) {
+                            // Use fixed day (e.g. 28)
+                            // Handle February 28/29 or short months
+                            const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+                            const targetDay = Math.min(fixedDay, daysInMonth);
+                            dueDate = new Date(periodYear, periodMonth - 1, targetDay);
+                        } else {
+                            // Use offset (e.g. 1st + 7 days)
+                            // Assuming period starts on 1st
+                            dueDate = new Date(periodYear, periodMonth - 1, 1);
+                            dueDate.setDate(dueDate.getDate() + dayOffset);
+                        }
 
                         // Check for carry over amount (with error handling)
                         let carryOverAmount = 0;
@@ -497,10 +537,19 @@ export class InvoiceService {
 
                 for (const customer of customerResult as any[]) {
                     try {
-                        // Jatuh tempo: tanggal 28 bulan ini (GLOBAL RULE)
+                        // Jatuh tempo: Dynamic based on scheduler settings
                         const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                         const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
-                        const dueDate = new Date(periodYear, periodMonth - 1, 28); // Tanggal 28 bulan invoice
+                        let dueDate: Date;
+
+                        if (useFixedDay) {
+                            const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+                            const targetDay = Math.min(fixedDay, daysInMonth);
+                            dueDate = new Date(periodYear, periodMonth - 1, targetDay);
+                        } else {
+                            dueDate = new Date(periodYear, periodMonth - 1, 1);
+                            dueDate.setDate(dueDate.getDate() + dayOffset);
+                        }
 
                         // Enhanced Pricing Logic
                         let price = 100000; // Default fallback

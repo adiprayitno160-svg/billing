@@ -441,7 +441,13 @@ export class SystemSettingsController {
           ('device_rental_enabled', 'false', 'Enable Device Rental', 'billing'),
           ('device_rental_enabled', 'false', 'Enable Device Rental', 'billing'),
           ('device_rental_fee', '0', 'Default Device Rental Fee', 'billing'),
-          ('whatsapp_tester_numbers', '63729093849223,089678630707', 'Nomor HP/ID untuk testing bypass (Owner)', 'general')
+          ('whatsapp_tester_numbers', '63729093849223,089678630707', 'Nomor HP/ID untuk testing bypass (Owner)', 'general'),
+          ('bank_name', 'BCA', 'Nama Bank Utama', 'billing'),
+          ('bank_account_number', '1234567890', 'Nomor Rekening Bank', 'billing'),
+          ('bank_account_name', 'PT ISP NET', 'Atas Nama Rekening', 'billing'),
+          ('due_date_mode', 'fixed', 'Metode penentuan jatuh tempo (fixed/offset)', 'billing'),
+          ('due_date_fixed_day', '28', 'Tanggal jatuh tempo tetap (jika mode fixed)', 'billing'),
+          ('due_date_offset_days', '7', 'Jumlah hari offset jatuh tempo (jika mode offset)', 'billing')
         `);
       } else {
         // Insert without category column (backward compatible)

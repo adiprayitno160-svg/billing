@@ -356,7 +356,39 @@ export class InvoiceController {
 
             const { period, due_date_offset, customer_ids } = req.body;
             const currentPeriod = period || new Date().toISOString().slice(0, 7); // YYYY-MM
-            const dueDateOffset = parseInt(due_date_offset || '7'); // Default 7 days from period start
+
+            // Get Due Date Settings from System Settings
+            let fixedDay = 28;
+            let dayOffset = 7;
+            let useFixedDay = true;
+
+            try {
+                const [sysSettings] = await conn.query<RowDataPacket[]>(`
+                    SELECT setting_key, setting_value FROM system_settings 
+                    WHERE setting_key IN ('due_date_mode', 'due_date_fixed_day', 'due_date_offset_days')
+                `);
+
+                const settingsMap: Record<string, string> = {};
+                sysSettings.forEach((row: any) => settingsMap[row.setting_key] = row.setting_value);
+
+                if (settingsMap['due_date_mode'] === 'offset') {
+                    useFixedDay = false;
+                } else {
+                    // Default to fixed if not set or explicitly fixed
+                    useFixedDay = true;
+                }
+
+                if (settingsMap['due_date_fixed_day']) fixedDay = parseInt(settingsMap['due_date_fixed_day']);
+                if (settingsMap['due_date_offset_days']) dayOffset = parseInt(settingsMap['due_date_offset_days']);
+
+                // Override if user manually passed a generic offset (rare case for manual run)
+                if (due_date_offset) {
+                    dayOffset = parseInt(due_date_offset);
+                    useFixedDay = false; // Force offset if provided manually via API params
+                }
+            } catch (err) {
+                console.warn('[InvoiceController] Failed to load due date settings, using defaults:', err);
+            }
 
             console.log(`Generating bulk invoices for period: ${currentPeriod}`);
             if (customer_ids) console.log(`Targeting ${Array.isArray(customer_ids) ? customer_ids.length : 0} specific customers`);
@@ -473,10 +505,20 @@ export class InvoiceController {
                     const hasActiveSubscription = subscription.id && subscription.id > 0;
                     console.log(`✓ Processing customer ${subscription.customer_name} (customer_id: ${subscription.customer_id}${hasActiveSubscription ? `, subscription_id: ${subscription.id}` : ', no active subscription - using default price'})`);
 
-                    // Calculate due date
+                    // Calculate due date (Consistent with Scheduler)
                     const periodDate = new Date(currentPeriod + '-01');
-                    const dueDate = new Date(periodDate);
-                    dueDate.setDate(dueDate.getDate() + dueDateOffset);
+                    let dueDate = new Date(periodDate);
+
+                    if (useFixedDay) {
+                        const daysInMonth = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0).getDate();
+                        const targetDay = Math.min(fixedDay, daysInMonth);
+                        // Safe set: Year, Month, Day
+                        dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), targetDay);
+                    } else {
+                        // Offset from start of period (usually 1st)
+                        dueDate.setDate(dueDate.getDate() + dayOffset);
+                    }
+
                     const dueDateStr = dueDate.toISOString().slice(0, 10);
 
                     // Generate invoice number
@@ -730,6 +772,21 @@ export class InvoiceController {
                     `• Status: *LUNAS* ✅\n\n` +
                     `Terima kasih telah berlangganan layanan kami. 🙏`;
             } else {
+                // Get Bank Settings
+                const [settingsRows] = await databasePool.query<RowDataPacket[]>(
+                    "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name')"
+                );
+
+                const bankSettings: any = {
+                    bank_name: 'BCA',
+                    bank_account_number: '1234567890',
+                    bank_account_name: 'ISP Billing'
+                };
+
+                settingsRows.forEach(row => {
+                    bankSettings[row.setting_key] = row.setting_value;
+                });
+
                 message = `📢 *TAGIHAN INTERNET BULAN ${periodName.toUpperCase()}*\n\n` +
                     `Halo Kak *${invoice.customer_name}*,\n` +
                     `Berikut adalah rincian tagihan internet Anda:\n\n` +
@@ -740,8 +797,8 @@ export class InvoiceController {
                     `• Jatuh Tempo: *${dueDate}*\n\n` +
                     `💳 *Cara Pembayaran:*\n` +
                     `Silakan transfer ke rekening:\n` +
-                    `BCA: 1234567890 a/n ISP Billing\n` +
-                    `BRI: 0987654321 a/n ISP Billing\n\n` +
+                    `*${bankSettings.bank_name}*: ${bankSettings.bank_account_number}\n` +
+                    `a/n ${bankSettings.bank_account_name}\n\n` +
                     `⚠️ Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari isolir otomatis.\n\n` +
                     `_Balas pesan ini dengan bukti transfer jika sudah melakukan pembayaran._\n` +
                     `Terima kasih. 🙏`;
