@@ -1,12 +1,20 @@
 <div class="max-w-7xl mx-auto space-y-6">
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-lg p-6 text-white">
-        <div class="flex items-center justify-between">
+    <!-- Header Section -->
+    <div
+        class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white overflow-hidden relative">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h2 class="text-3xl font-bold mb-2">📊 Sistem Pembukuan</h2>
-                <p class="text-blue-100">Laporan Piutang dan Pembayaran</p>
+                <h2 class="text-3xl font-extrabold flex items-center gap-3">
+                    <i class="fas fa-book text-blue-200"></i>
+                    Sistem Pembukuan
+                </h2>
+                <p class="text-blue-100 mt-2 opacity-90 font-medium">
+                    Pantau laporan piutang dan rekapitulasi pembayaran secara real-time
+                </p>
             </div>
         </div>
+        <!-- Decorative element -->
+        <div class="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
     </div>
 
     <!-- Filter -->
@@ -14,41 +22,27 @@
         <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-2">Tanggal Mulai</label>
-                <input 
-                    type="date" 
-                    name="startDate" 
-                    value="<%= startDate %>"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500"
-                >
+                <input type="date" name="startDate" value="<%= startDate %>"
+                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500">
             </div>
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-2">Tanggal Akhir</label>
-                <input 
-                    type="date" 
-                    name="endDate" 
-                    value="<%= endDate %>"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500"
-                >
+                <input type="date" name="endDate" value="<%= endDate %>"
+                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500">
             </div>
             <div class="flex items-end">
-                <button 
-                    type="submit"
-                    class="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold transition"
-                >
+                <button type="submit"
+                    class="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold transition">
                     <i class="fas fa-filter mr-2"></i>Filter
                 </button>
             </div>
             <div class="flex items-end gap-2">
-                <a 
-                    href="/accounting/bookkeeping/export/unpaid?startDate=<%= startDate %>&endDate=<%= endDate %>"
-                    class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold text-center transition"
-                >
+                <a href="/accounting/bookkeeping/export/unpaid?startDate=<%= startDate %>&endDate=<%= endDate %>"
+                    class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold text-center transition">
                     <i class="fas fa-file-pdf mr-2"></i>PDF Piutang
                 </a>
-                <a 
-                    href="/accounting/bookkeeping/export/paid?startDate=<%= startDate %>&endDate=<%= endDate %>"
-                    class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold text-center transition"
-                >
+                <a href="/accounting/bookkeeping/export/paid?startDate=<%= startDate %>&endDate=<%= endDate %>"
+                    class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold text-center transition">
                     <i class="fas fa-file-pdf mr-2"></i>PDF Bayar
                 </a>
             </div>
@@ -61,29 +55,39 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-semibold text-red-700 mb-1">Total Piutang</p>
-                    <p class="text-3xl font-bold text-red-900">Rp <%= data.summary.totalOutstanding.toLocaleString('id-ID') %></p>
-                    <p class="text-xs text-red-600 mt-1"><%= data.unpaid.count %> Invoice</p>
+                    <p class="text-3xl font-bold text-red-900">Rp <%=
+                            data.summary.totalOutstanding.toLocaleString('id-ID') %>
+                    </p>
+                    <p class="text-xs text-red-600 mt-1">
+                        <%= data.unpaid.count %> Invoice
+                    </p>
                 </div>
                 <i class="fas fa-exclamation-triangle text-5xl text-red-400"></i>
             </div>
         </div>
-        
+
         <div class="bg-green-50 rounded-2xl shadow-sm border-2 border-green-200 p-6">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-semibold text-green-700 mb-1">Total Dibayar</p>
-                    <p class="text-3xl font-bold text-green-900">Rp <%= data.summary.totalReceived.toLocaleString('id-ID') %></p>
-                    <p class="text-xs text-green-600 mt-1"><%= data.paid.count %> Invoice</p>
+                    <p class="text-3xl font-bold text-green-900">Rp <%=
+                            data.summary.totalReceived.toLocaleString('id-ID') %>
+                    </p>
+                    <p class="text-xs text-green-600 mt-1">
+                        <%= data.paid.count %> Invoice
+                    </p>
                 </div>
                 <i class="fas fa-check-circle text-5xl text-green-400"></i>
             </div>
         </div>
-        
+
         <div class="bg-blue-50 rounded-2xl shadow-sm border-2 border-blue-200 p-6">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-semibold text-blue-700 mb-1">Total Tagihan</p>
-                    <p class="text-3xl font-bold text-blue-900">Rp <%= (data.summary.totalReceivable + data.summary.totalReceived).toLocaleString('id-ID') %></p>
+                    <p class="text-3xl font-bold text-blue-900">Rp <%= (data.summary.totalReceivable +
+                            data.summary.totalReceived).toLocaleString('id-ID') %>
+                    </p>
                     <p class="text-xs text-blue-600 mt-1">Semua Invoice</p>
                 </div>
                 <i class="fas fa-file-invoice-dollar text-5xl text-blue-400"></i>
@@ -95,19 +99,13 @@
     <div class="bg-white rounded-2xl shadow-sm border-2 border-gray-100 overflow-hidden">
         <div class="border-b border-gray-200">
             <div class="flex">
-                <button 
-                    onclick="switchTab('unpaid')" 
-                    class="tab-btn flex-1 px-6 py-4 font-bold text-sm transition-all"
-                    id="tab-unpaid"
-                >
+                <button onclick="switchTab('unpaid')" class="tab-btn flex-1 px-6 py-4 font-bold text-sm transition-all"
+                    id="tab-unpaid">
                     <i class="fas fa-exclamation-circle mr-2"></i>
                     Piutang (<%= data.unpaid.count %>)
                 </button>
-                <button 
-                    onclick="switchTab('paid')" 
-                    class="tab-btn flex-1 px-6 py-4 font-bold text-sm transition-all"
-                    id="tab-paid"
-                >
+                <button onclick="switchTab('paid')" class="tab-btn flex-1 px-6 py-4 font-bold text-sm transition-all"
+                    id="tab-paid">
                     <i class="fas fa-check-circle mr-2"></i>
                     Pembayaran (<%= data.paid.count %>)
                 </button>
@@ -119,16 +117,14 @@
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-bold text-gray-900">Daftar Piutang</h3>
                 <div class="flex gap-2">
-                    <a 
-                        href="/accounting/bookkeeping/print/unpaid?startDate=<%= startDate %>&endDate=<%= endDate %>"
+                    <a href="/accounting/bookkeeping/print/unpaid?startDate=<%= startDate %>&endDate=<%= endDate %>"
                         target="_blank"
-                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
-                    >
+                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold">
                         <i class="fas fa-print mr-2"></i>Cetak
                     </a>
                 </div>
             </div>
-            
+
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -143,60 +139,85 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <% if (data.unpaid.invoices.length === 0) { %>
+                        <% if (data.unpaid.invoices.length===0) { %>
                             <tr>
                                 <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                                     <i class="fas fa-check-circle text-4xl text-green-400 mb-2"></i>
                                     <p>Tidak ada piutang</p>
                                 </td>
                             </tr>
-                        <% } else { %>
-                            <% data.unpaid.invoices.forEach((invoice, index) => { %>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        <div class="font-semibold text-gray-900"><%= invoice.invoice_number %></div>
-                                        <div class="text-xs text-gray-500"><%= invoice.period %></div>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <div class="font-semibold text-gray-900"><%= invoice.customer_name %></div>
-                                        <div class="text-xs text-gray-500"><%= invoice.customer_code %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900"><%= new Date(invoice.due_date).toLocaleDateString('id-ID') %></div>
-                                        <% if (invoice.days_overdue > 0) { %>
-                                            <div class="text-xs text-red-600 font-semibold">
-                                                Terlambat <%= invoice.days_overdue %> hari
+                            <% } else { %>
+                                <% data.unpaid.invoices.forEach((invoice, index)=> { %>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="font-semibold text-gray-900">
+                                                <%= invoice.invoice_number %>
                                             </div>
+                                            <div class="text-xs text-gray-500">
+                                                <%= invoice.period %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="font-semibold text-gray-900">
+                                                <%= invoice.customer_name %>
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                <%= invoice.customer_code %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID') %>
+                                            </div>
+                                            <% if (invoice.days_overdue> 0) { %>
+                                                <div class="text-xs text-red-600 font-semibold">
+                                                    Terlambat <%= invoice.days_overdue %> hari
+                                                </div>
+                                                <% } %>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div class="font-semibold text-gray-900">Rp <%=
+                                                    parseFloat(invoice.total_amount || 0).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div class="text-sm text-gray-600">Rp <%= parseFloat(invoice.paid_amount ||
+                                                    0).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div class="font-bold text-red-600">Rp <%=
+                                                    parseFloat(invoice.remaining_amount || 0).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                                            <% if (invoice.status==='overdue' ) { %>
+                                                <span
+                                                    class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">TERLAMBAT</span>
+                                                <% } else if (invoice.status==='partial' ) { %>
+                                                    <span
+                                                        class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">SEBAGIAN</span>
+                                                    <% } else { %>
+                                                        <span
+                                                            class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">PENDING</span>
+                                                        <% } %>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
                                         <% } %>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <div class="font-semibold text-gray-900">Rp <%= parseFloat(invoice.total_amount || 0).toLocaleString('id-ID') %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <div class="text-sm text-gray-600">Rp <%= parseFloat(invoice.paid_amount || 0).toLocaleString('id-ID') %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <div class="font-bold text-red-600">Rp <%= parseFloat(invoice.remaining_amount || 0).toLocaleString('id-ID') %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-center">
-                                        <% if (invoice.status === 'overdue') { %>
-                                            <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">TERLAMBAT</span>
-                                        <% } else if (invoice.status === 'partial') { %>
-                                            <span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">SEBAGIAN</span>
-                                        <% } else { %>
-                                            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">PENDING</span>
-                                        <% } %>
-                                    </td>
-                                </tr>
-                            <% }); %>
-                        <% } %>
                     </tbody>
                     <tfoot class="bg-gray-50">
                         <tr>
                             <td colspan="3" class="px-4 py-3 font-bold text-gray-900 text-right">TOTAL:</td>
-                            <td class="px-4 py-3 text-right font-bold text-gray-900">Rp <%= data.unpaid.totalAmount.toLocaleString('id-ID') %></td>
-                            <td class="px-4 py-3 text-right font-bold text-gray-600">Rp <%= (data.unpaid.totalAmount - data.unpaid.totalRemaining).toLocaleString('id-ID') %></td>
-                            <td class="px-4 py-3 text-right font-bold text-red-600">Rp <%= data.unpaid.totalRemaining.toLocaleString('id-ID') %></td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900">Rp <%=
+                                    data.unpaid.totalAmount.toLocaleString('id-ID') %>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-600">Rp <%= (data.unpaid.totalAmount -
+                                    data.unpaid.totalRemaining).toLocaleString('id-ID') %>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-red-600">Rp <%=
+                                    data.unpaid.totalRemaining.toLocaleString('id-ID') %>
+                            </td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -209,16 +230,14 @@
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-bold text-gray-900">Daftar Pembayaran</h3>
                 <div class="flex gap-2">
-                    <a 
-                        href="/accounting/bookkeeping/print/paid?startDate=<%= startDate %>&endDate=<%= endDate %>"
+                    <a href="/accounting/bookkeeping/print/paid?startDate=<%= startDate %>&endDate=<%= endDate %>"
                         target="_blank"
-                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
-                    >
+                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold">
                         <i class="fas fa-print mr-2"></i>Cetak
                     </a>
                 </div>
             </div>
-            
+
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -232,47 +251,67 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <% if (data.paid.invoices.length === 0) { %>
+                        <% if (data.paid.invoices.length===0) { %>
                             <tr>
                                 <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                                     <i class="fas fa-info-circle text-4xl text-blue-400 mb-2"></i>
                                     <p>Belum ada pembayaran</p>
                                 </td>
                             </tr>
-                        <% } else { %>
-                            <% data.paid.invoices.forEach((invoice) => { %>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        <div class="font-semibold text-gray-900"><%= invoice.invoice_number %></div>
-                                        <div class="text-xs text-gray-500"><%= invoice.period %></div>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <div class="font-semibold text-gray-900"><%= invoice.customer_name %></div>
-                                        <div class="text-xs text-gray-500"><%= invoice.customer_code %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">
-                                            <%= (invoice.paid_at || invoice.last_payment || invoice.last_payment_date) ? new Date(invoice.paid_at || invoice.last_payment || invoice.last_payment_date).toLocaleDateString('id-ID') : '-' %>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <div class="font-semibold text-gray-900">Rp <%= parseFloat(invoice.total_amount || 0).toLocaleString('id-ID') %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-right">
-                                        <div class="font-bold text-green-600">Rp <%= parseFloat(invoice.paid_amount || 0).toLocaleString('id-ID') %></div>
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-center">
-                                        <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">LUNAS</span>
-                                    </td>
-                                </tr>
-                            <% }); %>
-                        <% } %>
+                            <% } else { %>
+                                <% data.paid.invoices.forEach((invoice)=> { %>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="font-semibold text-gray-900">
+                                                <%= invoice.invoice_number %>
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                <%= invoice.period %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="font-semibold text-gray-900">
+                                                <%= invoice.customer_name %>
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                <%= invoice.customer_code %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                <%= (invoice.paid_at || invoice.last_payment ||
+                                                    invoice.last_payment_date) ? new Date(invoice.paid_at ||
+                                                    invoice.last_payment ||
+                                                    invoice.last_payment_date).toLocaleDateString('id-ID') : '-' %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div class="font-semibold text-gray-900">Rp <%=
+                                                    parseFloat(invoice.total_amount || 0).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div class="font-bold text-green-600">Rp <%= parseFloat(invoice.paid_amount
+                                                    || 0).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                                            <span
+                                                class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">LUNAS</span>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
+                                        <% } %>
                     </tbody>
                     <tfoot class="bg-gray-50">
                         <tr>
                             <td colspan="3" class="px-4 py-3 font-bold text-gray-900 text-right">TOTAL:</td>
-                            <td class="px-4 py-3 text-right font-bold text-gray-900">Rp <%= data.paid.totalAmount.toLocaleString('id-ID') %></td>
-                            <td class="px-4 py-3 text-right font-bold text-green-600">Rp <%= data.paid.totalPaid.toLocaleString('id-ID') %></td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900">Rp <%=
+                                    data.paid.totalAmount.toLocaleString('id-ID') %>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-green-600">Rp <%=
+                                    data.paid.totalPaid.toLocaleString('id-ID') %>
+                            </td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -283,39 +322,39 @@
 </div>
 
 <script>
-function switchTab(tab) {
-    // Hide all content
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.add('hidden');
-    });
-    
-    // Remove active from all tabs
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('bg-gray-100', 'text-gray-700');
-    });
-    
-    // Show selected content
-    document.getElementById(`content-${tab}`).classList.remove('hidden');
-    
-    // Activate selected tab
-    const tabBtn = document.getElementById(`tab-${tab}`);
-    tabBtn.classList.remove('bg-gray-100', 'text-gray-700');
-    tabBtn.classList.add('bg-blue-600', 'text-white');
-}
+    function switchTab(tab) {
+        // Hide all content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    switchTab('unpaid');
-});
+        // Remove active from all tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+        });
+
+        // Show selected content
+        document.getElementById(`content-${tab}`).classList.remove('hidden');
+
+        // Activate selected tab
+        const tabBtn = document.getElementById(`tab-${tab}`);
+        tabBtn.classList.remove('bg-gray-100', 'text-gray-700');
+        tabBtn.classList.add('bg-blue-600', 'text-white');
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function () {
+        switchTab('unpaid');
+    });
 </script>
 
 <style>
-.tab-btn {
-    border-bottom: 3px solid transparent;
-}
-.tab-btn.bg-blue-600 {
-    border-bottom-color: #2563eb;
-}
-</style>
+    .tab-btn {
+        border-bottom: 3px solid transparent;
+    }
 
+    .tab-btn.bg-blue-600 {
+        border-bottom-color: #2563eb;
+    }
+</style>

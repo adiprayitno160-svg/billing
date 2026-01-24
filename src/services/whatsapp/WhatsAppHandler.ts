@@ -178,9 +178,15 @@ export class WhatsAppHandler {
 
                         await service.sendMessage(senderJid, `⚠️ *Verifikasi Manual Diperlukan*\n\n${reason}\n\nData Anda telah diteruskan ke Admin untuk pengecekan manual. Mohon tunggu konfirmasi selanjutnya.`);
                     }
-                } catch (err) {
+                } catch (err: any) {
                     console.error('Image processing error:', err);
-                    await service.sendMessage(senderJid, 'Maaf, gagal memproses gambar. Silakan kirim ulang atau hubungi admin.');
+
+                    const errorMessage = err?.message || String(err);
+                    if (errorMessage.includes('not enabled') || errorMessage.includes('API key')) {
+                        await service.sendMessage(senderJid, 'Fitur verifikasi otomatis belum diaktifkan oleh Admin. Mohon tunggu verifikasi manual.');
+                    } else {
+                        await service.sendMessage(senderJid, 'Maaf, gagal memproses gambar. Silakan kirim ulang atau hubungi admin.');
+                    }
                 }
                 return;
             }

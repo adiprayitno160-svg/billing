@@ -636,7 +636,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			(template_code, template_name, notification_type, channel, title_template, message_template, variables, priority, is_active) VALUES
 			('customer_created', 'Pelanggan Baru', 'customer_created', 'whatsapp', 
 			 'Selamat Datang - {customer_code}', 
-			 '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support', 
+			 '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n⚠️ *Koreksi Data:*\nJika nama Anda salah, silakan ketik */edit* untuk menggantinya dengan benar.\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support', 
 			 '["customer_name", "customer_code", "connection_type", "package_info", "pppoe_info", "ip_info"]', 'normal', TRUE),
 			('service_blocked', 'Layanan Diblokir', 'service_blocked', 'whatsapp',
 			 'Layanan Internet Diblokir',

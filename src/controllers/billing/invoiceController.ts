@@ -429,7 +429,7 @@ export class InvoiceController {
                     s.start_date,
                     s.end_date
                 FROM customers c
-                LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
+                LEFT JOIN subscriptions s ON c.id = s.customer_id AND (s.status = 'active' OR s.status = 'Active')
                 WHERE c.status = 'active'
                 AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
                 ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}

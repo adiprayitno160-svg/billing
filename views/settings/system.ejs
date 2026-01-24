@@ -432,7 +432,10 @@
                                                                     <div class="p-5">
                                                                         <table class="w-full">
                                                                             <tbody class="divide-y divide-gray-200">
-                                                                                <% groupedSettings.billing.forEach(function(setting)
+                                                                                <% groupedSettings.billing.filter(s=>
+                                                                                    !['bank_name',
+                                                                                    'bank_account_number',
+                                                                                    'bank_account_name'].includes(s.setting_key)).forEach(function(setting)
                                                                                     { %>
                                                                                     <tr class="hover:bg-gray-50">
                                                                                         <td class="py-3 pr-4">
@@ -925,6 +928,14 @@
                     <input type="text" value="${bank.account_name || ''}" onchange="updateBank(${index}, 'account_name', this.value)"
                         class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 shadow-sm" placeholder="Contoh: PT ISP NET">
                 </div>
+                <div class="flex flex-col items-center justify-center px-2">
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Status</label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer" ${bank.is_active !== false ? 'checked' : ''} 
+                            onchange="updateBank(${index}, 'is_active', this.checked)">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
                 <div class="flex items-end justify-end">
                     <button type="button" onclick="removeBankRow(${index})" 
                         class="p-2.5 bg-red-100 text-red-600 rounded-md hover:bg-red-600 hover:text-white transition-all">
@@ -937,7 +948,7 @@
     }
 
     function addBankRow() {
-        bankList.push({ name: '', account_number: '', account_name: '' });
+        bankList.push({ name: '', account_number: '', account_name: '', is_active: true });
         syncBankData();
         renderBankList();
     }

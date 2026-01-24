@@ -8,6 +8,7 @@ import { getInterfaces } from '../services/mikrotikService';
 import { calculateCustomerIP } from '../utils/ipHelper';
 import GenieacsService from '../services/genieacs/GenieacsService';
 import { NetworkMonitoringService } from '../services/monitoring/NetworkMonitoringService';
+import { recalculateOdpUsage } from '../services/ftth/odpService';
 
 /**
  * Get customer list page
@@ -701,13 +702,16 @@ export const updateCustomer = async (req: Request, res: Response) => {
             ignore_monitoring_end
         } = req.body;
 
+        console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
+        console.log('[DEBUG UPDATE] ODC ID from body:', odc_id);
+
         const conn = await databasePool.getConnection();
         try {
             await conn.beginTransaction();
 
             // Check if customer exists and get old data
             const [customers] = await conn.query<RowDataPacket[]>(
-                'SELECT id, name, status, pppoe_username, connection_type, pppoe_password, serial_number, phone, name_edited_at FROM customers WHERE id = ?',
+                'SELECT id, name, status, pppoe_username, connection_type, pppoe_password, serial_number, phone, name_edited_at, odp_id FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -1193,6 +1197,38 @@ export const updateCustomer = async (req: Request, res: Response) => {
             // Sync secret ke MikroTik untuk PPPoE customers
             const currentConnectionType = connection_type || oldCustomer.connection_type;
             const newName = name || oldName;
+
+            // Update ODP Usage Counts (Consistency Fix)
+            try {
+                // Determine if ODP changed
+                const oldOdpId = oldCustomer.odp_id;
+                const newOdpId = req.body.odp_id !== undefined ? (req.body.odp_id || null) : undefined;
+
+                // If newOdpId is strictly defined (meaning it was in the form), and different from old
+                if (newOdpId !== undefined) {
+                    // Normalize for comparison (string vs number)
+                    const oldId = oldOdpId ? Number(oldOdpId) : null;
+                    const newId = newOdpId ? Number(newOdpId) : null;
+
+                    if (oldId !== newId) {
+                        console.log(`[UpdateCustomer] ODP Changed from ${oldId} to ${newId}. Recalculating usage...`);
+
+                        // Recalculate Old ODP (if existed)
+                        if (oldId) {
+                            await recalculateOdpUsage(oldId);
+                            console.log(`[UpdateCustomer] Recalculated Old ODP ${oldId}`);
+                        }
+
+                        // Recalculate New ODP (if exists)
+                        if (newId) {
+                            await recalculateOdpUsage(newId);
+                            console.log(`[UpdateCustomer] Recalculated New ODP ${newId}`);
+                        }
+                    }
+                }
+            } catch (odpError) {
+                console.error('[UpdateCustomer] Failed to recalculate ODP usage:', odpError);
+            }
 
             console.log('\n');
             console.log('========================================');

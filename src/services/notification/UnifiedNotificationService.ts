@@ -580,17 +580,20 @@ export class UnifiedNotificationService {
 
       if (multipleBanksEnabled && settings['payment_banks']) {
         try {
-          const banks = JSON.parse(settings['payment_banks']);
-          if (Array.isArray(banks) && banks.length > 0) {
-            bankListText = banks.map((b: any) => `🏦 *${b.name}*\n💳 ${b.account_number}\n👤 ${b.account_name}`).join('\n\n');
+          const rawBanks = JSON.parse(settings['payment_banks']);
+          if (Array.isArray(rawBanks)) {
+            const banks = rawBanks.filter((b: any) => b.is_active !== false);
+            if (banks.length > 0) {
+              bankListText = banks.map((b: any) => `🏦 *${b.name}*\n💳 ${b.account_number}\n👤 ${b.account_name}`).join('\n\n');
 
-            // For backward compatibility, use the first bank for single variables
-            return {
-              bankName: banks[0].name || settings['bank_name'] || 'BCA',
-              accountNumber: banks[0].account_number || settings['bank_account_number'] || '-',
-              accountName: banks[0].account_name || settings['bank_account_name'] || 'Provider',
-              bankListText: bankListText
-            };
+              // For backward compatibility, use the first active bank for single variables
+              return {
+                bankName: banks[0].name || settings['bank_name'] || 'BCA',
+                accountNumber: banks[0].account_number || settings['bank_account_number'] || '-',
+                accountName: banks[0].account_name || settings['bank_account_name'] || 'Provider',
+                bankListText: bankListText
+              };
+            }
           }
         } catch (e) {
           console.error('[UnifiedNotification] Error parsing payment_banks JSON:', e);

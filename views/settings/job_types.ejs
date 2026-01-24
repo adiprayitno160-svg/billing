@@ -1,13 +1,26 @@
-<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Jenis Pekerjaan Teknisi</h1>
-            <p class="text-sm text-gray-500">Kelola kategori pekerjaan dan tarif dasar teknisi.</p>
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header Section -->
+    <div
+        class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white overflow-hidden relative">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-3xl font-extrabold flex items-center gap-3">
+                    <i class="fas fa-tools text-blue-200"></i>
+                    Jenis Pekerjaan Teknisi
+                </h2>
+                <p class="text-blue-100 mt-2 opacity-90 font-medium font-outfit">
+                    Kelola kategori pekerjaan dan tarif dasar teknisi secara terpusat
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openModal()"
+                    class="px-5 py-2.5 bg-white text-blue-700 rounded-xl font-bold hover:bg-blue-50 transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Tambah Jenis
+                </button>
+            </div>
         </div>
-        <button onclick="openModal()"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow flex items-center gap-2">
-            <i class="fas fa-plus"></i> Tambah Jenis
-        </button>
+        <!-- Decorative element -->
+        <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl text-white"></div>
     </div>
 
     <!-- Table -->

@@ -96,6 +96,7 @@ import {
 } from '../controllers/databaseController';
 import { BackupController } from '../controllers/backupController';
 import { CustomerIdGenerator } from '../utils/customerIdGenerator';
+import CustomerNotificationService from '../services/customer/CustomerNotificationService';
 
 
 // import { BillingDashboardController } from '../controllers/billing/billingDashboardController';
@@ -2697,7 +2698,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
             // Send notification to customer and admin (non-blocking)
             console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
             try {
-                const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
+                // const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
                 const [packageRows] = await databasePool.query<RowDataPacket[]>(
                     'SELECT name FROM pppoe_packages WHERE id = ?',
                     [package_id]
@@ -3607,7 +3608,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
         // Send notification to customer and admin (non-blocking)
         console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);
         try {
-            const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
+            // const CustomerNotificationService = (await import('../services/customer/CustomerNotificationService')).default;
             const [packageRows] = await databasePool.query<RowDataPacket[]>(
                 'SELECT name FROM static_ip_packages WHERE id = ?',
                 [package_id]

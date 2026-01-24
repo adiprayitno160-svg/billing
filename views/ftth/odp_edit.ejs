@@ -156,19 +156,43 @@
                 <div class="p-4 border-b border-slate-100 flex items-center justify-between">
                     <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Lokasi ODP</h4>
                     <button type="button" id="btnGetLocation"
-                        class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        class="px-4 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm border border-green-100">
+                        Auto GPS
                     </button>
                 </div>
-                <div id="mapOdp" class="w-full bg-slate-100" style="height: 400px; min-height: 400px; z-index: 10;">
+                <div class="p-4 border-b border-slate-50 space-y-4">
+                    <!-- Search Location Box -->
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input type="text" id="map_search" placeholder="Cari desa, jalan, atau kota..."
+                            class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300"
+                            autocomplete="off">
+                    </div>
                 </div>
+
+                <div class="relative">
+                    <!-- Overlay Paste Link -->
+                    <div
+                        class="absolute top-2 left-2 right-2 z-[400] bg-white/90 backdrop-blur p-2 rounded-xl shadow-lg border border-slate-200 flex gap-2">
+                        <input type="text" id="paste_map_link" placeholder="Paste Link Google Maps / WA ShareLoc..."
+                            class="flex-1 bg-transparent border-none text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:ring-0 outline-none">
+                        <button type="button" onclick="parseMapLink()"
+                            class="bg-blue-600 text-white text-[10px] uppercase font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap">
+                            Cari
+                        </button>
+                    </div>
+                    <div id="mapOdp" class="w-full bg-slate-100" style="height: 400px; min-height: 400px; z-index: 10;">
+                    </div>
+                </div>
+
                 <div class="p-4 bg-slate-50 text-center">
-                    <p class="text-[10px] text-slate-400 font-medium">KLIK PADA PETA UNTUK PIN LOKASI ODP</p>
+                    <p class="text-[10px] text-slate-400 font-medium">KLIK PADA PETA ATAU DRAG MARKER UNTUK PIN LOKASI
+                        ODP</p>
                 </div>
             </div>
         </div>
@@ -219,18 +243,68 @@
             }
         })();
 
-        // Map Implementation
+        // Map Implementation with Search, Paste Link, and Auto GPS
         document.addEventListener('DOMContentLoaded', function () {
             let map, marker;
             const initialLat = parseFloat('<%= item.latitude %>') || -6.2;
             const initialLng = parseFloat('<%= item.longitude %>') || 106.8;
             const hasLocation = <%= (item.latitude && item.longitude) ? "true" : "false" %>;
 
+            // Define Inputs
+            const latInput = document.getElementById('latInput');
+            const lngInput = document.getElementById('lngInput');
+            const coordInput = document.getElementById('coordinates');
+            const searchInput = document.getElementById('map_search');
+
+            // Helper: Update all inputs
+            function updateInputs(lat, lng) {
+                if (latInput) latInput.value = lat.toFixed(7);
+                if (lngInput) lngInput.value = lng.toFixed(7);
+                if (coordInput) coordInput.value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
+            }
+
+            // Expose Parse Link Function Globally
+            window.parseMapLink = function () {
+                const input = document.getElementById('paste_map_link');
+                if (!input || !input.value) {
+                    alert('Silakan paste link terlebih dahulu!');
+                    return;
+                }
+                const text = input.value;
+                let lat, lng;
+
+                // Regex patterns
+                const patterns = [
+                    /(-?\d+\.\d+),\s*(-?\d+\.\d+)/, // Raw coords
+                    /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Google Maps q param
+                    /@(-?\d+\.\d+),(-?\d+\.\d+)/,   // Google Maps @ param
+                    /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/ // Google Maps embed param
+                ];
+
+                for (let p of patterns) {
+                    const m = text.match(p);
+                    if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); break; }
+                }
+
+                if (lat && lng) {
+                    updateInputs(lat, lng);
+                    if (marker) marker.setLatLng([lat, lng]);
+                    if (map) map.setView([lat, lng], 16);
+                } else {
+                    if (text.includes('goo.gl') || text.includes('maps.app') || text.includes('bit.ly')) {
+                        const confirmOpen = confirm('Link pendek terdeteksi. Sistem tidak bisa membaca koordinat langsung dari link pendek.\n\nKlik OK untuk membuka link ini di tab baru, lalu COPY link hasil redirect (yang panjang dan ada angkanya) dan PASTE kembali di sini.');
+                        if (confirmOpen) window.open(text, '_blank');
+                    } else {
+                        alert('Maaf, koordinat tidak ditemukan dalam link tersebut. Pastikan link mengandung angka koordinat (contoh: -6.123, 106.123).');
+                    }
+                }
+            };
+
             function initMap() {
                 const mapEl = document.getElementById('mapOdp');
                 if (!mapEl || map) return;
 
-                console.log('Initializing map at:', initialLat, initialLng);
+                console.log('Initializing ODP map at:', initialLat, initialLng);
 
                 try {
                     map = L.map('mapOdp', {
@@ -239,34 +313,32 @@
                     });
 
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19
                     }).addTo(map);
 
                     marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
 
+                    // Drag Event
                     marker.on('dragend', function (event) {
                         const position = marker.getLatLng();
-                        document.getElementById('latInput').value = position.lat.toFixed(7);
-                        document.getElementById('lngInput').value = position.lng.toFixed(7);
-                        document.getElementById('coordinates').value = `${position.lat.toFixed(7)}, ${position.lng.toFixed(7)}`;
+                        updateInputs(position.lat, position.lng);
                     });
 
+                    // Click Event
                     map.on('click', function (e) {
                         const lat = e.latlng.lat;
                         const lng = e.latlng.lng;
                         marker.setLatLng([lat, lng]);
-                        document.getElementById('latInput').value = lat.toFixed(7);
-                        document.getElementById('lngInput').value = lng.toFixed(7);
-                        document.getElementById('coordinates').value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
+                        updateInputs(lat, lng);
                     });
 
-                    // Set initial value
+                    // Set initial value text
                     if (hasLocation) {
-                        document.getElementById('coordinates').value = `${initialLat.toFixed(7)}, ${initialLng.toFixed(7)}`;
+                        updateInputs(initialLat, initialLng);
                     }
 
-                    // Manual Type Listener
-                    const coordInput = document.getElementById('coordinates');
+                    // Manual Coordinate Input
                     if (coordInput) {
                         coordInput.addEventListener('change', () => {
                             const parts = coordInput.value.split(',').map(s => s.trim());
@@ -276,24 +348,51 @@
                                 if (!isNaN(lat) && !isNaN(lng)) {
                                     marker.setLatLng([lat, lng]);
                                     map.setView([lat, lng], 16);
-                                    document.getElementById('latInput').value = lat.toFixed(7);
-                                    document.getElementById('lngInput').value = lng.toFixed(7);
+                                    updateInputs(lat, lng);
+                                }
+                            }
+                        });
+                    }
+
+                    // Search Input Logic
+                    if (searchInput) {
+                        searchInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const q = searchInput.value.trim();
+                                if (q.length > 2) {
+                                    searchInput.classList.add('opacity-50');
+                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            if (data && data.length > 0) {
+                                                const res = data[0];
+                                                const lat = parseFloat(res.lat);
+                                                const lon = parseFloat(res.lon);
+                                                updateInputs(lat, lon);
+                                                marker.setLatLng([lat, lon]);
+                                                map.setView([lat, lon], 16);
+                                                searchInput.value = res.display_name;
+                                            } else {
+                                                alert('Lokasi tidak ditemukan');
+                                            }
+                                        })
+                                        .catch(err => console.error('Map search err:', err))
+                                        .finally(() => searchInput.classList.remove('opacity-50'));
                                 }
                             }
                         });
                     }
 
                     // Force redraw
-                    setTimeout(() => {
-                        map.invalidateSize();
-                    }, 200);
+                    setTimeout(() => { map.invalidateSize(); }, 200);
 
                 } catch (err) {
                     console.error('Leaflet initialization error:', err);
                 }
             }
 
-            // Start Map
+            // Start Map with retry
             if (typeof L !== 'undefined') {
                 initMap();
             } else {
@@ -306,31 +405,71 @@
                 }, 500);
             }
 
-            // Get Current Location
+            // Enhanced Get ID Location (Browser + IP Fallback)
             const locBtn = document.getElementById('btnGetLocation');
             if (locBtn) {
-                locBtn.onclick = function () {
-                    if (navigator.geolocation) {
-                        const originalContent = locBtn.innerHTML;
-                        locBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        navigator.geolocation.getCurrentPosition(pos => {
-                            const lat = pos.coords.latitude;
-                            const lng = pos.coords.longitude;
-                            if (map) {
-                                map.setView([lat, lng], 16);
-                                marker.setLatLng([lat, lng]);
+                // Remove old listeners by cloning
+                const newBtn = locBtn.cloneNode(true);
+                locBtn.parentNode.replaceChild(newBtn, locBtn);
+
+                newBtn.onclick = function (e) {
+                    e.preventDefault();
+                    const originalContent = newBtn.innerHTML;
+                    newBtn.innerHTML = '⏳ MENCARI...';
+                    newBtn.disabled = true;
+
+                    const onCpuSuccess = (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        if (map) {
+                            map.setView([lat, lng], 16);
+                            marker.setLatLng([lat, lng]);
+                        }
+                        updateInputs(lat, lng);
+                        newBtn.innerHTML = '✅ GPS OK';
+                        setTimeout(() => { newBtn.innerHTML = originalContent; newBtn.disabled = false; }, 2000);
+                    };
+
+                    const onCpuError = async (err) => {
+                        console.warn('[AutoGPS] Browser GPS failed:', err);
+                        newBtn.innerHTML = '🌍 IP LOOKUP...';
+
+                        // Fallback to IP API
+                        try {
+                            const isHttps = window.location.protocol === 'https:';
+                            const apiUrl = isHttps ? 'https://ipapi.co/json/' : 'http://ip-api.com/json';
+                            const response = await fetch(apiUrl);
+                            const data = await response.json();
+                            const lat = data.lat || data.latitude;
+                            const lng = data.lon || data.longitude;
+
+                            if (lat && lng) {
+                                if (map) {
+                                    map.setView([lat, lng], 14);
+                                    marker.setLatLng([lat, lng]);
+                                }
+                                updateInputs(lat, lng);
+                                alert('⚠️ GPS Browser gagal. Lokasi estimasi ISP digunakan.');
+                            } else {
+                                throw new Error('No IP coords');
                             }
-                            document.getElementById('latInput').value = lat.toFixed(7);
-                            document.getElementById('lngInput').value = lng.toFixed(7);
-                            document.getElementById('coordinates').value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
-                            locBtn.innerHTML = originalContent;
-                        }, err => {
-                            console.error(err);
-                            alert('Gagal mendapatkan lokasi: ' + err.message);
-                            locBtn.innerHTML = originalContent;
+                        } catch (ipErr) {
+                            console.error(ipErr);
+                            alert('❌ Gagal mendapatkan lokasi.');
+                        } finally {
+                            newBtn.innerHTML = originalContent;
+                            newBtn.disabled = false;
+                        }
+                    };
+
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(onCpuSuccess, onCpuError, {
+                            enableHighAccuracy: true,
+                            timeout: 5000,
+                            maximumAge: 0
                         });
                     } else {
-                        alert('Geolocation tidak didukung browser ini');
+                        onCpuError('Geolocation not supported');
                     }
                 };
             }
