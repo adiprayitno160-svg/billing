@@ -462,7 +462,8 @@ export class UnifiedNotificationService {
           period: invoice.period,
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
-          bank_account_name: bank.accountName
+          bank_account_name: bank.accountName,
+          bank_list: bank.bankListText
         }
       });
     } finally {
@@ -507,7 +508,8 @@ export class UnifiedNotificationService {
           days_overdue: daysOverdue,
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
-          bank_account_name: bank.accountName
+          bank_account_name: bank.accountName,
+          bank_list: bank.bankListText
         }
       });
     } finally {
@@ -547,7 +549,8 @@ export class UnifiedNotificationService {
           period: invoice.period || '-',
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
-          bank_account_name: bank.accountName
+          bank_account_name: bank.accountName,
+          bank_list: bank.bankListText
         }
       });
     } finally {
@@ -558,18 +561,52 @@ export class UnifiedNotificationService {
   /**
    * Get Bank Settings
    */
-  private static async getBankSettings(): Promise<{ bankName: string, accountNumber: string, accountName: string }> {
+  private static async getBankSettings(): Promise<{
+    bankName: string,
+    accountNumber: string,
+    accountName: string,
+    bankListText: string
+  }> {
     const connection = await databasePool.getConnection();
     try {
       const [rows] = await connection.query<RowDataPacket[]>(
-        "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name')"
+        "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name', 'multiple_banks_enabled', 'payment_banks')"
       );
       const settings: any = {};
       rows.forEach(r => settings[r.setting_key] = r.setting_value);
+
+      const multipleBanksEnabled = settings['multiple_banks_enabled'] === 'true';
+      let bankListText = '';
+
+      if (multipleBanksEnabled && settings['payment_banks']) {
+        try {
+          const banks = JSON.parse(settings['payment_banks']);
+          if (Array.isArray(banks) && banks.length > 0) {
+            bankListText = banks.map((b: any) => `🏦 *${b.name}*\n💳 ${b.account_number}\n👤 ${b.account_name}`).join('\n\n');
+
+            // For backward compatibility, use the first bank for single variables
+            return {
+              bankName: banks[0].name || settings['bank_name'] || 'BCA',
+              accountNumber: banks[0].account_number || settings['bank_account_number'] || '-',
+              accountName: banks[0].account_name || settings['bank_account_name'] || 'Provider',
+              bankListText: bankListText
+            };
+          }
+        } catch (e) {
+          console.error('[UnifiedNotification] Error parsing payment_banks JSON:', e);
+        }
+      }
+
+      // Default (Single Bank)
+      const bName = settings['bank_name'] || 'BCA';
+      const bAcc = settings['bank_account_number'] || '-';
+      const bUser = settings['bank_account_name'] || 'Provider';
+
       return {
-        bankName: settings['bank_name'] || 'BCA',
-        accountNumber: settings['bank_account_number'] || '-',
-        accountName: settings['bank_account_name'] || 'Provider'
+        bankName: bName,
+        accountNumber: bAcc,
+        accountName: bUser,
+        bankListText: `🏦 *${bName}*\n💳 ${bAcc}\n👤 ${bUser}`
       };
     } finally {
       connection.release();

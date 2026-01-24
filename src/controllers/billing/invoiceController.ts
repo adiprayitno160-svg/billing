@@ -1017,6 +1017,35 @@ export class InvoiceController {
     }
 
     /**
+     * Check which customers already have invoices for a specific period
+     */
+    async checkInvoicesForPeriod(req: Request, res: Response): Promise<void> {
+        try {
+            const { period } = req.query;
+
+            if (!period) {
+                res.status(400).json({ success: false, message: 'Periode harus diisi' });
+                return;
+            }
+
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT customer_id FROM invoices WHERE period = ?',
+                [period]
+            );
+
+            const customerIds = rows.map(r => r.customer_id);
+
+            res.json({
+                success: true,
+                customerIds
+            });
+        } catch (error) {
+            console.error('Error checking invoices for period:', error);
+            res.status(500).json({ success: false, message: 'Gagal mengecek data tagihan' });
+        }
+    }
+
+    /**
      * Generate unique invoice number
      */
     private async generateInvoiceNumber(period: string, conn?: any): Promise<string> {

@@ -49,6 +49,7 @@
                                         <tr>
                                             <th>Queue Name (MikroTik)</th>
                                             <th>IP Address (Mangle)</th>
+                                            <th>Gateway IP (Isolir)</th>
                                             <th>Current Limit</th>
                                             <th style="width: 250px;">Link Customer (Billing)</th>
                                             <th style="width: 200px;">Set Package</th>
@@ -85,6 +86,9 @@
         </td>
         <td>
             <span class="badge bg-success font-size-12 ip-address"></span>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm gateway-ip-input" placeholder="IP/CIDR">
         </td>
         <td>
             <span class="badge bg-info max-limit"></span>
@@ -181,8 +185,10 @@
 
                     if (curr.ipAddress) {
                         row.find('.ip-address').text(curr.ipAddress);
+                        row.find('.gateway-ip-input').val(curr.gatewayIp || '');
                     } else {
                         row.find('.ip-address').removeClass('bg-success').addClass('bg-warning text-dark').text('No IP Found / Mangle Missing');
+                        row.find('.gateway-ip-input').prop('disabled', true);
                         // Disable row if no IP found, as we need IP to link
                         row.addClass('table-warning');
                         row.find('button').prop('disabled', true);
@@ -210,6 +216,7 @@
             function handleLinkAction(rowElement, data) {
                 const customerId = rowElement.find('.customer-select').val();
                 const packageId = rowElement.find('.package-select').val();
+                const gatewayIp = rowElement.find('.gateway-ip-input').val();
 
                 if (!customerId) {
                     Swal.fire('Perhatian', 'Silakan pilih Customer terlebih dahulu!', 'warning');
@@ -231,6 +238,7 @@
                         queueId: data.queueId,
                         mangleId: data.mangleId,
                         ipAddress: data.ipAddress, // IP didapat dari scan sebelumnya
+                        gatewayIp: gatewayIp, // Include edited gateway IP
                         currentQueueName: data.queueName, // untuk log
                         customerId: customerId,
                         packageId: packageId

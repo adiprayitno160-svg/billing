@@ -27,7 +27,7 @@ export interface NewCustomerData {
 }
 
 export class CustomerNotificationService {
-  
+
   /**
    * Ensure customer_created template exists and is active
    */
@@ -35,24 +35,24 @@ export class CustomerNotificationService {
     try {
       // Check if template exists
       let template = await NotificationTemplateService.getTemplate('customer_created', 'whatsapp');
-      
+
       if (!template) {
         console.log('[CustomerNotification] Template customer_created not found, creating...');
-        
+
         // Try to find inactive template first
         const [inactiveRows] = await databasePool.query<RowDataPacket[]>(
           `SELECT template_code, is_active FROM notification_templates 
            WHERE notification_type = 'customer_created' AND channel = 'whatsapp'`,
           []
         );
-        
+
         if (inactiveRows.length > 0) {
           // Template exists but inactive, activate it
           await NotificationTemplateService.updateTemplate(inactiveRows[0].template_code, { is_active: true });
           console.log(`[CustomerNotification] ✅ Activated existing template: ${inactiveRows[0].template_code}`);
           return true;
         }
-        
+
         // Create new template
         const templateId = await NotificationTemplateService.createTemplate({
           template_code: 'customer_created',
@@ -65,11 +65,11 @@ export class CustomerNotificationService {
           is_active: true,
           priority: 'normal'
         });
-        
+
         console.log(`[CustomerNotification] ✅ Created template customer_created (ID: ${templateId})`);
         return true;
       }
-      
+
       // Template exists and is active
       return true;
     } catch (error: any) {
@@ -84,49 +84,52 @@ export class CustomerNotificationService {
   async sendWelcomeNotification(customerData: NewCustomerData): Promise<{ success: boolean; message: string }> {
     try {
       console.log(`[CustomerNotification] 📧 Starting welcome notification for customer ${customerData.customerId}...`);
-      
+
       // Ensure template exists first
       const templateExists = await this.ensureTemplateExists();
       if (!templateExists) {
         console.error('[CustomerNotification] ❌ Failed to ensure template exists');
         return { success: false, message: 'Template setup failed. Please contact administrator.' };
       }
-      
+
       // Get customer details
       const [customerRows] = await databasePool.query<RowDataPacket[]>(
         'SELECT * FROM customers WHERE id = ?',
         [customerData.customerId]
       );
-      
+
       if (customerRows.length === 0) {
         console.error(`[CustomerNotification] ❌ Customer ${customerData.customerId} not found`);
         return { success: false, message: 'Customer not found' };
       }
-      
+
       const customer = customerRows[0];
       console.log(`[CustomerNotification] 📋 Customer found: ${customer.name} (${customer.customer_code})`);
-      
+
       // Validate phone number
-      if (!customer.phone) {
+      const targetPhone = customer.phone || customerData.phone;
+      if (!targetPhone) {
         console.warn(`[CustomerNotification] ⚠️ No phone number for customer ${customerData.customerId}, skipping WhatsApp`);
         return { success: false, message: 'No phone number available' };
       }
-      
+
+      const phoneToUse = targetPhone;
+
       // Prepare variables for template
       const connectionTypeText = customerData.connectionType === 'pppoe' ? 'PPPoE' : 'Static IP';
-      
+
       // Build package info
       let packageInfo = '';
       if (customerData.packageName) {
         packageInfo = `\n📦 Paket: ${customerData.packageName}`;
       }
-      
+
       // Build PPPoE info
       let pppoeInfo = '';
       if (customerData.connectionType === 'pppoe' && customer.pppoe_username) {
         pppoeInfo = `\n\n🔐 *Kredensial PPPoE:*\nUsername: ${customer.pppoe_username}\nPassword: ${customer.pppoe_password || 'Silakan hubungi admin'}`;
       }
-      
+
       // Build IP info
       // IMPORTANT: IP yang disimpan di database adalah gateway IP dengan CIDR (192.168.1.1/30)
       // IP yang ditampilkan ke pelanggan harus IP client (192.168.1.2)
@@ -136,14 +139,14 @@ export class CustomerNotificationService {
           'SELECT ip_address FROM static_ip_clients WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1',
           [customerData.customerId]
         );
-        
+
         if (ipRows.length > 0 && ipRows[0].ip_address) {
           // Hitung IP client dari CIDR (192.168.1.1/30 -> 192.168.1.2)
           const customerIP = calculateCustomerIP(ipRows[0].ip_address);
           ipInfo = `\n\n🌐 *IP Address:*\n${customerIP}`;
         }
       }
-      
+
       // Prepare variables
       const variables = {
         customer_name: customerData.customerName || customer.name || 'Pelanggan',
@@ -153,7 +156,7 @@ export class CustomerNotificationService {
         pppoe_info: pppoeInfo,
         ip_info: ipInfo
       };
-      
+
       console.log(`[CustomerNotification] 📝 Variables prepared:`, {
         customer_name: variables.customer_name,
         customer_code: variables.customer_code,
@@ -162,11 +165,11 @@ export class CustomerNotificationService {
         has_pppoe: !!pppoeInfo,
         has_ip: !!ipInfo
       });
-      
+
       // Use UnifiedNotificationService with template
       try {
         console.log(`[CustomerNotification] 📤 Queueing notification via UnifiedNotificationService...`);
-        
+
         const notificationIds = await UnifiedNotificationService.queueNotification({
           customer_id: customerData.customerId,
           notification_type: 'customer_created',
@@ -174,13 +177,13 @@ export class CustomerNotificationService {
           variables: variables,
           priority: 'normal'
         });
-        
+
         if (!notificationIds || notificationIds.length === 0) {
           throw new Error('No notification IDs returned from queue');
         }
-        
+
         console.log(`[CustomerNotification] ✅ Welcome notification queued successfully (IDs: ${notificationIds.join(', ')})`);
-        
+
         // Log notification
         await this.logNotification({
           customerId: customerData.customerId,
@@ -188,9 +191,9 @@ export class CustomerNotificationService {
           type: 'customer_created',
           message: `Notification queued via UnifiedNotificationService (IDs: ${notificationIds.join(', ')})`,
           status: 'sent',
-          recipient: customer.phone
+          recipient: phoneToUse
         });
-        
+
         // Try to send immediately (process queue)
         try {
           const result = await UnifiedNotificationService.sendPendingNotifications(10);
@@ -199,7 +202,7 @@ export class CustomerNotificationService {
           console.warn(`[CustomerNotification] ⚠️ Queue processing error (non-critical):`, queueError.message);
           // Non-critical, notification is already queued
         }
-        
+
         return { success: true, message: 'Welcome notification queued and processed successfully' };
       } catch (error: any) {
         const errorMessage = error.message || 'Failed to queue notification';
@@ -207,22 +210,22 @@ export class CustomerNotificationService {
           message: errorMessage,
           stack: error.stack,
           customerId: customerData.customerId,
-          phone: customer.phone
+          phone: phoneToUse
         });
-        
+
         await this.logNotification({
           customerId: customerData.customerId,
           channel: 'whatsapp',
           type: 'customer_created',
           message: 'Failed to queue notification',
           status: 'failed',
-          recipient: customer.phone || '',
+          recipient: phoneToUse,
           error: errorMessage
         });
-        
+
         return { success: false, message: errorMessage };
       }
-      
+
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to send notification';
       console.error('[CustomerNotification] ❌ Error sending welcome notification:', {
@@ -230,11 +233,11 @@ export class CustomerNotificationService {
         stack: error.stack,
         customerId: customerData.customerId
       });
-      
+
       return { success: false, message: errorMessage };
     }
   }
-  
+
   /**
    * Send admin notification about new customer
    */
@@ -263,16 +266,16 @@ export class CustomerNotificationService {
           connection_type: customerData.connectionType
         }
       };
-      
+
       await alertRoutingService.routeAlert(alert);
       console.log(`[CustomerNotification] ✅ Admin notification sent via Telegram`);
-      
+
     } catch (error) {
       console.error('[CustomerNotification] Error sending admin notification:', error);
       // Non-critical, don't throw
     }
   }
-  
+
   /**
    * Log notification to database
    */
@@ -306,7 +309,7 @@ export class CustomerNotificationService {
       // Non-critical
     }
   }
-  
+
   /**
    * Send notification for both customer and admin
    */
@@ -315,17 +318,17 @@ export class CustomerNotificationService {
     admin: { success: boolean; message: string };
   }> {
     console.log(`[CustomerNotification] 🚀 Starting notifications for new customer: ${customerData.customerId}`);
-    
+
     const results = {
       customer: { success: false, message: '' },
       admin: { success: false, message: '' }
     };
-    
+
     // Send to customer
     try {
       console.log(`[CustomerNotification] 📱 Sending welcome notification to customer...`);
       results.customer = await this.sendWelcomeNotification(customerData);
-      
+
       if (results.customer.success) {
         console.log(`[CustomerNotification] ✅ Customer notification: ${results.customer.message}`);
       } else {
@@ -336,7 +339,7 @@ export class CustomerNotificationService {
       console.error(`[CustomerNotification] ❌ Exception in customer notification:`, errorMessage);
       results.customer = { success: false, message: errorMessage };
     }
-    
+
     // Send to admin
     try {
       console.log(`[CustomerNotification] 👨‍💼 Sending admin notification...`);
@@ -348,13 +351,13 @@ export class CustomerNotificationService {
       console.error(`[CustomerNotification] ❌ Admin notification failed:`, errorMessage);
       results.admin = { success: false, message: errorMessage };
     }
-    
+
     // Summary
     console.log(`[CustomerNotification] 📊 Notification summary:`, {
       customer: results.customer.success ? '✅' : '❌',
       admin: results.admin.success ? '✅' : '❌'
     });
-    
+
     return results;
   }
 }

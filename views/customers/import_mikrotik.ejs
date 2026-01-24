@@ -147,10 +147,11 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-green-800 mb-1">Gateway IP</label>
-                                <input id="inputGatewayIpDisplay" readonly
-                                    class="w-full rounded-lg border border-purple-300 px-4 py-2.5 bg-purple-50 font-mono text-purple-700 cursor-not-allowed"
-                                    placeholder="Auto dari MikroTik" />
-                                <p class="text-xs text-purple-600 mt-1">Untuk isolir otomatis</p>
+                                <input id="inputGatewayIpDisplay"
+                                    class="w-full rounded-lg border border-purple-300 px-4 py-2.5 bg-white font-mono text-purple-700 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                                    placeholder="Input Gateway IP (Contoh: 10.10.x.1/30)" />
+                                <p class="text-xs text-purple-600 mt-1">Gunakan format IP/CIDR (Contoh: 192.168.1.1/30)
+                                    untuk isolir otomatis.</p>
                             </div>
                             <div>
                                 <label class="block text-m font-semibold text-green-800 mb-1">Interface</label>
@@ -394,6 +395,11 @@
             });
         });
 
+        // Gateway IP Sync
+        document.getElementById('inputGatewayIpDisplay').addEventListener('input', function () {
+            document.getElementById('inputGatewayIp').value = this.value.trim();
+        });
+
         // Form Submit
         document.getElementById('formImport').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -436,7 +442,13 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.success) {
-                        alert('✅ Berhasil! Pelanggan berhasil disimpan dan disinkronisasi.');
+                        let msg = '✅ Berhasil! Pelanggan berhasil disimpan.';
+                        if (res.notification && res.notification.customer && res.notification.customer.success) {
+                            msg += '\n📱 Notifikasi WA Selamat Datang telah dikirim!';
+                        } else if (res.notification && res.notification.customer) {
+                            msg += '\n⚠️ Notifikasi WA Gagal: ' + res.notification.customer.message;
+                        }
+                        alert(msg);
                         window.location.href = '/customers/list';
                     } else {
                         alert('❌ Gagal: ' + (res.message || 'Terjadi kesalahan'));

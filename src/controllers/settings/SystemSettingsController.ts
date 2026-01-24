@@ -68,7 +68,8 @@ export class SystemSettingsController {
         'auto_logout_enabled',
 
         'ppn_enabled',
-        'device_rental_enabled'
+        'device_rental_enabled',
+        'multiple_banks_enabled'
       ];
 
       // Define boolean settings that use '1'/'0'
@@ -444,10 +445,9 @@ export class SystemSettingsController {
           ('whatsapp_tester_numbers', '63729093849223,089678630707', 'Nomor HP/ID untuk testing bypass (Owner)', 'general'),
           ('bank_name', 'BCA', 'Nama Bank Utama', 'billing'),
           ('bank_account_number', '1234567890', 'Nomor Rekening Bank', 'billing'),
-          ('bank_account_name', 'PT ISP NET', 'Atas Nama Rekening', 'billing'),
-          ('due_date_mode', 'fixed', 'Metode penentuan jatuh tempo (fixed/offset)', 'billing'),
-          ('due_date_fixed_day', '28', 'Tanggal jatuh tempo tetap (jika mode fixed)', 'billing'),
-          ('due_date_offset_days', '7', 'Jumlah hari offset jatuh tempo (jika mode offset)', 'billing')
+          ('bank_account_name', 'Atas Nama Rekening', 'Atas Nama Rekening', 'billing'),
+          ('multiple_banks_enabled', 'true', 'Gunakan beberapa bank untuk pembayaran', 'billing'),
+          ('payment_banks', '[]', 'Daftar bank pembayaran (JSON)', 'billing')
         `);
       } else {
         // Insert without category column (backward compatible)

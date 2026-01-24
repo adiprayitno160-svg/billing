@@ -559,7 +559,8 @@
                             <% odcList.forEach(function(odc) { %>
                                 <div class="odc-item" data-name="<%= odc.name.toLowerCase() %>"
                                     data-location="<%= (odc.location || '').toLowerCase() %>"
-                                    style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #f3f4f6; border-radius: 6px; hover:background-color: #f9fafb;">
+                                    style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #f3f4f6; border-radius: 6px;"
+                                    class="hover:bg-gray-50">
                                     <div>
                                         <div style="font-weight: 600; color: #1f2937;">
                                             <%= odc.name %>
@@ -687,12 +688,72 @@
                 // Show modal
                 modal.style.display = 'flex';
                 console.log('✅ Modal displayed');
+
+                // Check for existing invoices for the default period
+                checkExistingInvoices();
             }
 
             // Close Generate Invoice Modal
             function closeGenerateInvoiceModal() {
                 const modal = document.getElementById('generateInvoiceModal');
                 modal.style.display = 'none';
+            }
+
+            // --- Dynamic Customer Filtering Logic ---
+            let existingInvoicesCustomerIds = [];
+
+            async function checkExistingInvoices() {
+                const period = document.getElementById('invoicePeriod').value;
+                if (!period) return;
+
+                const listContainer = document.getElementById('customerList');
+                // Optional: show loading state in list
+
+                try {
+                    const response = await fetch(`/billing/tagihan/check-duplicates?period=${period}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        existingInvoicesCustomerIds = data.customerIds;
+                        updateCustomerListVisibility();
+                    }
+                } catch (error) {
+                    console.error('Error checking existing invoices:', error);
+                }
+            }
+
+            function updateCustomerListVisibility() {
+                const container = document.getElementById('customerList');
+                if (!container) return;
+
+                const items = container.querySelectorAll('.customer-item');
+                const searchInput = document.getElementById('customerSearch');
+                const searchFilter = searchInput ? searchInput.value.toLowerCase() : "";
+
+                items.forEach(item => {
+                    const cb = item.querySelector('input');
+                    if (!cb) return;
+
+                    const customerId = parseInt(cb.value);
+                    const name = cb.getAttribute('data-name');
+
+                    // Hide if already has invoice for this period
+                    const alreadyHasInvoice = existingInvoicesCustomerIds.includes(customerId);
+
+                    if (alreadyHasInvoice) {
+                        item.style.display = 'none';
+                        item.classList.add('already-generated');
+                        cb.checked = false; // Uncheck if it was checked
+                    } else if (name.includes(searchFilter)) {
+                        item.style.display = 'flex';
+                        item.classList.remove('already-generated');
+                    } else {
+                        item.style.display = 'none';
+                        item.classList.remove('already-generated');
+                    }
+                });
+
+                updateSelectedCount();
             }
 
             // Handle form submission and button clicks
@@ -749,6 +810,12 @@
                 }
                 if (btnCancelModal) {
                     btnCancelModal.addEventListener('click', closeGenerateInvoiceModal);
+                }
+
+                // Listen for period change
+                const periodInput = document.getElementById('invoicePeriod');
+                if (periodInput) {
+                    periodInput.addEventListener('change', checkExistingInvoices);
                 }
 
                 // Form submission
@@ -841,20 +908,7 @@
             }
 
             function filterCustomers() {
-                const input = document.getElementById('customerSearch');
-                const filter = input.value.toLowerCase();
-                const container = document.getElementById('customerList');
-                const items = container.querySelectorAll('.customer-item');
-
-                items.forEach(item => {
-                    const cb = item.querySelector('input');
-                    const name = cb.getAttribute('data-name');
-                    if (name.includes(filter)) {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
+                updateCustomerListVisibility();
             }
 
             function updateSelectedCount() {

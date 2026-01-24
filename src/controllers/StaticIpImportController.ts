@@ -58,7 +58,7 @@ export class StaticIpImportController {
 
     // API: Link Customer yang Sudah Ada ke Queue MikroTik
     async linkCustomer(req: Request, res: Response) {
-        const { queueId, mangleId, ipAddress, customerId, packageId } = req.body;
+        const { queueId, mangleId, ipAddress, customerId, packageId, gatewayIp } = req.body;
 
         if (!queueId || !ipAddress || !customerId || !packageId) {
             return res.status(400).json({ success: false, message: 'Data tidak lengkap' });
@@ -80,14 +80,21 @@ export class StaticIpImportController {
             // 2. Insert ke tabel static_ip_clients (jika belum ada)
             const [exist] = await conn.execute('SELECT id FROM static_ip_clients WHERE ip_address = ?', [ipAddress]);
             if ((exist as any[]).length > 0) {
-                console.log(`IP ${ipAddress} sudah ada di DB, melakukan update sync saja.`);
+                await conn.execute(`
+                    UPDATE static_ip_clients SET 
+                        gateway_ip = ?, package_id = ?, updated_at = NOW()
+                    WHERE ip_address = ?
+                `, [gatewayIp || null, packageId, ipAddress]);
             } else {
                 await conn.execute(`
                     INSERT INTO static_ip_clients 
-                    (package_id, client_name, ip_address, customer_id, customer_code, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())
-                `, [packageId, customer.name, ipAddress, customerId, customer.customer_code]);
+                    (package_id, client_name, ip_address, customer_id, customer_code, gateway_ip, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                `, [packageId, customer.name, ipAddress, customerId, customer.customer_code, gatewayIp || null]);
             }
+
+            // Update gateway di tabel customers utama
+            await conn.execute('UPDATE customers SET gateway_ip = ? WHERE id = ?', [gatewayIp || null, customerId]);
 
             // 3. Update MikroTik (Standardize Name & Limit)
             const uniqueSuffix = customer.customer_code.slice(-4);
@@ -131,7 +138,8 @@ export class StaticIpImportController {
 
     // API: Create New Customer & Link (Adopsi)
     async createAndLink(req: Request, res: Response) {
-        const { queueId, mangleId, name, phone, address, ipAddress, packageId, gatewayIp, gatewayIpId, interface: iface } = req.body;
+        const { queueId, mangleId, name, address, ipAddress, packageId, gatewayIp, gatewayIpId, interface: iface } = req.body;
+        let phone = req.body.phone ? req.body.phone.toString().trim() : '';
 
         if (!queueId || !ipAddress || !name || !packageId) {
             return res.status(400).json({ success: false, message: 'Data wajib diisi (Nama, IP, Paket)' });
@@ -229,14 +237,15 @@ export class StaticIpImportController {
             await conn.commit();
 
             // SEND NOTIFICATION
+            let notifResult = null;
             try {
                 const [pkgRowsNotif] = await databasePool.query<RowDataPacket[]>('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
                 const packageName = (pkgRowsNotif as any)[0]?.name;
 
                 console.log(`[Import] 📧 Attempting to send welcome notification to ${name} (${phone})`);
 
-                // Fire and forget notification
-                CustomerNotificationService.notifyNewCustomer({
+                // Wait for notification to finish (or handle properly)
+                notifResult = await CustomerNotificationService.notifyNewCustomer({
                     customerId: newCustomerId,
                     customerName: name,
                     customerCode: customerCode,
@@ -245,15 +254,19 @@ export class StaticIpImportController {
                     address: address,
                     packageName: packageName,
                     createdBy: (req.user as any)?.username || 'System Import'
-                }).then(result => {
-                    console.log(`[Import] Notification Result:`, result);
-                }).catch(err => console.error('[Import] Background notification failed:', err));
+                });
+                console.log(`[Import] Notification Result:`, notifResult);
 
             } catch (notifErr) {
                 console.error('[Import] Notification setup failed:', notifErr);
             }
 
-            res.json({ success: true, message: 'Pelanggan berhasil diadopsi!', customerId: newCustomerId });
+            res.json({
+                success: true,
+                message: 'Pelanggan berhasil diadopsi!',
+                customerId: newCustomerId,
+                notification: notifResult
+            });
 
         } catch (error) {
             await conn.rollback();

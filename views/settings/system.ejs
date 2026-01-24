@@ -53,7 +53,9 @@
                         'device_rental_fee': 'Biaya Sewa Perangkat',
                         'bank_name': 'Nama Bank',
                         'bank_account_number': 'Nomor Rekening',
-                        'bank_account_name': 'Atas Nama Rekening'
+                        'bank_account_name': 'Atas Nama Rekening',
+                        'multiple_banks_enabled': 'Aktifkan Banyak Bank',
+                        'payment_banks': 'Daftar Bank Pembayaran'
                         };
                         return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         }
@@ -109,88 +111,34 @@
                                     <!-- Bank Information -->
                                     <div
                                         class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden mb-6 mt-6">
-                                        <div class="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-5 py-4">
+                                        <div
+                                            class="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-5 py-4 flex justify-between items-center">
                                             <h3 class="text-lg font-bold flex items-center">
                                                 <i class="fas fa-university mr-2"></i>
-                                                Informasi Bank & Pembayaran
+                                                Daftar Rekening Pembayaran
                                             </h3>
+                                            <button type="button" onclick="addBankRow()"
+                                                class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-lg flex items-center gap-1 transition-all">
+                                                <i class="fas fa-plus"></i> Tambah Bank
+                                            </button>
                                         </div>
-                                        <div class="p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div>
-                                                <label class="block text-sm font-bold text-gray-700 mb-2">Nama
-                                                    Bank</label>
-                                                <input type="text" name="bank_name"
-                                                    value="<%= findValue('bank_name', 'BCA') %>"
-                                                    class="w-full border border-gray-300 rounded-md px-3 py-2">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-bold text-gray-700 mb-2">Nomor
-                                                    Rekening</label>
-                                                <input type="text" name="bank_account_number"
-                                                    value="<%= findValue('bank_account_number', '1234567890') %>"
-                                                    class="w-full border border-gray-300 rounded-md px-3 py-2">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-bold text-gray-700 mb-2">Atas
-                                                    Nama</label>
-                                                <input type="text" name="bank_account_name"
-                                                    value="<%= findValue('bank_account_name', 'PT ISP NET') %>"
-                                                    class="w-full border border-gray-300 rounded-md px-3 py-2">
+
+                                        <div class="p-5">
+                                            <div id="multipleBanksSection">
+                                                <p class="text-sm text-gray-600 mb-4">Kelola daftar rekening bank yang
+                                                    akan muncul di invoice pelanggan :</p>
+
+                                                <div id="bankListContainer" class="space-y-3">
+                                                    <!-- Dynamic Bank Rows will be here -->
+                                                </div>
+
+                                                <input type="hidden" name="multiple_banks_enabled" value="true">
+                                                <input type="hidden" name="payment_banks" id="paymentBanksJson"
+                                                    value="<%= findValue('payment_banks', '[]') %>">
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Due Date Settings -->
-                                    <div
-                                        class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden mb-6">
-                                        <div
-                                            class="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-5 py-4">
-                                            <h3 class="text-lg font-bold flex items-center">
-                                                <i class="fas fa-calendar-alt mr-2"></i>
-                                                Jadwal Jatuh Tempo (Due Date)
-                                            </h3>
-                                        </div>
-                                        <div class="p-5">
-                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div>
-                                                    <label class="block text-sm font-bold text-gray-700 mb-2">Metode
-                                                        Jatuh Tempo</label>
-                                                    <select name="due_date_mode"
-                                                        class="w-full border border-gray-300 rounded-md px-3 py-2 bg-white">
-                                                        <option value="fixed" <%=findValue('due_date_mode')==='fixed'
-                                                            ? 'selected' : '' %>>Tanggal Tetap (Fixed Date)</option>
-                                                        <option value="offset" <%=findValue('due_date_mode')==='offset'
-                                                            ? 'selected' : '' %>>Offset (+ Hari)</option>
-                                                    </select>
-                                                    <p class="text-xs text-gray-500 mt-1">
-                                                        Fixed: Selalu tanggal sekian (Misal tgl 20).<br>
-                                                        Offset: Tanggal Buat + Sekian Hari.
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <label class="block text-sm font-bold text-gray-700 mb-2">Tanggal /
-                                                        Hari</label>
-                                                    <div class="flex gap-4">
-                                                        <div class="flex-1">
-                                                            <label class="text-xs text-gray-500">Tanggal Tetap
-                                                                (1-28)</label>
-                                                            <input type="number" name="due_date_fixed_day"
-                                                                value="<%= findValue('due_date_fixed_day', '28') %>"
-                                                                class="w-full border border-gray-300 rounded-md px-3 py-2"
-                                                                min="1" max="28">
-                                                        </div>
-                                                        <div class="flex-1">
-                                                            <label class="text-xs text-gray-500">Offset (Hari)</label>
-                                                            <input type="number" name="due_date_offset_days"
-                                                                value="<%= findValue('due_date_offset_days', '7') %>"
-                                                                class="w-full border border-gray-300 rounded-md px-3 py-2"
-                                                                min="1">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                     <% if (groupedSettings && groupedSettings.general) { %>
                                         <div
                                             class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
@@ -659,57 +607,89 @@
                         </form>
 
                         <!-- Application Update Section -->
-                        <div class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden mt-8 mb-8">
-                            <div class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-5 py-4">
+                        <div class="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden mt-10 mb-10">
+                            <div
+                                class="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-6 py-4 flex justify-between items-center">
                                 <h3 class="text-lg font-bold flex items-center">
-                                    <i class="fas fa-cloud-download-alt mr-2"></i>
-                                    Pembaruan Aplikasi
+                                    <i class="fas fa-microchip mr-2 text-cyan-400"></i>
+                                    System Engine & Update
                                 </h3>
+                                <div class="flex items-center gap-3">
+                                    <span id="versionBadge"
+                                        class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300">
+                                        Checking...
+                                    </span>
+                                </div>
                             </div>
-                            <div class="p-6">
-                                <div class="flex flex-col md:flex-row items-start justify-between gap-6">
-                                    <div class="flex-1 w-full">
-                                        <div class="flex items-center gap-3 mb-2">
-                                            <h4 class="font-bold text-gray-800 text-lg">Status Sistem</h4>
-                                            <span id="versionBadge"
-                                                class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                Checking...
-                                            </span>
+                            <div class="p-8">
+                                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                                    <div class="lg:col-span-3">
+                                        <div class="flex flex-col md:flex-row md:items-center gap-6 mb-6">
+                                            <div
+                                                class="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4 flex-1">
+                                                <div
+                                                    class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                                                    <i class="fas fa-code-branch text-xl"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[10px] font-bold text-gray-400 uppercase">Versi
+                                                        Terpasang</p>
+                                                    <p class="text-xl font-black text-gray-800"
+                                                        id="currentVersionDisplay">v1.0.0</p>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4 flex-1">
+                                                <div
+                                                    class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+                                                    <i class="fas fa-history text-xl"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[10px] font-bold text-gray-400 uppercase">Status
+                                                        Commit</p>
+                                                    <p class="text-xs font-medium text-gray-600 truncate max-w-[200px]"
+                                                        id="lastCommitDisplay">Memuat data...</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p class="text-sm text-gray-600">
-                                            Versi terinstall: <span class="font-mono font-bold text-gray-900"
-                                                id="currentVersionDisplay">-</span>
-                                        </p>
-                                        <p class="text-sm text-gray-500 mt-1" id="lastCommitDisplay"></p>
 
                                         <div id="updateStatusMsg"
-                                            class="mt-4 p-3 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100 flex items-start">
-                                            <i class="fas fa-info-circle mt-0.5 mr-2"></i>
-                                            <span>Silakan klik tombol "Cek Update" untuk memeriksa ketersediaan versi
-                                                terbaru dari GitHub.</span>
+                                            class="p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 text-sm flex items-start gap-3">
+                                            <i class="fas fa-info-circle text-lg mt-0.5"></i>
+                                            <div class="flex-1">
+                                                <p class="font-semibold">Informasi Sistem</p>
+                                                <p class="opacity-80">Klik tombol "Cek Update" untuk melihat apakah ada
+                                                    versi kode baru yang tersedia di repositori.</p>
+                                            </div>
                                         </div>
 
-                                        <div id="remoteDetailsBox" class="hidden mt-4">
-                                            <p
-                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                                                Change Log (Terbaru):</p>
-                                            <div class="p-3 bg-gray-900 text-green-400 rounded-lg text-xs font-mono border border-gray-800 overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-inner"
+                                        <div id="remoteDetailsBox" class="hidden mt-6 animate-fadeIn">
+                                            <h4
+                                                class="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                                                <i class="fas fa-list-ul"></i> Catatan Perubahan Terbaru
+                                            </h4>
+                                            <div class="p-4 bg-slate-900 rounded-xl border border-slate-800 text-cyan-400 text-xs font-mono whitespace-pre-wrap leading-relaxed shadow-2xl"
                                                 id="remoteDetailsContent"></div>
                                         </div>
                                     </div>
 
-                                    <div class="flex flex-col gap-3 min-w-[200px]">
+                                    <div class="flex flex-col gap-3">
                                         <button type="button" id="checkUpdateBtn" onclick="checkUpdate()"
-                                            class="w-full px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm font-semibold flex items-center justify-center group">
+                                            class="w-full px-6 py-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm font-bold flex items-center justify-center gap-3 group">
                                             <i
-                                                class="fas fa-sync-alt mr-2 group-hover:rotate-180 transition-transform duration-500"></i>Cek
-                                            Update
+                                                class="fas fa-sync-alt group-hover:rotate-180 transition-transform duration-700"></i>
+                                            Cek Sekarang
                                         </button>
 
                                         <button type="button" id="performUpdateBtn" onclick="confirmUpdate()"
-                                            class="hidden w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-blue-500/30 font-semibold flex items-center justify-center transform hover:-translate-y-0.5">
-                                            <i class="fas fa-cloud-download-alt mr-2"></i>Update Sekarang
+                                            class="hidden w-full px-6 py-4 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/40 transition-all font-bold flex items-center justify-center gap-3 transform hover:-translate-y-1">
+                                            <i class="fas fa-download"></i>
+                                            Update Sistem
                                         </button>
+
+                                        <p class="text-[10px] text-gray-400 text-center italic mt-2">
+                                            Pastikan koneksi internet stabil sebelum melakukan update kode.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -847,11 +827,11 @@
 
                         if (statusMsg) {
                             statusMsg.innerHTML = `
-                                <div class="flex-1">
-                                    <div class="font-bold text-amber-800 mb-1"><i class="fas fa-exclamation-circle mr-2"></i>Versi Baru Tersedia (${data.remoteVersion})</div>
-                                    <div class="text-amber-700">Terdapat perubahan signifikan (Versi Mayor). Silakan lakukan update manual.</div>
-                                </div>
-                            `;
+                                    <div class="flex-1">
+                                        <div class="font-bold text-amber-800 mb-1"><i class="fas fa-exclamation-circle mr-2"></i>Versi Baru Tersedia (${data.remoteVersion})</div>
+                                        <div class="text-amber-700">Terdapat perubahan signifikan (Versi Mayor). Silakan lakukan update manual.</div>
+                                    </div>
+                                `;
                             statusMsg.className = 'mt-4 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm border border-amber-200 flex items-start';
                         }
 
@@ -904,6 +884,83 @@
                 }
             });
     }
+
+    // --- Dynamic Bank List Logic ---
+    let bankList = [];
+    try {
+        const rawJson = document.getElementById('paymentBanksJson').value;
+        bankList = JSON.parse(rawJson || '[]');
+    } catch (e) {
+        bankList = [];
+    }
+
+    function renderBankList() {
+        const container = document.getElementById('bankListContainer');
+        container.innerHTML = '';
+
+        if (bankList.length === 0) {
+            container.innerHTML = `<div class="p-8 text-center bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg text-gray-400">
+                <i class="fas fa-university text-3xl mb-2"></i>
+                <p class="text-sm">Belum ada rekening bank. Klik "Tambah Bank" di atas.</p>
+            </div>`;
+            return;
+        }
+
+        bankList.forEach((bank, index) => {
+            const row = document.createElement('div');
+            row.className = 'flex flex-col md:flex-row gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm relative group';
+            row.innerHTML = `
+                <div class="flex-1">
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Nama Bank</label>
+                    <input type="text" value="${bank.name || ''}" onchange="updateBank(${index}, 'name', this.value)"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 shadow-sm" placeholder="Contoh: BCA / Mandiri">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Nomor Rekening</label>
+                    <input type="text" value="${bank.account_number || ''}" onchange="updateBank(${index}, 'account_number', this.value)"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 shadow-sm" placeholder="Contoh: 123456789">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Atas Nama</label>
+                    <input type="text" value="${bank.account_name || ''}" onchange="updateBank(${index}, 'account_name', this.value)"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 shadow-sm" placeholder="Contoh: PT ISP NET">
+                </div>
+                <div class="flex items-end justify-end">
+                    <button type="button" onclick="removeBankRow(${index})" 
+                        class="p-2.5 bg-red-100 text-red-600 rounded-md hover:bg-red-600 hover:text-white transition-all">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function addBankRow() {
+        bankList.push({ name: '', account_number: '', account_name: '' });
+        syncBankData();
+        renderBankList();
+    }
+
+    function removeBankRow(index) {
+        bankList.splice(index, 1);
+        syncBankData();
+        renderBankList();
+    }
+
+    function updateBank(index, field, value) {
+        bankList[index][field] = value;
+        syncBankData();
+    }
+
+    function syncBankData() {
+        document.getElementById('paymentBanksJson').value = JSON.stringify(bankList);
+    }
+
+
+
+    // Initial render
+    renderBankList();
 
     function confirmUpdate() {
         if (confirm('APAKAH ANDA YAKIN?\n\nAplikasi akan melakukan update kode dari GitHub dan melakukan restart otomatis.\n\nPASTIKAN INTERNET LANCAR.\nLayanan akan terputus selama beberapa detik.')) {

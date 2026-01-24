@@ -101,6 +101,7 @@ router.get('/isolated-customers', async (req, res) => {
 // List all invoices
 router.get('/invoices', invoiceController.getInvoiceList.bind(invoiceController));
 router.get('/tagihan', invoiceController.getInvoiceList.bind(invoiceController));
+router.get('/tagihan/check-duplicates', invoiceController.checkInvoicesForPeriod.bind(invoiceController));
 
 // Create manual invoice
 // Create manual invoice
