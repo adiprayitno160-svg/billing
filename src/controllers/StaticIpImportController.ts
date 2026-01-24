@@ -233,6 +233,8 @@ export class StaticIpImportController {
                 const [pkgRowsNotif] = await databasePool.query<RowDataPacket[]>('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
                 const packageName = (pkgRowsNotif as any)[0]?.name;
 
+                console.log(`[Import] 📧 Attempting to send welcome notification to ${name} (${phone})`);
+
                 // Fire and forget notification
                 CustomerNotificationService.notifyNewCustomer({
                     customerId: newCustomerId,
@@ -243,10 +245,12 @@ export class StaticIpImportController {
                     address: address,
                     packageName: packageName,
                     createdBy: (req.user as any)?.username || 'System Import'
-                }).catch(err => console.error('Background notification failed:', err));
+                }).then(result => {
+                    console.log(`[Import] Notification Result:`, result);
+                }).catch(err => console.error('[Import] Background notification failed:', err));
 
             } catch (notifErr) {
-                console.error('Notification setup failed:', notifErr);
+                console.error('[Import] Notification setup failed:', notifErr);
             }
 
             res.json({ success: true, message: 'Pelanggan berhasil diadopsi!', customerId: newCustomerId });
