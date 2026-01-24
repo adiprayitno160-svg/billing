@@ -158,6 +158,13 @@ export async function getAppFeatures(): Promise<AppFeature[]> {
             category: 'system'
         },
         {
+            name: 'Premium UI Design',
+            description: 'Antarmuka modern dengan estetika premium, animasi halus, dan mode kasir digital yang intuitif',
+            version: currentVersion,
+            status: 'active',
+            category: 'system'
+        },
+        {
             name: 'Billing Management',
             description: 'Manajemen tagihan pelanggan, pembayaran, dan pelaporan keuangan',
             version: currentVersion,
