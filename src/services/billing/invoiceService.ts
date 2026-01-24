@@ -441,12 +441,17 @@ export class InvoiceService {
                 }
             }
 
-            // 2. Fallback: Customers WITHOUT broad subscriptions processed in group 1
-            console.log(`[InvoiceService] Checking for customers without subscriptions...`);
+            // 2. Fallback: Customers WITHOUT active subscriptions processed in group 1
+            console.log(`[InvoiceService] Checking for customers without active subscriptions for period: ${period}`);
             let customerQuery = `
                 SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, 
-                       c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at
+                       c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at,
+                       c.static_package_id, c.pppoe_package_id,
+                       sp.price as static_price, sp.name as static_package_name,
+                       pp.price as pppoe_price, pp.name as pppoe_package_name
                 FROM customers c
+                LEFT JOIN static_ip_packages sp ON c.static_package_id = sp.id
+                LEFT JOIN pppoe_packages pp ON c.pppoe_package_id = pp.id
                 WHERE c.status = 'active'
                 AND c.id NOT IN (SELECT customer_id FROM invoices WHERE period = ?)
                 AND c.id NOT IN (SELECT customer_id FROM subscriptions WHERE status = 'active')
@@ -465,7 +470,19 @@ export class InvoiceService {
 
             const [customerResult] = await databasePool.query(customerQuery, customerParams);
             const customers = customerResult as any[];
-            console.log(`[InvoiceService] Found ${customers.length} eligible customers without subscriptions`);
+            console.log(`[InvoiceService] Found ${customers.length} eligible customers without active subscriptions`);
+
+            if (customers.length === 0 && customerId) {
+                console.log(`[InvoiceService] ⚠️ Manual check: Customer ${customerId} was NOT found in fallback group. Checking why...`);
+                const [check] = await databasePool.query(`
+                    SELECT 
+                        (SELECT COUNT(*) FROM invoices WHERE customer_id = ? AND period = ?) as existing_invoices,
+                        (SELECT COUNT(*) FROM subscriptions WHERE customer_id = ? AND status = 'active') as active_subs,
+                        status
+                    FROM customers WHERE id = ?
+                `, [customerId, period, customerId, customerId]);
+                console.log(`[InvoiceService] Reasons for skip:`, check);
+            }
 
             for (const customer of customers) {
                 try {
@@ -482,9 +499,17 @@ export class InvoiceService {
                         dueDate.setDate(dueDate.getDate() + dayOffset);
                     }
 
-                    // Fallback price logic
-                    let price = 100000;
-                    const subtotal = price;
+                    // Fallback price logic: Prefer static package, then pppoe package, then default to 100k
+                    let subtotal = 100000;
+                    let packageName = 'Internet';
+
+                    if (customer.static_package_id && customer.static_price) {
+                        subtotal = Number(customer.static_price);
+                        packageName = customer.static_package_name;
+                    } else if (customer.pppoe_package_id && customer.pppoe_price) {
+                        subtotal = Number(customer.pppoe_price);
+                        packageName = customer.pppoe_package_name;
+                    }
 
                     let deviceFee = 0;
                     if (deviceRentalEnabled && customer.use_device_rental) {
@@ -519,13 +544,13 @@ export class InvoiceService {
                         paid_amount: amountFromBalance,
                         notes: 'Tagihan bulanan (Customer Fallback)'
                     }, [{
-                        description: `Layanan Internet - ${period}`,
+                        description: `Layanan ${packageName} - ${period}`,
                         quantity: 1,
                         unit_price: subtotal,
                         total_price: subtotal
                     }]);
 
-                    console.log(`[InvoiceService] ✅ Created fallback invoice for ${customer.customer_name} ID: ${invoiceId}`);
+                    console.log(`[InvoiceService] ✅ Created fallback invoice for ${customer.customer_name} ID: ${invoiceId} Amount: ${totalAmount}`);
                     invoiceIds.push(invoiceId);
 
                     if (amountFromBalance > 0) {

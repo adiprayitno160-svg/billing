@@ -409,35 +409,40 @@ export class InvoiceController {
             console.log(`Generating bulk invoices for period: ${currentPeriod}`);
             if (customer_ids) console.log(`Targeting ${Array.isArray(customer_ids) ? customer_ids.length : 0} specific customers`);
 
-            // Get all active customers with their subscriptions (if any)
-            // This ensures we capture all active customers, not just those with active subscriptions
-            const billingModeFilter = ''; // System is now postpaid only, no filter needed
-
+            // Get all active customers with their connection/package details
             const subscriptionsQuery = `
-                SELECT 
-                    c.id as customer_id,
-                    c.name as customer_name,
-                    c.customer_code,
-                    c.phone as customer_phone,
-                    c.account_balance,
-                    c.status as customer_status,
-                    c.connection_type,
-                    c.is_taxable,
-                    c.use_device_rental,
-                    c.rental_mode,
-                    c.rental_cost,
-                    COALESCE(s.id, (SELECT id FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as id, 
-                    COALESCE(s.package_name, (SELECT package_name FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 'Paket Internet') as package_name,
-                    COALESCE(s.price, (SELECT price FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 0) as price,
-                    COALESCE(s.status, (SELECT status FROM subscriptions WHERE customer_id = c.id ORDER BY id DESC LIMIT 1), 'inactive') as subscription_status,
-                    s.start_date,
-                    s.end_date
-                FROM customers c
-                LEFT JOIN subscriptions s ON c.id = s.customer_id AND (s.status = 'active' OR s.status = 'Active')
-                WHERE c.status = 'active'
-                AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
-                ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
-            `;
+            SELECT 
+                c.id as customer_id,
+                c.name as customer_name,
+                c.customer_code,
+                c.phone as customer_phone,
+                c.account_balance,
+                c.status as customer_status,
+                c.connection_type,
+                c.is_taxable,
+                c.use_device_rental,
+                c.rental_mode,
+                c.rental_cost,
+                c.static_package_id,
+                c.pppoe_package_id,
+                sp.name as static_pkg_name,
+                sp.price as static_pkg_price,
+                pp.name as pppoe_pkg_name,
+                pp.price as pppoe_pkg_price,
+                COALESCE(s.id, 0) as id, 
+                COALESCE(s.package_name, '') as subscription_pkg_name,
+                COALESCE(s.price, 0) as subscription_price,
+                COALESCE(s.status, 'inactive') as subscription_status,
+                s.start_date,
+                s.end_date
+            FROM customers c
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND (s.status = 'active' OR s.status = 'Active')
+            LEFT JOIN static_ip_packages sp ON c.static_package_id = sp.id
+            LEFT JOIN pppoe_packages pp ON c.pppoe_package_id = pp.id
+            WHERE c.status = 'active'
+            AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
+            ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
+        `;
 
             const queryParams: any[] = [];
             if (customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0) {
@@ -453,47 +458,23 @@ export class InvoiceController {
             const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
             const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
 
-            console.log(`Found ${subscriptions.length} active customers for billing`);
+            console.log(`Found ${subscriptions.length} customers for billing evaluation`);
 
-            // Log breakdown
-            const withSubscription = subscriptions.filter((s: any) => s.id && s.id > 0).length;
-            const withoutSubscription = subscriptions.length - withSubscription;
-            console.log(`  - With active subscription: ${withSubscription}`);
-            console.log(`  - Without subscription (will use default price): ${withoutSubscription}`);
-
-            // Check for existing invoices - improved to handle NULL subscription_id properly
+            // Check for existing invoices to avoid duplicates
             const checkQuery = `
-                SELECT customer_id, subscription_id, COALESCE(subscription_id, 0) as normalized_subscription_id
-                FROM invoices
-                WHERE period = ?
-            `;
+            SELECT customer_id, subscription_id, COALESCE(subscription_id, 0) as normalized_subscription_id
+            FROM invoices
+            WHERE period = ?
+        `;
             const [existingInvoices] = await conn.query<RowDataPacket[]>(checkQuery, [currentPeriod]);
 
-            console.log(`Found ${existingInvoices.length} existing invoices for period ${currentPeriod}`);
-            if (existingInvoices.length > 0) {
-                console.log('Existing invoices:', existingInvoices.map((inv: any) =>
-                    `customer_id: ${inv.customer_id}, subscription_id: ${inv.subscription_id}`
-                ));
-            }
-
-            // Create a map for exact match: customer_id + subscription_id (handling NULL as 0)
             const exactMatchSet = new Set<string>();
-            // Also track customers with invoices that have NULL/0 subscription_id (legacy invoices)
-            const customersWithLegacyInvoices = new Set<number>();
+            const customersWithGeneralInvoices = new Set<number>();
 
             for (const inv of existingInvoices as any[]) {
                 const normalizedSubId = inv.normalized_subscription_id || 0;
                 exactMatchSet.add(`${inv.customer_id}_${normalizedSubId}`);
-
-                // Track if this is a legacy invoice (NULL or 0 subscription_id)
-                if (!inv.subscription_id || inv.subscription_id === 0) {
-                    customersWithLegacyInvoices.add(inv.customer_id);
-                }
-            }
-
-            if (customersWithLegacyInvoices.size > 0) {
-                console.log(`Found ${customersWithLegacyInvoices.size} customers with legacy invoices (NULL subscription_id):`,
-                    Array.from(customersWithLegacyInvoices));
+                if (normalizedSubId === 0) customersWithGeneralInvoices.add(inv.customer_id);
             }
 
             let createdCount = 0;
@@ -501,99 +482,63 @@ export class InvoiceController {
             const errors: string[] = [];
             const customerBalances = new Map<number, number>();
 
-            for (const subscription of subscriptions) {
-                // Initialize balance tracker if not set
-                if (!customerBalances.has(subscription.customer_id)) {
-                    customerBalances.set(subscription.customer_id, parseFloat(subscription.account_balance || 0));
+            for (const sub of subscriptions) {
+                if (!customerBalances.has(sub.customer_id)) {
+                    customerBalances.set(sub.customer_id, parseFloat(sub.account_balance || 0));
                 }
 
                 try {
-                    // Check for exact match: customer_id + subscription_id
-                    // Normalize subscription_id: if 0 or null, treat as 0
-                    const normalizedSubId = (subscription.id && subscription.id > 0) ? subscription.id : 0;
-                    const exactKey = `${subscription.customer_id}_${normalizedSubId}`;
-
-                    const hasActiveSubscription = subscription.id && subscription.id > 0;
-
-                    // Check if invoice already exists for this period
+                    const normalizedSubId = (sub.id && sub.id > 0) ? sub.id : 0;
+                    const exactKey = `${sub.customer_id}_${normalizedSubId}`;
                     const hasExactMatch = exactMatchSet.has(exactKey);
+                    const isGeneralConflict = (normalizedSubId === 0) && customersWithGeneralInvoices.has(sub.customer_id);
 
-                    // Only block based on legacy invoice (sub_id=0) IF we are currently trying to create a sub_id=0 invoice
-                    // This allows specific subscription invoices to be created even if a general invoice exists
-                    const isLegacyConflict = (normalizedSubId === 0) && customersWithLegacyInvoices.has(subscription.customer_id);
-
-                    if (hasExactMatch || isLegacyConflict) {
+                    if (hasExactMatch || isGeneralConflict) {
                         skippedCount++;
-                        const subscriptionInfo = hasActiveSubscription ? `subscription_id: ${subscription.id}` : 'no subscription';
-                        const reason = hasExactMatch
-                            ? `exact match found`
-                            : `customer has legacy invoice`;
-                        console.log(`⚠ Invoice already exists (Merged Log: ${reason})`);
+                        console.log(`⚠ Skiping ${sub.customer_name} (ID: ${sub.customer_id}): Invoice already exists for period ${currentPeriod}`);
                         continue;
                     }
 
-                    console.log(`✓ Processing customer ${subscription.customer_name} (customer_id: ${subscription.customer_id})`);
+                    // Determine effective price and package name
+                    let finalPrice = 0;
+                    let finalPkgName = 'Layanan Internet';
 
-                    // Calculate due date (Consistent with Scheduler)
+                    if (sub.id > 0 && parseFloat(sub.subscription_price) > 0) {
+                        finalPrice = parseFloat(sub.subscription_price);
+                        finalPkgName = sub.subscription_pkg_name || 'Paket Subscription';
+                    } else if (sub.connection_type === 'static_ip' && sub.static_package_id) {
+                        finalPrice = parseFloat(sub.static_pkg_price) || 0;
+                        finalPkgName = sub.static_pkg_name || 'Paket Static IP';
+                    } else if (sub.connection_type === 'pppoe' && sub.pppoe_package_id) {
+                        finalPrice = parseFloat(sub.pppoe_pkg_price) || 0;
+                        finalPkgName = sub.pppoe_pkg_name || 'Paket PPPoE';
+                    }
+
+                    // Absolute fallback if everything else fails
+                    if (finalPrice <= 0) {
+                        finalPrice = 100000;
+                        finalPkgName = 'Layanan Internet (Default)';
+                        console.warn(`[InvoiceController] Using 100k fallback for ${sub.customer_name} - no package price found.`);
+                    }
+
+                    // Calculate due date
                     const periodDate = new Date(currentPeriod + '-01');
                     let dueDate = new Date(periodDate);
-
                     if (useFixedDay) {
                         const daysInMonth = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0).getDate();
-                        const targetDay = Math.min(fixedDay, daysInMonth);
-                        // Safe set: Year, Month, Day
-                        dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), targetDay);
+                        dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), Math.min(fixedDay, daysInMonth));
                     } else {
-                        // Offset from start of period (usually 1st)
                         dueDate.setDate(dueDate.getDate() + dayOffset);
                     }
 
-                    const dueDateStr = dueDate.toISOString().slice(0, 10);
-
-                    // Generate invoice number
                     const invoiceNumber = await this.generateInvoiceNumber(currentPeriod, conn);
 
-                    // Determine price: use subscription price if available, otherwise use default
-                    const defaultPrice = 100000; // Default price for customers without subscription
-                    const subscriptionId = subscription.id && subscription.id > 0 ? subscription.id : null;
-                    const price = parseFloat(subscription.price) || defaultPrice;
-                    const packageName = subscription.package_name || 'Paket Internet Bulanan';
-                    const subscriptionPrice = parseFloat(subscription.price) || 0;
-
-                    // Only use subscription_id if it exists (not 0 or null)
-                    const finalSubscriptionId = subscriptionId || null;
-
-                    // Calculate balance deduction
-                    let currentBalance = customerBalances.get(subscription.customer_id) || 0;
-                    let balanceDeduction = 0;
-                    let paidAmount = 0;
-                    let remainingAmount = price;
-                    let status = 'sent';
-                    let invoiceNotes = null;
-
-                    if (currentBalance > 0) {
-                        balanceDeduction = Math.min(currentBalance, price);
-
-                        if (balanceDeduction > 0) {
-                            paidAmount = balanceDeduction;
-                            remainingAmount = price - balanceDeduction;
-                            currentBalance -= balanceDeduction;
-                            customerBalances.set(subscription.customer_id, currentBalance);
-
-                            status = remainingAmount <= 0 ? 'paid' : 'partial';
-                            invoiceNotes = `Otomatis dipotong dari saldo (Rp ${new Intl.NumberFormat('id-ID').format(balanceDeduction)})`;
-
-                            // Update Customer Balance
-                            await conn.execute('UPDATE customers SET account_balance = ? WHERE id = ?', [currentBalance, subscription.customer_id]);
-                        }
-                    }
-
-                    // Calculate final total including Tax and Device Rental
-                    let subtotal = price;
+                    // Base cost components
+                    let subtotal = finalPrice;
                     let deviceFee = 0;
-                    if (deviceRentalEnabled && subscription.use_device_rental) {
-                        const rentalCost = subscription.rental_cost !== null ? parseFloat(subscription.rental_cost) : deviceRentalFee;
-                        if (subscription.rental_mode === 'daily') {
+                    if (deviceRentalEnabled && sub.use_device_rental) {
+                        const rentalCost = sub.rental_cost !== null ? parseFloat(sub.rental_cost) : deviceRentalFee;
+                        if (sub.rental_mode === 'daily') {
                             const daysInMonth = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0).getDate();
                             deviceFee = rentalCost * daysInMonth;
                         } else {
@@ -602,82 +547,67 @@ export class InvoiceController {
                     }
 
                     let ppnAmount = 0;
-                    if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
+                    if (ppnEnabled && sub.is_taxable) {
                         ppnAmount = Math.round((subtotal + deviceFee) * (ppnRate / 100));
                     }
 
                     const totalAmount = subtotal + deviceFee + ppnAmount;
-                    remainingAmount = totalAmount - paidAmount;
 
-                    // Insert invoice
-                    const invoiceInsertQuery = `
-                        INSERT INTO invoices (
-                            invoice_number, customer_id, subscription_id, period, due_date,
-                            subtotal, discount_amount, ppn_rate, ppn_amount, device_fee, 
-                            total_amount, paid_amount, remaining_amount,
-                            status, notes, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                    `;
+                    // Handle Balance Deduction
+                    let currentBalance = customerBalances.get(sub.customer_id) || 0;
+                    let paidAmount = 0;
+                    let remainingAmount = totalAmount;
+                    let invoiceNotes = null;
 
-                    const [invoiceResult] = await conn.execute<ResultSetHeader>(invoiceInsertQuery, [
-                        invoiceNumber,
-                        subscription.customer_id,
-                        finalSubscriptionId,
-                        currentPeriod,
-                        dueDateStr,
-                        subtotal,
-                        ppnEnabled ? ppnRate : 0,
-                        ppnAmount,
-                        deviceFee,
-                        totalAmount,
-                        paidAmount,
-                        remainingAmount,
-                        status,
-                        invoiceNotes
-                    ]);
+                    if (currentBalance > 0) {
+                        paidAmount = Math.min(currentBalance, totalAmount);
+                        remainingAmount = totalAmount - paidAmount;
+                        currentBalance -= paidAmount;
+                        customerBalances.set(sub.customer_id, currentBalance);
+                        invoiceNotes = `Otomatis potong saldo (Rp ${new Intl.NumberFormat('id-ID').format(paidAmount)})`;
 
-                    const invoiceId = invoiceResult.insertId;
-
-                    // Log Balance Usage if applicable
-                    if (balanceDeduction > 0) {
-                        await conn.execute(`
-                            INSERT INTO customer_balance_logs (
-                                customer_id, type, amount, description, reference_id, created_at
-                            ) VALUES (?, 'debit', ?, ?, ?, NOW())
-                        `, [subscription.customer_id, balanceDeduction, `Pembayaran otomatis invoice ${invoiceNumber}`, invoiceId.toString()]);
+                        await conn.execute('UPDATE customers SET account_balance = ? WHERE id = ?', [currentBalance, sub.customer_id]);
                     }
 
-                    // Insert items
-                    const itemInsertQuery = `
-                        INSERT INTO invoice_items (
-                            invoice_id, description, quantity, unit_price, total_price, created_at
-                        ) VALUES (?, ?, 1, ?, ?, NOW())
-                    `;
+                    const status = remainingAmount <= 0 ? 'paid' : (paidAmount > 0 ? 'partial' : 'sent');
 
-                    // 1. Internet Package
-                    const description = subscriptionPrice > 0
-                        ? `Paket ${packageName} - ${currentPeriod}`
-                        : `Paket Internet Bulanan - ${currentPeriod}`;
+                    const [resInv] = await conn.execute<ResultSetHeader>(`
+                    INSERT INTO invoices (
+                        invoice_number, customer_id, subscription_id, period, due_date,
+                        subtotal, tax_amount, device_fee, total_amount, paid_amount, remaining_amount,
+                        status, notes, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                `, [
+                        invoiceNumber, sub.customer_id, (sub.id > 0 ? sub.id : null), currentPeriod,
+                        dueDate.toISOString().slice(0, 10), subtotal, ppnAmount, deviceFee, totalAmount,
+                        paidAmount, remainingAmount, status, invoiceNotes
+                    ]);
 
-                    await conn.execute(itemInsertQuery, [invoiceId, description, subtotal, subtotal]);
+                    const invoiceId = resInv.insertId;
 
-                    // 2. Device Rental
+                    // Insert Invoice Items
+                    await conn.execute(`
+                    INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price)
+                    VALUES (?, ?, 1, ?, ?)
+                `, [invoiceId, `${finalPkgName} - ${currentPeriod}`, subtotal, subtotal]);
+
                     if (deviceFee > 0) {
-                        await conn.execute(itemInsertQuery, [
-                            invoiceId,
-                            `Sewa Perangkat - ${currentPeriod}`,
-                            deviceFee,
-                            deviceFee
-                        ]);
+                        await conn.execute(`
+                        INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price)
+                        VALUES (?, 'Sewa Perangkat', 1, ?, ?)
+                    `, [invoiceId, deviceFee, deviceFee]);
+                    }
+
+                    if (paidAmount > 0) {
+                        await conn.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes) VALUES (?, "balance", ?, NOW(), "Otomatis potong saldo")', [invoiceId, paidAmount]);
                     }
 
                     createdCount++;
-                    console.log(`✓ Invoice created for customer ${subscription.customer_name} (${invoiceNumber})`);
+                    console.log(`✓ Created: ${sub.customer_name} (#${invoiceNumber})`);
 
-
-                } catch (itemError: any) {
-                    console.error(`Error creating invoice for subscription ${subscription.id}:`, itemError);
-                    errors.push(`Customer ${subscription.customer_name}: ${itemError.message}`);
+                } catch (err: any) {
+                    console.error(`❌ Error customer ${sub.customer_id}:`, err);
+                    errors.push(`${sub.customer_name}: ${err.message}`);
                 }
             }
 
