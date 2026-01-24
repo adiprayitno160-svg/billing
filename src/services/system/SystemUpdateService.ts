@@ -45,35 +45,50 @@ export class SystemUpdateService {
         try {
             console.log('[SystemUpdate] Starting update process...');
 
-            // 1. Pull
-            console.log('[SystemUpdate] Pulling changes...');
-            await git.pull('origin', 'main');
+            // 1. Force Sync with Remote (Reset Hard to avoid merge conflicts)
+            console.log('[SystemUpdate] Fetching and Resetting...');
+            await git.fetch();
+            await git.reset(['--hard', 'origin/main']);
 
-            // 2. Install Dependencies (if package.json changed)
-            // For safety, we always run install in production update
+            // 2. Install Dependencies
             console.log('[SystemUpdate] Installing dependencies...');
-            await execAsync('npm install --omit=dev');
+            try {
+                // Increase buffer size for large output
+                await execAsync('npm install --omit=dev', { maxBuffer: 1024 * 1024 * 5 });
+            } catch (e: any) {
+                console.warn('[SystemUpdate] npm install warning (continuing):', e.stderr || e.message);
+            }
 
             // 3. Build (Typescript)
             console.log('[SystemUpdate] Building project...');
-            await execAsync('npm run build');
+            try {
+                // Increase buffer size
+                await execAsync('npm run build', { maxBuffer: 1024 * 1024 * 5 });
+            } catch (e: any) {
+                const errMsg = e.stderr || e.message;
+                console.error('[SystemUpdate] Build failed:', errMsg);
+                // Check for permission error hint
+                if (errMsg.includes('EACCES')) {
+                    throw new Error('Build gagal karena izin akses ditolak (Permission Denied). Silakan jalankan "sudo chown -R $USER:www-data /var/www/billing" di terminal server.');
+                }
+                throw new Error(`Build gagal: ${errMsg.substring(0, 200)}...`);
+            }
 
             // 4. Restart (PM2)
             console.log('[SystemUpdate] Restarting application...');
-            // This might kill the current process, so we return a status before this if possible,
-            // but usually the caller (API) will timeout. 
-            // We use a detached process or rely on PM2 to restart us if we exit.
 
             // Allow time for response to be sent to client
             setTimeout(() => {
-                process.exit(0); // If running under PM2, this restarts the app
+                // Try PM2 restart first if available globally, OR just exit and let PM2 autostart
+                // We use process.exit(0) effectively mostly.
+                process.exit(0);
             }, 2000);
 
             return { success: true, message: 'Update berhasil. Sistem akan restart dalam beberapa detik.' };
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('[SystemUpdate] Update failed:', error);
-            throw error;
+            throw new Error(error.message || 'Update gagal');
         }
     }
 }
