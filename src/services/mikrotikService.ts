@@ -420,13 +420,11 @@ export async function createQueueTree(cfg: MikroTikConfig, data: any): Promise<v
 export async function updateQueueTree(cfg: MikroTikConfig, id: string, data: any): Promise<void> {
     try {
         // Import and use queue validation
-        const { validateQueueType } = await import('../utils/queueValidationHelper');
+        const { preValidateQueueCreation } = await import('../utils/queueValidationHelper');
 
-        // Validate queue type if present
-        const validatedData = { ...data };
-        if (validatedData.queue) {
-            validatedData.queue = await validateQueueType(validatedData.queue);
-        }
+        // Validate and sanitize data (Using preValidate helper ensures consistent sanitization for limits/bursts)
+        const validation = await preValidateQueueCreation(data);
+        const validatedData = validation.sanitizedData;
 
         const params: string[] = [`=.id=${id}`];
         const mapping: any = {
