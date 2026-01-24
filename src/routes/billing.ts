@@ -787,23 +787,32 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                         }
                     }
                 }
-
-                console.log('[Payment Form] Final SLA target:', slaTarget);
             }
+
+            console.log('[Payment Form] Final SLA target:', slaTarget);
 
             // Get SLA record for this customer and period
             let slaDiscount = null;
             if (invoice.customer_id && invoice.period) {
-                const periodParts = invoice.period.split('-'); // Format: YYYY-MM
-                const year = parseInt(periodParts[0]);
-                const month = parseInt(periodParts[1]);
+                // SLA Constants
+                const TARGET_SLA = slaTarget || 90.0;
+                const TOTAL_HOURS_MONTH = 720; // 30 days * 24 hours
 
-                // Calculate start and end of the period
-                const startDate = `${invoice.period}-01 00:00:00`;
-                const endDate = new Date(year, month, 0, 23, 59, 59).toISOString().slice(0, 19).replace('T', ' ');
+                // Calculate period for SLA (Previous Month of Invoice Period)
+                const invoiceDate = new Date(`${invoice.period}-01`);
+                const slaDate = new Date(invoiceDate);
+                slaDate.setMonth(slaDate.getMonth() - 1);
+
+                const slaYear = slaDate.getFullYear();
+                const slaMonth = (slaDate.getMonth() + 1).toString().padStart(2, '0');
+                const slaPeriod = `${slaYear}-${slaMonth}`;
+
+                const slaStartDate = `${slaPeriod}-01 00:00:00`;
+                const slaEndDate = new Date(slaYear, slaDate.getMonth() + 1, 0, 23, 59, 59).toISOString().slice(0, 19).replace('T', ' ');
+
+                console.log(`[SLA] Checking tickets for period: ${slaPeriod} (${slaStartDate} to ${slaEndDate}) for Invoice Period: ${invoice.period}`);
 
                 // Query closed tickets in this period
-                // Downtime counts from reported_at to resolved_at
                 const [tickets] = await conn.query(`
                     SELECT 
                         id, reported_at, resolved_at
@@ -813,10 +822,10 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                     AND reported_at <= ?
                     AND status IN ('closed', 'resolved')
                     AND resolved_at IS NOT NULL
-                `, [invoice.customer_id, startDate, endDate]) as any;
+                `, [invoice.customer_id, slaStartDate, slaEndDate]) as any;
 
                 let totalDowntimeMinutes = 0;
-                const incidentCount = tickets.length;
+                const incidentCount = (tickets as any[]).length;
 
                 for (const ticket of tickets) {
                     const reported = new Date(ticket.reported_at);
@@ -827,16 +836,12 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                     }
                 }
 
-                // SLA Constants per User Request
-                const TOTAL_HOURS_MONTH = 720; // 30 days * 24 hours
-                const TARGET_SLA = 90.0; // 90%
-
                 // Calculate Uptime
                 const totalDowntimeHours = totalDowntimeMinutes / 60;
                 const uptimeHours = TOTAL_HOURS_MONTH - totalDowntimeHours;
                 let uptimePercentage = (uptimeHours / TOTAL_HOURS_MONTH) * 100;
 
-                // Clamp uptime (cannot be > 100%)
+                // Clamp uptime
                 if (uptimePercentage > 100) uptimePercentage = 100;
                 if (uptimePercentage < 0) uptimePercentage = 0;
 
@@ -846,14 +851,7 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                 // Calculate Discount: If Uptime < 90%, Discount = 90% - RealUptime%
                 if (uptimePercentage < TARGET_SLA) {
                     discountPercentage = TARGET_SLA - uptimePercentage;
-
-                    // Optional: Cap discount (e.g. max 100% or user defined? User didn't specify cap, but code had 30%. keeping safety cap)
-                    // User said: "Contoh: Jika uptime 85%, diskon adalah 5%". No cap mentioned.
-                    // I'll leave the cap if it feels unsafe, but prompt implies specific math. 
-                    // Let's remove the arbitrary 30% cap to follow user instructions strictly, 
-                    // or set it to 100% implicitly.
-
-                    discountAmount = parseFloat(invoice.total_amount) * (discountPercentage / 100);
+                    discountAmount = Math.round(parseFloat(invoice.total_amount) * (discountPercentage / 100));
                 }
 
                 slaDiscount = {
@@ -864,8 +862,11 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                     discount_amount: discountAmount,
                     total_downtime_minutes: totalDowntimeMinutes,
                     incident_count: incidentCount,
-                    applicable: discountPercentage > 0
+                    applicable: true, // Always show monitoring even if no discount
+                    sla_period: slaPeriod
                 };
+
+                console.log('[SLA] Result:', slaDiscount);
             }
 
             // Default SLA values

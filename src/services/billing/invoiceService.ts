@@ -323,10 +323,14 @@ export class InvoiceService {
             const [subscriptionResult] = await databasePool.query(subscriptionQuery, queryParams);
             console.log(`[InvoiceService] Found ${(subscriptionResult as any[]).length} subscriptions`);
 
-            if ((subscriptionResult as any[]).length > 0) {
-                // Generate dari subscriptions
-                console.log(`[InvoiceService] Processing ${(subscriptionResult as any[]).length} subscriptions`);
-                for (const subscription of subscriptionResult as any[]) {
+            // 1. Generate from subscriptions
+            console.log(`[InvoiceService] Executing subscription query for period: ${period}`);
+            const [rows] = await databasePool.query(subscriptionQuery, queryParams);
+            const subscriptions = rows as any[];
+            console.log(`[InvoiceService] Found ${subscriptions.length} pending subscriptions`);
+
+            if (subscriptions.length > 0) {
+                for (const subscription of subscriptions) {
                     try {
                         console.log(`[InvoiceService] Processing subscription: ${subscription.subscription_id} for customer: ${subscription.customer_name}`);
 
@@ -337,59 +341,45 @@ export class InvoiceService {
 
                         if (useFixedDay) {
                             // Use fixed day (e.g. 28)
-                            // Handle February 28/29 or short months
                             const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
                             const targetDay = Math.min(fixedDay, daysInMonth);
                             dueDate = new Date(periodYear, periodMonth - 1, targetDay);
                         } else {
                             // Use offset (e.g. 1st + 7 days)
-                            // Assuming period starts on 1st
                             dueDate = new Date(periodYear, periodMonth - 1, 1);
                             dueDate.setDate(dueDate.getDate() + dayOffset);
                         }
 
-                        // Check for carry over amount (with error handling)
+                        // Check for carry over amount
                         let carryOverAmount = 0;
                         try {
-                            const carryOverQuery = `
+                            const [carryOverResult] = await databasePool.query(`
                                 SELECT COALESCE(SUM(carry_over_amount), 0) as carry_over_amount
                                 FROM carry_over_invoices 
                                 WHERE customer_id = ? AND target_period = ? AND status = 'pending'
-                            `;
-
-                            const [carryOverResult] = await databasePool.query(carryOverQuery, [subscription.customer_id, period]);
+                            `, [subscription.customer_id, period]);
                             carryOverAmount = parseFloat(((carryOverResult as any[])[0] as any).carry_over_amount || 0);
-                        } catch (carryOverError) {
-                            console.warn(`[InvoiceService] Warning: Could not check carry over for customer ${subscription.customer_name}:`, carryOverError);
-                            carryOverAmount = 0;
-                        }
+                        } catch (e) { }
 
                         const subtotal = subscription.price || 0;
 
                         let deviceFee = 0;
                         if (deviceRentalEnabled && subscription.use_device_rental) {
-                            // Determine rental cost: prioritize custom cost, fallback to global
                             const rentalCost = subscription.rental_cost !== null && subscription.rental_cost !== undefined
                                 ? Number(subscription.rental_cost)
                                 : Number(deviceRentalFee);
-
                             const rentalMode = subscription.rental_mode || 'flat';
 
                             if (rentalMode === 'daily') {
-                                // Calculate days in the invoice period
-                                const [pYear, pMonth] = period.split('-').map(Number);
-                                const daysInMonth = new Date(pYear, pMonth, 0).getDate();
+                                const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
                                 deviceFee = rentalCost * daysInMonth;
-                                console.log(`[InvoiceService] Daily rental for ${subscription.customer_name}: ${rentalCost} x ${daysInMonth} days = ${deviceFee}`);
                             } else {
-                                // Flat rate
                                 deviceFee = rentalCost;
                             }
                         }
 
                         let ppnAmount = 0;
                         if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
-                            // Tax Base = Subtotal + Device Fee
                             const taxBase = subtotal + deviceFee;
                             ppnAmount = Math.round(taxBase * (ppnRate / 100));
                         }
@@ -404,10 +394,10 @@ export class InvoiceService {
                         }
 
                         const invoiceData: InvoiceData = {
-                            customer_id: subscription.customer_id || 0,
-                            subscription_id: subscription.subscription_id || subscription.id || 0,
+                            customer_id: subscription.customer_id,
+                            subscription_id: subscription.subscription_id,
                             period: period,
-                            due_date: dueDate.toISOString().split('T')[0] as string,
+                            due_date: dueDate.toISOString().split('T')[0],
                             subtotal: subtotal,
                             ppn_rate: ppnEnabled ? ppnRate : 0,
                             ppn_amount: ppnAmount,
@@ -419,247 +409,131 @@ export class InvoiceService {
                         };
 
                         const items: InvoiceItem[] = [{
-                            description: `Paket ${subscription.package_name || 'Unknown Package'} - ${period}`,
+                            description: `Paket ${subscription.package_name || 'Internet'} - ${period}`,
                             quantity: 1,
                             unit_price: subtotal,
                             total_price: subtotal
                         }];
 
                         if (deviceFee > 0) {
-                            items.push({
-                                description: `Sewa Perangkat - ${period}`,
-                                quantity: 1,
-                                unit_price: deviceFee,
-                                total_price: deviceFee
-                            });
+                            items.push({ description: `Sewa Perangkat - ${period}`, quantity: 1, unit_price: deviceFee, total_price: deviceFee });
                         }
 
-                        // Add carry over item if exists
                         if (carryOverAmount > 0) {
-                            items.push({
-                                description: `Sisa Hutang Bulan Sebelumnya - ${period}`,
-                                quantity: 1,
-                                unit_price: carryOverAmount,
-                                total_price: carryOverAmount
-                            });
+                            items.push({ description: `Sisa Hutang Bulan Sebelumnya - ${period}`, quantity: 1, unit_price: carryOverAmount, total_price: carryOverAmount });
                         }
 
-                        console.log(`[InvoiceService] Creating invoice for customer ${subscription.customer_name} with amount ${totalAmount} (balance use: ${amountFromBalance})`);
                         const invoiceId = await this.createInvoice(invoiceData, items);
-                        console.log(`[InvoiceService] Created invoice with ID: ${invoiceId}`);
                         invoiceIds.push(invoiceId);
 
-                        // --- FEATURE: Proactive SLA Compensation ---
-                        try {
-                            const { SLARebateService } = await import('./SLARebateService');
-                            await SLARebateService.applyRebateToInvoice(invoiceId);
-                        } catch (slaError) {
-                            console.error('[InvoiceService] SLA Rebate failed:', slaError);
-                        }
-
-                        // If balance used, finalize the transaction (log and update customer)
+                        // Finalize balance and carry over
                         if (amountFromBalance > 0) {
-                            await databasePool.execute(
-                                'UPDATE customers SET account_balance = account_balance - ? WHERE id = ?',
-                                [amountFromBalance, subscription.customer_id]
-                            );
-
-                            await databasePool.execute(
-                                'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())',
-                                [invoiceId, amountFromBalance]
-                            );
-
-                            await databasePool.execute(
-                                'INSERT INTO customer_balance_logs (customer_id, invoice_id, amount, type, description, created_at) VALUES (?, ?, ?, "debit", ?, NOW())',
-                                [subscription.customer_id, invoiceId, amountFromBalance, `Potong saldo otomatis untuk invoice ${period}`]
-                            );
+                            await databasePool.execute('UPDATE customers SET account_balance = account_balance - ? WHERE id = ?', [amountFromBalance, subscription.customer_id]);
+                            await databasePool.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())', [invoiceId, amountFromBalance]);
                         }
 
-                        // Mark carry over as applied if exists
                         if (carryOverAmount > 0) {
-                            try {
-                                await databasePool.execute(
-                                    'UPDATE carry_over_invoices SET status = "applied", applied_at = NOW() WHERE customer_id = ? AND target_period = ? AND status = "pending"',
-                                    [subscription.customer_id, period]
-                                );
-                                console.log(`[InvoiceService] Marked carry over as applied for customer ${subscription.customer_name}`);
-                            } catch (carryOverUpdateError) {
-                                console.warn(`[InvoiceService] Warning: Could not update carry over status for customer ${subscription.customer_name}:`, carryOverUpdateError);
-                            }
+                            await databasePool.execute('UPDATE carry_over_invoices SET status = "applied", applied_at = NOW() WHERE customer_id = ? AND target_period = ? AND status = "pending"', [subscription.customer_id, period]);
                         }
-                    } catch (subscriptionError) {
-                        console.error(`[InvoiceService] Error processing subscription ${subscription.subscription_id}:`, subscriptionError);
-                        // Continue with next subscription
-                        continue;
+                    } catch (err) {
+                        console.error(`[InvoiceService] Error subscription ${subscription.subscription_id}:`, err);
                     }
                 }
-            } else {
-                // Fallback: Generate dari customers dengan paket default
-                console.log(`[InvoiceService] No subscriptions found, trying fallback with customers`);
-                let customerResult: any[] = [];
+            }
 
-                // Coba query dengan kolom status terlebih dahulu
+            // 2. Fallback: Customers WITHOUT broad subscriptions processed in group 1
+            console.log(`[InvoiceService] Checking for customers without subscriptions...`);
+            let customerQuery = `
+                SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, 
+                       c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at
+                FROM customers c
+                WHERE c.status = 'active'
+                AND c.id NOT IN (SELECT customer_id FROM invoices WHERE period = ?)
+                AND c.id NOT IN (SELECT customer_id FROM subscriptions WHERE status = 'active')
+            `;
+
+            const customerParams: any[] = [period];
+
+            if (!forceAll && !customerId) {
+                customerQuery += ` AND DAY(c.created_at) = DAY(CURDATE()) `;
+            }
+
+            if (customerId) {
+                customerQuery += ` AND c.id = ? `;
+                customerParams.push(customerId);
+            }
+
+            const [customerResult] = await databasePool.query(customerQuery, customerParams);
+            const customers = customerResult as any[];
+            console.log(`[InvoiceService] Found ${customers.length} eligible customers without subscriptions`);
+
+            for (const customer of customers) {
                 try {
-                    const customerQueryWithStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost
-                        FROM customers c
-                        WHERE c.status = 'active'
-                        AND c.id NOT IN (
-                            SELECT DISTINCT customer_id 
-                            FROM invoices 
-                            WHERE period = ?
-                        )
-                    `;
-                    const [resWithStatus] = await databasePool.query(customerQueryWithStatus, [period]);
-                    customerResult = resWithStatus as any[];
-                } catch (e) {
-                    console.warn('[InvoiceService] Warning: customers.status column may not exist, falling back without status filter');
-                }
+                    const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
+                    const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
+                    let dueDate: Date;
 
-                // Jika hasil masih kosong, coba tanpa filter status
-                if (!Array.isArray(customerResult) || customerResult.length === 0) {
-                    const customerQueryNoStatus = `
-                        SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost
-                        FROM customers c
-                        WHERE c.id NOT IN (
-                            SELECT DISTINCT customer_id 
-                            FROM invoices 
-                            WHERE period = ?
-                        )
-                    `;
-                    const [resNoStatus] = await databasePool.query(customerQueryNoStatus, [period]);
-                    customerResult = resNoStatus as any[];
-                }
-
-                console.log(`[InvoiceService] Found ${Array.isArray(customerResult) ? customerResult.length : 0} customers for fallback`);
-
-                const defaultPrice = 100000; // Harga default jika tidak ada paket
-
-                for (const customer of customerResult as any[]) {
-                    try {
-                        // Jatuh tempo: Dynamic based on scheduler settings
-                        const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
-                        const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
-                        let dueDate: Date;
-
-                        if (useFixedDay) {
-                            const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
-                            const targetDay = Math.min(fixedDay, daysInMonth);
-                            dueDate = new Date(periodYear, periodMonth - 1, targetDay);
-                        } else {
-                            dueDate = new Date(periodYear, periodMonth - 1, 1);
-                            dueDate.setDate(dueDate.getDate() + dayOffset);
-                        }
-
-                        // Enhanced Pricing Logic
-                        let price = 100000; // Default fallback
-                        let packageName = 'Paket Internet Bulanan';
-
-                        // Try to get price from customer package_id/type if possible (Simulated logic or simple check)
-                        // If we had the package tables joined here, we could use them.
-                        // For now, ensure we log if we are using the default fallback.
-                        if (customer.price && !isNaN(parseFloat(customer.price))) {
-                            price = parseFloat(customer.price);
-                            packageName = customer.package_name || packageName;
-                        } else {
-                            console.warn(`[InvoiceService] Customer ${customer.customer_name} has no subscription/price. Using default: ${price}`);
-                        }
-
-                        const subtotal = price;
-
-                        let deviceFee = 0;
-                        if (deviceRentalEnabled && customer.use_device_rental) {
-                            // Determine rental cost: prioritize custom cost, fallback to global
-                            const rentalCost = customer.rental_cost !== null && customer.rental_cost !== undefined
-                                ? Number(customer.rental_cost)
-                                : Number(deviceRentalFee);
-
-                            const rentalMode = customer.rental_mode || 'flat';
-
-                            if (rentalMode === 'daily') {
-                                // Calculate days in the invoice period
-                                const [pYear, pMonth] = period.split('-').map(Number);
-                                const daysInMonth = new Date(pYear, pMonth, 0).getDate();
-                                deviceFee = rentalCost * daysInMonth;
-                                console.log(`[InvoiceService] Daily rental for ${customer.customer_name}: ${rentalCost} x ${daysInMonth} days = ${deviceFee}`);
-                            } else {
-                                // Flat rate
-                                deviceFee = rentalCost;
-                            }
-                        }
-
-                        let ppnAmount = 0;
-                        if (ppnEnabled && ppnRate > 0 && customer.is_taxable) {
-                            const taxBase = subtotal + deviceFee;
-                            ppnAmount = Math.round(taxBase * (ppnRate / 100));
-                        }
-
-                        const totalAmount = subtotal + deviceFee + ppnAmount;
-
-                        const customerBalance = parseFloat(customer.account_balance || 0);
-                        const amountFromBalance = Math.min(customerBalance, totalAmount);
-
-                        const invoiceData: InvoiceData = {
-                            customer_id: customer.customer_id || 0,
-                            period: period,
-                            due_date: dueDate.toISOString().split('T')[0] as string,
-                            subtotal: subtotal,
-                            ppn_rate: ppnEnabled ? ppnRate : 0,
-                            ppn_amount: ppnAmount,
-                            device_fee: deviceFee,
-                            total_amount: totalAmount,
-                            paid_amount: amountFromBalance,
-                            discount_amount: 0,
-                            notes: 'Tagihan bulanan manual (Fallback)'
-                        };
-
-                        const items: InvoiceItem[] = [{
-                            description: `${packageName} - ${period}`,
-                            quantity: 1,
-                            unit_price: subtotal,
-                            total_price: subtotal
-                        }];
-
-                        if (deviceFee > 0) {
-                            items.push({
-                                description: `Sewa Perangkat - ${period}`,
-                                quantity: 1,
-                                unit_price: deviceFee,
-                                total_price: deviceFee
-                            });
-                        }
-
-                        const invoiceId = await this.createInvoice(invoiceData, items);
-                        console.log(`[InvoiceService] Created manual invoice for customer ${customer.customer_name} (${customer.customer_id}) with ID: ${invoiceId}`);
-                        invoiceIds.push(invoiceId);
-
-                        // --- FEATURE: Proactive SLA Compensation ---
-                        try {
-                            const { SLARebateService } = await import('./SLARebateService');
-                            await SLARebateService.applyRebateToInvoice(invoiceId);
-                        } catch (slaError) {
-                            console.error('[InvoiceService] SLA Rebate fallback failed:', slaError);
-                        }
-
-                        if (amountFromBalance > 0) {
-                            await databasePool.execute(
-                                'UPDATE customers SET account_balance = account_balance - ? WHERE id = ?',
-                                [amountFromBalance, customer.customer_id]
-                            );
-                            await databasePool.execute(
-                                'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())',
-                                [invoiceId, amountFromBalance]
-                            );
-                            await databasePool.execute(
-                                'INSERT INTO customer_balance_logs (customer_id, invoice_id, amount, type, description, created_at) VALUES (?, ?, ?, "debit", ?, NOW())',
-                                [customer.customer_id, invoiceId, amountFromBalance, `Potong saldo otomatis untuk invoice ${period}`]
-                            );
-                        }
-                    } catch (customerError) {
-                        console.error(`[InvoiceService] CRITICAL Error processing manual invoice for customer ${customer.customer_name}:`, customerError);
-                        // Continue with next customer
-                        continue;
+                    if (useFixedDay) {
+                        const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+                        const targetDay = Math.min(fixedDay, daysInMonth);
+                        dueDate = new Date(periodYear, periodMonth - 1, targetDay);
+                    } else {
+                        dueDate = new Date(periodYear, periodMonth - 1, 1);
+                        dueDate.setDate(dueDate.getDate() + dayOffset);
                     }
+
+                    // Fallback price logic
+                    let price = 100000;
+                    const subtotal = price;
+
+                    let deviceFee = 0;
+                    if (deviceRentalEnabled && customer.use_device_rental) {
+                        const rentalCost = customer.rental_cost !== null && customer.rental_cost !== undefined ? Number(customer.rental_cost) : Number(deviceRentalFee);
+                        const rentalMode = customer.rental_mode || 'flat';
+                        if (rentalMode === 'daily') {
+                            const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+                            deviceFee = rentalCost * daysInMonth;
+                        } else {
+                            deviceFee = rentalCost;
+                        }
+                    }
+
+                    let ppnAmount = 0;
+                    if (ppnEnabled && ppnRate > 0 && customer.is_taxable) {
+                        ppnAmount = Math.round((subtotal + deviceFee) * (ppnRate / 100));
+                    }
+
+                    const totalAmount = subtotal + deviceFee + ppnAmount;
+                    const customerBalance = parseFloat(customer.account_balance || 0);
+                    const amountFromBalance = Math.min(customerBalance, totalAmount);
+
+                    const invoiceId = await this.createInvoice({
+                        customer_id: customer.customer_id,
+                        period: period,
+                        due_date: dueDate.toISOString().split('T')[0],
+                        subtotal: subtotal,
+                        ppn_rate: ppnEnabled ? ppnRate : 0,
+                        ppn_amount: ppnAmount,
+                        device_fee: deviceFee,
+                        total_amount: totalAmount,
+                        paid_amount: amountFromBalance,
+                        notes: 'Tagihan bulanan (Customer Fallback)'
+                    }, [{
+                        description: `Layanan Internet - ${period}`,
+                        quantity: 1,
+                        unit_price: subtotal,
+                        total_price: subtotal
+                    }]);
+
+                    console.log(`[InvoiceService] ✅ Created fallback invoice for ${customer.customer_name} ID: ${invoiceId}`);
+                    invoiceIds.push(invoiceId);
+
+                    if (amountFromBalance > 0) {
+                        await databasePool.execute('UPDATE customers SET account_balance = account_balance - ? WHERE id = ?', [amountFromBalance, customer.customer_id]);
+                        await databasePool.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes) VALUES (?, "balance", ?, NOW(), "Otomatis potong saldo")', [invoiceId, amountFromBalance]);
+                    }
+                } catch (err) {
+                    console.error(`[InvoiceService] Error fallback customer ${customer.customer_id}:`, err);
                 }
             }
 

@@ -107,7 +107,7 @@
 
 <body class="bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 min-h-screen">
     <div class="min-h-screen py-12">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Header with animated gradient -->
             <div class="mb-10">
                 <a href="/billing/tagihan/<%= invoice.id %>"
@@ -286,66 +286,98 @@
                     </div>
 
                     <!-- SLA Section -->
-                    <% if (typeof slaDiscount !=='undefined' && slaDiscount && slaDiscount.applicable) { %>
-                        <div class="mb-12 bg-slate-900 rounded-3xl p-8 relative overflow-hidden text-white shadow-2xl">
-                            <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl">
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                                    <div class="flex items-center gap-4">
-                                        <div
-                                            class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-900/50">
-                                            <i class="fas fa-shield-virus text-2xl"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="font-black text-xl tracking-tight">PROTEKSI SLA AKTIF</h3>
-                                            <p class="text-slate-400 text-xs font-medium uppercase tracking-widest">
-                                                Kompensasi Gangguan Uptime</p>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-6 py-3 rounded-2xl flex items-center gap-3">
-                                        <span class="text-3xl font-black">
-                                            <%= slaDiscount.discount_percentage.toFixed(1) %>%
-                                        </span>
-                                        <span
-                                            class="text-[10px] font-black leading-tight uppercase opacity-70">Potongan<br>Tagihan</span>
-                                    </div>
+                    <% if (typeof slaDiscount !=='undefined' && slaDiscount) { %>
+                        <div
+                            class="mb-12 <%= slaDiscount.applicable ? 'bg-slate-900' : 'bg-slate-50' %> rounded-3xl p-8 relative overflow-hidden <%= slaDiscount.applicable ? 'text-white shadow-2xl' : 'text-slate-800 border border-slate-200' %>">
+                            <% if (slaDiscount.applicable) { %>
+                                <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl">
                                 </div>
+                                <% } %>
 
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div class="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
-                                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                            Performa Uptime</p>
-                                        <div class="flex items-center gap-3">
-                                            <span
-                                                class="text-2xl font-black <%= slaDiscount.sla_met ? 'text-emerald-400' : 'text-rose-400' %>">
-                                                <%= slaDiscount.uptime_percentage.toFixed(2) %>%
-                                            </span>
-                                            <span class="text-[10px] text-slate-500">TGT <%=
-                                                    slaDiscount.sla_target.toFixed(0) %>%</span>
+                                    <div class="relative z-10">
+                                        <div
+                                            class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                                            <div class="flex items-center gap-4">
+                                                <div
+                                                    class="w-14 h-14 <%= slaDiscount.applicable ? 'bg-blue-600' : 'bg-slate-200 text-slate-500' %> rounded-2xl flex items-center justify-center shadow-xl <%= slaDiscount.applicable ? 'shadow-blue-900/50' : '' %>">
+                                                    <i class="fas fa-shield-virus text-2xl"></i>
+                                                </div>
+                                                <div>
+                                                    <h3 class="font-black text-xl tracking-tight">
+                                                        <%= slaDiscount.applicable ? 'PROTEKSI SLA AKTIF'
+                                                            : 'MONITORING SLA' %>
+                                                    </h3>
+                                                    <p
+                                                        class="<%= slaDiscount.applicable ? 'text-slate-400' : 'text-slate-500' %> text-xs font-medium uppercase tracking-widest">
+                                                        <%= slaDiscount.applicable ? 'Kompensasi Gangguan Uptime'
+                                                            : 'Target SLA Terpenuhi' %>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <% if (slaDiscount.applicable) { %>
+                                                <div
+                                                    class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-6 py-3 rounded-2xl flex items-center gap-3">
+                                                    <span class="text-3xl font-black">
+                                                        <%= slaDiscount.discount_percentage.toFixed(1) %>%
+                                                    </span>
+                                                    <span
+                                                        class="text-[10px] font-black leading-tight uppercase opacity-70">Potongan<br>Tagihan</span>
+                                                </div>
+                                                <% } else { %>
+                                                    <div
+                                                        class="bg-blue-100 text-blue-700 border border-blue-200 px-6 py-3 rounded-2xl flex items-center gap-3">
+                                                        <span class="text-xl font-black italic">No Discount</span>
+                                                    </div>
+                                                    <% } %>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div
+                                                class="<%= slaDiscount.applicable ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm' %> backdrop-blur-md rounded-2xl p-5 border">
+                                                <p
+                                                    class="text-[10px] font-black <%= slaDiscount.applicable ? 'text-slate-500' : 'text-slate-400' %> uppercase tracking-widest mb-2">
+                                                    Performa Uptime</p>
+                                                <div class="flex items-center gap-3">
+                                                    <span
+                                                        class="text-2xl font-black <%= slaDiscount.sla_met ? 'text-emerald-400' : 'text-rose-400' %>">
+                                                        <%= (slaDiscount.uptime_percentage || 0).toFixed(2) %>%
+                                                    </span>
+                                                    <span
+                                                        class="text-[10px] <%= slaDiscount.applicable ? 'text-slate-500' : 'text-slate-400' %>">TGT
+                                                        <%= (slaDiscount.sla_target || 90).toFixed(0) %>%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="<%= slaDiscount.applicable ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm' %> backdrop-blur-md rounded-2xl p-5 border">
+                                                <p
+                                                    class="text-[10px] font-black <%= slaDiscount.applicable ? 'text-slate-500' : 'text-slate-400' %> uppercase tracking-widest mb-2">
+                                                    Total Downtime</p>
+                                                <div
+                                                    class="text-2xl font-black <%= slaDiscount.applicable ? 'text-amber-400' : 'text-slate-600' %>">
+                                                    <%= Math.floor((slaDiscount.total_downtime_minutes || 0) / 60) %>h
+                                                        <%= (slaDiscount.total_downtime_minutes || 0) % 60 %>m
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="<%= slaDiscount.applicable ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm' %> backdrop-blur-md rounded-2xl p-5 border">
+                                                <p
+                                                    class="text-[10px] font-black <%= slaDiscount.applicable ? 'text-slate-500' : 'text-slate-400' %> uppercase tracking-widest mb-2">
+                                                    Kompensasi</p>
+                                                <div
+                                                    class="text-2xl font-black <%= slaDiscount.applicable ? 'text-blue-400' : 'text-slate-400' %>">
+                                                    Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(slaDiscount.discount_amount ||
+                                                        0) %>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
-                                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                            Total Downtime</p>
-                                        <div class="text-2xl font-black text-amber-400">
-                                            <%= Math.floor(slaDiscount.total_downtime_minutes / 60) %>h <%=
-                                                    slaDiscount.total_downtime_minutes % 60 %>m
-                                        </div>
-                                    </div>
-                                    <div class="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
-                                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                            Kompensasi</p>
-                                        <div class="text-2xl font-black text-blue-400">Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(slaDiscount.discount_amount) %>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <input type="hidden" id="sla-discount-amount" value="<%= slaDiscount.discount_amount %>">
-                            <input type="hidden" id="sla-discount-percentage"
-                                value="<%= slaDiscount.discount_percentage %>">
+                                    <input type="hidden" id="sla-discount-amount"
+                                        value="<%= slaDiscount.discount_amount || 0 %>">
+                                    <input type="hidden" id="sla-discount-percentage"
+                                        value="<%= slaDiscount.discount_percentage || 0 %>">
                         </div>
                         <% } %>
 
