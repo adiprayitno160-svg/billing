@@ -120,10 +120,11 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         if (!client_name) throw new Error('Nama client wajib diisi');
         if (!ip_address) throw new Error('IP address wajib diisi');
 
-        // Validasi format IP CIDR
-        const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
+        // Validasi format IP CIDR (Improved regex to support simpler inputs)
+        // Allows "192.168.1.1/24" or just "192.168.1.1" (assumed /32 later if needed, but here we just check format)
+        const cidrRegex = /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$/;
         if (!cidrRegex.test(String(ip_address))) {
-            throw new Error('Format IP harus CIDR, contoh: 192.168.1.1/30');
+            throw new Error('Format IP tidak valid. Gunakan format CIDR, contoh: 192.168.1.1/30');
         }
 
         // Pastikan interface diisi agar IP dapat ditambahkan ke MikroTik
@@ -530,7 +531,7 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
 export async function getChangePackageForm(req: Request, res: Response, next: NextFunction) {
     try {
         const customerId = Number(req.params.customerId);
-        
+
         // Ambil data pelanggan dan paket yang tersedia
         const conn = await databasePool.getConnection();
         try {
@@ -542,14 +543,14 @@ export async function getChangePackageForm(req: Request, res: Response, next: Ne
                  WHERE c.id = ?`,
                 [customerId]
             );
-            
+
             const [packagesResult] = await conn.execute(
                 `SELECT id, name, max_clients 
                  FROM static_ip_packages 
                  WHERE status = 'active' 
                  ORDER BY name`
             );
-            
+
             // Hitung jumlah client aktif per paket
             const packagesWithCounts = [];
             for (const pkg of packagesResult as any[]) {
@@ -558,7 +559,7 @@ export async function getChangePackageForm(req: Request, res: Response, next: Ne
                      WHERE package_id = ? AND status = 'active'`,
                     [pkg.id]
                 );
-                
+
                 const currentCount = (countResult as any[])[0].count;
                 packagesWithCounts.push({
                     ...pkg,
@@ -567,7 +568,7 @@ export async function getChangePackageForm(req: Request, res: Response, next: Ne
                     is_available: (pkg.max_clients - currentCount) > 0
                 });
             }
-            
+
             res.render('customers/change_static_ip_package', {
                 title: 'Ganti Paket IP Statis',
                 customer: (customerResult as any[])[0],
@@ -587,12 +588,12 @@ export async function postChangePackage(req: Request, res: Response, next: NextF
     try {
         const customerId = Number(req.params.customerId);
         const newPackageId = Number(req.body.new_package_id);
-        
+
         // Import fungsi dari service
         const { changeCustomerStaticIpPackage } = await import('../services/staticIpClientService');
-        
+
         await changeCustomerStaticIpPackage(customerId, newPackageId);
-        
+
         req.flash('success', 'Paket IP statis pelanggan berhasil diubah');
         res.redirect(`/customers`);
     } catch (err) {
