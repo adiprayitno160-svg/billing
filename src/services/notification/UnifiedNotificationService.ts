@@ -518,7 +518,7 @@ export class UnifiedNotificationService {
   /**
    * Send invoice created notification
    */
-  static async notifyInvoiceCreated(invoiceId: number): Promise<void> {
+  static async notifyInvoiceCreated(invoiceId: number, sendImmediately: boolean = false): Promise<void> {
     const connection = await databasePool.getConnection();
 
     try {
@@ -551,7 +551,8 @@ export class UnifiedNotificationService {
           bank_account_number: bank.accountNumber,
           bank_account_name: bank.accountName,
           bank_list: bank.bankListText
-        }
+        },
+        send_immediately: sendImmediately
       });
     } finally {
       connection.release();
@@ -706,7 +707,7 @@ export class UnifiedNotificationService {
   /**
    * Send payment received notification
    */
-  static async notifyPaymentReceived(paymentId: number): Promise<void> {
+  static async notifyPaymentReceived(paymentId: number, sendImmediately: boolean = true): Promise<void> {
     const connection = await databasePool.getConnection();
 
     try {
@@ -768,7 +769,7 @@ export class UnifiedNotificationService {
           due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
           notes: payment.notes || ''
         },
-        send_immediately: true // Urgent: Payment receipt
+        send_immediately: sendImmediately // Urgent: Payment receipt
       });
     } finally {
       connection.release();

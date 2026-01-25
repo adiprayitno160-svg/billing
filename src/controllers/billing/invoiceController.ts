@@ -1008,13 +1008,13 @@ export class InvoiceController {
                 `, [id]);
 
                 if (paymentRows.length > 0) {
-                    await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id);
+                    await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, true);
                 } else {
                     // Fallback to invoice created if no payment found (should not happen for paid)
-                    await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id));
+                    await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), true);
                 }
             } else {
-                await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id));
+                await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), true);
             }
 
             // Also update status to 'sent' if it was 'draft'

@@ -47,8 +47,9 @@
 
         <!-- Bulk Send WA -->
         <button type="button" id="btnBulkSendWA"
-            class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fab fa-whatsapp mr-2"></i>Kirim Tagihan (WA) (<span id="selectedSendWACount">0</span>)
+            class="hidden md:inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
+            title="Kirim tagihan terpilih ke antrian WhatsApp">
+            <i class="fab fa-whatsapp mr-2 text-lg"></i>Kirim Tagihan Masal (<span id="selectedSendWACount">0</span>)
         </button>
 
         <!-- Bulk Reminder -->
@@ -232,9 +233,13 @@
                                 <div class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
                                     <%= invoice.customer_name %>
                                 </div>
-                                <div class="text-xs text-gray-500 font-mono mt-0.5 flex items-center gap-1">
-                                    <i class="fas fa-phone-alt text-[10px]"></i>
-                                    <%= invoice.customer_phone %>
+                                <div class="text-xs text-gray-500 font-mono mt-0.5">
+                                    <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
+                                        class="flex items-center gap-1 hover:text-emerald-600 transition-colors"
+                                        title="Kirim WA Langsung">
+                                        <i class="fas fa-phone-alt text-[10px]"></i>
+                                        <%= invoice.customer_phone %>
+                                    </button>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -1598,29 +1603,44 @@ Lanjutkan proses generate?`;
             if (btnBulkSendWA) {
                 btnBulkSendWA.addEventListener('click', function () {
                     const selected = Array.from(document.querySelectorAll('.invoice-checkbox:checked')).map(cb => cb.value);
-                    if (selected.length === 0) return;
 
-                    if (confirm(`Kirim ${selected.length} tagihan via WhatsApp?`)) {
-                        btnBulkSendWA.disabled = true;
-                        btnBulkSendWA.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
+                    if (selected.length === 0) {
+                        if (confirm('Kirim SEMUA tagihan yang tampil di halaman ini ke antrian WhatsApp?')) {
+                            const allShown = Array.from(document.querySelectorAll('.invoice-checkbox')).map(cb => cb.value);
+                            if (allShown.length === 0) {
+                                alert('Tidak ada tagihan untuk dikirim.');
+                                return;
+                            }
+                            processBulkWA(allShown);
+                        }
+                        return;
+                    }
 
-                        fetch('/billing/tagihan/bulk-send-whatsapp', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ invoice_ids: selected })
-                        })
-                            .then(r => r.json())
-                            .then(d => {
-                                alert('✅ ' + d.message);
-                                location.reload();
-                            })
-                            .catch(e => {
-                                alert('❌ Gagal mengirim WhatsApp masal');
-                                btnBulkSendWA.disabled = false;
-                                btnBulkSendWA.innerHTML = '<i class="fab fa-whatsapp mr-2"></i>Kirim Tagihan (WA)';
-                            });
+                    if (confirm(`Kirim ${selected.length} tagihan terpilih ke antrian WhatsApp?`)) {
+                        processBulkWA(selected);
                     }
                 });
+            }
+
+            function processBulkWA(ids) {
+                btnBulkSendWA.disabled = true;
+                btnBulkSendWA.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengantre...';
+
+                fetch('/billing/tagihan/bulk-send-whatsapp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invoice_ids: ids })
+                })
+                    .then(r => r.json())
+                    .then(d => {
+                        alert('✅ ' + d.message);
+                        location.reload();
+                    })
+                    .catch(e => {
+                        alert('❌ Gagal mengirim WhatsApp masal');
+                        btnBulkSendWA.disabled = false;
+                        btnBulkSendWA.innerHTML = '<i class="fab fa-whatsapp mr-2"></i>Kirim Tagihan Masal';
+                    });
             }
 
             // Sync counters for bulk actions
@@ -1628,11 +1648,6 @@ Lanjutkan proses generate?`;
                 const count = document.querySelectorAll('.invoice-checkbox:checked').length;
                 const span = document.getElementById('selectedSendWACount');
                 if (span) span.textContent = count;
-
-                if (btnBulkSendWA) {
-                    if (count > 0) btnBulkSendWA.classList.add('bulk-delete-visible');
-                    else btnBulkSendWA.classList.remove('bulk-delete-visible');
-                }
             }
 
             document.addEventListener('change', function (e) {
