@@ -72,9 +72,9 @@ export class InvoiceService {
 
             const [invoiceResult] = await connection.execute(invoiceQuery, [
                 invoiceNumber,
-                invoiceData.customer_id || 0,
-                invoiceData.subscription_id || 0,
-                invoiceData.period || '2025-01',
+                invoiceData.customer_id,
+                invoiceData.subscription_id || null,
+                invoiceData.period,
                 invoiceData.due_date || new Date().toISOString().split('T')[0],
                 invoiceData.subtotal || 0,
                 invoiceData.discount_amount || 0,
@@ -321,13 +321,8 @@ export class InvoiceService {
 
             console.log(`[InvoiceService] Executing subscription query for period: ${period}`);
             const [subscriptionResult] = await databasePool.query(subscriptionQuery, queryParams);
-            console.log(`[InvoiceService] Found ${(subscriptionResult as any[]).length} subscriptions`);
-
-            // 1. Generate from subscriptions
-            console.log(`[InvoiceService] Executing subscription query for period: ${period}`);
-            const [rows] = await databasePool.query(subscriptionQuery, queryParams);
-            const subscriptions = rows as any[];
-            console.log(`[InvoiceService] Found ${subscriptions.length} pending subscriptions`);
+            const subscriptions = subscriptionResult as any[];
+            console.log(`[InvoiceService] Found ${subscriptions.length} pending subscriptions untuk diproses`);
 
             if (subscriptions.length > 0) {
                 for (const subscription of subscriptions) {
@@ -445,13 +440,8 @@ export class InvoiceService {
             console.log(`[InvoiceService] Checking for customers without active subscriptions for period: ${period}`);
             let customerQuery = `
                 SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, 
-                       c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at,
-                       c.static_package_id, c.pppoe_package_id,
-                       sp.price as static_price, sp.name as static_package_name,
-                       pp.price as pppoe_price, pp.name as pppoe_package_name
+                       c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at
                 FROM customers c
-                LEFT JOIN static_ip_packages sp ON c.static_package_id = sp.id
-                LEFT JOIN pppoe_packages pp ON c.pppoe_package_id = pp.id
                 WHERE c.status = 'active'
                 AND c.id NOT IN (SELECT customer_id FROM invoices WHERE period = ?)
                 AND c.id NOT IN (SELECT customer_id FROM subscriptions WHERE status = 'active')
@@ -499,17 +489,9 @@ export class InvoiceService {
                         dueDate.setDate(dueDate.getDate() + dayOffset);
                     }
 
-                    // Fallback price logic: Prefer static package, then pppoe package, then default to 100k
-                    let subtotal = 100000;
-                    let packageName = 'Internet';
-
-                    if (customer.static_package_id && customer.static_price) {
-                        subtotal = Number(customer.static_price);
-                        packageName = customer.static_package_name;
-                    } else if (customer.pppoe_package_id && customer.pppoe_price) {
-                        subtotal = Number(customer.pppoe_price);
-                        packageName = customer.pppoe_package_name;
-                    }
+                    // Fallback price logic: package info is missing in fallback, using default or zero
+                    let subtotal = 0;
+                    let packageName = 'Internet Service (Fallback)';
 
                     let deviceFee = 0;
                     if (deviceRentalEnabled && customer.use_device_rental) {
@@ -534,6 +516,7 @@ export class InvoiceService {
 
                     const invoiceId = await this.createInvoice({
                         customer_id: customer.customer_id,
+                        subscription_id: null,
                         period: period,
                         due_date: dueDate.toISOString().split('T')[0],
                         subtotal: subtotal,
