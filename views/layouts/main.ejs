@@ -113,57 +113,56 @@
 	</script>
 	<style>
 		:root {
-			--sidebar-width: 16rem;
-			--primary-blue: #2563eb;
-			--primary-blue-dark: #1e40af;
-			--primary-blue-light: #3b82f6;
-			--accent-blue: #60a5fa;
-			--bg-gradient: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%);
+			--sidebar-width: 17rem;
+			--primary-blue: #3b82f6;
+			--primary-deep: #1e3a8a;
+			--primary-indigo: #6366f1;
+			--glass-bg: rgba(255, 255, 255, 0.7);
+			--glass-border: rgba(255, 255, 255, 0.3);
+			--bg-main: #f8fafc;
+			--accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
 		}
 
 		body {
-			font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+			font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-			background: var(--bg-gradient);
+			background-color: var(--bg-main);
+			overflow-x: hidden;
 		}
 
-		/* Sidebar Background - Modern Blue Gradient */
+		/* Global Glassmorphism Class */
+		.glass-panel {
+			background: var(--glass-bg);
+			backdrop-filter: blur(12px);
+			-webkit-backdrop-filter: blur(12px);
+			border: 1px solid var(--glass-border);
+		}
+
+		/* Sidebar - Modern Premium Glass */
 		#sidebar {
-			background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 25%, #2563eb 50%, #3b82f6 75%, #60a5fa 100%) !important;
-			background-color: #1e40af !important;
-			box-shadow: 4px 0 20px rgba(30, 64, 175, 0.3);
+			background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+			backdrop-filter: blur(10px);
+			border-right: 1px solid rgba(255, 255, 255, 0.05);
+			box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
 		}
 
-		/* Smooth scrollbar - Modern Blue */
+		/* Custom Scrollbar - Minimalist */
 		::-webkit-scrollbar {
-			width: 10px;
-			height: 10px;
+			width: 6px;
+			height: 6px;
 		}
 
 		::-webkit-scrollbar-track {
-			background: #e0e7ff;
-			border-radius: 10px;
+			background: transparent;
 		}
 
 		::-webkit-scrollbar-thumb {
-			background: linear-gradient(180deg, #3b82f6, #2563eb);
+			background: #cbd5e1;
 			border-radius: 10px;
-			border: 2px solid #e0e7ff;
 		}
 
 		::-webkit-scrollbar-thumb:hover {
-			background: linear-gradient(180deg, #2563eb, #1e40af);
-		}
-
-		/* Horizontal scrollbar for wide pages */
-		body,
-		html {
-			overflow-x: auto;
-		}
-
-		main {
-			overflow-x: auto;
+			background: #94a3b8;
 		}
 
 		/* ========== MODERN PREMIUM STYLES ========== */

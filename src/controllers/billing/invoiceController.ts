@@ -305,7 +305,7 @@ export class InvoiceController {
                     invoice_number, customer_id, subscription_id, period, due_date,
                     subtotal, discount_amount, total_amount, paid_amount, remaining_amount,
                     status, created_at, updated_at
-                ) VALUES (?, ?, 0, ?, ?, ?, ?, ?, 0, ?, 'draft', NOW(), NOW())
+                ) VALUES (?, ?, null, ?, ?, ?, ?, ?, 0, ?, 'draft', NOW(), NOW())
             `;
 
             const [invoiceResult] = await conn.execute<ResultSetHeader>(invoiceInsertQuery, [
@@ -579,12 +579,12 @@ export class InvoiceController {
                     const [resInv] = await conn.execute<ResultSetHeader>(`
                     INSERT INTO invoices (
                         invoice_number, customer_id, subscription_id, period, due_date,
-                        subtotal, tax_amount, device_fee, total_amount, paid_amount, remaining_amount,
+                        subtotal, ppn_rate, ppn_amount, device_fee, total_amount, paid_amount, remaining_amount,
                         status, notes, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 `, [
                         invoiceNumber, sub.customer_id, (sub.id > 0 ? sub.id : null), currentPeriod,
-                        dueDate.toISOString().slice(0, 10), subtotal, ppnAmount, deviceFee, totalAmount,
+                        dueDate.toISOString().slice(0, 10), subtotal, (ppnEnabled ? ppnRate : 0), ppnAmount, deviceFee, totalAmount,
                         paidAmount, remainingAmount, status, invoiceNotes
                     ]);
 
