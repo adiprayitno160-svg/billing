@@ -7,7 +7,7 @@
 # CONFIGURATION
 # Ubah path ini sesuai lokasi project di VPS Anda
 APP_DIR="/var/www/billing"
-PM2_APP_NAME="billing" # Sesuaikan nama app di PM2 (cek dengan 'pm2 list')
+PM2_APP_NAME="billing-app" # Sesuaikan nama app di PM2 (cek dengan 'pm2 list')
 
 echo "🚀 Memulai Proses Update..."
 

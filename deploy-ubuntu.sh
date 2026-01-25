@@ -46,7 +46,7 @@ npm run db:fix-schema
 
 # 5. Restart PM2 Service
 echo "Restarting application via PM2..."
-pm2 restart all
+pm2 restart billing-app
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}PM2 restart failed! Please check manually.${NC}"
