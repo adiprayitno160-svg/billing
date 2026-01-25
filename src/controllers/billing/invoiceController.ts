@@ -440,16 +440,18 @@ export class InvoiceController {
             LEFT JOIN static_ip_packages sp ON c.static_package_id = sp.id
             LEFT JOIN pppoe_packages pp ON c.pppoe_package_id = pp.id
             WHERE c.status = 'active'
-            AND (c.connection_type = 'pppoe' OR c.connection_type = 'static_ip')
             ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
         `;
 
             const queryParams: any[] = [];
             if (customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0) {
-                queryParams.push(customer_ids);
+                const numericIds = customer_ids.map((id: any) => parseInt(id)).filter((id: number) => !isNaN(id));
+                queryParams.push(numericIds);
+                console.log(`[InvoiceController] Filtering by ${numericIds.length} numeric IDs:`, numericIds);
             }
 
             const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
+            console.log(`[InvoiceController] Query found ${subscriptions.length} customers to process.`);
 
             // Fetch global settings for tax and rental
             const { SettingsService } = await import('../../services/SettingsService');
@@ -479,6 +481,7 @@ export class InvoiceController {
 
             let createdCount = 0;
             let skippedCount = 0;
+            const skippedDetails: any[] = [];
             const errors: string[] = [];
             const customerBalances = new Map<number, number>();
 
@@ -495,7 +498,9 @@ export class InvoiceController {
 
                     if (hasExactMatch || isGeneralConflict) {
                         skippedCount++;
-                        console.log(`⚠ Skiping ${sub.customer_name} (ID: ${sub.customer_id}): Invoice already exists for period ${currentPeriod}`);
+                        const reason = hasExactMatch ? 'Sudah ada invoice serupa' : 'Konflik dengan invoice general';
+                        skippedDetails.push({ name: sub.customer_name, id: sub.customer_id, reason });
+                        console.log(`⚠ Skiping ${sub.customer_name} (ID: ${sub.customer_id}): ${reason} for period ${currentPeriod}`);
                         continue;
                     }
 
@@ -618,8 +623,9 @@ export class InvoiceController {
                 message: `Berhasil membuat ${createdCount} tagihan`,
                 created_count: createdCount,
                 skipped_count: skippedCount,
+                skipped_details: skippedDetails.length > 0 ? skippedDetails : undefined,
                 total_subscriptions: subscriptions.length,
-                total_customers: subscriptions.length, // Alias for clarity in UI
+                total_found: subscriptions.length,
                 errors: errors.length > 0 ? errors : undefined
             });
 
