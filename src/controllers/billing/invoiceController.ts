@@ -413,7 +413,7 @@ export class InvoiceController {
             console.log(`[InvoiceController] Diagnostics: Total Customers=${diagTotal}, Active=${diagActive}`);
 
             // Get all active customers with their connection/package details
-            // Improved LEFT JOIN structure for correct package association
+            // Improved LEFT JOIN structure for correct package association & Case Insensitive Checks
             const subscriptionsQuery = `
             SELECT 
                 c.id as customer_id,
@@ -438,11 +438,11 @@ export class InvoiceController {
                 s.start_date,
                 s.end_date
             FROM customers c
-            LEFT JOIN subscriptions s ON c.id = s.customer_id AND (s.status = 'active' OR s.status = 'Active')
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND LOWER(s.status) = 'active'
             LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id
             LEFT JOIN static_ip_packages sp ON sip.package_id = sp.id
             LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
-            WHERE (c.status = 'active' OR c.status = 'Active')
+            WHERE LOWER(c.status) = 'active'
             ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
         `;
 
