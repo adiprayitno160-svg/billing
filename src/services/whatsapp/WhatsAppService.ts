@@ -429,20 +429,26 @@ export class WhatsAppService extends EventEmitter {
 
   /**
    * Format phone number for WhatsApp
+   * Ensures format is 628xxx@s.whatsapp.net
    */
   private formatPhoneNumber(phone: string): string {
+    if (!phone) return '';
+
     // Remove all non-digit characters
     let cleaned = phone.replace(/\D/g, '');
 
     // Handle Indonesian numbers
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
-    } else if (!cleaned.startsWith('62') && cleaned.length <= 12) {
+    }
+    // If it doesn't start with 62 but is long enough to be a number (e.g. 8123...), prepend 62
+    else if (!cleaned.startsWith('62')) {
       cleaned = '62' + cleaned;
     }
 
-    // If it's already a full JID (like @lid or @s.whatsapp.net), don't append suffix
-    if (phone.includes('@')) return phone;
+    // Check if it's already a full JID
+    if (phone.includes('@s.whatsapp.net')) return phone;
+    if (phone.includes('@g.us')) return phone; // Group JID
 
     return `${cleaned}@s.whatsapp.net`;
   }
@@ -459,6 +465,7 @@ export class WhatsAppService extends EventEmitter {
    */
   public async sendImage(to: string, imagePath: string, caption?: string): Promise<MessageResult> {
     if (!fs.existsSync(imagePath)) {
+      this.log('error', `Image file not found: ${imagePath}`);
       return { success: false, error: 'Image file not found' };
     }
 
@@ -474,6 +481,7 @@ export class WhatsAppService extends EventEmitter {
    */
   public async sendDocument(to: string, filePath: string, fileName?: string, caption?: string): Promise<MessageResult> {
     if (!fs.existsSync(filePath)) {
+      this.log('error', `Document file not found: ${filePath}`);
       return { success: false, error: 'File not found' };
     }
 
@@ -514,7 +522,14 @@ export class WhatsAppService extends EventEmitter {
    */
   private queueMessage(to: string, content: AnyMessageContent, options?: SendMessageOptions): Promise<MessageResult> {
     return new Promise((resolve, reject) => {
+      // Basic validation
+      if (!to || to.length < 5) {
+        resolve({ success: false, error: 'Invalid phone number' });
+        return;
+      }
+
       if (this.messageQueue.length >= this.MAX_QUEUE_SIZE) {
+        this.log('warn', 'Message queue full, rejecting message');
         resolve({ success: false, error: 'Message queue is full' });
         return;
       }
@@ -568,21 +583,33 @@ export class WhatsAppService extends EventEmitter {
 
       try {
         this.log('debug', `📨 Processing message ${item.id} to ${item.to}`);
+
+        // Check if registered before sending (Optional, can slow down but safer)
+        // const exists = await this.isRegistered(item.to);
+        // if (!exists && !item.to.includes('@g.us')) {
+        //    throw new Error('Number not registered on WhatsApp');
+        // }
+
         const result = await this.sendMessageDirect(item.to, item.content, item.options);
         this.log('debug', `✅ Message sent ${item.id}`);
         item.resolve(result);
       } catch (error: any) {
         item.retries++;
 
+        this.log('warn', `⚠️ Message ${item.id} to ${item.to} failed. Error: ${error.message || error}`);
+
+        // Specific error handling
+        const isConnectionError = error.message?.includes('connection') || error.message?.includes('timeout');
+
         if (item.retries < item.maxRetries) {
           // Re-queue for retry
           this.messageQueue.push(item);
-          this.log('warn', `⚠️ Message ${item.id} failed, retry ${item.retries}/${item.maxRetries}. Error: ${error.message}`);
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait longer if it's a connection error
+          const waitTime = isConnectionError ? 5000 : 2000;
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         } else {
-          item.resolve({ success: false, error: error.message });
-          this.log('error', `❌ Message ${item.id} failed after ${item.maxRetries} retries: ${error.message}`);
+          item.resolve({ success: false, error: error.message || 'Unknown error' });
+          this.log('error', `❌ Message ${item.id} permanently failed: ${error.message}`);
         }
       }
 
@@ -608,20 +635,22 @@ export class WhatsAppService extends EventEmitter {
     }
 
     try {
+      // Ensure JID is correct
+      const jid = this.formatPhoneNumber(to);
+
       // Show typing indicator
       if (options?.typing !== false) {
-        // await this.sock.presenceSubscribe(to); // Optional, sometimes causes issues
-        await this.sock.sendPresenceUpdate('composing', to);
+        await this.sock.sendPresenceUpdate('composing', jid);
         await new Promise(resolve => setTimeout(resolve, options?.typingDuration || 500));
       }
 
       // Send message
-      const sent = await this.sock.sendMessage(to, content, {
+      const sent = await this.sock.sendMessage(jid, content, {
         quoted: options?.quoted as any
       });
 
       // Clear typing
-      await this.sock.sendPresenceUpdate('paused', to);
+      await this.sock.sendPresenceUpdate('paused', jid);
 
       this.messagesSent++;
 
