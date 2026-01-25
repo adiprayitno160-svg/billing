@@ -142,7 +142,26 @@ export class WhatsAppHandler {
                         const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
                         const invStr = result.data.invoiceNumber || 'Tagihan';
 
-                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉`);
+                        // 1. Send Text Confirmation
+                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉\n\n_Invoice lunas dilampirkan dibawah ini..._`);
+
+                        // 2. Generate and Send PDF with Stamp
+                        if (result.data.invoiceId) {
+                            try {
+                                const { InvoicePdfService } = await import('../../services/invoice/InvoicePdfService');
+                                const pdfPath = await InvoicePdfService.generateInvoicePdf(result.data.invoiceId);
+
+                                await service.sendDocument(
+                                    senderJid,
+                                    pdfPath,
+                                    `Invoice-${result.data.invoiceNumber}-LUNAS.pdf`,
+                                    '📄 *Bukti Pembayaran Lunas*'
+                                );
+                            } catch (pdfErr) {
+                                console.error('Failed to generate/send PDF:', pdfErr);
+                                await service.sendMessage(senderJid, '⚠️ Gagal membuat PDF invoice, namun pembayaran sudah tercatat lunas di sistem.');
+                            }
+                        }
                     } else {
                         // Failed / Manual Review Needed
                         let reason = result.error || 'Bukti tidak dapat dibaca otomatis/Nominal tidak sesuai.';

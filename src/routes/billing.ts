@@ -162,6 +162,83 @@ router.post('/tagihan/bulk-delete', async (req, res) => {
     }
 });
 
+// Bulk Reminder Route
+router.post('/tagihan/bulk-reminder', async (req, res) => {
+    try {
+        const { invoiceIds } = req.body;
+
+        if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'No invoices selected' });
+        }
+
+        const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+
+        let sentCount = 0;
+        let errors = 0;
+
+        try {
+            // Get invoice details for selected IDs
+            const [invoices] = await conn.query(
+                `SELECT i.*, c.name, c.phone 
+                 FROM invoices i 
+                 JOIN customers c ON i.customer_id = c.id 
+                 WHERE i.id IN (?) AND i.status IN ('unpaid', 'partial', 'sent', 'overdue')`,
+                [invoiceIds]
+            ) as any;
+
+            if (invoices.length === 0) {
+                return res.json({ success: true, message: 'Tidak ada invoice yang perlu diingatkan (mungkin sudah lunas).' });
+            }
+
+            for (const invoice of invoices) {
+                if (invoice.phone) {
+                    try {
+                        await UnifiedNotificationService.queueNotification({
+                            customer_id: invoice.customer_id,
+                            notification_type: 'invoice_reminder_manual', // Use generic manual reminder
+                            channels: ['whatsapp'],
+                            variables: {
+                                customer_name: invoice.name,
+                                invoice_number: invoice.invoice_number,
+                                amount: invoice.total_amount, // Use total or remaining? usually remaining if partial
+                                remaining_amount: invoice.remaining_amount,
+                                due_date: invoice.due_date
+                            },
+                            priority: 'high'
+                        });
+                        sentCount++;
+                    } catch (e) {
+                        console.error('Error queuing reminder for', invoice.id, e);
+                        errors++;
+                    }
+                }
+            }
+
+            // Trigger send immediate
+            if (sentCount > 0) {
+                await UnifiedNotificationService.sendPendingNotifications(10);
+            }
+
+            res.json({
+                success: true,
+                message: `Berhasil mengirim ${sentCount} pengingat.${errors > 0 ? ` Gagal: ${errors}` : ''}`,
+                sent: sentCount
+            });
+
+        } finally {
+            conn.release();
+        }
+
+    } catch (error: any) {
+        console.error('Error sending bulk reminders:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to send reminders'
+        });
+    }
+});
+
 // Print invoices by ODC area
 router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
     try {

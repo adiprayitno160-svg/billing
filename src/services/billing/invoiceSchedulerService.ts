@@ -33,7 +33,14 @@ export class InvoiceSchedulerService {
                 await this.runMonthlyInvoiceGeneration();
             });
 
-            console.log(`✅ Invoice Scheduler initialized with schedule: ${schedule}`);
+            // Schedule: Daily Reminder Check at 09:00 AM
+            // Checks for due/overdue invoices and sends notifications
+            const reminderSchedule = '0 9 * * *';
+            cron.schedule(reminderSchedule, async () => {
+                await this.runInvoiceReminders();
+            });
+
+            console.log(`✅ Invoice Scheduler initialized with schedule: ${schedule} (Generation) & ${reminderSchedule} (Reminders)`);
 
         } catch (error) {
             console.error('❌ Error initializing Invoice Scheduler:', error);
@@ -92,6 +99,83 @@ export class InvoiceSchedulerService {
 
         } finally {
             this.isRunning = false;
+        }
+    }
+
+    /**
+     * Run Invoice Reminders (Daily Check)
+     */
+    static async runInvoiceReminders(): Promise<void> {
+        console.log('🔔 Starting daily invoice reminder check...');
+        try {
+            const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+
+            // Get unpaid invoices that are due soon (e.g., today, tomorrow, or overdue)
+            // Logic: 
+            // 1. D-3 (3 days before due date)
+            // 2. D-0 (On due date)
+            // 3. D+3, D+7 (Overdue)
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // We can add more complex logic here or fetch from settings. 
+            // For now, let's just find invoices where due_date = today OR due_date = today + 3 days OR overdue 7 days
+
+            const [invoices] = await databasePool.query<RowDataPacket[]>(
+                `SELECT i.*, c.name, c.phone 
+                 FROM invoices i 
+                 JOIN customers c ON i.customer_id = c.id 
+                 WHERE i.status IN ('unpaid', 'partial') 
+                 AND i.remaining_amount > 0 
+                 AND c.status = 'active'
+                 AND i.customer_id NOT IN (SELECT customer_id FROM scheduler_settings WHERE task_name = 'suppress_reminders')` // Optional exclusion
+            );
+
+            let sentCount = 0;
+
+            for (const invoice of invoices) {
+                if (!invoice.due_date) continue;
+
+                const dueDate = new Date(invoice.due_date);
+                dueDate.setHours(0, 0, 0, 0);
+
+                const diffTime = today.getTime() - dueDate.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Positive = Overdue, Negative = Before Due
+
+                let type = '';
+
+                // Reminder Logic
+                if (diffDays === -3) type = 'invoice_reminder_upcoming'; // 3 days before
+                else if (diffDays === 0) type = 'invoice_due_today'; // Today
+                else if (diffDays === 3) type = 'invoice_overdue_1'; // 3 days late
+                else if (diffDays === 7) type = 'invoice_overdue_2'; // 7 days late
+                else if (diffDays % 30 === 0 && diffDays > 0) type = 'invoice_overdue_monthly'; // Every month overdue
+
+                if (type && invoice.phone) {
+                    await UnifiedNotificationService.queueNotification({
+                        customer_id: invoice.customer_id,
+                        notification_type: type, // Ensure these types exist in template system
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: invoice.name,
+                            invoice_number: invoice.invoice_number,
+                            amount: invoice.remaining_amount,
+                            due_date: invoice.due_date
+                        },
+                        priority: 'normal'
+                    });
+                    sentCount++;
+                }
+            }
+
+            if (sentCount > 0) {
+                console.log(`✅ Queued ${sentCount} invoice reminders.`);
+                await UnifiedNotificationService.sendPendingNotifications(20); // Try sending some immediately
+            }
+
+        } catch (error) {
+            console.error('❌ Error running invoice reminders:', error);
         }
     }
 

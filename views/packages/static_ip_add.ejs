@@ -267,6 +267,37 @@
                                     class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
+
+                        <!-- Burst Configuration Toggle -->
+                        <div class="mt-4 border-t border-slate-200 pt-4">
+                            <label class="flex items-center space-x-2 cursor-pointer mb-2">
+                                <input type="checkbox" id="enableBurst" name="enable_burst"
+                                    class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-5 h-5">
+                                <span class="font-semibold text-slate-700">Aktifkan Burst (Speed Boost)</span>
+                            </label>
+                            <p class="text-xs text-slate-500 ml-7 mb-4">Jika diaktifkan, pelanggan bisa mendapatkan
+                                speed lebih tinggi (Burst Limit) selama durasi tertentu (Burst Time) saat rata-rata
+                                penggunaan di bawah threshold.</p>
+
+                            <div id="burstConfigSection" class="hidden pl-7 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1">Child Burst Limit
+                                            Upload</label>
+                                        <input name="child_burst_upload" placeholder="mis: 10M"
+                                            class="burst-input w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-yellow-50" />
+                                        <p class="text-xs text-slate-500 mt-1">Speed maksimal saat burst aktif</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1">Child Burst Limit
+                                            Download</label>
+                                        <input name="child_burst_download" placeholder="mis: 20M"
+                                            class="burst-input w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-yellow-50" />
+                                        <p class="text-xs text-slate-500 mt-1">Speed maksimal saat burst aktif</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
                             <p class="font-medium mb-1">ℹ️ Informasi Child Template:</p>
                             <p>• Child ini akan dibuat otomatis di MikroTik untuk setiap pelanggan</p>
@@ -431,6 +462,27 @@
                                 });
                             }
                         });
+
+                        // Burst Toggle Logic
+                        const burstToggle = document.getElementById('enableBurst');
+                        const burstSection = document.getElementById('burstConfigSection');
+                        const burstInputs = document.querySelectorAll('.burst-input');
+
+                        if (burstToggle && burstSection) {
+                            burstToggle.addEventListener('change', function () {
+                                if (this.checked) {
+                                    burstSection.classList.remove('hidden');
+                                    // Trigger calculation to fill default burst values if empty
+                                    const currentVal = document.querySelector('input[name="child_burst_download"]').value;
+                                    if (!currentVal) autoCalculateAll(true);
+                                } else {
+                                    burstSection.classList.add('hidden');
+                                    // Optional: Clear values or keep them hidden? 
+                                    // Better to keep them in case re-enabled, but maybe clear on submit if strict.
+                                    // For now just hide.
+                                }
+                            });
+                        }
                     });
                 </script>
             </form>

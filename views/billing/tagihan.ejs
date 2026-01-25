@@ -44,6 +44,12 @@
             class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-red-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
             <i class="fas fa-trash-alt mr-2"></i>Hapus Terpilih (<span id="selectedCount">0</span>)
         </button>
+
+        <!-- Bulk Reminder -->
+        <button type="button" id="btnBulkReminder"
+            class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-amber-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
+            <i class="fas fa-bell mr-2"></i>Kirim Pengingat (<span id="selectedReminderCount">0</span>)
+        </button>
         <style>
             .bulk-delete-hidden {
                 display: none !important;
@@ -846,6 +852,14 @@
                     });
                 }
 
+                // Bulk Reminder button
+                const btnBulkReminder = document.getElementById('btnBulkReminder');
+                if (btnBulkReminder) {
+                    btnBulkReminder.addEventListener('click', function () {
+                        bulkSendReminder();
+                    });
+                }
+
                 // Export PDF button
                 const btnExportPDF = document.getElementById('btnExportPDF');
                 if (btnExportPDF) {
@@ -1130,6 +1144,9 @@ Lanjutkan proses generate?`;
                 const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
                 const selectedCount = document.getElementById('selectedCount');
 
+                const btnBulkReminder = document.getElementById('btnBulkReminder');
+                const selectedReminderCount = document.getElementById('selectedReminderCount');
+
                 const btnPrintSelected = document.getElementById('btnPrintSelected');
                 const selectedPrintCount = document.getElementById('selectedPrintCount');
 
@@ -1150,6 +1167,13 @@ Lanjutkan proses generate?`;
                     }
                     if (selectedPrintCount) selectedPrintCount.textContent = checkboxes.length;
 
+                    // Update Bulk Reminder Button
+                    if (btnBulkReminder) {
+                        btnBulkReminder.classList.remove('bulk-delete-hidden');
+                        btnBulkReminder.classList.add('bulk-delete-visible');
+                    }
+                    if (selectedReminderCount) selectedReminderCount.textContent = checkboxes.length;
+
                 } else {
                     // Hide Delete Button
                     if (bulkDeleteBtn) {
@@ -1161,6 +1185,12 @@ Lanjutkan proses generate?`;
                     if (btnPrintSelected) {
                         btnPrintSelected.classList.remove('bulk-delete-visible');
                         btnPrintSelected.classList.add('bulk-delete-hidden');
+                    }
+
+                    // Hide Bulk Reminder Button
+                    if (btnBulkReminder) {
+                        btnBulkReminder.classList.remove('bulk-delete-visible');
+                        btnBulkReminder.classList.add('bulk-delete-hidden');
                     }
                 }
             }
@@ -1215,6 +1245,55 @@ Lanjutkan proses generate?`;
                         .catch(error => {
                             console.error('Error:', error);
                             alert('❌ Terjadi kesalahan saat menghapus tagihan');
+                        });
+                }
+            }
+
+            // Bulk send reminder
+            function bulkSendReminder() {
+                const checkboxes = document.querySelectorAll('.invoice-checkbox:checked');
+                const invoiceIds = Array.from(checkboxes).map(cb => cb.value);
+
+                if (invoiceIds.length === 0) {
+                    alert('Pilih minimal 1 tagihan untuk diingatkan');
+                    return;
+                }
+
+                if (confirm(`⚠️ Kirim pengingat WhatsApp ke ${invoiceIds.length} pelanggan terpilih?`)) {
+                    // Show loading state
+                    const btn = document.getElementById('btnBulkReminder');
+                    const originalText = btn ? btn.innerHTML : '';
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
+                    }
+
+                    fetch('/billing/tagihan/bulk-reminder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invoiceIds: invoiceIds })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(`✅ ${data.message}`);
+                                // Uncheck all
+                                document.getElementById('selectAll').checked = false;
+                                checkboxes.forEach(cb => cb.checked = false);
+                                updateBulkDeleteButton();
+                            } else {
+                                alert('❌ ' + data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('❌ Terjadi kesalahan saat mengirim pengingat');
+                        })
+                        .finally(() => {
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.innerHTML = originalText;
+                            }
                         });
                 }
             }

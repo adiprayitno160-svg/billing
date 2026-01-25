@@ -142,6 +142,11 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
         const network = intToIp(networkInt);
 
+        // STRICT LIMIT CHECK
+        if (await isPackageFull(packageId)) {
+            throw new Error('Paket Static IP ini sudah penuh (Max Limit tercapai). Tidak dapat menambah client lagi.');
+        }
+
         const { customerId: newCustomerId } = await addClientToPackage(packageId, {
             client_name,
             ip_address,

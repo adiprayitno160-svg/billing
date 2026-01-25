@@ -92,7 +92,8 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			price_30_days,
 			duration_days,
 			status,
-			description
+			description,
+			enable_burst
 		} = req.body;
 
 
@@ -124,16 +125,16 @@ export async function postStaticIpPackageCreate(req: Request, res: Response, nex
 			child_download_limit: child_download_limit || undefined,
 			child_limit_at_upload: child_limit_at_upload || undefined,
 			child_limit_at_download: child_limit_at_download || undefined,
-			child_burst_upload: child_burst_upload || undefined,
-			child_burst_download: child_burst_download || undefined,
+			child_burst_upload: enable_burst === 'on' ? (child_burst_upload || undefined) : null,
+			child_burst_download: enable_burst === 'on' ? (child_burst_download || undefined) : null,
 			child_queue_type_download: child_queue_type_download || undefined,
 			child_queue_type_upload: child_queue_type_upload || undefined,
 			child_priority_download: child_priority_download || undefined,
 			child_priority_upload: child_priority_upload || undefined,
-			child_burst_threshold_download: child_burst_threshold_download || undefined,
-			child_burst_threshold_upload: child_burst_threshold_upload || undefined,
-			child_burst_time_download: child_burst_time_download || undefined,
-			child_burst_time_upload: child_burst_time_upload || undefined,
+			child_burst_threshold_download: enable_burst === 'on' ? (child_burst_threshold_download || undefined) : null,
+			child_burst_threshold_upload: enable_burst === 'on' ? (child_burst_threshold_upload || undefined) : null,
+			child_burst_time_download: enable_burst === 'on' ? (child_burst_time_download || undefined) : null,
+			child_burst_time_upload: enable_burst === 'on' ? (child_burst_time_upload || undefined) : null,
 			price: Number(price),
 			price_7_days: price_7_days ? Number(price_7_days) : undefined,
 			price_30_days: price_30_days ? Number(price_30_days) : undefined,
@@ -181,7 +182,8 @@ export async function postStaticIpPackageUpdate(req: Request, res: Response, nex
 			price,
 			duration_days,
 			status,
-			description
+			description,
+			enable_burst
 		} = req.body;
 
 		if (!name) throw new Error('Nama paket wajib diisi');
@@ -210,16 +212,16 @@ export async function postStaticIpPackageUpdate(req: Request, res: Response, nex
 			child_download_limit: child_download_limit || undefined,
 			child_limit_at_upload: child_limit_at_upload || undefined,
 			child_limit_at_download: child_limit_at_download || undefined,
-			child_burst_upload: child_burst_upload === '' ? null : (child_burst_upload || undefined),
-			child_burst_download: child_burst_download === '' ? null : (child_burst_download || undefined),
+			child_burst_upload: enable_burst === 'on' ? (child_burst_upload || undefined) : null,
+			child_burst_download: enable_burst === 'on' ? (child_burst_download || undefined) : null,
 			child_queue_type_download: child_queue_type_download || undefined,
 			child_queue_type_upload: child_queue_type_upload || undefined,
 			child_priority_download: child_priority_download || undefined,
 			child_priority_upload: child_priority_upload || undefined,
-			child_burst_threshold_download: child_burst_threshold_download === '' ? null : (child_burst_threshold_download || undefined),
-			child_burst_threshold_upload: child_burst_threshold_upload === '' ? null : (child_burst_threshold_upload || undefined),
-			child_burst_time_download: child_burst_time_download === '' ? null : (child_burst_time_download || undefined),
-			child_burst_time_upload: child_burst_time_upload === '' ? null : (child_burst_time_upload || undefined),
+			child_burst_threshold_download: enable_burst === 'on' ? (child_burst_threshold_download || undefined) : null,
+			child_burst_threshold_upload: enable_burst === 'on' ? (child_burst_threshold_upload || undefined) : null,
+			child_burst_time_download: enable_burst === 'on' ? (child_burst_time_download || undefined) : null,
+			child_burst_time_upload: enable_burst === 'on' ? (child_burst_time_upload || undefined) : null,
 			price: price ? Number(price) : undefined,
 			duration_days: duration_days ? Number(duration_days) : undefined,
 			status: status as 'active' | 'inactive',

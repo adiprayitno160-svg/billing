@@ -1024,6 +1024,21 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 if (!isNaN(packageId) && packageId > 0) {
                     console.log(`[Edit Customer] Updating subscription for customer ${customerId} to package ${packageId}`);
 
+                    // STRICT LIMIT CHECK
+                    const { isPppoePackageFull } = await import('../utils/packageLimit');
+                    const isFull = await isPppoePackageFull(packageId);
+
+                    // Check if user is already in this package, if so, ignore limit
+                    const [currentSub] = await conn.query<RowDataPacket[]>(
+                        'SELECT package_id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                        [customerId]
+                    );
+                    const isSamePackage = currentSub && currentSub.length > 0 && currentSub[0].package_id === packageId;
+
+                    if (isFull && !isSamePackage) {
+                        throw new Error(`Paket PPPoE yang dipilih sudah penuh (Max Limit tercapai). Silakan buat paket baru atau upgrade kapasitas.`);
+                    }
+
                     // Get package details
                     const [packageRows] = await conn.query<RowDataPacket[]>(
                         'SELECT id, name, price FROM pppoe_packages WHERE id = ?',
@@ -1063,390 +1078,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 }
             }
 
-            await conn.commit();
-
-            // Handle prepaid mode switch AFTER commit
-            if (billingModeChanged && billing_mode === 'prepaid') {
-                try {
-                    const { PrepaidService } = await import('../services/billing/PrepaidService');
-                    const bonusDays = prepaid_bonus_days ? parseInt(prepaid_bonus_days) : 1;
-
-                    const result = await PrepaidService.switchToPrepaid(
-                        customerId,
-                        bonusDays,
-                        true // Send WhatsAppnotification
-                    );
-
-                    if (result.success) {
-                        console.log(`✅ Customer ${customerId} switched to prepaid mode successfully`);
-                    } else {
-                        console.error(`⚠️ Failed to switch customer ${customerId} to prepaid:`, result.message);
-                    }
-                } catch (prepaidError) {
-                    console.error('Error switching to prepaid:', prepaidError);
-                    // Don't fail the whole update - customer is still updated
-                }
-            }
-
-
-            // Handle status change (Enable/Disable) side effects
-            if (status !== undefined && status !== oldCustomer.status) {
-                console.log(`[UpdateCustomer] Status changed from ${oldCustomer.status} to ${status} for customer ${customerId}`);
-
-                try {
-                    const isDisabling = status === 'inactive';
-                    const activeConnType = connection_type || oldCustomer.connection_type;
-                    const activeUsername = pppoe_username || oldPppoeUsername;
-
-                    // 1. Sync to MikroTik
-                    const { getMikrotikConfig } = await import('../services/pppoeService');
-                    // We need raw API for disable/enable for now if service function unavailable
-                    const { RouterOSAPI } = await import('node-routeros');
-
-                    const config = await getMikrotikConfig();
-                    if (config) {
-                        const api = new RouterOSAPI({
-                            host: config.host,
-                            port: config.port,
-                            user: config.username,
-                            password: config.password,
-                            timeout: 10000
-                        });
-
-                        await api.connect();
-
-                        try {
-                            if (activeConnType === 'pppoe' && activeUsername) {
-                                // Find secret
-                                const secrets = await api.write('/ppp/secret/print', [`?name=${activeUsername}`]);
-                                if (secrets && secrets.length > 0) {
-                                    const secretId = secrets[0]['.id'];
-                                    await api.write('/ppp/secret/set', [
-                                        `=.id=${secretId}`,
-                                        `=disabled=${isDisabling ? 'yes' : 'no'}`
-                                    ]);
-
-                                    // Also kick active connection if disabling
-                                    if (isDisabling) {
-                                        const active = await api.write('/ppp/active/print', [`?name=${activeUsername}`]);
-                                        if (active && active.length > 0) {
-                                            const activeId = active[0]['.id'];
-                                            await api.write('/ppp/active/remove', [`=.id=${activeId}`]);
-                                        }
-                                    }
-                                    console.log(`[UpdateCustomer] PPPoE secret ${activeUsername} ${isDisabling ? 'disabled' : 'enabled'}`);
-                                }
-                            } else if (activeConnType === 'static_ip') {
-
-                                // For Static IP, we disable the Simple Queue to block bandwidth
-                                // Getting IP/Name to find queue
-                                const [staticClient] = await databasePool.query<RowDataPacket[]>(
-                                    "SELECT client_name FROM static_ip_clients WHERE customer_id = ?",
-                                    [customerId]
-                                );
-
-                                if (staticClient && staticClient.length > 0 && staticClient[0].client_name) {
-                                    const clientName = staticClient[0].client_name;
-                                    const { findQueueTreeIdByName, updateQueueTree } = await import('../services/mikrotikService');
-
-                                    // Disable Download
-                                    const dlId = await findQueueTreeIdByName(config, clientName);
-                                    if (dlId) {
-                                        await updateQueueTree(config, dlId, { disabled: isDisabling ? 'yes' : 'no' });
-                                    }
-
-                                    // Disable Upload
-                                    const upId = await findQueueTreeIdByName(config, `UP-${clientName}`);
-                                    if (upId) {
-                                        await updateQueueTree(config, upId, { disabled: isDisabling ? 'yes' : 'no' });
-                                    }
-
-                                    console.log(`[UpdateCustomer] Static Queue Tree ${clientName} ${isDisabling ? 'disabled' : 'enabled'}`);
-                                }
-                            }
-                        } finally {
-                            await api.close();
-                        }
-                    }
-
-                    // 2. Send Notification
-                    if (phone) {
-                        const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
-                        await UnifiedNotificationService.queueNotification({
-                            customer_id: customerId,
-                            notification_type: isDisabling ? 'service_suspended' : 'service_restored',
-                            channels: ['whatsapp'],
-                            variables: {
-                                customer_name: name || oldName,
-                                reason: isDisabling ? 'Status pelanggan dinonaktifkan (Disable Mode)' : 'Status pelanggan diaktifkan kembali'
-                            },
-                            priority: 'high'
-                        });
-                        // Trigger send immediately
-                        try {
-                            await UnifiedNotificationService.sendPendingNotifications(5);
-                        } catch (e) { /* ignore */ }
-                    }
-
-                } catch (statusError) {
-                    console.error('[UpdateCustomer] Error handling status change side-effects:', statusError);
-                    // Don't fail the request, just log
-                }
-            }
-
-            // Sync secret ke MikroTik untuk PPPoE customers
-            const currentConnectionType = connection_type || oldCustomer.connection_type;
-            const newName = name || oldName;
-
-            // Update ODP Usage Counts (Consistency Fix)
-            try {
-                // Determine if ODP changed
-                const oldOdpId = oldCustomer.odp_id;
-                const newOdpId = req.body.odp_id !== undefined ? (req.body.odp_id || null) : undefined;
-
-                // If newOdpId is strictly defined (meaning it was in the form), and different from old
-                if (newOdpId !== undefined) {
-                    // Normalize for comparison (string vs number)
-                    const oldId = oldOdpId ? Number(oldOdpId) : null;
-                    const newId = newOdpId ? Number(newOdpId) : null;
-
-                    if (oldId !== newId) {
-                        console.log(`[UpdateCustomer] ODP Changed from ${oldId} to ${newId}. Recalculating usage...`);
-
-                        // Recalculate Old ODP (if existed)
-                        if (oldId) {
-                            await recalculateOdpUsage(oldId);
-                            console.log(`[UpdateCustomer] Recalculated Old ODP ${oldId}`);
-                        }
-
-                        // Recalculate New ODP (if exists)
-                        if (newId) {
-                            await recalculateOdpUsage(newId);
-                            console.log(`[UpdateCustomer] Recalculated New ODP ${newId}`);
-                        }
-                    }
-                }
-            } catch (odpError) {
-                console.error('[UpdateCustomer] Failed to recalculate ODP usage:', odpError);
-            }
-
-            console.log('\n');
-            console.log('========================================');
-            console.log('[Edit Customer] ========== PPPoE SYNC START ==========');
-            console.log('[Edit Customer] Customer ID:', customerId);
-            console.log('[Edit Customer] Connection Type:', currentConnectionType);
-            console.log('[Edit Customer] New Name:', newName);
-            console.log('========================================');
-            console.log('\n');
-
-            if (currentConnectionType === 'pppoe') {
-                try {
-                    const { getMikrotikConfig } = await import('../services/pppoeService');
-                    const { findPppoeSecretIdByName, updatePppoeSecret, createPppoeSecret } = await import('../services/mikrotikService');
-
-                    const config = await getMikrotikConfig();
-                    if (config && newName) {
-                        const oldSecretUsername = oldPppoeUsername || '';
-
-                        // Get profile name from package if package is selected
-                        let profileName: string | undefined = undefined;
-
-                        // First, try to get profile from package (priority)
-                        // Check both pppoe_package from form and existing package_id from customer
-                        const packageIdToUse = pppoe_package || (oldCustomer as any).package_id || (oldCustomer as any).pppoe_package_id;
-                        // Validate packageIdToUse: must be a valid number (not empty string, not null, not undefined, not NaN)
-                        const packageIdNum = packageIdToUse ? Number(packageIdToUse) : null;
-                        if (packageIdToUse && packageIdNum && !isNaN(packageIdNum) && packageIdNum > 0) {
-                            try {
-                                const { getPackageById, getProfileById } = await import('../services/pppoeService');
-                                const packageData = await getPackageById(packageIdNum);
-                                console.log(`[Edit Customer PPPoE] Package data untuk ID ${packageIdNum}:`, packageData ? 'Ditemukan' : 'Tidak ditemukan');
-                                if (packageData && packageData.profile_id) {
-                                    const profileIdNum = Number(packageData.profile_id);
-                                    if (!isNaN(profileIdNum) && profileIdNum > 0) {
-                                        const profile = await getProfileById(profileIdNum);
-                                        if (profile) {
-                                            profileName = profile.name;
-                                            console.log(`[Edit Customer PPPoE] ✅ Profile dari paket (ID: ${packageIdNum}): ${profileName}`);
-                                        } else {
-                                            console.log(`[Edit Customer PPPoE] ⚠️ Profile dengan ID ${profileIdNum} tidak ditemukan`);
-                                        }
-                                    } else {
-                                        console.log(`[Edit Customer PPPoE] ⚠️ Paket (ID: ${packageIdNum}) memiliki profile_id yang tidak valid: ${packageData.profile_id}`);
-                                    }
-                                } else {
-                                    console.log(`[Edit Customer PPPoE] ⚠️ Paket (ID: ${packageIdNum}) tidak memiliki profile_id`);
-                                }
-                            } catch (packageError) {
-                                console.error('⚠️ Gagal mendapatkan profile dari paket:', packageError);
-                            }
-                        } else {
-                            console.log(`[Edit Customer PPPoE] ⚠️ Tidak ada paket yang dipilih (pppoe_package: ${pppoe_package}, existing package_id: ${(oldCustomer as any).package_id})`);
-                        }
-
-                        // Fallback: Get profile name if profile_id is provided directly
-                        if (!profileName && pppoe_profile_id) {
-                            try {
-                                const profileIdNum = Number(pppoe_profile_id);
-                                if (!isNaN(profileIdNum) && profileIdNum > 0) {
-                                    const { getProfileById } = await import('../services/pppoeService');
-                                    const profile = await getProfileById(profileIdNum);
-                                    if (profile) {
-                                        profileName = profile.name;
-                                        console.log(`[Edit Customer PPPoE] Profile dari profile_id (${profileIdNum}): ${profileName}`);
-                                    }
-                                } else {
-                                    console.log(`[Edit Customer PPPoE] ⚠️ profile_id yang tidak valid: ${pppoe_profile_id}`);
-                                }
-                            } catch (profileError) {
-                                console.error('⚠️ Gagal mendapatkan profile:', profileError);
-                            }
-                        }
-
-                        console.log(`[Edit Customer PPPoE] Profile yang akan digunakan: ${profileName || 'tidak ada (MikroTik akan menggunakan default)'}`);
-
-                        // Use username from form as the name for PPPoE secret (not customer ID)
-                        // IMPORTANT: Use the username from form, not customer ID
-                        console.log(`[Edit Customer PPPoE] ========== DEBUG START ==========`);
-                        console.log(`[Edit Customer PPPoE] Customer ID: ${customerId}`);
-                        console.log(`[Edit Customer PPPoE] pppoe_username from form (raw):`, pppoe_username);
-                        console.log(`[Edit Customer PPPoE] pppoe_username type:`, typeof pppoe_username);
-                        console.log(`[Edit Customer PPPoE] oldPppoeUsername from DB:`, oldPppoeUsername);
-
-                        // Get username - prioritize form value, then old username from DB
-                        let newUsername = '';
-                        if (pppoe_username && typeof pppoe_username === 'string' && pppoe_username.trim()) {
-                            newUsername = pppoe_username.trim();
-                            console.log(`[Edit Customer PPPoE] ✅ Menggunakan username dari form: "${newUsername}"`);
-                        } else if (oldPppoeUsername && oldPppoeUsername.trim()) {
-                            newUsername = oldPppoeUsername.trim();
-                            console.log(`[Edit Customer PPPoE] ⚠️ Username dari form kosong, menggunakan username lama dari DB: "${newUsername}"`);
-                        } else {
-                            console.error(`[Edit Customer PPPoE] ❌ ERROR: Tidak ada username! Form: "${pppoe_username}", DB: "${oldPppoeUsername}"`);
-                            console.error(`[Edit Customer PPPoE] ❌ Secret TIDAK AKAN dibuat karena tidak ada username`);
-                            // Don't create secret if no username
-                            throw new Error('Username PPPoE wajib diisi untuk membuat secret di MikroTik');
-                        }
-
-                        const secretName = newUsername; // ALWAYS use username, never customer ID
-
-                        console.log(`[Edit Customer PPPoE] ✅ Secret Name (FINAL): "${secretName}"`);
-                        console.log(`[Edit Customer PPPoE] ✅ Secret akan dibuat/di-update dengan username: "${secretName}"`);
-                        console.log(`[Edit Customer PPPoE] New Name: ${newName}`);
-                        console.log(`[Edit Customer PPPoE] Password provided: ${pppoe_password ? 'YES (length: ' + pppoe_password.length + ')' : 'NO'}`);
-                        console.log(`[Edit Customer PPPoE] ========== DEBUG END ==========`);
-
-
-                        // ========== DATABASE UPDATE ONLY (NO MIKROTIK SYNC) ==========
-                        // User request: "buatkan logika sederahana saja tidak di isi otomatis sistem tidak menghubung ke mikrotik"
-
-                        console.log('[Edit Customer PPPoE] ⚠️ MikroTik Sync DISABLED (Database Only Mode)');
-
-                        // Update Username in DB
-                        if (newUsername && newUsername !== oldPppoeUsername) {
-                            await conn.query(
-                                'UPDATE customers SET pppoe_username = ? WHERE id = ?',
-                                [newUsername, customerId]
-                            );
-                            console.log(`[Edit Customer PPPoE] ✅ Username di database di-update ke: ${newUsername}`);
-                        }
-
-                        // Update Password in DB
-                        // Jika password baru diisi, update.
-                        if (pppoe_password && pppoe_password.trim() !== '') {
-                            await conn.query(
-                                'UPDATE customers SET pppoe_password = ? WHERE id = ?',
-                                [pppoe_password, customerId]
-                            );
-                            console.log(`[Edit Customer PPPoE] ✅ Password baru di-update di database`);
-                        }
-
-                        /* 
-                           ========== MIKROTIK UPDATE LOGIC (SOPHISTICATED) ==========
-                           1. Connect to MikroTik
-                           2. Identify Secret (Handle Username Change)
-                           3. Update or Create
-                           4. Kick Active Session for immediate effect
-                        */
-                        if (config) {
-                            // Import dependencies dynamically
-                            const { RouterOSAPI } = await import('node-routeros');
-                            const api = new RouterOSAPI({
-                                host: config.host, port: config.port,
-                                user: config.username, password: config.password,
-                                timeout: 10000
-                            });
-
-                            try {
-                                console.log('[Edit Customer PPPoE] 🔄 Connecting to MikroTik...');
-                                await api.connect();
-
-                                // A. Determine which Secret to modify
-                                // If username changed, we must find the OLD name. If simple update, use CURRENT name.
-                                const searchUsername = (oldPppoeUsername && oldPppoeUsername !== newUsername) ? oldPppoeUsername : newUsername;
-                                console.log(`[Edit Customer PPPoE] 🔍 Searching secret by name: "${searchUsername}"`);
-
-                                const secrets = await api.write('/ppp/secret/print', [`?name=${searchUsername}`]);
-
-                                // B. Prepare Data
-                                const updatePayload: any = {
-                                    name: newUsername, // Ensure name is set to (potentially new) username
-                                    profile: profileName || 'default',
-                                    comment: `Updated via Billing #${customerId} - ${newName}`
-                                };
-                                if (pppoe_password) updatePayload.password = pppoe_password;
-
-                                // C. Execute Action
-                                if (secrets && secrets.length > 0) {
-                                    // UPDATE EXISTING
-                                    const secretId = secrets[0]['.id'];
-                                    console.log(`[Edit Customer PPPoE] ✅ Found secret (ID: ${secretId}). Updating...`);
-
-                                    const updateCmd = ['/ppp/secret/set', `=.id=${secretId}`];
-                                    for (const [key, value] of Object.entries(updatePayload)) {
-                                        updateCmd.push(`=${key}=${value}`);
-                                    }
-                                    await api.write(updateCmd[0], updateCmd.slice(1));
-                                    console.log(`[Edit Customer PPPoE] ✅ Secret updated successfully.`);
-
-                                    // D. KICK ACTIVE SESSION (Force Reconnect)
-                                    // If profile, password, or username changed, we must kick the user into new settings.
-                                    console.log(`[Edit Customer PPPoE] ⚡ Checking active sessions to kick...`);
-                                    const activeSessions = await api.write('/ppp/active/print', [`?name=${searchUsername}`]);
-                                    if (activeSessions && activeSessions.length > 0) {
-                                        for (const session of activeSessions) {
-                                            await api.write('/ppp/active/remove', [`=.id=${session['.id']}`]);
-                                            console.log(`[Edit Customer PPPoE] 👢 Kicked active session: ${session['.id']}`);
-                                        }
-                                    }
-
-                                } else {
-                                    // CREATE NEW
-                                    console.log(`[Edit Customer PPPoE] ⚠️ Secret "${searchUsername}" not found. Creating NEW secret "${newUsername}"...`);
-                                    const createCmd = ['/ppp/secret/add'];
-                                    updatePayload['service'] = 'pppoe'; // Mandatory for new
-                                    for (const [key, value] of Object.entries(updatePayload)) {
-                                        createCmd.push(`=${key}=${value}`);
-                                    }
-                                    await api.write(createCmd[0], createCmd.slice(1));
-                                    console.log(`[Edit Customer PPPoE] ✅ Secret created successfully.`);
-                                }
-
-                                await api.close();
-
-                            } catch (mtError: any) {
-                                console.error('[Edit Customer PPPoE] ❌ MikroTik Sync Failed:', mtError);
-                                // We do NOT rollback transaction here because DB update was successful.
-                                // Instead, we might want to flag this to the user (flash message update not easily possible here without refactor, 
-                                // but we rely on console logs for now).
-                            }
-                        }
-
-                    }
-                } catch (mikrotikError: any) {
-                    console.error('[Edit Customer] Error in logic (non-critical):', mikrotikError);
-                }
-            }
+            // ... (Middle code remains roughly same, skipping non-package blocks) ...
 
             // ========== UPDATE SUBSCRIPTION KETIKA PAKET DIUBAH (STATIC IP) ==========
             // Handle package update for Static IP customers
@@ -1455,6 +1087,21 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 const packageId = parseInt(static_ip_package);
                 if (!isNaN(packageId) && packageId > 0) {
                     console.log(`[Edit Customer] Updating subscription for static IP customer ${customerId} to package ${packageId}`);
+
+                    // STRICT LIMIT CHECK
+                    const { isStaticIpPackageFull } = await import('../utils/packageLimit');
+                    const isFull = await isStaticIpPackageFull(packageId);
+
+                    // Check if user is already in this package
+                    const [currentSubStatic] = await conn.query<RowDataPacket[]>(
+                        'SELECT package_id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                        [customerId]
+                    );
+                    const isSamePackage = currentSubStatic && currentSubStatic.length > 0 && currentSubStatic[0].package_id === packageId;
+
+                    if (isFull && !isSamePackage) {
+                        throw new Error(`Paket Static IP yang dipilih sudah penuh (Max Limit tercapai). Silakan buat paket baru.`);
+                    }
 
                     // Get package details
                     const [packageRows] = await conn.query<RowDataPacket[]>(

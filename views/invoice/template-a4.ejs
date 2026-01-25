@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice #<%= invoice.invoice_number %>
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fff;
+            color: #1e293b;
+        }
+
+        .stamp-container {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            z-index: 10;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        .stamp-box {
+            border: 5px solid #16a34a;
+            /* Green-600 */
+            color: #16a34a;
+            padding: 1rem 3rem;
+            text-align: center;
+            border-radius: 1rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            backdrop-filter: blur(2px);
+        }
+
+        .stamp-text {
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: 0.5rem;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+
+        .stamp-date {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            border-top: 2px solid #16a34a;
+            padding-top: 0.25rem;
+        }
+    </style>
+</head>
+
+<body class="p-12 max-w-4xl mx-auto relative">
+
+    <% if (invoice.status==='paid' ) { %>
+        <div class="stamp-container">
+            <div class="stamp-box">
+                <div class="stamp-text">LUNAS</div>
+                <div class="stamp-date">
+                    TGL: <%= invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('id-ID', {day: '2-digit' ,
+                        month: 'long' , year: 'numeric' }) : new Date().toLocaleDateString('id-ID') %>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
+            <!-- Header -->
+            <div class="flex justify-between items-start mb-12">
+                <div class="w-1/2">
+                    <!-- Company Logo/Name -->
+                    <h1 class="text-3xl font-bold text-slate-800 mb-2">
+                        <%= invoice.company_name || 'ISP COMPANY' %>
+                    </h1>
+                    <p class="text-slate-600 text-sm whitespace-pre-line">
+                        <%= invoice.company_address || 'Jl. Raya Internet No. 1\nJakarta, Indonesia' %>
+                    </p>
+                    <p class="text-slate-600 text-sm mt-1">Telp: <%= invoice.company_phone || '-' %>
+                    </p>
+                </div>
+                <div class="w-1/2 text-right">
+                    <h2 class="text-4xl font-bold text-slate-200 uppercase tracking-widest mb-2">INVOICE</h2>
+                    <p class="text-slate-500 font-medium">#<%= invoice.invoice_number %>
+                    </p>
+                    <p class="text-sm text-slate-400 mt-1">
+                        Dibuat: <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric' ,
+                            month: 'long' , year: 'numeric' }) %>
+                    </p>
+                    <p class="text-sm text-slate-400">
+                        Jatuh Tempo: <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {day: 'numeric' ,
+                            month: 'long' , year: 'numeric' }) %>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bill To -->
+            <div class="bg-slate-50 rounded-xl p-8 mb-10 border border-slate-100">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">DITAGIHKAN KEPADA</h3>
+                <div class="flex justify-between">
+                    <div>
+                        <h4 class="text-xl font-bold text-slate-800 mb-1">
+                            <%= invoice.customer_name %>
+                        </h4>
+                        <p class="text-slate-600">
+                            <%= invoice.customer_address || 'Alamat tidak tersedia' %>
+                        </p>
+                        <% if(invoice.customer_phone) { %>
+                            <p class="text-slate-500 text-sm mt-2">Telp: <%= invoice.customer_phone %>
+                            </p>
+                            <% } %>
+                    </div>
+                    <div class="text-right">
+                        <% if(invoice.pppoe_username) { %>
+                            <div class="mb-2">
+                                <span class="text-xs font-medium text-slate-400 block uppercase">Username</span>
+                                <span class="font-semibold text-slate-700">
+                                    <%= invoice.pppoe_username %>
+                                </span>
+                            </div>
+                            <% } %>
+                                <% if(invoice.customer_ip) { %>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-400 block uppercase">IP
+                                            Address</span>
+                                        <span class="font-mono text-slate-700">
+                                            <%= invoice.customer_ip %>
+                                        </span>
+                                    </div>
+                                    <% } %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <table class="w-full mb-10">
+                <thead>
+                    <tr class="border-b border-slate-200">
+                        <th class="text-left py-4 px-2 font-semibold text-slate-600 text-sm">DESKRIPSI</th>
+                        <th class="text-right py-4 px-2 font-semibold text-slate-600 text-sm w-32">HARGA SATUAN</th>
+                        <th class="text-right py-4 px-2 font-semibold text-slate-600 text-sm w-32">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% (invoice.items || []).forEach(item=> { %>
+                        <tr class="border-b border-slate-100">
+                            <td class="py-4 px-2">
+                                <p class="font-medium text-slate-800">
+                                    <%= item.description %>
+                                </p>
+                                <% if(item.details) { %>
+                                    <p class="text-xs text-slate-500 mt-0.5">
+                                        <%= item.details %>
+                                    </p>
+                                    <% } %>
+                            </td>
+                            <td class="text-right py-4 px-2 text-slate-600">Rp <%= Number(item.unit_price ||
+                                    item.amount).toLocaleString('id-ID') %>
+                            </td>
+                            <td class="text-right py-4 px-2 font-medium text-slate-800">Rp <%=
+                                    Number(item.amount).toLocaleString('id-ID') %>
+                            </td>
+                        </tr>
+                        <% }) %>
+
+                            <% if (!invoice.items || invoice.items.length===0) { %>
+                                <tr class="border-b border-slate-100">
+                                    <td class="py-4 px-2">
+                                        <p class="font-medium text-slate-800">Layanan Internet Period <%=
+                                                invoice.period_date || '-' %>
+                                        </p>
+                                    </td>
+                                    <td class="text-right py-4 px-2 text-slate-600">Rp <%=
+                                            Number(invoice.total_amount).toLocaleString('id-ID') %>
+                                    </td>
+                                    <td class="text-right py-4 px-2 font-medium text-slate-800">Rp <%=
+                                            Number(invoice.total_amount).toLocaleString('id-ID') %>
+                                    </td>
+                                </tr>
+                                <% } %>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2" class="pt-6 text-right font-semibold text-slate-600">Total Tagihan</td>
+                        <td class="pt-6 text-right font-bold text-2xl text-slate-800">Rp <%=
+                                Number(invoice.total_amount).toLocaleString('id-ID') %>
+                        </td>
+                    </tr>
+                    <% if (invoice.paid_amount> 0) { %>
+                        <tr>
+                            <td colspan="2" class="pt-2 text-right font-medium text-green-600">Dibayar</td>
+                            <td class="pt-2 text-right font-bold text-lg text-green-600">- Rp <%=
+                                    Number(invoice.paid_amount).toLocaleString('id-ID') %>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="pt-2 text-right font-semibold text-slate-800">Sisa Tagihan</td>
+                            <td class="pt-2 text-right font-bold text-xl text-slate-800">Rp <%=
+                                    Number(invoice.remaining_amount).toLocaleString('id-ID') %>
+                            </td>
+                        </tr>
+                        <% } %>
+                </tfoot>
+            </table>
+
+            <!-- Footer -->
+            <div class="mt-20 border-t border-slate-200 pt-8 flex justify-between items-end">
+                <div class="text-sm text-slate-500">
+                    <p class="font-medium text-slate-700 mb-1">Metode Pembayaran:</p>
+                    <p>Silakan transfer ke nomor rekening yang tertera di aplikasi/website.</p>
+                    <p class="mt-2"><em>Terima kasih atas kepercayaan Anda.</em></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-slate-400 text-xs mb-10">Hormat Kami,</p>
+                    <p class="font-bold text-slate-800 text-lg">
+                        <%= invoice.company_name || 'Admin Finance' %>
+                    </p>
+                </div>
+            </div>
+
+</body>
+
+</html>
