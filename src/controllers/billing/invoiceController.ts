@@ -432,11 +432,11 @@ export class InvoiceController {
                 s.start_date,
                 s.end_date
             FROM customers c
-            LEFT JOIN subscriptions s ON c.id = s.customer_id AND TRIM(LOWER(s.status)) = 'active'
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND (s.status = 'active' OR s.status = 'Active')
             LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id
             LEFT JOIN static_ip_packages sp ON sip.package_id = sp.id
             LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
-            WHERE c.status = 'active'
+            WHERE (c.status = 'active' OR c.status = 'Active')
             ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
         `;
 
