@@ -1424,9 +1424,11 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             // 2. Delete notification logs and specific notifications
             await conn.query('DELETE FROM notification_logs WHERE customer_id = ?', [customerId]);
             await conn.query('DELETE FROM whatsapp_notifications WHERE customer_id = ?', [customerId]);
-            await conn.query('DELETE FROM whatsapp_bot_messages WHERE customer_id = ?', [customerId]);
+            if (customer.phone) {
+                await conn.query('DELETE FROM whatsapp_bot_messages WHERE phone_number = ?', [customer.phone]);
+            }
             await conn.query('DELETE FROM telegram_notifications WHERE customer_id = ?', [customerId]);
-            await conn.query('DELETE FROM unified_notifications WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM unified_notifications_queue WHERE customer_id = ?', [customerId]);
 
             // 3. Delete from address list items and network devices
             await conn.query('DELETE FROM address_list_items WHERE customer_id = ?', [customerId]);
@@ -1674,9 +1676,11 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     // 2. Notifications
                     await conn.query('DELETE FROM notification_logs WHERE customer_id = ?', [customerId]);
                     await conn.query('DELETE FROM whatsapp_notifications WHERE customer_id = ?', [customerId]);
-                    await conn.query('DELETE FROM whatsapp_bot_messages WHERE customer_id = ?', [customerId]);
+                    if (customer.phone) {
+                        await conn.query('DELETE FROM whatsapp_bot_messages WHERE phone_number = ?', [customer.phone]);
+                    }
                     await conn.query('DELETE FROM telegram_notifications WHERE customer_id = ?', [customerId]);
-                    await conn.query('DELETE FROM unified_notifications WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM unified_notifications_queue WHERE customer_id = ?', [customerId]);
 
                     // 3. Address list items
                     await conn.query('DELETE FROM address_list_items WHERE customer_id = ?', [customerId]);
