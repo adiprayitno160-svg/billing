@@ -257,7 +257,9 @@ export class WhatsAppService extends EventEmitter {
       // Connection closed
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        // Reconnect if not logged out AND not 440 (Conflict/Replaced)
+        // If 440, we MUST clear session because keys are invalid
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 440;
 
         this.log('warn', `❌ Connection closed. Status: ${statusCode}, Reconnect: ${shouldReconnect}`);
 
@@ -269,11 +271,16 @@ export class WhatsAppService extends EventEmitter {
 
         this.emit('disconnected', statusCode);
 
-        if (shouldReconnect && statusCode !== DisconnectReason.loggedOut) {
-          this.scheduleReconnect();
+        if (statusCode === 440) {
+          this.log('error', '⚠️ Session conflict detected (440). Connection replaced. Clearing session and restarting...');
+          await this.clearSession();
+          // Allow some time for cleanup before restart
+          setTimeout(() => this.initialize(), 3000);
         } else if (statusCode === DisconnectReason.loggedOut) {
           this.log('info', '🔒 Logged out, clearing session...');
           await this.clearSession();
+        } else if (shouldReconnect) {
+          this.scheduleReconnect();
         }
       }
 

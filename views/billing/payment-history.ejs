@@ -2,7 +2,7 @@
     <!-- Header & Actions -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Riwayat Pembayaran</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Riwayat Pembayaran (v2)</h1>
             <p class="text-sm text-gray-500">Semua transaksi pembayaran pelanggan</p>
         </div>
         <div class="flex gap-3">
@@ -145,7 +145,84 @@
     </div>
 </div>
 
+<!-- Payment Detail Modal -->
+<div id="payment-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
+            onclick="closePaymentModal()"></div>
+
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <!-- Modal panel -->
+        <div
+            class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div
+                        class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <i class="fas fa-receipt text-blue-600"></i>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Detail Pembayaran</h3>
+                        <div class="mt-4 space-y-3">
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Tanggal</span>
+                                <span class="text-sm font-medium text-gray-900" id="modal-date">-</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Nomor Tagihan</span>
+                                <a href="#" id="modal-invoice-link"
+                                    class="text-sm font-medium text-blue-600 hover:underline">-</a>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Pelanggan</span>
+                                <span class="text-sm font-medium text-gray-900" id="modal-customer">-</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Metode</span>
+                                <span class="text-sm font-medium text-gray-900" id="modal-method">-</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Jumlah</span>
+                                <span class="text-sm font-bold text-green-600" id="modal-amount">-</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Referensi</span>
+                                <span class="text-sm text-gray-900" id="modal-reference">-</span>
+                            </div>
+                            <div class="flex flex-col gap-1 border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">Catatan</span>
+                                <span class="text-sm text-gray-700 italic" id="modal-notes">-</span>
+                            </div>
+                            <div id="modal-proof-container" class="mt-3 hidden">
+                                <span class="text-sm text-gray-500 block mb-2">Bukti Pembayaran</span>
+                                <img id="modal-proof-image" src="" alt="Bukti Pembayaran"
+                                    class="w-full rounded-lg border border-gray-200">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <a id="modal-view-invoice-btn" href="#"
+                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                    Lihat Invoice
+                </a>
+                <button type="button" onclick="closePaymentModal()"
+                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
 <script>
+    let currentPayments = [];
+
     async function loadPayments() {
         try {
             // Get query parameters from URL
@@ -164,6 +241,7 @@
 
             const response = await fetch('/billing/payments' + queryStr + (queryStr ? '&' : '?') + 'format=json');
             const data = await response.json();
+            currentPayments = data.payments || [];
 
             const tbody = document.getElementById('payments-tbody');
 
@@ -247,7 +325,10 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="viewPayment(${payment.id})" class="text-gray-400 hover:text-blue-600 transition-colors" title="Lihat Detail">
+                            <button onclick="resendNotification(${payment.id}, this)" class="text-gray-400 hover:text-green-600 transition-colors mr-2" title="Kirim Ulang Notifikasi WA">
+                                <i class="fab fa-whatsapp text-lg"></i>
+                            </button>
+                            <button onclick="viewPayment(${payment.id}, ${payment.invoice_id})" class="text-gray-400 hover:text-blue-600 transition-colors" title="Lihat Detail Invoice">
                                 <i class="fas fa-eye text-lg"></i>
                             </button>
                         </td>
@@ -278,15 +359,81 @@
         return methods[method] || method;
     }
 
-    function viewPayment(id) {
-        // window.location.href = `/billing/payments/${id}`; // Just view invoice for now if detail not ready
-        // Find the invoice ID from the row data if possible, or just alert/modal.
-        // For now, let's redirect to invoice which is more useful
-        alert('Fitur detail pembayaran akan segera hadir. Silakan cek detail Tagihan.');
+    function viewPayment(id, invoiceId) {
+        if (!currentPayments.length) return;
+
+        const payment = currentPayments.find(p => p.id === id);
+        if (!payment) {
+            alert('Data pembayaran tidak ditemukan.');
+            return;
+        }
+
+        // Populate modal
+        document.getElementById('modal-date').textContent = new Date(payment.payment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        const invoiceLink = document.getElementById('modal-invoice-link');
+        invoiceLink.textContent = payment.invoice_number || '-';
+        invoiceLink.href = `/billing/tagihan/${payment.invoice_id}`;
+
+        document.getElementById('modal-customer').textContent = payment.customer_name || '-';
+        document.getElementById('modal-method').innerHTML = formatPaymentMethod(payment.payment_method);
+        document.getElementById('modal-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(parseFloat(payment.amount || 0));
+        document.getElementById('modal-reference').textContent = payment.reference_number || '-';
+        document.getElementById('modal-notes').textContent = payment.notes || '-';
+
+        // Proof image
+        const proofContainer = document.getElementById('modal-proof-container');
+        const proofImage = document.getElementById('modal-proof-image');
+
+        if (payment.proof_image) {
+            proofImage.src = payment.proof_image;
+            proofContainer.classList.remove('hidden');
+        } else {
+            proofContainer.classList.add('hidden');
+        }
+
+        // View invoice button
+        document.getElementById('modal-view-invoice-btn').href = `/billing/tagihan/${payment.invoice_id}`;
+
+        // Show modal
+        document.getElementById('payment-modal').classList.remove('hidden');
+    }
+
+    function closePaymentModal() {
+        document.getElementById('payment-modal').classList.add('hidden');
     }
 
     function exportPayments() {
         window.location.href = '/billing/payments/export';
+    }
+
+    async function resendNotification(paymentId, btn) {
+        if (!confirm('Kirim ulang notifikasi pembayaran via WhatsApp?')) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/billing/payments/${paymentId}/resend-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+            } else {
+                alert('Gagal: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat mengirim notifikasi');
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
     }
 
     // Load payments on page load

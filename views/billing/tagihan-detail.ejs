@@ -321,6 +321,11 @@
                                                 class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                 <%= payment.status %>
                                             </span>
+                                            <button onclick="resendNotification(<%= payment.id %>, this)"
+                                                class="ml-2 text-gray-400 hover:text-green-600 transition-colors"
+                                                title="Kirim Ulang Notifikasi WA">
+                                                <i class="fab fa-whatsapp text-lg"></i>
+                                            </button>
                                             <% if (payment.notes) { %>
                                                 <p class="text-xs text-gray-500 mt-1">
                                                     <%= payment.notes %>
@@ -617,7 +622,37 @@
             })
             .finally(() => {
                 saveBtn.disabled = false;
+                saveBtn.disabled = false;
                 saveBtn.innerHTML = originalText;
             });
+    }
+
+    async function resendNotification(paymentId, btn) {
+        if (!confirm('Kirim ulang notifikasi pembayaran via WhatsApp?')) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/billing/payments/${paymentId}/resend-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+            } else {
+                alert('Gagal: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat mengirim notifikasi');
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
     }
 </script>

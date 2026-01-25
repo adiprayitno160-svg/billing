@@ -707,6 +707,9 @@ router.post('/customer/isolation/trigger-restore', async (req, res) => {
 // Payment history
 router.get('/payments', paymentController.getPaymentHistory.bind(paymentController));
 
+// Resend notification
+router.post('/payments/:id/resend-notification', paymentController.resendNotification.bind(paymentController));
+
 // Payment history view
 router.get('/payments/history', async (req, res) => {
     res.render('billing/payment-history', { title: 'Riwayat Pembayaran' });

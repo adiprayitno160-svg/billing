@@ -102,6 +102,11 @@ const uploadBackup = multer({
 
 router.post('/backup/restore-upload', uploadBackup.single('sqlFile'), BackupController.restoreFromUpload);
 
+// System Logs
+import { SystemLogController } from '../controllers/settings/SystemLogController';
+router.get('/logs', SystemLogController.index);
+router.get('/logs/api/content/:filename', SystemLogController.getLogContent);
+
 // UI Pages for Billing/SLA Management (render views)
 router.get('/customer-tiers', (req, res) => {
   const { getCustomerTierManagement } = require('../controllers/settingsController');

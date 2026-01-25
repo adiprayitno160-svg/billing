@@ -37,6 +37,39 @@ export class PaymentController {
     }
 
     /**
+     * Resend Payment Notification
+     */
+    async resendNotification(req: Request, res: Response): Promise<void> {
+        try {
+            const paymentId = parseInt(req.params.id);
+            if (isNaN(paymentId)) {
+                res.status(400).json({ success: false, message: 'Invalid Payment ID' });
+                return;
+            }
+
+            const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+
+            // 1. Queue notification again
+            await UnifiedNotificationService.notifyPaymentReceived(paymentId);
+
+            // 2. Force send immediately
+            const result = await UnifiedNotificationService.sendPendingNotifications(1);
+
+            if (result.sent > 0) {
+                res.json({ success: true, message: 'Notifikasi berhasil dikirim ulang via WhatsApp' });
+            } else if (result.failed > 0) {
+                res.json({ success: false, message: 'Gagal mengirim notifikasi. Cek log system.' });
+            } else {
+                res.json({ success: true, message: 'Notifikasi dalam antrian (queued)' });
+            }
+
+        } catch (error: any) {
+            console.error('Error resending notification:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
      * Get payment history list
      */
     async getPaymentHistory(req: Request, res: Response): Promise<void> {
@@ -357,6 +390,7 @@ export class PaymentController {
                 );
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
                     await UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id);
+                    await UnifiedNotificationService.sendPendingNotifications(1);
                 }
             } catch (notifError) {
                 console.error('Error sending payment notification:', notifError);
@@ -609,6 +643,7 @@ export class PaymentController {
                 );
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
                     await UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id);
+                    await UnifiedNotificationService.sendPendingNotifications(1);
                 }
             } catch (notifError) {
                 console.error('Error sending payment notification:', notifError);
