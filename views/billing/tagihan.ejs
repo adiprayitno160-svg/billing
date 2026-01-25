@@ -1650,6 +1650,38 @@ Lanjutkan proses generate?`;
                 if (span) span.textContent = count;
             }
 
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-action="send-wanew"]');
+                if (btn) {
+                    const invoiceId = btn.getAttribute('data-invoice-id');
+                    if (!invoiceId) return;
+
+                    const originalInner = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i> Sedang kirim...';
+
+                    fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success) {
+                                alert('✅ ' + d.message);
+                            } else {
+                                alert('❌ Gagal: ' + d.message);
+                            }
+                            btn.disabled = false;
+                            btn.innerHTML = originalInner;
+                        })
+                        .catch(e => {
+                            alert('❌ Terjadi kesalahan sistem');
+                            btn.disabled = false;
+                            btn.innerHTML = originalInner;
+                        });
+                }
+            });
+
             document.addEventListener('change', function (e) {
                 if (e.target.classList.contains('invoice-checkbox') || e.target.id === 'selectAll') {
                     setTimeout(updateBulkWAStats, 50);
