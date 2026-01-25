@@ -105,8 +105,9 @@ export class WhatsAppService extends EventEmitter {
   // Message Queue
   private messageQueue: QueuedMessage[] = [];
   private isProcessingQueue: boolean = false;
-  private readonly QUEUE_PROCESS_INTERVAL = 1000; // 1 second between messages
-  private readonly MAX_QUEUE_SIZE = 100;
+  private readonly QUEUE_PROCESS_INTERVAL_MIN = 3000; // 3 seconds min
+  private readonly QUEUE_PROCESS_INTERVAL_MAX = 6000; // 6 seconds max
+  private readonly MAX_QUEUE_SIZE = 500;
 
   // Paths
   private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth');
@@ -598,8 +599,8 @@ export class WhatsAppService extends EventEmitter {
       }
 
       if (this.messageQueue.length >= this.MAX_QUEUE_SIZE) {
-        this.log('warn', 'Message queue full, rejecting message');
-        resolve({ success: false, error: 'Message queue is full' });
+        this.log('warn', `Message queue full (${this.messageQueue.length}), rejects new message to ${to}`);
+        resolve({ success: false, error: 'Antrian pesan penuh, silakan tunggu beberapa saat.' });
         return;
       }
 
@@ -651,43 +652,55 @@ export class WhatsAppService extends EventEmitter {
       processed++;
 
       try {
-        this.log('debug', `📨 Processing message ${item.id} to ${item.to}`);
+        this.log('info', `📨 Processing message ${processed}/${processed + this.messageQueue.length} (${item.id}) to ${item.to}`);
 
-        // Check if registered before sending (Optional, can slow down but safer)
-        const exists = await this.isRegistered(item.to);
-        if (!exists && !item.to.includes('@g.us')) {
-          this.log('warn', `🚫 Number ${item.to} is NOT registered on WhatsApp. Skipping.`);
-          item.resolve({ success: false, error: 'Nomor WhatsApp tidak terdaftar (404)' });
-          continue;
+        // Only check registration if it's the first attempt and NOT a group
+        if (item.retries === 0 && !item.to.includes('@g.us')) {
+          // Optional: Skip if already known valid customers to speed up
+          // For now, keep it but add a fast timeout
+          const exists = await Promise.race([
+            this.isRegistered(item.to),
+            new Promise<boolean>(resolve => setTimeout(() => resolve(true), 3000)) // 3s timeout
+          ]);
+
+          if (!exists) {
+            this.log('warn', `🚫 Number ${item.to} is NOT registered. Skipping.`);
+            item.resolve({ success: false, error: 'Nomor tidak terdaftar di WhatsApp' });
+            continue;
+          }
         }
 
         const result = await this.sendMessageDirect(item.to, item.content, item.options);
-        this.log('debug', `✅ Message sent ${item.id}`);
-        item.resolve(result);
+
+        if (result.success) {
+          this.log('info', `✅ Message sent successfully to ${item.to} (ID: ${result.messageId})`);
+          item.resolve(result);
+        } else {
+          throw new Error(result.error || 'Failed to send');
+        }
+
       } catch (error: any) {
         item.retries++;
-
-        this.log('warn', `⚠️ Message ${item.id} to ${item.to} failed. Error: ${error.message || error}`);
-
-        // Specific error handling
-        const isConnectionError = error.message?.includes('connection') || error.message?.includes('timeout');
+        const errorMessage = error.message || error;
+        this.log('warn', `⚠️ Message ${item.id} to ${item.to} failed. Attempt ${item.retries}/${item.maxRetries}. Error: ${errorMessage}`);
 
         if (item.retries < item.maxRetries) {
-          // Re-queue for retry
+          // Re-queue for retry (put in the end)
           this.messageQueue.push(item);
-          // Wait longer if it's a connection error
-          const waitTime = isConnectionError ? 5000 : 2000;
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+          // Wait longer before next attempt if it's a connection issue
+          await new Promise(resolve => setTimeout(resolve, 5000));
         } else {
-          item.resolve({ success: false, error: error.message || 'Unknown error' });
-          this.log('error', `❌ Message ${item.id} permanently failed: ${error.message}`);
+          item.resolve({ success: false, error: `Gagal mengirim setelah ${item.maxRetries} kali: ${errorMessage}` });
+          this.log('error', `❌ Message ${item.id} permanently failed: ${errorMessage}`);
         }
       }
 
-      // Wait before processing next message
-      await new Promise(resolve => setTimeout(resolve, this.QUEUE_PROCESS_INTERVAL));
+      // Human-like random delay before next message (2-5 seconds)
+      const randomDelay = Math.floor(Math.random() * (this.QUEUE_PROCESS_INTERVAL_MAX - this.QUEUE_PROCESS_INTERVAL_MIN + 1)) + this.QUEUE_PROCESS_INTERVAL_MIN;
+      this.log('debug', `⏳ Waiting ${randomDelay}ms before next message...`);
+      await new Promise(resolve => setTimeout(resolve, randomDelay));
 
-      // Yield event loop occasionally
+      // Yield event loop
       if (processed % 5 === 0) {
         await new Promise(resolve => setImmediate(resolve));
       }

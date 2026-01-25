@@ -206,9 +206,9 @@
         }
 
         list.innerHTML = filtered.map(c => `
-            <div onclick="toggleSelect(${c.id})" class="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedIds.has(c.id) ? 'bg-blue-50 border border-blue-100' : 'hover:bg-slate-100 border border-transparent'}">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg ${selectedIds.has(c.id) ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-[10px] font-bold">
+            <div data-id="${c.id}" class="cust-row flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedIds.has(c.id) ? 'bg-blue-50 border-blue-100' : 'hover:bg-slate-100 border-transparent'} border">
+                <div class="flex items-center gap-3 pointer-events-none">
+                    <div class="chk-icon w-8 h-8 rounded-lg ${selectedIds.has(c.id) ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-[10px] font-bold">
                         ${selectedIds.has(c.id) ? '<i class="fas fa-check"></i>' : c.name.charAt(0)}
                     </div>
                     <div>
@@ -218,13 +218,35 @@
                 </div>
             </div>
         `).join('');
+
+        // Attach event listeners via delegation
+        document.querySelectorAll('.cust-row').forEach(row => {
+            row.onclick = function () {
+                const id = parseInt(this.getAttribute('data-id'));
+                toggleSelect(id, this);
+            };
+        });
     }
 
-    function toggleSelect(id) {
-        if (selectedIds.has(id)) selectedIds.delete(id);
-        else selectedIds.add(id);
+    function toggleSelect(id, element) {
+        if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+            element.classList.remove('bg-blue-50', 'border-blue-100');
+            element.classList.add('hover:bg-slate-100', 'border-transparent');
+            const icon = element.querySelector('.chk-icon');
+            icon.classList.remove('bg-blue-600', 'text-white');
+            icon.classList.add('bg-slate-200', 'text-slate-500');
+            icon.innerHTML = customers.find(c => c.id === id).name.charAt(0);
+        } else {
+            selectedIds.add(id);
+            element.classList.add('bg-blue-50', 'border-blue-100');
+            element.classList.remove('hover:bg-slate-100', 'border-transparent');
+            const icon = element.querySelector('.chk-icon');
+            icon.classList.add('bg-blue-600', 'text-white');
+            icon.classList.remove('bg-slate-200', 'text-slate-500');
+            icon.innerHTML = '<i class="fas fa-check"></i>';
+        }
 
-        renderCustomers(document.getElementById('cust-search').value);
         updateUI();
     }
 

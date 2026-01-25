@@ -24,16 +24,15 @@ export class NotificationScheduler {
       return;
     }
 
-    // Run every 30 seconds to process pending notifications (High Frequency)
-    this.cronJob = cron.schedule('*/30 * * * * *', async () => {
+    // Run every 10 seconds to process pending notifications (Higher Frequency)
+    this.cronJob = cron.schedule('*/10 * * * * *', async () => {
       if (this.isRunning) {
-        // If running for more than 2 minutes, force reset (zombie check)
+        // If running for more than 5 minutes, force reset (zombie check)
         const diff = Date.now() - (this.lastRunTime || 0);
-        if (diff > 120000 && this.lastRunTime > 0) {
-          console.warn('[NotificationScheduler] ⚠️ Force resetting stuck scheduler (stalled for >2m)');
+        if (diff > 300000 && this.lastRunTime > 0) {
+          console.warn('[NotificationScheduler] ⚠️ Force resetting stuck scheduler (stalled for >5m)');
           this.isRunning = false;
         } else {
-          // console.log('[NotificationScheduler] Already running, skipping...');
           return;
         }
       }
@@ -42,7 +41,7 @@ export class NotificationScheduler {
       this.lastRunTime = Date.now();
 
       try {
-        const result = await UnifiedNotificationService.sendPendingNotifications(50);
+        const result = await UnifiedNotificationService.sendPendingNotifications(100);
         if (result.sent > 0 || result.failed > 0) {
           console.log(`[NotificationScheduler] 📨 Processed: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
         }
