@@ -366,11 +366,13 @@ export class InvoiceController {
      */
     async generateBulkInvoices(req: Request, res: Response): Promise<void> {
         const conn = await databasePool.getConnection();
+        const { period, due_date_offset, customer_ids } = req.body;
+
+        console.log(`[InvoiceController] START generateBulkInvoices Period: ${period}`);
 
         try {
             await conn.beginTransaction();
 
-            const { period, due_date_offset, customer_ids } = req.body;
             const currentPeriod = period || new Date().toISOString().slice(0, 7); // YYYY-MM
 
             // Get Due Date Settings from System Settings
@@ -390,26 +392,22 @@ export class InvoiceController {
                 if (settingsMap['due_date_mode'] === 'offset') {
                     useFixedDay = false;
                 } else {
-                    // Default to fixed if not set or explicitly fixed
                     useFixedDay = true;
                 }
 
                 if (settingsMap['due_date_fixed_day']) fixedDay = parseInt(settingsMap['due_date_fixed_day']);
                 if (settingsMap['due_date_offset_days']) dayOffset = parseInt(settingsMap['due_date_offset_days']);
 
-                // Override if user manually passed a generic offset (rare case for manual run)
                 if (due_date_offset) {
                     dayOffset = parseInt(due_date_offset);
-                    useFixedDay = false; // Force offset if provided manually via API params
+                    useFixedDay = false;
                 }
             } catch (err) {
                 console.warn('[InvoiceController] Failed to load due date settings, using defaults:', err);
             }
 
-            console.log(`Generating bulk invoices for period: ${currentPeriod}`);
-            if (customer_ids) console.log(`Targeting ${Array.isArray(customer_ids) ? customer_ids.length : 0} specific customers`);
-
             // Get all active customers with their connection/package details
+            // Improved LEFT JOIN for subscriptions to handle case sensitivity and spaces
             const subscriptionsQuery = `
             SELECT 
                 c.id as customer_id,
@@ -436,7 +434,7 @@ export class InvoiceController {
                 s.start_date,
                 s.end_date
             FROM customers c
-            LEFT JOIN subscriptions s ON c.id = s.customer_id AND (s.status = 'active' OR s.status = 'Active')
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND TRIM(LOWER(s.status)) = 'active'
             LEFT JOIN static_ip_packages sp ON c.static_package_id = sp.id
             LEFT JOIN pppoe_packages pp ON c.pppoe_package_id = pp.id
             WHERE c.status = 'active'
@@ -447,11 +445,11 @@ export class InvoiceController {
             if (customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0) {
                 const numericIds = customer_ids.map((id: any) => parseInt(id)).filter((id: number) => !isNaN(id));
                 queryParams.push(numericIds);
-                console.log(`[InvoiceController] Filtering by ${numericIds.length} numeric IDs:`, numericIds);
+                console.log(`[InvoiceController] Filtering by IDs: ${numericIds.length} IDs provided`);
             }
 
             const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
-            console.log(`[InvoiceController] Query found ${subscriptions.length} customers to process.`);
+            console.log(`[InvoiceController] Found ${subscriptions.length} potential candidates`);
 
             // Fetch global settings for tax and rental
             const { SettingsService } = await import('../../services/SettingsService');
@@ -460,15 +458,14 @@ export class InvoiceController {
             const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
             const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
 
-            console.log(`Found ${subscriptions.length} customers for billing evaluation`);
-
             // Check for existing invoices to avoid duplicates
             const checkQuery = `
-            SELECT customer_id, subscription_id, COALESCE(subscription_id, 0) as normalized_subscription_id
+            SELECT customer_id, subscription_id, COALESCE(subscription_id, 0) as normalized_subscription_id, invoice_number
             FROM invoices
             WHERE period = ?
         `;
             const [existingInvoices] = await conn.query<RowDataPacket[]>(checkQuery, [currentPeriod]);
+            console.log(`[InvoiceController] Found ${existingInvoices.length} existing invoices for period ${currentPeriod}`);
 
             const exactMatchSet = new Set<string>();
             const customersWithGeneralInvoices = new Set<number>();
@@ -485,7 +482,11 @@ export class InvoiceController {
             const errors: string[] = [];
             const customerBalances = new Map<number, number>();
 
-            for (const sub of subscriptions) {
+            // sort by name to be deterministic
+            // but JS sort is already stable usually, anyway nice to have predictable logs
+            const sortedSubscriptions = (subscriptions as any[]).sort((a, b) => a.customer_name.localeCompare(b.customer_name));
+
+            for (const sub of sortedSubscriptions) {
                 if (!customerBalances.has(sub.customer_id)) {
                     customerBalances.set(sub.customer_id, parseFloat(sub.account_balance || 0));
                 }
@@ -498,9 +499,8 @@ export class InvoiceController {
 
                     if (hasExactMatch || isGeneralConflict) {
                         skippedCount++;
-                        const reason = hasExactMatch ? 'Sudah ada invoice serupa' : 'Konflik dengan invoice general';
+                        const reason = hasExactMatch ? 'Duplicate (Same Period)' : 'Conflict (General Invoice Exists)';
                         skippedDetails.push({ name: sub.customer_name, id: sub.customer_id, reason });
-                        console.log(`⚠ Skiping ${sub.customer_name} (ID: ${sub.customer_id}): ${reason} for period ${currentPeriod}`);
                         continue;
                     }
 
@@ -523,7 +523,7 @@ export class InvoiceController {
                     if (finalPrice <= 0) {
                         finalPrice = 100000;
                         finalPkgName = 'Layanan Internet (Default)';
-                        console.warn(`[InvoiceController] Using 100k fallback for ${sub.customer_name} - no package price found.`);
+                        console.warn(`[InvoiceController] Using 100k fallback for ${sub.customer_name} (#${sub.customer_id})`);
                     }
 
                     // Calculate due date
@@ -531,10 +531,15 @@ export class InvoiceController {
                     let dueDate = new Date(periodDate);
                     if (useFixedDay) {
                         const daysInMonth = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0).getDate();
-                        dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), Math.min(fixedDay, daysInMonth));
+                        const targetDay = Math.min(fixedDay, daysInMonth);
+                        dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), targetDay);
                     } else {
                         dueDate.setDate(dueDate.getDate() + dayOffset);
                     }
+
+                    // Adjust if calculated due date is in the past compared to Now? 
+                    // Usually for billing we stick to periodicity, so keeping it tied to period is correct.
+                    // But if period is current month, and day 28 passed? It becomes overdue immediately. That is acceptable for billing logic.
 
                     const invoiceNumber = await this.generateInvoiceNumber(currentPeriod, conn);
 
@@ -608,15 +613,16 @@ export class InvoiceController {
                     }
 
                     createdCount++;
-                    console.log(`✓ Created: ${sub.customer_name} (#${invoiceNumber})`);
 
                 } catch (err: any) {
-                    console.error(`❌ Error customer ${sub.customer_id}:`, err);
+                    console.error(`❌ Error generating invoice for customer ${sub.customer_id}:`, err);
                     errors.push(`${sub.customer_name}: ${err.message}`);
+                    // Don't throw, continue to next customer
                 }
             }
 
             await conn.commit();
+            console.log(`[InvoiceController] COMMITTED. Created: ${createdCount}, Skipped: ${skippedCount}, Errors: ${errors.length}`);
 
             res.json({
                 success: true,
@@ -629,12 +635,13 @@ export class InvoiceController {
                 errors: errors.length > 0 ? errors : undefined
             });
 
-        } catch (error) {
+        } catch (error: any) {
             await conn.rollback();
-            console.error('Error generating bulk invoices:', error);
+            console.error('[InvoiceController] FATAL Error generating bulk invoices:', error);
             res.status(500).json({
                 success: false,
-                message: 'Gagal generate bulk invoice'
+                message: 'Gagal generate bulk invoice: ' + error.message,
+                error: error.message
             });
         } finally {
             conn.release();
@@ -1036,7 +1043,7 @@ export class InvoiceController {
             SELECT invoice_number 
             FROM invoices 
             WHERE period = ? 
-            ORDER BY invoice_number DESC 
+            ORDER BY LENGTH(invoice_number) DESC, invoice_number DESC 
             LIMIT 1
         `, [period]) as [RowDataPacket[], any];
 
