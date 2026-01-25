@@ -265,7 +265,7 @@ router.get('/tagihan/print-all', async (req, res) => {
     try {
         const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
         try {
-            const { status, odc_id, search, period, format } = req.query;
+            const { status, odc_id, search, period, format, ids } = req.query;
 
             // Build query - default to pending invoices
             let query = `
@@ -277,6 +277,7 @@ router.get('/tagihan/print-all', async (req, res) => {
                     i.due_date,
                     i.total_amount,
                     i.paid_amount,
+                    i.discount_amount,
                     i.status,
                     i.created_at,
                     c.name as customer_name,
@@ -289,35 +290,43 @@ router.get('/tagihan/print-all', async (req, res) => {
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
-                WHERE i.status IN ('sent', 'partial', 'overdue')
+                WHERE 1=1
             `;
 
             const queryParams: any[] = [];
 
-            if (status) {
-                // Override default status filter if specified
-                query = query.replace("WHERE i.status IN ('sent', 'partial', 'overdue')", 'WHERE i.status = ?');
-                queryParams.push(status);
-            }
+            // If specific IDs are provided, prioritized them
+            if (ids && Array.isArray(ids) && ids.length > 0) {
+                query += ' AND i.id IN (?)';
+                queryParams.push(ids);
+            } else {
+                // Default status filter if no IDs provided
+                if (status) {
+                    query += ' AND i.status = ?';
+                    queryParams.push(status);
+                } else {
+                    query += " AND i.status IN ('sent', 'partial', 'overdue')";
+                }
 
-            if (odc_id) {
-                query += ' AND c.odc_id = ?';
-                queryParams.push(odc_id);
-            }
+                if (odc_id) {
+                    query += ' AND c.odc_id = ?';
+                    queryParams.push(odc_id);
+                }
 
-            if (search) {
-                query += ` AND (
-                    c.name LIKE ? OR 
-                    c.phone LIKE ? OR 
-                    i.invoice_number LIKE ?
-                )`;
-                const searchParam = `%${search}%`;
-                queryParams.push(searchParam, searchParam, searchParam);
-            }
+                if (search) {
+                    query += ` AND (
+                        c.name LIKE ? OR 
+                        c.phone LIKE ? OR 
+                        i.invoice_number LIKE ?
+                    )`;
+                    const searchParam = `%${search}%`;
+                    queryParams.push(searchParam, searchParam, searchParam);
+                }
 
-            if (period) {
-                query += ' AND i.period = ?';
-                queryParams.push(period);
+                if (period) {
+                    query += ' AND i.period = ?';
+                    queryParams.push(period);
+                }
             }
 
             query += ' ORDER BY o.name ASC, c.name ASC';
