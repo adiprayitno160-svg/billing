@@ -986,16 +986,11 @@ export class InvoiceController {
     async sendInvoiceWhatsApp(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
+            const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
 
             // Get invoice data
             const [rows] = await databasePool.query<RowDataPacket[]>(`
-                SELECT i.*, 
-                       c.name as customer_name, 
-                       c.phone as customer_phone,
-                       c.id as customer_id 
-                FROM invoices i
-                JOIN customers c ON i.customer_id = c.id
-                WHERE i.id = ?
+                SELECT status FROM invoices WHERE id = ?
             `, [id]);
 
             if (rows.length === 0) {
@@ -1003,97 +998,31 @@ export class InvoiceController {
                 return;
             }
 
-            const invoice = rows[0] as RowDataPacket;
-
-            if (!invoice.customer_phone) {
-                res.status(400).json({ success: false, message: 'Customer tidak memiliki nomor telepon' });
-                return;
-            }
-
-            // Format Currency
-            const formatter = new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            });
-
-            // Get Month Name from Period (YYYY-MM)
-            const periodDate = new Date(invoice.period + '-01');
-            const periodName = periodDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-
-            // Format Due Date
-            const dueDate = new Date(invoice.due_date).toLocaleDateString('id-ID', {
-                day: 'numeric', month: 'long', year: 'numeric'
-            });
-
-            let message = '';
+            const invoice = rows[0];
 
             if (invoice.status === 'paid') {
-                message = `✅ *PEMBAYARAN DITERIMA*\n\n` +
-                    `Halo Kak *${invoice.customer_name}*,\n` +
-                    `Terima kasih, pembayaran tagihan internet Anda telah kami terima.\n\n` +
-                    `📝 *Rincian Pembayaran:*\n` +
-                    `• No. Invoice: *${invoice.invoice_number}*\n` +
-                    `• Periode: ${periodName}\n` +
-                    `• Nominal: ${formatter.format(invoice.total_amount)}\n` +
-                    `• Status: *LUNAS* ✅\n\n` +
-                    `Terima kasih telah berlangganan layanan kami. 🙏`;
-            } else {
-                // Get Bank Settings
-                const [settingsRows] = await databasePool.query<RowDataPacket[]>(
-                    "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name')"
-                );
+                // If paid, we need a payment ID to send payment received notification
+                // But if we just want to send the invoice status, we can use a generic one or just the last payment
+                const [paymentRows] = await databasePool.query<RowDataPacket[]>(`
+                    SELECT id FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC LIMIT 1
+                `, [id]);
 
-                const bankSettings: any = {
-                    bank_name: 'BCA',
-                    bank_account_number: '1234567890',
-                    bank_account_name: 'ISP Billing'
-                };
-
-                settingsRows.forEach(row => {
-                    bankSettings[row.setting_key] = row.setting_value;
-                });
-
-                message = `📢 *TAGIHAN INTERNET BULAN ${periodName.toUpperCase()}*\n\n` +
-                    `Halo Kak *${invoice.customer_name}*,\n` +
-                    `Berikut adalah rincian tagihan internet Anda:\n\n` +
-                    `📄 *Detail Tagihan:*\n` +
-                    `• No. Invoice: *${invoice.invoice_number}*\n` +
-                    `• Periode: ${periodName}\n` +
-                    `• Total Tagihan: *${formatter.format(invoice.total_amount)}*\n` +
-                    `• Jatuh Tempo: *${dueDate}*\n\n` +
-                    `💳 *Cara Pembayaran:*\n` +
-                    `Silakan transfer ke rekening:\n` +
-                    `*${bankSettings.bank_name}*: ${bankSettings.bank_account_number}\n` +
-                    `a/n ${bankSettings.bank_account_name}\n\n` +
-                    `⚠️ Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari isolir otomatis.\n\n` +
-                    `_Balas pesan ini dengan bukti transfer jika sudah melakukan pembayaran._\n` +
-                    `Terima kasih. 🙏`;
-            }
-
-            // Import dynamically to avoid circular dependency issues if any
-            // Import dynamically to avoid circular dependency issues if any
-            const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
-            const waClient = whatsappService;
-
-            let success = false;
-            try {
-                await waClient.sendMessage(invoice.customer_phone, message);
-                success = true;
-            } catch (e) {
-                console.error('Failed to send WA:', e);
-            }
-
-            if (success) {
-                // Optional: Update invoice status if it was draft
-                if (invoice.status === 'draft') {
-                    await databasePool.query('UPDATE invoices SET status = "sent" WHERE id = ?', [id]);
+                if (paymentRows.length > 0) {
+                    await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id);
+                } else {
+                    // Fallback to invoice created if no payment found (should not happen for paid)
+                    await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id));
                 }
-
-                res.json({ success: true, message: 'Pesan WhatsApp berhasil dikirim' });
             } else {
-                res.status(500).json({ success: false, message: 'Gagal mengirim WhatsApp' });
+                await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id));
             }
+
+            // Also update status to 'sent' if it was 'draft'
+            if (invoice.status === 'draft') {
+                await databasePool.query('UPDATE invoices SET status = "sent" WHERE id = ?', [id]);
+            }
+
+            res.json({ success: true, message: 'Tagihan telah dijadwalkan untuk dikirim via WhatsApp' });
         } catch (error: any) {
             console.error('Error sending WhatsApp invoice:', error);
             res.status(500).json({ success: false, message: error.message });
@@ -1395,74 +1324,23 @@ export class InvoiceController {
                 return;
             }
 
-            const [rows] = await databasePool.query<RowDataPacket[]>(`
-                SELECT i.*, c.name as customer_name, c.phone as customer_phone
-                FROM invoices i
-                JOIN customers c ON i.customer_id = c.id
-                WHERE i.id IN (?)
-            `, [invoice_ids]);
+            const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
 
-            const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
-
-            // Get Bank Settings once
-            const [settingsRows] = await databasePool.query<RowDataPacket[]>(
-                "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name')"
-            );
-
-            const bankSettings: any = {
-                bank_name: 'BCA',
-                bank_account_number: '1234567890',
-                bank_account_name: 'ISP Billing'
-            };
-            settingsRows.forEach(row => {
-                bankSettings[row.setting_key] = row.setting_value;
-            });
-
-            const formatter = new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            });
-
-            let sentCount = 0;
-
-            for (const invoice of rows) {
-                if (!invoice.customer_phone) continue;
-
-                const periodDate = new Date(invoice.period + '-01');
-                const periodName = periodDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-                const dueDate = new Date(invoice.due_date).toLocaleDateString('id-ID', {
-                    day: 'numeric', month: 'long', year: 'numeric'
-                });
-
-                let message = `📢 *TAGIHAN INTERNET BULAN ${periodName.toUpperCase()}*\\n\\n` +
-                    `Halo Kak *${invoice.customer_name}*,\\n` +
-                    `Berikut adalah rincian tagihan internet Anda:\\n\\n` +
-                    `📄 *Detail Tagihan:*\\n` +
-                    `• No. Invoice: *${invoice.invoice_number}*\\n` +
-                    `• Periode: ${periodName}\\n` +
-                    `• Total Tagihan: *${formatter.format(invoice.total_amount)}*\\n` +
-                    `• Jatuh Tempo: *${dueDate}*\\n\\n` +
-                    `💳 *Cara Pembayaran:*\\n` +
-                    `Silakan transfer ke rekening:\\n` +
-                    `*${bankSettings.bank_name}*: ${bankSettings.bank_account_number}\\n` +
-                    `a/n ${bankSettings.bank_account_name}\\n\\n` +
-                    `⚠️ Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari isolir otomatis.\\n\\n` +
-                    `Terima kasih. 🙏`;
-
+            let queuedCount = 0;
+            for (const id of invoice_ids) {
                 try {
-                    await whatsappService.sendMessage(invoice.customer_phone, message);
+                    await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id));
 
-                    if (invoice.status === 'draft') {
-                        await databasePool.execute('UPDATE invoices SET status = "sent" WHERE id = ?', [invoice.id]);
-                    }
-                    sentCount++;
+                    // Update draft to sent
+                    await databasePool.execute('UPDATE invoices SET status = "sent" WHERE id = ? AND status = "draft"', [id]);
+
+                    queuedCount++;
                 } catch (e) {
-                    console.error(`Failed to send bulk WA for invoice ${invoice.id}:`, e);
+                    console.error(`Failed to queue bulk WA for invoice ${id}:`, e);
                 }
             }
 
-            res.json({ success: true, message: `${sentCount} tagihan berhasil dikirim via WhatsApp` });
+            res.json({ success: true, message: `${queuedCount} tagihan telah dijadwalkan untuk dikirim via WhatsApp` });
         } catch (error: any) {
             console.error('Error bulk sending WhatsApp:', error);
             res.status(500).json({ success: false, message: error.message });

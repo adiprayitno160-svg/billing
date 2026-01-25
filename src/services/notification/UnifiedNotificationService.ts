@@ -57,6 +57,7 @@ export interface NotificationData {
   scheduled_for?: Date;
   priority?: 'low' | 'normal' | 'high';
   attachment_path?: string;
+  send_immediately?: boolean; // New flag for immediate dispatch
 }
 
 export class UnifiedNotificationService {
@@ -64,6 +65,14 @@ export class UnifiedNotificationService {
    * Queue notification for sending
    */
   static async queueNotification(data: NotificationData): Promise<number[]> {
+    // Basic validation for broadcast type
+    if (data.notification_type === 'broadcast') {
+      if (!data.variables?.custom_message) {
+        console.warn('[UnifiedNotification] Broadcast missing custom_message');
+        // We still allow it to queue, but logic might fail if template expects it.
+      }
+    }
+
     console.log(`[UnifiedNotification] 📥 Queueing notification:`, {
       customer_id: data.customer_id,
       notification_type: data.notification_type,
@@ -179,6 +188,15 @@ export class UnifiedNotificationService {
       throw error;
     } finally {
       connection.release();
+
+      // Trigger immediate send if requested and we have items
+      if (data.send_immediately && notificationIds.length > 0) {
+        console.log('[UnifiedNotification] ⚡ Triggering immediate dispatch for', notificationIds);
+        // Fire and forget, don't await to avoid blocking response
+        this.sendPendingNotifications(notificationIds.length).catch(err =>
+          console.error('[UnifiedNotification] Immediate dispatch error:', err)
+        );
+      }
     }
   }
 
@@ -193,6 +211,19 @@ export class UnifiedNotificationService {
     console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit})...`);
 
     const connection = await databasePool.getConnection();
+
+    // Check WhatsApp status first to prevent mass failures
+    const waStatus = whatsappService.getStatus();
+    if (!waStatus.ready) {
+      console.log(`[UnifiedNotification] ⚠️ WhatsApp not ready (Reconnecting: ${waStatus.reconnectAttempts}). Pausing queue processing.`);
+      try {
+        await whatsappService.waitForReady(5000); // Try waiting briefly
+      } catch (e) {
+        console.log(`[UnifiedNotification] ⏳ WhatsApp still not ready. Skipping queue processing this turn.`);
+        connection.release();
+        return { sent: 0, failed: 0, skipped: 0 };
+      }
+    }
 
     let sent = 0;
     let failed = 0;
@@ -218,8 +249,17 @@ export class UnifiedNotificationService {
       console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
 
       if (notifications.length === 0) {
-        console.log(`[UnifiedNotification] ℹ️ No pending notifications to process`);
+        // console.log(`[UnifiedNotification] ℹ️ No pending notifications to process`);
         return { sent: 0, failed: 0, skipped: 0 };
+      }
+
+      // Mark these notifications as 'processing' to prevent race conditions with Cron/Other threads
+      const processingIds = notifications.map(n => n.id);
+      if (processingIds.length > 0) {
+        await connection.query(
+          `UPDATE unified_notifications_queue SET status = 'processing' WHERE id IN (?)`,
+          [processingIds]
+        );
       }
 
       for (const notif of notifications) {
@@ -277,32 +317,52 @@ export class UnifiedNotificationService {
           sent++;
         } catch (error: any) {
           const errorMessage = error.message || 'Unknown error';
+
+          // Check if error is connection related
+          const isConnectionError =
+            errorMessage.includes('WhatsApp not ready') ||
+            errorMessage.includes('QR code') ||
+            errorMessage.includes('Session conflict') ||
+            errorMessage.includes('Stream Errored') ||
+            errorMessage.includes('Connection Closed');
+
           console.error(`[UnifiedNotification] ❌ Error processing notification ID: ${notif.id}:`, {
             error: errorMessage,
             stack: error.stack,
             customer_id: notif.customer_id,
             notification_type: notif.notification_type,
-            channel: notif.channel
+            channel: notif.channel,
+            is_connection_error: isConnectionError
           });
 
-          const retryCount = (notif.retry_count || 0) + 1;
-          const maxRetries = notif.max_retries || 3;
-
-          if (retryCount < maxRetries) {
-            // Retry - keep status as pending for retry
-            console.log(`[UnifiedNotification] 🔄 Retrying notification ID: ${notif.id} (attempt ${retryCount}/${maxRetries})`);
+          if (isConnectionError) {
+            // If connection error, DO NOT increment retry count, just delay it
+            // This prevents "Failed" status when WA is down
+            console.log(`[UnifiedNotification] ⏳ Connection error for ID ${notif.id}. Preserving retry count. Rescheduling...`);
             await connection.query(
               `UPDATE unified_notifications_queue 
-               SET retry_count = ?, error_message = ?, status = 'pending'
-               WHERE id = ?`,
-              [retryCount, errorMessage, notif.id]
+                SET scheduled_for = DATE_ADD(NOW(), INTERVAL 5 MINUTE), status = 'pending'
+                WHERE id = ?`,
+              [notif.id]
             );
-            // Don't increment failed yet - will retry
           } else {
-            // Mark as failed after max retries
-            console.error(`[UnifiedNotification] ❌ Notification ID: ${notif.id} failed after ${maxRetries} attempts`);
-            await this.markAsFailed(notif.id, errorMessage);
-            failed++;
+            // Normal error (invalid number, template error, etc) - Increment retry
+            const retryCount = (notif.retry_count || 0) + 1;
+            const maxRetries = notif.max_retries || 3;
+
+            if (retryCount < maxRetries) {
+              console.log(`[UnifiedNotification] 🔄 Retrying notification ID: ${notif.id} (attempt ${retryCount}/${maxRetries})`);
+              await connection.query(
+                `UPDATE unified_notifications_queue 
+                  SET retry_count = ?, error_message = ?, status = 'pending'
+                  WHERE id = ?`,
+                [retryCount, errorMessage, notif.id]
+              );
+            } else {
+              console.error(`[UnifiedNotification] ❌ Notification ID: ${notif.id} failed after ${maxRetries} attempts`);
+              await this.markAsFailed(notif.id, errorMessage);
+              failed++;
+            }
           }
         }
       }
@@ -314,6 +374,15 @@ export class UnifiedNotificationService {
         error: error.message,
         stack: error.stack
       });
+
+      // Attempt to reset 'processing' items back to 'pending' if crash occurs
+      // This is a best-effort recovery
+      try {
+        await connection.query(
+          `UPDATE unified_notifications_queue SET status = 'pending' WHERE status = 'processing' AND TIMESTAMPDIFF(MINUTE, updated_at, NOW()) > 5`
+        );
+      } catch (e) { /* ignore */ }
+
       throw error;
     } finally {
       connection.release();
@@ -698,7 +767,8 @@ export class UnifiedNotificationService {
           payment_date: NotificationTemplateService.formatDate(paymentDate),
           due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
           notes: payment.notes || ''
-        }
+        },
+        send_immediately: true // Urgent: Payment receipt
       });
     } finally {
       connection.release();
