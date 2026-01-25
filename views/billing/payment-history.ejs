@@ -425,11 +425,12 @@
             if (result.success) {
                 alert(result.message);
             } else {
-                alert('Gagal: ' + result.message);
+                const errorMsg = result.message || 'Gagal mengirim notifikasi. Pastikan WhatsApp terhubung.';
+                alert('Gagal: ' + errorMsg);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Terjadi kesalahan saat mengirim notifikasi');
+            alert('Terjadi kesalahan koneksi saat mengirim notifikasi. Cek log server.');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
