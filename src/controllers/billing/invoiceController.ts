@@ -406,6 +406,12 @@ export class InvoiceController {
                 console.warn('[InvoiceController] Failed to load due date settings, using defaults:', err);
             }
 
+            // Diagnostic: Check total and active customers
+            const [diagRows] = await conn.query('SELECT COUNT(*) as total, SUM(CASE WHEN status = "active" OR status = "Active" THEN 1 ELSE 0 END) as active_count FROM customers') as any;
+            const diagTotal = diagRows[0]?.total || 0;
+            const diagActive = diagRows[0]?.active_count || 0;
+            console.log(`[InvoiceController] Diagnostics: Total Customers=${diagTotal}, Active=${diagActive}`);
+
             // Get all active customers with their connection/package details
             // Improved LEFT JOIN structure for correct package association
             const subscriptionsQuery = `
@@ -631,7 +637,12 @@ export class InvoiceController {
                 skipped_details: skippedDetails.length > 0 ? skippedDetails : undefined,
                 total_subscriptions: subscriptions.length,
                 total_found: subscriptions.length,
-                errors: errors.length > 0 ? errors : undefined
+                errors: errors.length > 0 ? errors : undefined,
+                diagnostics: {
+                    total_customers: diagTotal,
+                    active_customers: diagActive,
+                    query_result_length: subscriptions.length
+                }
             });
 
         } catch (error: any) {

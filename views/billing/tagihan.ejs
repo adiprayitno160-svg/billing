@@ -1070,18 +1070,34 @@ Lanjutkan proses generate?`;
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            let msg = `✅ BERHASIL!\n\n`;
+                            let msg = `✅ SELESAI!\n\n`;
                             msg += `📊 Periode: ${monthName} ${year}\n`;
                             msg += `✓ Dibuat: ${data.created_count}\n`;
+
+                            if (data.created_count === 0 && data.diagnostics) {
+                                msg += `\n⚠️ DIAGNOSTIK:\n`;
+                                msg += `- Total Pelanggan: ${data.diagnostics.total_customers}\n`;
+                                msg += `- Pelanggan Aktif: ${data.diagnostics.active_customers}\n`;
+                                msg += `- Ditemukan Query: ${data.diagnostics.query_result_length}\n`;
+                                if (data.diagnostics.active_customers === 0) {
+                                    msg += `\n💡 SARAN: Pastikan status pelanggan adalah 'active' (bukan inactive/suspended)`;
+                                }
+                            }
+
                             if (data.skipped_count > 0) {
                                 msg += `⚠️ Dilewati: ${data.skipped_count}\n`;
                                 if (data.skipped_details && data.skipped_details.length > 0) {
-                                    msg += `\nDetail yang dilewati:\n`;
+                                    msg += `\nDetail yang dilewati (Duplikat/Konflik):\n`;
                                     data.skipped_details.slice(0, 5).forEach(skip => {
                                         msg += `- ${skip.name}: ${skip.reason}\n`;
                                     });
                                     if (data.skipped_details.length > 5) msg += `- ...dan ${data.skipped_details.length - 5} lainnya\n`;
                                 }
+                            }
+
+                            if (data.errors && data.errors.length > 0) {
+                                msg += `\n❌ ERROR (${data.errors.length}):\n`;
+                                data.errors.slice(0, 5).forEach(err => msg += `- ${err}\n`);
                             }
 
                             alert(msg + '\nHalaman akan di-refresh...');
