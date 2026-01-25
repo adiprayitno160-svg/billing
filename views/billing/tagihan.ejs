@@ -61,6 +61,13 @@
             <i class="fas fa-file-pdf" style="margin-right: 8px;"></i>Export PDF
         </button>
 
+        <!-- Print Selected -->
+        <button type="button" id="btnPrintSelected" class="bulk-delete-hidden"
+            style="align-items: center; background-color: #7c3aed; color: white; padding: 10px 16px; border-radius: 8px; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); white-space: nowrap;">
+            <i class="fas fa-check-double" style="margin-right: 8px;"></i>Print Terpilih (<span
+                id="selectedPrintCount">0</span>)
+        </button>
+
         <!-- Print All -->
         <button type="button" id="btnPrintAll" data-action="print-all"
             style="display: inline-flex; align-items: center; background-color: #4b5563; color: white; padding: 10px 16px; border-radius: 8px; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); white-space: nowrap;">
@@ -794,6 +801,14 @@
                     });
                 }
 
+                // Print Selected button
+                const btnPrintSelected = document.getElementById('btnPrintSelected');
+                if (btnPrintSelected) {
+                    btnPrintSelected.addEventListener('click', function () {
+                        printSelectedInvoices();
+                    });
+                }
+
                 // Print All button
                 const btnPrintAll = document.getElementById('btnPrintAll');
                 if (btnPrintAll) {
@@ -1005,7 +1020,16 @@ Lanjutkan proses generate?`;
                             let msg = `✅ BERHASIL!\n\n`;
                             msg += `📊 Periode: ${monthName} ${year}\n`;
                             msg += `✓ Dibuat: ${data.created_count}\n`;
-                            if (data.skipped_count > 0) msg += `⚠️ Dilewati: ${data.skipped_count} (sudah ada)\n`;
+                            if (data.skipped_count > 0) {
+                                msg += `⚠️ Dilewati: ${data.skipped_count}\n`;
+                                if (data.skipped_details && data.skipped_details.length > 0) {
+                                    msg += `\nDetail yang dilewati:\n`;
+                                    data.skipped_details.slice(0, 5).forEach(skip => {
+                                        msg += `- ${skip.name}: ${skip.reason}\n`;
+                                    });
+                                    if (data.skipped_details.length > 5) msg += `- ...dan ${data.skipped_details.length - 5} lainnya\n`;
+                                }
+                            }
 
                             alert(msg + '\nHalaman akan di-refresh...');
                             location.reload();
@@ -1027,27 +1051,62 @@ Lanjutkan proses generate?`;
                 updateBulkDeleteButton();
             }
 
-            // Update bulk delete button visibility
+            // Update bulk delete and print selected button visibility
             function updateBulkDeleteButton() {
                 const checkboxes = document.querySelectorAll('.invoice-checkbox:checked');
                 const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
                 const selectedCount = document.getElementById('selectedCount');
 
-                console.log('✅ Checkbox checked:', checkboxes.length); // Debug
-                console.log('✅ Button element:', bulkDeleteBtn); // Debug
+                const btnPrintSelected = document.getElementById('btnPrintSelected');
+                const selectedPrintCount = document.getElementById('selectedPrintCount');
 
-                if (checkboxes.length > 0) {
-                    // Remove hidden class, add visible class
-                    bulkDeleteBtn.classList.remove('bulk-delete-hidden');
-                    bulkDeleteBtn.classList.add('bulk-delete-visible');
-                    selectedCount.textContent = checkboxes.length;
-                    console.log('✅ Button shown with', checkboxes.length, 'items'); // Debug
+                const hasSelected = checkboxes.length > 0;
+
+                if (hasSelected) {
+                    // Update Delete Button
+                    if (bulkDeleteBtn) {
+                        bulkDeleteBtn.classList.remove('bulk-delete-hidden');
+                        bulkDeleteBtn.classList.add('bulk-delete-visible');
+                    }
+                    if (selectedCount) selectedCount.textContent = checkboxes.length;
+
+                    // Update Print Selected Button
+                    if (btnPrintSelected) {
+                        btnPrintSelected.classList.remove('bulk-delete-hidden');
+                        btnPrintSelected.classList.add('bulk-delete-visible');
+                    }
+                    if (selectedPrintCount) selectedPrintCount.textContent = checkboxes.length;
+
                 } else {
-                    // Remove visible class, add hidden class
-                    bulkDeleteBtn.classList.remove('bulk-delete-visible');
-                    bulkDeleteBtn.classList.add('bulk-delete-hidden');
-                    console.log('❌ Button hidden'); // Debug
+                    // Hide Delete Button
+                    if (bulkDeleteBtn) {
+                        bulkDeleteBtn.classList.remove('bulk-delete-visible');
+                        bulkDeleteBtn.classList.add('bulk-delete-hidden');
+                    }
+
+                    // Hide Print Selected Button
+                    if (btnPrintSelected) {
+                        btnPrintSelected.classList.remove('bulk-delete-visible');
+                        btnPrintSelected.classList.add('bulk-delete-hidden');
+                    }
                 }
+            }
+
+            // Print selected invoices
+            function printSelectedInvoices() {
+                const checkboxes = document.querySelectorAll('.invoice-checkbox:checked');
+                const invoiceIds = Array.from(checkboxes).map(cb => cb.value);
+
+                if (invoiceIds.length === 0) {
+                    alert('Pilih minimal 1 tagihan untuk diprint');
+                    return;
+                }
+
+                // Create a form or URL with IDs
+                const url = new URL('/billing/tagihan/print-all', window.location.origin);
+                invoiceIds.forEach(id => url.searchParams.append('ids[]', id));
+
+                window.open(url.toString(), '_blank');
             }
 
             // Bulk delete invoices
