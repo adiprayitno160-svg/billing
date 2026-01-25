@@ -489,9 +489,23 @@ export class InvoiceController {
 
             // sort by name to be deterministic
             // but JS sort is already stable usually, anyway nice to have predictable logs
-            const sortedSubscriptions = (subscriptions as any[]).sort((a, b) => a.customer_name.localeCompare(b.customer_name));
+            let sortedSubscriptions: any[] = [];
+            try {
+                sortedSubscriptions = (subscriptions as any[]).sort((a, b) => {
+                    const nameA = a.customer_name || '';
+                    const nameB = b.customer_name || '';
+                    return nameA.localeCompare(nameB);
+                });
+            } catch (sortErr) {
+                console.error('[InvoiceController] Sort error:', sortErr);
+                sortedSubscriptions = subscriptions as any[];
+            }
+
+            console.log(`[InvoiceController] Loop Start. Items to process: ${sortedSubscriptions.length}`);
 
             for (const sub of sortedSubscriptions) {
+                console.log(`[InvoiceController] Logic Loop - Processing: ${sub.customer_name} (#${sub.customer_id})`);
+
                 if (!customerBalances.has(sub.customer_id)) {
                     customerBalances.set(sub.customer_id, parseFloat(sub.account_balance || 0));
                 }
@@ -513,7 +527,10 @@ export class InvoiceController {
                     let finalPrice = 0;
                     let finalPkgName = 'Layanan Internet';
 
-                    if (sub.id > 0 && parseFloat(sub.subscription_price) > 0) {
+                    // Debug log for pricing
+                    // console.log(`[InvoiceController] Pricing Check for ${sub.customer_name}: Type=${sub.connection_type}, StaticPrice=${sub.static_pkg_price}, PPPoEPrice=${sub.pppoe_pkg_price}, SubPrice=${sub.subscription_price}`);
+
+                    if (sub.id > 0 && sub.subscription_price && typeof sub.subscription_price !== 'undefined') {
                         finalPrice = parseFloat(sub.subscription_price);
                         finalPkgName = sub.subscription_pkg_name || 'Paket Subscription';
                     } else if (sub.connection_type === 'static_ip' && sub.static_pkg_price) {
