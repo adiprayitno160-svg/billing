@@ -1413,9 +1413,43 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             }
 
             // Delete related data first
+            // Note: Many tables have ON DELETE CASCADE or SET NULL, but some might not
+            // or have complex relationships that block deletion.
+
+            // 1. Delete logs and history (often missing CASCADE in some versions)
+            await conn.query('DELETE FROM customer_migration_logs WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM customer_speed_history WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM customer_notifications_log WHERE customer_id = ?', [customerId]);
+
+            // 2. Delete notification logs and specific notifications
+            await conn.query('DELETE FROM notification_logs WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM whatsapp_notifications WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM whatsapp_bot_messages WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM telegram_notifications WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM unified_notifications WHERE customer_id = ?', [customerId]);
+
+            // 3. Delete from address list items and network devices
+            await conn.query('DELETE FROM address_list_items WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM mikrotik_address_list_items WHERE customer_id = ?', [customerId]);
+            await conn.query('UPDATE network_devices SET customer_id = NULL WHERE customer_id = ?', [customerId]);
+
+            // 4. Handle loyalty and balance
+            await conn.query('DELETE FROM loyalty_transactions WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM customer_balance_logs WHERE customer_id = ?', [customerId]);
+
+            // 5. Handle subscriptions and IP clients
             await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
             await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
-            await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
+
+            // 6. Handle invoices and their children (payments, items)
+            const [customerInvoices] = await conn.query<RowDataPacket[]>('SELECT id FROM invoices WHERE customer_id = ?', [customerId]);
+            if (customerInvoices.length > 0) {
+                const invoiceIds = customerInvoices.map(inv => inv.id);
+                // Delete related to invoices
+                await conn.query('DELETE FROM payments WHERE invoice_id IN (?)', [invoiceIds]);
+                await conn.query('DELETE FROM invoice_items WHERE invoice_id IN (?)', [invoiceIds]);
+                await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
+            }
 
             // Delete customer
             await conn.query('DELETE FROM customers WHERE id = ?', [customerId]);
@@ -1631,9 +1665,40 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     }
 
                     // Delete related data first
+                    // 1. Logs and History
+                    await conn.query('DELETE FROM customer_migration_logs WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM customer_speed_history WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM bandwidth_logs WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM connection_logs WHERE customer_id = ?', [customerId]);
+
+                    // 2. Notifications
+                    await conn.query('DELETE FROM notification_logs WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM whatsapp_notifications WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM whatsapp_bot_messages WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM telegram_notifications WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM unified_notifications WHERE customer_id = ?', [customerId]);
+
+                    // 3. Address list items
+                    await conn.query('DELETE FROM address_list_items WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM mikrotik_address_list_items WHERE customer_id = ?', [customerId]);
+                    await conn.query('UPDATE network_devices SET customer_id = NULL WHERE customer_id = ?', [customerId]);
+
+                    // 4. Loyalty
+                    await conn.query('DELETE FROM loyalty_transactions WHERE customer_id = ?', [customerId]);
+                    await conn.query('DELETE FROM customer_balance_logs WHERE customer_id = ?', [customerId]);
+
+                    // 5. Subscriptions
                     await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
                     await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
-                    await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
+
+                    // 6. Invoices
+                    const [customerInvoices] = await conn.query<RowDataPacket[]>('SELECT id FROM invoices WHERE customer_id = ?', [customerId]);
+                    if (customerInvoices.length > 0) {
+                        const invoiceIds = customerInvoices.map(inv => inv.id);
+                        await conn.query('DELETE FROM payments WHERE invoice_id IN (?)', [invoiceIds]);
+                        await conn.query('DELETE FROM invoice_items WHERE invoice_id IN (?)', [invoiceIds]);
+                        await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
+                    }
 
                     // Delete customer
                     await conn.query('DELETE FROM customers WHERE id = ?', [customerId]);

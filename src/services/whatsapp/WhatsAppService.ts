@@ -805,13 +805,16 @@ export class WhatsAppService extends EventEmitter {
       this.sock = null;
     }
 
+    // Reset internal state
     this.isConnected = false;
     this.isConnecting = false;
     this.qrCode = null;
     this.qrDataUrl = null;
     this.reconnectAttempts = 0;
+    this.initPromise = null; // IMPORTANT: Allow re-initialization
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    this.log('info', '♻️ WhatsApp service state reset, starting initialization...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
     await this.initialize();
   }
 
