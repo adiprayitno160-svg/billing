@@ -197,6 +197,9 @@ export class NotificationTemplateService {
       result = result.split(placeholder).join(value !== undefined && value !== null ? value.toString() : '');
     }
 
+    // New: Remove any remaining placeholders that weren't replaced to keep the message clean
+    result = result.replace(/\{{1,2}[a-zA-Z0-9_-]+\}{1,2}/g, '');
+
     return result;
   }
 

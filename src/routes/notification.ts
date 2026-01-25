@@ -40,6 +40,10 @@ pageRouter.get('/templates/edit/:code', (req, res) => {
     console.log('[Notification Route] GET /templates/edit/:code hit', req.params.code);
     templateController.showEditTemplatePage(req, res);
 });
+pageRouter.get('/history', (req, res) => {
+    console.log('[Notification Route] GET /history hit');
+    templateController.showHistoryPage(req, res);
+});
 
 // API routes router (JSON) - mounted at /api/notification
 const apiRouter = Router();
@@ -80,6 +84,9 @@ apiRouter.get('/analyze', (req, res) => {
     console.log('[Notification API] GET /analyze hit');
     templateController.analyzeNotificationFlow(req, res);
 });
+
+apiRouter.post('/retry/:id', (req, res) => templateController.retryNotification(req, res));
+apiRouter.post('/clear-old-queue', (req, res) => templateController.clearOldQueue(req, res));
 
 // Ensure templates exist (utility endpoint)
 apiRouter.post('/templates/ensure', async (req, res) => {

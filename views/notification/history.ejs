@@ -1,0 +1,324 @@
+<div class="space-y-6 animate-fadeIn">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Riwayat & Antrian Notifikasi</h1>
+            <p class="text-slate-500 text-sm">Pantau status pengiriman pesan otomatis (WhatsApp/Email).</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="refreshQueue()"
+                class="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-blue-600 transition-all shadow-sm">
+                <i class="fas fa-sync-alt" id="refresh-icon"></i>
+            </button>
+            <button onclick="processQueueNow()"
+                class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all flex items-center gap-2">
+                <i class="fas fa-play"></i>
+                <span>Proses Antrian Sekarang</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-container">
+        <!-- Stats will be loaded here -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
+    </div>
+
+    <!-- Filter & Logs -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div
+            class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-history text-blue-600"></i>
+                    Log Notifikasi Terbaru
+                </h3>
+            </div>
+            <div class="flex items-center gap-2">
+                <select id="status-filter" onchange="refreshQueue()"
+                    class="text-sm border-slate-200 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Semua Status</option>
+                    <option value="pending">Pending (Antrian)</option>
+                    <option value="sent">Sent (Terkirim)</option>
+                    <option value="failed">Failed (Gagal)</option>
+                    <option value="skipped">Skipped</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 text-slate-500 text-[10px] uppercase tracking-widest font-bold">
+                        <th class="px-6 py-4 border-b border-slate-100">Waktu</th>
+                        <th class="px-6 py-4 border-b border-slate-100">Pelanggan</th>
+                        <th class="px-6 py-4 border-b border-slate-100">Tipe / Channel</th>
+                        <th class="px-6 py-4 border-b border-slate-100">Status</th>
+                        <th class="px-6 py-4 border-b border-slate-100">Retry</th>
+                        <th class="px-6 py-4 border-b border-slate-100 text-right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-body" class="text-sm">
+                    <!-- Data loaded here -->
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2 text-blue-500"></i>
+                                <span>Memuat data antrian...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div
+            class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 text-xs text-slate-500 flex justify-between items-center">
+            <span id="total-count">Menampilkan 0 data terbaru</span>
+            <div class="flex items-center gap-2">
+                <button onclick="clearOldQueue()" class="text-red-500 hover:text-red-700 font-bold transition-colors">
+                    <i class="fas fa-broom mr-1"></i> Bersihkan Antrian Lama
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div id="detailsModal"
+    class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[2050] flex items-center justify-center p-4">
+    <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-zoomIn">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800">Detail Pesan</h3>
+            <button onclick="closeDetails()" class="text-slate-400 hover:text-slate-600"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div id="modal-content" class="space-y-4">
+                <!-- Content injected here -->
+            </div>
+            <div id="modal-error"
+                class="hidden p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm italic font-mono break-all">
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <button onclick="closeDetails()"
+                class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshQueue();
+        // Auto refresh every 15 seconds
+        setInterval(refreshQueue, 15000);
+    });
+
+    async function refreshQueue() {
+        const icon = document.getElementById('refresh-icon');
+        const status = document.getElementById('status-filter').value;
+        icon?.classList.add('fa-spin');
+
+        try {
+            const res = await fetch(`/api/notification/queue-status?status=${status}`);
+            const result = await res.json();
+
+            if (result.success) {
+                renderStats(result.data.statistics);
+                renderQueue(result.data.pending, result.data.failed);
+            }
+        } catch (e) {
+            console.error('Refresh queue failed:', e);
+        } finally {
+            icon?.classList.remove('fa-spin');
+        }
+    }
+
+    function renderStats(stats) {
+        const container = document.getElementById('stats-container');
+        container.innerHTML = `
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Terkirim</p>
+                    <p class="text-2xl font-black text-slate-800">${stats.sent || 0}</p>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Antrian</p>
+                    <p class="text-2xl font-black text-slate-800">${stats.pending || 0}</p>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gagal</p>
+                    <p class="text-2xl font-black text-slate-800">${stats.failed || 0}</p>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center text-xl">
+                    <i class="fas fa-forward"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Skipped</p>
+                    <p class="text-2xl font-black text-slate-800">${stats.skipped || 0}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderQueue(pending, failed) {
+        const body = document.getElementById('queue-body');
+        const filter = document.getElementById('status-filter').value;
+
+        let data = [];
+        if (filter === 'pending') data = pending;
+        else if (filter === 'failed') data = failed;
+        else data = [...pending, ...failed].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        if (data.length === 0) {
+            body.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400 italic font-medium">Tidak ada data notifikasi dalam antrian</td></tr>`;
+            document.getElementById('total-count').textContent = 'Menampilkan 0 data terbaru';
+            return;
+        }
+
+        body.innerHTML = data.map(item => {
+            const statusClass = {
+                'pending': 'bg-orange-100 text-orange-700',
+                'sent': 'bg-green-100 text-green-700',
+                'failed': 'bg-red-100 text-red-700',
+                'skipped': 'bg-slate-100 text-slate-700'
+            }[item.status] || 'bg-slate-100 text-slate-700';
+
+            const time = new Date(item.created_at).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+                <tr class="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                    <td class="px-6 py-4 font-mono text-[11px] text-slate-500">${time}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800 text-xs">Customer ID: ${item.customer_id}</div>
+                        <div class="text-[10px] text-slate-400 font-medium italic">${item.channel.toUpperCase()}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-xs font-semibold text-slate-700">${item.notification_type}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusClass}">${item.status.toUpperCase()}</span>
+                    </td>
+                    <td class="px-6 py-4 text-xs font-mono">${item.retry_count || 0}</td>
+                    <td class="px-6 py-4 text-right space-x-1">
+                        <button onclick='showDetails(${JSON.stringify(item)})' class="p-2 text-slate-400 hover:text-blue-600 transition-colors">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${item.status === 'failed' ? `
+                            <button onclick="retryNotif(${item.id})" class="p-2 text-slate-400 hover:text-green-600 transition-colors" title="Coba Lagi">
+                                <i class="fas fa-redo-alt"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('total-count').textContent = `Menampilkan ${data.length} data terbaru`;
+    }
+
+    function showDetails(item) {
+        const modal = document.getElementById('detailsModal');
+        const content = document.getElementById('modal-content');
+        const error = document.getElementById('modal-error');
+
+        content.innerHTML = `
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Tujuan / Channel</p>
+                <p class="text-sm font-semibold text-slate-700">${item.channel.toUpperCase()}</p>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Tipe Pesan</p>
+                <p class="text-sm font-semibold text-slate-700">${item.notification_type}</p>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Subjek</p>
+                <p class="text-sm font-bold text-blue-600">${item.title || '-'}</p>
+            </div>
+        `;
+
+        if (item.error_message) {
+            error.textContent = `ERROR: ${item.error_message}`;
+            error.classList.remove('hidden');
+        } else {
+            error.classList.add('hidden');
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeDetails() {
+        document.getElementById('detailsModal').classList.add('hidden');
+    }
+
+    async function processQueueNow() {
+        if (!confirm('Proses antrian sekarang?')) return;
+
+        try {
+            const res = await fetch('/api/notification/process-queue', { method: 'POST' });
+            const result = await res.json();
+            if (result.success) {
+                Swal.fire('Berhasil!', `Diproses: ${result.data.sent} terkirim, ${result.data.failed} gagal.`, 'success');
+                refreshQueue();
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Gagal memproses antrian', 'error');
+        }
+    }
+
+    async function clearOldQueue() {
+        if (!confirm('Hapus antrian pending yang sudah lama (lebih dari 7 hari)?')) return;
+
+        try {
+            const res = await fetch('/api/notification/clear-old-queue', { method: 'POST' });
+            const result = await res.json();
+            if (result.success) {
+                Swal.fire('Berhasil!', result.message, 'success');
+                refreshQueue();
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Gagal membersihkan antrian', 'error');
+        }
+    }
+
+    async function retryNotif(id) {
+        try {
+            const res = await fetch(`/api/notification/retry/${id}`, { method: 'POST' });
+            const result = await res.json();
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Dicoba Kembali',
+                    text: 'Notifikasi berhasil dimasukkan kembali ke antrian.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                refreshQueue();
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Gagal mencoba kembali', 'error');
+        }
+    }
+</script>

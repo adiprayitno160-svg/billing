@@ -4,6 +4,9 @@ import { databasePool } from '../db/pool';
 import { RowDataPacket } from 'mysql2';
 import QRCode from 'qrcode';
 import { isAuthenticated } from '../middlewares/authMiddleware';
+import { BroadcastController } from '../controllers/whatsapp/BroadcastController';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -20,6 +23,45 @@ router.use((req, res, next) => {
     // Apply auth for page routes
     return isAuthenticated(req, res, next);
 });
+
+/**
+ * QRIS functionality
+ */
+router.get('/qris', isAuthenticated, (req, res) => {
+    res.render('whatsapp/qris', { title: 'Kirim QRIS', layout: 'layouts/main' });
+});
+
+router.post('/send-qris', isAuthenticated, async (req, res) => {
+    try {
+        const { phone, qrisType } = req.body;
+        if (!phone) return res.status(400).json({ success: false, error: 'Nomor HP diperlukan' });
+
+        const waClient = whatsappService;
+
+        // Path to QRIS image (can be static or dynamic)
+        // For demonstration, let's assume there's a static QRIS in public/assets
+        const qrisPath = path.join(process.cwd(), 'public', 'assets', qrisType === 'dynamic' ? 'qris_dynamic.png' : 'qris_static.png');
+
+        if (!fs.existsSync(qrisPath)) {
+            return res.status(404).json({ success: false, error: 'File QRIS tidak ditemukan' });
+        }
+
+        const result = await waClient.sendImage(phone, qrisPath, 'Silakan scan QRIS berikut untuk pembayaran.');
+        res.json(result);
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Broadcast functionality
+ */
+router.get('/broadcast', isAuthenticated, (req, res) => {
+    res.render('whatsapp/broadcast', { title: 'Broadcast Massal', layout: 'layouts/main' });
+});
+
+router.get('/api/broadcast/customers', isAuthenticated, BroadcastController.getCustomers);
+router.post('/api/broadcast/send', isAuthenticated, BroadcastController.sendBroadcast);
 
 /**
  * GET /whatsapp/status
@@ -245,6 +287,31 @@ router.post('/send', async (req: Request, res: Response) => {
             success: false,
             error: error.message || 'Failed to send WhatsApp message'
         });
+    }
+});
+
+/**
+ * POST /whatsapp/test-send-pdf
+ * Send test PDF message
+ */
+router.post('/test-send-pdf', async (req: Request, res: Response) => {
+    try {
+        const { phone } = req.body;
+        if (!phone) return res.status(400).json({ success: false, error: 'Phone is required' });
+
+        const waClient = whatsappService;
+        // Search for any PDF in the project to use as a test
+        const testPdfPath = path.join(process.cwd(), 'temp_test.pdf');
+
+        // Create a dummy PDF if not exists
+        if (!fs.existsSync(testPdfPath)) {
+            fs.writeFileSync(testPdfPath, '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Count 1 /Kids [ 3 0 R ] >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [ 0 0 612 792 ] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 44 >>\nstream\nBT /F1 24 Tf 100 700 Td (WhatsApp Test PDF) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000212 00000 n \ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n307\n%%EOF');
+        }
+
+        const result = await waClient.sendDocument(phone, testPdfPath, 'Test_Document.pdf', 'Ini adalah berkas PDF percobaan.');
+        res.json(result);
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

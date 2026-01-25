@@ -357,9 +357,37 @@
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                 <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-400/20 rounded-full blur-3xl"></div>
             </div>
+
+            <!-- Live Event Log -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <h3 class="font-bold text-gray-900 flex items-center mb-4">
+                    <i class="fas fa-satellite-dish text-indigo-600 mr-2"></i>
+                    Live Network Events
+                </h3>
+                <div id="alert-log" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div class="py-10 text-center">
+                        <p class="text-xs text-gray-400 italic">Listening for events...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+</style>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -480,6 +508,39 @@
             lastRx = currentRx;
             lastTx = currentTx;
             lastTime = currentTime;
+        }
+
+        // Process Alerts
+        if (data.alerts && data.alerts.length > 0) {
+            const log = document.getElementById('alert-log');
+            if (log.querySelector('p.italic')) log.innerHTML = ''; // Clear empty state
+
+            data.alerts.forEach(alert => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-xl text-xs flex gap-3 transition-all animate-slideIn ${alert.type === 'offline' ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'}`;
+
+                const time = new Date(alert.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                div.innerHTML = `
+                    <div class="flex-shrink-0 w-6 h-6 rounded-full ${alert.type === 'offline' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'} flex items-center justify-center font-bold">
+                        <i class="fas ${alert.type === 'offline' ? 'fa-arrow-down' : 'fa-arrow-up'} text-[10px]"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-black ${alert.type === 'offline' ? 'text-red-700' : 'text-green-700'} uppercase">${alert.type}</span>
+                            <span class="text-[10px] text-gray-400 font-medium">${time}</span>
+                        </div>
+                        <p class="text-gray-600">${alert.message}</p>
+                    </div>
+                `;
+
+                log.prepend(div);
+
+                // Limit log size
+                if (log.children.length > 50) {
+                    log.removeChild(log.lastChild);
+                }
+            });
         }
     });
 

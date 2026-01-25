@@ -215,6 +215,12 @@
                                 Kirim Pesan Test
                             </button>
 
+                            <button type="button" onclick="testSendPDF()"
+                                class="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50">
+                                <i class="fas fa-file-pdf mr-2"></i>
+                                Test Kirim PDF
+                            </button>
+
                             <!-- Result Toast -->
                             <div id="testSendResult" class="absolute -top-16 inset-x-0 hidden">
                                 <div id="resultToast"
@@ -532,6 +538,39 @@
         resultToast.innerText = text;
         resultDiv.classList.remove('hidden');
         setTimeout(() => resultDiv.classList.add('hidden'), 4000);
+    }
+
+    async function testSendPDF() {
+        const phone = document.getElementById('testPhone').value.trim();
+        if (!phone) {
+            showToast('Nomor harus diisi', 'bg-orange-500 text-white');
+            return;
+        }
+
+        const btn = document.querySelector('button[onclick="testSendPDF()"]');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim PDF...';
+
+        try {
+            const response = await fetch('/whatsapp/test-send-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('✓ PDF berhasil dikirim!', 'bg-green-600 text-white');
+            } else {
+                showToast('✗ Gagal: ' + result.error, 'bg-red-600 text-white');
+            }
+        } catch (error) {
+            showToast('✗ Error koneksi', 'bg-red-600 text-white');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
     }
 
     document.getElementById('foonteConfigForm')?.addEventListener('submit', async function (e) {

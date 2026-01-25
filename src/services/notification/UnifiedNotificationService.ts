@@ -34,7 +34,9 @@ export type NotificationType =
   | 'payment_shortage_warning'
   | 'pre_block_warning'
   | 'payment_reminder'
-  | 'payment_deferment';
+  | 'payment_deferment'
+  | 'broadcast'
+  | 'technician_job';
 
 export type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push';
 
@@ -346,10 +348,13 @@ export class UnifiedNotificationService {
             // Check again
             if (!waClient.getStatus().ready) {
               const status = waClient.getStatus();
-              throw new Error(`WhatsApp client not ready after init attempt (Ready: ${status.ready}, QR: ${!!status.qr}). Check Settings.`);
+              if (status.qr) {
+                throw new Error(`WhatsApp memerlukan scan QR code. Silakan buka menu WhatsApp Bisnis.`);
+              }
+              throw new Error(`WhatsApp client belum siap (Ready: ${status.ready}). Pastikan sudah login.`);
             }
           } catch (initErr: any) {
-            throw new Error(`WhatsApp initialization failed: ${initErr.message}`);
+            throw new Error(`Inisialisasi WhatsApp gagal: ${initErr.message}`);
           }
         }
 

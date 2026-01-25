@@ -585,10 +585,12 @@ export class WhatsAppService extends EventEmitter {
         this.log('debug', `📨 Processing message ${item.id} to ${item.to}`);
 
         // Check if registered before sending (Optional, can slow down but safer)
-        // const exists = await this.isRegistered(item.to);
-        // if (!exists && !item.to.includes('@g.us')) {
-        //    throw new Error('Number not registered on WhatsApp');
-        // }
+        const exists = await this.isRegistered(item.to);
+        if (!exists && !item.to.includes('@g.us')) {
+          this.log('warn', `🚫 Number ${item.to} is NOT registered on WhatsApp. Skipping.`);
+          item.resolve({ success: false, error: 'Nomor WhatsApp tidak terdaftar (404)' });
+          continue;
+        }
 
         const result = await this.sendMessageDirect(item.to, item.content, item.options);
         this.log('debug', `✅ Message sent ${item.id}`);
@@ -672,11 +674,16 @@ export class WhatsAppService extends EventEmitter {
     if (!this.sock || !this.isConnected) return false;
 
     try {
-      const jid = this.formatPhoneNumber(phone);
-      const [result] = await this.sock.onWhatsApp(jid.replace('@s.whatsapp.net', ''));
+      // Clean phone number (digits only)
+      const cleaned = phone.replace(/\D/g, '');
+      const [result] = await this.sock.onWhatsApp(cleaned);
+
+      this.log('debug', `🔍 Registration check for ${cleaned}: ${result?.exists || false}`);
       return result?.exists || false;
-    } catch {
-      return false;
+    } catch (e: any) {
+      this.log('warn', `⚠️ Registration check failed for ${phone}: ${e.message}`);
+      // Fallback to true to try sending anyway if check fails
+      return true;
     }
   }
 

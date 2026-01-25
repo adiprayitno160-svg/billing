@@ -15,6 +15,8 @@
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 	<!-- Chart.js for Interface Traffic Realtime -->
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+	<!-- SweetAlert2 -->
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
 		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
@@ -494,7 +496,8 @@
 
 </head>
 
-<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased">
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased"
+	data-auto-logout="<%= (typeof autoLogoutEnabled === 'undefined' || autoLogoutEnabled === true) %>">
 	<!-- CRITICAL: Remove all onclick attributes before sidebar is rendered -->
 	<script>
 		// Intercept and remove onclick before DOM is fully parsed
@@ -741,15 +744,11 @@
 		<!-- Auto logout after 10 minutes of inactivity -->
 		<script>
 			(function () {
-    // Check if auto logout is enabled (from server setting)
-    <% if (typeof autoLogoutEnabled === 'undefined' || autoLogoutEnabled === true) { %>
-    const autoLogoutEnabled = true;
-    <% } else { %>
-    const autoLogoutEnabled = false;
-    <% } %>
+				// Check if auto logout is enabled from body data attribute
+				const autoLogoutEnabled = document.body.getAttribute('data-auto-logout') === 'true';
 
-    // If auto logout is disabled, don't run the script
-    if (!autoLogoutEnabled) {
+				// If auto logout is disabled, don't run the script
+				if (!autoLogoutEnabled) {
 					console.log('Auto logout is disabled in system settings');
 					return;
 				}

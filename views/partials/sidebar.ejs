@@ -891,18 +891,45 @@
                         </div>
                         <span class="text-sm">AI Pembayaran (Gemini)</span>
                     </a>
-                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/settings/whatsapp')) ? 'bg-white/15 text-white' : '' %>"
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath === '/settings/whatsapp') ? 'bg-white/15 text-white' : '' %>"
                         href="/settings/whatsapp">
                         <div
                             class="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-500 rounded-lg flex items-center justify-center">
-                            <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2.5"
-                                viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                                <path
-                                    d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12.375m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z">
-                                </path>
-                            </svg>
+                            <i class="fab fa-whatsapp text-white text-[12px]"></i>
                         </div>
                         <span class="text-sm">WhatsApp Bisnis</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath === '/whatsapp/broadcast') ? 'bg-white/15 text-white' : '' %>"
+                        href="/whatsapp/broadcast">
+                        <div
+                            class="w-6 h-6 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-bullhorn text-white text-[10px]"></i>
+                        </div>
+                        <span class="text-sm">Broadcast Massal</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath === '/whatsapp/qris') ? 'bg-white/15 text-white' : '' %>"
+                        href="/whatsapp/qris">
+                        <div
+                            class="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-qrcode text-white text-[10px]"></i>
+                        </div>
+                        <span class="text-sm">Kirim QRIS</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/notification/history')) ? 'bg-white/15 text-white' : '' %>"
+                        href="/notification/history">
+                        <div
+                            class="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-history text-white text-[10px]"></i>
+                        </div>
+                        <span class="text-sm">Riwayat Notifikasi</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/notification/templates')) ? 'bg-white/15 text-white' : '' %>"
+                        href="/notification/templates">
+                        <div
+                            class="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-invoice text-white text-[10px]"></i>
+                        </div>
+                        <span class="text-sm">Template Notifikasi</span>
                     </a>
                     <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/settings/users')) ? 'bg-white/15 text-white' : '' %>"
                         href="/settings/users">
@@ -1088,7 +1115,6 @@
         });
 
         // Open active menu automatically
-        const currentPath = window.location.pathname;
         if (currentPath.includes('/monitoring')) toggleSidebarMenu('monitoring');
         else if (currentPath.includes('/customers')) toggleSidebarMenu('customers');
         else if (currentPath.includes('/packages')) toggleSidebarMenu('packages');
@@ -1097,6 +1123,6 @@
         else if (currentPath.includes('/billing')) toggleSidebarMenu('billing');
         else if (currentPath.includes('/prepaid')) toggleSidebarMenu('prepaid');
         else if (currentPath.includes('/accounting') || currentPath.includes('/admin/technician')) toggleSidebarMenu('accounting');
-        else if (currentPath.includes('/settings')) toggleSidebarMenu('settings');
+        else if (currentPath.includes('/settings') || currentPath.includes('/whatsapp')) toggleSidebarMenu('settings');
     });
 </script>

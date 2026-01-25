@@ -199,6 +199,50 @@ export async function ensureNotificationTemplates(): Promise<void> {
         variables: JSON.stringify(['ticket_number', 'status', 'customer_name', 'report_time', 'notes']),
         priority: 'normal',
         is_active: true
+      },
+      {
+        template_code: 'invoice_created',
+        template_name: 'Tagihan Baru',
+        notification_type: 'invoice_created',
+        channel: 'whatsapp',
+        title_template: 'Tagihan Baru - {invoice_number}',
+        message_template: '📄 *TAGIHAN INTERNET BARU*\n\nHalo {customer_name},\n\nTagihan internet Anda untuk periode *{period}* telah tersedia.\n\n📋 *Rincian Tagihan:*\n• No. Invoice: {invoice_number}\n• Nominal: Rp {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Metode Pembayaran:*\n{bank_list}\n\n💡 *Catatan:*\n• Abaikan jika sudah membayar\n• Konfirmasi jika melakukan transfer bank\n• Layanan otomatis diperpanjang setelah lunas\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'period', 'bank_list']),
+        priority: 'normal',
+        is_active: true
+      },
+      {
+        template_code: 'invoice_overdue',
+        template_name: 'Tagihan Menunggak',
+        notification_type: 'invoice_overdue',
+        channel: 'whatsapp',
+        title_template: '⚠️ Peringatan: Tagihan Menunggak',
+        message_template: '⚠️ *PERINGATAN TAGIHAN MENUNGGAK*\n\nHalo {customer_name},\n\nKami menginformasikan bahwa tagihan Anda telah melewati jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Total Tunggakan: Rp {amount}\n• Jatuh Tempo: {due_date}\n• Terlambat: {days_overdue} hari\n\n💳 *Segera lakukan pembayaran ke:*\n{bank_list}\n\n🚨 *PENTING:*\nHindari isolir layanan otomatis dengan segera melunasi tagihan.\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'days_overdue', 'bank_list']),
+        priority: 'high',
+        is_active: true
+      },
+      {
+        template_code: 'invoice_reminder',
+        template_name: 'Pengingat Tagihan',
+        notification_type: 'invoice_reminder',
+        channel: 'whatsapp',
+        title_template: 'Reminder: Tagihan Bulanan',
+        message_template: '🔔 *PENGINGAT TAGIHAN INTERNET*\n\nHalo {customer_name},\n\nJangan lupa, tagihan periode *{period}* sebentar lagi jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Nominal: Rp {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Pembayaran via:*\n{bank_list}\n\nNikmati terus internet lancar tanpa kendala!\n\nTerima kasih,\nTim Support',
+        variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'period', 'bank_list']),
+        priority: 'normal',
+        is_active: true
+      },
+      {
+        template_code: 'broadcast',
+        template_name: 'Broadcast Massal',
+        notification_type: 'broadcast',
+        channel: 'whatsapp',
+        title_template: 'Pengumuman - {customer_name}',
+        message_template: '{custom_message}',
+        variables: JSON.stringify(['customer_name', 'custom_message']),
+        priority: 'normal',
+        is_active: true
       }
     ];
 

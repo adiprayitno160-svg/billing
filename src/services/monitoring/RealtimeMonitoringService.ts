@@ -12,6 +12,7 @@ export class RealtimeMonitoringService {
     private isRunning: boolean = false;
     private interval: NodeJS.Timeout | null = null;
     private readonly POLLING_INTERVAL = 3000; // 3 seconds to be safe
+    private lastOnlineUsernames: Set<string> = new Set();
 
     constructor(io: SocketIOServer) {
         this.io = io;
@@ -58,7 +59,8 @@ export class RealtimeMonitoringService {
         return {
             timestamp: new Date().toISOString(),
             server: serverStats,
-            network: networkStats
+            network: networkStats,
+            alerts: networkStats?.alerts || []
         };
     }
 
@@ -148,12 +150,45 @@ export class RealtimeMonitoringService {
                     tx_byte: wanInterface['tx-byte']
                 } : null,
                 total_rx: totalRx,
-                total_tx: totalTx
+                total_tx: totalTx,
+                alerts: this.processCustomerAlerts(Array.isArray(activeSessions) ? activeSessions : [])
             };
 
         } catch (error) {
             console.error('Error in getNetworkStats:', error);
             return null;
         }
+    }
+
+    private processCustomerAlerts(activeSessions: any[]): any[] {
+        const currentOnline = new Set(activeSessions.map((s: any) => s.name || s));
+        const alerts: any[] = [];
+
+        // Identify newly offline
+        for (const username of this.lastOnlineUsernames) {
+            if (!currentOnline.has(username)) {
+                alerts.push({
+                    type: 'offline',
+                    username,
+                    timestamp: new Date().toISOString(),
+                    message: `Pelanggan ${username} terdeteksi OFFLINE`
+                });
+            }
+        }
+
+        // Identify newly online
+        for (const username of currentOnline) {
+            if (!this.lastOnlineUsernames.has(username as string)) {
+                alerts.push({
+                    type: 'online',
+                    username,
+                    timestamp: new Date().toISOString(),
+                    message: `Pelanggan ${username} kembali ONLINE`
+                });
+            }
+        }
+
+        this.lastOnlineUsernames = currentOnline as Set<string>;
+        return alerts;
     }
 }

@@ -11,6 +11,26 @@ import { RowDataPacket } from 'mysql2';
 
 export class NotificationTemplateController {
   /**
+   * GET /notification/history
+   * Show notification history/queue page
+   */
+  async showHistoryPage(req: Request, res: Response): Promise<any> {
+    try {
+      res.render('notification/history', {
+        title: 'Riwayat Notifikasi',
+        currentPath: '/notification/history',
+        user: (req.session as any).user
+      });
+    } catch (error) {
+      console.error('Error loading history page:', error);
+      res.status(500).render('error', {
+        error: 'Failed to load history page',
+        user: (req.session as any).user
+      });
+    }
+  }
+
+  /**
    * GET /notification/templates/page
    * Show template management page
    */
@@ -959,6 +979,51 @@ export class NotificationTemplateController {
         message: 'Gagal menganalisis flow notifikasi',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  }
+  /**
+   * POST /api/notification/retry/:id
+   * Retry a failed notification
+   */
+  async retryNotification(req: Request, res: Response): Promise<any> {
+    try {
+      const { id } = req.params;
+      const connection = await databasePool.getConnection();
+      try {
+        const [result] = await connection.query(
+          "UPDATE unified_notifications_queue SET status = 'pending', retry_count = 0, error_message = NULL WHERE id = ?",
+          [id]
+        );
+        res.json({ success: true, message: 'Notification reset to pending' });
+      } finally {
+        connection.release();
+      }
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * POST /api/notification/clear-old-queue
+   * Clear old pending notifications
+   */
+  async clearOldQueue(req: Request, res: Response): Promise<any> {
+    try {
+      const connection = await databasePool.getConnection();
+      try {
+        // Clear pending notifications older than 7 days
+        const [result] = await connection.query(
+          "DELETE FROM unified_notifications_queue WHERE status = 'pending' AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)"
+        );
+        res.json({
+          success: true,
+          message: `Cleared ${(result as any).affectedRows} old pending notifications`
+        });
+      } finally {
+        connection.release();
+      }
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 }
