@@ -78,6 +78,7 @@ export class UnifiedNotificationService {
       );
 
       if (customerRows.length === 0) {
+        console.error(`[UnifiedNotification] ❌ Customer with ID ${data.customer_id} not found in database. Type: ${typeof data.customer_id}`);
         throw new Error(`Customer ${data.customer_id} not found`);
       }
 
@@ -230,7 +231,8 @@ export class UnifiedNotificationService {
           );
 
           if (customerRows.length === 0) {
-            await this.markAsFailed(notif.id, 'Customer not found');
+            console.error(`[UnifiedNotification] ❌ Notification ID ${notif.id}: Customer ${notif.customer_id} not found in database`);
+            await this.markAsFailed(notif.id, `Customer ID ${notif.customer_id} not found in database`);
             failed++;
             continue;
           }
@@ -340,21 +342,19 @@ export class UnifiedNotificationService {
         console.log(`[UnifiedNotification] 📱 WhatsApp Status:`, whatsappStatus);
 
         if (!whatsappStatus.ready) {
-          console.warn(`[UnifiedNotification] ⚠️ WhatsApp not ready, attempting to initialize...`);
+          console.warn(`[UnifiedNotification] ⚠️ WhatsApp not ready, waiting for connection...`);
           try {
-            await waClient.initialize();
-            // Wait a moment for connection
-            await new Promise(r => setTimeout(r, 5000));
-            // Check again
-            if (!waClient.getStatus().ready) {
-              const status = waClient.getStatus();
-              if (status.qr) {
-                throw new Error(`WhatsApp memerlukan scan QR code. Silakan buka menu WhatsApp Bisnis.`);
-              }
-              throw new Error(`WhatsApp client belum siap (Ready: ${status.ready}). Pastikan sudah login.`);
+            // Wait up to 15 seconds for WhatsApp to become ready
+            await whatsappService.waitForReady(15000);
+            console.log(`[UnifiedNotification] ✅ WhatsApp is now ready.`);
+          } catch (err: any) {
+            console.error(`[UnifiedNotification] ❌ WhatsApp wait failed: ${err.message}`);
+
+            if (err.message.includes('QR code')) {
+              throw new Error(`WhatsApp memerlukan scan QR code. Silakan buka menu WhatsApp Bisnis.`);
             }
-          } catch (initErr: any) {
-            throw new Error(`Inisialisasi WhatsApp gagal: ${initErr.message}`);
+
+            throw new Error(`WhatsApp belum siap. Pastikan sudah login di menu WhatsApp Bisnis. (${err.message})`);
           }
         }
 
@@ -635,9 +635,11 @@ export class UnifiedNotificationService {
     const connection = await databasePool.getConnection();
 
     try {
+      const { getBillingMonth } = await import('../../utils/periodHelper');
+
       const [paymentRows] = await connection.query<RowDataPacket[]>(
-        `SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount,
-                c.name as customer_name
+        `SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount, i.period, i.due_date,
+                c.name as customer_name, c.customer_code
          FROM payments p
          JOIN invoices i ON p.invoice_id = i.id
          JOIN customers c ON i.customer_id = c.id
@@ -668,6 +670,9 @@ export class UnifiedNotificationService {
         }
       }
 
+      // Format billing month
+      const billingMonth = getBillingMonth(payment.period, paymentDate, payment.due_date);
+
       await this.queueNotification({
         customer_id: payment.customer_id,
         invoice_id: payment.invoice_id,
@@ -675,12 +680,17 @@ export class UnifiedNotificationService {
         notification_type: notificationType as NotificationType,
         attachment_path: attachmentPath,
         variables: {
+          customer_name: payment.customer_name,
+          customer_code: payment.customer_code,
           invoice_number: payment.invoice_number,
+          billing_month: billingMonth,
           amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
           paid_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
+          total_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount)),
           remaining_amount: NotificationTemplateService.formatCurrency(remainingAmount),
           payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
           payment_date: NotificationTemplateService.formatDate(paymentDate),
+          due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
           notes: payment.notes || ''
         }
       });

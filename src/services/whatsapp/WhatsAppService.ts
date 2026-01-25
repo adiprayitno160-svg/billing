@@ -97,6 +97,11 @@ export class WhatsAppService extends EventEmitter {
   private readonly MAX_RECONNECT_ATTEMPTS = 10;
   private reconnectTimeout: NodeJS.Timeout | null = null;
 
+  // Initialization promise for concurrency handling
+  private initPromise: Promise<void> | null = null;
+  private readyResolvers: (() => void)[] = [];
+  private readyRejecters: ((err: Error) => void)[] = [];
+
   // Message Queue
   private messageQueue: QueuedMessage[] = [];
   private isProcessingQueue: boolean = false;
@@ -143,13 +148,21 @@ export class WhatsAppService extends EventEmitter {
 
     if (level === 'error') {
       console.error(logMessage, data || '');
+      // Write to dedicated error log
+      try {
+        const errorLogFile = path.join(this.LOG_DIR, 'whatsapp_error.log');
+        const errorMessage = `${logMessage} ${data ? JSON.stringify(data, Object.getOwnPropertyNames(data)) : ''}\n`;
+        fs.appendFileSync(errorLogFile, errorMessage);
+      } catch (e) {
+        // Ignore specific error log write failure
+      }
     } else if (level === 'warn') {
       console.warn(logMessage, data || '');
     } else {
       console.log(logMessage, data || '');
     }
 
-    // Write to file
+    // Write to daily log
     try {
       const logFile = path.join(this.LOG_DIR, `whatsapp_${new Date().toISOString().split('T')[0]}.log`);
       fs.appendFileSync(logFile, `${logMessage} ${data ? JSON.stringify(data) : ''}\n`);
@@ -162,62 +175,105 @@ export class WhatsAppService extends EventEmitter {
    * Initialize WhatsApp connection
    */
   public async initialize(): Promise<void> {
-    if (this.isConnecting) {
-      this.log('warn', 'Already initializing, skipping...');
-      return;
+    if (this.initPromise) {
+      return this.initPromise;
     }
 
     if (this.isConnected) {
-      this.log('info', 'Already connected');
       return;
     }
 
-    this.isConnecting = true;
-    this.emit('initializing');
+    this.initPromise = (async () => {
+      this.isConnecting = true;
+      this.emit('initializing');
 
-    try {
-      this.log('info', '🔄 Initializing WhatsApp connection...');
+      try {
+        this.log('info', '🔄 Initializing WhatsApp connection...');
 
-      // Load auth state
-      const { state, saveCreds } = await useMultiFileAuthState(this.AUTH_DIR);
-      this.authState = { state, saveCreds };
+        // Load auth state
+        const { state, saveCreds } = await useMultiFileAuthState(this.AUTH_DIR);
+        this.authState = { state, saveCreds };
 
-      // Get latest version
-      const { version, isLatest } = await fetchLatestBaileysVersion();
-      this.log('info', `📦 Baileys Version: ${version.join('.')} (Latest: ${isLatest})`);
+        // Get latest version
+        const { version, isLatest } = await fetchLatestBaileysVersion();
+        this.log('info', `📦 Baileys Version: ${version.join('.')} (Latest: ${isLatest})`);
 
-      // Create socket
-      const logger = pino({ level: 'silent' });
+        // Create socket
+        const logger = pino({ level: 'silent' });
 
-      this.sock = makeWASocket({
-        version,
-        logger: logger as any,
-        printQRInTerminal: true,
-        auth: {
-          creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, logger as any),
-        },
-        browser: ['ISP Billing System', 'Chrome', '120.0.0'],
-        generateHighQualityLinkPreview: true,
-        defaultQueryTimeoutMs: 60000,
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        retryRequestDelayMs: 500,
-        qrTimeout: 60000,
-        markOnlineOnConnect: true,
+        this.sock = makeWASocket({
+          version,
+          logger: logger as any,
+          printQRInTerminal: true,
+          auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, logger as any),
+          },
+          browser: ['ISP Billing System', 'Chrome', '120.0.0'],
+          generateHighQualityLinkPreview: true,
+          defaultQueryTimeoutMs: 60000,
+          connectTimeoutMs: 60000,
+          keepAliveIntervalMs: 30000,
+          retryRequestDelayMs: 500,
+          qrTimeout: 60000,
+          markOnlineOnConnect: true,
+        });
+
+        // Setup event handlers
+        this.setupEventHandlers();
+
+        this.log('info', '✅ Socket created, waiting for connection...');
+
+      } catch (error: any) {
+        this.log('error', '❌ Failed to initialize:', error.message);
+        this.isConnecting = false;
+        this.initPromise = null;
+        this.emit('error', error);
+        this.scheduleReconnect();
+        throw error;
+      }
+    })();
+
+    return this.initPromise;
+  }
+
+  /**
+   * Wait for the connection to be ready
+   * @param timeoutMs Maximum time to wait in milliseconds
+   */
+  public async waitForReady(timeoutMs: number = 30000): Promise<void> {
+    if (this.isConnected) return;
+
+    // Trigger initialization if not already
+    if (!this.sock && !this.isConnecting) {
+      this.initialize().catch(() => { });
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        const index = this.readyResolvers.indexOf(resolve);
+        if (index !== -1) {
+          this.readyResolvers.splice(index, 1);
+          this.readyRejecters.splice(index, 1);
+
+          if (this.qrCode) {
+            reject(new Error('WhatsApp memerlukan scan QR code.'));
+          } else {
+            reject(new Error('Timeout menunggu koneksi WhatsApp ready.'));
+          }
+        }
+      }, timeoutMs);
+
+      this.readyResolvers.push(() => {
+        clearTimeout(timeout);
+        resolve();
       });
 
-      // Setup event handlers
-      this.setupEventHandlers();
-
-      this.log('info', '✅ Socket created, waiting for connection...');
-
-    } catch (error: any) {
-      this.log('error', '❌ Failed to initialize:', error.message);
-      this.isConnecting = false;
-      this.emit('error', error);
-      this.scheduleReconnect();
-    }
+      this.readyRejecters.push((err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
   }
 
   /**
@@ -252,6 +308,13 @@ export class WhatsAppService extends EventEmitter {
         }
 
         this.emit('qr', qr, this.qrDataUrl);
+
+        // Reject any waiters because we definitely need a QR scan now
+        const rejecters = [...this.readyRejecters];
+        this.readyResolvers = [];
+        this.readyRejecters = [];
+        const qrError = new Error('WhatsApp memerlukan scan QR code. Silakan buka menu WhatsApp Bisnis.');
+        rejecters.forEach(reject => reject(qrError));
       }
 
       // Connection closed
@@ -306,6 +369,12 @@ export class WhatsAppService extends EventEmitter {
           phoneNumber: this.phoneNumber,
           name: this.displayName
         });
+
+        // Resolve all waiters
+        const resolvers = [...this.readyResolvers];
+        this.readyResolvers = [];
+        this.readyRejecters = [];
+        resolvers.forEach(resolve => resolve());
 
         // Start processing message queue
         this.startQueueProcessor();

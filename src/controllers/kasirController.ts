@@ -1249,20 +1249,23 @@ export class KasirController {
                 variables.notes = 'Silakan hubungi customer service untuk informasi lebih lanjut';
             }
 
-            // Queue notification using UnifiedNotificationService
-            console.log(`[KasirController] 📤 Queueing ${notificationType} notification for customer ${customer.id}`);
+            // Send notification
+            if (paymentType === 'debt') {
+                // For debt, we use custom queueNotification because there's no payment ID
+                await UnifiedNotificationService.queueNotification({
+                    customer_id: customer.id,
+                    invoice_id: invoice.id,
+                    notification_type: 'payment_debt',
+                    channels: ['whatsapp'],
+                    variables: variables,
+                    priority: 'high'
+                });
+            } else if (paymentId) {
+                // For full/partial payment, use the centralized method which handles PDF generation
+                await UnifiedNotificationService.notifyPaymentReceived(paymentId);
+            }
 
-            await UnifiedNotificationService.queueNotification({
-                customer_id: customer.id,
-                invoice_id: invoice.id,
-                payment_id: paymentId,
-                notification_type: notificationType,
-                channels: ['whatsapp'],
-                variables: variables,
-                priority: 'high'
-            });
-
-            console.log(`[KasirController] ✅ Payment notification queued successfully`);
+            console.log(`[KasirController] ✅ Payment notification processed successfully`);
 
             // Try to process queue immediately (non-blocking)
             try {

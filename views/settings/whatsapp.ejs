@@ -341,23 +341,33 @@
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-info-circle text-blue-600"></i>
+                    <i class="fas fa-grid-2 text-blue-600"></i>
                 </div>
                 <div>
-                    <div class="font-semibold text-gray-900">Monitor & Verifikasi</div>
-                    <div class="text-xs text-gray-500">Pantau pesan bot dan verifikasi pembayaran manual</div>
+                    <div class="font-semibold text-gray-900">Menu & Fitur</div>
+                    <div class="text-xs text-gray-500">Akses cepat fitur WhatsApp Business</div>
                 </div>
             </div>
-            <div class="flex gap-3">
+            <div class="flex flex-wrap gap-3">
+                <a href="/whatsapp/broadcast"
+                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-bullhorn"></i>
+                    Broadcast Massal
+                </a>
+                <a href="/whatsapp/qris"
+                    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-qrcode"></i>
+                    Kirim QRIS
+                </a>
                 <a href="/settings/whatsapp/monitor"
-                    class="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all shadow-sm">
-                    <i class="fas fa-desktop mr-2"></i>
-                    WhatsApp Monitor
+                    class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-eye"></i>
+                    Monitor & Verifikasi
                 </a>
                 <a href="/notification/templates"
-                    class="px-6 py-2.5 bg-gray-900 hover:bg-black text-white font-semibold rounded-xl transition-all shadow-sm">
-                    <i class="fas fa-file-alt mr-2"></i>
-                    Kelola Template
+                    class="px-5 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-file-invoice"></i>
+                    Template
                 </a>
             </div>
         </div>
