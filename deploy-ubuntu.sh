@@ -40,9 +40,9 @@ if [ $? -ne 0 ]; then
 fi
 
 # 4. Migrate Database (Optional but recommended)
-echo "Running database migrations (if any)..."
-# npx sequelize-cli db:migrate # Uncomment if using Sequelize
-# npm run migrate # Or your custom migration command
+# 4. Migrate Database (Auto-fix schema)
+echo "Running database schema checks..."
+npm run db:fix-schema
 
 # 5. Restart PM2 Service
 echo "Restarting application via PM2..."
