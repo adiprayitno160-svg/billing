@@ -222,6 +222,52 @@ export async function createStaticIpPackage(data: {
 	}
 }
 
+export async function copyStaticIpPackage(id: number, nameSuffix: string = ' - Copy'): Promise<number> {
+	const pkg = await getStaticIpPackageById(id);
+	if (!pkg) throw new Error('Package not found');
+
+	const newName = `${pkg.name}${nameSuffix}`;
+
+	// Create new package with copied data
+	const newId = await createStaticIpPackage({
+		name: newName,
+		parent_upload_name: pkg.parent_upload_name,
+		parent_download_name: pkg.parent_download_name,
+		max_limit_upload: pkg.max_limit_upload,
+		max_limit_download: pkg.max_limit_download,
+		limit_at_upload: pkg.limit_at_upload,
+		limit_at_download: pkg.limit_at_download,
+		max_clients: pkg.max_clients,
+		child_upload_name: `${newName}_UPLOAD`, // Auto-generate new Names
+		child_download_name: `${newName}_DOWNLOAD`,
+		child_upload_limit: pkg.child_upload_limit,
+		child_download_limit: pkg.child_download_limit,
+		child_limit_at_upload: pkg.child_limit_at_upload,
+		child_limit_at_download: pkg.child_limit_at_download,
+		child_burst_upload: pkg.child_burst_upload,
+		child_burst_download: pkg.child_burst_download,
+		child_queue_type_download: pkg.child_queue_type_download,
+		child_queue_type_upload: pkg.child_queue_type_upload,
+		child_priority_download: pkg.child_priority_download,
+		child_priority_upload: pkg.child_priority_upload,
+		child_burst_threshold_download: pkg.child_burst_threshold_download,
+		child_burst_threshold_upload: pkg.child_burst_threshold_upload,
+		child_burst_time_download: pkg.child_burst_time_download,
+		child_burst_time_upload: pkg.child_burst_time_upload,
+		price: pkg.price,
+		price_7_days: pkg.price_7_days,
+		price_30_days: pkg.price_30_days,
+		duration_days: pkg.duration_days,
+		status: 'active', // Default to active? Or pkg.status? User likely wants it active or matching. Let's match.
+		// Actually best to set to 'active' or copy. Let's copy.
+		// But createStaticIpPackage type expects 'active' | 'inactive'.
+		description: pkg.description ? `Copy of ${pkg.name}. ${pkg.description}` : `Copy of ${pkg.name}`
+	});
+
+	return newId;
+}
+
+
 export async function updateStaticIpPackage(id: number, data: {
 	name?: string;
 	parent_upload_name?: string;
@@ -275,13 +321,13 @@ export async function updateStaticIpPackage(id: number, data: {
 			const simpleQueues = await getSimpleQueues(config);
 			const oldQueue = simpleQueues.find(q => q.name === currentPackage.name);
 			const maxLimit = `${(data.max_limit_upload || currentPackage.max_limit_upload) || '1M'}/${(data.max_limit_download || currentPackage.max_limit_download) || '1M'}`;
-
+	
 			const queueData = {
 				name: newPackageName,
 				maxLimit: maxLimit,
 				comment: `[BILLING] PACKAGE PARENT: ${newPackageName} (Shared Bandwidth Container)`
 			};
-
+	
 			if (oldQueue) {
 				await updateSimpleQueue(config, oldQueue['.id'], queueData);
 			} else {

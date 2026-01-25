@@ -108,7 +108,7 @@
                 <option value="">-- Sesuai Limit --</option>
                 <% packages.forEach(p=> { %>
                     <option value="<%= p.id %>" data-limit="<%= p.max_limit_download %>">
-                        <%= p.name %> (<%= p.max_limit_download %>)
+                        <%= p.name %> (<%= p.max_limit_download %>) [<%= p.current_clients || 0 %> plg]
                     </option>
                     <% }) %>
             </select>

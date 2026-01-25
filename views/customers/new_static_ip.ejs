@@ -179,7 +179,8 @@
                                             <option value="">-- Pilih Paket IP Statis --</option>
                                             <% (packages || []).forEach(function(pkg){ %>
                                                 <option value="<%= pkg.id %>">
-                                                    <%= pkg.name %> — Rp <%= pkg.price.toLocaleString('id-ID') %>
+                                                    <%= pkg.name %> (<%= pkg.current_clients || 0 %> plg) — Rp <%=
+                                                                pkg.price.toLocaleString('id-ID') %>
                                                 </option>
                                                 <% }) %>
                                         </select>

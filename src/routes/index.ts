@@ -41,7 +41,8 @@ import {
     postStaticIpPackageCreateQueues,
     postStaticIpPackageDeleteQueues,
     apiDeletePackage,
-    postStaticIpPackageSyncAll
+    postStaticIpPackageSyncAll,
+    postStaticIpPackageCopy
 } from '../controllers/staticIpPackageController';
 import {
     getStaticIpClientList,
@@ -1634,6 +1635,7 @@ router.get('/packages/static-ip/:id/edit', getStaticIpPackageEdit);
 router.post('/packages/static-ip/:id/delete', postStaticIpPackageDelete);
 router.post('/packages/static-ip/:id/update', postStaticIpPackageUpdate);
 router.post('/packages/static-ip/:id/delete-queues', postStaticIpPackageDeleteQueues);
+router.post('/packages/static-ip/:id/copy', postStaticIpPackageCopy);
 router.delete('/api/packages/static-ip/:id', apiDeletePackage);
 
 // Routes untuk mengganti paket IP statis pelanggan

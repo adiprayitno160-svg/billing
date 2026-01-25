@@ -218,8 +218,10 @@
                                                 <% (packages || []).forEach(function(pkg){ %>
                                                     <option value="<%= pkg.id %>" <%=client.package_id==pkg.id
                                                         ? 'selected' : '' %>>
-                                                        <%= pkg.name %> (<%= pkg.max_limit_download %>) - Rp <%=
-                                                                    parseInt(pkg.price || 0).toLocaleString('id-ID') %>
+                                                        <%= pkg.name %> (<%= pkg.max_limit_download %>) [<%=
+                                                                    pkg.current_clients || 0 %> plg] - Rp <%=
+                                                                        parseInt(pkg.price || 0).toLocaleString('id-ID')
+                                                                        %>
                                                     </option>
                                                     <% }) %>
                                             </select>

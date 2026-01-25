@@ -123,6 +123,14 @@
                                                         Sync Queue
                                                     </button>
                                                 </form>
+                                                <form action="/packages/static-ip/<%= pkg.id %>/copy" method="POST"
+                                                    class="inline" onsubmit="return confirm('Duplikasi paket ini?');">
+                                                    <button type="submit"
+                                                        class="px-2 py-1 text-xs rounded border border-orange-300 text-orange-700 hover:bg-orange-50 inline-block"
+                                                        title="Copy Paket">
+                                                        Copy
+                                                    </button>
+                                                </form>
                                                 <a href="/packages/static-ip/<%= pkg.id %>/clients"
                                                     class="px-2 py-1 text-xs rounded border border-green-300 text-green-700 hover:bg-green-50 inline-block">
                                                     Client

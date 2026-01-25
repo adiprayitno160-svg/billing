@@ -323,3 +323,17 @@ export async function postStaticIpPackageSyncAll(req: Request, res: Response, ne
 		res.redirect('/packages/static-ip');
 	}
 }
+
+export async function postStaticIpPackageCopy(req: Request, res: Response, next: NextFunction) {
+	try {
+		const id = Number(req.params.id);
+		const { copyStaticIpPackage } = await import('../services/staticIpPackageService');
+		await copyStaticIpPackage(id);
+		req.flash('success', 'Paket IP Static berhasil diduplikasi');
+		res.redirect('/packages/static-ip');
+	} catch (err) {
+		req.flash('error', err instanceof Error ? err.message : 'Gagal duplikasi paket');
+		res.redirect('/packages/static-ip');
+	}
+}
+
