@@ -1022,7 +1022,7 @@ export class InvoiceController {
                 await databasePool.query('UPDATE invoices SET status = "sent" WHERE id = ?', [id]);
             }
 
-            res.json({ success: true, message: 'Tagihan telah dijadwalkan untuk dikirim via WhatsApp' });
+            res.json({ success: true, message: 'Tagihan sedang dikirim via WhatsApp' });
         } catch (error: any) {
             console.error('Error sending WhatsApp invoice:', error);
             res.status(500).json({ success: false, message: error.message });

@@ -193,7 +193,7 @@ export class UnifiedNotificationService {
       if (data.send_immediately && notificationIds.length > 0) {
         console.log('[UnifiedNotification] ⚡ Triggering immediate dispatch for', notificationIds);
         // Fire and forget, don't await to avoid blocking response
-        this.sendPendingNotifications(notificationIds.length).catch(err =>
+        this.sendPendingNotifications(50, notificationIds).catch(err =>
           console.error('[UnifiedNotification] Immediate dispatch error:', err)
         );
       }
@@ -203,12 +203,12 @@ export class UnifiedNotificationService {
   /**
    * Send pending notifications
    */
-  static async sendPendingNotifications(limit: number = 50): Promise<{
+  static async sendPendingNotifications(limit: number = 50, specificIds?: number[]): Promise<{
     sent: number;
     failed: number;
     skipped: number;
   }> {
-    console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit})...`);
+    console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit}, specific: ${specificIds?.length || 0})...`);
 
     const connection = await databasePool.getConnection();
 
@@ -230,21 +230,28 @@ export class UnifiedNotificationService {
     let skipped = 0;
 
     try {
-      // Get pending notifications that are due
-      const [notifications] = await connection.query<RowDataPacket[]>(
-        `SELECT * FROM unified_notifications_queue 
-         WHERE status = 'pending' 
-           AND (scheduled_for IS NULL OR scheduled_for <= NOW())
-         ORDER BY 
-           CASE priority 
-             WHEN 'high' THEN 1 
-             WHEN 'normal' THEN 2 
-             WHEN 'low' THEN 3 
-           END,
-           created_at ASC
-         LIMIT ?`,
-        [limit]
-      );
+      // Build query
+      let query = `SELECT * FROM unified_notifications_queue 
+                   WHERE status = 'pending' 
+                   AND (scheduled_for IS NULL OR scheduled_for <= NOW())`;
+      const params: any[] = [];
+
+      if (specificIds && specificIds.length > 0) {
+        query += ` AND id IN (?)`;
+        params.push(specificIds);
+      }
+
+      query += ` ORDER BY 
+                 CASE priority 
+                   WHEN 'high' THEN 1 
+                   WHEN 'normal' THEN 2 
+                   WHEN 'low' THEN 3 
+                 END,
+                 created_at ASC
+               LIMIT ?`;
+      params.push(limit);
+
+      const [notifications] = await connection.query<RowDataPacket[]>(query, params);
 
       console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
 
