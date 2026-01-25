@@ -461,7 +461,7 @@
                                     <i class="fas fa-chevron-right"></i>
                                  </button>
                                  
-                                 ${['admin', 'superadmin', 'operator'].includes(userRole) ? `
+                                 ${['admin', 'superadmin', 'operator'].includes(userRole) || (userRole === 'teknisi' && job.status === 'pending') ? `
                                      <button onclick="deleteJob(${job.id})" class="w-9 h-9 flex items-center justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Hapus Pekerjaan">
                                         <i class="fas fa-trash"></i>
                                      </button>

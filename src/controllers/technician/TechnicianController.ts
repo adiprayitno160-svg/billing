@@ -542,14 +542,22 @@ Untuk mengambil:
             const user = (req as any).user;
 
             // Check Permissions
-            if (!user || !['admin', 'superadmin', 'operator'].includes(user.role)) {
-                return res.status(403).json({ success: false, message: 'Unauthorized. Only Admin/Operator can delete jobs.' });
+            const isTeknisi = user.role === 'teknisi';
+            if (!user || !['admin', 'superadmin', 'operator', 'teknisi'].includes(user.role)) {
+                return res.status(403).json({ success: false, message: 'Unauthorized.' });
             }
 
             // Check if job exists
-            const [check] = await databasePool.query<RowDataPacket[]>("SELECT id FROM technician_jobs WHERE id = ?", [id]);
+            const [check] = await databasePool.query<RowDataPacket[]>("SELECT id, status FROM technician_jobs WHERE id = ?", [id]);
             if (check.length === 0) {
                 return res.status(404).json({ success: false, message: 'Job not found' });
+            }
+
+            const job = check[0];
+
+            // If teknisi, only allow deleting PENDING jobs (e.g. created by mistake)
+            if (isTeknisi && job.status !== 'pending') {
+                return res.status(403).json({ success: false, message: 'Teknisi hanya dapat menghapus pekerjaan yang berstatus Pending.' });
             }
 
             // Delete Job
