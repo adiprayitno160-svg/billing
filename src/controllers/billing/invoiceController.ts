@@ -1123,4 +1123,63 @@ export class InvoiceController {
         const sequenceStr = sequence.toString().padStart(4, '0');
         return `INV/${year}/${month}/${sequenceStr}`;
     }
+
+    /**
+     * EMERGENCY: Force Cleanup Invoices for a Period
+     * WARNING: This deletes DATA! Use with caution.
+     */
+    async forceCleanupPeriod(req: Request, res: Response): Promise<void> {
+        const conn = await databasePool.getConnection();
+        const { period } = req.body;
+
+        if (!period) {
+            res.status(400).json({ success: false, message: 'Periode wajib diisi!' });
+            return;
+        }
+
+        try {
+            await conn.beginTransaction();
+
+            console.log(`[CLEANUP] Starting force cleanup for period: ${period}`);
+
+            // 1. Get Invoice IDs
+            const [rows] = await conn.query<RowDataPacket[]>('SELECT id FROM invoices WHERE period = ?', [period]);
+            const ids = rows.map(r => r.id);
+
+            if (ids.length === 0) {
+                await conn.rollback();
+                res.json({ success: true, message: 'Tidak ada invoice ditemukan untuk periode ini.' });
+                return;
+            }
+
+            console.log(`[CLEANUP] Found ${ids.length} invoices to delete: ${ids.join(',')}`);
+
+            // 2. Delete Items & Payments first (Child Tables)
+            if (ids.length > 0) {
+                const idList = ids.join(',');
+                await conn.query(`DELETE FROM invoice_items WHERE invoice_id IN (${idList})`);
+                await conn.query(`DELETE FROM payments WHERE invoice_id IN (${idList})`);
+                await conn.query(`DELETE FROM debt_tracking WHERE invoice_id IN (${idList})`);
+            }
+
+            // 3. Delete Invoices (Parent Table)
+            const [result] = await conn.query<ResultSetHeader>('DELETE FROM invoices WHERE period = ?', [period]);
+
+            await conn.commit();
+            console.log(`[CLEANUP] Success! Deleted ${result.affectedRows} invoices.`);
+
+            res.json({
+                success: true,
+                message: `Berhasil membersihkan ${result.affectedRows} invoice & data terkait untuk periode ${period}`,
+                deleted_count: result.affectedRows
+            });
+
+        } catch (error: any) {
+            await conn.rollback();
+            console.error('[CLEANUP] Error:', error);
+            res.status(500).json({ success: false, message: error.message });
+        } finally {
+            conn.release();
+        }
+    }
 }

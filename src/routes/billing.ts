@@ -131,6 +131,9 @@ router.post('/tagihan/create/manual', invoiceController.createManualInvoice.bind
 // Generate bulk invoices (automatic monthly)
 router.post('/tagihan/generate-bulk', invoiceController.generateBulkInvoices.bind(invoiceController));
 
+// Emergency Cleanup Route
+router.post('/tagihan/force-cleanup', invoiceController.forceCleanupPeriod.bind(invoiceController));
+
 // Bulk delete invoices
 router.post('/tagihan/bulk-delete', async (req, res) => {
     try {
