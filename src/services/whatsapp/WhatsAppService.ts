@@ -696,9 +696,12 @@ export class WhatsAppService extends EventEmitter {
       }
 
       // Human-like random delay before next message (2-5 seconds)
-      const randomDelay = Math.floor(Math.random() * (this.QUEUE_PROCESS_INTERVAL_MAX - this.QUEUE_PROCESS_INTERVAL_MIN + 1)) + this.QUEUE_PROCESS_INTERVAL_MIN;
-      this.log('debug', `⏳ Waiting ${randomDelay}ms before next message...`);
-      await new Promise(resolve => setTimeout(resolve, randomDelay));
+      // Only wait if there are more messages left in the queue
+      if (this.messageQueue.length > 0) {
+        const randomDelay = Math.floor(Math.random() * (this.QUEUE_PROCESS_INTERVAL_MAX - this.QUEUE_PROCESS_INTERVAL_MIN + 1)) + this.QUEUE_PROCESS_INTERVAL_MIN;
+        this.log('debug', `⏳ Waiting ${randomDelay}ms before next message...`);
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
+      }
 
       // Yield event loop
       if (processed % 5 === 0) {
