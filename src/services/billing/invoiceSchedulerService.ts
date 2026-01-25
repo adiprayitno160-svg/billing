@@ -109,27 +109,73 @@ export class InvoiceSchedulerService {
         console.log('🔔 Starting daily invoice reminder check...');
         try {
             const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
-
-            // Get unpaid invoices that are due soon (e.g., today, tomorrow, or overdue)
-            // Logic: 
-            // 1. D-3 (3 days before due date)
-            // 2. D-0 (On due date)
-            // 3. D+3, D+7 (Overdue)
+            const { whatsappService } = await import('../whatsapp/WhatsAppService');
 
             const today = new Date();
+            const currentDay = today.getDate();
             today.setHours(0, 0, 0, 0);
 
-            // We can add more complex logic here or fetch from settings. 
-            // For now, let's just find invoices where due_date = today OR due_date = today + 3 days OR overdue 7 days
+            // =========================================================================
+            // 1. AUTO-SEND DRAFT INVOICES (Starts on 20th, repeats every 3 days)
+            // =========================================================================
+            if (currentDay >= 20 && (currentDay - 20) % 3 === 0) {
+                console.log(`📡 [AUTO-SEND] Starting auto-delivery for draft invoices (Day ${currentDay})...`);
 
+                const [draftInvoices] = await databasePool.query<RowDataPacket[]>(
+                    `SELECT i.*, c.name, c.phone 
+                     FROM invoices i 
+                     JOIN customers c ON i.customer_id = c.id 
+                     WHERE i.status = 'draft' 
+                     AND c.status = 'active'`
+                );
+
+                console.log(`📡 Found ${draftInvoices.length} draft invoices to send.`);
+
+                const formatter = new Intl.NumberFormat('id-ID', {
+                    style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+                });
+
+                for (const inv of draftInvoices) {
+                    if (!inv.phone) continue;
+
+                    try {
+                        const periodDate = new Date(inv.period + '-01');
+                        const periodName = periodDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                        const dueDateFormatted = new Date(inv.due_date).toLocaleDateString('id-ID', {
+                            day: 'numeric', month: 'long', year: 'numeric'
+                        });
+
+                        const message = `📢 *TAGIHAN INTERNET BULAN ${periodName.toUpperCase()}*\\n\\n` +
+                            `Halo Kak *${inv.name}*,\\n` +
+                            `Berikut adalah rincian tagihan internet Anda:\\n\\n` +
+                            `📄 *Detail Tagihan:*\\n` +
+                            `• No. Invoice: *${inv.invoice_number}*\\n` +
+                            `• Periode: ${periodName}\\n` +
+                            `• Total Tagihan: *${formatter.format(inv.total_amount)}*\\n` +
+                            `• Jatuh Tempo: *${dueDateFormatted}*\\n\\n` +
+                            `⚠️ Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari isolir otomatis.\\n\\n` +
+                            `Terima kasih. 🙏`;
+
+                        await whatsappService.sendMessage(inv.phone, message);
+                        await databasePool.execute('UPDATE invoices SET status = "sent" WHERE id = ?', [inv.id]);
+                        console.log(`✅ Auto-sent invoice ${inv.invoice_number} to ${inv.name}`);
+                    } catch (err) {
+                        console.error(`❌ Failed to auto-send invoice ${inv.id}:`, err);
+                    }
+                }
+            }
+
+            // =========================================================================
+            // 2. EXISTING REMINDER LOGIC (D-3, D-0, D+3, D+7)
+            // =========================================================================
             const [invoices] = await databasePool.query<RowDataPacket[]>(
                 `SELECT i.*, c.name, c.phone 
                  FROM invoices i 
                  JOIN customers c ON i.customer_id = c.id 
-                 WHERE i.status IN ('unpaid', 'partial') 
+                 WHERE i.status IN ('unpaid', 'partial', 'sent', 'overdue') 
                  AND i.remaining_amount > 0 
                  AND c.status = 'active'
-                 AND i.customer_id NOT IN (SELECT customer_id FROM scheduler_settings WHERE task_name = 'suppress_reminders')` // Optional exclusion
+                 AND i.customer_id NOT IN (SELECT customer_id FROM scheduler_settings WHERE task_name = 'suppress_reminders')`
             );
 
             let sentCount = 0;
@@ -141,21 +187,21 @@ export class InvoiceSchedulerService {
                 dueDate.setHours(0, 0, 0, 0);
 
                 const diffTime = today.getTime() - dueDate.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Positive = Overdue, Negative = Before Due
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                 let type = '';
 
                 // Reminder Logic
-                if (diffDays === -3) type = 'invoice_reminder_upcoming'; // 3 days before
-                else if (diffDays === 0) type = 'invoice_due_today'; // Today
-                else if (diffDays === 3) type = 'invoice_overdue_1'; // 3 days late
-                else if (diffDays === 7) type = 'invoice_overdue_2'; // 7 days late
-                else if (diffDays % 30 === 0 && diffDays > 0) type = 'invoice_overdue_monthly'; // Every month overdue
+                if (diffDays === -3) type = 'invoice_reminder_upcoming';
+                else if (diffDays === 0) type = 'invoice_due_today';
+                else if (diffDays === 3) type = 'invoice_overdue_1';
+                else if (diffDays === 7) type = 'invoice_overdue_2';
+                else if (diffDays % 30 === 0 && diffDays > 0) type = 'invoice_overdue_monthly';
 
                 if (type && invoice.phone) {
                     await UnifiedNotificationService.queueNotification({
                         customer_id: invoice.customer_id,
-                        notification_type: type as any, // Ensure these types exist in template system
+                        notification_type: type as any,
                         channels: ['whatsapp'],
                         variables: {
                             customer_name: invoice.name,
@@ -171,7 +217,7 @@ export class InvoiceSchedulerService {
 
             if (sentCount > 0) {
                 console.log(`✅ Queued ${sentCount} invoice reminders.`);
-                await UnifiedNotificationService.sendPendingNotifications(20); // Try sending some immediately
+                await UnifiedNotificationService.sendPendingNotifications(20);
             }
 
         } catch (error) {

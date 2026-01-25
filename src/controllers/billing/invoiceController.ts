@@ -1383,4 +1383,89 @@ export class InvoiceController {
             conn.release();
         }
     }
+
+    /**
+     * Bulk Send Invoice via WhatsApp
+     */
+    async bulkSendInvoiceWhatsApp(req: Request, res: Response): Promise<void> {
+        try {
+            const { invoice_ids } = req.body;
+            if (!invoice_ids || !Array.isArray(invoice_ids) || invoice_ids.length === 0) {
+                res.status(400).json({ success: false, message: 'ID tagihan tidak valid' });
+                return;
+            }
+
+            const [rows] = await databasePool.query<RowDataPacket[]>(`
+                SELECT i.*, c.name as customer_name, c.phone as customer_phone
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.id IN (?)
+            `, [invoice_ids]);
+
+            const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+
+            // Get Bank Settings once
+            const [settingsRows] = await databasePool.query<RowDataPacket[]>(
+                "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('bank_name', 'bank_account_number', 'bank_account_name')"
+            );
+
+            const bankSettings: any = {
+                bank_name: 'BCA',
+                bank_account_number: '1234567890',
+                bank_account_name: 'ISP Billing'
+            };
+            settingsRows.forEach(row => {
+                bankSettings[row.setting_key] = row.setting_value;
+            });
+
+            const formatter = new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            });
+
+            let sentCount = 0;
+
+            for (const invoice of rows) {
+                if (!invoice.customer_phone) continue;
+
+                const periodDate = new Date(invoice.period + '-01');
+                const periodName = periodDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                const dueDate = new Date(invoice.due_date).toLocaleDateString('id-ID', {
+                    day: 'numeric', month: 'long', year: 'numeric'
+                });
+
+                let message = `📢 *TAGIHAN INTERNET BULAN ${periodName.toUpperCase()}*\\n\\n` +
+                    `Halo Kak *${invoice.customer_name}*,\\n` +
+                    `Berikut adalah rincian tagihan internet Anda:\\n\\n` +
+                    `📄 *Detail Tagihan:*\\n` +
+                    `• No. Invoice: *${invoice.invoice_number}*\\n` +
+                    `• Periode: ${periodName}\\n` +
+                    `• Total Tagihan: *${formatter.format(invoice.total_amount)}*\\n` +
+                    `• Jatuh Tempo: *${dueDate}*\\n\\n` +
+                    `💳 *Cara Pembayaran:*\\n` +
+                    `Silakan transfer ke rekening:\\n` +
+                    `*${bankSettings.bank_name}*: ${bankSettings.bank_account_number}\\n` +
+                    `a/n ${bankSettings.bank_account_name}\\n\\n` +
+                    `⚠️ Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari isolir otomatis.\\n\\n` +
+                    `Terima kasih. 🙏`;
+
+                try {
+                    await whatsappService.sendMessage(invoice.customer_phone, message);
+
+                    if (invoice.status === 'draft') {
+                        await databasePool.execute('UPDATE invoices SET status = "sent" WHERE id = ?', [invoice.id]);
+                    }
+                    sentCount++;
+                } catch (e) {
+                    console.error(`Failed to send bulk WA for invoice ${invoice.id}:`, e);
+                }
+            }
+
+            res.json({ success: true, message: `${sentCount} tagihan berhasil dikirim via WhatsApp` });
+        } catch (error: any) {
+            console.error('Error bulk sending WhatsApp:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
 }

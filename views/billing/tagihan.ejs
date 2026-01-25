@@ -45,6 +45,12 @@
             <i class="fas fa-trash-alt mr-2"></i>Hapus Terpilih (<span id="selectedCount">0</span>)
         </button>
 
+        <!-- Bulk Send WA -->
+        <button type="button" id="btnBulkSendWA"
+            class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
+            <i class="fab fa-whatsapp mr-2"></i>Kirim Tagihan (WA) (<span id="selectedSendWACount">0</span>)
+        </button>
+
         <!-- Bulk Reminder -->
         <button type="button" id="btnBulkReminder"
             class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-amber-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
@@ -300,6 +306,13 @@
                                         class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 transition-all"
                                         title="Janji Bayar">
                                         <i class="fas fa-calendar-alt"></i>
+                                    </button>
+
+                                    <!-- WhatsApp -->
+                                    <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
+                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all"
+                                        title="Kirim WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
                                     </button>
 
                                     <!-- Print -->
@@ -1546,6 +1559,82 @@ Lanjutkan proses generate?`;
                         saveBtn.innerHTML = originalText;
                     });
             }
+
+            // Send WhatsApp Invoice (Single)
+            function sendInvoiceWA(invoiceId) {
+                if (confirm('Kirim tagihan ini via WhatsApp?')) {
+                    fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, {
+                        method: 'POST'
+                    })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success) alert('✅ ' + d.message);
+                            else alert('❌ ' + d.message);
+                        })
+                        .catch(e => alert('❌ Gagal mengirim WhatsApp'));
+                }
+            }
+
+            // Event Listeners for Actions
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+
+                const action = btn.dataset.action;
+                const id = btn.dataset.invoiceId;
+
+                if (action === 'send-wanew') {
+                    sendInvoiceWA(id);
+                }
+            });
+
+            // Bulk Send WA
+            const btnBulkSendWA = document.getElementById('btnBulkSendWA');
+            if (btnBulkSendWA) {
+                btnBulkSendWA.addEventListener('click', function () {
+                    const selected = Array.from(document.querySelectorAll('.invoice-checkbox:checked')).map(cb => cb.value);
+                    if (selected.length === 0) return;
+
+                    if (confirm(`Kirim ${selected.length} tagihan via WhatsApp?`)) {
+                        btnBulkSendWA.disabled = true;
+                        btnBulkSendWA.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
+
+                        fetch('/billing/tagihan/bulk-send-whatsapp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ invoice_ids: selected })
+                        })
+                            .then(r => r.json())
+                            .then(d => {
+                                alert('✅ ' + d.message);
+                                location.reload();
+                            })
+                            .catch(e => {
+                                alert('❌ Gagal mengirim WhatsApp masal');
+                                btnBulkSendWA.disabled = false;
+                                btnBulkSendWA.innerHTML = '<i class="fab fa-whatsapp mr-2"></i>Kirim Tagihan (WA)';
+                            });
+                    }
+                });
+            }
+
+            // Sync counters for bulk actions
+            function updateBulkWAStats() {
+                const count = document.querySelectorAll('.invoice-checkbox:checked').length;
+                const span = document.getElementById('selectedSendWACount');
+                if (span) span.textContent = count;
+
+                if (btnBulkSendWA) {
+                    if (count > 0) btnBulkSendWA.classList.add('bulk-delete-visible');
+                    else btnBulkSendWA.classList.remove('bulk-delete-visible');
+                }
+            }
+
+            document.addEventListener('change', function (e) {
+                if (e.target.classList.contains('invoice-checkbox') || e.target.id === 'selectAll') {
+                    setTimeout(updateBulkWAStats, 50);
+                }
+            });
         </script>
 
         <!-- Janji Bayar Modal -->

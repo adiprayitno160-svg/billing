@@ -613,6 +613,7 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
 });
 
 // Send invoice via WhatsApp
+router.post('/tagihan/bulk-send-whatsapp', invoiceController.bulkSendInvoiceWhatsApp.bind(invoiceController));
 router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.bind(invoiceController));
 
 // Invoice detail (harus di akhir karena :id catch-all)
