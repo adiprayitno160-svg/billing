@@ -366,6 +366,207 @@ export class InvoiceController {
      */
     async generateBulkInvoices(req: Request, res: Response): Promise<void> {
         const conn = await databasePool.getConnection();
+        const { period, customer_ids } = req.body;
+
+        const logTag = `[SIMPLE-GEN-V3]`;
+        console.log(`${logTag} START generateBulkInvoices Period: ${period}`);
+
+        try {
+            await conn.beginTransaction();
+
+            const currentPeriod = period || new Date().toISOString().slice(0, 7); // YYYY-MM
+
+            // HARDCODE DUE DATE: 28th of the month
+            const [yearStr, monthStr] = currentPeriod.split('-');
+            const year = parseInt(yearStr);
+            const month = parseInt(monthStr);
+            const dueDate = new Date(year, month - 1, 28);
+            const dueDateStr = dueDate.toISOString().slice(0, 10);
+
+            console.log(`${logTag} TARGET: Period ${currentPeriod}, DueDate ${dueDateStr}`);
+
+            // Get all active customers
+            const subscriptionsQuery = `
+            SELECT 
+                c.id as customer_id,
+                c.name as customer_name,
+                c.customer_code,
+                c.account_balance,
+                c.connection_type,
+                c.is_taxable,
+                c.use_device_rental,
+                c.rental_mode,
+                c.rental_cost,
+                sp.name as static_pkg_name,
+                sp.price as static_pkg_price,
+                pp.name as pppoe_pkg_name,
+                pp.price as pppoe_pkg_price,
+                COALESCE(s.id, 0) as id, 
+                COALESCE(s.package_name, '') as subscription_pkg_name,
+                COALESCE(s.price, 0) as subscription_price,
+                COALESCE(s.status, 'inactive') as subscription_status
+            FROM customers c
+            LEFT JOIN subscriptions s ON c.id = s.customer_id AND LOWER(s.status) = 'active'
+            LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id
+            LEFT JOIN static_ip_packages sp ON sip.package_id = sp.id
+            LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
+            WHERE LOWER(c.status) = 'active'
+            ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
+            `;
+
+            const queryParams: any[] = [];
+            if (customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0) {
+                const numericIds = customer_ids.map((id: any) => parseInt(id)).filter((id: number) => !isNaN(id));
+                queryParams.push(numericIds);
+            }
+
+            const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
+
+            console.log(`${logTag} Found ${subscriptions.length} active customers`);
+
+            // Check existing invoices
+            const [existing] = await conn.query<RowDataPacket[]>('SELECT customer_id FROM invoices WHERE period = ?', [currentPeriod]);
+            const existingSet = new Set(existing.map(e => e.customer_id));
+
+            let createdCount = 0;
+            let skippedCount = 0;
+            const errors: string[] = [];
+
+            // FETCH SETTINGS
+            let deviceRentalFee = 25000;
+            let deviceRentalEnabled = false;
+            let ppnEnabled = false;
+            let ppnRate = 11;
+
+            try {
+                const [settings] = await conn.query<RowDataPacket[]>('SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ("device_rental_fee", "device_rental_enabled", "ppn_enabled", "ppn_rate")');
+                settings.forEach((row: any) => {
+                    if (row.setting_key === 'device_rental_fee') deviceRentalFee = parseFloat(row.setting_value);
+                    if (row.setting_key === 'ppn_rate') ppnRate = parseFloat(row.setting_value);
+                    if (row.setting_key === 'device_rental_enabled') deviceRentalEnabled = row.setting_value === 'true' || row.setting_value === '1';
+                    if (row.setting_key === 'ppn_enabled') ppnEnabled = row.setting_value === 'true' || row.setting_value === '1';
+                });
+            } catch (e) { }
+
+            for (const sub of subscriptions) {
+                if (existingSet.has(sub.customer_id)) {
+                    skippedCount++;
+                    continue;
+                }
+
+                try {
+                    let price = 0;
+                    let pkgName = 'Layanan Internet';
+
+                    if (sub.id > 0 && sub.subscription_price) {
+                        price = parseFloat(sub.subscription_price);
+                        pkgName = sub.subscription_pkg_name || 'Paket Subscription';
+                    } else if (sub.connection_type === 'static_ip' && sub.static_pkg_price) {
+                        price = parseFloat(sub.static_pkg_price);
+                        pkgName = sub.static_pkg_name || 'Paket Static IP';
+                    } else if (sub.connection_type === 'pppoe' && sub.pppoe_pkg_price) {
+                        price = parseFloat(sub.pppoe_pkg_price);
+                        pkgName = sub.pppoe_pkg_name || 'Paket PPPoE';
+                    }
+
+                    if (price <= 0) price = 100000;
+
+                    let total = price;
+                    let deviceFee = 0;
+
+                    if (deviceRentalEnabled && sub.use_device_rental) {
+                        const cost = sub.rental_cost ? parseFloat(sub.rental_cost) : deviceRentalFee;
+                        if (sub.rental_mode === 'daily') {
+                            const daysInMonth = new Date(year, month, 0).getDate();
+                            deviceFee = cost * daysInMonth;
+                        } else {
+                            deviceFee = cost;
+                        }
+                        total += deviceFee;
+                    }
+
+                    let ppn = 0;
+                    if (ppnEnabled && sub.is_taxable) {
+                        ppn = Math.round(total * (ppnRate / 100));
+                        total += ppn;
+                    }
+
+                    // Invoice Number
+                    const invNum = await this.generateInvoiceNumber(currentPeriod, conn);
+
+                    // Balance
+                    let currentBalance = parseFloat(sub.account_balance || 0);
+                    let paidAmount = 0;
+                    let notes: string | null = null;
+
+                    if (currentBalance > 0) {
+                        paidAmount = Math.min(currentBalance, total);
+                        currentBalance -= paidAmount;
+                        notes = `Otomatis potong saldo (Rp ${paidAmount})`;
+                        await conn.execute('UPDATE customers SET account_balance = ? WHERE id = ?', [currentBalance, sub.customer_id]);
+                    }
+
+                    const remaining = total - paidAmount;
+                    const status = remaining <= 0 ? 'paid' : (paidAmount > 0 ? 'partial' : 'sent');
+
+                    const [resInv] = await conn.execute<ResultSetHeader>(`
+                        INSERT INTO invoices (
+                            invoice_number, customer_id, subscription_id, period, due_date,
+                            subtotal, ppn_rate, ppn_amount, device_fee, total_amount, 
+                            paid_amount, remaining_amount, status, notes, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    `, [
+                        invNum, sub.customer_id, (sub.id > 0 ? sub.id : null), currentPeriod, dueDateStr,
+                        price, (ppnEnabled ? ppnRate : 0), ppn, deviceFee, total,
+                        paidAmount, remaining, status, notes
+                    ]);
+
+                    const invId = resInv.insertId;
+
+                    await conn.execute('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price) VALUES (?, ?, 1, ?, ?)',
+                        [invId, `${pkgName} - ${currentPeriod}`, price, price]);
+
+                    if (deviceFee > 0) {
+                        await conn.execute('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price) VALUES (?, ?, 1, ?, ?)',
+                            [invId, 'Sewa Perangkat', deviceFee, deviceFee]);
+                    }
+
+                    if (paidAmount > 0) {
+                        await conn.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes) VALUES (?, "balance", ?, NOW(), ?)',
+                            [invId, paidAmount, notes]);
+                    }
+
+                    createdCount++;
+                    console.log(`${logTag} SUCCESS ${sub.customer_name}`);
+
+                } catch (err: any) {
+                    console.error(`${logTag} ERROR ${sub.customer_name}:`, err);
+                    errors.push(`${sub.customer_name}: ${err.message}`);
+                }
+            }
+
+            await conn.commit();
+            console.log(`${logTag} GENERATE COMPLETE. Created: ${createdCount}`);
+
+            res.json({
+                success: true,
+                message: `Berhasil membuat ${createdCount} tagihan`,
+                created_count: createdCount,
+                skipped_count: skippedCount,
+                errors: errors.length > 0 ? errors : undefined
+            });
+
+        } catch (error: any) {
+            await conn.rollback();
+            console.error(`${logTag} FATAL:`, error);
+            res.status(500).json({ success: false, message: error.message });
+        } finally {
+            conn.release();
+        }
+    }
+
+    async generateBulkInvoices_UNUSED(req: Request, res: Response): Promise<void> {
+        const conn = await databasePool.getConnection();
         const { period, due_date_offset, customer_ids } = req.body;
 
         const logTag = `[DEBUG-GENERATE-${Date.now()}]`;
