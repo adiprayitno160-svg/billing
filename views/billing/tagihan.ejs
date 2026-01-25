@@ -1082,6 +1082,10 @@ Lanjutkan proses generate?`;
                                 if (data.diagnostics.active_customers === 0) {
                                     msg += `\n💡 SARAN: Pastikan status pelanggan adalah 'active' (bukan inactive/suspended)`;
                                 }
+                                if (data.diagnostics.trace && data.diagnostics.trace.length > 0) {
+                                    msg += `\n🔍 TRACE (5 Pelanggan Pertama):\n`;
+                                    data.diagnostics.trace.forEach(t => msg += `- ${t}\n`);
+                                }
                             }
 
                             if (data.skipped_count > 0) {

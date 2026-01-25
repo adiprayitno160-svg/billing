@@ -503,8 +503,13 @@ export class InvoiceController {
 
             console.log(`[InvoiceController] Loop Start. Items to process: ${sortedSubscriptions.length}`);
 
+            const debugTrace: string[] = [];
+
+            console.log(`[InvoiceController] Logic Loop - Start`);
+
             for (const sub of sortedSubscriptions) {
                 console.log(`[InvoiceController] Logic Loop - Processing: ${sub.customer_name} (#${sub.customer_id})`);
+                if (debugTrace.length < 5) debugTrace.push(`Processing: ${sub.customer_name} (ID: ${sub.customer_id})`);
 
                 if (!customerBalances.has(sub.customer_id)) {
                     customerBalances.set(sub.customer_id, parseFloat(sub.account_balance || 0));
@@ -658,7 +663,8 @@ export class InvoiceController {
                 diagnostics: {
                     total_customers: diagTotal,
                     active_customers: diagActive,
-                    query_result_length: subscriptions.length
+                    query_result_length: subscriptions.length,
+                    trace: debugTrace
                 }
             });
 
