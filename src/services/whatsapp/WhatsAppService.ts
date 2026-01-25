@@ -317,23 +317,29 @@ export class WhatsAppService extends EventEmitter {
       if (m.type === 'notify' || m.type === 'append') {
         for (const msg of m.messages) {
 
+          // Ignore status updates and broadcasts
+          if (msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast')) {
+            continue;
+          }
+
           if (!msg.key.fromMe && msg.message) {
             this.messagesReceived++;
             const sender = msg.key.remoteJid;
             const messageText = this.extractMessageText(msg);
 
-            // Filter old messages (prevent spam on reconnect)
+            // Filter old messages
             const msgTimestamp = typeof msg.messageTimestamp === 'number'
               ? msg.messageTimestamp
               : msg.messageTimestamp?.low || Math.floor(Date.now() / 1000);
 
-            // If message is older than 5 minutes, ignore it
             if (Math.floor(Date.now() / 1000) - msgTimestamp > 300) {
-              // this.log('debug', `Ignoring old message from ${sender} (Time: ${msgTimestamp})`);
               continue;
             }
 
-            this.log('info', `📩 Message from ${sender}: ${messageText?.substring(0, 50)}...`);
+            // Only log meaningful messages
+            if (messageText) {
+              this.log('info', `📩 Message from ${sender}: ${messageText.substring(0, 50)}...`);
+            }
 
             this.emit('message', {
               from: sender,
