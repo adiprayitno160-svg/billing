@@ -407,7 +407,7 @@ export class InvoiceController {
             }
 
             // Get all active customers with their connection/package details
-            // Improved LEFT JOIN for subscriptions to handle case sensitivity and spaces
+            // Improved LEFT JOIN structure for correct package association
             const subscriptionsQuery = `
             SELECT 
                 c.id as customer_id,
@@ -421,8 +421,6 @@ export class InvoiceController {
                 c.use_device_rental,
                 c.rental_mode,
                 c.rental_cost,
-                c.static_package_id,
-                c.pppoe_package_id,
                 sp.name as static_pkg_name,
                 sp.price as static_pkg_price,
                 pp.name as pppoe_pkg_name,
@@ -435,8 +433,9 @@ export class InvoiceController {
                 s.end_date
             FROM customers c
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND TRIM(LOWER(s.status)) = 'active'
-            LEFT JOIN static_ip_packages sp ON c.static_package_id = sp.id
-            LEFT JOIN pppoe_packages pp ON c.pppoe_package_id = pp.id
+            LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id
+            LEFT JOIN static_ip_packages sp ON sip.package_id = sp.id
+            LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
             WHERE c.status = 'active'
             ${customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0 ? 'AND c.id IN (?)' : ''}
         `;
@@ -511,10 +510,10 @@ export class InvoiceController {
                     if (sub.id > 0 && parseFloat(sub.subscription_price) > 0) {
                         finalPrice = parseFloat(sub.subscription_price);
                         finalPkgName = sub.subscription_pkg_name || 'Paket Subscription';
-                    } else if (sub.connection_type === 'static_ip' && sub.static_package_id) {
+                    } else if (sub.connection_type === 'static_ip' && sub.static_pkg_price) {
                         finalPrice = parseFloat(sub.static_pkg_price) || 0;
                         finalPkgName = sub.static_pkg_name || 'Paket Static IP';
-                    } else if (sub.connection_type === 'pppoe' && sub.pppoe_package_id) {
+                    } else if (sub.connection_type === 'pppoe' && sub.pppoe_pkg_price) {
                         finalPrice = parseFloat(sub.pppoe_pkg_price) || 0;
                         finalPkgName = sub.pppoe_pkg_name || 'Paket PPPoE';
                     }
