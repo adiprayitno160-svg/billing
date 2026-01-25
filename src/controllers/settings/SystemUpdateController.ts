@@ -104,6 +104,9 @@ export class SystemUpdateController {
     /**
      * Perform system update
      */
+    /**
+     * Perform system update with smart error handling
+     */
     static async performUpdate(req: Request, res: Response): Promise<any> {
         try {
             console.log('🚀 Starting robust system update...');
@@ -118,30 +121,55 @@ export class SystemUpdateController {
                 console.log(fullMsg);
             };
 
+            // Helper for Exec with Better Error Handling
+            const runCmd = async (cmd: string, stepName: string) => {
+                try {
+                    const { stdout, stderr } = await execAsync(cmd);
+                    if (stderr && !stderr.includes('warn') && !stderr.includes('notice')) {
+                        // npm output often goes to stderr even for info, so be careful logging it as error
+                        console.log(`[${stepName} Output]:`, stderr);
+                    }
+                    return stdout;
+                } catch (error: any) {
+                    // Check for EACCES/Permission denied
+                    if (error.message.includes('EACCES') || error.message.includes('permission denied')) {
+                        throw new Error(`Permission Denied during ${stepName}. The server user lacks write permissions. Please run: 'sudo chown -R $USER /var/www/billing' on the server terminal.`);
+                    }
+                    throw error;
+                }
+            };
+
             // Step 1: Fetch latest from remote
             logStep('Fetching latest from GitHub...');
-            await execAsync('git fetch origin');
+            await runCmd('git fetch origin', 'Git Fetch');
 
             // Step 2: Reset hard to match origin/main (Force Update)
-            logStep('Forcing sync with main branch (git reset --hard)...');
+            logStep('Forcing sync with main branch...');
             try {
-                await execAsync('git reset --hard origin/main');
+                await runCmd('git reset --hard origin/main', 'Git Reset');
             } catch (error) {
                 console.error('Git reset failed, trying simple pull...');
-                await execAsync('git pull origin main --force');
+                await runCmd('git pull origin main --force', 'Git Pull');
             }
 
-            // Step 3: Clean untracked files (Optional but safer)
-            // logStep('Cleaning untracked files...');
-            // await execAsync('git clean -fd'); 
+            // Step 3: Check Write Permissions for Build
+            logStep('Verifying file permissions...');
+            try {
+                fs.accessSync(path.join(process.cwd(), 'package-lock.json'), fs.constants.W_OK);
+                fs.accessSync(path.join(process.cwd(), 'dist'), fs.constants.W_OK);
+            } catch (err) {
+                // Try to ignore if file doesn't exist, but if exists and no write, it is an error
+                console.warn('⚠️ Warning: Write permission check failed. Build might fail.');
+            }
 
             // Step 4: Install dependencies
-            logStep('Installing dependencies (npm install)...');
-            await execAsync('npm install --legacy-peer-deps');
+            logStep('Installing dependencies...');
+            // Try installing only production if dev fails, to save time/perms, but we need tsc so dev is needed.
+            await runCmd('npm install --legacy-peer-deps', 'NPM Install');
 
             // Step 5: Build application
-            logStep('Building application (npm run build)...');
-            await execAsync('npm run build');
+            logStep('Building application (TypeScript)...');
+            await runCmd('npm run build', 'NPM Build');
 
             // Step 6: Read new version
             const packageJson = JSON.parse(
@@ -169,11 +197,18 @@ export class SystemUpdateController {
 
         } catch (error: any) {
             console.error('❌ Error performing update:', error);
+
+            // Clean up error message for user
+            let userMsg = error.message;
+            if (userMsg.includes('Command failed')) {
+                userMsg = userMsg.split('\n').filter((l: string) => !l.includes('Command failed')).join('\n').trim();
+            }
+
             res.status(500).json({
                 success: false,
-                error: 'Failed to update system',
-                details: error.message,
-                steps: [] // We might want to pass steps so far, but local scope makes it hard without refactoring
+                error: 'Update Failed',
+                details: userMsg,
+                steps: []
             });
         }
     }
