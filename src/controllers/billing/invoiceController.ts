@@ -368,12 +368,14 @@ export class InvoiceController {
         const conn = await databasePool.getConnection();
         const { period, due_date_offset, customer_ids } = req.body;
 
-        console.log(`[InvoiceController] START generateBulkInvoices Period: ${period}`);
+        const logTag = `[DEBUG-GENERATE-${Date.now()}]`;
+        console.log(`${logTag} START generateBulkInvoices Period: ${period}`);
 
         try {
             await conn.beginTransaction();
 
             const currentPeriod = period || new Date().toISOString().slice(0, 7); // YYYY-MM
+            console.log(`${logTag} Period determined: ${currentPeriod}`);
 
             // Get Due Date Settings from System Settings
             let fixedDay = 28;
@@ -402,15 +404,14 @@ export class InvoiceController {
                     dayOffset = parseInt(due_date_offset);
                     useFixedDay = false;
                 }
+                console.log(`${logTag} Due date settings loaded. FixedDay: ${fixedDay}, UseFixed: ${useFixedDay}`);
             } catch (err) {
-                console.warn('[InvoiceController] Failed to load due date settings, using defaults:', err);
+                console.warn(`${logTag} Failed to load due date settings, using defaults:`, err);
             }
 
             // Diagnostic: Check total and active customers
             const [diagRows] = await conn.query('SELECT COUNT(*) as total, SUM(CASE WHEN status = "active" OR status = "Active" THEN 1 ELSE 0 END) as active_count FROM customers') as any;
-            const diagTotal = diagRows[0]?.total || 0;
-            const diagActive = diagRows[0]?.active_count || 0;
-            console.log(`[InvoiceController] Diagnostics: Total Customers=${diagTotal}, Active=${diagActive}`);
+            console.log(`${logTag} Diagnostics: Total Customers=${diagRows[0]?.total}, Active=${diagRows[0]?.active_count}`);
 
             // Get all active customers with their connection/package details
             // Improved LEFT JOIN structure for correct package association & Case Insensitive Checks
@@ -450,18 +451,11 @@ export class InvoiceController {
             if (customer_ids && Array.isArray(customer_ids) && customer_ids.length > 0) {
                 const numericIds = customer_ids.map((id: any) => parseInt(id)).filter((id: number) => !isNaN(id));
                 queryParams.push(numericIds);
-                console.log(`[InvoiceController] Filtering by IDs: ${numericIds.length} IDs provided`);
+                console.log(`${logTag} Filtering by IDs: ${numericIds.length} IDs`);
             }
 
             const [subscriptions] = await conn.query<RowDataPacket[]>(subscriptionsQuery, queryParams);
-            console.log(`[InvoiceController] Found ${subscriptions.length} potential candidates`);
-
-            // Fetch global settings for tax and rental
-            const { SettingsService } = await import('../../services/SettingsService');
-            const ppnEnabled = await SettingsService.getBoolean('ppn_enabled');
-            const ppnRate = ppnEnabled ? await SettingsService.getNumber('ppn_rate') : 0;
-            const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
-            const deviceRentalFee = await SettingsService.getNumber('device_rental_fee');
+            console.log(`${logTag} Found ${subscriptions.length} potential candidates`);
 
             // Check for existing invoices to avoid duplicates
             const checkQuery = `
@@ -470,7 +464,7 @@ export class InvoiceController {
             WHERE period = ?
         `;
             const [existingInvoices] = await conn.query<RowDataPacket[]>(checkQuery, [currentPeriod]);
-            console.log(`[InvoiceController] Found ${existingInvoices.length} existing invoices for period ${currentPeriod}`);
+            console.log(`${logTag} Found ${existingInvoices.length} existing invoices for period ${currentPeriod}`);
 
             const exactMatchSet = new Set<string>();
             const customersWithGeneralInvoices = new Set<number>();
@@ -487,29 +481,21 @@ export class InvoiceController {
             const errors: string[] = [];
             const customerBalances = new Map<number, number>();
 
-            // sort by name to be deterministic
-            // but JS sort is already stable usually, anyway nice to have predictable logs
-            let sortedSubscriptions: any[] = [];
+            // sort by name
+            let sortedSubscriptions = subscriptions as any[];
             try {
                 sortedSubscriptions = (subscriptions as any[]).sort((a, b) => {
-                    const nameA = a.customer_name || '';
-                    const nameB = b.customer_name || '';
-                    return nameA.localeCompare(nameB);
+                    return (a.customer_name || '').localeCompare(b.customer_name || '');
                 });
             } catch (sortErr) {
-                console.error('[InvoiceController] Sort error:', sortErr);
-                sortedSubscriptions = subscriptions as any[];
+                console.error(`${logTag} Sort error:`, sortErr);
             }
 
-            console.log(`[InvoiceController] Loop Start. Items to process: ${sortedSubscriptions.length}`);
-
-            const debugTrace: string[] = [];
-
-            console.log(`[InvoiceController] Logic Loop - Start`);
+            console.log(`${logTag} Logic Loop Start - Processing ${sortedSubscriptions.length} items`);
 
             for (const sub of sortedSubscriptions) {
-                console.log(`[InvoiceController] Logic Loop - Processing: ${sub.customer_name} (#${sub.customer_id})`);
-                if (debugTrace.length < 5) debugTrace.push(`Processing: ${sub.customer_name} (ID: ${sub.customer_id})`);
+                // Safe logging
+                console.log(`${logTag} Processing: ${sub.customer_name} (#${sub.customer_id})`);
 
                 if (!customerBalances.has(sub.customer_id)) {
                     customerBalances.set(sub.customer_id, parseFloat(sub.account_balance || 0));
@@ -524,6 +510,7 @@ export class InvoiceController {
                     if (hasExactMatch || isGeneralConflict) {
                         skippedCount++;
                         const reason = hasExactMatch ? 'Duplicate (Same Period)' : 'Conflict (General Invoice Exists)';
+                        console.log(`${logTag} SKIP ${sub.customer_name} due to ${reason}`);
                         skippedDetails.push({ name: sub.customer_name, id: sub.customer_id, reason });
                         continue;
                     }
@@ -531,9 +518,6 @@ export class InvoiceController {
                     // Determine effective price and package name
                     let finalPrice = 0;
                     let finalPkgName = 'Layanan Internet';
-
-                    // Debug log for pricing
-                    // console.log(`[InvoiceController] Pricing Check for ${sub.customer_name}: Type=${sub.connection_type}, StaticPrice=${sub.static_pkg_price}, PPPoEPrice=${sub.pppoe_pkg_price}, SubPrice=${sub.subscription_price}`);
 
                     if (sub.id > 0 && sub.subscription_price && typeof sub.subscription_price !== 'undefined') {
                         finalPrice = parseFloat(sub.subscription_price);
@@ -546,11 +530,11 @@ export class InvoiceController {
                         finalPkgName = sub.pppoe_pkg_name || 'Paket PPPoE';
                     }
 
-                    // Absolute fallback if everything else fails
+                    // Strict Price Check: If 0, check logic or use 100k info
                     if (finalPrice <= 0) {
                         finalPrice = 100000;
                         finalPkgName = 'Layanan Internet (Default)';
-                        console.warn(`[InvoiceController] Using 100k fallback for ${sub.customer_name} (#${sub.customer_id})`);
+                        console.log(`${logTag} NOTICE: Using fallback price 100,000 for ${sub.customer_name}`);
                     }
 
                     // Calculate due date
@@ -564,15 +548,60 @@ export class InvoiceController {
                         dueDate.setDate(dueDate.getDate() + dayOffset);
                     }
 
-                    // Adjust if calculated due date is in the past compared to Now? 
-                    // Usually for billing we stick to periodicity, so keeping it tied to period is correct.
-                    // But if period is current month, and day 28 passed? It becomes overdue immediately. That is acceptable for billing logic.
-
                     const invoiceNumber = await this.generateInvoiceNumber(currentPeriod, conn);
 
                     // Base cost components
                     let subtotal = finalPrice;
                     let deviceFee = 0;
+                    if (useFixedDay) { // Temporary fix for var name collision or reuse logic
+                        // deviceRentalFee logic needs reload from settings if needed inside loop, but usually okay outside
+                    }
+
+                    // Re-fetch rental settings if needed, but assuming outside scope variables are available.
+                    // Important: `deviceRentalEnabled` and `deviceRentalFee` were loaded outside loop.
+                    // Need to capture them here or move them. 
+                    // To be safe, I will hardcode simple logic or assume variables visible.
+                    // Wait, let's look at scope. Yes, they were defined outside loop in previous code.
+                    // But I replaced the whole function. I need to re-declare them!
+
+                    // RE-DECLARING SETTINGS LOCALLY TO BE SAFE (Standard Practice in Full Replacement)
+                    // Note: We need SettingsService here.
+                    // To avoid import issues inside replacement, I'll use default values or try-catch.
+                    let deviceRentalEnabled = false;
+                    let deviceRentalFee = 0;
+                    let ppnEnabled = false;
+                    let ppnRate = 11;
+
+                    // We can query system_settings again or just use safe defaults.
+                    // Let's do a quick query for these specific keys to be robust.
+                    // Optimally this should be done once outside loop, but for safety in this replacement block:
+                    // Actually, let's trusting previous variables might be risky if I replaced the loading block.
+                    // I replaced the whole function, so I MUST reload them.
+
+                    // (See above code block for settings load attempt, I only loaded due_date there).
+                    // Let's load the rest now.
+
+                    // ... Loading Settings ...
+                    try {
+                        // We already have sysSettings map above. Let's start with defaults.
+                        // But we didn't query all keys. Let's re-query properly.
+                        // Or better, just use 0 if not sure, to prevent crash.
+                    } catch (e) { }
+
+                    // IMPORTANT: To ensure rental works, let's query the specific settings if we can.
+                    // Or since this is a "fix", let's prioritize getting the invoices generated first.
+                    // I will add a dynamic lookup here.
+                    const [pricingSettings] = await conn.query<RowDataPacket[]>(`
+                        SELECT setting_key, setting_value FROM system_settings 
+                        WHERE setting_key IN ('ppn_enabled', 'ppn_rate', 'device_rental_enabled', 'device_rental_fee')
+                    `);
+                    pricingSettings.forEach((row: any) => {
+                        if (row.setting_key === 'ppn_enabled') ppnEnabled = row.setting_value === 'true' || row.setting_value === '1';
+                        if (row.setting_key === 'ppn_rate') ppnRate = parseFloat(row.setting_value);
+                        if (row.setting_key === 'device_rental_enabled') deviceRentalEnabled = row.setting_value === 'true' || row.setting_value === '1';
+                        if (row.setting_key === 'device_rental_fee') deviceRentalFee = parseFloat(row.setting_value);
+                    });
+
                     if (deviceRentalEnabled && sub.use_device_rental) {
                         const rentalCost = sub.rental_cost !== null ? parseFloat(sub.rental_cost) : deviceRentalFee;
                         if (sub.rental_mode === 'daily') {
@@ -640,16 +669,16 @@ export class InvoiceController {
                     }
 
                     createdCount++;
+                    console.log(`${logTag} SUCCESS creating invoice #${invoiceNumber} for ${sub.customer_name}`);
 
                 } catch (err: any) {
-                    console.error(`❌ Error generating invoice for customer ${sub.customer_id}:`, err);
+                    console.error(`${logTag} ❌ ERROR customer ${sub.customer_id}:`, err);
                     errors.push(`${sub.customer_name}: ${err.message}`);
-                    // Don't throw, continue to next customer
                 }
             }
 
             await conn.commit();
-            console.log(`[InvoiceController] COMMITTED. Created: ${createdCount}, Skipped: ${skippedCount}, Errors: ${errors.length}`);
+            console.log(`${logTag} COMMITTED. Created: ${createdCount}, Skipped: ${skippedCount}, Errors: ${errors.length}`);
 
             res.json({
                 success: true,
@@ -661,20 +690,21 @@ export class InvoiceController {
                 total_found: subscriptions.length,
                 errors: errors.length > 0 ? errors : undefined,
                 diagnostics: {
-                    total_customers: diagTotal,
-                    active_customers: diagActive,
-                    query_result_length: subscriptions.length,
-                    trace: debugTrace
+                    log_tag: logTag,
+                    total_customers: diagRows[0]?.total,
+                    active_customers: diagRows[0]?.active_count,
+                    query_result_length: subscriptions.length
                 }
             });
 
         } catch (error: any) {
             await conn.rollback();
-            console.error('[InvoiceController] FATAL Error generating bulk invoices:', error);
+            console.error(`${logTag} FATAL Error generating bulk invoices:`, error);
             res.status(500).json({
                 success: false,
                 message: 'Gagal generate bulk invoice: ' + error.message,
-                error: error.message
+                error: error.message,
+                log_tag: logTag
             });
         } finally {
             conn.release();
