@@ -196,7 +196,7 @@ router.post('/tagihan/bulk-reminder', async (req, res) => {
                     try {
                         await UnifiedNotificationService.queueNotification({
                             customer_id: invoice.customer_id,
-                            notification_type: 'invoice_reminder_manual', // Use generic manual reminder
+                            notification_type: 'invoice_reminder_manual' as any, // Use generic manual reminder
                             channels: ['whatsapp'],
                             variables: {
                                 customer_name: invoice.name,

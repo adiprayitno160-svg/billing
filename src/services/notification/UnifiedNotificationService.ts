@@ -36,7 +36,13 @@ export type NotificationType =
   | 'payment_reminder'
   | 'payment_deferment'
   | 'broadcast'
-  | 'technician_job';
+  | 'technician_job'
+  | 'invoice_reminder_manual'
+  | 'invoice_reminder_upcoming'
+  | 'invoice_due_today'
+  | 'invoice_overdue_1'
+  | 'invoice_overdue_2'
+  | 'invoice_overdue_monthly';
 
 export type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push';
 

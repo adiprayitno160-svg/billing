@@ -2560,11 +2560,16 @@ router.post('/customers/new-pppoe', async (req, res) => {
 
                         const registrationDate = new Date();
                         const startDate = registrationDate.toISOString().slice(0, 10);
-                        const endDate = new Date(registrationDate);
-                        endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
-                        const endDateStr = endDate.toISOString().slice(0, 10);
 
-                        console.log(`   Creating subscription with Start: ${startDate}, End: ${endDateStr}`);
+                        // Fix Auto Subscribe: Set end_date to NULL for postpaid/auto-renew
+                        let endDateStr = null;
+                        if (billing_mode_value === 'prepaid') {
+                            const endDate = new Date(registrationDate);
+                            endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
+                            endDateStr = endDate.toISOString().slice(0, 10);
+                        }
+
+                        console.log(`   Creating subscription with Start: ${startDate}, End: ${endDateStr || 'NULL (Auto-Renew)'}`);
 
                         // Insert subscription
                         const [subResult] = await conn.execute(`

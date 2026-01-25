@@ -155,7 +155,7 @@ export class InvoiceSchedulerService {
                 if (type && invoice.phone) {
                     await UnifiedNotificationService.queueNotification({
                         customer_id: invoice.customer_id,
-                        notification_type: type, // Ensure these types exist in template system
+                        notification_type: type as any, // Ensure these types exist in template system
                         channels: ['whatsapp'],
                         variables: {
                             customer_name: invoice.name,
