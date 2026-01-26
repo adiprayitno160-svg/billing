@@ -31,14 +31,27 @@ export class VerificationController {
             const { status = 'pending', page = 1, limit = 20 } = req.query;
             const offset = (Number(page) - 1) * Number(limit);
 
+            // Optimized query: Don't select full image_data (too heavy)
             const [rows] = await databasePool.query<any[]>(`
-                SELECT mpv.*, c.name as customer_name, c.phone as customer_phone
+                SELECT 
+                    mpv.id, mpv.created_at, mpv.status, 
+                    COALESCE(mpv.extracted_amount, mpv.expected_amount) as amount, 
+                    mpv.reason as notes, 
+                    0 as confidence_score, /* Default if column missing */
+                    c.name as customer_name, c.phone as customer_phone,
+                    CASE WHEN mpv.image_data IS NOT NULL AND mpv.image_data != '' THEN 1 ELSE 0 END as has_image
                 FROM manual_payment_verifications mpv
                 LEFT JOIN customers c ON mpv.customer_id = c.id
                 WHERE mpv.status = ?
                 ORDER BY mpv.created_at DESC
                 LIMIT ? OFFSET ?
             `, [status, Number(limit), offset]);
+
+            // Map has_image to proof_image URL
+            const mappedRows = rows.map(r => ({
+                ...r,
+                proof_image: r.has_image ? `/billing/verification/image/${r.id}` : null
+            }));
 
             // Get total count
             const [countRows] = await databasePool.query<any[]>(`
@@ -57,7 +70,7 @@ export class VerificationController {
 
             res.json({
                 success: true,
-                data: rows,
+                data: mappedRows,
                 pagination: {
                     page: Number(page),
                     limit: Number(limit),
@@ -93,9 +106,21 @@ export class VerificationController {
                 return;
             }
 
+            const data = rows[0];
+
+            // Map for frontend consistency
+            data.notes = data.reason;
+            data.amount = data.extracted_amount || data.expected_amount;
+
+            // Transform for frontend
+            if (data.image_data) {
+                data.proof_image = `/billing/verification/image/${data.id}`;
+                delete data.image_data; // Remove heavy data from JSON
+            }
+
             res.json({
                 success: true,
-                data: rows[0]
+                data: data
             });
         } catch (error: any) {
             console.error('Error fetching detail:', error);
@@ -103,6 +128,46 @@ export class VerificationController {
                 success: false,
                 error: error.message
             });
+        }
+    }
+
+    /**
+     * Serve verification image raw
+     */
+    static async getImage(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const [rows] = await databasePool.query<any[]>(
+                'SELECT image_data, image_mimetype FROM manual_payment_verifications WHERE id = ?',
+                [id]
+            );
+
+            if (rows.length === 0 || !rows[0].image_data) {
+                res.redirect('/images/no-image-placeholder.png'); // Fallback URL or 404
+                return;
+            }
+
+            const img = rows[0];
+
+            // Check if base64 or buffer
+            let imgBuffer: Buffer;
+            if (Buffer.isBuffer(img.image_data)) {
+                imgBuffer = img.image_data;
+            } else {
+                // Assuming it's base64 string without prefix, or with prefix
+                let base64 = img.image_data.toString();
+                if (base64.includes('base64,')) {
+                    base64 = base64.split('base64,')[1];
+                }
+                imgBuffer = Buffer.from(base64, 'base64');
+            }
+
+            res.setHeader('Content-Type', img.image_mimetype || 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+            res.send(imgBuffer);
+        } catch (error) {
+            console.error('Error serving verification image:', error);
+            res.status(500).send('Image error');
         }
     }
 

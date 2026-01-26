@@ -426,7 +426,8 @@ export async function createPackage(data: {
 						maxLimit: parentMaxLimit,
 						limitAt: parentLimitAt,
 						comment: `[BILLING] PPPOE SHARED PARENT: ${data.name}`,
-						queue: 'default/default'
+						queue: 'pcq-upload-default/pcq-download-default', // Use PCQ for fair sharing
+						priority: '8/8'
 					};
 
 					const queues = await getSimpleQueues(config);
@@ -587,7 +588,8 @@ export async function updatePackage(id: number, data: {
 						maxLimit: parentMaxLimit,
 						limitAt: parentLimitAt,
 						comment: `[BILLING] PPPOE SHARED PARENT: ${newPackageName}`,
-						queue: 'default/default'
+						queue: 'pcq-upload-default/pcq-download-default', // Use PCQ for fair sharing
+						priority: '8/8'
 					};
 
 					const queues = await getSimpleQueues(config);

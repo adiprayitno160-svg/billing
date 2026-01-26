@@ -38,24 +38,51 @@ export class DatabaseBackupService {
                 console.warn(`[Backup] Ignoring configured path '${dbPath}' due to OS mismatch. using default.`);
             }
 
-            // 2. Dynamic check for Laragon MySQL version
-            const laragonMysqlBase = 'C:\\laragon\\bin\\mysql';
-            if (fs.existsSync(laragonMysqlBase)) {
-                const dirs = fs.readdirSync(laragonMysqlBase);
-                // Filter for directories starting with mysql- and sort to get latest/likely active
-                const mysqlDirs = dirs.filter(d => d.startsWith('mysql-') && fs.statSync(path.join(laragonMysqlBase, d)).isDirectory());
+            // 2. Platform specific detection
+            if (process.platform === 'win32') {
+                // Dynamic check for Laragon MySQL version
+                const laragonMysqlBase = 'C:\\laragon\\bin\\mysql';
+                if (fs.existsSync(laragonMysqlBase)) {
+                    const dirs = fs.readdirSync(laragonMysqlBase);
+                    const mysqlDirs = dirs.filter(d => d.startsWith('mysql-') && fs.statSync(path.join(laragonMysqlBase, d)).isDirectory());
 
-                if (mysqlDirs.length > 0) {
-                    // Sort descending might give newer version, but usually there's only one active or one folder.
-                    // Just pick the first one valid that has bin/mysqldump.exe
-                    for (const dir of mysqlDirs) {
-                        const candidate = path.join(laragonMysqlBase, dir, 'bin', 'mysqldump.exe');
-                        if (fs.existsSync(candidate)) {
-                            console.log(`[Backup] Auto-detected mysqldump at: ${candidate}`);
-                            return candidate;
+                    if (mysqlDirs.length > 0) {
+                        for (const dir of mysqlDirs) {
+                            const candidate = path.join(laragonMysqlBase, dir, 'bin', 'mysqldump.exe');
+                            if (fs.existsSync(candidate)) {
+                                console.log(`[Backup] Auto-detected mysqldump at: ${candidate}`);
+                                return candidate;
+                            }
                         }
                     }
                 }
+            } else {
+                // Linux/Mac Logic
+                const commonPaths = [
+                    '/usr/bin/mysqldump',
+                    '/usr/local/bin/mysqldump',
+                    '/bin/mysqldump',
+                    '/snap/bin/mysqldump'
+                ];
+
+                for (const p of commonPaths) {
+                    if (fs.existsSync(p)) {
+                        console.log(`[Backup] Found mysqldump binary at: ${p}`);
+                        return p;
+                    }
+                }
+
+                // Try 'which' command
+                try {
+                    const { stdout } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+                        exec('which mysqldump', (err, stdout, stderr) => err ? reject(err) : resolve({ stdout, stderr }));
+                    });
+                    if (stdout) {
+                        const trimmed = stdout.trim();
+                        console.log(`[Backup] 'which mysqldump' found: ${trimmed}`);
+                        return trimmed;
+                    }
+                } catch (e) { /* ignore */ }
             }
 
             // 3. Fallback to system PATH

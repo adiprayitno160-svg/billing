@@ -363,65 +363,79 @@
                             <!-- Items -->
                             <div class="items-section">
                                 <div class="items-title">RINCIAN TAGIHAN</div>
-                                <div class="item">
-                                    <div class="item-name">Layanan Internet</div>
-                                    <div class="item-detail">
-                                        <span class="label">Periode:</span>
-                                        <span class="value">
-                                            <% const periodParts2=invoice.period.split('-'); const
-                                                year2=periodParts2[0]; const monthNum2=parseInt(periodParts2[1]); const
-                                                monthNames2=['Januari', 'Februari' , 'Maret' , 'April' , 'Mei' , 'Juni'
-                                                , 'Juli' , 'Agustus' , 'September' , 'Oktober' , 'November' , 'Desember'
-                                                ]; const monthName2=monthNames2[monthNum2 - 1] || invoice.period; %>
-                                                <%= monthName2 %>
-                                                    <%= year2 %>
-                                        </span>
-                                    </div>
-                                    <div class="item-detail">
-                                        <span class="label">Jumlah:</span>
-                                        <span class="value">Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
-                                    </div>
-                                    <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
-                                        <div class="item-detail" style="color: #d9534f;">
-                                            <span class="label">
-                                                Diskon:
-                                                <% if (invoice.discount_reason) { %>
-                                                    <br><span style="font-size: 7pt; font-weight: 600;">(<%=
-                                                            invoice.discount_reason %>)</span>
-                                                    <% } %>
-                                                        <% if (invoice.sla_type) { %>
-                                                            <br><span style="font-size: 7pt; font-weight: 600;">SLA: <%=
-                                                                    invoice.sla_type %></span>
-                                                            <% } %>
-                                            </span>
-                                            <span class="value">- Rp <%= new
-                                                    Intl.NumberFormat('id-ID').format(invoice.discount_amount) %></span>
+                                <% if (invoice.items && invoice.items.length> 0) { %>
+                                    <% invoice.items.forEach(item=> { %>
+                                        <div class="item">
+                                            <div class="item-name">
+                                                <%= item.description %>
+                                            </div>
+                                            <div class="item-detail">
+                                                <span class="label">Jumlah:</span>
+                                                <span class="value">Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(item.total_price) %></span>
+                                            </div>
                                         </div>
-                                        <% } %>
-                                </div>
+                                        <% }); %>
+                                            <% } else { %>
+                                                <div class="item">
+                                                    <div class="item-name">Layanan Internet</div>
+                                                    <div class="item-detail">
+                                                        <span class="label">Periode:</span>
+                                                        <span class="value">
+                                                            <% const periodParts2=invoice.period.split('-'); const
+                                                                year2=periodParts2[0]; const
+                                                                monthNum2=parseInt(periodParts2[1]); const
+                                                                monthNames2=['Januari', 'Februari' , 'Maret' , 'April'
+                                                                , 'Mei' , 'Juni' , 'Juli' , 'Agustus' , 'September'
+                                                                , 'Oktober' , 'November' , 'Desember' ]; const
+                                                                monthName2=monthNames2[monthNum2 - 1] || invoice.period;
+                                                                %>
+                                                                <%= monthName2 %>
+                                                                    <%= year2 %>
+                                                        </span>
+                                                    </div>
+                                                    <div class="item-detail">
+                                                        <span class="label">Jumlah:</span>
+                                                        <span class="value">Rp <%= new
+                                                                Intl.NumberFormat('id-ID').format(invoice.total_amount)
+                                                                %></span>
+                                                    </div>
+                                                </div>
+                                                <% } %>
+
+                                                    <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
+                                                        <div class="item"
+                                                            style="color: #d9534f; border-top: 1px dotted #000; padding-top: 2mm; margin-top: 2mm;">
+                                                            <div class="item-name">Diskon / Kompensasi</div>
+                                                            <div class="item-detail">
+                                                                <span class="label">
+                                                                    <%= invoice.discount_reason || 'Diskon' %>
+                                                                        <% if (invoice.sla_type) { %>
+                                                                            <br><span
+                                                                                style="font-size: 7pt; font-weight: 600;">SLA:
+                                                                                <%= invoice.sla_type %></span>
+                                                                            <% } %>
+                                                                </span>
+                                                                <span class="value">- Rp <%= new
+                                                                        Intl.NumberFormat('id-ID').format(invoice.discount_amount)
+                                                                        %></span>
+                                                            </div>
+                                                        </div>
+                                                        <% } %>
                             </div>
 
                             <!-- Total -->
                             <div class="total-section">
                                 <div class="total-row">
                                     <span class="label">Subtotal:</span>
-                                    <span class="value">Rp <%= new
-                                            Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                                    <span class="value">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.subtotal ||
+                                            invoice.total_amount) %></span>
                                 </div>
 
                                 <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
                                     <div class="total-row" style="color: #d9534f;">
                                         <span class="label">
-                                            Diskon
-                                            <% if (invoice.discount_reason) { %>
-                                                <br><span style="font-size: 7pt; font-weight: 600;">(<%=
-                                                        invoice.discount_reason %>)</span>
-                                                <% } %>
-                                                    <% if (invoice.sla_type) { %>
-                                                        <br><span style="font-size: 7pt; font-weight: 600;">SLA: <%=
-                                                                invoice.sla_type %></span>
-                                                        <% } %>
+                                            Diskon / Komp.
                                         </span>
                                         <span class="value">- Rp <%= new
                                                 Intl.NumberFormat('id-ID').format(invoice.discount_amount) %></span>

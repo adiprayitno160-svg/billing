@@ -20,6 +20,7 @@ router.get('/verification', VerificationController.index);
 router.get('/verification/list', VerificationController.getList);
 router.get('/verification/detail/:id', VerificationController.getDetail);
 router.get('/verification/customer-invoices/:customerId', VerificationController.getCustomerInvoices);
+router.get('/verification/image/:id', VerificationController.getImage);
 router.post('/verification/process', VerificationController.process);
 
 // ========================================
@@ -306,7 +307,6 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
 
                 // Get discount information if exists
                 if (invoice.discount_amount && invoice.discount_amount > 0) {
-                    // Try to get discount reason from discounts table
                     const [discountInfo] = await conn.query(
                         `SELECT reason, discount_type FROM discounts WHERE invoice_id = ? ORDER BY created_at DESC LIMIT 1`,
                         [invoice.id]
@@ -409,9 +409,16 @@ router.get('/tagihan/print-all', async (req, res) => {
                 }
             }
 
-            query += ' ORDER BY o.name ASC, c.name ASC';
-
             const [invoices] = await conn.query(query, queryParams) as any;
+
+            // FETCH ITEMS for each invoice for thermal/detailed print
+            for (const invoice of invoices) {
+                const [items] = await conn.query(
+                    'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
+                    [invoice.id]
+                ) as any;
+                invoice.items = items || [];
+            }
 
             // Choose view based on format parameter
             const viewName = format === 'thermal'

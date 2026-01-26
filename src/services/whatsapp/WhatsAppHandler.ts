@@ -12,18 +12,63 @@ import fs from 'fs';
 
 export class WhatsAppHandler {
 
+    static async writeLog(message: string) {
+        const logPath = path.join(process.cwd(), 'logs', 'whatsapp_debug.log');
+        const timestamp = new Date().toISOString();
+        const logLine = `[${timestamp}] ${message}\n`;
+        fs.appendFile(logPath, logLine, (err) => {
+            if (err) console.error('Failed to write log:', err);
+        });
+    }
+
+    /**
+     * Sophisticated identity resolution logic
+     * Handles LID, remoteJidAlt, International formats, and standard JIDs
+     */
+    private static resolveSenderIdentity(msg: proto.IWebMessageInfo): { phone: string; isLid: boolean; originalJid: string } {
+        const remoteJid = msg.key.remoteJid || '';
+        const isLid = remoteJid.includes('@lid');
+        let phone = '';
+
+        // 1. Try Extended Metadata (remoteJidAlt) - The most reliable for LIDs
+        if (isLid && (msg.key as any).remoteJidAlt) {
+            const alt = (msg.key as any).remoteJidAlt;
+            if (alt) {
+                phone = alt.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                // console.log(`[Identity] Resolved via remoteJidAlt: ${phone}`);
+            }
+        }
+
+        // 2. If 'participant' is present (sometimes in groups/broadcasts context), it might be the real JID
+        if (!phone && msg.key.participant) {
+            const participant = msg.key.participant;
+            if (!participant.includes('@lid')) {
+                phone = participant.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+            }
+        }
+
+        // 3. Fallback to extracting from remoteJid (only works for normal JIDs or if LID ID is needed as key)
+        if (!phone) {
+            phone = remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/\D/g, '');
+        }
+
+        return { phone, isLid, originalJid: remoteJid };
+    }
+
     static async handleIncomingMessage(msg: proto.IWebMessageInfo, service: WhatsAppService) {
         try {
             if (!msg.key.remoteJid) return;
-            const senderJid = msg.key.remoteJid;
 
-            // Extract phone number from JID (handle @s.whatsapp.net)
-            // Note: If using LID (@lid), this might be a long ID, not a phone number.
-            // We strip non-digits to be safe.
-            const senderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/\D/g, '');
+            // Log raw message structure
+            await this.writeLog(`INCOMING: ${JSON.stringify(msg, (key, value) => {
+                if (key === 'buffer') return '[Buffer]';
+                return value;
+            })}`);
 
-            // Determine if using LID
-            const isLid = senderJid.includes('@lid');
+            // 1. RESOLVE IDENTITY (Robust & Sophisticated)
+            const { phone: senderPhone, isLid, originalJid: senderJid } = this.resolveSenderIdentity(msg);
+
+            await this.writeLog(`Processing message from Phone: ${senderPhone} (LID: ${isLid})`);
 
             // Get content safest way
             const messageContent =
@@ -34,7 +79,9 @@ export class WhatsAppHandler {
                 msg.message?.ephemeralMessage?.message?.conversation ||
                 '';
 
-            if (!messageContent) return;
+            if (!messageContent && !msg.message?.imageMessage && !msg.message?.viewOnceMessage) {
+                // await this.writeLog('Message content empty (and not straightforward image)');
+            }
 
             const cleanText = messageContent.toLowerCase().trim();
             const keyword = cleanText.replace(/[^a-z0-9]/g, '');
@@ -45,36 +92,165 @@ export class WhatsAppHandler {
 
             // Handle Media (Image) - Check for nested types
             const msgContent = msg.message;
-            const isImage = !!(
+            let isImage = !!(
                 msgContent?.imageMessage ||
                 msgContent?.viewOnceMessage?.message?.imageMessage ||
                 msgContent?.viewOnceMessageV2?.message?.imageMessage ||
+                msgContent?.viewOnceMessageV2Extension?.message?.imageMessage || // Add this missing type
                 msgContent?.ephemeralMessage?.message?.imageMessage ||
-                msgContent?.documentWithCaptionMessage?.message?.imageMessage
+                msgContent?.documentWithCaptionMessage?.message?.imageMessage ||
+                msgContent?.buttonsMessage?.imageMessage || // Add buttons message support
+                msgContent?.templateMessage?.hydratedFourRowTemplate?.imageMessage || // Add template message support
+                msgContent?.interactiveMessage?.header?.imageMessage // Add interactive message support
             );
 
+            console.log(`[DEBUG] Image detection: isImage=${isImage}`);
+            if (msgContent) {
+                console.log(`[DEBUG] Message content types:`, {
+                    hasImageMessage: !!msgContent.imageMessage,
+                    hasViewOnce: !!msgContent.viewOnceMessage,
+                    hasDocument: !!msgContent.documentMessage
+                });
+            }
+
+            // Check for Document Message that is actually an image
+            if (!isImage && msgContent?.documentMessage) {
+                const mime = msgContent.documentMessage.mimetype || '';
+                if (mime.startsWith('image/')) {
+                    isImage = true;
+                }
+            }
+
+            await this.writeLog(`Content Analysis: isImage=${isImage}, isLocation=${isLocation}, Text=${cleanText}`);
+
             // Allow processing if it's a location message OR has text content OR image
-            if (!messageContent && !isLocation && !isImage) return;
+            if (!messageContent && !isLocation && !isImage) {
+                console.log(`❌ [WhatsAppHandler] Skipping message - no content, location, or image detected`);
+                await this.writeLog('Skipping: No recognized content');
+                return;
+            }
 
             console.log(`📩 [WhatsAppHandler] From: ${senderPhone} (LID: ${isLid}) | Text: "${cleanText}" | Location: ${isLocation} | Img: ${isImage}`);
 
             // Self ignore
             if (msg.key.fromMe) return;
 
-            // 1. Identify User
-            // Note: If sender is LID and we don't have mapping, this might return null.
+            // 2. Identify User
             let customer = await this.getCustomerByPhone(senderPhone);
+            await this.writeLog(`Customer Lookup: ${customer ? `Found (${customer.name})` : 'Not Found'}`);
 
             // NEW: Auto-link attempt for LID users
             if (!customer && isLid) {
-                console.log(`[WhatsAppHandler] 🔍 Attempting auto-link for LID: ${senderJid}`);
                 customer = await this.attemptAutoLinkByPattern(senderJid);
+                await this.writeLog(`Auto-link result: ${customer ? `Linked (${customer.name})` : 'Failed'}`);
             }
 
-            // If customer failed by phone, generic logic might fail.
-            // But we should still reply to the senderJid provided.
+            // 3. Handle Image Messages First (Before text processing)
+            if (isImage) {
+                console.log(`🖼️ [WhatsAppHandler] Processing IMAGE message from ${senderPhone}`);
+                await this.writeLog('Entering Image Processing Block');
 
-            // 2. Session Handling
+                // Check if customer exists
+                if (!customer) {
+                    await this.writeLog('Verification Aborted: No customer found');
+                    await service.sendMessage(senderJid, '⚠️ Maaf, nomor Anda belum terdaftar. Silakan registrasi terlebih dahulu.');
+                    return;
+                }
+
+                // Send generic processing message
+                await service.sendMessage(senderJid, '🔍 *Menganalisis bukti pembayaran...*\nMohon tunggu sebentar, AI kami sedang memverifikasi.');
+
+                try {
+                    console.log(`[WhatsAppHandler] 📥 Downloading image from ${senderPhone}...`);
+                    await this.writeLog(`Downloading image from ${senderPhone}...`);
+
+                    const sock = service.getSocket();
+                    if (!sock) throw new Error('WhatsApp socket not available');
+
+                    // Use the top-level downloadMediaMessage import
+                    const buffer = await downloadMediaMessage(
+                        msg as WAMessage,
+                        'buffer',
+                        {},
+                        {
+                            logger: console as any,
+                            reuploadRequest: sock.updateMediaMessage
+                        }
+                    ) as Buffer;
+
+                    console.log(`[WhatsAppHandler] ✅ Image downloaded. Size: ${buffer.length} bytes`);
+                    await this.writeLog(`Image downloaded. Size: ${buffer.length} bytes. Starting AI Verification...`);
+
+                    // Use Advanced Payment Verification
+                    const result = await AdvancedPaymentVerificationService.verifyPaymentAdvanced(
+                        buffer,
+                        customer.id
+                    );
+
+                    await this.writeLog(`AI Result: Success=${result.success}, Auto=${result.data?.autoApproved}`);
+
+
+                    if (result.success && result.data?.autoApproved) {
+                        const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
+                        const invStr = result.data.invoiceNumber || 'Tagihan';
+
+                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉`);
+
+                        if (result.data.invoiceId) {
+                            try {
+                                const { InvoicePdfService } = await import('../../services/invoice/InvoicePdfService');
+                                const pdfPath = await InvoicePdfService.generateInvoicePdf(result.data.invoiceId);
+                                await service.sendDocument(senderJid, pdfPath, `Invoice-${result.data.invoiceNumber}-LUNAS.pdf`, '📄 *Bukti Pembayaran Lunas*');
+                            } catch (error) {
+                                console.error('PDF Generation Error:', error);
+                            }
+                        }
+                    } else {
+                        // Manual Review
+                        let reason = result.error || 'Bukti tidak dapat dibaca otomatis.';
+                        if (result.data?.amountMatch === 'mismatch' && result.data?.expectedAmount) {
+                            reason = `Nominal terbaca (Rp ${result.data.extractedAmount?.toLocaleString('id-ID')}) tidak sesuai dengan tagihan (Rp ${result.data.expectedAmount.toLocaleString('id-ID')}).`;
+                        } else if (result.data && result.data.confidence > 50) {
+                            reason = 'Menunggu verifikasi admin (Manual Review).';
+                        }
+
+                        // Save Manual Verification
+                        try {
+                            const imageBase64 = buffer.toString('base64');
+                            const extractedAmount = result.data?.extractedAmount || 0;
+                            const expectedAmount = result.data?.expectedAmount || 0;
+
+                            await databasePool.query(
+                                `INSERT INTO manual_payment_verifications (customer_id, status, image_data, image_mimetype, extracted_amount, expected_amount, reason, created_at) VALUES (?, 'pending', ?, 'image/jpeg', ?, ?, ?, NOW())`,
+                                [customer.id, imageBase64, extractedAmount, expectedAmount, reason]
+                            );
+
+                            // Broadcast to Admin
+                            const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                            await UnifiedNotificationService.broadcastToAdmins(`🔔 *VERIFIKASI MANUAL*\n${customer.name}\nRp ${extractedAmount}\n${reason}`);
+                        } catch (e) {
+                            console.error('Failed to save manual verification', e);
+                        }
+
+                        await service.sendMessage(senderJid, `⚠️ *Verifikasi Manual Diperlukan*\n\n${reason}\n\nData telah diteruskan ke Admin.`);
+                    }
+
+                } catch (err: any) {
+                    console.error(`[WhatsAppHandler] Error processing image:`, err);
+                    await service.sendMessage(senderJid, '❌ Maaf, gagal memproses gambar. Silakan kirim ulang.');
+                }
+
+                return; // Stop processing
+            }
+
+            // 3. Handle Location Messages
+            if (isLocation && locationData) {
+                console.log(`📍 [WhatsAppHandler] Processing LOCATION message from ${senderPhone}`);
+                await this.handleLocationMessage(locationData, customer, service, senderJid, senderPhone);
+                return;
+            }
+
+            // 4. Session Handling
             let session = await WhatsAppSessionService.getSession(senderPhone);
 
             // Special handling for session with Location
@@ -98,8 +274,8 @@ export class WhatsAppHandler {
                 // HANDLE LID LINKING PRE-CHECK
                 if (keyword === 'myid' || cleanText === '!myid' || cleanText === 'cek id') {
                     await service.sendMessage(senderJid, `🆔 *Info ID Perangkat*
-
-ID Anda saat ini: *${senderPhone}*
+    
+ID Perangkat: *${senderPhone}*
 
 Jika nomor Anda terdaftar tapi bot tidak merespons, itu karena WhatsApp Anda mengirim ID ini (LID), bukan nomor HP.
 
@@ -151,7 +327,7 @@ Atau biarkan kami bantu hubungkan secara otomatis dengan mengirim pesan: *Hubung
                     }
 
                     const linkedCustomer = cRows[0];
-                    const currentLid = senderPhone; // This is the LID because !customer was true
+                    const currentLid = senderJid; // Use full JID as LID key
 
                     try {
                         await databasePool.query(
@@ -159,7 +335,7 @@ Atau biarkan kami bantu hubungkan secara otomatis dengan mengirim pesan: *Hubung
                             [linkedCustomer.id, currentLid]
                         );
                         await service.sendMessage(senderJid, `✅ *Perangkat Terhubung!*
-
+    
 ID Perangkat: ${currentLid}
 Akun: ${linkedCustomer.name} (${linkedCustomer.phone})
 
@@ -227,7 +403,7 @@ Sekarang Anda dapat menggunakan semua fitur bot.`);
                 }
 
                 const linkedCustomer = cRows[0];
-                const currentLid = senderPhone; // This is the LID sent by WA (e.g. 628xxx@s.whatsapp.net user part)
+                const currentLid = senderJid; // This is the LID sent by WA (e.g. 628xxx@s.whatsapp.net user part)
 
                 try {
                     await databasePool.query(
@@ -676,9 +852,14 @@ Ketik *YA* untuk konfirmasi.`;
                 }
             }
 
+            // CHECK FOR PREPAID ONLY COMMANDS
             if (/^(beli|paket|internet)/.test(keyword)) {
+                if (customer.billing_mode === 'postpaid') {
+                    await service.sendMessage(senderJid, '⚠️ *Menu Terbatas*\n\nMaaf, menu Pembelian Paket hanya tersedia untuk pelanggan Prabayar (Prepaid).');
+                    return;
+                }
                 const { PrepaidBotHandler } = await import('./PrepaidBotHandler');
-                const resp = await PrepaidBotHandler.handleBuyCommand(senderJid, customer); // Pass JID handling to predefined
+                const resp = await PrepaidBotHandler.handleBuyCommand(senderJid, customer);
                 if (resp) await service.sendMessage(senderJid, resp);
                 return;
             }
@@ -833,11 +1014,19 @@ _Jam Operasional: 08:00 - 17:00_`);
             return null;
         }
 
-        // Generate all possible formats
+        // Generate all possible formats INCLUDING international formats
         const formats: string[] = [];
 
         // Original
         formats.push(cleanPhone);
+
+        // Handle international numbers (Philippine numbers start with 63)
+        if (cleanPhone.startsWith('63')) {
+            // Philippine format: 63XXXXXXXXX -> 0XXXXXXXXX (local format)
+            formats.push('0' + cleanPhone.substring(2));
+            // Also try without country code
+            formats.push(cleanPhone.substring(2));
+        }
 
         // If starts with 62, try without it (convert to 0xxx)
         if (cleanPhone.startsWith('62')) {
@@ -899,11 +1088,13 @@ _Jam Operasional: 08:00 - 17:00_`);
     private static async sendMenu(service: WhatsAppService, jid: string, customer: any) {
         let text = '';
         if (customer) {
+            const isPostpaid = customer.billing_mode === 'postpaid';
             text = `👋 Halo *${customer.name}*\n\n` +
                 `🤖 *Menu Otomatis*\n` +
                 `• Ketik *Tagihan* untuk cek tagihan\n` +
-                `• Ketik *Beli* untuk paket (Prabayar)\n` +
+                (isPostpaid ? '' : `• Ketik *Beli* untuk paket (Prabayar)\n`) +
                 `• Ketik *WiFi* untuk info WiFi\n` +
+                `• Ketik *Edit Nama [NamaBaru]* untuk ubah nama\n` +
                 `• Ketik *Menu* untuk lihat ini lagi\n\n` +
                 `🛠️ *Fitur Teknis*\n` +
                 `• Ketik *Reset* untuk refresh koneksi\n` +
@@ -966,12 +1157,22 @@ _Jam Operasional: 08:00 - 17:00_`);
 
         switch (session.step) {
             case 'name':
-                await WhatsAppSessionService.updateSession(phone, { step: 'address', data: { ...session.data, name: text } });
-                await service.sendMessage(jid, 'Terima kasih. Sekarang masukkan *Alamat Lengkap* Anda:');
+                await WhatsAppSessionService.updateSession(phone, { step: 'phone', data: { ...session.data, name: text } });
+                await service.sendMessage(jid, `Halo *${text}*! Silakan masukkan *Nomor HP* Anda yang aktif (WA):\n\nContoh: 08123456789\n\n_Nomor ini digunakan tim teknisi untuk menghubungi Anda._`);
+                break;
+            case 'phone':
+                // Basic phone validation
+                const cleanPhone = text.replace(/\D/g, '');
+                if (cleanPhone.length < 9 || cleanPhone.length > 15) {
+                    await service.sendMessage(jid, '⚠️ Nomor HP tidak valid. Mohon masukkan nomor yang benar (9-15 digit).');
+                    return;
+                }
+                await WhatsAppSessionService.updateSession(phone, { step: 'address', data: { ...session.data, phone: cleanPhone } });
+                await service.sendMessage(jid, 'Terima kasih. Sekarang masukkan *Alamat Lengkap* lokasi pemasangan (termasuk RT/RW/Dusun):');
                 break;
             case 'address':
                 await WhatsAppSessionService.updateSession(phone, { step: 'location', data: { ...session.data, address: text } });
-                await service.sendMessage(jid, 'Terakhir, mohon kirimkan *Lokasi (Share Location)* Anda saat ini agar teknisi kami mudah menemukan lokasi pemasangan.\n\n(Klik ikon klip kertas/tambah -> Lokasi/Location -> Kirim lokasi saat ini)');
+                await service.sendMessage(jid, 'Terakhir, mohon kirimkan *Lokasi (Share Location)* Anda saat ini agar teknisi kami mudah menemukan lokasi pemasangan.\n\n(Klik ikon klip kertas/tambah 📎 -> Lokasi/Location -> Kirim lokasi saat ini 📍)');
                 break;
             case 'location':
                 if (!location) {
@@ -981,7 +1182,6 @@ _Jam Operasional: 08:00 - 17:00_`);
 
                 const userData = {
                     ...session.data,
-                    phone: phone,
                     latitude: location.degreesLatitude,
                     longitude: location.degreesLongitude
                 };
@@ -1107,6 +1307,86 @@ Atau hubungi Admin untuk bantuan lebih lanjut.`);
         } catch (error) {
             console.error('Error in auto-connection request:', error);
             await service.sendMessage(jid, 'Maaf, terjadi kesalahan saat memproses permintaan Anda. Silakan coba lagi nanti atau hubungi Admin.');
+        }
+    }
+
+    /**
+     * Process payment image for OCR verification
+     */
+    private static async processPaymentImage(buffer: Buffer, customer: any, service: WhatsAppService, senderJid: string): Promise<any> {
+        try {
+            console.log(`[WhatsAppHandler] 🤖 Processing payment image for customer: ${customer.name}`);
+
+            // Import payment verification service
+            const { PaymentVerificationService } = await import('./PaymentVerificationService');
+
+            // Create media message object
+            const mediaMessage = {
+                data: buffer,
+                mimetype: 'image/jpeg' // Default assumption
+            };
+
+            // Process payment verification
+            const result = await PaymentVerificationService.verifyPaymentProofAuto(
+                mediaMessage,
+                customer.id
+            );
+
+            if (result.success) {
+                await service.sendMessage(senderJid, `✅ *VERIFIKASI BERHASIL!*
+                
+Pembayaran sebesar *Rp ${result.amount?.toLocaleString('id-ID')}* telah berhasil diverifikasi.
+                
+Status: *${result.invoiceStatus}*
+Nomor Invoice: *${result.invoiceNumber}*
+
+Terima kasih atas pembayaran Anda! 🎉`);
+            } else {
+                await service.sendMessage(senderJid, `⚠️ *VERIFIKASI GAGAL*
+                
+${result.error || 'Gagal memverifikasi bukti pembayaran.'}
+                
+Silakan coba kirim ulang gambar yang lebih jelas atau hubungi Admin untuk bantuan.`);
+            }
+
+            return result;
+
+        } catch (error: any) {
+            console.error('[WhatsAppHandler] Error processing payment image:', error);
+            await service.sendMessage(senderJid, '❌ Terjadi kesalahan saat memproses bukti pembayaran. Silakan coba lagi nanti.');
+            throw error;
+        }
+    }
+
+    /**
+     * Handle location message
+     */
+    private static async handleLocationMessage(locationData: any, customer: any, service: WhatsAppService, senderJid: string, senderPhone: string): Promise<void> {
+        try {
+            console.log(`[WhatsAppHandler] 📍 Processing location message from ${senderPhone}`);
+
+            if (!customer) {
+                await service.sendMessage(senderJid, 'Maaf, Anda harus terdaftar sebagai pelanggan untuk menggunakan fitur lokasi.');
+                return;
+            }
+
+            // Process location data (this would typically save to database or trigger technician dispatch)
+            const lat = locationData.degreesLatitude;
+            const lng = locationData.degreesLongitude;
+
+            await service.sendMessage(senderJid, `📍 *Lokasi Diterima!*
+            
+Koordinat:
+• Latitude: ${lat}
+• Longitude: ${lng}
+
+Lokasi Anda telah dicatat dalam sistem. Tim teknisi akan menggunakan informasi ini saat melakukan kunjungan.`);
+
+            // Here you would typically save the location to database or trigger related workflows
+
+        } catch (error) {
+            console.error('[WhatsAppHandler] Error handling location message:', error);
+            await service.sendMessage(senderJid, 'Maaf, terjadi kesalahan saat memproses lokasi Anda.');
         }
     }
 }

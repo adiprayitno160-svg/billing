@@ -47,6 +47,8 @@ baileys_auth/
 .whatsapp_lock
 whatsapp_auth/
 whatsapp_auth/*
+whatsapp_auth_v2/
+whatsapp_auth_v2/*
 
 # Uploads
 uploads/

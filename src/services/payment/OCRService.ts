@@ -35,18 +35,24 @@ export class OCRService {
                 throw new Error('Tesseract.js not installed. Please run: npm install tesseract.js');
             }
 
-            console.log('🔍 Starting OCR extraction...');
+            console.log('🔍 Starting OCR extraction (Local Mode)...');
 
             // Preprocess image for better OCR accuracy
             const processedImage = await this.preprocessImage(imageBuffer);
 
-            // Run OCR with Indonesian language
+            // Configure path to local traineddata
+            const langPath = require('path').join(process.cwd());
+            console.log(`[OCR] Using langPath: ${langPath}`);
+
+            // Run OCR with Indonesian language using local files
             const { data: { text, confidence } } = await Tesseract.recognize(
                 processedImage,
                 'ind+eng',
                 {
+                    langPath: langPath,
+                    gzip: false, // Assuming local files are not gzipped
                     logger: (info: any) => {
-                        if (info.status === 'recognizing text') {
+                        if (info.status === 'recognizing text' && info.progress % 0.2 < 0.05) {
                             console.log(`OCR Progress: ${Math.round(info.progress * 100)}%`);
                         }
                     }
@@ -54,6 +60,7 @@ export class OCRService {
             );
 
             console.log(`✅ OCR completed. Confidence: ${confidence.toFixed(2)}%`);
+            // console.log(`[OCR] Raw text: ${text.substring(0, 100)}...`);
 
             // Extract payment details from text
             const extractedData = this.parsePaymentText(text, confidence);
@@ -62,6 +69,19 @@ export class OCRService {
 
         } catch (error) {
             console.error('Error in OCR extraction:', error);
+            // Fallback: try without local path if local fails (e.g. files missing)
+            if (String(error).includes('ENOENT') || String(error).includes('failed to load')) {
+                console.warn('[OCR] Local lang files failed, retrying with default CDN...');
+                try {
+                    const { data: { text, confidence } } = await Tesseract.recognize(
+                        imageBuffer,
+                        'ind+eng'
+                    );
+                    return this.parsePaymentText(text, confidence);
+                } catch (retryErr) {
+                    throw new Error(`OCR extraction failed (retry): ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+                }
+            }
             throw new Error(`OCR extraction failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }

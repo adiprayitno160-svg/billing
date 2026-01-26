@@ -787,6 +787,77 @@ export async function ensureInitialSchema(): Promise<void> {
 			CONSTRAINT fk_job_type FOREIGN KEY (job_type_id) REFERENCES job_types(id) ON DELETE SET NULL
 		) ENGINE=InnoDB`);
 
+		// --- NEW TABLES FOR MONITORING & MAP ---
+
+		// 1. Two hour notification logs table
+		await conn.query(`CREATE TABLE IF NOT EXISTS two_hour_notification_logs (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			customer_name VARCHAR(255) NOT NULL,
+			notification_type ENUM('offline', 'recovery') NOT NULL,
+			ticket_number VARCHAR(50),
+			message TEXT,
+			sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_sent_at (sent_at),
+			CONSTRAINT fk_2hr_notif_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// 2. Customer offline tracking table
+		await conn.query(`CREATE TABLE IF NOT EXISTS customer_offline_tracking (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			start_time TIMESTAMP NOT NULL,
+			end_time TIMESTAMP NULL,
+			duration_minutes INT DEFAULT 0,
+			status ENUM('offline', 'online') DEFAULT 'offline',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_start_time (start_time),
+			INDEX idx_status (status),
+			CONSTRAINT fk_offline_tracking_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// 3. Monitoring map configuration table
+		await conn.query(`CREATE TABLE IF NOT EXISTS monitoring_map_config (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			config_key VARCHAR(100) NOT NULL UNIQUE,
+			config_value TEXT,
+			description TEXT,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// 4. Customer locations table
+		await conn.query(`CREATE TABLE IF NOT EXISTS customer_locations (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			latitude DECIMAL(10, 8),
+			longitude DECIMAL(11, 8),
+			address TEXT,
+			location_notes TEXT,
+			is_active BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_coordinates (latitude, longitude),
+			CONSTRAINT fk_cust_loc_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// 5. Default map config
+		await conn.query(`INSERT IGNORE INTO monitoring_map_config (config_key, config_value, description) VALUES
+			('map_center_lat', '-6.2088', 'Default map center latitude'),
+			('map_center_lng', '106.8456', 'Default map center longitude'),
+			('map_zoom_level', '12', 'Default zoom level for monitoring map'),
+			('show_offline_customers', 'true', 'Show offline customers on map'),
+			('refresh_interval', '30', 'Refresh interval in seconds for map updates')
+		`);
+
+		// Add last_online and is_online to customers if not exists
+		await addCol(`ALTER TABLE customers ADD COLUMN last_online TIMESTAMP NULL AFTER status`);
+		await addCol(`ALTER TABLE customers ADD COLUMN is_online BOOLEAN DEFAULT TRUE AFTER last_online`);
+
 	} finally {
 		conn.release();
 	}

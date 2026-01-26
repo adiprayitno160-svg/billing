@@ -14,6 +14,8 @@ echo -e "${GREEN}Starting deployment process...${NC}"
 # 1. Update Code from Git
 echo "Pulling latest changes from Git..."
 cd $APP_DIR || exit
+git fetch --all
+git reset --hard origin/main
 git pull origin main
 
 if [ $? -ne 0 ]; then
@@ -21,9 +23,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 2. Install Dependencies
+# 2. Cleanup & Install Dependencies
+echo "Cleaning up old build..."
+rm -rf dist/
+
 echo "Installing/Updating dependencies..."
-npm install
+if [ -f "package-lock.json" ]; then
+    npm ci
+else
+    npm install
+fi
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}npm install failed! Aborting deployment.${NC}"
@@ -39,20 +48,22 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 4. Migrate Database (Optional but recommended)
-# 4. Migrate Database (Auto-fix schema)
-echo "Running database schema checks..."
-npm run db:fix-schema
+# 4. Global Link (Optional for CLI tools)
+# npm link
 
 # 5. Restart PM2 Service
 echo "Restarting application via PM2..."
-pm2 restart billing-app
+# If not running, start it. If running, reload/restart.
+if pm2 list | grep -q "billing-app"; then
+    pm2 reload ecosystem.config.js --env production
+else
+    pm2 start ecosystem.config.js --env production
+fi
 
 if [ $? -ne 0 ]; then
-    echo -e "${RED}PM2 restart failed! Please check manually.${NC}"
+    echo -e "${RED}PM2 start/reload failed! Please check manually.${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}Deployment completed successfully!${NC}"
-echo "Checked status:"
-pm2 status
+pm2 list
