@@ -20,68 +20,69 @@
         max-width: 100%;
         overflow-x: hidden;
     }
+
+    /* Bulk items visibility */
+    .bulk-delete-hidden {
+        display: none !important;
+    }
+
+    .bulk-delete-visible {
+        display: inline-flex !important;
+    }
+
+    /* Button gradients */
+    .bg-wa-gradient {
+        background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    }
 </style>
 
 <!-- Action Buttons Section -->
-<!-- Action Buttons Section -->
-<div class="glass-panel shadow-lg rounded-2xl mb-6 p-6">
-    <!-- Action Buttons -->
-    <div class="flex flex-wrap gap-3 items-center">
+<div class="glass-panel shadow-lg rounded-2xl mb-6 p-6 overflow-x-auto">
+    <div class="flex flex-nowrap md:flex-wrap gap-4 items-center min-w-max md:min-w-0">
         <!-- Generate Tagihan -->
         <button type="button" id="btnGenerateTagihan" data-action="generate-invoice"
-            class="btn-premium inline-flex items-center bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-file-invoice mr-2"></i>Generate Tagihan
+            class="inline-flex items-center bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
+            <i class="fas fa-file-invoice mr-2 text-lg"></i>Generate
         </button>
 
-        <!-- Print ODC Area -->
+        <!-- Print Area ODC -->
         <button type="button" id="btnPrintODC" onclick="showOdcPrintModal()"
-            class="btn-premium inline-flex items-center bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-cyan-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-map-marked-alt mr-2"></i>Print Area ODC
+            class="inline-flex items-center bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-cyan-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
+            <i class="fas fa-map-marked-alt mr-2 text-lg"></i>Print Area
         </button>
 
-        <!-- Bulk Delete -->
-        <button type="button" id="bulkDeleteBtn" data-action="bulk-delete"
-            class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-red-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-trash-alt mr-2"></i>Hapus Terpilih (<span id="selectedCount">0</span>)
-        </button>
+        <div class="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
 
-        <!-- Bulk Send WA -->
+        <!-- Kirim Masal (Pindah ke samping Export sesuai permintaan) -->
         <button type="button" id="btnBulkSendWA"
-            class="hidden md:inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
+            class="inline-flex items-center bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
             title="Kirim tagihan terpilih ke antrian WhatsApp">
-            <i class="fab fa-whatsapp mr-2 text-lg"></i>Kirim Tagihan Masal (<span id="selectedSendWACount">0</span>)
+            <i class="fab fa-whatsapp mr-2 text-xl"></i>Kirim Masal (<span id="selectedSendWACount">0</span>)
         </button>
-
-        <!-- Bulk Reminder -->
-        <button type="button" id="btnBulkReminder"
-            class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-amber-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-bell mr-2"></i>Kirim Pengingat (<span id="selectedReminderCount">0</span>)
-        </button>
-        <style>
-            .bulk-delete-hidden {
-                display: none !important;
-            }
-
-            .bulk-delete-visible {
-                display: inline-flex !important;
-            }
-        </style>
 
         <!-- Export PDF -->
         <button type="button" id="btnExportPDF" data-action="export-pdf"
-            class="btn-premium inline-flex items-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-file-pdf mr-2"></i>Export PDF
+            class="inline-flex items-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
+            <i class="fas fa-file-pdf mr-2 text-lg"></i>Export PDF
         </button>
 
-        <!-- Print Selected -->
-        <button type="button" id="btnPrintSelected"
-            class="bulk-delete-hidden btn-premium items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-violet-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-check-double mr-2"></i>Print Terpilih (<span id="selectedPrintCount">0</span>)
-        </button>
+        <div class="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
 
-        <!-- Print All -->
+        <!-- Bulk Actions (Hanya muncul jika ada yang dipilih) -->
+        <div class="flex items-center gap-3">
+            <button type="button" id="bulkDeleteBtn" data-action="bulk-delete"
+                class="bulk-delete-hidden inline-flex items-center bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all transform hover:-translate-y-0.5">
+                <i class="fas fa-trash-alt mr-2"></i>Hapus Terpilih
+            </button>
+
+            <button type="button" id="btnPrintSelected"
+                class="bulk-delete-hidden inline-flex items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all transform hover:-translate-y-0.5">
+                <i class="fas fa-check-double mr-2"></i>Print Terpilih
+            </button>
+        </div>
+
         <button type="button" id="btnPrintAll" data-action="print-all"
-            class="hidden md:inline-flex items-center bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all duration-300">
+            class="hidden lg:inline-flex items-center bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all">
             <i class="fas fa-print mr-2"></i>Print Semua
         </button>
     </div>
@@ -1570,31 +1571,56 @@ Lanjutkan proses generate?`;
                     });
             }
 
-            // Send WhatsApp Invoice (Single)
-            function sendInvoiceWA(invoiceId) {
-                if (confirm('Kirim tagihan ini via WhatsApp?')) {
-                    fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, {
-                        method: 'POST'
-                    })
-                        .then(r => r.json())
-                        .then(d => {
-                            if (d.success) alert('✅ ' + d.message);
-                            else alert('❌ ' + d.message);
+
+            // Single WhatsApp Send with robust feedback
+            function sendInvoiceWA(id, btn) {
+                Swal.fire({
+                    title: 'Kirim WhatsApp?',
+                    text: "Tagihan akan langsung dikirim ke WhatsApp pelanggan.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Kirim Sekarang',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#10b981'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const originalInner = btn.innerHTML;
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                        fetch(`/billing/tagihan/${id}/send-whatsapp`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
                         })
-                        .catch(e => alert('❌ Gagal mengirim WhatsApp'));
-                }
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d.success) {
+                                    Swal.fire({ icon: 'success', title: 'Terkirim', text: d.message, toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+                                } else {
+                                    Swal.fire({ icon: 'error', title: 'Gagal', text: d.message });
+                                }
+                                btn.disabled = false;
+                                btn.innerHTML = originalInner;
+                            })
+                            .catch(e => {
+                                Swal.fire({ icon: 'error', title: 'Sistem Error', text: 'Terjadi kegagalan koneksi ke server.' });
+                                btn.disabled = false;
+                                btn.innerHTML = originalInner;
+                            });
+                    }
+                });
             }
 
-            // Event Listeners for Actions
+            // Global Click listener for data-actions
             document.addEventListener('click', function (e) {
-                const btn = e.target.closest('button[data-action]');
+                const btn = e.target.closest('[data-action]');
                 if (!btn) return;
 
                 const action = btn.dataset.action;
                 const id = btn.dataset.invoiceId;
 
                 if (action === 'send-wanew') {
-                    sendInvoiceWA(id);
+                    sendInvoiceWA(id, btn);
                 }
             });
 
@@ -1605,20 +1631,36 @@ Lanjutkan proses generate?`;
                     const selected = Array.from(document.querySelectorAll('.invoice-checkbox:checked')).map(cb => cb.value);
 
                     if (selected.length === 0) {
-                        if (confirm('Kirim SEMUA tagihan yang tampil di halaman ini ke antrian WhatsApp?')) {
-                            const allShown = Array.from(document.querySelectorAll('.invoice-checkbox')).map(cb => cb.value);
-                            if (allShown.length === 0) {
-                                alert('Tidak ada tagihan untuk dikirim.');
-                                return;
+                        Swal.fire({
+                            title: 'Kirim Semua?',
+                            text: 'Kirim SEMUA tagihan yang tampil di halaman ini ke antrian WhatsApp?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, Antrekan Semua',
+                            cancelButtonText: 'Batal'
+                        }).then((res) => {
+                            if (res.isConfirmed) {
+                                const allShown = Array.from(document.querySelectorAll('.invoice-checkbox')).map(cb => cb.value);
+                                if (allShown.length === 0) {
+                                    Swal.fire('Error', 'Tidak ada tagihan untuk dikirim.', 'error');
+                                    return;
+                                }
+                                processBulkWA(allShown);
                             }
-                            processBulkWA(allShown);
-                        }
+                        });
                         return;
                     }
 
-                    if (confirm(`Kirim ${selected.length} tagihan terpilih ke antrian WhatsApp?`)) {
-                        processBulkWA(selected);
-                    }
+                    Swal.fire({
+                        title: 'Kirim Masal',
+                        text: `Kirim ${selected.length} tagihan terpilih ke antrian WhatsApp?`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Antrekan',
+                        cancelButtonText: 'Batal'
+                    }).then((res) => {
+                        if (res.isConfirmed) processBulkWA(selected);
+                    });
                 });
             }
 
@@ -1633,13 +1675,12 @@ Lanjutkan proses generate?`;
                 })
                     .then(r => r.json())
                     .then(d => {
-                        alert('✅ ' + d.message);
-                        location.reload();
+                        Swal.fire('Berhasil', d.message, 'success').then(() => location.reload());
                     })
                     .catch(e => {
-                        alert('❌ Gagal mengirim WhatsApp masal');
+                        Swal.fire('Error', 'Gagal mengirim WhatsApp masal', 'error');
                         btnBulkSendWA.disabled = false;
-                        btnBulkSendWA.innerHTML = '<i class="fab fa-whatsapp mr-2"></i>Kirim Tagihan Masal';
+                        btnBulkSendWA.innerHTML = '<i class="fab fa-whatsapp mr-2"></i>Kirim Masal';
                     });
             }
 
@@ -1649,38 +1690,6 @@ Lanjutkan proses generate?`;
                 const span = document.getElementById('selectedSendWACount');
                 if (span) span.textContent = count;
             }
-
-            document.addEventListener('click', function (e) {
-                const btn = e.target.closest('[data-action="send-wanew"]');
-                if (btn) {
-                    const invoiceId = btn.getAttribute('data-invoice-id');
-                    if (!invoiceId) return;
-
-                    const originalInner = btn.innerHTML;
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i> Sedang kirim...';
-
-                    fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    })
-                        .then(r => r.json())
-                        .then(d => {
-                            if (d.success) {
-                                alert('✅ ' + d.message);
-                            } else {
-                                alert('❌ Gagal: ' + d.message);
-                            }
-                            btn.disabled = false;
-                            btn.innerHTML = originalInner;
-                        })
-                        .catch(e => {
-                            alert('❌ Terjadi kesalahan sistem');
-                            btn.disabled = false;
-                            btn.innerHTML = originalInner;
-                        });
-                }
-            });
 
             document.addEventListener('change', function (e) {
                 if (e.target.classList.contains('invoice-checkbox') || e.target.id === 'selectAll') {
