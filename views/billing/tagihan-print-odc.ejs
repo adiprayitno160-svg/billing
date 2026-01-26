@@ -324,6 +324,19 @@
                     </div>
                 </div>
 
+                <!-- PAID STAMP - Only show if invoice is paid -->
+                <% if (invoice.status === 'paid' || (invoice.paid_amount && parseFloat(invoice.paid_amount) >= parseFloat(invoice.total_amount))) { %>
+                <div class="status-box" style="border: 2px solid #00aa00; background: #f0fff0;">
+                    <div class="status-label" style="color: #00aa00;">STATUS PEMBAYARAN</div>
+                    <div class="status-value" style="color: #00aa00;">LUNAS</div>
+                    <% if (invoice.paid_at) { %>
+                    <div style="font-size: 8pt; margin-top: 2mm; font-weight: 700;">
+                        Dibayar: <%= new Date(invoice.paid_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                    </div>
+                    <% } %>
+                </div>
+                <% } %>
+
                 <!-- Info Customer -->
                 <div class="info-section">
                     <div class="info-row">

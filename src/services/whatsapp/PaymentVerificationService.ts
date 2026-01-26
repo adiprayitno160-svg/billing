@@ -11,10 +11,11 @@ interface MediaMessage {
 }
 
 import { databasePool } from '../../db/pool';
-import { RowDataPacket } from 'mysql2';
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 import { OCRService } from '../payment/OCRService';
 import { GeminiService } from '../payment/GeminiService';
+import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 
 export interface VerificationResult {
     success: boolean;
@@ -200,13 +201,18 @@ export class PaymentVerificationService {
             const paymentAmount = Math.min(transferAmount, remainingAmount);
             const isFullPayment = paymentAmount >= remainingAmount;
 
-            await this.recordInvoicePayment(
+            const paymentId = await this.recordInvoicePayment(
                 bestMatch.id,
                 customerId,
                 paymentAmount,
                 'transfer',
                 `Verifikasi otomatis via WhatsApp - ${extractedData.bankAccount || 'Unknown'}`,
                 extractedData.transferDate || new Date()
+            );
+
+            // Trigger notification service (send recipe/PDF)
+            UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(err =>
+                console.error('[PaymentVerification] Failed to trigger notification:', err)
             );
 
             // Save payment verification record
@@ -379,7 +385,7 @@ export class PaymentVerificationService {
         paymentMethod: string,
         notes: string,
         paymentDate: Date
-    ): Promise<void> {
+    ): Promise<number> {
         const connection = await databasePool.getConnection();
 
         try {
@@ -402,11 +408,13 @@ export class PaymentVerificationService {
             const newRemaining = totalAmount - newPaid;
 
             // Insert payment record
-            await connection.query(
+            const [result] = await connection.query<ResultSetHeader>(
                 `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at)
                  VALUES (?, ?, ?, ?, ?, NOW())`,
                 [invoiceId, paymentMethod, amount, paymentDate, notes]
             );
+
+            const paymentId = result.insertId;
 
             // Update invoice
             let newStatus = invoice.status;
@@ -431,9 +439,39 @@ export class PaymentVerificationService {
                     'UPDATE customers SET is_isolated = FALSE WHERE id = ?',
                     [customerId]
                 );
+
+                // --- UNISOLATE IN MIKROTIK ---
+                try {
+                    // Get customer details (username, connection type)
+                    const [custRows] = await connection.query<RowDataPacket[]>(
+                        'SELECT pppoe_username, connection_type, ip_address FROM customers WHERE id = ?',
+                        [customerId]
+                    );
+
+                    if (custRows.length > 0) {
+                        const customer = custRows[0];
+
+                        // Dynamically import MikrotikService to avoid circular dependency
+                        const { MikrotikService } = await import('../mikrotik/MikrotikService');
+                        const mikrotik = await MikrotikService.getInstance();
+
+                        if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
+                            console.log(`[PaymentVerification] Re-enabling PPPoE user: ${customer.pppoe_username}`);
+                            await mikrotik.updatePPPoEUserByUsername(customer.pppoe_username, { disabled: false });
+                            // Optionally kick user so they reconnect with valid status? Usually not needed if just enabling.
+                        }
+                        // Add other connection types if needed (e.g. Static IP Address list removal)
+                    }
+                } catch (mtError: any) {
+                    console.error('[PaymentVerification] Failed to re-enable Mikrotik user:', mtError.message);
+                    // Don't fail the payment record just because MT failed, but log it.
+                }
+                // -----------------------------
             }
 
             await connection.commit();
+
+            return paymentId;
 
         } catch (error) {
             await connection.rollback();

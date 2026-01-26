@@ -55,6 +55,9 @@ router.get('/proxy/ip-location', async (req: Request, res: Response) => {
 import customerApiRoutes from './api/customerApiRoutes';
 router.use(customerApiRoutes);
 
+import packageApiRoutes from './api/packageApiRoutes';
+router.use(packageApiRoutes);
+
 import { checkSystemUpdate, performSystemUpdate } from '../controllers/api/SystemUpdateController';
 
 router.get('/system/check-update', checkSystemUpdate);

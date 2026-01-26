@@ -243,7 +243,18 @@ router.get('/api/debug/ping/:ip', (req, res) => {
     const { exec } = require('child_process');
     exec(cmd, (err: any, stdout: string, stderr: string) => {
         res.setHeader('Content-Type', 'text/plain');
-        res.send(`--- DEBUG PING FROM SERVER ---\nTarget: ${ip}\nCommand: ${cmd}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}\n\nSYS ERROR:\n${err ? err.message : 'None'}`);
+        res.send(`--- DEBUG PING FROM SERVER ---
+Target: ${ip}
+Command: ${cmd}
+
+STDOUT:
+${stdout}
+
+STDERR:
+${stderr}
+
+SYS ERROR:
+${err ? err.message : 'None'}`);
     });
 });
 
@@ -2040,8 +2051,9 @@ router.get('/customers/new-pppoe', async (req, res) => {
         console.log('Starting new-pppoe route...');
 
         let packages = await listPppoePackages();
-        packages = packages.filter((p: any) => !p.is_full);
-        console.log('Packages loaded (filtered):', packages.length);
+        // Tampilkan semua paket aktif dengan informasi kapasitas
+        packages = packages.filter((p: any) => p.status === 'active'); // Hanya tampilkan paket aktif
+        console.log('Packages loaded (filtered for active only):', packages.length);
 
         const profiles = await listPppoeProfiles();
         console.log('Profiles loaded:', profiles.length);
@@ -2616,6 +2628,62 @@ router.post('/customers/new-pppoe', async (req, res) => {
             // Commit transaction before sending welcome message
             await conn.commit();
             console.log('✅ Database transaction committed successfully');
+
+            // Create PPPoE child queues if MikroTik is configured and package has queue settings
+            try {
+                const { getMikrotikConfig } = await import('../services/pppoeService');
+                const config = await getMikrotikConfig();
+                
+                if (config && package_id) {
+                    const { getPackageById } = await import('../services/pppoeService');
+                    const pkg = await getPackageById(Number(package_id));
+                    
+                    if (pkg && pkg.max_clients && pkg.max_clients > 1) {
+                        // This is a shared package, child queues should be created
+                        const mikrotikService = await import('../services/mikrotikService');
+                        
+                        // Create child queues for the customer using the parent queue
+                        const downloadQueueName = `${username}_download`;
+                        const uploadQueueName = `${username}_upload`;
+                        const parentQueueName = pkg.name; // Parent queue name is the package name
+                        
+                        // Get rate limits from the package
+                        const rateLimitRx = pkg.rate_limit_rx || '1M';
+                        const rateLimitTx = pkg.rate_limit_tx || '1M';
+                        
+                        // Create download child queue
+                        const downloadQueueData = {
+                            name: downloadQueueName,
+                            parent: parentQueueName,
+                            target: `${username}/32`, // Target is the PPPoE username as /32 network
+                            maxLimit: `0/${rateLimitRx}`,
+                            priority: '8',
+                            comment: `[BILLING] Download child queue for PPPoE user ${username}`
+                        };
+                        
+                        // Create upload child queue
+                        const uploadQueueData = {
+                            name: uploadQueueName,
+                            parent: parentQueueName,
+                            target: `${username}/32`, // Target is the PPPoE username as /32 network
+                            maxLimit: `${rateLimitTx}/0`,
+                            priority: '8',
+                            comment: `[BILLING] Upload child queue for PPPoE user ${username}`
+                        };
+                        
+                        console.log('Creating download child queue for PPPoE user:', downloadQueueData);
+                        await mikrotikService.createSimpleQueue(config, downloadQueueData);
+                        console.log(`✅ Download child queue created for PPPoE user ${username}`);
+                        
+                        console.log('Creating upload child queue for PPPoE user:', uploadQueueData);
+                        await mikrotikService.createSimpleQueue(config, uploadQueueData);
+                        console.log(`✅ Upload child queue created for PPPoE user ${username}`);
+                    }
+                }
+            } catch (queueError: any) {
+                console.error('❌ Failed to create PPPoE child queue:', queueError.message);
+                // This is non-critical, don't throw error that would affect customer creation
+            }
 
             // Generate first invoice if billing is enabled
             if (enableBilling && package_id) {
@@ -3277,6 +3345,36 @@ router.get('/api/packages/:connectionType', async (req, res) => {
     } catch (error) {
         console.error('Error fetching packages:', error);
         res.status(500).json({ error: 'Failed to fetch packages' });
+    }
+});
+
+// API endpoint untuk mengambil detail satu paket
+router.get('/api/packages/:connectionType/:id', async (req, res) => {
+    try {
+        const { connectionType, id } = req.params;
+
+        if (connectionType === 'pppoe') {
+            const packages = await listPppoePackages();
+            const packageDetail = packages.find(pkg => pkg.id === parseInt(id));
+            if (packageDetail) {
+                res.json(packageDetail);
+            } else {
+                res.status(404).json({ error: 'Package not found' });
+            }
+        } else if (connectionType === 'static_ip') {
+            const packages = await listStaticIpPackages();
+            const packageDetail = packages.find(pkg => pkg.id === parseInt(id));
+            if (packageDetail) {
+                res.json(packageDetail);
+            } else {
+                res.status(404).json({ error: 'Package not found' });
+            }
+        } else {
+            res.status(400).json({ error: 'Invalid connection type' });
+        }
+    } catch (error) {
+        console.error('Error fetching package detail:', error);
+        res.status(500).json({ error: 'Failed to fetch package detail' });
     }
 });
 
