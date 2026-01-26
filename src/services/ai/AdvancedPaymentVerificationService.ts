@@ -275,12 +275,37 @@ export class AdvancedPaymentVerificationService {
                     };
                 }
 
+                // Fallback to OCR if both Gemini approaches fail
+                console.log('[AdvancedAI] Gemini failed to extract amount, falling back to OCR...');
+                try {
+                    const { OCRService } = await import('../payment/OCRService');
+                    const ocrResult = await OCRService.extractPaymentData(imageBuffer);
+
+                    if (ocrResult.amount) {
+                        return {
+                            passed: true,
+                            confidence: 50, // Lower confidence for fallback
+                            details: {
+                                source: 'ocr_fallback',
+                                amount: ocrResult.amount,
+                                bank: ocrResult.bank,
+                                accountNumber: ocrResult.accountNumber,
+                                date: ocrResult.date,
+                                isPaymentProof: true
+                            },
+                            warnings: ['AI gagal ekstraksi, menggunakan fallback OCR']
+                        };
+                    }
+                } catch (ocrErr) {
+                    console.error('[AdvancedAI] OCR Fallback failed:', ocrErr);
+                }
+
                 return {
                     passed: false,
                     confidence: geminiResult.confidence,
                     details: {
                         source: 'gemini',
-                        error: 'Nominal tidak terdeteksi',
+                        error: 'Nominal tidak terdeteksi (AI & OCR)',
                         rawData: geminiResult.extractedData
                     },
                     warnings: []

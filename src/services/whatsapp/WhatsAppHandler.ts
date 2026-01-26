@@ -43,8 +43,15 @@ export class WhatsAppHandler {
             const isLocation = !!(msg.message?.locationMessage || msg.message?.ephemeralMessage?.message?.locationMessage);
             const locationData = isLocation ? (msg.message?.locationMessage || msg.message?.ephemeralMessage?.message?.locationMessage) : null;
 
-            // Handle Media (Image)
-            const isImage = !!msg.message?.imageMessage;
+            // Handle Media (Image) - Check for nested types
+            const msgContent = msg.message;
+            const isImage = !!(
+                msgContent?.imageMessage ||
+                msgContent?.viewOnceMessage?.message?.imageMessage ||
+                msgContent?.viewOnceMessageV2?.message?.imageMessage ||
+                msgContent?.ephemeralMessage?.message?.imageMessage ||
+                msgContent?.documentWithCaptionMessage?.message?.imageMessage
+            );
 
             // Allow processing if it's a location message OR has text content OR image
             if (!messageContent && !isLocation && !isImage) return;
