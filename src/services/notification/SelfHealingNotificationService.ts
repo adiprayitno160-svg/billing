@@ -177,7 +177,7 @@ export class SelfHealingNotificationService {
       FROM customers c
       WHERE c.connection_type = ? 
         AND c.area = ?
-        AND c.is_active = 1
+        AND c.status = 'active'
         AND TIMESTAMPDIFF(MINUTE, c.last_connection, NOW()) >= ?
     `;
 

@@ -320,15 +320,25 @@ export async function autoFixCustomerColumns(): Promise<void> {
   try {
     console.log('🔧 [AutoFix] Checking Customer table columns...');
 
-    // Check for name_edited_at
-    const [columns]: any = await pool.query("SHOW COLUMNS FROM customers LIKE 'name_edited_at'");
+    // List of columns to check and add if missing
+    const monitoringColumns = [
+      { name: 'name_edited_at', def: 'DATETIME DEFAULT NULL' },
+      { name: 'static_ip_monitoring_state', def: "VARCHAR(50) DEFAULT 'normal'" },
+      { name: 'ping_timeout_started_at', def: 'DATETIME DEFAULT NULL' },
+      { name: 'awaiting_customer_response', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'customer_response_received', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'last_ping_check', def: 'DATETIME DEFAULT NULL' }
+    ];
 
-    if (columns.length === 0) {
-      console.log("⚠️ [AutoFix] Column 'name_edited_at' missing in customers, adding...");
-      await pool.query("ALTER TABLE customers ADD COLUMN name_edited_at DATETIME DEFAULT NULL");
-      console.log("✅ [AutoFix] Column 'name_edited_at' added successfully");
-    } else {
-      console.log("✅ [AutoFix] Column 'name_edited_at' exists");
+    for (const col of monitoringColumns) {
+      const [columns]: any = await pool.query(`SHOW COLUMNS FROM customers LIKE '${col.name}'`);
+      if (columns.length === 0) {
+        console.log(`⚠️ [AutoFix] Column '${col.name}' missing in customers, adding...`);
+        await pool.query(`ALTER TABLE customers ADD COLUMN ${col.name} ${col.def}`);
+        console.log(`✅ [AutoFix] Column '${col.name}' added successfully`);
+      } else {
+        console.log(`✅ [AutoFix] Column '${col.name}' exists`);
+      }
     }
 
   } catch (error: any) {

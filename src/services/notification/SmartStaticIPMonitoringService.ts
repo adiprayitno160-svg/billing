@@ -45,7 +45,7 @@ export class SmartStaticIPMonitoringService {
       FROM customers c
       WHERE c.billing_mode = 'prepaid' 
         AND c.connection_type = 'static_ip'
-        AND c.is_active = 1
+        AND c.status = 'active'
         AND c.static_ip IS NOT NULL 
         AND c.static_ip != ''
     `;

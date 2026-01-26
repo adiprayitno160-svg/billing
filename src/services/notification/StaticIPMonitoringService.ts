@@ -26,20 +26,20 @@ export class StaticIPMonitoringService {
       const query = `
         SELECT 
           c.id as customerId,
-          c.full_name as customerName,
+          c.name as customerName,
           c.phone as customerPhone,
           c.static_ip as ipAddress,
           a.name as area
         FROM customers c
         LEFT JOIN ftth_areas a ON c.area_id = a.id
-        WHERE c.connection_type = 'static_ip' AND c.is_active = 1
+        WHERE c.connection_type = 'static_ip' AND c.status = 'active'
       `;
-      
+
       const [results] = await databasePool.query(query);
       const customers = results as any[];
-      
+
       const statuses: StaticIPStatus[] = [];
-      
+
       // Check connectivity for each static IP
       for (const customer of customers) {
         const status = await this.pingIPAddress(customer.ipAddress);
@@ -54,7 +54,7 @@ export class StaticIPMonitoringService {
           responseTime: status.responseTime
         });
       }
-      
+
       return statuses;
     } catch (error) {
       console.error('Error checking Static IP connectivity:', error);
@@ -72,27 +72,27 @@ export class StaticIPMonitoringService {
 
     try {
       // Using ping command - works on both Windows and Linux
-      const command = process.platform === 'win32' 
+      const command = process.platform === 'win32'
         ? `ping -n 1 -w 3000 ${ipAddress}`  // Windows ping command
         : `ping -c 1 -W 3 ${ipAddress}`;    // Linux/Unix ping command
-      
+
       const startTime = Date.now();
       const { stdout, stderr } = await execAsync(command);
       const endTime = Date.now();
-      
+
       const responseTime = endTime - startTime;
-      
+
       // Check if ping was successful
       if (stderr && stderr.trim() !== '') {
         return { isReachable: false };
       }
-      
+
       // On Windows, "TTL=" indicates a successful ping
       // On Linux, successful ping will have output
-      const isSuccessful = 
+      const isSuccessful =
         (process.platform === 'win32' && stdout.includes('TTL=')) ||
         (process.platform !== 'win32' && stdout.includes('bytes from'));
-      
+
       return {
         isReachable: isSuccessful,
         responseTime: isSuccessful ? responseTime : undefined
@@ -117,23 +117,23 @@ export class StaticIPMonitoringService {
       return new Promise((resolve) => {
         const client = new net.Socket();
         const startTime = Date.now();
-        
+
         client.setTimeout(3000); // 3 second timeout
-        
+
         client.connect(port, ipAddress, () => {
           const endTime = Date.now();
           client.destroy();
-          resolve({ 
-            isReachable: true, 
-            responseTime: endTime - startTime 
+          resolve({
+            isReachable: true,
+            responseTime: endTime - startTime
           });
         });
-        
+
         client.on('error', () => {
           client.destroy();
           resolve({ isReachable: false });
         });
-        
+
         client.on('timeout', () => {
           client.destroy();
           resolve({ isReachable: false });
@@ -153,7 +153,7 @@ export class StaticIPMonitoringService {
       const query = `
         SELECT 
           c.id as customerId,
-          c.full_name as customerName,
+          c.name as customerName,
           c.phone as customerPhone,
           c.static_ip as ipAddress,
           a.name as area
@@ -161,16 +161,16 @@ export class StaticIPMonitoringService {
         LEFT JOIN ftth_areas a ON c.area_id = a.id
         WHERE c.id = ? AND c.connection_type = 'static_ip'
       `;
-      
+
       const [results] = await databasePool.query(query, [customerId]);
       const customer = (results as any[])[0];
-      
+
       if (!customer) {
         return null;
       }
-      
+
       const status = await this.pingIPAddress(customer.ipAddress);
-      
+
       return {
         ipAddress: customer.ipAddress,
         customerId: customer.customerId,
@@ -195,7 +195,7 @@ export class StaticIPMonitoringService {
       const conn = await databasePool.getConnection();
       try {
         await conn.beginTransaction();
-        
+
         for (const status of statuses) {
           // Update the last connection status in the customer record
           await conn.execute(`
@@ -213,7 +213,7 @@ export class StaticIPMonitoringService {
             status.customerId
           ]);
         }
-        
+
         await conn.commit();
       } catch (error) {
         await conn.rollback();
