@@ -1498,204 +1498,237 @@ Lanjutkan proses generate?`;
                 window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
             }
 
-            // Janji Bayar Modal Functions
-            function openJanjiBayarModal(id, currentDueDate) {
-                document.getElementById('janjiBayarInvoiceId').value = id;
-                // Format date YYYY-MM-DD
-                let dateStr = '';
-                if (currentDueDate) {
-                    const date = new Date(currentDueDate);
-                    if (!isNaN(date)) {
-                        dateStr = date.toISOString().split('T')[0];
+
+            // Billing Action Manager
+            (function () {
+                // --- MODAL FUNCTIONS ---
+                window.showOdcPrintModal = function () {
+                    // (Assuming this is defined elsewhere or needed as a global)
+                    const modal = document.getElementById('odcPrintModal');
+                    if (modal) modal.style.display = 'block';
+                };
+
+                window.openJanjiBayarModal = function (id, currentDueDate) {
+                    const idInput = document.getElementById('janjiBayarInvoiceId');
+                    const dateInput = document.getElementById('janjiBayarDate');
+                    if (!idInput || !dateInput) return;
+
+                    idInput.value = id;
+                    let dateStr = '';
+                    if (currentDueDate) {
+                        const date = new Date(currentDueDate);
+                        if (!isNaN(date)) dateStr = date.toISOString().split('T')[0];
                     }
-                }
-                document.getElementById('janjiBayarDate').value = dateStr;
-                document.getElementById('janjiBayarModal').style.display = 'block';
-            }
+                    dateInput.value = dateStr;
+                    document.getElementById('janjiBayarModal').style.display = 'block';
+                };
 
-            function closeJanjiBayarModal() {
-                document.getElementById('janjiBayarModal').style.display = 'none';
-            }
+                window.closeJanjiBayarModal = function () {
+                    const modal = document.getElementById('janjiBayarModal');
+                    if (modal) modal.style.display = 'none';
+                };
 
-            function saveJanjiBayar() {
-                const id = document.getElementById('janjiBayarInvoiceId').value;
-                const date = document.getElementById('janjiBayarDate').value;
+                window.saveJanjiBayar = function () {
+                    const id = document.getElementById('janjiBayarInvoiceId').value;
+                    const date = document.getElementById('janjiBayarDate').value;
 
-                if (!date) {
-                    alert('⚠️ Pilih tanggal terlebih dahulu!');
-                    return;
-                }
-
-                // Validate date is in the future
-                const selectedDate = new Date(date);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                if (selectedDate < today) {
-                    alert('⚠️ Tanggal janji bayar harus hari ini atau yang akan datang!');
-                    return;
-                }
-
-                if (!confirm(`✅ Konfirmasi Janji Bayar\n\nUbah tanggal jatuh tempo ke: ${new Date(date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}?\n\n📱 Pelanggan akan menerima notifikasi WhatsApp.`)) {
-                    return;
-                }
-
-                // Show loading indicator
-                const saveBtn = event.target;
-                const originalText = saveBtn.innerHTML;
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyimpan...';
-
-                fetch(`/billing/tagihan/${id}/due-date`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ due_date: date })
-                })
-                    .then(r => r.json())
-                    .then(d => {
-                        if (d.success) {
-                            alert('✅ ' + d.message + '\n\n📱 Notifikasi WhatsApp akan dikirim ke pelanggan.');
-                            closeJanjiBayarModal();
-                            location.reload();
-                        } else {
-                            alert('❌ ' + d.message);
-                            saveBtn.disabled = false;
-                            saveBtn.innerHTML = originalText;
-                        }
-                    })
-                    .catch(e => {
-                        console.error(e);
-                        alert('❌ Terjadi kesalahan saat menyimpan!');
-                        saveBtn.disabled = false;
-                        saveBtn.innerHTML = originalText;
-                    });
-            }
-
-
-            // Single WhatsApp Send with robust feedback
-            function sendInvoiceWA(id, btn) {
-                Swal.fire({
-                    title: 'Kirim WhatsApp?',
-                    text: "Tagihan akan langsung dikirim ke WhatsApp pelanggan.",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Kirim Sekarang',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#10b981'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        const originalInner = btn.innerHTML;
-                        btn.disabled = true;
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-                        fetch(`/billing/tagihan/${id}/send-whatsapp`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' }
-                        })
-                            .then(r => r.json())
-                            .then(d => {
-                                if (d.success) {
-                                    Swal.fire({ icon: 'success', title: 'Terkirim', text: d.message, toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
-                                } else {
-                                    Swal.fire({ icon: 'error', title: 'Gagal', text: d.message });
-                                }
-                                btn.disabled = false;
-                                btn.innerHTML = originalInner;
-                            })
-                            .catch(e => {
-                                Swal.fire({ icon: 'error', title: 'Sistem Error', text: 'Terjadi kegagalan koneksi ke server.' });
-                                btn.disabled = false;
-                                btn.innerHTML = originalInner;
-                            });
+                    if (!date) {
+                        Swal.fire('Peringatan', 'Pilih tanggal terlebih dahulu!', 'warning');
+                        return;
                     }
-                });
-            }
 
-            // Global Click listener for data-actions
-            document.addEventListener('click', function (e) {
-                const btn = e.target.closest('[data-action]');
-                if (!btn) return;
+                    const selectedDate = new Date(date);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
 
-                const action = btn.dataset.action;
-                const id = btn.dataset.invoiceId;
-
-                if (action === 'send-wanew') {
-                    sendInvoiceWA(id, btn);
-                }
-            });
-
-            // Bulk Send WA
-            const btnBulkSendWA = document.getElementById('btnBulkSendWA');
-            if (btnBulkSendWA) {
-                btnBulkSendWA.addEventListener('click', function () {
-                    const selected = Array.from(document.querySelectorAll('.invoice-checkbox:checked')).map(cb => cb.value);
-
-                    if (selected.length === 0) {
-                        Swal.fire({
-                            title: 'Kirim Semua?',
-                            text: 'Kirim SEMUA tagihan yang tampil di halaman ini ke antrian WhatsApp?',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonText: 'Ya, Antrekan Semua',
-                            cancelButtonText: 'Batal'
-                        }).then((res) => {
-                            if (res.isConfirmed) {
-                                const allShown = Array.from(document.querySelectorAll('.invoice-checkbox')).map(cb => cb.value);
-                                if (allShown.length === 0) {
-                                    Swal.fire('Error', 'Tidak ada tagihan untuk dikirim.', 'error');
-                                    return;
-                                }
-                                processBulkWA(allShown);
-                            }
-                        });
+                    if (selectedDate < today) {
+                        Swal.fire('Gagal', 'Tanggal janji bayar harus hari ini atau yang akan datang!', 'error');
                         return;
                     }
 
                     Swal.fire({
-                        title: 'Kirim Masal',
-                        text: `Kirim ${selected.length} tagihan terpilih ke antrian WhatsApp?`,
+                        title: 'Konfirmasi Janji Bayar',
+                        text: `Ubah jatuh tempo ke ${selectedDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}? Pelanggan akan menerima notifikasi WA.`,
                         icon: 'question',
                         showCancelButton: true,
-                        confirmButtonText: 'Ya, Antrekan',
+                        confirmButtonText: 'Ya, Simpan',
                         cancelButtonText: 'Batal'
                     }).then((res) => {
-                        if (res.isConfirmed) processBulkWA(selected);
+                        if (res.isConfirmed) {
+                            const btn = document.querySelector('button[onclick="saveJanjiBayar()"]');
+                            const originalText = btn.innerHTML;
+                            btn.disabled = true;
+                            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyimpan...';
+
+                            fetch(`/billing/tagihan/${id}/due-date`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ due_date: date })
+                            })
+                                .then(r => r.json())
+                                .then(d => {
+                                    if (d.success) {
+                                        Swal.fire('Berhasil', 'Janji bayar disimpan.', 'success').then(() => location.reload());
+                                    } else {
+                                        Swal.fire('Gagal', d.message, 'error');
+                                        btn.disabled = false;
+                                        btn.innerHTML = originalText;
+                                    }
+                                })
+                                .catch(() => {
+                                    Swal.fire('Error', 'Kesalahan sistem.', 'error');
+                                    btn.disabled = false;
+                                    btn.innerHTML = originalText;
+                                });
+                        }
                     });
-                });
-            }
+                };
 
-            function processBulkWA(ids) {
-                btnBulkSendWA.disabled = true;
-                btnBulkSendWA.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengantre...';
+                // --- ACTION HANDLERS ---
+                function sendInvoiceWA(id, btn) {
+                    Swal.fire({
+                        title: 'Kirim WhatsApp?',
+                        text: "Kirim tagihan ini langsung ke WhatsApp pelanggan?",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Kirim Sekarang',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#10b981'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const originalInner = btn.innerHTML;
+                            btn.disabled = true;
+                            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-                fetch('/billing/tagihan/bulk-send-whatsapp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ invoice_ids: ids })
-                })
-                    .then(r => r.json())
-                    .then(d => {
-                        Swal.fire('Berhasil', d.message, 'success').then(() => location.reload());
-                    })
-                    .catch(e => {
-                        Swal.fire('Error', 'Gagal mengirim WhatsApp masal', 'error');
-                        btnBulkSendWA.disabled = false;
-                        btnBulkSendWA.innerHTML = '<i class="fab fa-whatsapp mr-2"></i>Kirim Masal';
+                            fetch(`/billing/tagihan/${id}/send-whatsapp`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            })
+                                .then(r => r.json())
+                                .then(d => {
+                                    if (d.success) {
+                                        Swal.fire({ icon: 'success', title: 'Terkirim', text: d.message, toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Gagal', text: d.message });
+                                    }
+                                    btn.disabled = false;
+                                    btn.innerHTML = originalInner;
+                                })
+                                .catch(e => {
+                                    Swal.fire({ icon: 'error', title: 'Sistem Error', text: 'Terjadi kegagalan koneksi.' });
+                                    btn.disabled = false;
+                                    btn.innerHTML = originalInner;
+                                });
+                        }
                     });
-            }
-
-            // Sync counters for bulk actions
-            function updateBulkWAStats() {
-                const count = document.querySelectorAll('.invoice-checkbox:checked').length;
-                const span = document.getElementById('selectedSendWACount');
-                if (span) span.textContent = count;
-            }
-
-            document.addEventListener('change', function (e) {
-                if (e.target.classList.contains('invoice-checkbox') || e.target.id === 'selectAll') {
-                    setTimeout(updateBulkWAStats, 50);
                 }
-            });
+
+                function processBulkWA(ids) {
+                    const btn = document.getElementById('btnBulkSendWA');
+                    btn.disabled = true;
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengantre...';
+
+                    fetch('/billing/tagihan/bulk-send-whatsapp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invoice_ids: ids })
+                    })
+                        .then(r => r.json())
+                        .then(d => {
+                            Swal.fire('Berhasil', d.message, 'success').then(() => location.reload());
+                        })
+                        .catch(e => {
+                            Swal.fire('Error', 'Gagal mengirim WhatsApp masal', 'error');
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
+                        });
+                }
+
+                function updateBulkWAStats() {
+                    const count = document.querySelectorAll('.invoice-checkbox:checked').length;
+                    const span = document.getElementById('selectedSendWACount');
+                    if (span) span.textContent = count;
+
+                    // Toggle visibility of bulk delete and other bulk actions
+                    const bulkItems = document.querySelectorAll('.bulk-delete-hidden');
+                    if (count > 0) {
+                        bulkItems.forEach(el => el.classList.add('bulk-delete-visible'));
+                    } else {
+                        bulkItems.forEach(el => el.classList.remove('bulk-delete-visible'));
+                    }
+                }
+
+                // --- EVENT LISTENERS ---
+                document.addEventListener('click', function (e) {
+                    const btn = e.target.closest('[data-action]');
+                    if (!btn) return;
+
+                    const action = btn.dataset.action;
+                    const id = btn.dataset.invoiceId;
+
+                    switch (action) {
+                        case 'send-wanew':
+                            sendInvoiceWA(id, btn);
+                            break;
+                        case 'promise':
+                            openJanjiBayarModal(id, btn.dataset.invoiceDate);
+                            break;
+                        case 'export-pdf':
+                            // Handle export PDF (assuming there's a specific logic or it's a link)
+                            window.location.href = `/billing/tagihan/export-pdf?ids=` +
+                                Array.from(document.querySelectorAll('.invoice-checkbox:checked')).map(cb => cb.value).join(',');
+                            break;
+                    }
+                });
+
+                const btnBulkSendWA = document.getElementById('btnBulkSendWA');
+                if (btnBulkSendWA) {
+                    btnBulkSendWA.addEventListener('click', function () {
+                        const selected = Array.from(document.querySelectorAll('.invoice-checkbox:checked')).map(cb => cb.value);
+
+                        if (selected.length === 0) {
+                            Swal.fire({
+                                title: 'Kirim Semua?',
+                                text: 'Kirim SEMUA tagihan yang tampil di halaman ini ke antrian WhatsApp?',
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Ya, Antrekan Semua',
+                                cancelButtonText: 'Batal'
+                            }).then((res) => {
+                                if (res.isConfirmed) {
+                                    const allShown = Array.from(document.querySelectorAll('.invoice-checkbox')).map(cb => cb.value);
+                                    if (allShown.length === 0) {
+                                        Swal.fire('Error', 'Tidak ada tagihan untuk dikirim.', 'error');
+                                        return;
+                                    }
+                                    processBulkWA(allShown);
+                                }
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Kirim Masal',
+                                text: `Kirim ${selected.length} tagihan terpilih ke antrian WhatsApp?`,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: 'Ya, Antrekan',
+                                cancelButtonText: 'Batal'
+                            }).then((res) => {
+                                if (res.isConfirmed) processBulkWA(selected);
+                            });
+                        }
+                    });
+                }
+
+                document.addEventListener('change', function (e) {
+                    if (e.target.classList.contains('invoice-checkbox') || e.target.id === 'selectAll') {
+                        setTimeout(updateBulkWAStats, 50);
+                    }
+                });
+
+                // Initial stat check
+                updateBulkWAStats();
+            })();
         </script>
 
         <!-- Janji Bayar Modal -->
