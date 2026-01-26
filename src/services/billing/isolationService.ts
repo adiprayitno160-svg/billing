@@ -461,7 +461,7 @@ export class IsolationService {
                 AND c.status = 'active'
                 AND DATE(i.due_date) = DATE(?)
                 AND NOT EXISTS (
-                    SELECT 1 FROM notification_queue nq
+                    SELECT 1 FROM unified_notifications_queue nq
                     WHERE nq.customer_id = c.id
                     AND nq.notification_type = 'isolation_warning'
                     AND DATE(nq.created_at) = CURDATE()
@@ -574,7 +574,7 @@ export class IsolationService {
                 AND c.status = 'active'
                 AND c.phone IS NOT NULL
                 AND NOT EXISTS (
-                    SELECT 1 FROM notification_queue nq
+                    SELECT 1 FROM unified_notifications_queue nq
                     WHERE nq.customer_id = c.id
                     AND nq.notification_type = 'pre_block_warning'
                     AND DATE(nq.created_at) = CURDATE()

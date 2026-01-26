@@ -1170,8 +1170,8 @@ export class InvoiceController {
 
                 // Queue notification
                 await databasePool.query(`
-                    INSERT INTO notification_queue (customer_id, type, message, priority, status)
-                    VALUES (?, 'whatsapp', ?, 'high', 'pending')
+                    INSERT INTO unified_notifications_queue (customer_id, notification_type, channel, message, priority, status)
+                    VALUES (?, 'bill_extension', 'whatsapp', ?, 'high', 'pending')
                 `, [invoice.customer_id, message]);
 
                 console.log(`✅ Notification queued for customer ${invoice.customer_name} (${invoice.phone}) - Due date extended to ${formattedDate}`);

@@ -784,7 +784,7 @@
                         </div>
                         <span class="text-sm">AI Pembayaran (Gemini)</span>
                     </a>
-                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath === '/settings/whatsapp') ? 'bg-white/15 text-white' : '' %>"
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && (currentPath === '/settings/whatsapp' || currentPath === '/whatsapp' || currentPath.startsWith('/notification/history'))) ? 'bg-white/15 text-white' : '' %>"
                         href="/settings/whatsapp">
                         <div
                             class="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-500 rounded-lg flex items-center justify-center">
@@ -793,22 +793,7 @@
                         <span class="text-sm">WhatsApp Bisnis</span>
                     </a>
 
-                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath === '/whatsapp') ? 'bg-white/15 text-white' : '' %>"
-                        href="/whatsapp">
-                        <div
-                            class="w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                            <i class="fab fa-whatsapp text-white text-[12px]"></i>
-                        </div>
-                        <span class="text-sm">WhatsApp Notifikasi</span>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/notification/history')) ? 'bg-white/15 text-white' : '' %>"
-                        href="/notification/history">
-                        <div
-                            class="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-history text-white text-[10px]"></i>
-                        </div>
-                        <span class="text-sm">Riwayat Notifikasi</span>
-                    </a>
+
 
                     <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/settings/users')) ? 'bg-white/15 text-white' : '' %>"
                         href="/settings/users">

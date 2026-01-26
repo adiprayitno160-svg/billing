@@ -86,9 +86,12 @@ export class UnifiedNotificationService {
       // Determine channels
       const channels = data.channels || ['whatsapp'];
 
-      // Get customer info
+      // Get customer info with potential WhatsApp LID
       const [customerRows] = await connection.query<RowDataPacket[]>(
-        'SELECT name, phone, email FROM customers WHERE id = ?',
+        `SELECT c.name, c.phone, c.email, cl.lid as wa_lid 
+         FROM customers c 
+         LEFT JOIN customer_wa_lids cl ON c.id = cl.customer_id 
+         WHERE c.id = ?`,
         [data.customer_id]
       );
 
@@ -278,8 +281,12 @@ export class UnifiedNotificationService {
         });
         try {
           // Check if customer has required contact info for channel
+          // Get customer info with potential WhatsApp LID
           const [customerRows] = await connection.query<RowDataPacket[]>(
-            'SELECT phone, email FROM customers WHERE id = ?',
+            `SELECT c.name, c.phone, c.email, cl.lid as wa_lid 
+             FROM customers c 
+             LEFT JOIN customer_wa_lids cl ON c.id = cl.customer_id 
+             WHERE c.id = ?`,
             [notif.customer_id]
           );
 
@@ -440,15 +447,16 @@ export class UnifiedNotificationService {
           }
         }
 
-        console.log(`[UnifiedNotification] 📱 Sending WhatsApp to ${customer.phone}...`);
+        const recipient = customer.wa_lid || customer.phone;
+        console.log(`[UnifiedNotification] 📱 Sending WhatsApp to ${recipient}...`);
         console.log(`[UnifiedNotification] 📝 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
 
         try {
           let whatsappResult: any;
           if (notification.attachment_path) {
-            whatsappResult = await waClient.sendDocument(customer.phone, notification.attachment_path, undefined, fullMessage);
+            whatsappResult = await waClient.sendDocument(recipient, notification.attachment_path, undefined, fullMessage);
           } else {
-            whatsappResult = await waClient.sendMessage(customer.phone, fullMessage);
+            whatsappResult = await waClient.sendMessage(recipient, fullMessage);
           }
 
           console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {

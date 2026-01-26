@@ -2039,8 +2039,9 @@ router.get('/customers/new-pppoe', async (req, res) => {
     try {
         console.log('Starting new-pppoe route...');
 
-        const packages = await listPppoePackages();
-        console.log('Packages loaded:', packages.length);
+        let packages = await listPppoePackages();
+        packages = packages.filter((p: any) => !p.is_full);
+        console.log('Packages loaded (filtered):', packages.length);
 
         const profiles = await listPppoeProfiles();
         console.log('Profiles loaded:', profiles.length);
@@ -2102,7 +2103,9 @@ router.get('/customers/new-pppoe', async (req, res) => {
 });
 
 router.get('/customers/new-static-ip', async (req, res) => {
-    const packages = await listStaticIpPackages();
+    let packages = await listStaticIpPackages();
+    // Filter out full packages
+    packages = packages.filter(p => !p.is_full);
     const cfg = await getMikrotikConfig();
 
     // Generate customer code dengan format YYYYMMDDHHMMSS

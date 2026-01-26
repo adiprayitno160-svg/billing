@@ -268,7 +268,8 @@
                                                 <%=(String(customer.package_id)===String(pkg.id) ||
                                                 String(customer.static_ip_package_id)===String(pkg.id)) ? 'selected'
                                                 : '' %>>
-                                                <%= pkg.name %> (<%= pkg.price.toLocaleString('id-ID') %>)
+                                                <%= pkg.name %> (<%= pkg.current_clients || 0 %>/<%= pkg.max_clients ||
+                                                            1 %> plg) — Rp <%= pkg.price.toLocaleString('id-ID') %>
                                             </option>
                                             <% }); } %>
                                     </select>

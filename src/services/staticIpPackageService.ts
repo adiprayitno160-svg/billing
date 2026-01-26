@@ -35,6 +35,7 @@ export type StaticIpPackage = {
 	created_at: Date;
 	updated_at: Date;
 	current_clients?: number;
+	is_full?: boolean;
 	shared_upload_limit?: string;
 	shared_download_limit?: string;
 	limit_at_upload?: string;
@@ -88,7 +89,8 @@ export async function listStaticIpPackages(): Promise<StaticIpPackage[]> {
 					WHEN sip.max_clients > 1 THEN 
 						CONCAT(FLOOR(CAST(SUBSTRING_INDEX(sip.max_limit_download, 'M', 1) AS UNSIGNED) / sip.max_clients), 'M')
 					ELSE sip.max_limit_download 
-				END as shared_download_limit
+				END as shared_download_limit,
+				(COUNT(sic.id) >= sip.max_clients) as is_full
 			FROM static_ip_packages sip
 			LEFT JOIN static_ip_clients sic ON sip.id = sic.package_id AND sic.status = 'active'
 			GROUP BY sip.id

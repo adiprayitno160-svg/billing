@@ -110,7 +110,7 @@ export class WhatsAppService extends EventEmitter {
   private readonly MAX_QUEUE_SIZE = 500;
 
   // Paths
-  private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth');
+  private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth_v2');
   private readonly LOG_DIR = path.join(process.cwd(), 'logs', 'whatsapp');
 
   private constructor() {
@@ -497,12 +497,13 @@ export class WhatsAppService extends EventEmitter {
     }, delay);
   }
 
-  /**
-   * Format phone number for WhatsApp
-   * Ensures format is 628xxx@s.whatsapp.net
-   */
   private formatPhoneNumber(phone: string): string {
     if (!phone) return '';
+
+    // If it's already a full JID, return as is
+    if (phone.includes('@s.whatsapp.net')) return phone;
+    if (phone.includes('@g.us')) return phone;
+    if (phone.includes('@lid')) return phone;
 
     // Remove all non-digit characters
     let cleaned = phone.replace(/\D/g, '');
@@ -512,13 +513,10 @@ export class WhatsAppService extends EventEmitter {
       cleaned = '62' + cleaned.substring(1);
     }
     // If it doesn't start with 62 but is long enough to be a number (e.g. 8123...), prepend 62
-    else if (!cleaned.startsWith('62')) {
+    // Only prepend if it looks like a phone number (e.g. starts with 8)
+    else if (!cleaned.startsWith('62') && (cleaned.startsWith('8') || cleaned.length >= 9)) {
       cleaned = '62' + cleaned;
     }
-
-    // Check if it's already a full JID
-    if (phone.includes('@s.whatsapp.net')) return phone;
-    if (phone.includes('@g.us')) return phone; // Group JID
 
     return `${cleaned}@s.whatsapp.net`;
   }
@@ -654,8 +652,8 @@ export class WhatsAppService extends EventEmitter {
       try {
         this.log('info', `📨 Processing message ${processed}/${processed + this.messageQueue.length} (${item.id}) to ${item.to}`);
 
-        // Only check registration if it's the first attempt and NOT a group
-        if (item.retries === 0 && !item.to.includes('@g.us')) {
+        // Only check registration if it's the first attempt and NOT a group/LID
+        if (item.retries === 0 && !item.to.includes('@g.us') && !item.to.includes('@lid')) {
           // Optional: Skip if already known valid customers to speed up
           // For now, keep it but add a fast timeout
           const exists = await Promise.race([
@@ -757,6 +755,9 @@ export class WhatsAppService extends EventEmitter {
    */
   public async isRegistered(phone: string): Promise<boolean> {
     if (!this.sock || !this.isConnected) return false;
+
+    // Skip check for group and LID
+    if (phone.includes('@g.us') || phone.includes('@lid')) return true;
 
     try {
       // Clean phone number (digits only)
@@ -880,6 +881,10 @@ export class WhatsAppService extends EventEmitter {
 export const whatsappService = WhatsAppService.getInstance();
 
 // Auto-initialize on module load
-whatsappService.initialize().catch(err => {
-  console.error('[WhatsApp] Failed to auto-initialize:', err.message);
-});
+if (process.env.DISABLE_WHATSAPP !== 'true') {
+  whatsappService.initialize().catch(err => {
+    console.error('[WhatsApp] Failed to auto-initialize:', err.message);
+  });
+} else {
+  console.log('[WhatsApp] Auto-initialization disabled (DISABLE_WHATSAPP=true)');
+}

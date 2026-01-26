@@ -48,9 +48,8 @@ export class PaymentShortageService {
                 AND c.phone != ''
                 AND DATEDIFF(CURDATE(), i.due_date) >= ?
                 AND NOT EXISTS (
-                    SELECT 1 FROM notification_queue nq
+                    SELECT 1 FROM unified_notifications_queue nq
                     WHERE nq.customer_id = c.id
-                    AND nq.invoice_id = i.id
                     AND nq.notification_type = 'payment_shortage_warning'
                     AND DATE(nq.created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
                 )

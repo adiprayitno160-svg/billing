@@ -517,9 +517,11 @@
 												// 1. Read from LocalStorage
 												const savedState = localStorage.getItem('dashboardLiveTrafficEnabled');
 
-												// 2. Set initial state (default to true if null)
-												if (savedState !== 'false') {
-													toggleCheckbox.checked = true; // default to ON if not explicitly 'false'
+												// 2. Set initial state (default to false if null)
+												if (savedState === 'true') {
+													toggleCheckbox.checked = true;
+												} else {
+													toggleCheckbox.checked = false;
 												}
 
 												// 3. Sync internal variable immediately

@@ -584,10 +584,14 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         let packages: any[] = [];
         try {
             if (customer.connection_type === 'pppoe') {
-                packages = await listPppoePackages();
+                const allPppoePackages = await listPppoePackages();
+                // Filter out full packages, but ALWAYS keep the customer's CURRENT package
+                packages = allPppoePackages.filter((p: any) => !p.is_full || p.id === customer.package_id || p.id === customer.pppoe_package_id);
                 console.log(`[CustomerEdit] Loaded ${packages.length} PPPoE packages for customer ${customerId}`);
             } else if (customer.connection_type === 'static_ip') {
-                packages = await listStaticIpPackages();
+                const allStaticIpPackages = await listStaticIpPackages();
+                // Filter out full packages, but ALWAYS keep the customer's CURRENT package
+                packages = allStaticIpPackages.filter(p => !p.is_full || p.id === customer.static_ip_package_id || p.id === customer.package_id);
                 console.log(`[CustomerEdit] Loaded ${packages.length} Static IP packages for customer ${customerId}`);
                 console.log(`[CustomerEdit] Customer package_id: ${customer.package_id}, static_ip_package_id: ${customer.static_ip_package_id}`);
             }
@@ -1561,7 +1565,8 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
 
                                 console.log(`✅ Notification queued for customer deletion: ${customer.name} (${customer.phone}) - Notification IDs: ${notificationIds.join(', ')}`);
 
-                                // Process queue immediately (same as customer_created)
+                                // Process queue immediately (same as customer_created) - DISABLED for bulk performance
+                                /*
                                 try {
                                     const result = await UnifiedNotificationService.sendPendingNotifications(10);
                                     console.log(`[BulkDelete] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
@@ -1569,6 +1574,7 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                                     console.warn(`[BulkDelete] ⚠️ Queue processing error (non-critical):`, queueError.message);
                                     // Non-critical, notification is already queued
                                 }
+                                */
                             } catch (queueNotifError: any) {
                                 console.error(`[BulkDelete] ⚠️ Failed to queue notification (non-critical, continuing deletion):`, queueNotifError.message);
                                 // Continue with deletion even if notification queue fails

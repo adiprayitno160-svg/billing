@@ -55,7 +55,7 @@ export class OdpOdcService {
      */
     static async getAllODCs(filters?: { status?: string }): Promise<ODC[]> {
         try {
-            let query = 'SELECT * FROM odc WHERE 1=1';
+            let query = 'SELECT * FROM ftth_odc WHERE 1=1';
             const params: any[] = [];
 
             if (filters?.status) {
@@ -79,7 +79,7 @@ export class OdpOdcService {
     static async getODCById(id: number): Promise<ODC | null> {
         try {
             const [rows] = await databasePool.query<RowDataPacket[]>(
-                'SELECT * FROM odc WHERE id = ?',
+                'SELECT * FROM ftth_odc WHERE id = ?',
                 [id]
             );
             return rows.length > 0 ? (rows[0] as ODC) : null;
@@ -95,7 +95,7 @@ export class OdpOdcService {
     static async createODC(odc: ODC): Promise<number> {
         try {
             const [result] = await databasePool.query<ResultSetHeader>(
-                `INSERT INTO odc (code, name, location, latitude, longitude, capacity, status, notes)
+                `INSERT INTO ftth_odc (code, name, location, latitude, longitude, capacity, status, notes)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     odc.code,
@@ -138,7 +138,7 @@ export class OdpOdcService {
             values.push(id);
 
             const [result] = await databasePool.query<ResultSetHeader>(
-                `UPDATE odc SET ${fields.join(', ')} WHERE id = ?`,
+                `UPDATE ftth_odc SET ${fields.join(', ')} WHERE id = ?`,
                 values
             );
 
@@ -155,7 +155,7 @@ export class OdpOdcService {
     static async deleteODC(id: number): Promise<boolean> {
         try {
             const [result] = await databasePool.query<ResultSetHeader>(
-                'DELETE FROM odc WHERE id = ?',
+                'DELETE FROM ftth_odc WHERE id = ?',
                 [id]
             );
             return result.affectedRows > 0;
@@ -174,8 +174,8 @@ export class OdpOdcService {
         try {
             let query = `
                 SELECT odp.*, odc.name as odc_name 
-                FROM odp 
-                LEFT JOIN odc ON odp.odc_id = odc.id 
+                FROM ftth_odp odp 
+                LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id 
                 WHERE 1=1
             `;
             const params: any[] = [];
@@ -207,8 +207,8 @@ export class OdpOdcService {
         try {
             const [rows] = await databasePool.query<RowDataPacket[]>(
                 `SELECT odp.*, odc.name as odc_name 
-                 FROM odp 
-                 LEFT JOIN odc ON odp.odc_id = odc.id 
+                 FROM ftth_odp odp 
+                 LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id 
                  WHERE odp.id = ?`,
                 [id]
             );
@@ -225,7 +225,7 @@ export class OdpOdcService {
     static async createODP(odp: ODP): Promise<number> {
         try {
             const [result] = await databasePool.query<ResultSetHeader>(
-                `INSERT INTO odp (odc_id, code, name, location, latitude, longitude, capacity_ports, status, notes)
+                `INSERT INTO ftth_odp (odc_id, code, name, location, latitude, longitude, capacity_ports, status, notes)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     odp.odc_id,
@@ -274,7 +274,7 @@ export class OdpOdcService {
             values.push(id);
 
             const [result] = await databasePool.query<ResultSetHeader>(
-                `UPDATE odp SET ${fields.join(', ')} WHERE id = ?`,
+                `UPDATE ftth_odp SET ${fields.join(', ')} WHERE id = ?`,
                 values
             );
 
@@ -302,7 +302,7 @@ export class OdpOdcService {
             const odp = await this.getODPById(id);
 
             const [result] = await databasePool.query<ResultSetHeader>(
-                'DELETE FROM odp WHERE id = ?',
+                'DELETE FROM ftth_odp WHERE id = ?',
                 [id]
             );
 
@@ -370,13 +370,13 @@ export class OdpOdcService {
     private static async updateODCUsedCapacity(odc_id: number): Promise<void> {
         try {
             const [rows] = await databasePool.query<RowDataPacket[]>(
-                'SELECT COUNT(*) as count FROM odp WHERE odc_id = ?',
+                'SELECT COUNT(*) as count FROM ftth_odp WHERE odc_id = ?',
                 [odc_id]
             );
             const count = rows[0]?.count || 0;
 
             await databasePool.query(
-                'UPDATE odc SET used_capacity = ? WHERE id = ?',
+                'UPDATE ftth_odc SET used_capacity = ? WHERE id = ?',
                 [count, odc_id]
             );
         } catch (error) {
@@ -404,12 +404,12 @@ export class OdpOdcService {
             const odp = await this.getODPById(odp_id);
             if (odp && count >= (odp.capacity_ports || 8)) {
                 await databasePool.query(
-                    "UPDATE odp SET status = 'full' WHERE id = ?",
+                    "UPDATE ftth_odp SET status = 'full' WHERE id = ?",
                     [odp_id]
                 );
             } else if (odp && odp.status === 'full' && count < (odp.capacity_ports || 8)) {
                 await databasePool.query(
-                    "UPDATE odp SET status = 'active' WHERE id = ?",
+                    "UPDATE ftth_odp SET status = 'active' WHERE id = ?",
                     [odp_id]
                 );
             }
@@ -429,10 +429,10 @@ export class OdpOdcService {
     }> {
         try {
             const [odcCount] = await databasePool.query<RowDataPacket[]>(
-                'SELECT COUNT(*) as count FROM odc'
+                'SELECT COUNT(*) as count FROM ftth_odc'
             );
             const [odpCount] = await databasePool.query<RowDataPacket[]>(
-                'SELECT COUNT(*) as count FROM odp'
+                'SELECT COUNT(*) as count FROM ftth_odp'
             );
             const [customerCount] = await databasePool.query<RowDataPacket[]>(
                 'SELECT COUNT(*) as count FROM customers WHERE odp_id IS NOT NULL'

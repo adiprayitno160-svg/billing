@@ -267,12 +267,16 @@ export async function listPackages(): Promise<PppoePackage[]> {
 			pr.remote_address_pool,
 			pr.local_address,
 			pr.rate_limit_rx as profile_rate_limit_rx,
-			pr.rate_limit_tx as profile_rate_limit_tx
+			pr.rate_limit_tx as profile_rate_limit_tx,
+			COUNT(s.id) as current_clients,
+			(COUNT(s.id) >= p.max_clients) as is_full
 			FROM pppoe_packages p
 			LEFT JOIN pppoe_profiles pr ON p.profile_id = pr.id
+			LEFT JOIN subscriptions s ON p.id = s.package_id AND s.status = 'active'
+			GROUP BY p.id
 			ORDER BY p.name ASC
 			`);
-		const packages = Array.isArray(rows) ? rows as PppoePackage[] : [];
+		const packages = Array.isArray(rows) ? rows as any[] : [];
 
 		// Update rate limit dari profile untuk setiap paket yang punya profile_id
 		packages.forEach((pkg: any) => {

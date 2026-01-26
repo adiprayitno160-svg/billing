@@ -20,7 +20,8 @@ export class StaticIpImportController {
                 ORDER BY name ASC
             `);
 
-            const packages = await listStaticIpPackages();
+            let packages = await listStaticIpPackages();
+            packages = packages.filter(p => !p.is_full);
 
             res.render('settings/import-static-ip', {
                 title: 'Import Static IP MikroTik',
@@ -72,10 +73,35 @@ export class StaticIpImportController {
             const [custRows] = await conn.execute('SELECT name, customer_code FROM customers WHERE id = ?', [customerId]);
             const customer = (custRows as any)[0];
 
-            const [pkgRows] = await conn.execute('SELECT name, max_limit_download as max_limit FROM static_ip_packages WHERE id = ?', [packageId]);
+            const [pkgRows] = await conn.execute('SELECT id, name, price, max_limit_download as max_limit FROM static_ip_packages WHERE id = ?', [packageId]);
             const pkg = (pkgRows as any)[0];
 
             if (!customer || !pkg) throw new Error('Customer atau Paket tidak valid');
+
+            // 1.5 Handle Subscription
+            const [existingSub] = await conn.execute(
+                'SELECT id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                [customerId]
+            );
+
+            if ((existingSub as any[]).length > 0) {
+                // Update existing subscription
+                await conn.execute(`
+                    UPDATE subscriptions SET 
+                        package_id = ?, package_name = ?, price = ?, updated_at = NOW()
+                    WHERE customer_id = ? AND status = 'active'
+                `, [pkg.id, pkg.name, pkg.price, customerId]);
+                console.log(`[Import-Link] Subscription updated for customer ${customerId}`);
+            } else {
+                // Create new subscription
+                await conn.execute(`
+                    INSERT INTO subscriptions (
+                        customer_id, package_id, package_name, price, 
+                        start_date, status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, NOW(), 'active', NOW(), NOW())
+                `, [customerId, pkg.id, pkg.name, pkg.price]);
+                console.log(`[Import-Link] Subscription created for customer ${customerId}`);
+            }
 
             // 2. Insert ke tabel static_ip_clients (jika belum ada)
             const [exist] = await conn.execute('SELECT id FROM static_ip_clients WHERE ip_address = ?', [ipAddress]);
@@ -122,7 +148,8 @@ export class StaticIpImportController {
     // Render Halaman Form Import (Adopsi Pelanggan Baru)
     async renderFormImport(req: Request, res: Response) {
         try {
-            const packages = await listStaticIpPackages();
+            let packages = await listStaticIpPackages();
+            packages = packages.filter(p => !p.is_full);
 
             res.render('customers/import_mikrotik', {
                 title: 'Import Pelanggan dari MikroTik',
@@ -186,9 +213,28 @@ export class StaticIpImportController {
                 console.log(`[Import] Customer Created ID: ${newCustomerId}, Code: ${customerCode}`);
             }
 
-            // 3. Get Package Limit
-            const [pkgRows] = await conn.execute('SELECT max_limit_download as max_limit FROM static_ip_packages WHERE id = ?', [packageId]);
-            const pkgLimit = (pkgRows as any)[0]?.max_limit || '0M';
+            // 3. Get Package Details & Create Subscription
+            const [pkgRows] = await conn.execute('SELECT name, price, max_limit_download as max_limit FROM static_ip_packages WHERE id = ?', [packageId]);
+            const pkgData = (pkgRows as any)[0];
+            const pkgLimit = pkgData?.max_limit || '0M';
+
+            if (pkgData) {
+                // Check if subscription exists for this customer
+                const [existingSub] = await conn.execute(
+                    'SELECT id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                    [newCustomerId]
+                );
+
+                if ((existingSub as any[]).length === 0) {
+                    await conn.execute(`
+                        INSERT INTO subscriptions (
+                            customer_id, package_id, package_name, price, 
+                            start_date, status, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, NOW(), 'active', NOW(), NOW())
+                    `, [newCustomerId, packageId, pkgData.name, pkgData.price]);
+                    console.log(`[Import] Subscription created for customer ${newCustomerId}`);
+                }
+            }
 
             // 4. Upsert Static IP Client
             const [existingClient] = await conn.execute('SELECT id FROM static_ip_clients WHERE ip_address = ? LIMIT 1', [ipAddress]);

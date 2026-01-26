@@ -577,7 +577,7 @@ export class InvoiceService {
                    c.odc_id, odc.name as odc_name
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
-            LEFT JOIN odc ON c.odc_id = odc.id
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
             WHERE i.id = ?
         `;
 
@@ -612,10 +612,10 @@ export class InvoiceService {
     } = {}) {
         let query = `
             SELECT i.*, c.name as customer_name, c.phone, c.email,
-                   ftth_odc.name as odc_name
+                   odc.name as odc_name
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
-            LEFT JOIN ftth_odc ON c.odc_id = ftth_odc.id
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
             WHERE 1=1
         `;
 
@@ -673,7 +673,7 @@ export class InvoiceService {
                    odc.name as odc_name
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
-            LEFT JOIN odc ON c.odc_id = odc.id
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
             WHERE i.status IN ('sent', 'partial') 
             AND i.due_date < CURRENT_DATE
             ORDER BY i.due_date ASC

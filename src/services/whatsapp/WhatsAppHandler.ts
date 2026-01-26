@@ -58,6 +58,12 @@ export class WhatsAppHandler {
             // Note: If sender is LID and we don't have mapping, this might return null.
             let customer = await this.getCustomerByPhone(senderPhone);
 
+            // NEW: Auto-link attempt for LID users
+            if (!customer && isLid) {
+                console.log(`[WhatsAppHandler] 🔍 Attempting auto-link for LID: ${senderJid}`);
+                customer = await this.attemptAutoLinkByPattern(senderJid);
+            }
+
             // If customer failed by phone, generic logic might fail.
             // But we should still reply to the senderJid provided.
 
@@ -82,6 +88,88 @@ export class WhatsAppHandler {
 
             // 4. Registration Flow
             if (!customer) {
+                // HANDLE LID LINKING PRE-CHECK
+                if (keyword === 'myid' || cleanText === '!myid' || cleanText === 'cek id') {
+                    await service.sendMessage(senderJid, `🆔 *Info ID Perangkat*
+
+ID Anda saat ini: *${senderPhone}*
+
+Jika nomor Anda terdaftar tapi bot tidak merespons, itu karena WhatsApp Anda mengirim ID ini (LID), bukan nomor HP.
+
+Ketik: *!link [NomorHPAnda]* untuk menghubungkan.
+Contoh: *!link 08123456789*
+
+Atau biarkan kami bantu hubungkan secara otomatis dengan mengirim pesan: *Hubungkan otomatis*`);
+                    return;
+                }
+
+                if (cleanText.startsWith('!link ')) {
+                    const targetInfo = cleanText.replace('!link ', '').trim();
+                    const targetPhoneRaw = targetInfo.replace(/\D/g, '');
+
+                    if (targetPhoneRaw.length < 9) {
+                        await service.sendMessage(senderJid, '⚠️ Mohon masukkan nomor HP yang valid. Contoh: !link 08123456789');
+                        return;
+                    }
+
+                    // Look up customer by this phone (Try exact match first, then partial)
+                    let [cRows] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT id, name, phone FROM customers WHERE phone = ? LIMIT 1', // Try exact first
+                        [targetInfo]
+                    );
+
+                    if (cRows.length === 0) {
+                        // Try standard formats
+                        const formats = [targetPhoneRaw];
+                        if (targetPhoneRaw.startsWith('0')) formats.push('62' + targetPhoneRaw.substring(1));
+                        if (targetPhoneRaw.startsWith('62')) formats.push('0' + targetPhoneRaw.substring(2));
+
+                        [cRows] = await databasePool.query<RowDataPacket[]>(
+                            'SELECT id, name, phone FROM customers WHERE phone IN (?) LIMIT 1',
+                            [formats]
+                        );
+                    }
+
+                    // Fallback to LIKE
+                    if (cRows.length === 0) {
+                        [cRows] = await databasePool.query<RowDataPacket[]>(
+                            'SELECT id, name, phone FROM customers WHERE phone LIKE ? LIMIT 1',
+                            [`%${targetPhoneRaw}`]
+                        );
+                    }
+
+                    if (cRows.length === 0) {
+                        await service.sendMessage(senderJid, `❌ Maaf, nomor HP *${targetInfo}* tidak ditemukan di sistem.`);
+                        return;
+                    }
+
+                    const linkedCustomer = cRows[0];
+                    const currentLid = senderPhone; // This is the LID because !customer was true
+
+                    try {
+                        await databasePool.query(
+                            'INSERT INTO customer_wa_lids (customer_id, lid) VALUES (?, ?) ON DUPLICATE KEY UPDATE customer_id = VALUES(customer_id)',
+                            [linkedCustomer.id, currentLid]
+                        );
+                        await service.sendMessage(senderJid, `✅ *Perangkat Terhubung!*
+
+ID Perangkat: ${currentLid}
+Akun: ${linkedCustomer.name} (${linkedCustomer.phone})
+
+Sekarang Anda dapat menggunakan semua fitur bot.`);
+                    } catch (err) {
+                        console.error('Link error:', err);
+                        await service.sendMessage(senderJid, 'Gagal menghubungkan perangkat. Coba lagi nanti.');
+                    }
+                    return;
+                }
+
+                // NEW: Auto-link trigger
+                if (cleanText.includes('hubungkan otomatis') || cleanText.includes('connect automatic') || cleanText.includes('auto link')) {
+                    await this.handleAutoConnectionRequest(senderJid, service);
+                    return;
+                }
+
                 // Check if it's registration keyword
                 if (/^(daftar|reg|registrasi)/.test(keyword)) {
                     await this.handleRegistration(service, senderJid, senderPhone, cleanText, null, null);
@@ -94,10 +182,63 @@ export class WhatsAppHandler {
                     return;
                 }
 
-                // If unknown user and not greeting/menu -> AI or Menu
-                // Fallback to menu currently for safety
-                // await this.sendMenu(service, senderJid, null);
-                // return;
+                // If unknown user and not greeting/menu -> Show help menu
+                await this.sendMenu(service, senderJid, null);
+                return;
+            }
+
+            // 4.5. !link Command (Manual Account Linking)
+            if (keyword === '!link' || keyword === '/link') {
+                const targetPhone = cleanText.replace(/[^0-9]/g, '');
+
+                if (targetPhone.length < 9) {
+                    await service.sendMessage(senderJid, '⚠️ Mohon masukkan nomor HP yang terdaftar.\nFormat: *!link 08123xxxx*');
+                    return;
+                }
+
+                // Look up customer by this phone
+                let [cRows] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT id, name, phone FROM customers WHERE phone = ? LIMIT 1',
+                    [targetPhone]
+                );
+
+                if (cRows.length === 0) {
+                    // Try alternative formats
+                    const formats = [targetPhone];
+                    if (targetPhone.startsWith('0')) formats.push('62' + targetPhone.substring(1));
+                    if (targetPhone.startsWith('62')) formats.push('0' + targetPhone.substring(2));
+
+                    [cRows] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT id, name, phone FROM customers WHERE phone IN (?) LIMIT 1',
+                        [formats]
+                    );
+                }
+
+                if (cRows.length === 0) {
+                    await service.sendMessage(senderJid, `❌ Nomor *${targetPhone}* tidak ditemukan di sistem.`);
+                    return;
+                }
+
+                const linkedCustomer = cRows[0];
+                const currentLid = senderPhone; // This is the LID sent by WA (e.g. 628xxx@s.whatsapp.net user part)
+
+                try {
+                    await databasePool.query(
+                        'INSERT INTO customer_wa_lids (customer_id, lid) VALUES (?, ?) ON DUPLICATE KEY UPDATE customer_id = VALUES(customer_id)',
+                        [linkedCustomer.id, currentLid]
+                    );
+                    await service.sendMessage(senderJid, `✅ *Perangkat Terhubung!*
+
+Nomor WA ini telah terhubung dengan akun:
+👤 ${linkedCustomer.name}
+📞 ${linkedCustomer.phone}
+
+Ketik *Menu* untuk memulai.`);
+                } catch (err) {
+                    console.error('Link error:', err);
+                    await service.sendMessage(senderJid, 'Gagal menghubungkan perangkat. Silakan coba lagi nanti.');
+                }
+                return;
             }
 
             // 5. Customer Logic
@@ -108,6 +249,7 @@ export class WhatsAppHandler {
 
             // 5.5 IMAGE RECOGNITION (Payment Proof Scan)
             if (isImage) {
+                console.log(`[WhatsApp] 📷 Image message received from ${senderJid}`);
                 const sock = service.getSocket();
                 if (!sock) {
                     console.error('Socket not available for image processing');
@@ -137,13 +279,21 @@ export class WhatsAppHandler {
                         customer.id
                     );
 
+                    console.log(`[WhatsApp] 🤖 AI Verification result for ${customer.name}: success=${result.success}, autoApproved=${result.data?.autoApproved}, stage=${result.stage}`);
+
                     if (result.success && result.data?.autoApproved) {
                         // Auto Approved
                         const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
                         const invStr = result.data.invoiceNumber || 'Tagihan';
 
                         // 1. Send Text Confirmation
-                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉\n\n_Invoice lunas dilampirkan dibawah ini..._`);
+                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*
+
+Terima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.
+
+Status: *LUNAS* 🎉
+
+_Invoice lunas dilampirkan dibawah ini..._`);
 
                         // 2. Generate and Send PDF with Stamp
                         if (result.data.invoiceId) {
@@ -195,7 +345,11 @@ export class WhatsAppHandler {
                             console.error('Failed to save manual verification:', saveErr);
                         }
 
-                        await service.sendMessage(senderJid, `⚠️ *Verifikasi Manual Diperlukan*\n\n${reason}\n\nData Anda telah diteruskan ke Admin untuk pengecekan manual. Mohon tunggu konfirmasi selanjutnya.`);
+                        await service.sendMessage(senderJid, `⚠️ *Verifikasi Manual Diperlukan*
+
+${reason}
+
+Data Anda telah diteruskan ke Admin untuk pengecekan manual. Mohon tunggu konfirmasi selanjutnya.`);
                     }
                 } catch (err: any) {
                     console.error('Image processing error:', err);
@@ -230,7 +384,11 @@ export class WhatsAppHandler {
 
                         const outageMsg = (msgRows && msgRows.length > 0) ? msgRows[0].value : 'Saat ini sedang terjadi gangguan teknis pada infrastruktur pusat (Gangguan Massal). Tim kami sedang bekerja melakukan perbaikan secepatnya.\n\nMohon maaf atas ketidaknyamanannya.';
 
-                        await service.sendMessage(senderJid, `📢 *INFO GANGGUAN PUSAT*\n\n${outageMsg}\n\n_Tiket tidak dibuat karena tim sudah menangani masalah ini._`);
+                        await service.sendMessage(senderJid, `📢 *INFO GANGGUAN PUSAT*
+
+${outageMsg}
+
+_Tiket tidak dibuat karena tim sudah menangani masalah ini._`);
                         return;
                     }
                 } catch (ignore) { }
@@ -256,7 +414,13 @@ export class WhatsAppHandler {
                     });
 
                     if (ticketNumber) {
-                        await service.sendMessage(senderJid, `✅ *TIKET BERHASIL DIBUAT*\n\nNomor Tiket: *${ticketNumber}*\n\nLaporan Anda telah diteruskan ke tim teknisi kami. Mohon tunggu, teknisi akan segera menghubungi Anda saat tiket diproses.\n\nTerima kasih.`);
+                        await service.sendMessage(senderJid, `✅ *TIKET BERHASIL DIBUAT*
+
+Nomor Tiket: *${ticketNumber}*
+
+Laporan Anda telah diteruskan ke tim teknisi kami. Mohon tunggu, teknisi akan segera menghubungi Anda saat tiket diproses.
+
+Terima kasih.`);
                     } else {
                         await service.sendMessage(senderJid, 'Maaf, gagal membuat tiket. Silakan coba lagi nanti atau hubungi Admin.');
                     }
@@ -349,7 +513,14 @@ export class WhatsAppHandler {
 
                     // Notify Customer if exists
                     if (job.customer_phone) {
-                        const custMsg = `✅ *TEKNISI MENUJU LOKASI*\n\nHalo Kak *${job.customer_name}*,\nLaporan Anda (#${job.ticket_number}) telah diambil oleh teknisi kami:\n\n👤 Nama: *${technician.full_name}*\n\nTeknisi akan segera menghubungi Kakak. Terima kasih.`;
+                        const custMsg = `✅ *TEKNISI MENUJU LOKASI*
+
+Halo Kak *${job.customer_name}*,
+Laporan Anda (#${job.ticket_number}) telah diambil oleh teknisi kami:
+
+👤 Nama: *${technician.full_name}*
+
+Teknisi akan segera menghubungi Kakak. Terima kasih.`;
                         await service.sendMessage(job.customer_phone, custMsg).catch(() => { });
                     }
 
@@ -384,7 +555,19 @@ export class WhatsAppHandler {
                     data: { customerId: customer.id, connType: customer.connection_type, pppoeUser: customer.pppoe_username }
                 });
 
-                const greeting = `🛠️ *Panduan Reset Koneksi (AI Assistant)*\n\nHalo ${customer.name}, saya mendeteksi Anda ingin mereset koneksi internet.\n\n*Apa yang akan terjadi?*\n1. Sistem akan memutus koneksi Anda dari server pusat.\n2. Modem/Router Anda akan dipaksa menyambung ulang (reconnect).\n3. IP Address Anda mungkin akan diperbarui.\n\n_Biasanya ini ampuh mengatasi internet lemot atau bengong._\n\nApakah Anda yakin ingin melanjutkan?\nKetik *YA* untuk konfirmasi.`;
+                const greeting = `🛠️ *Panduan Reset Koneksi (AI Assistant)*
+
+Halo ${customer.name}, saya mendeteksi Anda ingin mereset koneksi internet.
+
+*Apa yang akan terjadi?*
+1. Sistem akan memutus koneksi Anda dari server pusat.
+2. Modem/Router Anda akan dipaksa menyambung ulang (reconnect).
+3. IP Address Anda mungkin akan diperbarui.
+
+_Biasanya ini ampuh mengatasi internet lemot atau bengong._
+
+Apakah Anda yakin ingin melanjutkan?
+Ketik *YA* untuk konfirmasi.`;
 
                 await service.sendMessage(senderJid, greeting);
                 return;
@@ -531,7 +714,11 @@ export class WhatsAppHandler {
                         'UPDATE customers SET name = ?, name_edited_at = NOW() WHERE id = ?',
                         [newName, customer.id]
                     );
-                    await service.sendMessage(senderJid, `✅ *Sukses!* Nama pelanggan berhasil diubah menjadi:\n\n*${newName}*\n\n_Catatan: Fitur ubah nama mandiri ini hanya dapat digunakan satu kali._`);
+                    await service.sendMessage(senderJid, `✅ *Sukses!* Nama pelanggan berhasil diubah menjadi:
+
+*${newName}*
+
+_Catatan: Fitur ubah nama mandiri ini hanya dapat digunakan satu kali._`);
                 } catch (err) {
                     console.error('Error updating customer name via WA:', err);
                     await service.sendMessage(senderJid, 'Maaf, terjadi kesalahan sistem saat memproses permintaan Anda.');
@@ -578,7 +765,12 @@ export class WhatsAppHandler {
 
             // 6.5 Admin/Operator Request
             if (keyword === 'admin' || keyword === 'operator' || cleanText.includes('hubungi admin')) {
-                await service.sendMessage(senderJid, `👨‍💼 *Kontak Admin/Operator*\n\nSilakan hubungi kami di:\nwa.me/628123456789 (Admin Utama)\n\n_Jam Operasional: 08:00 - 17:00_`);
+                await service.sendMessage(senderJid, `👨‍💼 *Kontak Admin/Operator*
+
+Silakan hubungi kami di:
+wa.me/628123456789 (Admin Utama)
+
+_Jam Operasional: 08:00 - 17:00_`);
                 return;
             }
 
@@ -599,6 +791,32 @@ export class WhatsAppHandler {
     }
 
     private static async getCustomerByPhone(phone: string): Promise<any> {
+        // 1. Check LID Mapping first (Direct Match)
+        try {
+            const [lidRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT c.* FROM customers c JOIN customer_wa_lids l ON c.id = l.customer_id WHERE l.lid = ? LIMIT 1',
+                [phone]
+            );
+            if (lidRows.length > 0) {
+                console.log(`[WhatsAppHandler] ✅ Found customer via LID: ${lidRows[0].name}`);
+                return lidRows[0];
+            }
+        } catch (e) {
+            console.error('Error checking LID:', e);
+        }
+
+        // NEW: Auto-link attempt for LID users
+        // If this looks like an LID and we don't have a direct match,
+        // try to find customers with similar phone patterns
+        const isLikelyLid = phone.length > 12 && !/^[0-9]{9,13}$/.test(phone);
+        if (isLikelyLid) {
+            console.log(`[WhatsAppHandler] 🔍 Auto-link attempt for potential LID: ${phone}`);
+            const autoLinkedCustomer = await this.attemptAutoLinkByPattern(phone);
+            if (autoLinkedCustomer) {
+                return autoLinkedCustomer;
+            }
+        }
+
         // Normalize phone number - strip all non-digits first
         const cleanPhone = phone.replace(/\D/g, '');
 
@@ -665,6 +883,12 @@ export class WhatsAppHandler {
         return null;
     }
 
+    /**
+     * Attempt auto-link by finding customers with similar phone number patterns
+     * This helps when LID looks similar to actual phone numbers
+     */
+
+
     private static async sendMenu(service: WhatsAppService, jid: string, customer: any) {
         let text = '';
         if (customer) {
@@ -680,9 +904,20 @@ export class WhatsAppHandler {
                 `_Butuh bantuan lain? Tulis pertanyaan Anda, AI kami akan membantu!_`;
         } else {
             text = `👋 Selamat datang di Billing System.\n\n` +
-                `Nomor Anda belum terdaftar di sistem kami.\n` +
-                `Ketik *Daftar* untuk registrasi pelanggan baru.\n\n` +
-                `_Atau silakan tulis pertanyaan Anda._`;
+                `*🔔 Informasi Penting:*\n` +
+                `Nomor Anda belum terdaftar di sistem kami.\n\n` +
+                `*📝 Pilihan Yang Tersedia:*\n\n` +
+                `1️⃣ *Sudah Pelanggan?* \n` +
+                `Ketik: *!link [NomorHPAnda]*\n` +
+                `Contoh: *!link 08123456789*\n\n` +
+                `2️⃣ *Pelanggan Baru?*\n` +
+                `Ketik: *Daftar*\n\n` +
+                `3️⃣ *Bantuan Otomatis*\n` +
+                `Kirim pesan: *Hubungkan otomatis*\n` +
+                `(Kami akan coba hubungkan secara otomatis)\n\n` +
+                `4️⃣ *Cek ID Saya*\n` +
+                `Ketik: *!myid*\n\n` +
+                `_Pilih salah satu opsi di atas dengan mengetik sesuai petunjuk._`;
         }
         await service.sendMessage(jid, text);
     }
@@ -759,6 +994,112 @@ export class WhatsAppHandler {
 
                 await WhatsAppSessionService.clearSession(phone);
                 break;
+        }
+    }
+
+    /**
+     * Attempt to automatically link by searching matching phone pattern
+     */
+    private static async attemptAutoLinkByPattern(jid: string): Promise<any | null> {
+        try {
+            // Extract numeric parts from JID (handle both @s.whatsapp.net and @lid)
+            // e.g. 62812345@s.whatsapp.net -> 62812345
+            // e.g. 63729093849223@lid -> 63729093849223
+            let phoneDigits = jid.split('@')[0].replace(/\D/g, '');
+            if (!phoneDigits) return null;
+
+            // Patterns to try
+            const patterns = [phoneDigits];
+
+            // if starts with 62, also try 0
+            if (phoneDigits.startsWith('62')) {
+                patterns.push('0' + phoneDigits.substring(2));
+            }
+            // if starts with 0, also try 62
+            if (phoneDigits.startsWith('0')) {
+                patterns.push('62' + phoneDigits.substring(1));
+            }
+
+            // Also try matching the last 10 digits to be safer with country codes
+            if (phoneDigits.length >= 10) {
+                const tail = phoneDigits.substring(phoneDigits.length - 10);
+                patterns.push('%' + tail);
+            }
+
+            // query
+            let customer: any = null;
+
+            // Try exact match first
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT * FROM customers WHERE phone IN (?) LIMIT 1',
+                [patterns]
+            );
+
+            if (rows.length > 0) {
+                customer = rows[0];
+            } else {
+                // Try suffix match if no exact match
+                const [rowsSuffix] = await databasePool.query<RowDataPacket[]>(
+                    'SELECT * FROM customers WHERE phone LIKE ? LIMIT 1',
+                    ['%' + phoneDigits.substring(Math.max(0, phoneDigits.length - 10))]
+                );
+                if (rowsSuffix.length > 0) customer = rowsSuffix[0];
+            }
+
+            if (customer) {
+                console.log(`[WhatsAppHandler] ✅ Auto-linked customer found: ${customer.name}`);
+                // Link it with FULL JID
+                await databasePool.query(
+                    'INSERT INTO customer_wa_lids (customer_id, lid) VALUES (?, ?) ON DUPLICATE KEY UPDATE customer_id = VALUES(customer_id)',
+                    [customer.id, jid]
+                );
+                return customer;
+            }
+
+            return null;
+        } catch (err) {
+            console.error('[WhatsAppHandler] Auto-link error:', err);
+            return null;
+        }
+    }
+
+    /**
+     * Handle auto-connection request from customers
+     * This provides guided assistance for linking accounts
+     */
+    private static async handleAutoConnectionRequest(jid: string, service: WhatsAppService): Promise<void> {
+        try {
+            await service.sendMessage(jid, `🔄 *Memproses Permintaan Hubungan Otomatis...*\n\nMohon tunggu sebentar, kami sedang mencari akun Anda di sistem.`);
+
+            // Try auto-link first
+            const autoLinkedCustomer = await this.attemptAutoLinkByPattern(jid);
+
+            if (autoLinkedCustomer) {
+                await service.sendMessage(jid, `✅ *Berhasil Terhubung!*
+
+Akun Anda telah berhasil dihubungkan secara otomatis:
+
+👤 Nama: *${autoLinkedCustomer.name}*
+📞 Nomor: *${autoLinkedCustomer.phone}*
+
+Sekarang Anda dapat menggunakan semua fitur bot. Ketik *Menu* untuk melihat pilihan.`);
+                return;
+            }
+
+            // If auto-link fails, provide manual guidance
+            await service.sendMessage(jid, `🔍 *Pencarian Otomatis Gagal*
+
+Kami tidak dapat menemukan akun Anda secara otomatis. Silakan:
+
+1️⃣ Pastikan nomor HP Anda sudah terdaftar di sistem
+2️⃣ Gunakan format: *!link [NomorHPAnda]*
+   Contoh: *!link 08123456789*
+
+Atau hubungi Admin untuk bantuan lebih lanjut.`);
+
+        } catch (error) {
+            console.error('Error in auto-connection request:', error);
+            await service.sendMessage(jid, 'Maaf, terjadi kesalahan saat memproses permintaan Anda. Silakan coba lagi nanti atau hubungi Admin.');
         }
     }
 }

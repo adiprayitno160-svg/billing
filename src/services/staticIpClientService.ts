@@ -111,6 +111,39 @@ export async function addClientToPackage(packageId: number, clientData: {
         const customerId = (customerResult as any).insertId;
         console.log('Customer inserted with ID:', customerId);
 
+        // 3. Get Package Details
+        const [packageRows] = await conn.execute(
+            'SELECT id, name, price, duration_days FROM static_ip_packages WHERE id = ?',
+            [packageId]
+        );
+        const pkg = (packageRows as any)[0];
+        if (!pkg) throw new Error('Paket tidak ditemukan');
+
+        // 4. Create Current Subscription
+        const registrationDate = new Date();
+        const startDate = registrationDate.toISOString().slice(0, 10);
+        let endDateStr = null;
+
+        if (clientData.billing_mode === 'prepaid') {
+            const endDate = new Date(registrationDate);
+            endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
+            endDateStr = endDate.toISOString().slice(0, 10);
+        }
+
+        await conn.execute(`
+            INSERT INTO subscriptions (
+                customer_id, package_id, package_name, price, 
+                start_date, end_date, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+        `, [
+            customerId,
+            pkg.id,
+            pkg.name,
+            pkg.price,
+            startDate,
+            endDateStr
+        ]);
+
         const [result] = await conn.execute(`
             INSERT INTO static_ip_clients (package_id, client_name, ip_address, network, interface, customer_id, address, phone_number, latitude, longitude, olt_id, odc_id, odp_id, customer_code, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
@@ -169,7 +202,7 @@ export async function changeCustomerStaticIpPackage(customerId: number, newPacka
     const conn = await databasePool.getConnection();
     try {
         await conn.beginTransaction();
-        
+
         // Dapatkan data client lama
         const [oldClientRows] = await conn.execute(
             `SELECT sic.*, c.connection_type, c.is_active 
@@ -178,53 +211,53 @@ export async function changeCustomerStaticIpPackage(customerId: number, newPacka
              WHERE sic.customer_id = ?`,
             [customerId]
         );
-        
+
         if (!Array.isArray(oldClientRows) || oldClientRows.length === 0) {
             throw new Error('Client tidak ditemukan');
         }
-        
+
         const oldClient = oldClientRows[0] as any;
-        
+
         // Dapatkan data paket lama dan baru
         const [oldPackageRows] = await conn.execute(
             'SELECT * FROM static_ip_packages WHERE id = ?',
             [oldClient.package_id]
         );
-        
+
         const [newPackageRows] = await conn.execute(
             'SELECT * FROM static_ip_packages WHERE id = ?',
             [newPackageId]
         );
-        
+
         if (!Array.isArray(oldPackageRows) || oldPackageRows.length === 0) {
             throw new Error('Paket lama tidak ditemukan');
         }
-        
+
         if (!Array.isArray(newPackageRows) || newPackageRows.length === 0) {
             throw new Error('Paket baru tidak ditemukan');
         }
-        
+
         const oldPackage = oldPackageRows[0];
         const newPackage = newPackageRows[0];
-        
+
         // Validasi bahwa paket baru tidak penuh
         const [currentClientsRows] = await conn.execute(
             `SELECT COUNT(*) as count FROM static_ip_clients 
              WHERE package_id = ? AND status = 'active'`,
             [newPackageId]
         );
-        
+
         const currentClients = (currentClientsRows as any[])[0].count;
         if (currentClients >= (newPackage as any).max_clients) {
             throw new Error('Paket tujuan sudah penuh');
         }
-        
+
         // Update paket di database
         await conn.execute(
             'UPDATE static_ip_clients SET package_id = ? WHERE customer_id = ?',
             [newPackageId, customerId]
         );
-        
+
         // Jika customer aktif, update MikroTik juga
         if (oldClient.is_active) {
             // Dapatkan konfigurasi MikroTik
@@ -232,12 +265,12 @@ export async function changeCustomerStaticIpPackage(customerId: number, newPacka
             if (mikrotikConfig) {
                 // Hapus konfigurasi lama dari MikroTik
                 await removeOldStaticIpConfiguration(mikrotikConfig, oldClient, oldPackage);
-                
+
                 // Buat konfigurasi baru sesuai paket baru
                 await createNewStaticIpConfiguration(mikrotikConfig, oldClient, newPackage);
             }
         }
-        
+
         await conn.commit();
         console.log(`Customer ${customerId} moved from package ${oldClient.package_id} to ${newPackageId}`);
     } catch (error) {
@@ -251,12 +284,12 @@ export async function changeCustomerStaticIpPackage(customerId: number, newPacka
 // Helper function untuk menghapus konfigurasi lama dari MikroTik
 async function removeOldStaticIpConfiguration(config: any, client: any, packageData: any) {
     const mikrotikService = await import('./mikrotikService');
-    
+
     // Hapus IP address lama
     if (client.ip_address) {
         await mikrotikService.removeIpAddress(config, client.ip_address);
     }
-    
+
     // Hapus mangle rules lama
     const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
     const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
@@ -275,7 +308,7 @@ async function removeOldStaticIpConfiguration(config: any, client: any, packageD
     const downloadMark: string = peerIp;
     const uploadMark: string = `UP-${peerIp}`;
     await mikrotikService.removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
-    
+
     // Hapus queue lama
     await mikrotikService.deleteClientQueuesByClientName(config, client.client_name);
 }
@@ -283,16 +316,16 @@ async function removeOldStaticIpConfiguration(config: any, client: any, packageD
 // Helper function untuk membuat konfigurasi baru di MikroTik
 async function createNewStaticIpConfiguration(config: any, client: any, newPackage: any) {
     const mikrotikService = await import('./mikrotikService');
-    
+
     // Tambahkan IP address baru
     if (client.interface) {
-        await mikrotikService.addIpAddress(config, { 
-            interface: client.interface, 
-            address: client.ip_address, 
-            comment: `Client ${client.client_name}` 
+        await mikrotikService.addIpAddress(config, {
+            interface: client.interface,
+            address: client.ip_address,
+            comment: `Client ${client.client_name}`
         });
     }
-    
+
     // Hitung peer dan marks
     const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
     const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
@@ -311,14 +344,14 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
     const downloadMark: string = peerIp;
     const uploadMark: string = `UP-${peerIp}`;
     await mikrotikService.addMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
-    
+
     // Dapatkan limit baru
     const mlDownload = newPackage.child_download_limit || newPackage.shared_download_limit || newPackage.max_limit_download;
     const mlUpload = newPackage.child_upload_limit || newPackage.shared_upload_limit || newPackage.max_limit_upload;
-    
+
     const packageDownloadQueue = newPackage.name;
     const packageUploadQueue = `UP-${newPackage.name}`;
-    
+
     // Buat parent queue jika belum ada
     const ensureParentQueue = async (parentName: string, direction: 'upload' | 'download') => {
         let pId = await mikrotikService.findQueueTreeIdByName(config, parentName);
@@ -335,10 +368,10 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
             console.log(`Parent queue "${parentName}" created.`);
         }
     };
-    
+
     await ensureParentQueue(packageDownloadQueue, 'download');
     await ensureParentQueue(packageUploadQueue, 'upload');
-    
+
     // Buat queue download
     const queueDownData = {
         name: client.client_name,
@@ -353,9 +386,9 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
         priority: newPackage.child_priority_download || '8',
         comment: `Download for ${client.client_name}`
     };
-    
+
     await mikrotikService.createQueueTree(config, queueDownData);
-    
+
     // Buat queue upload
     const queueUpData = {
         name: `UP-${client.client_name}`,
@@ -370,7 +403,7 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
         priority: newPackage.child_priority_upload || '8',
         comment: `Upload for ${client.client_name}`
     };
-    
+
     await mikrotikService.createQueueTree(config, queueUpData);
 }
 

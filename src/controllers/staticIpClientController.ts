@@ -566,12 +566,15 @@ export async function getChangePackageForm(req: Request, res: Response, next: Ne
                 );
 
                 const currentCount = (countResult as any[])[0].count;
-                packagesWithCounts.push({
-                    ...pkg,
-                    current_count: currentCount,
-                    available_slots: pkg.max_clients - currentCount,
-                    is_available: (pkg.max_clients - currentCount) > 0
-                });
+                // Hanya tambahkan jika masih ada slot ATAU ini adalah paket saat ini
+                if ((pkg.max_clients - currentCount) > 0 || pkg.id === (customerResult as any[])[0].package_id) {
+                    packagesWithCounts.push({
+                        ...pkg,
+                        current_count: currentCount,
+                        available_slots: pkg.max_clients - currentCount,
+                        is_available: (pkg.max_clients - currentCount) > 0
+                    });
+                }
             }
 
             res.render('customers/change_static_ip_package', {
