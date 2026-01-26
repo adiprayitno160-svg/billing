@@ -529,13 +529,16 @@ export async function updatePackage(id: number, data: {
             is_enabled_7_days = ?,
             is_enabled_14_days = ?,
             is_enabled_30_days = ?,
+			max_clients = ?,
+			limit_at_download = ?,
+			limit_at_upload = ?,
 			updated_at = NOW()
 			WHERE id = ?
 			`, [
 			data.name || null,
 			data.profile_id || null,
-			data.price !== undefined ? data.price : null, // Handle 0 correctly
-			data.duration_days !== undefined ? data.duration_days : null, // Handle 0/undefined correctly 
+			data.price !== undefined ? data.price : null,
+			data.duration_days !== undefined ? data.duration_days : null,
 			data.status || null,
 			data.description || null,
 			data.rate_limit_rx !== undefined ? data.rate_limit_rx : null,
