@@ -17,6 +17,28 @@ async function fixSchema() {
             console.log('ℹ️ Column attachment_path already exists.');
         }
 
+        // Check pppoe_packages table for missing capacity columns
+        console.log('Checking pppoe_packages table columns...');
+        const [pppoeCols] = await connection.query<any[]>('SHOW COLUMNS FROM pppoe_packages');
+        const pppoeColNames = pppoeCols.map(c => c.Field);
+
+        if (!pppoeColNames.includes('max_clients')) {
+            console.log('Adding missing column: pppoe_packages.max_clients');
+            await connection.query('ALTER TABLE pppoe_packages ADD COLUMN max_clients INT DEFAULT 1 AFTER is_enabled_30_days');
+        }
+
+        if (!pppoeColNames.includes('limit_at_upload')) {
+            console.log('Adding missing column: pppoe_packages.limit_at_upload');
+            await connection.query('ALTER TABLE pppoe_packages ADD COLUMN limit_at_upload VARCHAR(50) NULL AFTER max_clients');
+        }
+
+        if (!pppoeColNames.includes('limit_at_download')) {
+            console.log('Adding missing column: pppoe_packages.limit_at_download');
+            await connection.query('ALTER TABLE pppoe_packages ADD COLUMN limit_at_download VARCHAR(50) NULL AFTER limit_at_upload');
+        }
+
+        console.log('✅ pppoe_packages schema check completed.');
+
     } catch (error) {
         console.error('❌ Error updating database schema:', error);
     } finally {
