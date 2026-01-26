@@ -955,7 +955,14 @@ export class InvoiceController {
                         const { phone, name, invoice_number } = rows[0];
 
                         // 3. Send WhatsApp with PDF
-                        const caption = `✅ *PEMBAYARAN LUNAS*\n\nHalo Kak *${name}*,\nTerima kasih, pembayaran tagihan *${invoice_number}* telah berhasil kami verifikasi LUNAS.\n\nBerikut terlampir e-invoice (Lunas) sebagai bukti pembayaran yang sah.\n\nTerima kasih telah berlangganan! 🙏`;
+                        const caption = `✅ *PEMBAYARAN LUNAS*
+
+Halo Kak *${name}*,
+Terima kasih, pembayaran tagihan *${invoice_number}* telah berhasil kami verifikasi LUNAS.
+
+Berikut terlampir e-invoice (Lunas) sebagai bukti pembayaran yang sah.
+
+Terima kasih telah berlangganan! 🙏`;
 
                         // Send Document
                         await whatsappService.sendDocument(phone, pdfPath, `Invoice-${invoice_number}.pdf`, caption);
@@ -1310,6 +1317,84 @@ export class InvoiceController {
             res.status(500).json({ success: false, message: error.message });
         } finally {
             conn.release();
+        }
+    }
+
+    /**
+     * Send paid invoice PDF to customer manually
+     */
+    async sendPaidInvoicePdf(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            
+            // Get invoice data
+            const [rows] = await databasePool.query<RowDataPacket[]>(`
+                SELECT i.*, c.name as customer_name, c.phone as customer_phone
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.id = ?
+            `, [id]);
+
+            if (rows.length === 0) {
+                res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
+                return;
+            }
+
+            const invoice = rows[0];
+            
+            // Verify that invoice is paid
+            if (invoice.status !== 'paid') {
+                res.status(400).json({ 
+                    success: false, 
+                    message: 'Invoice belum lunas, tidak bisa kirim PDF lunas' 
+                });
+                return;
+            }
+
+            // Generate PDF
+            const { InvoicePdfService } = await import('../../services/invoice/InvoicePdfService');
+            const pdfPath = await InvoicePdfService.generateInvoicePdf(parseInt(id));
+
+            // Send PDF via WhatsApp if customer has phone
+            if (invoice.customer_phone) {
+                const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
+                
+                const amount = new Intl.NumberFormat('id-ID').format(parseFloat(invoice.total_amount));
+                const caption = `✅ *PEMBAYARAN LUNAS*
+
+Halo Kak *${invoice.customer_name}*,
+Terima kasih, pembayaran tagihan *${invoice.invoice_number}* telah berhasil kami verifikasi LUNAS.
+
+Nominal: *Rp ${amount}*
+Periode: *${invoice.period}*
+Jatuh Tempo: *${new Date(invoice.due_date).toLocaleDateString('id-ID')}*
+
+Berikut terlampir e-invoice (Lunas) sebagai bukti pembayaran yang sah.
+
+Terima kasih telah berlangganan! 🙏`;
+
+                await whatsappService.sendDocument(
+                    invoice.customer_phone, 
+                    pdfPath, 
+                    `Invoice-${invoice.invoice_number}-LUNAS.pdf`, 
+                    caption
+                );
+                
+                console.log(`[Invoice] Paid PDF manually sent to ${invoice.customer_name} (${invoice.customer_phone})`);
+            }
+
+            res.json({ 
+                success: true, 
+                message: 'PDF invoice lunas berhasil dikirim',
+                pdf_path: pdfPath
+            });
+
+        } catch (error: any) {
+            console.error('Error sending paid invoice PDF:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal mengirim PDF invoice: ' + error.message
+            });
         }
     }
 

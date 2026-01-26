@@ -361,6 +361,7 @@ export async function createPackage(data: {
 	is_enabled_14_days?: number;
 	is_enabled_30_days?: number;
 	max_clients?: number;
+	priority?: number;
 	limit_at_download?: string;
 	limit_at_upload?: string;
 }): Promise<number> {
@@ -376,8 +377,8 @@ export async function createPackage(data: {
 				burst_threshold_rx, burst_threshold_tx, burst_time_rx, burst_time_tx,
 				price_7_days, price_14_days, price_30_days, 
                 is_enabled_7_days, is_enabled_14_days, is_enabled_30_days,
-                max_clients, limit_at_upload, limit_at_download)
-			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                max_clients, priority, limit_at_upload, limit_at_download)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				`, [
 			data.name,
 			data.profile_id || null,
@@ -401,6 +402,7 @@ export async function createPackage(data: {
 			data.is_enabled_14_days || 0,
 			data.is_enabled_30_days || 0,
 			data.max_clients || 1,
+			data.priority || 8,
 			data.limit_at_upload || null,
 			data.limit_at_download || null
 		]);
@@ -427,7 +429,7 @@ export async function createPackage(data: {
 						limitAt: parentLimitAt,
 						comment: `[BILLING] PPPOE SHARED PARENT: ${data.name}`,
 						queue: 'pcq-upload-default/pcq-download-default', // Use PCQ for fair sharing
-						priority: '8/8'
+						priority: data.priority || '8/8'
 					};
 
 					const queues = await getSimpleQueues(config);
@@ -438,25 +440,43 @@ export async function createPackage(data: {
 					} else {
 						await createSimpleQueue(config, queueData);
 					}
+				}
+			} catch (e: any) {
+				console.error(`[PPPOE] Shared Queue setup failed:`, e.message);
+			}
+		}
 
-					// Update the associated Profile to use this Parent Queue
-					if (data.profile_id) {
-						const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [data.profile_id]);
-						const profile = (profRows as any)[0];
-						if (profile) {
-							const mikrotikId = await (await import('./mikrotikService')).findPppProfileIdByName(config, profile.name);
-							if (mikrotikId) {
-								await (await import('./mikrotikService')).updatePppProfile(config, mikrotikId, {
-									'parent-queue': data.name
-								});
-								console.log(`✅ Profile ${profile.name} now points to parent queue ${data.name}`);
-							}
-						}
+		// ALWAYS SYNC PROFILE SETTINGS (EVEN FOR NON-SHARED)
+		try {
+			const config = await getMikrotikConfig();
+			if (config && data.profile_id) {
+				const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [data.profile_id]);
+				const profile = (profRows as any)[0];
+				if (profile) {
+					const { findPppProfileIdByName, updatePppProfile } = await import('./mikrotikService');
+					const mikrotikId = await findPppProfileIdByName(config, profile.name);
+					if (mikrotikId) {
+						const updateData: any = {
+							'parent-queue': (data.max_clients || 1) > 1 ? data.name : 'none',
+							'rate-limit-rx': data.rate_limit_rx || '0',
+							'rate-limit-tx': data.rate_limit_tx || '0',
+							'burst-limit-rx': data.burst_limit_rx,
+							'burst-limit-tx': data.burst_limit_tx,
+							'burst-threshold-rx': data.burst_threshold_rx,
+							'burst-threshold-tx': data.burst_threshold_tx,
+							'burst-time-rx': data.burst_time_rx,
+							'burst-time-tx': data.burst_time_tx,
+							'limit-at-rx': data.limit_at_download,
+							'limit-at-tx': data.limit_at_upload,
+							'priority': data.priority || 8
+						};
+						await updatePppProfile(config, mikrotikId, updateData);
+						console.log(`✅ Profile ${profile.name} synced with package ${data.name} settings`);
 					}
 				}
-			} catch (e) {
-				console.error(`[PPPOE] Shared Queue setup failed:`, e);
 			}
+		} catch (e: any) {
+			console.error(`[PPPOE] Profile sync failed:`, e.message);
 		}
 
 		await conn.commit();
@@ -491,6 +511,7 @@ export async function updatePackage(id: number, data: {
 	is_enabled_14_days?: number;
 	is_enabled_30_days?: number;
 	max_clients?: number;
+	priority?: number;
 	limit_at_download?: string;
 	limit_at_upload?: string;
 }): Promise<void> {
@@ -498,12 +519,14 @@ export async function updatePackage(id: number, data: {
 	try {
 		// Get current package data BEFORE update
 		const [packageRows] = await conn.execute(
-			'SELECT name, profile_id FROM pppoe_packages WHERE id = ?',
+			'SELECT * FROM pppoe_packages WHERE id = ?',
 			[id]
 		);
 		const currentPackage = Array.isArray(packageRows) && packageRows.length ? packageRows[0] as any : null;
-		const oldPackageName = currentPackage?.name;
-		const oldProfileId = currentPackage?.profile_id;
+		if (!currentPackage) throw new Error('Package not found');
+
+		const oldPackageName = currentPackage.name;
+		const oldProfileId = currentPackage.profile_id;
 		const newPackageName = data.name || oldPackageName;
 		const newProfileId = data.profile_id || oldProfileId;
 
@@ -531,6 +554,7 @@ export async function updatePackage(id: number, data: {
             is_enabled_14_days = ?,
             is_enabled_30_days = ?,
 			max_clients = ?,
+			priority = ?,
 			limit_at_download = ?,
 			limit_at_upload = ?,
 			updated_at = NOW()
@@ -556,7 +580,8 @@ export async function updatePackage(id: number, data: {
 			data.is_enabled_7_days !== undefined ? data.is_enabled_7_days : 0,
 			data.is_enabled_14_days !== undefined ? data.is_enabled_14_days : 0,
 			data.is_enabled_30_days !== undefined ? data.is_enabled_30_days : 0,
-			data.max_clients !== undefined ? data.max_clients : 1,
+			data.max_clients !== undefined ? data.max_clients : (currentPackage.max_clients || 1),
+			data.priority !== undefined ? data.priority : (currentPackage.priority || 8),
 			data.limit_at_download !== undefined ? data.limit_at_download : null,
 			data.limit_at_upload !== undefined ? data.limit_at_upload : null,
 			id
@@ -680,8 +705,8 @@ export async function updatePackage(id: number, data: {
 
 							// 2. Update Rate Limits (Selalu sync rate limit paket ke profile)
 							// Gunakan nilai baru (data) atau fallback ke nilai dari DB paket saat ini
-							updateData['rate-limit-rx'] = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
-							updateData['rate-limit-tx'] = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
+							updateData['rate-limit-rx'] = data.rate_limit_rx !== undefined ? data.rate_limit_rx : (currentPackage.rate_limit_rx || '0');
+							updateData['rate-limit-tx'] = data.rate_limit_tx !== undefined ? data.rate_limit_tx : (currentPackage.rate_limit_tx || '0');
 
 							updateData['burst-limit-rx'] = data.burst_limit_rx !== undefined ? data.burst_limit_rx : currentPackage.burst_limit_rx;
 							updateData['burst-limit-tx'] = data.burst_limit_tx !== undefined ? data.burst_limit_tx : currentPackage.burst_limit_tx;
@@ -691,6 +716,10 @@ export async function updatePackage(id: number, data: {
 
 							updateData['burst-time-rx'] = data.burst_time_rx !== undefined ? data.burst_time_rx : currentPackage.burst_time_rx;
 							updateData['burst-time-tx'] = data.burst_time_tx !== undefined ? data.burst_time_tx : currentPackage.burst_time_tx;
+
+							// 3. Update Limit-At (Garansi Bandwidth)
+							updateData['limit-at-rx'] = data.limit_at_download !== undefined ? data.limit_at_download : currentPackage.limit_at_download;
+							updateData['limit-at-tx'] = data.limit_at_upload !== undefined ? data.limit_at_upload : currentPackage.limit_at_upload;
 
 							// Send update to MikroTik
 							await updatePppProfile(config, mikrotikId, updateData);

@@ -125,19 +125,13 @@ export async function createPppProfile(cfg: MikroTikConfig, data: any): Promise<
     try {
         const params: string[] = [];
         for (const [k, v] of Object.entries(data)) {
-            if (k.includes('rx') || k.includes('tx')) continue;
+            if (k.includes('rx') || k.includes('tx') || k === 'priority') continue;
             if (v !== undefined && v !== null && v !== '') params.push(`=${k}=${v}`);
         }
-        if (data['rate-limit-rx']) {
-            const rx = data['rate-limit-rx'], tx = data['rate-limit-tx'] || rx;
-            let rl = `${rx}/${tx}`;
-            if (data['burst-limit-rx']) {
-                rl += ` ${data['burst-limit-rx']}/${data['burst-limit-tx'] || data['burst-limit-rx']}`;
-                if (data['burst-threshold-rx']) rl += ` ${data['burst-threshold-rx']}/${data['burst-threshold-tx'] || data['burst-threshold-rx']}`;
-                if (data['burst-time-rx']) rl += ` ${data['burst-time-rx']}/${data['burst-time-tx'] || data['burst-time-rx']}`;
-            }
-            params.push(`=rate-limit=${rl}`);
-        }
+
+        const rl = buildRateLimitString(data);
+        if (rl) params.push(`=rate-limit=${rl}`);
+
         await mikrotikPool.execute(cfg, '/ppp/profile/add', params);
         mikrotikPool.clearCache();
     } catch (err: any) { throw err; }
@@ -147,22 +141,53 @@ export async function updatePppProfile(cfg: MikroTikConfig, id: string, data: an
     try {
         const params: string[] = [`=.id=${id}`];
         for (const [k, v] of Object.entries(data)) {
-            if (k.includes('rx') || k.includes('tx') || k === 'rate-limit') continue;
+            if (k.includes('rx') || k.includes('tx') || k === 'rate-limit' || k === 'priority') continue;
             if (v !== undefined && v !== null && v !== '') params.push(`=${k}=${v}`);
         }
-        let rl = data['rate-limit'];
-        if (!rl && data['rate-limit-rx']) {
-            rl = `${data['rate-limit-rx']}/${data['rate-limit-tx'] || data['rate-limit-rx']}`;
-            if (data['burst-limit-rx']) {
-                rl += ` ${data['burst-limit-rx']}/${data['burst-limit-tx'] || data['burst-limit-rx']}`;
-                if (data['burst-threshold-rx']) rl += ` ${data['burst-threshold-rx']}/${data['burst-threshold-tx'] || data['burst-threshold-rx']}`;
-                if (data['burst-time-rx']) rl += ` ${data['burst-time-rx']}/${data['burst-time-tx'] || data['burst-time-rx']}`;
-            }
-        }
+
+        let rl = data['rate-limit'] || buildRateLimitString(data);
         if (rl) params.push(`=rate-limit=${rl}`);
+
         await mikrotikPool.execute(cfg, '/ppp/profile/set', params);
         mikrotikPool.clearCache();
     } catch (err: any) { throw err; }
+}
+
+function buildRateLimitString(data: any): string | null {
+    if (!data['rate-limit-rx']) return null;
+
+    const rx = data['rate-limit-rx'];
+    const tx = data['rate-limit-tx'] || rx;
+    let rl = `${rx}/${tx}`;
+
+    // Check if we have burst or priority or limit-at
+    const brx = data['burst-limit-rx'];
+    const btx = data['burst-limit-tx'] || brx;
+    const thr_rx = data['burst-threshold-rx'];
+    const thr_tx = data['burst-threshold-tx'] || thr_rx;
+    const time_rx = data['burst-time-rx'];
+    const time_tx = data['burst-time-tx'] || time_rx;
+    const priority = data['priority'];
+    const lat_rx = data['limit-at-rx'];
+    const lat_tx = data['limit-at-tx'] || lat_rx;
+
+    if (brx || btx || priority || lat_rx) {
+        // If we want priority or limit-at, we MUST provide burst values
+        const b = brx ? `${brx}/${btx}` : '0/0';
+        const t = thr_rx ? `${thr_rx}/${thr_tx}` : '0/0';
+        const tm = time_rx ? `${time_rx}/${time_tx}` : '0s/0s';
+
+        rl += ` ${b} ${t} ${tm}`;
+
+        if (priority || lat_rx) {
+            rl += ` ${priority || '8'}`;
+            if (lat_rx) {
+                rl += ` ${lat_rx}/${lat_tx}`;
+            }
+        }
+    }
+
+    return rl;
 }
 
 export async function findPppProfileIdByName(cfg: MikroTikConfig, name: string): Promise<string | null> {

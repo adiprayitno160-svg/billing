@@ -84,6 +84,7 @@ export async function postPackageCreate(req: Request, res: Response, next: NextF
 			price_14_days,
 			price_30_days,
 			max_clients,
+			priority,
 			limit_at_download,
 			limit_at_upload
 		} = req.body;
@@ -117,6 +118,7 @@ export async function postPackageCreate(req: Request, res: Response, next: NextF
 			is_enabled_30_days: req.body.is_enabled_30_days === '1' || req.body.is_enabled_30_days === 'on' ? 1 : 0,
 			// Shared bandwidth settings
 			max_clients: max_clients ? Number(max_clients) : 1,
+			priority: priority ? Number(priority) : 8,
 			limit_at_download: limit_at_download || undefined,
 			limit_at_upload: limit_at_upload || undefined
 		});
@@ -151,6 +153,7 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 			price_14_days,
 			price_30_days,
 			max_clients,
+			priority,
 			limit_at_download,
 			limit_at_upload
 		} = req.body;
@@ -185,6 +188,7 @@ export async function postPackageUpdate(req: Request, res: Response, next: NextF
 			is_enabled_30_days: req.body.is_enabled_30_days === '1' || req.body.is_enabled_30_days === 'on' ? 1 : 0,
 			// Shared bandwidth settings
 			max_clients: max_clients ? Number(max_clients) : undefined,
+			priority: priority ? Number(priority) : undefined,
 			limit_at_download: limit_at_download || undefined,
 			limit_at_upload: limit_at_upload || undefined
 		});

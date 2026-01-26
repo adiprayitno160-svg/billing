@@ -623,6 +623,9 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
 router.post('/tagihan/bulk-send-whatsapp', invoiceController.bulkSendInvoiceWhatsApp.bind(invoiceController));
 router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.bind(invoiceController));
 
+// Send paid invoice PDF
+router.post('/tagihan/:id/send-paid-pdf', invoiceController.sendPaidInvoicePdf.bind(invoiceController));
+
 // Invoice detail (harus di akhir karena :id catch-all)
 router.get('/tagihan/:id', invoiceController.getInvoiceDetail.bind(invoiceController));
 
