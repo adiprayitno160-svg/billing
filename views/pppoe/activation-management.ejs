@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Aktivasi PPPoE - Billing System</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .status-active { 
+            background-color: #dcfce7; 
+            color: #166534; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-weight: 500;
+        }
+        .status-inactive { 
+            background-color: #fee2e2; 
+            color: #991b1b; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-weight: 500;
+        }
+        .status-suspended { 
+            background-color: #fef3c7; 
+            color: #92400e; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-weight: 500;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        tr:hover {
+            background-color: #f3f4f6;
+        }
+        .btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+        .btn-warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .search-box {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            width: 300px;
+            margin-bottom: 15px;
+        }
+        .pagination {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .pagination button, .pagination span {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination .current {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-6">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Manajemen Aktivasi PPPoE</h1>
+            <p class="text-gray-600">Kelola aktivasi dan pemblokiran otomatis akun PPPoE pelanggan</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalSubscriptions">0</div>
+                <div class="stat-label">Total Langganan</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeSubscriptions">0</div>
+                <div class="stat-label">Aktif</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="inactiveSubscriptions">0</div>
+                <div class="stat-label">Menunggu Aktivasi</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="blockedToday">0</div>
+                <div class="stat-label">Diblokir Hari Ini</div>
+            </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="card">
+            <div class="flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cari Pelanggan</label>
+                    <input type="text" id="searchInput" class="search-box w-full" placeholder="Cari nama, kode pelanggan, atau nomor HP...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="statusFilter" class="search-box">
+                        <option value="">Semua Status</option>
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                        <option value="suspended">Ditangguhkan</option>
+                    </select>
+                </div>
+                <div>
+                    <button onclick="loadSubscriptions()" class="btn btn-primary">
+                        <i class="fas fa-search mr-2"></i>Cari
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card">
+            <div class="flex flex-wrap gap-2">
+                <button onclick="runAutoBlocking()" class="btn btn-warning">
+                    <i class="fas fa-ban mr-2"></i>Jalankan Pemblokiran Otomatis
+                </button>
+                <button onclick="loadSubscriptions()" class="btn btn-primary">
+                    <i class="fas fa-sync mr-2"></i>Refresh Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Subscriptions Table -->
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Daftar Langganan PPPoE</h2>
+                <div id="paginationInfo" class="text-sm text-gray-600"></div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pelanggan</th>
+                            <th>Kode Pelanggan</th>
+                            <th>Nama Paket</th>
+                            <th>Harga</th>
+                            <th>Status</th>
+                            <th>Tanggal Aktivasi</th>
+                            <th>Tanggal Blokir Berikutnya</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subscriptionsTableBody">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination" id="pagination">
+                <!-- Pagination will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Activation Logs Modal -->
+        <div id="logsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-96 overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Riwayat Aktivasi</h3>
+                    <button onclick="closeLogsModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="logsContent">
+                    <!-- Logs will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
+        // Load subscriptions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSubscriptions();
+            loadStatistics();
+        });
+
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/pppoe/activation/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('totalSubscriptions').textContent = data.stats.total || 0;
+                    document.getElementById('activeSubscriptions').textContent = data.stats.active || 0;
+                    document.getElementById('inactiveSubscriptions').textContent = data.stats.inactive || 0;
+                    document.getElementById('blockedToday').textContent = data.stats.blockedToday || 0;
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        async function loadSubscriptions(page = 1) {
+            const search = document.getElementById('searchInput').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            try {
+                let url = `/api/pppoe/activation/subscriptions?page=${page}&limit=${itemsPerPage}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                if (status) url += `&status=${encodeURIComponent(status)}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderSubscriptions(data.data);
+                    renderPagination(data.pagination);
+                } else {
+                    Swal.fire('Error', data.message || 'Gagal memuat data', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading subscriptions:', error);
+                Swal.fire('Error', 'Gagal memuat data langganan', 'error');
+            }
+        }
+
+        function renderSubscriptions(subscriptions) {
+            const tbody = document.getElementById('subscriptionsTableBody');
+            tbody.innerHTML = '';
+            
+            if (!subscriptions || subscriptions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">Tidak ada data ditemukan</td></tr>';
+                return;
+            }
+            
+            subscriptions.forEach(sub => {
+                const row = document.createElement('tr');
+                
+                // Format currency
+                const price = new Intl.NumberFormat('id-ID').format(sub.price || 0);
+                
+                // Format dates
+                const activationDate = sub.activation_date ? new Date(sub.activation_date).toLocaleDateString('id-ID') : '-';
+                const nextBlockDate = sub.next_block_date ? new Date(sub.next_block_date).toLocaleDateString('id-ID') : '-';
+                
+                // Status badge
+                let statusBadge = '<span class="status-inactive">Tidak Aktif</span>';
+                if (sub.status === 'active') {
+                    statusBadge = '<span class="status-active">Aktif</span>';
+                } else if (sub.status === 'suspended') {
+                    statusBadge = '<span class="status-suspended">Ditangguhkan</span>';
+                }
+                
+                row.innerHTML = `
+                    <td>${sub.customer_name || '-'}</td>
+                    <td>${sub.customer_code || '-'}</td>
+                    <td>${sub.package_name || '-'}</td>
+                    <td>Rp ${price}</td>
+                    <td>${statusBadge}</td>
+                    <td>${activationDate}</td>
+                    <td>${nextBlockDate}</td>
+                    <td>
+                        ${sub.status === 'inactive' ? 
+                            `<button onclick="activateSubscription(${sub.subscription_id})" class="btn btn-success">
+                                <i class="fas fa-play mr-1"></i>Aktifkan
+                            </button>` : 
+                            sub.status === 'active' ?
+                            `<button onclick="deactivateSubscription(${sub.subscription_id})" class="btn btn-danger">
+                                <i class="fas fa-stop mr-1"></i>Nonaktifkan
+                            </button>` :
+                            `<button onclick="activateSubscription(${sub.subscription_id})" class="btn btn-success">
+                                <i class="fas fa-play mr-1"></i>Aktifkan Lagi
+                            </button>`
+                        }
+                        <button onclick="showActivationLogs(${sub.customer_id})" class="btn btn-primary">
+                            <i class="fas fa-history mr-1"></i>Riwayat
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderPagination(pagination) {
+            const paginationDiv = document.getElementById('pagination');
+            const infoDiv = document.getElementById('paginationInfo');
+            
+            if (!pagination) return;
+            
+            infoDiv.textContent = `Halaman ${pagination.page} dari ${pagination.totalPages} (${pagination.total} total)`;
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            if (pagination.page > 1) {
+                paginationHTML += `<button onclick="loadSubscriptions(${pagination.page - 1})" class="btn btn-primary">Previous</button>`;
+            }
+            
+            // Page numbers
+            const startPage = Math.max(1, pagination.page - 2);
+            const endPage = Math.min(pagination.totalPages, pagination.page + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += i === pagination.page ? 
+                    `<span class="pagination-btn current">${i}</span>` : 
+                    `<button onclick="loadSubscriptions(${i})" class="btn btn-primary">${i}</button>`;
+            }
+            
+            // Next button
+            if (pagination.page < pagination.totalPages) {
+                paginationHTML += `<button onclick="loadSubscriptions(${pagination.page + 1})" class="btn btn-primary">Next</button>`;
+            }
+            
+            paginationDiv.innerHTML = paginationHTML;
+        }
+
+        async function activateSubscription(subscriptionId) {
+            const result = await Swal.fire({
+                title: 'Konfirmasi Aktivasi',
+                text: 'Apakah Anda yakin ingin mengaktifkan langganan ini?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Aktifkan',
+                cancelButtonText: 'Batal'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/api/pppoe/activation/subscriptions/${subscriptionId}/activate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        Swal.fire('Berhasil', data.message, 'success');
+                        loadSubscriptions(currentPage);
+                        loadStatistics();
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error activating subscription:', error);
+                    Swal.fire('Error', 'Gagal mengaktifkan langganan', 'error');
+                }
+            }
+        }
+
+        async function deactivateSubscription(subscriptionId) {
+            const { value: reason } = await Swal.fire({
+                title: 'Alasan Penonaktifan',
+                input: 'textarea',
+                inputLabel: 'Masukkan alasan penonaktifan',
+                inputPlaceholder: 'Contoh: Pembayaran terlambat, permintaan pelanggan, dll...',
+                inputAttributes: {
+                    'aria-label': 'Masukkan alasan penonaktifan'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Nonaktifkan',
+                cancelButtonText: 'Batal',
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Harap masukkan alasan';
+                    }
+                    return null;
+                }
+            });
+
+            if (reason) {
+                try {
+                    const response = await fetch(`/api/pppoe/activation/subscriptions/${subscriptionId}/deactivate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ reason: reason.trim() })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        Swal.fire('Berhasil', data.message, 'success');
+                        loadSubscriptions(currentPage);
+                        loadStatistics();
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deactivating subscription:', error);
+                    Swal.fire('Error', 'Gagal menonaktifkan langganan', 'error');
+                }
+            }
+        }
+
+        async function runAutoBlocking() {
+            const result = await Swal.fire({
+                title: 'Jalankan Pemblokiran Otomatis',
+                text: 'Apakah Anda yakin ingin menjalankan proses pemblokiran otomatis?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Jalankan',
+                cancelButtonText: 'Batal'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch('/api/pppoe/activation/run-auto-blocking', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        Swal.fire('Berhasil', data.message, 'success');
+                        loadSubscriptions(currentPage);
+                        loadStatistics();
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error running auto blocking:', error);
+                    Swal.fire('Error', 'Gagal menjalankan pemblokiran otomatis', 'error');
+                }
+            }
+        }
+
+        async function showActivationLogs(customerId) {
+            try {
+                const response = await fetch(`/api/pppoe/activation/customers/${customerId}/logs`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    let logsHTML = '';
+                    
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(log => {
+                            const createdAt = new Date(log.created_at).toLocaleString('id-ID');
+                            logsHTML += `
+                                <div class="p-3 border-b border-gray-200">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <strong>${log.action}</strong>
+                                            <div class="text-sm text-gray-600">${log.description || '-'}</div>
+                                            <div class="text-xs text-gray-500">oleh ${log.performed_by_name || 'Sistem'} pada ${createdAt}</div>
+                                        </div>
+                                        <span class="text-xs px-2 py-1 rounded ${
+                                            log.action.toLowerCase().includes('activate') ? 'bg-green-100 text-green-800' : 
+                                            log.action.toLowerCase().includes('deactivate') ? 'bg-red-100 text-red-800' : 
+                                            'bg-blue-100 text-blue-800'
+                                        }">
+                                            ${log.action}
+                                        </span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        logsHTML = '<div class="p-4 text-center text-gray-500">Tidak ada riwayat aktivasi</div>';
+                    }
+                    
+                    document.getElementById('logsContent').innerHTML = logsHTML;
+                    document.getElementById('logsModal').classList.remove('hidden');
+                } else {
+                    Swal.fire('Error', data.message || 'Gagal memuat riwayat', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading activation logs:', error);
+                Swal.fire('Error', 'Gagal memuat riwayat aktivasi', 'error');
+            }
+        }
+
+        function closeLogsModal() {
+            document.getElementById('logsModal').classList.add('hidden');
+        }
+
+        // Event listeners for search and filter
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                loadSubscriptions(1);
+            }
+        });
+
+        document.getElementById('statusFilter').addEventListener('change', function() {
+            loadSubscriptions(1);
+        });
+    </script>
+</body>
+</html>

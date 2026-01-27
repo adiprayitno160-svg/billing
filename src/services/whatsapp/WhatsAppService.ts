@@ -176,6 +176,11 @@ export class WhatsAppService extends EventEmitter {
    * Initialize WhatsApp connection
    */
   public async initialize(): Promise<void> {
+    if (process.env.DISABLE_WHATSAPP === 'true') {
+      this.log('info', '🚫 WhatsApp service is disabled via DISABLE_WHATSAPP env var.');
+      return;
+    }
+
     if (this.initPromise) {
       return this.initPromise;
     }
@@ -246,8 +251,12 @@ export class WhatsAppService extends EventEmitter {
     if (this.isConnected) return;
 
     // Trigger initialization if not already
-    if (!this.sock && !this.isConnecting) {
+    if (!this.sock && !this.isConnecting && process.env.DISABLE_WHATSAPP !== 'true') {
       this.initialize().catch(() => { });
+    }
+
+    if (process.env.DISABLE_WHATSAPP === 'true') {
+      throw new Error('WhatsApp service is disabled.');
     }
 
     return new Promise((resolve, reject) => {

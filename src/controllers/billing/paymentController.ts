@@ -380,7 +380,7 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
-            // Send payment notification
+            // Send payment notification (Fire and forget to avoid blocking UI)
             try {
                 const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
                 // Get payment ID
@@ -389,12 +389,13 @@ export class PaymentController {
                     [invoice_id]
                 );
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
-                    await UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id);
-                    await UnifiedNotificationService.sendPendingNotifications(1);
+                    // Don't await this, let it run in background
+                    UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id).catch(e =>
+                        console.error('Background notification error:', e)
+                    );
                 }
             } catch (notifError) {
-                console.error('Error sending payment notification:', notifError);
-                // Don't throw - notification failure shouldn't break payment processing
+                console.error('Error initiating payment notification:', notifError);
             }
 
             res.json({
@@ -633,7 +634,7 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
-            // Send notification
+            // Send notification (Fire and forget)
             try {
                 const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
                 // Get payment ID
@@ -642,11 +643,13 @@ export class PaymentController {
                     [invoice_id]
                 );
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
-                    await UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id);
-                    await UnifiedNotificationService.sendPendingNotifications(1);
+                    // Don't await this, let it run in background
+                    UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id).catch(e =>
+                        console.error('Background notification error:', e)
+                    );
                 }
             } catch (notifError) {
-                console.error('Error sending payment notification:', notifError);
+                console.error('Error initiating payment notification:', notifError);
             }
 
             res.json({
@@ -783,18 +786,11 @@ export class PaymentController {
                             due_date: due_date ? new Date(due_date).toLocaleDateString('id-ID') : '-',
                             notes: notes || 'Silakan hubungi customer service untuk informasi lebih lanjut'
                         },
-                        priority: 'high'
+                        priority: 'high',
+                        send_immediately: true // Queue will handle dispatch in background
                     });
 
                     console.log(`[PaymentController] ✅ Debt notification queued (IDs: ${notificationIds.join(', ')})`);
-
-                    // Process queue immediately
-                    try {
-                        const result = await UnifiedNotificationService.sendPendingNotifications(10);
-                        console.log(`[PaymentController] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed`);
-                    } catch (queueError: any) {
-                        console.warn(`[PaymentController] ⚠️ Queue processing error (non-critical):`, queueError.message);
-                    }
                 } else {
                     console.log(`[PaymentController] ⚠️ No phone number for customer ${invoice.customer_id}, skipping notification`);
                 }

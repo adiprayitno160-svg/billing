@@ -7,11 +7,12 @@ import { databasePool } from '../db/pool';
  */
 export async function companyInfoMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
-        console.log('[Middleware] companyInfoMiddleware start');
+        console.log(`[Middleware] companyInfoMiddleware START for ${req.path}`);
         // Query company settings dari database
         const [companySettings] = await databasePool.query(
             'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
         );
+        console.log(`[Middleware] companyInfoMiddleware DB QUERY DONE for ${req.path}`);
 
         // Set companyInfo di res.locals agar tersedia di semua view
         const company = (companySettings as any[])[0] || null;
@@ -36,7 +37,7 @@ export async function companyInfoMiddleware(req: Request, res: Response, next: N
         }
 
         next();
-        console.log('[Middleware] companyInfoMiddleware end');
+        console.log(`[Middleware] companyInfoMiddleware END for ${req.path}`);
     } catch (error) {
         console.error('Error loading company info:', error);
 

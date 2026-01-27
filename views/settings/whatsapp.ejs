@@ -476,7 +476,19 @@
         document.getElementById('qrCodeDisplay')?.classList.add('hidden');
         document.getElementById('qrCodeEmpty')?.classList.add('hidden');
         try {
-            const response = await fetch('/whatsapp/clear-session', { method: 'POST' });
+            const response = await fetch('/whatsapp/clear-session', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                window.location.reload(); // Force login
+                return;
+            }
+
             const result = await response.json();
             if (result.success) {
                 // Wait a bit for new QR generation
@@ -486,6 +498,7 @@
                 isRegenerating = false;
             }
         } catch (e) {
+            console.error(e);
             alert('Error menghapus session');
             isRegenerating = false;
         }
@@ -505,7 +518,20 @@
         document.getElementById('qrCodeEmpty')?.classList.add('hidden');
 
         try {
-            const response = await fetch('/whatsapp/regenerate-qr', { method: 'POST' });
+            // Use settings endpoint which is consistent with other settings actions
+            const response = await fetch('/settings/whatsapp/regenerate-qr', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                window.location.reload(); // Force login
+                return;
+            }
+
             const result = await response.json();
             if (result.success) {
                 // If success but no QR yet (timeout), refreshStatus will handle it
@@ -519,8 +545,9 @@
                 if (btn) btn.classList.remove('hidden');
             }
         } catch (error) {
+            console.error(error);
             isRegenerating = false;
-            alert('Error: Connection failed');
+            alert('Error: Connection failed. Silakan refresh halaman.');
             document.getElementById('qrCodeLoading')?.classList.add('hidden');
             document.getElementById('qrCodeEmpty')?.classList.remove('hidden');
             if (btn) btn.classList.remove('hidden');

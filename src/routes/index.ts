@@ -57,6 +57,7 @@ import {
     autoDebugIpStatic
 } from '../controllers/staticIpClientController';
 import staticIpImportRoutes from './staticIpImportRoutes';
+import pppoeActivationRoutes from './pppoe/activation';
 import { ReportingController } from '../controllers/reportingController';
 import paymentRoutes from './payment';
 
@@ -1638,6 +1639,10 @@ router.post('/packages/pppoe/packages/:id/delete', postPackageDelete);
 
 // Paket Internet -> Static IP
 router.use('/', staticIpImportRoutes); // Routes: /settings/static-ip/import, /api/static-ip/import/*
+
+// PPPoE Activation Routes
+router.use('/api/pppoe/activation', pppoeActivationRoutes);
+router.use('/pppoe/activation', pppoeActivationRoutes);
 
 router.get('/packages/static-ip', getStaticIpPackageList);
 router.get('/packages/static-ip/add', getStaticIpPackageAdd);

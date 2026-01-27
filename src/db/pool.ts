@@ -567,6 +567,29 @@ export async function ensureInitialSchema(): Promise<void> {
 			CONSTRAINT fk_invoice_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
+		// Create subscriptions table for PPPoE and Static IP packages
+		await conn.query(`CREATE TABLE IF NOT EXISTS subscriptions (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			package_id INT NOT NULL,
+			package_name VARCHAR(191) NOT NULL,
+			price DECIMAL(12,2) DEFAULT 0,
+			start_date DATE NOT NULL,
+			end_date DATE NULL,
+			status ENUM('active','inactive','suspended') DEFAULT 'active',
+			activation_date DATE NULL,
+			is_activated BOOLEAN DEFAULT FALSE,
+			next_block_date DATE NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_package_id (package_id),
+			INDEX idx_status (status),
+			INDEX idx_activation_date (activation_date),
+			INDEX idx_next_block_date (next_block_date),
+			CONSTRAINT fk_subscription_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
 		// Create unified_notifications_queue table for all notification types
 		await conn.query(`CREATE TABLE IF NOT EXISTS unified_notifications_queue (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -884,6 +907,24 @@ export async function ensureInitialSchema(): Promise<void> {
 			INDEX idx_action (action),
 			INDEX idx_created_at (created_at),
 			CONSTRAINT fk_isolation_logs_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Create activation_logs table for PPPoE activation/deactivation logs
+		await conn.query(`CREATE TABLE IF NOT EXISTS activation_logs (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			subscription_id INT NOT NULL,
+			action ENUM('activate', 'deactivate') NOT NULL,
+			reason TEXT,
+			performed_by INT NULL,
+			mikrotik_response TEXT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_subscription_id (subscription_id),
+			INDEX idx_action (action),
+			INDEX idx_created_at (created_at),
+			CONSTRAINT fk_activation_logs_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+			CONSTRAINT fk_activation_logs_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 	} finally {
