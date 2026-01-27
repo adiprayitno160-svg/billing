@@ -10,7 +10,7 @@ module.exports = {
     env: {
       NODE_ENV: "production",
       PORT: 3011,
-      PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium-browser"
+      PUPPETEER_EXECUTABLE_PATH: "/home/adi/.cache/puppeteer/chrome/linux-144.0.7559.96/chrome-linux64/chrome"
     },
 
     PORT: 3011,
