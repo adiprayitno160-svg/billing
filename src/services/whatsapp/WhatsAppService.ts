@@ -110,7 +110,7 @@ export class WhatsAppService extends EventEmitter {
   private readonly MAX_QUEUE_SIZE = 500;
 
   // Paths
-  private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth_v2');
+  private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth_v3');
   private readonly LOG_DIR = path.join(process.cwd(), 'logs', 'whatsapp');
 
   private constructor() {
