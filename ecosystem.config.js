@@ -10,7 +10,7 @@ module.exports = {
     env: {
       NODE_ENV: "production",
       PORT: 3011,
-      PUPPETEER_EXECUTABLE_PATH: "/snap/chromium/current/chrome"
+      PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium-browser"
     },
 
     PORT: 3011,
