@@ -9,6 +9,24 @@ import ejs from 'ejs';
 
 const router = Router();
 
+// API: Check existing invoices for period
+router.get('/check-period', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+        const period = req.query.period as string;
+        if (!period) {
+            res.status(400).json({ success: false, error: 'Period is required' });
+            return;
+        }
+
+        const { databasePool } = require('../db/pool');
+        const [rows] = await databasePool.query('SELECT customer_id FROM invoices WHERE period = ?', [period]);
+        res.json(rows);
+    } catch (e: any) {
+        logger.error(`❌ Invoice check error: ${e.message}`);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ------------------- Thermal Print (58mm) -------------------
 router.get('/:id/print', isAuthenticated, async (req: Request, res: Response) => {
     try {

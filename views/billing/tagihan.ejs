@@ -1415,6 +1415,82 @@
             </div>
         </div>
 
+        <script>
+            // Logic to check existing invoices and hide customers in Generate Modal
+            async function checkExistingInvoices() {
+                const periodInput = document.getElementById('invoicePeriod');
+                const period = periodInput.value;
+                if (!period) return;
+
+                console.log('Checking existing invoices for period:', period);
+
+                try {
+                    // Fetch existing invoices for the period
+                    // We can reuse the main list API or a dedicated one. 
+                    // For efficiency, let's assume we can get a list of customer_ids who have invoices.
+                    // Or, simpler: We loop through the checkboxes and check against a new API endpoint or the current table if loaded (but table is paginated).
+                    // So we need an API.
+
+                    // Let's use a quick fetch to a new helper endpoint or existing listing with high limit?
+                    // Better: Create a specialized generic search or just fetch all invoices for period (lightweight: id, customer_id)
+                    const response = await fetch(`/api/billing/invoices/check-period?period=${period}`);
+                    if (!response.ok) throw new Error('Failed to check invoices');
+
+                    const data = await response.json();
+                    const existingCustomerIds = new Set(data.map(inv => inv.customer_id));
+
+                    // Now filter the checkboxes in the modal
+                    const checkboxes = document.querySelectorAll('#customerList input[type="checkbox"]');
+                    let hiddenCount = 0;
+
+                    checkboxes.forEach(cb => {
+                        const customerId = parseInt(cb.value);
+                        const label = cb.closest('label');
+
+                        if (existingCustomerIds.has(customerId)) {
+                            // Hide this customer
+                            if (label) label.style.display = 'none';
+                            cb.disabled = true; // Disable to fail-safe
+                            cb.checked = false; // Uncheck if previously checked
+                            hiddenCount++;
+                        } else {
+                            // Show
+                            if (label) label.style.display = 'flex';
+                            cb.disabled = false;
+                        }
+                    });
+
+                    console.log(`Hidden ${hiddenCount} customers who already have invoices.`);
+
+                    // Update stats or show message if needed
+                    const container = document.getElementById('customerSelectorContainer');
+                    const infoMsg = document.getElementById('gen-invoice-info-msg');
+
+                    if (!infoMsg) {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.id = 'gen-invoice-info-msg';
+                        msgDiv.style.fontSize = '12px';
+                        msgDiv.style.color = '#dc2626';
+                        msgDiv.style.marginTop = '8px';
+                        msgDiv.style.fontStyle = 'italic';
+                        container.appendChild(msgDiv);
+                    }
+
+                    if (hiddenCount > 0) {
+                        document.getElementById('gen-invoice-info-msg').textContent = `${hiddenCount} pelanggan disembunyikan karena sudah memiliki tagihan periode ini.`;
+                    } else {
+                        document.getElementById('gen-invoice-info-msg').textContent = '';
+                    }
+
+                    // Trigger count update
+                    updateSelectedCount();
+
+                } catch (error) {
+                    console.error('Error checking existing invoices:', error);
+                }
+            }
+        </script>
+
         <!-- Janji Bayar Modal -->
         <div id="janjiBayarModal" style="display: none;"
             class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
