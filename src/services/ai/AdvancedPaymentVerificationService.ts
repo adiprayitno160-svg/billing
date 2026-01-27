@@ -875,7 +875,7 @@ PENTING:
             );
 
             paymentRecorded = true;
-            console.log(`[AdvancedAI] ✅ Payment recorded: Rp ${effectivePayment.toLocaleString('id-ID')}`);
+            console.log(`[AdvancedAI] ✅ Payment recorded: Rp ${paymentAmount.toLocaleString('id-ID')}`);
 
             // Check if customer should be un-isolated
             if (isFullPayment) {
@@ -933,7 +933,7 @@ PENTING:
             // Log successful verification
             await this.logVerificationAttempt(customerId, 'success', 'Auto-approved and processed', {
                 invoiceId: invoice.id,
-                amount: effectivePayment,
+                amount: paymentAmount,
                 riskScore: validationDetails.riskScore
             });
 
