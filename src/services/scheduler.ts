@@ -86,6 +86,17 @@ export class SchedulerService {
             const today = new Date();
             const dayOfMonth = today.getDate();
 
+            console.log('Running daily PPPoE maintenance tasks...');
+            try {
+                const { pppoeActivationService } = await import('./pppoe/pppoeActivationService');
+                // Process auto blocking based on next_block_date ("Kesepakatan Final" Point 2)
+                await pppoeActivationService.processAutoBlocking();
+                // Send reminders 3 days before block date ("Kesepakatan Final" Point 3)
+                await pppoeActivationService.sendReminders();
+            } catch (pppoeError) {
+                console.error('Error in daily PPPoE maintenance:', pppoeError);
+            }
+
             // Send warnings from 25th to end of month (days before blocking on 1st)
             if (dayOfMonth >= 25) {
                 console.log(`[Pre-Block Warning] Running on day ${dayOfMonth} - sending block warnings...`);

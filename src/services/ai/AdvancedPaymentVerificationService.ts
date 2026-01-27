@@ -820,23 +820,48 @@ PENTING:
         try {
             await connection.beginTransaction();
 
+            // Get customer billing mode
+            const [customerRows] = await connection.query<RowDataPacket[]>(
+                'SELECT billing_mode, account_balance FROM customers WHERE id = ?',
+                [customerId]
+            );
+            const billingMode = customerRows[0]?.billing_mode || 'postpaid';
+
             // Record payment
             const currentPaid = parseFloat(invoice.paid_amount?.toString() || '0');
             const totalAmount = parseFloat(invoice.total_amount.toString());
-            const remainingAmount = parseFloat(invoice.remaining_amount.toString());
+            const remainingBefore = parseFloat(invoice.remaining_amount.toString());
 
-            const effectivePayment = Math.min(paymentAmount, remainingAmount);
-            const newPaid = currentPaid + effectivePayment;
-            const newRemaining = totalAmount - newPaid;
-            const isFullPayment = newRemaining <= 0;
+            let excessAmount = 0;
+            if (paymentAmount > remainingBefore) {
+                excessAmount = paymentAmount - remainingBefore;
+            }
+
+            const newPaid = currentPaid + paymentAmount;
+            const newRemaining = Math.max(0, totalAmount - newPaid);
+            const isFullPayment = newRemaining <= 100; // Tolerance for rounding
 
             // Insert payment record
             const refNumber = validationDetails.referenceNumber || 'AI-AUTO';
-            await connection.query(
+            const [paymentResult] = await connection.query<any>(
                 `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, reference_number, notes, created_at)
                  VALUES (?, 'transfer', ?, NOW(), ?, ?, NOW())`,
-                [invoice.id, effectivePayment, refNumber, `Auto-verified by AI (confidence: ${validationDetails.riskScore}%)`]
+                [invoice.id, paymentAmount, refNumber, `Auto-verified by AI (confidence: ${validationDetails.riskScore}%)${excessAmount > 0 ? ` - Kelebihan Rp ${excessAmount}` : ''}`]
             );
+            const paymentId = paymentResult.insertId;
+
+            // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
+            if (excessAmount > 0 && billingMode !== 'postpaid') {
+                await connection.query('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, customerId]);
+
+                await connection.query(`
+                    INSERT INTO customer_balance_logs (
+                        customer_id, type, amount, description, reference_id, created_at
+                    ) VALUES (?, 'credit', ?, ?, ?, NOW())
+                `, [customerId, excessAmount, `Kelebihan pembayaran (AI auto) invoice ${invoice.invoice_number}`, invoice.id.toString()]);
+
+                console.log(`[AdvancedAI] 💰 Credited ${excessAmount} to balance (Mode: ${billingMode})`);
+            }
 
             // Update invoice status
             const newStatus = isFullPayment ? 'paid' : 'partial';
@@ -846,7 +871,7 @@ PENTING:
                      last_payment_date = NOW(), paid_at = CASE WHEN ? = 'paid' THEN NOW() ELSE paid_at END,
                      updated_at = NOW()
                  WHERE id = ?`,
-                [newPaid, Math.max(0, newRemaining), newStatus, newStatus, invoice.id]
+                [newPaid, newRemaining, newStatus, newStatus, invoice.id]
             );
 
             paymentRecorded = true;
@@ -891,28 +916,18 @@ PENTING:
 
             await connection.commit();
 
-            // Send notification
-            try {
-                const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
-
-                await UnifiedNotificationService.queueNotification({
-                    customer_id: customerId,
-                    invoice_id: invoice.id,
-                    notification_type: 'payment_receipt' as any, // Use existing type
-                    channels: ['whatsapp'],
-                    variables: {
-                        invoice_number: invoice.invoice_number,
-                        amount: effectivePayment.toLocaleString('id-ID'),
-                        status: isFullPayment ? 'LUNAS' : 'SEBAGIAN',
-                        method: 'AI Auto-Verification'
-                    },
-                    priority: 'high'
-                });
-
-                notificationSent = true;
-                console.log(`[AdvancedAI] ✅ Notification queued`);
-            } catch (notifError) {
-                console.warn('[AdvancedAI] Notification failed:', notifError);
+            // Send notification (Fire and forget)
+            if (paymentId) {
+                try {
+                    const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
+                        console.error('[AdvancedAI] Background notification error:', e)
+                    );
+                    notificationSent = true;
+                    console.log(`[AdvancedAI] ✅ Notification queued via Unified Service`);
+                } catch (notifError) {
+                    console.warn('[AdvancedAI] Notification failed:', notifError);
+                }
             }
 
             // Log successful verification

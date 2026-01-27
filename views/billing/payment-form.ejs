@@ -12,25 +12,44 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
         }
 
         .payment-type-card {
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             border-width: 2px;
+            position: relative;
+            overflow: hidden;
         }
 
         .payment-type-card:hover {
             transform: translateY(-6px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
         }
 
         .payment-type-card.selected {
-            border-color: #2563eb;
+            border-color: var(--primary);
             background-color: #eff6ff;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 0 1px var(--primary);
         }
 
         .payment-type-card.selected::before {
@@ -38,75 +57,66 @@
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            color: #2563eb;
+            top: 0.75rem;
+            right: 0.75rem;
+            color: var(--primary);
             font-size: 1.25rem;
+            z-index: 10;
         }
 
         .quick-amount-btn {
-            position: relative;
-            overflow: hidden;
+            transition: all 0.2s ease;
         }
 
-        .quick-amount-btn::after {
+        .quick-amount-btn:hover {
+            transform: scale(1.05);
+            background-color: white;
+            color: var(--primary-dark);
+        }
+
+        .receipt-card {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 2rem;
+            position: relative;
+        }
+
+        .receipt-card::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 120%;
-            height: 120%;
-            background: rgba(255, 255, 255, 0.1);
-            transform: translate(-50%, -50%) scale(0);
-            border-radius: 50%;
-            transition: transform 0.5s;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #2563eb, #8b5cf6, #ec4899);
         }
 
-        .quick-amount-btn:active::after {
-            transform: translate(-50%, -50%) scale(1);
-            transition: 0s;
+        .floating-notice {
+            animation: pulse-soft 3s infinite;
         }
 
-        .reveal-anim {
-            animation: reveal 0.5s ease-out forwards;
-        }
+        @keyframes pulse-soft {
 
-        @keyframes reveal {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
+            0%,
+            100% {
+                opacity: 0.8;
                 transform: translateY(0);
             }
+
+            50% {
+                opacity: 1;
+                transform: translateY(-3px);
+            }
         }
 
-        .highlight-border {
-            position: relative;
-        }
+        /* Responsive Improvements */
+        @media (max-width: 640px) {
+            .text-6xl {
+                font-size: 3rem;
+            }
 
-        .highlight-border::after {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            background: linear-gradient(45deg, #3b82f6, #6366f1);
-            border-radius: inherit;
-            z-index: -1;
-            opacity: 0.5;
-        }
-
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        .payment-method-card.selected {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+            .p-10 {
+                padding: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -226,13 +236,24 @@
             <!-- Payment Form Body -->
             <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden mb-8">
                 <div class="bg-slate-50 border-b border-slate-200 px-8 py-5 flex items-center justify-between">
-                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-3">
-                        <i class="fas fa-cash-register text-blue-600"></i>
-                        PROSES TRANSAKSI
-                    </h2>
-                    <span
-                        class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-tighter ring-1 ring-blue-200">Mode
-                        Kasir</span>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-3">
+                            <i class="fas fa-cash-register text-blue-600"></i>
+                            PROSES TRANSAKSI
+                        </h2>
+                        <div id="status-badge" class="flex items-center">
+                            <span
+                                class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-tighter ring-1 ring-blue-200">Mode
+                                Kasir</span>
+                        </div>
+                    </div>
+                    <div id="automated-status" class="hidden">
+                        <span
+                            class="px-4 py-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 border border-emerald-200 floating-notice">
+                            <i class="fas fa-robot"></i>
+                            Automated Active
+                        </span>
+                    </div>
                 </div>
 
                 <form id="payment-form" class="p-8">
@@ -589,13 +610,6 @@
                     </button>
                 </div>
 
-                <div id="auto-approve-notice" class="mt-8 hidden">
-                    <div class="flex flex-col items-center gap-2">
-                        <span
-                            class="px-4 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-full">Automated
-                            Processing Aktif</span>
-                    </div>
-                </div>
                 </form>
     </div>
     </div>
@@ -797,6 +811,14 @@
             document.querySelectorAll('.quick-amount-btn').forEach(btn => {
                 btn.addEventListener('click', function () {
                     const percent = parseInt(this.dataset.percent);
+                    // Show/Hide automated status based on payment type
+                    const autoStatus = document.getElementById('automated-status');
+                    if (selectedType === 'full') {
+                        autoStatus.classList.remove('hidden');
+                    } else {
+                        autoStatus.classList.add('hidden');
+                    }
+
                     const amount = Math.round((remainingAmount * percent) / 100);
                     const input = document.getElementById('payment_amount');
                     if (input) input.value = amount;

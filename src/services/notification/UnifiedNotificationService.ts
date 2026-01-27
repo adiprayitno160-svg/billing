@@ -454,7 +454,14 @@ export class UnifiedNotificationService {
         try {
           let whatsappResult: any;
           if (notification.attachment_path) {
-            whatsappResult = await waClient.sendDocument(recipient, notification.attachment_path, undefined, fullMessage);
+            // Verify file exists
+            const fs = await import('fs');
+            if (fs.existsSync(notification.attachment_path)) {
+              whatsappResult = await waClient.sendDocument(recipient, notification.attachment_path, undefined, fullMessage);
+            } else {
+              console.warn(`[UnifiedNotification] ⚠️ Attachment path provided but file not found: ${notification.attachment_path}. Sending text only.`);
+              whatsappResult = await waClient.sendMessage(recipient, fullMessage);
+            }
           } else {
             whatsappResult = await waClient.sendMessage(recipient, fullMessage);
           }

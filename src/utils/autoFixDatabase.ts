@@ -345,3 +345,63 @@ export async function autoFixCustomerColumns(): Promise<void> {
     console.error('❌ [AutoFix] Error checking customer columns:', error);
   }
 }
+
+/**
+ * Auto-fix PPPoE Activation related tables and columns
+ */
+export async function autoFixPPPoEActivationTables(): Promise<void> {
+  try {
+    console.log('🔧 [AutoFix] Checking PPPoE Activation tables and columns...');
+
+    // 1. Check subscriptions columns
+    const subColumns = [
+      { name: 'is_activated', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'activation_date', def: 'DATE DEFAULT NULL' },
+      { name: 'next_block_date', def: 'DATE DEFAULT NULL' }
+    ];
+
+    for (const col of subColumns) {
+      const [columns]: any = await pool.query(`SHOW COLUMNS FROM subscriptions LIKE '${col.name}'`);
+      if (columns.length === 0) {
+        console.log(`⚠️ [AutoFix] Column '${col.name}' missing in subscriptions, adding...`);
+        await pool.query(`ALTER TABLE subscriptions ADD COLUMN ${col.name} ${col.def}`);
+        console.log(`✅ [AutoFix] Column '${col.name}' added successfully`);
+      }
+    }
+
+    // 2. Check customers columns (ensure pppoe credentials exist)
+    const customerColumns = [
+      { name: 'pppoe_username', def: 'VARCHAR(191) DEFAULT NULL' },
+      { name: 'pppoe_password', def: 'VARCHAR(191) DEFAULT NULL' }
+    ];
+
+    for (const col of customerColumns) {
+      const [columns]: any = await pool.query(`SHOW COLUMNS FROM customers LIKE '${col.name}'`);
+      if (columns.length === 0) {
+        console.log(`⚠️ [AutoFix] Column '${col.name}' missing in customers, adding...`);
+        await pool.query(`ALTER TABLE customers ADD COLUMN ${col.name} ${col.def}`);
+        console.log(`✅ [AutoFix] Column '${col.name}' added successfully`);
+      }
+    }
+
+    // 3. Create activation_logs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS activation_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        subscription_id INT NOT NULL,
+        customer_id INT NOT NULL,
+        action ENUM('activate', 'deactivate', 'auto_block', 'reset_date') NOT NULL,
+        performed_by INT NULL,
+        reason TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_subscription (subscription_id),
+        INDEX idx_customer (customer_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    console.log('✅ [AutoFix] PPPoE Activation tables ensured');
+  } catch (error: any) {
+    console.error('❌ [AutoFix] Error ensuring PPPoE Activation tables:', error);
+  }
+}
+

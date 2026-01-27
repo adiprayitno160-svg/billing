@@ -255,9 +255,9 @@ export class VerificationController {
                 return;
             }
 
-            // Get invoice details
+            // Get invoice details with customer billing mode
             const [invoiceRows] = await connection.query<any[]>(
-                'SELECT * FROM invoices WHERE id = ?', [invoiceId]
+                'SELECT i.*, c.billing_mode FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.id = ?', [invoiceId]
             );
 
             if (invoiceRows.length === 0) {
@@ -270,18 +270,36 @@ export class VerificationController {
             const paymentAmount = parseFloat(amount);
             const currentPaid = parseFloat(invoice.paid_amount?.toString() || '0');
             const totalAmount = parseFloat(invoice.total_amount.toString());
+            const remainingBeforePayment = parseFloat(invoice.remaining_amount?.toString() || (totalAmount - currentPaid).toString());
+
+            let excessAmount = 0;
+            if (paymentAmount > remainingBeforePayment) {
+                excessAmount = paymentAmount - remainingBeforePayment;
+            }
 
             const newPaid = currentPaid + paymentAmount;
-            const newRemaining = totalAmount - newPaid;
-            const isFullPayment = newRemaining <= 0;
+            const newRemaining = Math.max(0, totalAmount - newPaid);
+            const isFullPayment = newRemaining <= 100; // Tolerance for rounding
             const newStatus = isFullPayment ? 'paid' : 'partial';
 
+            // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
+            if (excessAmount > 0 && invoice.billing_mode !== 'postpaid') {
+                await connection.query('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
+
+                await connection.query(`
+                    INSERT INTO customer_balance_logs (
+                        customer_id, type, amount, description, reference_id, created_at
+                    ) VALUES (?, 'credit', ?, ?, ?, NOW())
+                `, [invoice.customer_id, excessAmount, `Kelebihan pembayaran (verifikasi) invoice ${invoice.invoice_number}`, invoiceId.toString()]);
+            }
+
             // Insert payment record
-            await connection.query(
+            const [paymentResult] = await connection.query<any>(
                 `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at)
                  VALUES (?, 'transfer', ?, NOW(), ?, NOW())`,
-                [invoiceId, paymentAmount, `Manual verification by admin - ${notes || 'Approved'}`]
+                [invoiceId, paymentAmount, `Manual verification by admin - ${notes || 'Approved'}${(excessAmount > 0 ? (invoice.billing_mode === 'postpaid' ? ` (Kelebihan Rp ${excessAmount} - Pascabayar tidak masuk saldo)` : ` (Kelebihan Rp ${excessAmount} masuk saldo)`) : '')}`]
             );
+            const paymentId = paymentResult.insertId;
 
             // Update invoice
             await connection.query(
@@ -319,6 +337,13 @@ export class VerificationController {
                 );
 
                 if (unpaidCheck[0]?.count === 0) {
+                    // Reset PPPoE next_block_date if applicable ("Kesepakatan Final" Point 4 & 6)
+                    import('../../services/pppoe/pppoeActivationService').then(({ pppoeActivationService }) => {
+                        pppoeActivationService.resetNextBlockDate(customerId).catch(err =>
+                            console.error('Background PPPoE reset error:', err)
+                        );
+                    }).catch(e => console.error('Error importing PPPoE service:', e));
+
                     // Check if isolated
                     const [customerCheck] = await connection.query<any[]>(
                         'SELECT is_isolated FROM customers WHERE id = ?',
@@ -326,66 +351,30 @@ export class VerificationController {
                     );
 
                     if (customerCheck[0]?.is_isolated) {
-                        try {
-                            const { IsolationService } = await import('../../services/billing/isolationService');
-                            await IsolationService.isolateCustomer({
+                        import('../../services/billing/isolationService').then(({ IsolationService }) => {
+                            IsolationService.isolateCustomer({
                                 customer_id: customerId,
                                 action: 'restore',
                                 reason: 'Manual verification approved - invoice paid',
                                 performed_by: 'admin'
-                            });
-                        } catch (e) {
-                            console.warn('Failed to remove isolation:', e);
-                        }
+                            }).catch(e => console.warn('Background isolation removal failed:', e));
+                        }).catch(e => console.error('Error importing Isolation service:', e));
                     }
                 }
             }
 
-            // Send Success Notification
-            const [custRows] = await connection.query<any[]>(
-                'SELECT phone FROM customers WHERE id = ?',
-                [customerId]
-            );
-
             await connection.commit();
 
-            // Send success notification with receipt
-            if (custRows[0]?.phone) {
+            // Send Success Notification using UnifiedNotificationService
+            if (paymentId) {
                 try {
-                    // Generate receipt reference number
-                    const receiptRef = `RCP-${Date.now().toString().slice(-8)}`;
-                    const now = new Date();
-                    const paymentDate = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-                    const paymentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-                    // Get customer name
-                    const [custNameRows] = await databasePool.query<any[]>(
-                        'SELECT name FROM customers WHERE id = ?', [customerId]
-                    );
-                    const customerName = custNameRows[0]?.name || 'Pelanggan';
-
-                    const { whatsappService } = await import('../../services/whatsapp');
-                    await whatsappService.sendMessage(
-                        custRows[0].phone,
-                        `✅ *BUKTI PEMBAYARAN*\n\n` +
-                        `━━━━━━━━━━━━━━━━━━\n` +
-                        `📋 *REF: ${receiptRef}*\n` +
-                        `━━━━━━━━━━━━━━━━━━\n\n` +
-                        `👤 Pelanggan: *${customerName}*\n` +
-                        `📄 No. Invoice: ${invoice.invoice_number}\n` +
-                        `💰 Jumlah Bayar: *Rp ${paymentAmount.toLocaleString('id-ID')}*\n` +
-                        `📊 Status: *${isFullPayment ? '✅ LUNAS' : '⚠️ Sebagian Dibayar'}*\n\n` +
-                        `📅 Tanggal: ${paymentDate}\n` +
-                        `🕐 Waktu: ${paymentTime} WIB\n\n` +
-                        (isFullPayment ?
-                            `🎉 Terima kasih atas pembayaran Anda!\nLayanan internet Anda tetap aktif.\n\n` :
-                            `⚠️ Masih ada sisa tagihan: *Rp ${Math.max(0, newRemaining).toLocaleString('id-ID')}*\nSilakan lakukan pelunasan.\n\n`
-                        ) +
-                        `━━━━━━━━━━━━━━━━━━\n` +
-                        `Simpan pesan ini sebagai bukti pembayaran.`
+                    const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
+                    // Fire and forget, don't await to keep UI responsive
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
+                        console.error('Background notification error in verification:', e)
                     );
                 } catch (e) {
-                    console.warn('Failed to send success notification:', e);
+                    console.warn('Failed to initiate unified notification:', e);
                 }
             }
 

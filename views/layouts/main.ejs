@@ -530,7 +530,7 @@
 		<!-- Main Content -->
 		<main id="main-content"
 			class="flex-1 h-full overflow-y-auto transition-all duration-300 bg-gradient-to-br from-white via-blue-50/50 to-indigo-50/30"
-			style="padding-bottom: 70px; position: relative; z-index: 1;">
+			style="position: relative; z-index: 1;">
 			<div
 				class="<%= typeof fullWidth !== 'undefined' && fullWidth ? 'w-full min-h-full p-4' : 'w-full p-4 md:p-6 lg:p-8 max-w-[1920px] mx-auto' %>">
 				<header class="mb-6 md:mb-8">
@@ -541,271 +541,273 @@
 						<%- body %>
 					</section>
 			</div>
+			<div class="mt-auto">
+				<%- include('../partials/footer') %>
+			</div>
 		</main>
 	</div>
-	<%- include('../partials/footer') %>
-		<script>
-			// Fix sidebar clickability - ensure menu buttons are always clickable
-			(function () {
-				function fixSidebar() {
-					const sidebar = document.getElementById('sidebar');
-					if (!sidebar) return;
-
-					// Force sidebar to be on top
-					sidebar.style.zIndex = '10000';
-					sidebar.style.position = 'relative';
-					sidebar.style.pointerEvents = 'auto';
-
-					// Ensure menu buttons are clickable
-					const menuButtons = sidebar.querySelectorAll('.menu-toggle[data-menu]');
-					menuButtons.forEach(button => {
-						button.style.pointerEvents = 'auto';
-						button.style.cursor = 'pointer';
-						button.style.position = 'relative';
-						button.style.zIndex = '10003';
-
-						// Ensure all child elements don't block clicks
-						const children = button.querySelectorAll('*');
-						children.forEach(child => {
-							child.style.pointerEvents = 'auto';
-						});
-					});
-
-					// Ensure menu content links are clickable
-					const menuLinks = sidebar.querySelectorAll('.menu-content a');
-					menuLinks.forEach(link => {
-						link.style.pointerEvents = 'auto';
-						link.style.cursor = 'pointer';
-						link.style.zIndex = '10005';
-					});
-				}
-
-				// Run when DOM is ready
-				if (document.readyState === 'loading') {
-					document.addEventListener('DOMContentLoaded', function () {
-						setTimeout(fixSidebar, 50);
-					});
-				} else {
-					setTimeout(fixSidebar, 50);
-				}
-
-				// Run after sidebar.js has initialized
-				window.addEventListener('load', function () {
-					setTimeout(fixSidebar, 300);
-				}, { once: true });
-
-				// Also run periodically to ensure it stays fixed
-				setInterval(fixSidebar, 2000);
-			})();
-		</script>
-
-		<!-- Real-time Clock Update -->
-		<!-- Real-time Clock Update (Server Synced) -->
-		<script>
-			(function () {
-				let timeOffset = 0;
-
-				// Sync with server time
-				function syncTime() {
-					fetch('/api/server-time')
-						.then(response => response.json())
-						.then(data => {
-							if (data.success && data.timestamp) {
-								const serverTime = data.timestamp;
-								const clientTime = Date.now();
-								timeOffset = serverTime - clientTime;
-								console.log('Server time synced. Offset:', timeOffset, 'ms');
-
-								// Update clock immediately after sync
-								updateClock();
-							}
-						})
-						.catch(err => console.error('Failed to sync time:', err));
-				}
-
-				function updateClock() {
-					// Use offset to get server time
-					const now = new Date(Date.now() + timeOffset);
-
-					// Format time: HH:MM:SS
-					const hours = String(now.getHours()).padStart(2, '0');
-					const minutes = String(now.getMinutes()).padStart(2, '0');
-					const seconds = String(now.getSeconds()).padStart(2, '0');
-					const timeString = `${hours}:${minutes}:${seconds}`;
-
-					// Format date: Hari, DD Bulan YYYY
-					const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-					const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-					const dayName = days[now.getDay()];
-					const day = now.getDate();
-					const month = months[now.getMonth()];
-					const year = now.getFullYear();
-					const dateString = `${dayName}, ${day} ${month} ${year}`;
-
-					// Update DOM
-					const timeElement = document.getElementById('currentTime');
-					const dateElement = document.getElementById('currentDate');
-
-					if (timeElement) timeElement.textContent = timeString;
-					if (dateElement) dateElement.textContent = dateString;
-				}
-
-				// Initial sync
-				syncTime();
-
-				// Re-sync every 5 minutes to prevent drift
-				setInterval(syncTime, 5 * 60 * 1000);
-
-				// Update UI every second
-				setInterval(updateClock, 1000);
-			})();
-		</script>
-
-		<!-- Sidebar Toggle Functionality -->
-		<script>
-			(function () {
-				const STORAGE_KEY = 'sidebarHidden';
+	<script>
+		// Fix sidebar clickability - ensure menu buttons are always clickable
+		(function () {
+			function fixSidebar() {
 				const sidebar = document.getElementById('sidebar');
-				const sidebarToggle = document.getElementById('sidebarToggle');
-				const mainContent = document.getElementById('main-content');
+				if (!sidebar) return;
 
-				if (!sidebar || !sidebarToggle) return;
+				// Force sidebar to be on top
+				sidebar.style.zIndex = '10000';
+				sidebar.style.position = 'relative';
+				sidebar.style.pointerEvents = 'auto';
 
-				// Function to toggle sidebar
-				function toggleSidebar() {
-					const isHidden = sidebar.classList.contains('sidebar-hidden');
+				// Ensure menu buttons are clickable
+				const menuButtons = sidebar.querySelectorAll('.menu-toggle[data-menu]');
+				menuButtons.forEach(button => {
+					button.style.pointerEvents = 'auto';
+					button.style.cursor = 'pointer';
+					button.style.position = 'relative';
+					button.style.zIndex = '10003';
 
-					if (isHidden) {
-						// Show sidebar
-						sidebar.classList.remove('sidebar-hidden');
-						localStorage.setItem(STORAGE_KEY, 'false');
-						updateToggleIcon(false);
-					} else {
-						// Hide sidebar
-						sidebar.classList.add('sidebar-hidden');
-						localStorage.setItem(STORAGE_KEY, 'true');
-						updateToggleIcon(true);
-					}
-				}
-
-				// Function to update toggle icon
-				function updateToggleIcon(isHidden) {
-					if (!sidebarToggle) return;
-
-					const iconSvg = sidebarToggle.querySelector('svg');
-					if (!iconSvg) return;
-
-					if (isHidden) {
-						// Show menu icon (hamburger)
-						iconSvg.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"></path>';
-						sidebarToggle.setAttribute('title', 'Tampilkan Sidebar');
-					} else {
-						// Show close/X icon
-						iconSvg.innerHTML = '<path d="M6 18L18 6M6 6l12 12"></path>';
-						sidebarToggle.setAttribute('title', 'Sembunyikan Sidebar');
-					}
-				}
-
-				// Load saved state from localStorage
-				function loadSidebarState() {
-					const savedState = localStorage.getItem(STORAGE_KEY);
-					if (savedState === 'true') {
-						sidebar.classList.add('sidebar-hidden');
-						updateToggleIcon(true);
-					} else {
-						sidebar.classList.remove('sidebar-hidden');
-						updateToggleIcon(false);
-					}
-				}
-
-				// Initialize on page load
-				if (document.readyState === 'loading') {
-					document.addEventListener('DOMContentLoaded', function () {
-						loadSidebarState();
+					// Ensure all child elements don't block clicks
+					const children = button.querySelectorAll('*');
+					children.forEach(child => {
+						child.style.pointerEvents = 'auto';
 					});
+				});
+
+				// Ensure menu content links are clickable
+				const menuLinks = sidebar.querySelectorAll('.menu-content a');
+				menuLinks.forEach(link => {
+					link.style.pointerEvents = 'auto';
+					link.style.cursor = 'pointer';
+					link.style.zIndex = '10005';
+				});
+			}
+
+			// Run when DOM is ready
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', function () {
+					setTimeout(fixSidebar, 50);
+				});
+			} else {
+				setTimeout(fixSidebar, 50);
+			}
+
+			// Run after sidebar.js has initialized
+			window.addEventListener('load', function () {
+				setTimeout(fixSidebar, 300);
+			}, { once: true });
+
+			// Also run periodically to ensure it stays fixed
+			setInterval(fixSidebar, 2000);
+		})();
+	</script>
+
+	<!-- Real-time Clock Update -->
+	<!-- Real-time Clock Update (Server Synced) -->
+	<script>
+		(function () {
+			let timeOffset = 0;
+
+			// Sync with server time
+			function syncTime() {
+				fetch('/api/server-time')
+					.then(response => response.json())
+					.then(data => {
+						if (data.success && data.timestamp) {
+							const serverTime = data.timestamp;
+							const clientTime = Date.now();
+							timeOffset = serverTime - clientTime;
+							console.log('Server time synced. Offset:', timeOffset, 'ms');
+
+							// Update clock immediately after sync
+							updateClock();
+						}
+					})
+					.catch(err => console.error('Failed to sync time:', err));
+			}
+
+			function updateClock() {
+				// Use offset to get server time
+				const now = new Date(Date.now() + timeOffset);
+
+				// Format time: HH:MM:SS
+				const hours = String(now.getHours()).padStart(2, '0');
+				const minutes = String(now.getMinutes()).padStart(2, '0');
+				const seconds = String(now.getSeconds()).padStart(2, '0');
+				const timeString = `${hours}:${minutes}:${seconds}`;
+
+				// Format date: Hari, DD Bulan YYYY
+				const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+				const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+				const dayName = days[now.getDay()];
+				const day = now.getDate();
+				const month = months[now.getMonth()];
+				const year = now.getFullYear();
+				const dateString = `${dayName}, ${day} ${month} ${year}`;
+
+				// Update DOM
+				const timeElement = document.getElementById('currentTime');
+				const dateElement = document.getElementById('currentDate');
+
+				if (timeElement) timeElement.textContent = timeString;
+				if (dateElement) dateElement.textContent = dateString;
+			}
+
+			// Initial sync
+			syncTime();
+
+			// Re-sync every 5 minutes to prevent drift
+			setInterval(syncTime, 5 * 60 * 1000);
+
+			// Update UI every second
+			setInterval(updateClock, 1000);
+		})();
+	</script>
+
+	<!-- Sidebar Toggle Functionality -->
+	<script>
+		(function () {
+			const STORAGE_KEY = 'sidebarHidden';
+			const sidebar = document.getElementById('sidebar');
+			const sidebarToggle = document.getElementById('sidebarToggle');
+			const mainContent = document.getElementById('main-content');
+
+			if (!sidebar || !sidebarToggle) return;
+
+			// Function to toggle sidebar
+			function toggleSidebar() {
+				const isHidden = sidebar.classList.contains('sidebar-hidden');
+
+				if (isHidden) {
+					// Show sidebar
+					sidebar.classList.remove('sidebar-hidden');
+					localStorage.setItem(STORAGE_KEY, 'false');
+					updateToggleIcon(false);
 				} else {
+					// Hide sidebar
+					sidebar.classList.add('sidebar-hidden');
+					localStorage.setItem(STORAGE_KEY, 'true');
+					updateToggleIcon(true);
+				}
+			}
+
+			// Function to update toggle icon
+			function updateToggleIcon(isHidden) {
+				if (!sidebarToggle) return;
+
+				const iconSvg = sidebarToggle.querySelector('svg');
+				if (!iconSvg) return;
+
+				if (isHidden) {
+					// Show menu icon (hamburger)
+					iconSvg.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"></path>';
+					sidebarToggle.setAttribute('title', 'Tampilkan Sidebar');
+				} else {
+					// Show close/X icon
+					iconSvg.innerHTML = '<path d="M6 18L18 6M6 6l12 12"></path>';
+					sidebarToggle.setAttribute('title', 'Sembunyikan Sidebar');
+				}
+			}
+
+			// Load saved state from localStorage
+			function loadSidebarState() {
+				const savedState = localStorage.getItem(STORAGE_KEY);
+				if (savedState === 'true') {
+					sidebar.classList.add('sidebar-hidden');
+					updateToggleIcon(true);
+				} else {
+					sidebar.classList.remove('sidebar-hidden');
+					updateToggleIcon(false);
+				}
+			}
+
+			// Initialize on page load
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', function () {
 					loadSidebarState();
-				}
-
-				// Add click event listener to toggle button
-				sidebarToggle.addEventListener('click', function (e) {
-					e.preventDefault();
-					e.stopPropagation();
-					toggleSidebar();
 				});
+			} else {
+				loadSidebarState();
+			}
 
-				// Prevent event bubbling
-				sidebarToggle.addEventListener('mousedown', function (e) {
-					e.stopPropagation();
-				});
-			})();
-		</script>
+			// Add click event listener to toggle button
+			sidebarToggle.addEventListener('click', function (e) {
+				e.preventDefault();
+				e.stopPropagation();
+				toggleSidebar();
+			});
 
-		<!-- Auto logout after 10 minutes of inactivity -->
-		<script>
-			(function () {
-				// Check if auto logout is enabled from body data attribute
-				const autoLogoutEnabled = document.body.getAttribute('data-auto-logout') === 'true';
+			// Prevent event bubbling
+			sidebarToggle.addEventListener('mousedown', function (e) {
+				e.stopPropagation();
+			});
+		})();
+	</script>
 
-				// If auto logout is disabled, don't run the script
-				if (!autoLogoutEnabled) {
-					console.log('Auto logout is disabled in system settings');
-					return;
+	<!-- Auto logout after 10 minutes of inactivity -->
+	<script>
+		(function () {
+			// Check if auto logout is enabled from body data attribute
+			const autoLogoutEnabled = document.body.getAttribute('data-auto-logout') === 'true';
+
+			// If auto logout is disabled, don't run the script
+			if (!autoLogoutEnabled) {
+				console.log('Auto logout is disabled in system settings');
+				return;
+			}
+
+			let idleTime = 0;
+			const IDLE_TIMEOUT = 5; // 5 minutes
+			const WARNING_TIME = 4; // Show warning at 4 minutes
+			const LOGOUT_URL = '/logout';
+
+			// Don't log out if already on login page
+			const currentPath = window.location.pathname;
+			if (currentPath === '/login' || currentPath === '/auth/login' || currentPath === '/kasir/login') {
+				return;
+			}
+
+			// Track if user is logged in (for admin pages)
+			const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true' ||
+				(window.location.pathname !== '/login' &&
+					!window.location.pathname.startsWith('/kasir') &&
+					!window.location.pathname.startsWith('/portal'));
+
+			if (!isLoggedIn) {
+				return;
+			}
+
+			// Reset idle time on user activity
+			function resetIdleTime() {
+				idleTime = 0;
+				// Remove warning if exists
+				const warning = document.getElementById('idleWarning');
+				if (warning) {
+					warning.remove();
 				}
+			}
 
-				let idleTime = 0;
-				const IDLE_TIMEOUT = 5; // 5 minutes
-				const WARNING_TIME = 4; // Show warning at 4 minutes
-				const LOGOUT_URL = '/logout';
+			// Listen for user activity
+			document.addEventListener('mousemove', resetIdleTime);
+			document.addEventListener('keypress', resetIdleTime);
+			document.addEventListener('click', resetIdleTime);
+			document.addEventListener('scroll', resetIdleTime);
+			document.addEventListener('touchstart', resetIdleTime);
+			document.addEventListener('mousedown', resetIdleTime);
+			document.addEventListener('keydown', resetIdleTime);
 
-				// Don't log out if already on login page
-				const currentPath = window.location.pathname;
-				if (currentPath === '/login' || currentPath === '/auth/login' || currentPath === '/kasir/login') {
-					return;
-				}
+			// Check idle time every 30 seconds
+			setInterval(function () {
+				idleTime += 0.5; // Increment by 0.5 minutes (30 seconds)
 
-				// Track if user is logged in (for admin pages)
-				const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true' ||
-					(window.location.pathname !== '/login' &&
-						!window.location.pathname.startsWith('/kasir') &&
-						!window.location.pathname.startsWith('/portal'));
-
-				if (!isLoggedIn) {
-					return;
-				}
-
-				// Reset idle time on user activity
-				function resetIdleTime() {
-					idleTime = 0;
-					// Remove warning if exists
-					const warning = document.getElementById('idleWarning');
-					if (warning) {
-						warning.remove();
-					}
-				}
-
-				// Listen for user activity
-				document.addEventListener('mousemove', resetIdleTime);
-				document.addEventListener('keypress', resetIdleTime);
-				document.addEventListener('click', resetIdleTime);
-				document.addEventListener('scroll', resetIdleTime);
-				document.addEventListener('touchstart', resetIdleTime);
-				document.addEventListener('mousedown', resetIdleTime);
-				document.addEventListener('keydown', resetIdleTime);
-
-				// Check idle time every 30 seconds
-				setInterval(function () {
-					idleTime += 0.5; // Increment by 0.5 minutes (30 seconds)
-
-					// Show warning at 9 minutes (1 minute before logout)
-					if (idleTime >= WARNING_TIME && idleTime < IDLE_TIMEOUT) {
-						// Only show if warning doesn't already exist
-						if (!document.getElementById('idleWarning')) {
-							const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
-							const warningDiv = document.createElement('div');
-							warningDiv.id = 'idleWarning';
-							warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-bounce border border-white/70';
-							warningDiv.innerHTML = `
+				// Show warning at 9 minutes (1 minute before logout)
+				if (idleTime >= WARNING_TIME && idleTime < IDLE_TIMEOUT) {
+					// Only show if warning doesn't already exist
+					if (!document.getElementById('idleWarning')) {
+						const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
+						const warningDiv = document.createElement('div');
+						warningDiv.id = 'idleWarning';
+						warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-bounce border border-white/70';
+						warningDiv.innerHTML = `
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
                             <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -821,27 +823,27 @@
                         </button>
                     </div>
                 `;
-							document.body.appendChild(warningDiv);
-						} else {
-							// Update remaining time in existing warning
-							const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
-							const warningText = document.querySelector('#idleWarning .text-sm');
-							if (warningText) {
-								warningText.textContent = `Anda akan logout otomatis dalam ${remainingMinutes} menit...`;
-							}
+						document.body.appendChild(warningDiv);
+					} else {
+						// Update remaining time in existing warning
+						const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
+						const warningText = document.querySelector('#idleWarning .text-sm');
+						if (warningText) {
+							warningText.textContent = `Anda akan logout otomatis dalam ${remainingMinutes} menit...`;
 						}
 					}
+				}
 
-					// Logout after 10 minutes
-					if (idleTime >= IDLE_TIMEOUT) {
-						console.log('Auto-logout due to inactivity (10 minutes)...');
-						// Force logout - redirect to admin login page with timeout parameter
-						// Session will be destroyed on login page when timeout=1 is detected
-						window.location.href = '/login?timeout=1';
-					}
-				}, 30000); // Check every 30 seconds
-			})();
-		</script>
+				// Logout after 10 minutes
+				if (idleTime >= IDLE_TIMEOUT) {
+					console.log('Auto-logout due to inactivity (10 minutes)...');
+					// Force logout - redirect to admin login page with timeout parameter
+					// Session will be destroyed on login page when timeout=1 is detected
+					window.location.href = '/login?timeout=1';
+				}
+			}, 30000); // Check every 30 seconds
+		})();
+	</script>
 
 </body>
 

@@ -19,6 +19,47 @@ export class PPPoEActivationService {
     }
 
     /**
+     * Send reminders for upcoming PPPoE blocks (Point 3)
+     */
+    async sendReminders(): Promise<void> {
+        const connection = await databasePool.getConnection();
+        try {
+            // Get subscriptions that will be blocked in 3 days
+            const [subscriptions] = await connection.execute(
+                `SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 WHERE s.status = 'active' 
+                 AND s.is_activated = TRUE
+                 AND s.next_block_date = DATE_ADD(CURDATE(), INTERVAL 3 DAY)`
+            );
+
+            console.log(`[PPPoEActivationService] Sending reminders for ${(subscriptions as any[]).length} subscriptions`);
+
+            for (const sub of subscriptions as any[]) {
+                try {
+                    await UnifiedNotificationService.queueNotification({
+                        customer_id: sub.customer_id,
+                        notification_type: 'payment_reminder',
+                        variables: {
+                            customer_name: sub.customer_name,
+                            service_type: 'PPPoE',
+                            block_date: new Date(sub.next_block_date).toLocaleDateString('id-ID'),
+                            amount: sub.price.toLocaleString('id-ID'),
+                            customer_code: sub.customer_code
+                        },
+                        channels: ['whatsapp']
+                    });
+                } catch (err) {
+                    console.error(`[PPPoEActivationService] Error sending reminder for sub ${sub.id}:`, err);
+                }
+            }
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
      * Activate PPPoE subscription manually
      * @param subscriptionId 
      * @param userId 
@@ -63,7 +104,7 @@ export class PPPoEActivationService {
             const activationDate = new Date();
             const nextBlockDate = new Date(activationDate);
             nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
-            
+
             // Handle end-of-month dates
             if (activationDate.getDate() > 28) {
                 const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
@@ -241,11 +282,16 @@ export class PPPoEActivationService {
                  WHERE s.status = 'active' 
                  AND s.is_activated = TRUE
                  AND s.next_block_date <= CURDATE()
+                 -- Skip if already paid for current month
                  AND s.customer_id NOT IN (
                      SELECT DISTINCT customer_id 
                      FROM invoices 
                      WHERE status = 'paid' 
-                     AND period = DATE_FORMAT(CURDATE(), '%Y-%m')
+                     AND (period = DATE_FORMAT(CURDATE(), '%Y-%m') OR period = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'))
+                 )
+                 -- Skip if there is a pending manual verification ("Kesepakatan Final" Point 2)
+                 AND s.customer_id NOT IN (
+                     SELECT DISTINCT customer_id FROM manual_payment_verifications WHERE status = 'pending'
                  )`
             );
 
@@ -254,17 +300,17 @@ export class PPPoEActivationService {
             for (const sub of subscriptions as any[]) {
                 try {
                     console.log(`[PPPoEActivationService] Blocking subscription ${sub.id} for customer ${sub.customer_name}`);
-                    
+
                     // Block the customer by disabling PPPoE user
                     const mikrotikService = await this.getMikrotikService();
                     if (sub.pppoe_username) {
                         await mikrotikService.updatePPPoEUserByUsername(sub.pppoe_username, { disabled: true });
                     }
-                    
+
                     // Update next block date
                     const nextBlockDate = new Date(sub.next_block_date);
                     nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
-                    
+
                     // Handle end-of-month dates
                     if (new Date(sub.activation_date).getDate() > 28) {
                         const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
@@ -278,6 +324,13 @@ export class PPPoEActivationService {
                          SET next_block_date = ?
                          WHERE id = ?`,
                         [nextBlockDate.toISOString().split('T')[0], sub.id]
+                    );
+
+                    // Log the auto-blocking action
+                    await connection.execute(
+                        `INSERT INTO activation_logs (subscription_id, customer_id, action, reason)
+                         VALUES (?, ?, 'auto_block', ?)`,
+                        [sub.id, sub.customer_id, 'Automatic block due to late payment']
                     );
 
                     // Send notification
@@ -327,7 +380,7 @@ export class PPPoEActivationService {
             const activationDate = new Date(subscription.activation_date);
             const nextBlockDate = new Date();
             nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
-            
+
             // Set to same day as activation date
             if (activationDate.getDate() > 28) {
                 const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
@@ -343,10 +396,24 @@ export class PPPoEActivationService {
                 [nextBlockDate.toISOString().split('T')[0], subscription.id]
             );
 
+            // Log the date reset action
+            await connection.execute(
+                `INSERT INTO activation_logs (subscription_id, customer_id, action, reason)
+                 VALUES (?, ?, 'reset_date', ?)`,
+                [subscription.id, customerId, `Date reset to ${nextBlockDate.toISOString().split('T')[0]} after payment`]
+            );
+
             // Re-enable the PPPoE user if it was disabled
             if (subscription.pppoe_username) {
                 const mikrotikService = await this.getMikrotikService();
                 await mikrotikService.updatePPPoEUserByUsername(subscription.pppoe_username, { disabled: false });
+
+                // Also force disconnect to apply changes immediately
+                try {
+                    await mikrotikService.disconnectPPPoEUser(subscription.pppoe_username);
+                } catch (e) {
+                    // Ignore if fail to disconnect, user will connect eventually
+                }
             }
 
             console.log(`[PPPoEActivationService] Reset next block date for customer ${customerId} to ${nextBlockDate.toISOString().split('T')[0]}`);
@@ -374,7 +441,7 @@ export class PPPoEActivationService {
                 profile: maxLimitUpload + '/' + maxLimitDownload, // Combine upload/download as profile
                 comment: `Customer: ${packageName} (ID: ${customerId})`
             });
-            
+
             return { success: result, message: result ? 'PPPoE account created successfully' : 'Failed to create PPPoE account' };
         } catch (error) {
             console.error('Error creating PPPoE account in MikroTik:', error);
@@ -386,7 +453,7 @@ export class PPPoEActivationService {
         try {
             const mikrotikService = await this.getMikrotikService();
             const result = await mikrotikService.updatePPPoEUserByUsername(username, { disabled: true });
-            
+
             return { success: result, message: result ? 'PPPoE account disabled successfully' : 'Failed to disable PPPoE account' };
         } catch (error) {
             console.error('Error disabling PPPoE account in MikroTik:', error);

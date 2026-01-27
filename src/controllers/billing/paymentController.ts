@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
@@ -253,7 +253,7 @@ export class PaymentController {
 
             // Get invoice info
             const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices WHERE id = ?
+                SELECT i.*, c.billing_mode, c.name as customer_name FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.id = ?
             `, [invoice_id]);
 
             const invoice = invoiceResult[0];
@@ -380,6 +380,14 @@ export class PaymentController {
             // Release connection first before sending notification
             conn.release();
 
+            // Reset PPPoE next_block_date and re-enable user if applicable ("Kesepakatan Final" Point 4 & 6)
+            // Fire and forget to avoid blocking UI with MikroTik connection
+            import('../../services/pppoe/pppoeActivationService').then(({ pppoeActivationService }) => {
+                pppoeActivationService.resetNextBlockDate(invoice.customer_id).catch(err =>
+                    console.error('Background PPPoE reset error:', err)
+                );
+            }).catch(e => console.error('Error importing PPPoE service:', e));
+
             // Send payment notification (Fire and forget to avoid blocking UI)
             try {
                 const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
@@ -450,7 +458,7 @@ export class PaymentController {
 
             // Get invoice info
             const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices WHERE id = ?
+                SELECT i.*, c.billing_mode, c.name as customer_name FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.id = ?
             `, [invoice_id]);
 
             const invoice = invoiceResult[0];
@@ -485,7 +493,11 @@ export class PaymentController {
             // Append overpayment to notes
             let paymentNotes = notes || '';
             if (excessAmount > 0) {
-                paymentNotes = (paymentNotes ? paymentNotes + '. ' : '') + `Kelebihan bayar Rp ${new Intl.NumberFormat('id-ID').format(excessAmount)} masuk ke saldo akun.`;
+                if (invoice.billing_mode === 'postpaid') {
+                    paymentNotes = (paymentNotes ? paymentNotes + '. ' : '') + `Kelebihan bayar Rp ${new Intl.NumberFormat('id-ID').format(excessAmount)} (Pascabayar - Tidak masuk saldo).`;
+                } else {
+                    paymentNotes = (paymentNotes ? paymentNotes + '. ' : '') + `Kelebihan bayar Rp ${new Intl.NumberFormat('id-ID').format(excessAmount)} masuk ke saldo akun.`;
+                }
             }
 
             const paymentDateStr = payment_date || new Date().toISOString().slice(0, 10);
@@ -597,8 +609,8 @@ export class PaymentController {
                 invoice_id
             ]);
 
-            // Handle Overpayment (Deposit to Balance)
-            if (excessAmount > 0) {
+            // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
+            if (excessAmount > 0 && invoice.billing_mode !== 'postpaid') {
                 await conn.execute('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
 
                 await conn.execute(`
@@ -606,6 +618,10 @@ export class PaymentController {
                         customer_id, type, amount, description, reference_id, created_at
                     ) VALUES (?, 'credit', ?, ?, ?, NOW())
                 `, [invoice.customer_id, excessAmount, `Kelebihan pembayaran invoice ${invoice.invoice_number}`, invoice_id.toString()]);
+
+                console.log(`[Payment] credited ${excessAmount} to customer ${invoice.customer_id} (Mode: ${invoice.billing_mode})`);
+            } else if (excessAmount > 0) {
+                console.log(`[Payment] excess ${excessAmount} ignored for postpaid customer ${invoice.customer_id}`);
             }
 
             // Create or update debt tracking
@@ -662,6 +678,15 @@ export class PaymentController {
                 invoice_status: newStatus
             });
 
+            // Reset PPPoE next_block_date if paid ("Kesepakatan Final" Point 4 & 6)
+            if (newStatus === 'paid') {
+                import('../../services/pppoe/pppoeActivationService').then(({ pppoeActivationService }) => {
+                    pppoeActivationService.resetNextBlockDate(invoice.customer_id).catch(err =>
+                        console.error('Background PPPoE reset error:', err)
+                    );
+                }).catch(e => console.error('Error importing PPPoE service:', e));
+            }
+
         } catch (error) {
             if (conn) {
                 try { await conn.rollback(); } catch (e) { }
@@ -704,7 +729,7 @@ export class PaymentController {
 
             // Get invoice info
             const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices WHERE id = ?
+                SELECT i.*, c.billing_mode, c.name as customer_name FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.id = ?
             `, [invoice_id]);
 
             const invoice = invoiceResult[0];
@@ -769,7 +794,7 @@ export class PaymentController {
                     const customer = customerRows[0];
                     const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
 
-                    console.log(`[PaymentController] 📱 Sending debt notification to customer ${customer.name}...`);
+                    console.log(`[PaymentController] ðŸ“± Sending debt notification to customer ${customer.name}...`);
 
                     const notificationIds = await UnifiedNotificationService.queueNotification({
                         customer_id: invoice.customer_id,
@@ -790,12 +815,12 @@ export class PaymentController {
                         send_immediately: true // Queue will handle dispatch in background
                     });
 
-                    console.log(`[PaymentController] ✅ Debt notification queued (IDs: ${notificationIds.join(', ')})`);
+                    console.log(`[PaymentController] âœ… Debt notification queued (IDs: ${notificationIds.join(', ')})`);
                 } else {
-                    console.log(`[PaymentController] ⚠️ No phone number for customer ${invoice.customer_id}, skipping notification`);
+                    console.log(`[PaymentController] âš ï¸ No phone number for customer ${invoice.customer_id}, skipping notification`);
                 }
             } catch (notifError: any) {
-                console.error(`[PaymentController] ⚠️ Failed to send debt notification (non-critical):`, notifError.message);
+                console.error(`[PaymentController] âš ï¸ Failed to send debt notification (non-critical):`, notifError.message);
                 // Non-critical, debt recording already succeeded
             }
 

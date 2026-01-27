@@ -24,7 +24,8 @@ import { injectAppVersion } from './middlewares/versionMiddleware';
 import {
 	autoFixInvoicesAndPaymentsTables,
 	autoFixWhatsAppTables,
-	autoFixCustomerColumns
+	autoFixCustomerColumns,
+	autoFixPPPoEActivationTables
 } from './utils/autoFixDatabase';
 import { loggingMiddleware, errorLoggingMiddleware } from './middlewares/loggingMiddleware';
 import { BillingLogService } from './services/billing/BillingLogService';
@@ -314,7 +315,8 @@ async function start() {
 			await autoFixInvoicesAndPaymentsTables();
 			await autoFixWhatsAppTables();
 			await autoFixCustomerColumns();
-			console.log('[Startup] ✅ Invoices, payments, WhatsApp and Customer tables ensured');
+			await autoFixPPPoEActivationTables();
+			console.log('[Startup] ✅ Invoices, payments, WhatsApp, Customer and PPPoE tables ensured');
 		} catch (error) {
 			console.error('⚠️ Error ensuring bookkeeping/whatsapp tables (non-critical):', error);
 		}

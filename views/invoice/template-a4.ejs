@@ -3,330 +3,365 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Invoice #<%= invoice.invoice_number %></title>
+    <title>Invoice #<%= invoice.invoice_number %>
+    </title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 8px;
-            margin: 5px;
-            background-color: #fff;
-            color: #1e293b;
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #16a34a;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --bg-light: #f8fafc;
         }
-        
-        .stamp-container {
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px;
+            background-color: white;
+        }
+
+        .invoice-card {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Lunas Stamp */
+        .stamp-lunas {
             position: absolute;
-            top: 15%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-8deg);
-            z-index: 10;
-            opacity: 0.6;
+            top: 150px;
+            right: 50px;
+            width: 150px;
+            height: 150px;
+            border: 5px solid var(--success-color);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--success-color);
+            font-weight: 900;
+            font-size: 24px;
+            text-transform: uppercase;
+            transform: rotate(-15deg);
+            opacity: 0.2;
+            z-index: 100;
             pointer-events: none;
         }
 
-        .stamp-box {
-            border: 1px solid #16a34a;
-            color: #16a34a;
-            padding: 2px 8px;
-            text-align: center;
-            border-radius: 2px;
-            background-color: rgba(255, 255, 255, 0.8);
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 0.05rem;
-            text-transform: uppercase;
+        .stamp-lunas .date {
+            font-size: 12px;
+            margin-top: 5px;
         }
 
-        .stamp-date {
-            font-size: 6px;
-            font-weight: bold;
-            margin-top: 1px;
-            border-top: 1px solid #16a34a;
-            padding-top: 1px;
-        }
-        
         .header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
-            padding-bottom: 3px;
-            border-bottom: 1px solid #ccc;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 20px;
         }
-        
-        .company-info h1 {
-            font-size: 10px;
-            font-weight: bold;
-            margin-bottom: 1px;
+
+        .company-logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
         }
-        
-        .company-info p {
-            font-size: 7px;
-            margin: 1px 0;
+
+        .company-details {
+            margin-top: 5px;
+            color: var(--secondary-color);
+            font-size: 11px;
+            max-width: 300px;
         }
-        
-        .invoice-title {
+
+        .invoice-meta {
             text-align: right;
         }
-        
-        .invoice-title h2 {
-            font-size: 12px;
-            color: #ddd;
-            font-weight: bold;
-            margin-bottom: 1px;
+
+        .invoice-meta h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-color);
+            letter-spacing: -1px;
         }
-        
-        .invoice-number, .invoice-dates {
-            font-size: 7px;
+
+        .invoice-info {
+            margin-top: 10px;
+            font-size: 13px;
         }
-        
-        .bill-to {
-            background-color: #f8fafc;
-            padding: 4px;
+
+        .invoice-info span {
+            font-weight: 700;
+        }
+
+        .billing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .bill-box h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--secondary-color);
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .bill-box .name {
+            font-size: 16px;
+            font-weight: 700;
             margin-bottom: 5px;
-            border: 1px solid #e2e8f0;
-            border-radius: 2px;
         }
-        
-        .bill-header {
-            font-size: 6px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #94a3b8;
-            margin-bottom: 3px;
+
+        .bill-box .address {
+            color: var(--secondary-color);
+            font-size: 11px;
         }
-        
-        .bill-content {
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .customer-info h4 {
-            font-size: 9px;
-            font-weight: bold;
-            margin-bottom: 1px;
-        }
-        
-        .customer-details {
-            font-size: 7px;
-            margin: 1px 0;
-        }
-        
-        .username-ip {
-            text-align: right;
-            font-size: 7px;
-        }
-        
-        .username-ip div {
-            margin-bottom: 1px;
-        }
-        
-        .item-label {
-            font-size: 5px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #64748b;
-        }
-        
-        table {
+
+        .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 5px;
+            margin-bottom: 30px;
         }
-        
-        th {
+
+        .items-table th {
+            background-color: var(--bg-light);
             text-align: left;
-            padding: 2px 1px;
-            font-size: 6px;
-            font-weight: bold;
-            color: #64748b;
-            border-bottom: 1px solid #cbd5e1;
+            padding: 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--secondary-color);
+            border-bottom: 2px solid var(--border-color);
         }
-        
-        td {
-            padding: 2px 1px;
-            font-size: 7px;
-            border-bottom: 1px solid #e2e8f0;
+
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
         }
-        
-        .desc-col {
-            text-align: left;
+
+        .item-desc {
+            font-weight: 600;
         }
-        
-        .price-col {
-            text-align: right;
+
+        .item-sub {
+            font-size: 10px;
+            color: var(--secondary-color);
         }
-        
-        .amount-col {
-            text-align: right;
-            font-weight: bold;
+
+        .totals {
+            margin-left: auto;
+            width: 300px;
         }
-        
-        tfoot tr {
-            border-top: 1px solid #cbd5e1;
-        }
-        
+
         .total-row {
-            font-weight: bold;
-            font-size: 9px;
-        }
-        
-        .paid-row {
-            color: #16a34a;
-            font-weight: bold;
-        }
-        
-        .remaining-row {
-            font-weight: bold;
-            font-size: 8px;
-        }
-        
-        .footer {
-            margin-top: 8px;
-            padding-top: 4px;
-            border-top: 1px solid #cbd5e1;
             display: flex;
             justify-content: space-between;
-            font-size: 7px;
+            padding: 8px 0;
+            font-size: 13px;
         }
-        
-        .payment-info {
-            color: #64748b;
+
+        .total-row.grand-total {
+            border-top: 2px solid var(--text-color);
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary-color);
         }
-        
-        .signature {
-            text-align: right;
+
+        .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--secondary-color);
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
         }
-        
-        .signature-title {
-            color: #94a3b8;
-            font-size: 6px;
-            margin-bottom: 8px;
+
+        .payment-methods h4 {
+            color: var(--text-color);
+            margin-bottom: 5px;
         }
-        
-        .signature-name {
-            font-weight: bold;
-            font-size: 9px;
+
+        .qr-code {
+            width: 80px;
+            height: 80px;
+            background: #eee;
+            margin-top: 10px;
         }
     </style>
 </head>
 
 <body>
-
-    <% if (invoice.status==='paid' ) { %>
-        <div class="stamp-container">
-            <div class="stamp-box">
-                <div>LUNAS</div>
-                <div class="stamp-date">
-                    TGL: <%= invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) : new Date().toLocaleDateString('id-ID') %>
+    <div class="invoice-card">
+        <% if (invoice.status==='paid' ) { %>
+            <div class="stamp-lunas">
+                LUNAS
+                <div class="date">
+                    <%= invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('id-ID', {day: 'numeric' ,
+                        month: 'long' , year: 'numeric' }) : '' %>
                 </div>
             </div>
-        </div>
-    <% } %>
+            <% } %>
 
-    <div class="header">
-        <div class="company-info">
-            <h1><%= invoice.company_name || 'ISP COMPANY' %></h1>
-            <p class="whitespace-pre-line"><%= invoice.company_address || 'Jl. Raya Internet No. 1\nJakarta, Indonesia' %></p>
-            <p>Telp: <%= invoice.company_phone || '-' %></p>
-        </div>
-        <div class="invoice-title">
-            <h2>INVOICE</h2>
-            <p class="invoice-number">#<%= invoice.invoice_number %></p>
-            <p class="invoice-dates">
-                Dibuat: <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) %><br>
-                Jatuh Tempo: <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) %>
-            </p>
-        </div>
-    </div>
-
-    <div class="bill-to">
-        <div class="bill-header">DITAGIHKAN KEPADA</div>
-        <div class="bill-content">
-            <div class="customer-info">
-                <h4><%= invoice.customer_name %></h4>
-                <p class="customer-details"><%= invoice.customer_address || 'Alamat tidak tersedia' %></p>
-                <% if(invoice.customer_phone) { %>
-                    <p class="customer-details">Telp: <%= invoice.customer_phone %></p>
-                <% } %>
-            </div>
-            <div class="username-ip">
-                <% if(invoice.pppoe_username) { %>
+                <div class="header">
                     <div>
-                        <div class="item-label">Username</div>
-                        <span><%= invoice.pppoe_username %></span>
+                        <div class="company-logo">
+                            <%= invoice.company_name || 'ISP NETWORK' %>
+                        </div>
+                        <div class="company-details">
+                            <%= (invoice.company_address || 'Jl. Raya Utama No. 123\nKota Digital, Indonesia'
+                                ).replace(/\n/g, '<br>' ) %>
+                        </div>
+                        <div class="company-details" style="margin-top: 5px;">
+                            Telp: <%= invoice.company_phone || '-' %>
+                        </div>
                     </div>
-                <% } %>
-                <% if(invoice.customer_ip) { %>
-                    <div>
-                        <div class="item-label">IP Address</div>
-                        <span><%= invoice.customer_ip %></span>
+                    <div class="invoice-meta">
+                        <h1>INVOICE</h1>
+                        <div class="invoice-info">
+                            No: <span>
+                                <%= invoice.invoice_number %>
+                            </span><br>
+                            Tgl: <span>
+                                <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric' ,
+                                    month: 'long' , year: 'numeric' }) %>
+                            </span><br>
+                            Tempo: <span style="color: #c2410c;">
+                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {day: 'numeric' ,
+                                    month: 'long' , year: 'numeric' }) %>
+                            </span>
+                        </div>
                     </div>
-                <% } %>
-            </div>
-        </div>
-    </div>
+                </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th class="desc-col">DESKRIPSI</th>
-                <th class="price-col" style="width: 70px;">HARGA SATUAN</th>
-                <th class="amount-col" style="width: 70px;">TOTAL</th>
-            </tr>
-        </thead>
-        <tbody>
-            <% (invoice.items || []).forEach(item => { %>
-                <tr>
-                    <td class="desc-col">
-                        <div><%= item.description %></div>
-                        <% if(item.details) { %>
-                            <div style="font-size: 6px; color: #64748b;"><%= item.details %></div>
+                <div class="billing-grid">
+                    <div class="bill-box">
+                        <h3>Ditagihkan Kepada:</h3>
+                        <div class="name">
+                            <%= invoice.customer_name %>
+                        </div>
+                        <div class="address">
+                            <%= invoice.customer_address || 'Alamat tidak tersedia' %><br>
+                                Telp: <%= invoice.customer_phone || '-' %>
+                        </div>
+                    </div>
+                    <div class="bill-box">
+                        <h3>Detail Layanan:</h3>
+                        <div class="info-row" style="font-size: 12px; margin-bottom: 2px;">
+                            Periode: <strong>
+                                <%= invoice.period || '-' %>
+                            </strong>
+                        </div>
+                        <% if(invoice.pppoe_username) { %>
+                            <div class="info-row" style="font-size: 12px; margin-bottom: 2px;">
+                                Username: <strong>
+                                    <%= invoice.pppoe_username %>
+                                </strong>
+                            </div>
+                            <% } %>
+                    </div>
+                </div>
+
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60%">Deskripsi Layanan</th>
+                            <th style="width: 15%; text-align: center;">Qty</th>
+                            <th style="width: 25%; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (invoice.items && invoice.items.length> 0) { %>
+                            <% invoice.items.forEach(item=> { %>
+                                <tr>
+                                    <td>
+                                        <div class="item-desc">
+                                            <%= item.description %>
+                                        </div>
+                                        <% if(item.details) { %>
+                                            <div class="item-sub">
+                                                <%= item.details %>
+                                            </div>
+                                            <% } %>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <%= item.quantity || 1 %>
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700;">Rp <%= Number(item.total_price ||
+                                            item.amount).toLocaleString('id-ID') %>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td>
+                                                <div class="item-desc">Layanan Internet</div>
+                                                <div class="item-sub">Periode <%= invoice.period %>
+                                                </div>
+                                            </td>
+                                            <td style="text-align: center;">1</td>
+                                            <td style="text-align: right; font-weight: 700;">Rp <%=
+                                                    Number(invoice.total_amount).toLocaleString('id-ID') %>
+                                            </td>
+                                        </tr>
+                                        <% } %>
+                    </tbody>
+                </table>
+
+                <div class="totals">
+                    <div class="total-row">
+                        <span>Subtotal</span>
+                        <span>Rp <%= Number(invoice.total_amount).toLocaleString('id-ID') %></span>
+                    </div>
+                    <% if (invoice.paid_amount> 0) { %>
+                        <div class="total-row" style="color: var(--success-color);">
+                            <span>Sudah Dibayar</span>
+                            <span>- Rp <%= Number(invoice.paid_amount).toLocaleString('id-ID') %></span>
+                        </div>
                         <% } %>
-                    </td>
-                    <td class="price-col">Rp <%= Number(item.unit_price || item.amount).toLocaleString('id-ID') %></td>
-                    <td class="amount-col">Rp <%= Number(item.amount).toLocaleString('id-ID') %></td>
-                </tr>
-            <% }) %>
+                            <div class="total-row grand-total">
+                                <span>TOTAL</span>
+                                <span>Rp <%= Number(invoice.remaining_amount).toLocaleString('id-ID') %></span>
+                            </div>
+                </div>
 
-            <% if (!invoice.items || invoice.items.length === 0) { %>
-                <tr>
-                    <td class="desc-col">
-                        <div>Layanan Internet Period <%= invoice.period_date || '-' %></div>
-                    </td>
-                    <td class="price-col">Rp <%= Number(invoice.total_amount).toLocaleString('id-ID') %></td>
-                    <td class="amount-col">Rp <%= Number(invoice.total_amount).toLocaleString('id-ID') %></td>
-                </tr>
-            <% } %>
-        </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="2" style="text-align: right; font-weight: bold; border-bottom: none;">Total Tagihan</td>
-                <td class="total-row">Rp <%= Number(invoice.total_amount).toLocaleString('id-ID') %></td>
-            </tr>
-            <% if (invoice.paid_amount > 0) { %>
-                <tr>
-                    <td colspan="2" style="text-align: right; font-weight: bold; border-bottom: none;" class="paid-row">Dibayar</td>
-                    <td class="paid-row">- Rp <%= Number(invoice.paid_amount).toLocaleString('id-ID') %></td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="text-align: right; font-weight: bold; border-bottom: none;">Sisa Tagihan</td>
-                    <td class="remaining-row">Rp <%= Number(invoice.remaining_amount).toLocaleString('id-ID') %></td>
-                </tr>
-            <% } %>
-        </tfoot>
-    </table>
-
-    <div class="footer">
-        <div class="payment-info">
-            <div style="font-weight: bold; color: #334155; margin-bottom: 2px;">Metode Pembayaran:</div>
-            <div>Silakan transfer ke nomor rekening yang tertera di aplikasi/website.</div>
-            <div style="margin-top: 2px;"><em>Terima kasih atas kepercayaan Anda.</em></div>
-        </div>
-        <div class="signature">
-            <div class="signature-title">Hormat Kami,</div>
-            <div class="signature-name"><%= invoice.company_name || 'Admin Finance' %></div>
-        </div>
+                <div class="footer">
+                    <div class="payment-methods">
+                        <h4>Informasi Pembayaran:</h4>
+                        <p>Silakan melakukan pembayaran melalui transfer bank/e-wallet<br>
+                            ke rekening yang terdaftar di aplikasi.<br>
+                            Simpan bukti transfer Anda sebagai bukti pembayaran yang sah.</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p>Hormat Kami,</p>
+                        <div style="margin-top: 30px; font-weight: 800; color: var(--text-color); font-size: 14px;">
+                            <%= invoice.company_name || 'ADMIN FINANCE' %>
+                        </div>
+                        <p>Terima Kasih</p>
+                    </div>
+                </div>
     </div>
-
 </body>
 
 </html>

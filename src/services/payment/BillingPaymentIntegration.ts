@@ -22,7 +22,7 @@ export class BillingPaymentIntegration {
    */
   async createInvoicePayment(request: BillingPaymentRequest): Promise<any> {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
@@ -113,15 +113,17 @@ export class BillingPaymentIntegration {
    */
   async processPaymentSuccess(transactionId: string): Promise<void> {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
-      // Ambil data transaksi
+      // Ambil data transaksi, invoice, dan customer billing mode
       const [transactionRows] = await connection.execute(
-        `SELECT pt.*, i.id as invoice_id, i.customer_id, i.total_amount
+        `SELECT pt.*, i.id as invoice_id, i.customer_id, i.total_amount, i.paid_amount, i.remaining_amount, i.invoice_number,
+                c.billing_mode, c.name as customer_name
          FROM payment_transactions pt
          JOIN invoices i ON pt.invoice_id = i.id
+         JOIN customers c ON i.customer_id = c.id
          WHERE pt.external_id = ?`,
         [transactionId]
       );
@@ -131,6 +133,20 @@ export class BillingPaymentIntegration {
       }
 
       const transaction = (transactionRows as any[])[0];
+      const paymentAmount = parseFloat(transaction.amount);
+      const currentPaid = parseFloat(transaction.paid_amount || 0);
+      const totalAmount = parseFloat(transaction.total_amount);
+      const remainingBefore = parseFloat(transaction.remaining_amount || (totalAmount - currentPaid));
+
+      let excessAmount = 0;
+      if (paymentAmount > remainingBefore) {
+        excessAmount = paymentAmount - remainingBefore;
+      }
+
+      const newPaid = currentPaid + paymentAmount;
+      const newRemaining = Math.max(0, totalAmount - newPaid);
+      const isFullPayment = newRemaining <= 100; // Tolerance
+      const newStatus = isFullPayment ? 'paid' : 'partial';
 
       // Update payment transaction status
       await connection.execute(
@@ -138,11 +154,34 @@ export class BillingPaymentIntegration {
         [transactionId]
       );
 
-      // Update invoice status
+      // Update invoice status and totals
       await connection.execute(
-        'UPDATE invoices SET status = "paid", paid_at = NOW() WHERE id = ?',
-        [transaction.invoice_id]
+        'UPDATE invoices SET status = ?, paid_amount = ?, remaining_amount = ?, paid_at = NOW(), updated_at = NOW() WHERE id = ?',
+        [newStatus, newPaid, newRemaining, transaction.invoice_id]
       );
+
+      // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
+      if (excessAmount > 0 && transaction.billing_mode !== 'postpaid') {
+        await connection.execute('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, transaction.customer_id]);
+        await connection.execute(`
+            INSERT INTO customer_balance_logs (
+                customer_id, type, amount, description, reference_id, created_at
+            ) VALUES (?, 'credit', ?, ?, ?, NOW())
+        `, [transaction.customer_id, excessAmount, `Kelebihan pembayaran gateway (${transaction.gateway_code}) invoice ${transaction.invoice_number}`, transaction.invoice_id.toString()]);
+      }
+
+      // Insert into payments table for history/receipts
+      const [paymentResult] = await connection.execute(
+        `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, status, created_at)
+         VALUES (?, ?, ?, NOW(), ?, 'success', NOW())`,
+        [
+          transaction.invoice_id,
+          transaction.method_code || 'gateway',
+          paymentAmount,
+          `Payment via ${transaction.gateway_code}${(excessAmount > 0 ? (transaction.billing_mode === 'postpaid' ? ` (Excess Rp ${excessAmount} ignored for postpaid)` : ` (Excess Rp ${excessAmount} cached to balance)`) : '')}`
+        ]
+      );
+      const paymentId = (paymentResult as any).insertId;
 
       // Update customer status jika ada
       await connection.execute(
@@ -159,6 +198,18 @@ export class BillingPaymentIntegration {
 
       await connection.commit();
 
+      // Send Notification (Async)
+      if (paymentId) {
+        try {
+          const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+          UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(err =>
+            console.error('[BillingPaymentIntegration] Notification error:', err)
+          );
+        } catch (e) {
+          console.warn('[BillingPaymentIntegration] Could not load UnifiedNotificationService:', e);
+        }
+      }
+
       // Track late payment (async, don't wait)
       try {
         // Get payment_id if exists
@@ -167,7 +218,7 @@ export class BillingPaymentIntegration {
           [transaction.invoice_id]
         );
         const payment = (paymentRows as any[])[0];
-        
+
         const [invoiceRows] = await connection.execute(
           `SELECT due_date FROM invoices WHERE id = ?`,
           [transaction.invoice_id]
@@ -197,7 +248,7 @@ export class BillingPaymentIntegration {
    */
   async processPaymentFailure(transactionId: string, reason: string): Promise<void> {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
@@ -250,7 +301,7 @@ export class BillingPaymentIntegration {
    */
   async getCustomerPaymentHistory(customerId: number, limit = 50, offset = 0): Promise<any[]> {
     const connection = await pool.getConnection();
-    
+
     try {
       const [rows] = await connection.execute(
         `SELECT pt.*, i.invoice_number, i.total_amount, i.period,
@@ -277,7 +328,7 @@ export class BillingPaymentIntegration {
    */
   async getPaymentStatistics(): Promise<any> {
     const connection = await pool.getConnection();
-    
+
     try {
       const [rows] = await connection.execute(
         `SELECT 
@@ -303,7 +354,7 @@ export class BillingPaymentIntegration {
    */
   async getAvailablePaymentMethods(customerId: number): Promise<any[]> {
     const connection = await pool.getConnection();
-    
+
     try {
       const [rows] = await connection.execute(
         `SELECT pm.*, pg.name as gateway_name, pg.code as gateway_code
@@ -325,7 +376,7 @@ export class BillingPaymentIntegration {
    */
   async createPaymentLink(invoiceId: number, customerId: number): Promise<string> {
     const connection = await pool.getConnection();
-    
+
     try {
       // Ambil data invoice
       const [invoiceRows] = await connection.execute(
@@ -355,7 +406,7 @@ export class BillingPaymentIntegration {
    */
   async getInvoiceWithPaymentOptions(invoiceId: number, customerId: number): Promise<any> {
     const connection = await pool.getConnection();
-    
+
     try {
       // Ambil data invoice
       const [invoiceRows] = await connection.execute(

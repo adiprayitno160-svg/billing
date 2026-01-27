@@ -291,28 +291,60 @@ export class PaymentApprovalService {
         try {
             await connection.beginTransaction();
 
+            // Get customer billing mode
+            const [customerRows] = await connection.execute<RowDataPacket[]>(
+                'SELECT billing_mode, name FROM customers WHERE id = ?',
+                [customerId]
+            );
+            const billingMode = customerRows[0]?.billing_mode || 'postpaid';
+            const customerName = customerRows[0]?.name || 'Pelanggan';
+
+            // Get current invoice state to calculate excess
+            const [invoiceRows] = await connection.execute<RowDataPacket[]>(
+                'SELECT remaining_amount, invoice_number FROM invoices WHERE id = ?',
+                [invoiceId]
+            );
+            const remainingBefore = parseFloat(invoiceRows[0]?.remaining_amount || '0');
+            const invoiceNumber = invoiceRows[0]?.invoice_number || '';
+
+            let excessAmount = 0;
+            if (amount > remainingBefore) {
+                excessAmount = amount - remainingBefore;
+            }
+
             // Record payment
             const paymentQuery = `
                 INSERT INTO payments (
                     invoice_id, payment_method, amount, reference_number, 
-                    gateway_status, created_at, payment_date
-                ) VALUES (?, 'transfer', ?, ?, 'paid', NOW(), NOW())
+                    gateway_status, notes, created_at, payment_date
+                ) VALUES (?, 'transfer', ?, ?, 'paid', ?, NOW(), NOW())
             `;
 
             const [paymentResult] = await connection.execute<ResultSetHeader>(
                 paymentQuery,
-                [invoiceId, amount, `WA-${Date.now()}`]
+                [invoiceId, amount, `WA-${Date.now()}`, `Auto-approved via AI OCR${excessAmount > 0 ? ` (Kelebihan Rp ${excessAmount})` : ''}`]
             );
 
             const paymentId = paymentResult.insertId;
+
+            // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
+            if (excessAmount > 0 && billingMode !== 'postpaid') {
+                await connection.execute('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, customerId]);
+
+                await connection.execute(`
+                    INSERT INTO customer_balance_logs (
+                        customer_id, type, amount, description, reference_id, created_at
+                    ) VALUES (?, 'credit', ?, ?, ?, NOW())
+                `, [customerId, excessAmount, `Kelebihan pembayaran (auto-approve) invoice ${invoiceNumber}`, invoiceId.toString()]);
+            }
 
             // Update invoice payment status
             await connection.execute(`
                 UPDATE invoices 
                 SET paid_amount = paid_amount + ?,
-                    remaining_amount = remaining_amount - ?,
+                    remaining_amount = GREATEST(0, CAST(remaining_amount AS SIGNED) - ?),
                     status = CASE 
-                        WHEN remaining_amount - ? <= 0 THEN 'paid'
+                        WHEN remaining_amount - ? <= 100 THEN 'paid'
                         ELSE 'partial'
                     END
                 WHERE id = ?
@@ -367,6 +399,18 @@ export class PaymentApprovalService {
 
             await connection.commit();
             console.log(`✅ Payment auto-approved: Invoice ${invoiceId}, Amount ${amount}`);
+
+            // Send notification (Fire and forget)
+            if (paymentId) {
+                try {
+                    const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
+                        console.error('Background notification error in auto-approve:', e)
+                    );
+                } catch (e) {
+                    console.warn('Failed to initiate notification service in auto-approve:', e);
+                }
+            }
 
         } catch (error) {
             await connection.rollback();

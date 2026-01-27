@@ -1,74 +1,93 @@
-﻿<!-- Modern Fixed Footer -->
-<footer id="footer"
-    style="position: fixed; bottom: 0; left: 256px; right: 0; z-index: 50 !important; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); backdrop-filter: blur(10px); border-top: 2px solid #1d4ed8; box-shadow: 0 -4px 20px rgba(37, 99, 235, 0.3); transition: left 0.3s ease; height: 60px; pointer-events: auto;">
-    <div style="padding: 12px 24px;">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <!-- Left: Copyright -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="flex-shrink: 0;">
-                    <% if (typeof companyInfo !=='undefined' && companyInfo && companyInfo.logo_url) { %>
-                        <img src="<%= companyInfo.logo_url %>" alt="Logo"
-                            style="height: 32px; width: 32px; object-fit: contain; border-radius: 8px;">
-                        <% } else { %>
-                            <div
-                                style="width: 32px; height: 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                                <i class="fas fa-building" style="color: white; font-size: 14px;"></i>
-                            </div>
-                            <% } %>
-                </div>
-                <div>
-                    <p style="font-size: 12px; font-weight: 600; color: #ffffff; margin: 0;">
-                        &copy; <%= new Date().getFullYear() %>
-                            <%= typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_name ?
-                                companyInfo.company_name : 'Billing System' %>
-                    </p>
-                    <p style="font-size: 11px; color: #dbeafe; margin: 0;">All rights reserved</p>
-                </div>
+﻿<!-- Modern Footer -->
+<footer id="main-footer"
+    class="w-full mt-auto py-6 px-8 border-t border-slate-200 bg-white/50 backdrop-blur-md transition-all duration-300">
+    <div class="max-w-[1920px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500">
+        <div class="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+            <div class="font-bold text-indigo-600 tracking-tight flex items-center">
+                <i class="fas fa-microchip mr-2 text-xs opacity-70"></i>
+                BILLING <span class="text-slate-400 font-normal ml-1">SYSTEM</span>
+            </div>
+            <div class="hidden md:block w-px h-4 bg-slate-300"></div>
+            <div class="text-xs font-medium">
+                &copy; <%= new Date().getFullYear() %>
+                    <%= typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_name ?
+                        companyInfo.company_name : 'Core Network Solutions' %>.
+                        <span
+                            class="inline-flex items-center ml-2 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] border border-slate-200 uppercase tracking-widest font-bold">
+                            v<%= typeof fullVersion !=='undefined' ? fullVersion : '2.4.16' %>
+                        </span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <!-- Connection Status -->
+            <div id="footer-status"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200 shadow-sm transition-all duration-300 group">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow"></div>
+                <span class="text-xs font-bold text-slate-700 tracking-wide">SERVER ACTIVE</span>
+                <span id="footer-latency"
+                    class="text-[10px] text-slate-400 font-mono hidden md:inline opacity-0 group-hover:opacity-100 transition-opacity">--ms</span>
             </div>
 
-            <!-- Right: Status & Version -->
-            <div style="display: flex; align-items: center; gap: 12px; font-size: 12px;">
-                <span
-                    style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background-color: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.3); font-weight: 500; backdrop-filter: blur(5px);">
-                    <span
-                        style="width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);"></span>
-                    System Online
-                </span>
-                <span
-                    style="padding: 6px 12px; background-color: rgba(255, 255, 255, 0.25); color: #ffffff; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.4); font-weight: 600; backdrop-filter: blur(5px);">
-                    v<%= typeof fullVersion !=='undefined' && fullVersion ? fullVersion : (typeof appVersion
-                        !=='undefined' ? appVersion : '2.4.16' ) %>
-                </span>
-            </div>
+            <!-- Scroll to top -->
+            <button onclick="document.getElementById('main-content').scrollTo({top:0, behavior:'smooth'})"
+                class="p-2 rounded-xl bg-white hover:bg-slate-50 text-indigo-600 border border-slate-200 shadow-sm transition-all hover:scale-110 active:scale-95">
+                <i class="fas fa-chevron-up text-sm"></i>
+            </button>
         </div>
     </div>
 </footer>
 
 <style>
-    @keyframes pulse {
+    .animate-pulse-slow {
+        animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-slow {
 
         0%,
         100% {
             opacity: 1;
+            transform: scale(1);
         }
 
         50% {
-            opacity: 0.5;
+            opacity: .7;
+            transform: scale(0.9);
         }
     }
 </style>
 
 <script>
-    console.log('Footer loaded. Checking connection...');
-    fetch('/api/server-time')
-        .then(response => {
-            if (response.ok) {
-                console.log('✅ Connection to server OK');
-            } else {
-                console.error('❌ Server responded with error:', response.status);
-            }
-        })
-        .catch(error => {
-            console.error('❌ Connection failed:', error);
-        });
+    // System health check
+    (function () {
+        const latencyEl = document.getElementById('footer-latency');
+        const statusEl = document.getElementById('footer-status');
+
+        const checkHealth = () => {
+            const start = performance.now();
+            fetch('/api/server-time', { method: 'HEAD', cache: 'no-cache' })
+                .then(response => {
+                    const latency = Math.round(performance.now() - start);
+                    if (latencyEl) {
+                        latencyEl.innerText = `${latency}ms`;
+                    }
+                    if (!response.ok && statusEl) {
+                        statusEl.querySelector('div').className = 'w-2 h-2 rounded-full bg-amber-500';
+                        statusEl.querySelector('span').innerText = 'SERVER ISSUES';
+                    }
+                })
+                .catch(() => {
+                    if (statusEl) {
+                        statusEl.innerHTML = `
+                            <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                            <span class="text-xs font-bold text-rose-700">OFFLINE</span>
+                        `;
+                    }
+                });
+        };
+
+        checkHealth();
+        setInterval(checkHealth, 30000);
+    })();
 </script>
