@@ -457,7 +457,16 @@ export class UnifiedNotificationService {
             // Verify file exists
             const fs = await import('fs');
             if (fs.existsSync(notification.attachment_path)) {
-              whatsappResult = await waClient.sendDocument(recipient, notification.attachment_path, undefined, fullMessage);
+              console.log(`[UnifiedNotification] 📄 Sending PDF attachment: ${notification.attachment_path}`);
+              // Send text confirmation first
+              await waClient.sendMessage(recipient, fullMessage);
+              // Send document as follow-up
+              whatsappResult = await waClient.sendDocument(
+                recipient,
+                notification.attachment_path,
+                `Invois-${notification.invoice_id || 'Tagihan'}.pdf`,
+                'Invois Pembayaran (PDF)'
+              );
             } else {
               console.warn(`[UnifiedNotification] ⚠️ Attachment path provided but file not found: ${notification.attachment_path}. Sending text only.`);
               whatsappResult = await waClient.sendMessage(recipient, fullMessage);
