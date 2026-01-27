@@ -10,8 +10,7 @@ module.exports = {
     env: {
       NODE_ENV: "production",
       PORT: 3001,
-      PUPPETEER_EXECUTABLE_PATH: "/home/adi/.cache/puppeteer/chrome/linux-144.0.7559.96/chrome-linux64/chrome",
-      DISABLE_WHATSAPP: "true"
+      PUPPETEER_EXECUTABLE_PATH: "/home/adi/.cache/puppeteer/chrome/linux-144.0.7559.96/chrome-linux64/chrome"
     },
 
     PORT: 3001,
