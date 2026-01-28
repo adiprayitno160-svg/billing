@@ -125,11 +125,19 @@ export class PaymentController {
                     i.status as invoice_status,
                     i.total_amount as invoice_total,
                     i.paid_amount as invoice_paid,
-                    i.remaining_amount as invoice_remaining
+                    i.remaining_amount as invoice_remaining,
+                    CASE 
+                        WHEN mpv.id IS NOT NULL THEN CONCAT('/billing/verification/image/', mpv.id)
+                        ELSE NULL 
+                    END as proof_image
                 FROM payments p
                 LEFT JOIN invoices i ON p.invoice_id = i.id
                 LEFT JOIN customers c ON i.customer_id = c.id
+                LEFT JOIN manual_payment_verifications mpv ON p.invoice_id = mpv.invoice_id 
+                    AND mpv.status = 'approved' 
+                    AND (mpv.extracted_amount = p.amount OR mpv.expected_amount = p.amount)
                 ${whereClause}
+                GROUP BY p.id
                 ORDER BY p.payment_date DESC, p.created_at DESC
                 LIMIT ? OFFSET ?
             `;
