@@ -1,50 +1,30 @@
 const { NodeSSH } = require('node-ssh');
 const ssh = new NodeSSH();
+const path = require('path');
 
 async function runUpdate() {
     try {
-        console.log('🚀 Menghubungkan ke 192.168.239.154 (User: adi)...');
+        await ssh.connect({ host: '192.168.239.154', username: 'adi', password: 'adi', port: 22 });
 
-        await ssh.connect({
-            host: '192.168.239.154',
-            username: 'adi',
-            password: 'adi',
-            port: 22
-        });
+        // 1. Upload file SQL
+        await ssh.putFile(path.join(__dirname, 'fix_schema.sql'), '/var/www/billing/fix_schema.sql');
 
-        console.log('✅ Terhubung!');
+        // 2. Jalankan perintah MySQL menggunakan file tersebut
+        const cmd = "cd /var/www/billing && " +
+            "U=$(grep '^DB_USER' .env | tail -n 1 | cut -d= -f2 | tr -d '\r\n \"\\'') && " +
+            "P=$(grep '^DB_PASSWORD' .env | tail -n 1 | cut -d= -f2 | tr -d '\r\n \"\\'') && " +
+            "mysql -u$U -p$P < fix_schema.sql";
 
-        const remoteCommands = [
-            'echo "--> 1. Masuk ke direktori project..."',
-            'cd /var/www/billing || exit 1',
+        console.log('🏃 Executing SQL File on Server...');
+        const result = await ssh.execCommand(cmd);
+        console.log('Result:', result.stdout || 'Success (No output)');
+        if (result.stderr) console.log('Log:', result.stderr);
 
-            'echo "--> 2. Mengambil kredensial DB dari .env..."',
-            'DB_USER=$(grep "^DB_USER" .env | cut -d "=" -f2 | tr -d "\\r")',
-            'DB_PASS=$(grep "^DB_PASSWORD" .env | cut -d "=" -f2 | tr -d "\\r")',
-
-            'echo "--> 3. Menjalankan SQL Fix..."',
-            'SQL_QUERY="USE billing; ALTER TABLE manual_payment_verifications ADD COLUMN IF NOT EXISTS verified_by INT NULL; ALTER TABLE manual_payment_verifications ADD COLUMN IF NOT EXISTS verified_at DATETIME NULL; ALTER TABLE manual_payment_verifications ADD COLUMN IF NOT EXISTS invoice_id INT NULL; ALTER TABLE manual_payment_verifications ADD COLUMN IF NOT EXISTS notes TEXT NULL; CREATE INDEX IF NOT EXISTS idx_verified_by ON manual_payment_verifications(verified_by); ALTER TABLE invoices ADD COLUMN IF NOT EXISTS paid_at DATETIME NULL;"',
-
-            'if [ ! -z "$DB_PASS" ]; then mysql -u"$DB_USER" -p"$DB_PASS" -e "$SQL_QUERY"; else mysql -u"$DB_USER" -e "$SQL_QUERY"; fi',
-
-            'echo "--> 4. Restarting Application (PM2)..."',
-            'pm2 restart billing-app --update-env || pm2 start ecosystem.config.js --env production',
-
-            'echo "✅ SEMUA PROSES SELESAI!"'
-        ];
-
-        // Menjalankan perintah satu per satu agar log terlihat jelas
-        for (const cmd of remoteCommands) {
-            const result = await ssh.execCommand(cmd, { cwd: '/var/www/billing' });
-            if (result.stdout) console.log(result.stdout);
-            if (result.stderr) console.error('⚠️ Detil:', result.stderr);
-        }
-
+        await ssh.execCommand('pm2 restart billing-app', { cwd: '/var/www/billing' });
+        console.log('✅ App Restarted!');
         ssh.dispose();
     } catch (err) {
-        console.error('❌ Error saat update:', err.message);
-        process.exit(1);
+        console.error('❌ Error:', err.message);
     }
 }
-
 runUpdate();

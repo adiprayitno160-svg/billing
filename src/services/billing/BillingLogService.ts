@@ -1,36 +1,17 @@
- * Logs to both file and database with automatic anomaly detection
- */
-import * as fs from 'fs';
-import * as path from 'path';
+import path from 'path';
+import fs from 'fs';
 import { databasePool } from '../../db/pool';
-import { AIAnomalyDetectionService } from './AIAnomalyDetectionService';
+import { AIAnomalyDetectionService } from '../ai/AIAnomalyDetectionService';
 
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
-export type LogType =
-    | 'billing'
-    | 'payment'
-    | 'invoice'
-    | 'customer'
-    | 'notification'
-    | 'database'
-    | 'api'
-    | 'scheduler'
-    | 'security'
-    | 'system'
-    | 'mikrotik'
-    | 'whatsapp'
-    | 'telegram';
-
-export interface LogContext {
-    [key: string]: any;
-}
+export type LogType = 'system' | 'auth' | 'billing' | 'payment' | 'network' | 'customer';
 
 export interface LogEntry {
     level: LogLevel;
     type: LogType;
     service: string;
     message: string;
-    context?: LogContext;
+    context?: any;
     userId?: number;
     customerId?: number;
     invoiceId?: number;
@@ -38,385 +19,75 @@ export interface LogEntry {
     ipAddress?: string;
     userAgent?: string;
     error?: Error;
-    isInternal?: boolean; // New flag to prevent recursion
+    isInternal?: boolean;
 }
 
 export class BillingLogService {
     private static logDir = path.join(process.cwd(), 'logs');
     private static anomalyDetector = new AIAnomalyDetectionService();
 
-    /**
-     * Initialize logging directory
-     */
     static async initialize(): Promise<void> {
-        // Ensure logs directory exists
         if (!fs.existsSync(this.logDir)) {
             fs.mkdirSync(this.logDir, { recursive: true });
         }
-
-        // Ensure database tables exist
-        try {
-            const { createSystemLogsTable } = await import('../../db/migrations/create-system-logs-table');
-            await createSystemLogsTable();
-        } catch (error) {
-            console.error('Error initializing log tables:', error);
-        }
     }
 
-    /**
-     * Main logging method
-     */
     static async log(entry: LogEntry): Promise<void> {
-        // Skip internal logs to prevent potential recursion and reduce DB load
-        if (entry.isInternal) {
-            return;
-        }
+        if (entry.isInternal) return;
 
         try {
-            // Generate request ID if not provided
-            if (!entry.requestId) {
-                entry.requestId = this.generateRequestId();
-            }
-
-            // Write to file
+            if (!entry.requestId) entry.requestId = `req-${Date.now()}`;
             await this.writeToFile(entry);
-
-            // Write to database
             const logId = await this.writeToDatabase(entry);
 
-            // Run AI anomaly detection for errors and warnings
-            if (entry.level === 'error' || entry.level === 'critical' || entry.level === 'warning') {
+            if (['error', 'critical', 'warning'].includes(entry.level)) {
                 const anomaly = await this.anomalyDetector.detectAnomaly(entry, logId);
-
                 if (anomaly.isAnomaly) {
-                    // Update log with anomaly detection result
                     await this.updateLogAnomaly(logId, anomaly);
-
-                    // Log anomaly separately
-                    await this.logAnomaly(entry, anomaly, logId);
                 }
             }
-
-            // Update statistics
-            await this.updateStatistics(entry);
         } catch (error) {
-            // Fallback to console if logging fails
-            console.error('Error in BillingLogService:', error);
-            console.error('Original log entry:', entry);
+            console.error('Logging failed:', error);
         }
     }
 
-    /**
-     * Write log to file
-     */
     private static async writeToFile(entry: LogEntry): Promise<void> {
-        try {
-            // Ensure logs directory exists
-            if (!fs.existsSync(this.logDir)) {
-                fs.mkdirSync(this.logDir, { recursive: true });
-            }
-            
-            const timestamp = new Date().toISOString();
-            const logFile = path.join(this.logDir, `billing-${new Date().toISOString().split('T')[0]}.log`);
-            const errorLogFile = path.join(this.logDir, 'err.log');
-
-            const logLine = `[${timestamp}] [${entry.level.toUpperCase()}] [${entry.type}] [${entry.service}] ${entry.message}${entry.context ? ' ' + JSON.stringify(entry.context) : ''}${entry.error ? '\n' + entry.error.stack : ''}\n`;
-
-            // Write to combined log
-            fs.appendFile(logFile, logLine, (err) => {
-                if (err) {
-                    console.error('Error writing to log file:', err);
-                    // Try to write to a fallback location if primary fails
-                    this.writeToFallbackLog(logLine, err);
-                }
-            });
-
-            // Write errors to error log
-            if (entry.level === 'error' || entry.level === 'critical') {
-                fs.appendFile(errorLogFile, logLine, (err) => {
-                    if (err) console.error('Error writing to error log file:', err);
-                });
-            }
-        } catch (error) {
-            console.error('Critical error in writeToFile:', error);
-        }
+        const timestamp = new Date().toISOString();
+        const logFile = path.join(this.logDir, `billing-${timestamp.split('T')[0]}.log`);
+        const logLine = `[${timestamp}] [${entry.level.toUpperCase()}] ${entry.message}\n`;
+        fs.appendFileSync(logFile, logLine);
     }
 
-    /**
-     * Write log to fallback location when primary fails
-     */
-    private static writeToFallbackLog(logLine: string, originalError: any): void {
-        try {
-            // Try to write to a more accessible location like the temp directory
-            const fallbackLogPath = path.join(require('os').tmpdir(), 'billing-fallback-logs', `billing-${new Date().toISOString().split('T')[0]}.log`);
-            const fallbackDir = path.dirname(fallbackLogPath);
-            
-            if (!fs.existsSync(fallbackDir)) {
-                fs.mkdirSync(fallbackDir, { recursive: true });
-            }
-            
-            fs.appendFileSync(fallbackLogPath, logLine);
-            console.log(`Log written to fallback location: ${fallbackLogPath}`);
-        } catch (fallbackError) {
-            console.error('Failed to write to fallback log location:', fallbackError);
-            console.error('Original error:', originalError);
-            // As last resort, just log to console
-            console.error('FAILED TO WRITE LOG:', logLine);
-        }
-    }
-
-    /**
-     * Write log to database
-     */
     private static async writeToDatabase(entry: LogEntry): Promise<number> {
-        let conn;
+        const conn = await databasePool.getConnection();
         try {
-            conn = await databasePool.getConnection();
-            const [result] = await conn.execute(`
-                INSERT INTO system_logs (
-                    log_level, log_type, service_name, message, context,
-                    user_id, customer_id, invoice_id, request_id,
-                    ip_address, user_agent, stack_trace, error_code
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                entry.level,
-                entry.type,
-                entry.service,
-                entry.message,
-                entry.context ? JSON.stringify(entry.context) : null,
-                entry.userId || null,
-                entry.customerId || null,
-                entry.invoiceId || null,
-                entry.requestId || null,
-                entry.ipAddress || null,
-                entry.userAgent || null,
-                entry.error?.stack || null,
-                entry.error?.name || null
-            ]);
-
-            return (result as any).insertId;
-        } catch (err) {
-            // If DB write fails, it's already caught in log() but we rethrow for consistency
-            throw err;
+            const [result]: any = await conn.execute(
+                `INSERT INTO system_logs (log_level, log_type, service_name, message, context, user_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [entry.level, entry.type, entry.service, entry.message, JSON.stringify(entry.context || {}), entry.userId || null]
+            );
+            return result.insertId;
         } finally {
-            if (conn) conn.release();
+            conn.release();
         }
     }
 
-    /**
-     * Update log with anomaly detection result
-     */
     private static async updateLogAnomaly(logId: number, anomaly: any): Promise<void> {
         const conn = await databasePool.getConnection();
         try {
-            await conn.execute(`
-                UPDATE system_logs 
-                SET 
-                    anomaly_detected = 1,
-                    anomaly_type = ?,
-                    anomaly_score = ?,
-                    ai_analysis = ?
-                WHERE id = ?
-            `, [
-                anomaly.type,
-                anomaly.score,
-                JSON.stringify(anomaly.analysis),
-                logId
-            ]);
+            await conn.execute(
+                `UPDATE system_logs SET anomaly_detected = 1, anomaly_type = ?, ai_analysis = ? WHERE id = ?`,
+                [anomaly.type, JSON.stringify(anomaly.analysis), logId]
+            );
         } finally {
             conn.release();
         }
     }
 
-    /**
-     * Log detected anomaly
-     */
-    private static async logAnomaly(entry: LogEntry, anomaly: any, logId: number): Promise<void> {
-        const anomalyEntry: LogEntry = {
-            level: 'warning',
-            type: 'system',
-            service: 'AIAnomalyDetection',
-            message: `Anomaly detected: ${anomaly.type} - ${entry.message}`,
-            context: {
-                originalLogId: logId,
-                anomalyScore: anomaly.score,
-                anomalyType: anomaly.type,
-                analysis: anomaly.analysis
-            },
-            requestId: entry.requestId,
-            isInternal: true // Mark as internal to prevent recursion
-        };
-
-        await this.log(anomalyEntry);
+    static async info(service: string, message: string, context?: any) {
+        await this.log({ level: 'info', type: 'system', service, message, context });
     }
 
-    /**
-     * Update statistics
-     */
-    private static async updateStatistics(entry: LogEntry): Promise<void> {
-        const conn = await databasePool.getConnection();
-        try {
-            const today = new Date().toISOString().split('T')[0];
-
-            await conn.execute(`
-                INSERT INTO log_statistics (stat_date, service_name, log_level, log_count, error_count)
-                VALUES (?, ?, ?, 1, ?)
-                ON DUPLICATE KEY UPDATE
-                    log_count = log_count + 1,
-                    error_count = error_count + ?,
-                    updated_at = NOW()
-            `, [
-                today,
-                entry.service,
-                entry.level,
-                (entry.level === 'error' || entry.level === 'critical') ? 1 : 0,
-                (entry.level === 'error' || entry.level === 'critical') ? 1 : 0
-            ]);
-        } catch (error) {
-            // Silent fail for statistics
-        } finally {
-            conn.release();
-        }
-    }
-
-    /**
-     * Convenience methods for different log levels
-     */
-    static async debug(type: LogType, service: string, message: string, context?: LogContext): Promise<void> {
-        await this.log({ level: 'debug', type, service, message, context });
-    }
-
-    static async info(type: LogType, service: string, message: string, context?: LogContext): Promise<void> {
-        await this.log({ level: 'info', type, service, message, context });
-    }
-
-    static async warning(type: LogType, service: string, message: string, context?: LogContext): Promise<void> {
-        await this.log({ level: 'warning', type, service, message, context });
-    }
-
-    static async error(type: LogType, service: string, message: string, error?: Error, context?: LogContext): Promise<void> {
-        await this.log({ level: 'error', type, service, message, error, context });
-    }
-
-    static async critical(type: LogType, service: string, message: string, error?: Error, context?: LogContext): Promise<void> {
-        await this.log({ level: 'critical', type, service, message, error, context });
-    }
-
-    /**
-     * Log billing-specific events
-     */
-    static async logBilling(level: LogLevel, service: string, message: string, customerId?: number, invoiceId?: number, context?: LogContext): Promise<void> {
-        await this.log({
-            level,
-            type: 'billing',
-            service,
-            message,
-            customerId,
-            invoiceId,
-            context
-        });
-    }
-
-    /**
-     * Log payment events
-     */
-    static async logPayment(level: LogLevel, service: string, message: string, customerId?: number, invoiceId?: number, context?: LogContext): Promise<void> {
-        await this.log({
-            level,
-            type: 'payment',
-            service,
-            message,
-            customerId,
-            invoiceId,
-            context
-        });
-    }
-
-    /**
-     * Generate unique request ID
-     */
-    private static generateRequestId(): string {
-        return `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    /**
-     * Get logs with filters
-     */
-    static async getLogs(filters: {
-        level?: LogLevel;
-        type?: LogType;
-        service?: string;
-        startDate?: Date;
-        endDate?: Date;
-        limit?: number;
-        offset?: number;
-        anomalyOnly?: boolean;
-    } = {}): Promise<any[]> {
-        const conn = await databasePool.getConnection();
-        try {
-            let query = 'SELECT * FROM system_logs WHERE 1=1';
-            const params: any[] = [];
-
-            if (filters.level) {
-                query += ' AND log_level = ?';
-                params.push(filters.level);
-            }
-
-            if (filters.type) {
-                query += ' AND log_type = ?';
-                params.push(filters.type);
-            }
-
-            if (filters.service) {
-                query += ' AND service_name = ?';
-                params.push(filters.service);
-            }
-
-            if (filters.startDate) {
-                query += ' AND created_at >= ?';
-                params.push(filters.startDate);
-            }
-
-            if (filters.endDate) {
-                query += ' AND created_at <= ?';
-                params.push(filters.endDate);
-            }
-
-            if (filters.anomalyOnly) {
-                query += ' AND anomaly_detected = 1';
-            }
-
-            query += ' ORDER BY created_at DESC';
-            query += ' LIMIT ? OFFSET ?';
-            params.push(filters.limit || 100, filters.offset || 0);
-
-            const [rows] = await conn.execute(query, params);
-            return rows as any[];
-        } finally {
-            conn.release();
-        }
-    }
-
-    /**
-     * Mark anomaly as resolved
-     */
-    static async resolveAnomaly(logId: number, userId: number, resolution?: string): Promise<void> {
-        const conn = await databasePool.getConnection();
-        try {
-            await conn.execute(`
-                UPDATE system_logs 
-                SET 
-                    resolved = 1,
-                    resolved_at = NOW(),
-                    resolved_by = ?,
-                    context = JSON_SET(COALESCE(context, '{}'), '$.resolution', ?)
-                WHERE id = ?
-            `, [userId, resolution || 'Resolved manually', logId]);
-        } finally {
-            conn.release();
-        }
+    static async error(service: string, message: string, error?: Error, context?: any) {
+        await this.log({ level: 'error', type: 'system', service, message, error, context });
     }
 }
-
-
-
