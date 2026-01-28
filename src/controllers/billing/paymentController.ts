@@ -861,18 +861,38 @@ export class PaymentController {
         try {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
-            const status = req.query.status as string || 'active';
-            const customer_id = req.query.customer_id as string || '';
+            let status = req.query.status as string || '';
+            const search = req.query.search as string || '';
+            const min_amount = parseFloat(req.query.min_amount as string) || 0;
+            const format = req.query.format as string || '';
 
             const offset = (page - 1) * limit;
 
             // Build query conditions
-            const whereConditions: string[] = ['dt.status = ?'];
-            const queryParams: any[] = [status];
+            const whereConditions: string[] = ['1=1'];
+            const queryParams: any[] = [];
 
-            if (customer_id) {
-                whereConditions.push('dt.customer_id = ?');
-                queryParams.push(customer_id);
+            // Map status: 'unpaid' from view -> 'active' in DB
+            if (status === 'unpaid') {
+                whereConditions.push('dt.status = ?');
+                queryParams.push('active');
+            } else if (status === 'resolved') {
+                whereConditions.push('dt.status = ?');
+                queryParams.push('resolved');
+            } else if (status === 'active') { // Just in case
+                whereConditions.push('dt.status = ?');
+                queryParams.push('active');
+            }
+
+            if (search) {
+                whereConditions.push('(c.name LIKE ? OR c.phone LIKE ? OR i.invoice_number LIKE ?)');
+                const searchPattern = `%${search}%`;
+                queryParams.push(searchPattern, searchPattern, searchPattern);
+            }
+
+            if (min_amount > 0) {
+                whereConditions.push('dt.debt_amount >= ?');
+                queryParams.push(min_amount);
             }
 
             const whereClause = 'WHERE ' + whereConditions.join(' AND ');
@@ -899,6 +919,8 @@ export class PaymentController {
             const countQuery = `
                 SELECT COUNT(*) AS total
                 FROM debt_tracking dt
+                LEFT JOIN customers c ON dt.customer_id = c.id
+                LEFT JOIN invoices i ON dt.invoice_id = i.id
                 ${whereClause}
             `;
 
@@ -907,39 +929,39 @@ export class PaymentController {
                 databasePool.query(countQuery, queryParams)
             ]);
 
-            const debts = debtsResult[0] as RowDataPacket[];
+            const debts = (debtsResult[0] as RowDataPacket[]).map(d => ({
+                ...d,
+                status: d.status === 'active' ? 'unpaid' : d.status
+            }));
             const totalCount = (countResult[0] as RowDataPacket[])[0]?.total ?? 0;
             const totalPages = Math.ceil(totalCount / limit);
 
-            // Get statistics
-            const statsQuery = `
+            // Get summary statistics
+            const summaryQuery = `
                 SELECT 
-                    COUNT(*) as total_debts,
-                    SUM(debt_amount) as total_debt_amount,
-                    COUNT(CASE WHEN status = 'active' THEN 1 END) as active_debts,
-                    COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved_debts
-                FROM debt_tracking
+                    SUM(CASE WHEN dt.status = 'active' THEN dt.debt_amount ELSE 0 END) as total_debt,
+                    COUNT(DISTINCT CASE WHEN dt.status = 'active' THEN dt.customer_id END) as customers_count,
+                    COUNT(CASE WHEN dt.status = 'active' AND DATEDIFF(CURRENT_DATE, dt.debt_date) > 30 THEN 1 END) as overdue_count,
+                    COUNT(CASE WHEN dt.status = 'resolved' AND MONTH(dt.resolved_at) = MONTH(CURRENT_DATE) THEN 1 END) as resolved_count
+                FROM debt_tracking dt
+                LEFT JOIN customers c ON dt.customer_id = c.id
+                LEFT JOIN invoices i ON dt.invoice_id = i.id
+                ${whereClause}
             `;
 
-            const [statsResult] = await databasePool.query(statsQuery);
-            const stats = (statsResult as RowDataPacket[])[0];
+            const [summaryResult] = await databasePool.query(summaryQuery, queryParams);
+            const summary = (summaryResult as RowDataPacket[])[0];
 
-            // Check if JSON format is requested
-            const format = req.query.format as string || '';
             if (format === 'json') {
                 res.json({
                     success: true,
                     debts,
-                    stats,
+                    summary,
                     pagination: {
                         currentPage: page,
                         totalPages,
                         totalCount,
                         limit
-                    },
-                    filters: {
-                        status,
-                        customer_id
                     }
                 });
                 return;
@@ -948,7 +970,7 @@ export class PaymentController {
             res.render('billing/debt-tracking', {
                 title: 'Pelacakan Hutang',
                 debts,
-                stats,
+                summary,
                 pagination: {
                     currentPage: page,
                     totalPages,
@@ -957,7 +979,8 @@ export class PaymentController {
                 },
                 filters: {
                     status,
-                    customer_id
+                    search,
+                    min_amount
                 }
             });
         } catch (error) {
