@@ -120,7 +120,7 @@ export class PaymentVerificationService {
                 const diff = Math.abs(transferAmount - remaining);
 
                 // Check if amount matches remaining or total
-                if (diff <= 1000) { // Allow 1000 rupiah tolerance
+                if (diff <= 2000) { // Allow 2000 rupiah tolerance
                     if (diff < minDiff) {
                         minDiff = diff;
                         bestMatch = invoice;
@@ -129,7 +129,7 @@ export class PaymentVerificationService {
                     // Check if matches total amount
                     const total = parseFloat(invoice.total_amount.toString());
                     const totalDiff = Math.abs(transferAmount - total);
-                    if (totalDiff <= 1000 && totalDiff < minDiff) {
+                    if (totalDiff <= 2000 && totalDiff < minDiff) {
                         minDiff = totalDiff;
                         bestMatch = invoice;
                     }

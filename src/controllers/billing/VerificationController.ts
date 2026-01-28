@@ -279,12 +279,12 @@ export class VerificationController {
 
             const newPaid = currentPaid + paymentAmount;
             const newRemaining = Math.max(0, totalAmount - newPaid);
-            const isFullPayment = newRemaining <= 100; // Tolerance for rounding
+            const isFullPayment = newRemaining <= 2000; // Tolerance for rounding/small diff
             const newStatus = isFullPayment ? 'paid' : 'partial';
 
             // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
             if (excessAmount > 0 && invoice.billing_mode !== 'postpaid') {
-                await connection.query('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
+                await connection.query('UPDATE customers SET balance = COALESCE(balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
 
                 await connection.query(`
                     INSERT INTO customer_balance_logs (

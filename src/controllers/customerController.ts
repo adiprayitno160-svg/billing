@@ -1069,12 +1069,15 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             console.log(`[Edit Customer] ✅ Subscription updated to package: ${pkg?.name}`);
                         } else {
                             // Create new subscription
+                            // For PPPoE activation flow: If customer is inactive, create subscription as inactive
+                            const targetSubStatus = (newStatus || oldCustomer.status) === 'inactive' ? 'inactive' : 'active';
+
                             await conn.query(
                                 `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)
-                                 VALUES (?, ?, ?, ?, 'active', NOW(), NOW(), NOW())`,
-                                [customerId, pkg?.id, pkg?.name, pkg?.price]
+                                 VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW())`,
+                                [customerId, pkg?.id, pkg?.name, pkg?.price, targetSubStatus]
                             );
-                            console.log(`[Edit Customer] ✅ New subscription created with package: ${pkg?.name}`);
+                            console.log(`[Edit Customer] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus})`);
                         }
                     } else {
                         console.log(`[Edit Customer] ⚠️ Package ID ${packageId} not found in pppoe_packages`);

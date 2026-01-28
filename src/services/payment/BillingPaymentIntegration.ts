@@ -119,7 +119,7 @@ export class BillingPaymentIntegration {
 
       // Ambil data transaksi, invoice, dan customer billing mode
       const [transactionRows] = await connection.execute(
-        `SELECT pt.*, i.id as invoice_id, i.customer_id, i.total_amount, i.paid_amount, i.remaining_amount, i.invoice_number,
+        `SELECT pt.*, i.id as invoice_id, i.customer_id, i.subscription_id, i.total_amount, i.paid_amount, i.remaining_amount, i.invoice_number,
                 c.billing_mode, c.name as customer_name
          FROM payment_transactions pt
          JOIN invoices i ON pt.invoice_id = i.id
@@ -162,7 +162,7 @@ export class BillingPaymentIntegration {
 
       // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
       if (excessAmount > 0 && transaction.billing_mode !== 'postpaid') {
-        await connection.execute('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, transaction.customer_id]);
+        await connection.execute('UPDATE customers SET balance = COALESCE(balance, 0) + ? WHERE id = ?', [excessAmount, transaction.customer_id]);
         await connection.execute(`
             INSERT INTO customer_balance_logs (
                 customer_id, type, amount, description, reference_id, created_at
@@ -183,11 +183,22 @@ export class BillingPaymentIntegration {
       );
       const paymentId = (paymentResult as any).insertId;
 
-      // Update customer status jika ada
+      // Update customer status and activate PPPoE if applicable
       await connection.execute(
         'UPDATE customers SET is_isolated = FALSE WHERE id = ?',
         [transaction.customer_id]
       );
+
+      // Automatic PPPoE Activation if invoice is paid and has subscription_id
+      if (newStatus === 'paid' && transaction.subscription_id) {
+        try {
+          const { pppoeActivationService } = await import('../pppoe/pppoeActivationService');
+          await pppoeActivationService.activateSubscription(transaction.subscription_id, 0); // 0 or system user
+          console.log(`[BillingPaymentIntegration] ✅ PPPoE subscription ${transaction.subscription_id} activated automatically`);
+        } catch (pppoeError) {
+          console.error('[BillingPaymentIntegration] ❌ Error in automatic PPPoE activation:', pppoeError);
+        }
+      }
 
       // Log payment success
       await connection.execute(

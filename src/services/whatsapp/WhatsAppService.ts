@@ -659,25 +659,39 @@ export class WhatsAppService extends EventEmitter {
       processed++;
 
       try {
+        if (!this.sock || !this.isConnected) {
+          this.messageQueue.unshift(item); // Put back
+          break;
+        }
+
         this.log('info', `📨 Processing message ${processed}/${processed + this.messageQueue.length} (${item.id}) to ${item.to}`);
 
         // Only check registration if it's the first attempt and NOT a group/LID
         if (item.retries === 0 && !item.to.includes('@g.us') && !item.to.includes('@lid')) {
-          // Optional: Skip if already known valid customers to speed up
-          // For now, keep it but add a fast timeout
-          const exists = await Promise.race([
-            this.isRegistered(item.to),
-            new Promise<boolean>(resolve => setTimeout(() => resolve(true), 3000)) // 3s timeout
-          ]);
+          // Check if number is valid - some numbers might be slow to check
+          try {
+            const exists = await Promise.race([
+              this.isRegistered(item.to),
+              new Promise<boolean>(resolve => setTimeout(() => resolve(true), 2000))
+            ]);
 
-          if (!exists) {
-            this.log('warn', `🚫 Number ${item.to} is NOT registered. Skipping.`);
-            item.resolve({ success: false, error: 'Nomor tidak terdaftar di WhatsApp' });
-            continue;
+            if (!exists) {
+              this.log('warn', `⚠️ Number ${item.to} is NOT registered on WhatsApp. Skipping.`);
+              item.resolve({ success: false, error: 'Nomor tidak terdaftar di WhatsApp' });
+              continue;
+            }
+          } catch (e) {
+            this.log('debug', `Registration check error for ${item.to}, proceeding anyway`);
           }
         }
 
-        const result = await this.sendMessageDirect(item.to, item.content, item.options);
+        // Add a safety timeout for the actual sending
+        const result = await Promise.race([
+          this.sendMessageDirect(item.to, item.content, item.options),
+          new Promise<MessageResult>((_, reject) =>
+            setTimeout(() => reject(new Error('Kirim pesan timeout (30 detik)')), 30000)
+          )
+        ]);
 
         if (result.success) {
           this.log('info', `✅ Message sent successfully to ${item.to} (ID: ${result.messageId})`);
@@ -687,17 +701,23 @@ export class WhatsAppService extends EventEmitter {
         }
 
       } catch (error: any) {
+        const errorMessage = error.message || 'Unknown error';
+
+        // If connection error, put back and wait
+        if (errorMessage.includes('not connected') || errorMessage.includes('socket') || !this.isConnected) {
+          this.log('warn', `🔌 Connection error during send, re-queueing ${item.id}`);
+          this.messageQueue.unshift(item); // Put back at front
+          break; // Stop processing for now
+        }
+
         item.retries++;
-        const errorMessage = error.message || error;
         this.log('warn', `⚠️ Message ${item.id} to ${item.to} failed. Attempt ${item.retries}/${item.maxRetries}. Error: ${errorMessage}`);
 
         if (item.retries < item.maxRetries) {
-          // Re-queue for retry (put in the end)
           this.messageQueue.push(item);
-          // Wait longer before next attempt if it's a connection issue
           await new Promise(resolve => setTimeout(resolve, 5000));
         } else {
-          item.resolve({ success: false, error: `Gagal mengirim setelah ${item.maxRetries} kali: ${errorMessage}` });
+          item.resolve({ success: false, error: `Gagal mengirim: ${errorMessage}` });
           this.log('error', `❌ Message ${item.id} permanently failed: ${errorMessage}`);
         }
       }

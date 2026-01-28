@@ -457,15 +457,14 @@ export class UnifiedNotificationService {
             // Verify file exists
             const fs = await import('fs');
             if (fs.existsSync(notification.attachment_path)) {
-              console.log(`[UnifiedNotification] 📄 Sending PDF attachment: ${notification.attachment_path}`);
-              // Send text confirmation first
-              await waClient.sendMessage(recipient, fullMessage);
-              // Send document as follow-up
+              console.log(`[UnifiedNotification] 📄 Sending PDF attachment with caption: ${notification.attachment_path}`);
+
+              // Send document with the full message as caption
               whatsappResult = await waClient.sendDocument(
                 recipient,
                 notification.attachment_path,
                 `Invois-${notification.invoice_id || 'Tagihan'}.pdf`,
-                'Invois Pembayaran (PDF)'
+                fullMessage // Use the full message as caption
               );
             } else {
               console.warn(`[UnifiedNotification] ⚠️ Attachment path provided but file not found: ${notification.attachment_path}. Sending text only.`);
@@ -581,12 +580,29 @@ export class UnifiedNotificationService {
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
           bank_account_name: bank.accountName,
-          bank_list: bank.bankListText
+          bank_list: bank.bankListText,
+          notes: invoice.notes || ''
         },
+        attachment_path: await this.generateInvoicePdf(invoiceId),
         send_immediately: sendImmediately
       });
     } finally {
       connection.release();
+    }
+  }
+
+  /**
+   * Helper to generate invoice PDF
+   */
+  private static async generateInvoicePdf(invoiceId: number): Promise<string | undefined> {
+    try {
+      const { InvoicePdfService } = await import('../invoice/InvoicePdfService');
+      const attachmentPath = await InvoicePdfService.generateInvoicePdf(invoiceId);
+      console.log(`[UnifiedNotification] 📄 Generated PDF for invoice ${invoiceId}: ${attachmentPath}`);
+      return attachmentPath;
+    } catch (pdfError) {
+      console.error(`[UnifiedNotification] ❌ Failed to generate PDF for invoice:`, pdfError);
+      return undefined;
     }
   }
 
@@ -628,7 +644,8 @@ export class UnifiedNotificationService {
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
           bank_account_name: bank.accountName,
-          bank_list: bank.bankListText
+          bank_list: bank.bankListText,
+          notes: invoice.notes || ''
         }
       });
     } finally {
@@ -669,7 +686,8 @@ export class UnifiedNotificationService {
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
           bank_account_name: bank.accountName,
-          bank_list: bank.bankListText
+          bank_list: bank.bankListText,
+          notes: invoice.notes || ''
         }
       });
     } finally {
@@ -745,7 +763,7 @@ export class UnifiedNotificationService {
       const { getBillingMonth } = await import('../../utils/periodHelper');
 
       const [paymentRows] = await connection.query<RowDataPacket[]>(
-        `SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount, i.period, i.due_date,
+        `SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount, i.period, i.due_date, i.notes as invoice_notes,
                 c.name as customer_name, c.customer_code
          FROM payments p
          JOIN invoices i ON p.invoice_id = i.id
@@ -798,7 +816,9 @@ export class UnifiedNotificationService {
           payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
           payment_date: NotificationTemplateService.formatDate(paymentDate),
           due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
-          notes: payment.notes || ''
+          payment_notes: payment.notes || '',
+          invoice_notes: payment.invoice_notes || '',
+          notes: (payment.notes ? `Pesan: ${payment.notes}` : '') + (payment.notes && payment.invoice_notes ? '\n' : '') + (payment.invoice_notes ? `Keterangan: ${payment.invoice_notes}` : '')
         },
         send_immediately: sendImmediately // Urgent: Payment receipt
       });

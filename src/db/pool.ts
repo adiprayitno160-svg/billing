@@ -889,6 +889,36 @@ export async function ensureInitialSchema(): Promise<void> {
 			CONSTRAINT fk_customer_wa_lid FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
+		// Create manual_payment_verifications table
+		await conn.query(`CREATE TABLE IF NOT EXISTS manual_payment_verifications (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+			image_data LONGTEXT,
+			image_mimetype VARCHAR(50),
+			extracted_amount DECIMAL(15, 2),
+			expected_amount DECIMAL(15, 2),
+			reason TEXT,
+            notes TEXT,
+            invoice_id INT,
+            verified_by INT,
+            verified_at DATETIME,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer (customer_id),
+			INDEX idx_status (status),
+            INDEX idx_verified_by (verified_by),
+            CONSTRAINT fk_mpv_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Ensure manual_payment_verifications has new columns (if table existed before)
+		try {
+			await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN verified_by INT NULL`);
+			await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN verified_at DATETIME NULL`);
+			await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN invoice_id INT NULL`);
+			await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN notes TEXT NULL`);
+		} catch (e) { /* Ignore if exists */ }
+
 		// Add last_online and is_online to customers if not exists
 		await addCol(`ALTER TABLE customers ADD COLUMN last_online TIMESTAMP NULL AFTER status`);
 		await addCol(`ALTER TABLE customers ADD COLUMN is_online BOOLEAN DEFAULT TRUE AFTER last_online`);

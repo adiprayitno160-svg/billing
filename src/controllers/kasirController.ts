@@ -1020,7 +1020,7 @@ export class KasirController {
 
             // Get customer info
             const [customerRows] = await conn.query<RowDataPacket[]>(
-                'SELECT id, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, account_balance as balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
+                'SELECT id, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -1060,7 +1060,7 @@ export class KasirController {
 
                 // Deduct from customer balance
                 await conn.query(
-                    'UPDATE customers SET account_balance = account_balance - ? WHERE id = ?',
+                    'UPDATE customers SET balance = balance - ? WHERE id = ?',
                     [amountFromBalance, customerId]
                 );
 
@@ -1144,12 +1144,24 @@ export class KasirController {
                 WHERE id = ?
             `, [newPaidAmount, newRemainingAmount, newStatus, newStatus, invoice.id]);
 
-            // If invoice is paid, remove isolation
+            // If invoice is paid, remove isolation and activate PPPoE if applicable
             if (newStatus === 'paid') {
                 await conn.query(
                     'UPDATE customers SET is_isolated = FALSE WHERE id = ?',
                     [customerId]
                 );
+
+                // Automatic PPPoE Activation if subscription_id exists
+                if (invoice.subscription_id) {
+                    try {
+                        const { pppoeActivationService } = await import('../services/pppoe/pppoeActivationService');
+                        await pppoeActivationService.activateSubscription(invoice.subscription_id, kasirId);
+                        console.log(`[KasirController] ✅ PPPoE subscription ${invoice.subscription_id} activated automatically`);
+                    } catch (pppoeError) {
+                        console.error('[KasirController] ❌ Error in automatic PPPoE activation:', pppoeError);
+                        // Non-critical, payment already success
+                    }
+                }
             }
 
             await conn.commit();

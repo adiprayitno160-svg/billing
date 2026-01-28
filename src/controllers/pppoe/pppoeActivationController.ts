@@ -29,10 +29,18 @@ export class PPPoEActivationController {
                     c.pppoe_password,
                     pp.max_limit_upload,
                     pp.max_limit_download,
-                    pp.duration_days
+                    pp.duration_days,
+                    i.id as unpaid_invoice_id,
+                    i.invoice_number as unpaid_invoice_number,
+                    i.total_amount as unpaid_invoice_total
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 JOIN pppoe_packages pp ON s.package_id = pp.id
+                LEFT JOIN invoices i ON i.id = (
+                    SELECT id FROM invoices 
+                    WHERE subscription_id = s.id AND status != 'paid' 
+                    ORDER BY id DESC LIMIT 1
+                )
                 WHERE s.status = 'inactive'
                 AND c.connection_type = 'pppoe'
             `;
@@ -185,6 +193,49 @@ export class PPPoEActivationController {
     }
 
     /**
+     * Send activation invoice to customer
+     */
+    async sendActivationInvoice(req: Request, res: Response): Promise<void> {
+        try {
+            const { subscriptionId } = req.params;
+            const userId = (req as any).user?.id;
+
+            if (!userId) {
+                res.status(401).json({
+                    success: false,
+                    message: 'User tidak terautentikasi'
+                });
+                return;
+            }
+
+            const result = await pppoeActivationService.sendActivationInvoice(
+                Number(subscriptionId),
+                userId
+            );
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: result.message,
+                    invoiceId: result.invoiceId
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    message: result.message
+                });
+            }
+
+        } catch (error) {
+            console.error('Error sending activation invoice:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Terjadi kesalahan server'
+            });
+        }
+    }
+
+    /**
      * Get activation logs for a customer
      */
     async getActivationLogs(req: Request, res: Response): Promise<void> {
@@ -267,26 +318,6 @@ export class PPPoEActivationController {
         }
     }
 
-    /**
-     * Run auto-blocking process manually
-     */
-    async runAutoBlocking(req: Request, res: Response): Promise<void> {
-        try {
-            await pppoeActivationService.processAutoBlocking();
-
-            res.json({
-                success: true,
-                message: 'Proses auto-blocking selesai'
-            });
-
-        } catch (error) {
-            console.error('Error running auto-blocking:', error);
-            res.status(500).json({
-                success: false,
-                message: error instanceof Error ? error.message : 'Terjadi kesalahan server'
-            });
-        }
-    }
 
     /**
      * Get all subscriptions with filtering and pagination
@@ -376,6 +407,28 @@ export class PPPoEActivationController {
             res.status(500).json({
                 success: false,
                 message: error instanceof Error ? error.message : 'Terjadi kesalahan server'
+            });
+        }
+    }
+
+    /**
+     * Run the auto-blocking process manually
+     */
+    async runAutoBlocking(req: Request, res: Response): Promise<void> {
+        try {
+            console.log('[PPPoEActivationController] Manually triggering auto-blocking process');
+            const result = await pppoeActivationService.processAutoBlocking();
+
+            res.json({
+                success: true,
+                message: 'Proses pemblokiran otomatis berhasil dijalankan',
+                result
+            });
+        } catch (error) {
+            console.error('Error running manual auto-blocking:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Terjadi kesalahan saat menjalankan pemblokiran otomatis'
             });
         }
     }

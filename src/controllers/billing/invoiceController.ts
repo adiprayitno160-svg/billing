@@ -1326,7 +1326,7 @@ Terima kasih telah berlangganan! 🙏`;
     async sendPaidInvoicePdf(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-            
+
             // Get invoice data
             const [rows] = await databasePool.query<RowDataPacket[]>(`
                 SELECT i.*, c.name as customer_name, c.phone as customer_phone
@@ -1341,12 +1341,12 @@ Terima kasih telah berlangganan! 🙏`;
             }
 
             const invoice = rows[0];
-            
+
             // Verify that invoice is paid
             if (invoice.status !== 'paid') {
-                res.status(400).json({ 
-                    success: false, 
-                    message: 'Invoice belum lunas, tidak bisa kirim PDF lunas' 
+                res.status(400).json({
+                    success: false,
+                    message: 'Invoice belum lunas, tidak bisa kirim PDF lunas'
                 });
                 return;
             }
@@ -1358,7 +1358,7 @@ Terima kasih telah berlangganan! 🙏`;
             // Send PDF via WhatsApp if customer has phone
             if (invoice.customer_phone) {
                 const { whatsappService } = await import('../../services/whatsapp/WhatsAppService');
-                
+
                 const amount = new Intl.NumberFormat('id-ID').format(parseFloat(invoice.total_amount));
                 const caption = `✅ *PEMBAYARAN LUNAS*
 
@@ -1367,24 +1367,24 @@ Terima kasih, pembayaran tagihan *${invoice.invoice_number}* telah berhasil kami
 
 Nominal: *Rp ${amount}*
 Periode: *${invoice.period}*
-Jatuh Tempo: *${new Date(invoice.due_date).toLocaleDateString('id-ID')}*
+Jatuh Tempo: *${new Date(invoice.due_date).toLocaleDateString('id-ID')}*${invoice.notes ? `\n\n📝 *Catatan:* ${invoice.notes}` : ''}
 
 Berikut terlampir e-invoice (Lunas) sebagai bukti pembayaran yang sah.
 
 Terima kasih telah berlangganan! 🙏`;
 
                 await whatsappService.sendDocument(
-                    invoice.customer_phone, 
-                    pdfPath, 
-                    `Invoice-${invoice.invoice_number}-LUNAS.pdf`, 
+                    invoice.customer_phone,
+                    pdfPath,
+                    `Invoice-${invoice.invoice_number}-LUNAS.pdf`,
                     caption
                 );
-                
+
                 console.log(`[Invoice] Paid PDF manually sent to ${invoice.customer_name} (${invoice.customer_phone})`);
             }
 
-            res.json({ 
-                success: true, 
+            res.json({
+                success: true,
                 message: 'PDF invoice lunas berhasil dikirim',
                 pdf_path: pdfPath
             });
@@ -1411,21 +1411,50 @@ Terima kasih telah berlangganan! 🙏`;
 
             const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
 
-            let queuedCount = 0;
-            for (const id of invoice_ids) {
-                try {
-                    await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id));
+            // Fetch invoice statuses to filter
+            const [rows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, status FROM invoices WHERE id IN (?)',
+                [invoice_ids]
+            );
 
-                    // Update draft to sent
-                    await databasePool.execute('UPDATE invoices SET status = "sent" WHERE id = ? AND status = "draft"', [id]);
+            // Filter out 'draft' and 'cancelled' per user policy for bulk sending
+            // The user specifically asked for 'status terkirim saja' (only sent status)
+            const validInvoices = rows.filter(r =>
+                r.status === 'sent' || r.status === 'partial' || r.status === 'overdue'
+            );
 
-                    queuedCount++;
-                } catch (e) {
-                    console.error(`Failed to queue bulk WA for invoice ${id}:`, e);
-                }
+            if (validInvoices.length === 0) {
+                res.json({
+                    success: true,
+                    message: `Tidak ada tagihan yang siap dikirim (Draft/Dibatalkan dilewati).`
+                });
+                return;
             }
 
-            res.json({ success: true, message: `${queuedCount} tagihan telah dijadwalkan untuk dikirim via WhatsApp` });
+            console.log(`[BulkSend] 🚀 Processing ${validInvoices.length} invoices...`);
+
+            let queuedCount = 0;
+            // Use concurrent processing with a limit or just map to promises
+            // To prevent blocking the main thread for too long, we trigger them
+            const promises = validInvoices.map(invoice =>
+                UnifiedNotificationService.notifyInvoiceCreated(invoice.id)
+                    .then(() => {
+                        queuedCount++;
+                        // If it was draft (not possible with filter above, but good for safety), update it
+                        if (invoice.status === 'draft') {
+                            databasePool.execute('UPDATE invoices SET status = "sent" WHERE id = ?', [invoice.id]);
+                        }
+                    })
+                    .catch(e => console.error(`Failed to queue bulk WA for invoice ${invoice.id}:`, e))
+            );
+
+            // Wait for all queueings to finish (not the actual sending, just the queueing)
+            await Promise.all(promises);
+
+            res.json({
+                success: true,
+                message: `${queuedCount} tagihan telah dijadwalkan untuk dikirim via WhatsApp.`
+            });
         } catch (error: any) {
             console.error('Error bulk sending WhatsApp:', error);
             res.status(500).json({ success: false, message: error.message });

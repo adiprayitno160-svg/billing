@@ -91,6 +91,41 @@ export class PPPoEActivationService {
                 throw new Error('Hanya paket PPPoE yang bisa diaktifkan');
             }
 
+            // --- 0. Mark Invoice as PAID (Consolidated logic for prepaid flow) ---
+            // Check for unpaid invoices for this subscription
+            const [unpaidInvoices] = await connection.execute(
+                'SELECT id, total_amount, invoice_number FROM invoices WHERE subscription_id = ? AND status != "paid"',
+                [subscriptionId]
+            );
+
+            for (const inv of unpaidInvoices as any[]) {
+                // Get current date for payment_date
+                const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+                // Record payment
+                const [payResult] = await connection.execute(
+                    `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_by, created_at)
+                     VALUES (?, 'cash', ?, NOW(), 'Aktivasi Layanan', ?, NOW())`,
+                    [inv.id, inv.total_amount, userId]
+                );
+
+                // Update invoice
+                await connection.execute(
+                    `UPDATE invoices SET status = 'paid', paid_amount = total_amount, remaining_amount = 0, 
+                     last_payment_date = NOW(), updated_at = NOW() WHERE id = ?`,
+                    [inv.id]
+                );
+
+                console.log(`[PPPoEActivationService] Invoice ${inv.invoice_number} automatically marked as PAID during activation.`);
+
+                // Trigger notification (PDF Receipt)
+                try {
+                    await UnifiedNotificationService.notifyPaymentReceived((payResult as any).insertId, true);
+                } catch (notifErr) {
+                    console.error('[PPPoEActivationService] Error sending paid notification:', notifErr);
+                }
+            }
+
             // Generate PPPoE credentials if not exists
             let pppoeUsername = subscription.pppoe_username;
             let pppoePassword = subscription.pppoe_password;
@@ -149,7 +184,7 @@ export class PPPoEActivationService {
 
             await connection.commit();
 
-            // Send notification to customer
+            // Send notification to customer (Account creation info)
             await UnifiedNotificationService.queueNotification({
                 customer_id: subscription.customer_id,
                 notification_type: 'service_unblocked',
@@ -162,7 +197,8 @@ export class PPPoEActivationService {
                     pppoe_username: pppoeUsername,
                     pppoe_password: pppoePassword
                 },
-                channels: ['whatsapp']
+                channels: ['whatsapp'],
+                send_immediately: true
             });
 
             return {
@@ -176,6 +212,84 @@ export class PPPoEActivationService {
             return {
                 success: false,
                 message: error instanceof Error ? error.message : 'Gagal mengaktifkan subscription'
+            };
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Send activation invoice
+     */
+    async sendActivationInvoice(subscriptionId: number, userId: number): Promise<{ success: boolean; message: string; invoiceId?: number }> {
+        const connection = await databasePool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Get subscription and customer info
+            const [rows] = await connection.execute(
+                `SELECT s.*, c.name as customer_name, c.phone, c.customer_code, 
+                        pp.name as package_name, pp.price as package_price
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 JOIN pppoe_packages pp ON s.package_id = pp.id
+                 WHERE s.id = ?`,
+                [subscriptionId]
+            );
+
+            const subscription: any = (rows as any[])[0];
+            if (!subscription) throw new Error('Subscription tidak ditemukan');
+
+            // 1. Check if unpaid invoice already exists
+            const [existing] = await connection.execute(
+                'SELECT id FROM invoices WHERE subscription_id = ? AND status != "paid" LIMIT 1',
+                [subscriptionId]
+            );
+
+            let invoiceId: number;
+
+            if ((existing as any[]).length > 0) {
+                invoiceId = (existing as any[])[0].id;
+                console.log(`[PPPoEActivationService] Unpaid invoice already exists for sub ${subscriptionId}: ${invoiceId}`);
+            } else {
+                // 2. Create new invoice via InvoiceService
+                const { InvoiceService } = await import('../billing/invoiceService');
+                const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+                invoiceId = await InvoiceService.createInvoice({
+                    customer_id: subscription.customer_id,
+                    subscription_id: subscriptionId,
+                    period: period,
+                    due_date: new Date().toISOString().split('T')[0],
+                    subtotal: subscription.package_price,
+                    total_amount: subscription.package_price,
+                    notes: 'Tagihan Aktivasi Perdana',
+                    status: 'sent'
+                }, [{
+                    description: `Aktivasi Paket ${subscription.package_name}`,
+                    quantity: 1,
+                    unit_price: subscription.package_price,
+                    total_price: subscription.package_price
+                }]);
+            }
+
+            await connection.commit();
+
+            // 3. Trigger WhatsApp notification (which will include PDF link if configured)
+            await UnifiedNotificationService.notifyInvoiceCreated(invoiceId, true);
+
+            return {
+                success: true,
+                message: 'Tagihan aktivasi berhasil dikirim via WhatsApp',
+                invoiceId
+            };
+
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error sending activation invoice:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Gagal mengirim tagihan'
             };
         } finally {
             connection.release();

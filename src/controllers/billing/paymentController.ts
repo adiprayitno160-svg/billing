@@ -611,7 +611,7 @@ export class PaymentController {
 
             // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
             if (excessAmount > 0 && invoice.billing_mode !== 'postpaid') {
-                await conn.execute('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
+                await conn.execute('UPDATE customers SET balance = COALESCE(balance, 0) + ? WHERE id = ?', [excessAmount, invoice.customer_id]);
 
                 await conn.execute(`
                     INSERT INTO customer_balance_logs (

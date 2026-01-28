@@ -449,8 +449,8 @@ PENTING:
                 const diff = Math.abs(extractedAmount - remaining);
                 const totalDiff = Math.abs(extractedAmount - total);
 
-                // Exact match (within 500 rupiah)
-                if (diff <= 500) {
+                // Exact match or very close (within 2000 rupiah - tolerance for admin fees/random numbers)
+                if (diff <= 2000) {
                     bestMatch = invoice;
                     matchType = 'exact';
                     matchConfidence = 100;
@@ -468,7 +468,7 @@ PENTING:
                 }
 
                 // Check total amount match (for full payment after partial)
-                if (totalDiff <= 500) {
+                if (totalDiff <= 2000) {
                     if (!bestMatch || matchConfidence < 85) {
                         bestMatch = invoice;
                         matchType = 'close';

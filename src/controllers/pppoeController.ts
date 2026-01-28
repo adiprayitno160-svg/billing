@@ -93,9 +93,39 @@ export async function postPackageCreate(req: Request, res: Response, next: NextF
 		if (!price || Number(price) < 0) throw new Error('Harga harus lebih dari 0');
 		// Durasi tidak wajib untuk postpaid - default 30 untuk backward compatibility
 
+		let finalProfileId = profile_id ? Number(profile_id) : undefined;
+
+		// Handle Auto-Create Profile
+		if (req.body.create_new_profile === 'on' || req.body.create_new_profile === '1') {
+			const { new_profile_remote_pool, new_profile_local_addr, new_profile_dns } = req.body;
+
+			if (!new_profile_remote_pool) throw new Error('Remote Address Pool wajib diisi untuk membuat profil baru');
+
+			// Create Profile using Package Name
+			// Use provided rate limits for the profile as well
+			finalProfileId = await createProfile({
+				name: name, // Profile name matches Package name
+				remote_address_pool: new_profile_remote_pool,
+				local_address: new_profile_local_addr || undefined,
+				dns_server: new_profile_dns || undefined,
+				rate_limit_rx: rate_limit_rx || '0',
+				rate_limit_tx: rate_limit_tx || '0',
+				// We don't set burst limits on the profile initially directly from package form to keep it simple, 
+				// or we could map them. Let's map them for completeness if provided.
+				burst_limit_rx: burst_limit_rx || undefined,
+				burst_limit_tx: burst_limit_tx || undefined,
+				burst_threshold_rx: burst_threshold_rx || undefined,
+				burst_threshold_tx: burst_threshold_tx || undefined,
+				burst_time_rx: burst_time_rx || undefined,
+				burst_time_tx: burst_time_tx || undefined,
+				comment: `[BILLING] Auto-created for package ${name}`
+			});
+			console.log(`✅ Auto-created new profile: ${name} (ID: ${finalProfileId})`);
+		}
+
 		await createPackage({
 			name,
-			profile_id: profile_id ? Number(profile_id) : undefined,
+			profile_id: finalProfileId,
 			price: Number(price),
 			duration_days: duration_days ? Number(duration_days) : 30, // Default 30 untuk backward compatibility
 			auto_activation: auto_activation === '1' || auto_activation === 'on' ? 1 : 0,

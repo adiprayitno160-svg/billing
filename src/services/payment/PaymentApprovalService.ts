@@ -285,7 +285,8 @@ export class PaymentApprovalService {
         verificationId: number,
         invoiceId: number,
         amount: number,
-        customerId: number
+        customerId: number,
+        userId: number | null = null
     ): Promise<void> {
         const connection = await databasePool.getConnection();
         try {
@@ -344,7 +345,7 @@ export class PaymentApprovalService {
                 SET paid_amount = paid_amount + ?,
                     remaining_amount = GREATEST(0, CAST(remaining_amount AS SIGNED) - ?),
                     status = CASE 
-                        WHEN remaining_amount - ? <= 100 THEN 'paid'
+                        WHEN remaining_amount - ? <= 2000 THEN 'paid'
                         ELSE 'partial'
                     END
                 WHERE id = ?
@@ -355,9 +356,10 @@ export class PaymentApprovalService {
                 await connection.execute(`
                     UPDATE payment_verifications
                     SET status = 'approved',
-                        verified_at = NOW()
+                        verified_at = NOW(),
+                        verified_by = ?
                     WHERE id = ?
-                `, [verificationId]);
+                `, [userId, verificationId]);
             } catch (e) {
                 // Table might not exist, continue
                 console.warn('Could not update payment_verifications:', e);

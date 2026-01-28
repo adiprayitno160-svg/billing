@@ -28,13 +28,16 @@ KONTEKS:
 - Fraudster sering mengedit bukti transfer menggunakan Photoshop/Canva.
 - User menuntut "Zero Tolerance" terhadap manipulasi.
 
-DATA REFERENSI (WAJIB COCOK):
-${expectedAmount ? `- NOMINAL HARUS TEPAT: Rp ${expectedAmount.toLocaleString('id-ID')}` : '- Nominal: Ekstrak dari gambar'}
+- DATA REFERENSI (WAJIB COCOK):
+${expectedAmount ? `- NOMINAL TARGET: Rp ${expectedAmount.toLocaleString('id-ID')} (Toleransi selisih Rp 0 - 2000 adalah WAJAR dan BOLEH diloloskan jika data lain identik)` : '- Nominal: Ekstrak dari gambar'}
 ${expectedBank ? `- BANK TUJUAN: ${expectedBank}` : '- Bank: Ekstrak dari gambar'}
 ${invoiceNumber ? `- BERITA/CATATAN: ${invoiceNumber}` : ''}
 ${expectedRecipientName ? `- NAMA PENERIMA HARUS MATCH: "${expectedRecipientName}" (atau variasi logisnya)` : ''}
 ${customerName ? `- IDENTITAS PENGIRIM: Seharusnya terkait dengan "${customerName}"` : ''}
 - TIPE LAYANAN: ${isPrepaid ? 'PREPAID (Sangat Kritis Waktu)' : 'POSTPAID'}
+
+KONSEP TOLERANSI (PENTING):
+- Admin Fee/Selisih: Jika nominal pada bukti berbeda hingga Rp 2.000 (lebih atau kurang) dari target, tetap anggap VALID ("amountMatches": true) selama korelasi Nama Pengirim, Waktu, Tanggal, dan Nama Penerima adalah SAMA dan IDENTIK.
 
 TUGAS FORENSIK DIGITAL:
 

@@ -14,6 +14,7 @@ router.get('/', (req, res) => {
 router.get('/inactive-subscriptions', pppoeActivationController.getInactiveSubscriptions);
 router.get('/subscriptions/:subscriptionId', pppoeActivationController.getSubscriptionDetails);
 router.post('/subscriptions/:subscriptionId/activate', pppoeActivationController.activateSubscription);
+router.post('/subscriptions/:subscriptionId/send-invoice', pppoeActivationController.sendActivationInvoice);
 router.post('/subscriptions/:subscriptionId/deactivate', pppoeActivationController.deactivateSubscription);
 router.get('/customers/:customerId/logs', pppoeActivationController.getActivationLogs);
 router.post('/auto-blocking', pppoeActivationController.runAutoBlocking);

@@ -35,25 +35,69 @@
                             <label class="block text-sm font-medium text-slate-700 mb-2">
                                 Profil PPPoE
                             </label>
-                            <select id="profile_id" name="profile_id"
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                onchange="loadProfileRateLimits(this.value)">
-                                <option value="">Pilih Profil (Opsional)</option>
-                                <% (profiles || []).forEach(function(profile){ %>
-                                    <option value="<%= profile.id %>" data-rate-rx="<%= profile.rate_limit_rx || '' %>"
-                                        data-rate-tx="<%= profile.rate_limit_tx || '' %>"
-                                        data-burst-rx="<%= profile.burst_limit_rx || '' %>"
-                                        data-burst-tx="<%= profile.burst_limit_tx || '' %>"
-                                        data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
-                                        data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
-                                        data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
-                                        data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
-                                        <%= profile.name %>
-                                    </option>
-                                    <% }) %>
-                            </select>
-                            <p class="text-xs text-slate-500 mt-1">💡 Rate limiting akan otomatis terisi dari profil
-                                MikroTik</p>
+
+                            <!-- Toggle Create New Profile -->
+                            <div class="flex items-center space-x-2 mb-3">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="create_new_profile" name="create_new_profile"
+                                        class="sr-only peer" onchange="toggleProfileMode()">
+                                    <div
+                                        class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                    </div>
+                                </label>
+                                <span class="text-xs text-slate-600 font-medium">Buat Profil Baru Otomatis</span>
+                            </div>
+
+                            <!-- Existing Profile Select -->
+                            <div id="profile_select_container">
+                                <select id="profile_id" name="profile_id"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    onchange="loadProfileRateLimits(this.value)">
+                                    <option value="">Pilih Profil (Opsional)</option>
+                                    <% (profiles || []).forEach(function(profile){ %>
+                                        <option value="<%= profile.id %>"
+                                            data-rate-rx="<%= profile.rate_limit_rx || '' %>"
+                                            data-rate-tx="<%= profile.rate_limit_tx || '' %>"
+                                            data-burst-rx="<%= profile.burst_limit_rx || '' %>"
+                                            data-burst-tx="<%= profile.burst_limit_tx || '' %>"
+                                            data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
+                                            data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
+                                            data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
+                                            data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
+                                            <%= profile.name %>
+                                        </option>
+                                        <% }) %>
+                                </select>
+                                <p class="text-xs text-slate-500 mt-1">💡 Rate limiting akan otomatis terisi dari profil
+                                    MikroTik</p>
+                            </div>
+
+                            <!-- New Profile Fields -->
+                            <div id="new_profile_container"
+                                class="hidden space-y-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700">Remote Address Pool
+                                        (Wajib)</label>
+                                    <input name="new_profile_remote_pool" type="text"
+                                        class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="contoh: dhcp_pool1">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700">Local Address
+                                        (Opsional)</label>
+                                    <input name="new_profile_local_addr" type="text"
+                                        class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="contoh: 192.168.1.1">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700">DNS Server
+                                        (Opsional)</label>
+                                    <input name="new_profile_dns" type="text"
+                                        class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="contoh: 8.8.8.8">
+                                </div>
+                                <p class="text-[10px] text-blue-600">ℹ️ Nama profil akan sama dengan Nama Paket</p>
+                            </div>
                         </div>
 
                         <!-- Harga Reguler -->
@@ -424,6 +468,27 @@
             status.classList.add('text-slate-600');
             infoActive.classList.add('hidden');
             infoInactive.classList.remove('hidden');
+        }
+    }
+
+    // Toggle Profile Mode (Existing vs New)
+    function toggleProfileMode() {
+        const isNew = document.getElementById('create_new_profile').checked;
+        const selectContainer = document.getElementById('profile_select_container');
+        const newContainer = document.getElementById('new_profile_container');
+        const profileSelect = document.getElementById('profile_id');
+
+        if (isNew) {
+            selectContainer.classList.add('hidden');
+            newContainer.classList.remove('hidden');
+            // Disable select to avoid submitting profile_id
+            profileSelect.disabled = true;
+            // Clear current rate limit loads
+            loadProfileRateLimits('');
+        } else {
+            selectContainer.classList.remove('hidden');
+            newContainer.classList.add('hidden');
+            profileSelect.disabled = false;
         }
     }
 

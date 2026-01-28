@@ -415,30 +415,35 @@ export async function createPackage(data: {
 			try {
 				const config = await getMikrotikConfig();
 				if (config) {
-					const { createSimpleQueue, getSimpleQueues, updateSimpleQueue } = await import('./mikrotikService');
+					const { createSimpleQueue, updateSimpleQueue, findSimpleQueueIdByName } = await import('./mikrotikService');
 					// Parent limit is usually the RX/TX limit of the package
 					const parentMaxLimit = `${data.rate_limit_tx || '10M'}/${data.rate_limit_rx || '10M'}`;
-					const parentLimitAt = (data.limit_at_upload && data.limit_at_download)
-						? `${data.limit_at_upload}/${data.limit_at_download}`
-						: undefined;
+
+					// If using sharing (max_clients > 1), "Limit At" in form usually refers to CLIENT guarantee.
+					// But for Parent Queue, we might want to set LimitAt to total available (or left empty for best effort).
+					// Let's keep Parent Queue simple: MaxLimit = Total Package Speed.
+					// For fairness, we'll let PCQ handle distribution, but we can set LimitAt for User Profiles (see below).
 
 					const queueData = {
 						name: data.name,
 						target: '0.0.0.0/0', // Global target for parent
 						maxLimit: parentMaxLimit,
-						limitAt: parentLimitAt,
-						comment: `[BILLING] PPPOE SHARED PARENT: ${data.name}`,
+						// limitAt: parentLimitAt, // Optional: Let Parent be best-effort
+						limitAt: '0/0',
+						comment: `[BILLING] PPPOE SHARED PARENT: ${data.name} (Max: ${data.max_clients} Clients)`,
 						queue: 'pcq-upload-default/pcq-download-default', // Use PCQ for fair sharing
 						priority: data.priority || '8/8'
 					};
 
-					const queues = await getSimpleQueues(config);
-					const existing = queues.find(q => q.name === data.name);
+					// Use findSimpleQueueIdByName for better performance and reliability
+					const existingId = await findSimpleQueueIdByName(config, data.name);
 
-					if (existing) {
-						await updateSimpleQueue(config, existing['.id'], queueData);
+					if (existingId) {
+						await updateSimpleQueue(config, existingId, queueData);
+						console.log(`✅ Updated existing shared parent queue: ${data.name}`);
 					} else {
 						await createSimpleQueue(config, queueData);
+						console.log(`✅ Created new shared parent queue: ${data.name}`);
 					}
 				}
 			} catch (e: any) {
@@ -466,10 +471,39 @@ export async function createPackage(data: {
 							'burst-threshold-tx': data.burst_threshold_tx,
 							'burst-time-rx': data.burst_time_rx,
 							'burst-time-tx': data.burst_time_tx,
+
 							'limit-at-rx': data.limit_at_download,
 							'limit-at-tx': data.limit_at_upload,
 							'priority': data.priority || 8
 						};
+
+						// AUTO-CALCULATE LIMIT-AT if missing for shared package
+						if ((data.max_clients || 1) > 1 && (!data.limit_at_download || !data.limit_at_upload)) {
+							const parseRate = (val: string) => {
+								if (!val) return 0;
+								const num = parseFloat(val);
+								if (val.toLowerCase().includes('k')) return num * 1000;
+								if (val.toLowerCase().includes('m')) return num * 1000000;
+								return num;
+							};
+							const formatRate = (val: number) => {
+								if (val >= 1000000) return `${Math.floor(val / 1000000)}M`;
+								if (val >= 1000) return `${Math.floor(val / 1000)}k`;
+								return `${Math.floor(val)}`;
+							};
+
+							const rxBytes = parseRate(data.rate_limit_rx || '0');
+							const txBytes = parseRate(data.rate_limit_tx || '0');
+
+							if (!data.limit_at_download && rxBytes > 0) {
+								updateData['limit-at-rx'] = formatRate(rxBytes / (data.max_clients || 1));
+							}
+							if (!data.limit_at_upload && txBytes > 0) {
+								updateData['limit-at-tx'] = formatRate(txBytes / (data.max_clients || 1));
+							}
+							console.log(`💡 Create Package: Auto-calculated Limit-At: ${updateData['limit-at-tx']}/${updateData['limit-at-rx']}`);
+						}
+
 						await updatePppProfile(config, mikrotikId, updateData);
 						console.log(`✅ Profile ${profile.name} synced with package ${data.name} settings`);
 					}
@@ -594,36 +628,36 @@ export async function updatePackage(id: number, data: {
 			try {
 				const config = await getMikrotikConfig();
 				if (config) {
-					const { createSimpleQueue, getSimpleQueues, updateSimpleQueue, findPppProfileIdByName, updatePppProfile } = await import('./mikrotikService');
+					const { createSimpleQueue, updateSimpleQueue, findSimpleQueueIdByName, findPppProfileIdByName, updatePppProfile } = await import('./mikrotikService');
 
 					// Parent limit is usually the RX/TX limit of the package
 					const rateLimitRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
 					const rateLimitTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
 
 					const parentMaxLimit = `${rateLimitTx || '10M'}/${rateLimitRx || '10M'}`;
-					const parentLimitAt = (data.limit_at_upload !== undefined && data.limit_at_download !== undefined)
-						? `${data.limit_at_upload}/${data.limit_at_download}`
-						: (currentPackage.limit_at_upload && currentPackage.limit_at_download)
-							? `${currentPackage.limit_at_upload}/${currentPackage.limit_at_download}`
-							: undefined;
 
 					const queueData = {
 						name: newPackageName,
 						target: '0.0.0.0/0',
 						maxLimit: parentMaxLimit,
-						limitAt: parentLimitAt,
-						comment: `[BILLING] PPPOE SHARED PARENT: ${newPackageName}`,
+						limitAt: '0/0', // Parent is best effort within its MaxLimit
+						comment: `[BILLING] PPPOE SHARED PARENT: ${newPackageName} (Max: ${finalMaxClients} Clients)`,
 						queue: 'pcq-upload-default/pcq-download-default', // Use PCQ for fair sharing
 						priority: '8/8'
 					};
 
-					const queues = await getSimpleQueues(config);
-					let existing = queues.find(q => q.name === oldPackageName || q.name === newPackageName);
+					// Check old name first (if renamed) or new name
+					let existingId = await findSimpleQueueIdByName(config, oldPackageName);
+					if (!existingId && newPackageName !== oldPackageName) {
+						existingId = await findSimpleQueueIdByName(config, newPackageName);
+					}
 
-					if (existing) {
-						await updateSimpleQueue(config, existing['.id'], queueData);
+					if (existingId) {
+						await updateSimpleQueue(config, existingId, queueData);
+						console.log(`✅ Updated existing shared parent queue: ${newPackageName}`);
 					} else {
 						await createSimpleQueue(config, queueData);
+						console.log(`✅ Created new shared parent queue: ${newPackageName}`);
 					}
 
 					// Update the associated Profile to use this Parent Queue
@@ -718,8 +752,48 @@ export async function updatePackage(id: number, data: {
 							updateData['burst-time-tx'] = data.burst_time_tx !== undefined ? data.burst_time_tx : currentPackage.burst_time_tx;
 
 							// 3. Update Limit-At (Garansi Bandwidth)
-							updateData['limit-at-rx'] = data.limit_at_download !== undefined ? data.limit_at_download : currentPackage.limit_at_download;
-							updateData['limit-at-tx'] = data.limit_at_upload !== undefined ? data.limit_at_upload : currentPackage.limit_at_upload;
+							// AUTO-CALCULATION LOGIC:
+							// If this is a Shared Package (max_clients > 1) AND manual limit-at is NOT provided,
+							// we calculate a default Limit-At = RateLimit / MaxClients to ensure fairness guarantee.
+
+							const currentMaxClients = (data.max_clients !== undefined) ? data.max_clients : (currentPackage.max_clients || 1);
+
+							// Resolving final Limit-At values (Manual Input OR Calculation)
+							let finalLimitAtRx = data.limit_at_download !== undefined ? data.limit_at_download : currentPackage.limit_at_download;
+							let finalLimitAtTx = data.limit_at_upload !== undefined ? data.limit_at_upload : currentPackage.limit_at_upload;
+
+							if (currentMaxClients > 1 && (!finalLimitAtRx || !finalLimitAtTx)) {
+								// Try to calculate from Rate Limit (e.g. "10M")
+								const parseRate = (val: string) => {
+									if (!val) return 0;
+									const num = parseFloat(val);
+									if (val.toLowerCase().includes('k')) return num * 1000;
+									if (val.toLowerCase().includes('m')) return num * 1000000;
+									return num;
+								};
+
+								const formatRate = (val: number) => {
+									if (val >= 1000000) return `${Math.floor(val / 1000000)}M`;
+									if (val >= 1000) return `${Math.floor(val / 1000)}k`;
+									return `${Math.floor(val)}`;
+								};
+
+								const finalRateRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : (currentPackage.rate_limit_rx || '0');
+								const finalRateTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : (currentPackage.rate_limit_tx || '0');
+
+								if (!finalLimitAtRx) {
+									const rxBytes = parseRate(finalRateRx);
+									if (rxBytes > 0) finalLimitAtRx = formatRate(rxBytes / currentMaxClients);
+								}
+								if (!finalLimitAtTx) {
+									const txBytes = parseRate(finalRateTx);
+									if (txBytes > 0) finalLimitAtTx = formatRate(txBytes / currentMaxClients);
+								}
+								console.log(`💡 Auto-calculated Limit-At for Shared Package: ${finalLimitAtTx}/${finalLimitAtRx} (Rate: ${finalRateTx}/${finalRateRx} / ${currentMaxClients})`);
+							}
+
+							updateData['limit-at-rx'] = finalLimitAtRx;
+							updateData['limit-at-tx'] = finalLimitAtTx;
 
 							// Send update to MikroTik
 							await updatePppProfile(config, mikrotikId, updateData);

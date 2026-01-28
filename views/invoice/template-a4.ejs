@@ -346,21 +346,33 @@
                             </div>
                 </div>
 
-                <div class="footer">
-                    <div class="payment-methods">
-                        <h4>Informasi Pembayaran:</h4>
-                        <p>Silakan melakukan pembayaran melalui transfer bank/e-wallet<br>
-                            ke rekening yang terdaftar di aplikasi.<br>
-                            Simpan bukti transfer Anda sebagai bukti pembayaran yang sah.</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p>Hormat Kami,</p>
-                        <div style="margin-top: 30px; font-weight: 800; color: var(--text-color); font-size: 14px;">
-                            <%= invoice.company_name || 'ADMIN FINANCE' %>
+                <% if (invoice.notes) { %>
+                    <div
+                        style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb;">
+                        <h4 style="margin: 0 0 5px 0; font-size: 11px; text-transform: uppercase; color: #64748b;">
+                            Catatan / Keterangan:</h4>
+                        <div style="font-size: 11px; white-space: pre-wrap; color: #1e293b; line-height: 1.6;">
+                            <%= invoice.notes %>
                         </div>
-                        <p>Terima Kasih</p>
                     </div>
-                </div>
+                    <% } %>
+
+                        <div class="footer">
+                            <div class="payment-methods">
+                                <h4>Informasi Pembayaran:</h4>
+                                <p>Silakan melakukan pembayaran melalui transfer bank/e-wallet<br>
+                                    ke rekening yang terdaftar di aplikasi.<br>
+                                    Simpan bukti transfer Anda sebagai bukti pembayaran yang sah.</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <p>Hormat Kami,</p>
+                                <div
+                                    style="margin-top: 30px; font-weight: 800; color: var(--text-color); font-size: 14px;">
+                                    <%= invoice.company_name || 'ADMIN FINANCE' %>
+                                </div>
+                                <p>Terima Kasih</p>
+                            </div>
+                        </div>
     </div>
 </body>
 

@@ -275,11 +275,11 @@ export class GeminiService {
             // Additional validation (STRICT)
             if (expectedAmount && result.extractedData.amount) {
                 const amountDiff = Math.abs(result.extractedData.amount - expectedAmount);
-                const tolerance = 100; // Almost exact match (e.g., Rp 150.000 vs Rp 150.045)
+                const tolerance = 2000; // Tolerance for admin fees/random numbers (Rp 0 - 2000)
                 result.validation.amountMatches = amountDiff <= tolerance;
 
-                // Set isExactMatch for very close matches
-                (result.validation as any).isExactMatch = amountDiff <= 10;
+                // Set isExactMatch for matches within tolerance
+                (result.validation as any).isExactMatch = amountDiff <= 2000;
             }
 
             if (expectedBank && result.extractedData.bank) {

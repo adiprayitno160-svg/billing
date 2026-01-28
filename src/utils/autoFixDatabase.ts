@@ -94,7 +94,7 @@ export async function autoFixInvoicesAndPaymentsTables(): Promise<void> {
           id INT AUTO_INCREMENT PRIMARY KEY,
           invoice_id INT NOT NULL,
           amount DECIMAL(15,2) NOT NULL,
-          payment_method ENUM('cash', 'transfer', 'credit_card', 'debit_card', 'other') NOT NULL DEFAULT 'cash',
+          payment_method ENUM('cash', 'transfer', 'credit_card', 'debit_card', 'balance', 'other') NOT NULL DEFAULT 'cash',
           payment_date DATE NOT NULL,
           reference_number VARCHAR(191) NULL,
           notes TEXT NULL,
@@ -111,6 +111,17 @@ export async function autoFixInvoicesAndPaymentsTables(): Promise<void> {
       console.log('✅ [AutoFix] payments table created');
     } else {
       console.log('✅ [AutoFix] payments table exists');
+
+      // Ensure payment_method ENUM has 'balance'
+      try {
+        await pool.query(`
+          ALTER TABLE payments 
+          MODIFY COLUMN payment_method ENUM('cash', 'transfer', 'credit_card', 'debit_card', 'balance', 'other') NOT NULL DEFAULT 'cash'
+        `);
+        console.log('✅ [AutoFix] payments.payment_method enum updated');
+      } catch (e) {
+        console.warn('⚠️ [AutoFix] Failed to update payments.payment_method enum (might already be correct)');
+      }
     }
 
     // Check if pppoe_profiles table exists (needed for bookkeeping queries)
@@ -139,6 +150,18 @@ export async function autoFixInvoicesAndPaymentsTables(): Promise<void> {
       console.log('✅ [AutoFix] pppoe_profiles table created');
     } else {
       console.log('✅ [AutoFix] pppoe_profiles table exists');
+    }
+
+    // Check if paid_at exists in invoices
+    try {
+      const [paidAtCols]: any = await pool.query("SHOW COLUMNS FROM invoices LIKE 'paid_at'");
+      if (paidAtCols.length === 0) {
+        console.log("⚠️ [AutoFix] Column 'paid_at' missing in invoices, adding...");
+        await pool.query("ALTER TABLE invoices ADD COLUMN paid_at TIMESTAMP NULL DEFAULT NULL AFTER last_payment_date");
+        console.log("✅ [AutoFix] Column 'paid_at' added successfully");
+      }
+    } catch (e) {
+      console.warn('⚠️ [AutoFix] Failed to check/add paid_at column:', e);
     }
 
     console.log('✅ [AutoFix] Invoices and payments tables ensured');
@@ -327,7 +350,8 @@ export async function autoFixCustomerColumns(): Promise<void> {
       { name: 'ping_timeout_started_at', def: 'DATETIME DEFAULT NULL' },
       { name: 'awaiting_customer_response', def: 'TINYINT(1) DEFAULT 0' },
       { name: 'customer_response_received', def: 'TINYINT(1) DEFAULT 0' },
-      { name: 'last_ping_check', def: 'DATETIME DEFAULT NULL' }
+      { name: 'last_ping_check', def: 'DATETIME DEFAULT NULL' },
+      { name: 'balance', def: 'DECIMAL(15,2) DEFAULT 0.00' }
     ];
 
     for (const col of monitoringColumns) {

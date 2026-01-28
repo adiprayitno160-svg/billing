@@ -94,9 +94,10 @@
                                             <div class="text-green-800 font-bold text-lg uppercase tracking-widest">
                                                 LUNAS</div>
                                             <div class="text-green-600 text-sm mt-1">
-                                                Dibayar: <%= invoice.paid_at ? new
-                                                    Date(invoice.paid_at).toLocaleDateString('id-ID', { day: '2-digit' ,
-                                                    month: 'long' , year: 'numeric' }) : 'Tanggal tidak tersedia' %>
+                                                Dibayar: <%= invoice.last_payment_date ? new
+                                                    Date(invoice.last_payment_date).toLocaleDateString('id-ID', {
+                                                    day: '2-digit' , month: 'long' , year: 'numeric' })
+                                                    : 'Tanggal tidak tersedia' %>
                                             </div>
                                         </div>
                                         <% } %>
@@ -522,7 +523,12 @@
 
             fetch('/billing/tagihan/<%= invoice.id %>/send-paid-pdf', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                // Add body to specify we want a message with the PDF
+                body: JSON.stringify({
+                    includeMessage: true,
+                    message: "Yth. Pelanggan,\n\nTerima kasih atas pembayaran Anda. Berikut kami lampirkan e-Invoice (Bukti Lunas) untuk tagihan periode <%= invoice.period %>.\n\nSimpan dokumen ini sebagai bukti pembayaran yang sah.\n\nTerima kasih,\nBilling System"
+                })
             })
                 .then(response => response.json())
                 .then(data => {

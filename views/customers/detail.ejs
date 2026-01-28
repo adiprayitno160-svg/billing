@@ -20,6 +20,13 @@
 					<span class="<%= customer.status === 'active' ? 'text-green-600' : 'text-red-600' %>">
 						<%= customer.status==='active' ? 'Active' : 'Isolated' %>
 					</span>
+					<% if (customer.connection_type==='pppoe' ) { %>
+						<span>•</span>
+						<a href="/pppoe/activation?search=<%= customer.customer_code %>"
+							class="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider <%= customer.pppoe_username ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700' %>">
+							PPPoE: <%= customer.pppoe_username ? 'Activated' : 'Wait for Activation' %> ⚡
+						</a>
+						<% } %>
 				</div>
 			</div>
 		</div>

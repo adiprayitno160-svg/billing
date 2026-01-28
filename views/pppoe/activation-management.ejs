@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,54 +9,64 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        .status-active { 
-            background-color: #dcfce7; 
-            color: #166534; 
-            padding: 4px 8px; 
-            border-radius: 4px; 
+        .status-active {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 4px 8px;
+            border-radius: 4px;
             font-weight: 500;
         }
-        .status-inactive { 
-            background-color: #fee2e2; 
-            color: #991b1b; 
-            padding: 4px 8px; 
-            border-radius: 4px; 
+
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 4px 8px;
+            border-radius: 4px;
             font-weight: 500;
         }
-        .status-suspended { 
-            background-color: #fef3c7; 
-            color: #92400e; 
-            padding: 4px 8px; 
-            border-radius: 4px; 
+
+        .status-suspended {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 4px 8px;
+            border-radius: 4px;
             font-weight: 500;
         }
+
         .card {
             background: white;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             padding: 20px;
             margin-bottom: 20px;
         }
+
         .table-container {
             overflow-x: auto;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
         }
-        th, td {
+
+        th,
+        td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #e5e7eb;
         }
+
         th {
             background-color: #f9fafb;
             font-weight: 600;
             color: #374151;
         }
+
         tr:hover {
             background-color: #f3f4f6;
         }
+
         .btn {
             padding: 6px 12px;
             border-radius: 4px;
@@ -66,26 +77,32 @@
             font-size: 14px;
             transition: all 0.2s;
         }
+
         .btn-primary {
             background-color: #3b82f6;
             color: white;
         }
+
         .btn-success {
             background-color: #10b981;
             color: white;
         }
+
         .btn-danger {
             background-color: #ef4444;
             color: white;
         }
+
         .btn-warning {
             background-color: #f59e0b;
             color: white;
         }
+
         .btn:hover {
             opacity: 0.9;
             transform: translateY(-1px);
         }
+
         .search-box {
             padding: 8px;
             border: 1px solid #d1d5db;
@@ -93,42 +110,50 @@
             width: 300px;
             margin-bottom: 15px;
         }
+
         .pagination {
             display: flex;
             gap: 8px;
             align-items: center;
             margin-top: 20px;
         }
-        .pagination button, .pagination span {
+
+        .pagination button,
+        .pagination span {
             padding: 6px 12px;
             border: 1px solid #d1d5db;
             background: white;
             border-radius: 4px;
             cursor: pointer;
         }
+
         .pagination .current {
             background-color: #3b82f6;
             color: white;
             border-color: #3b82f6;
         }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
             margin-bottom: 20px;
         }
+
         .stat-card {
             background: white;
             border-radius: 8px;
             padding: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
+
         .stat-number {
             font-size: 24px;
             font-weight: bold;
             color: #3b82f6;
         }
+
         .stat-label {
             font-size: 14px;
             color: #6b7280;
@@ -136,6 +161,7 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-6">
         <div class="mb-6">
@@ -168,7 +194,8 @@
             <div class="flex flex-col md:flex-row gap-4 items-end">
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Cari Pelanggan</label>
-                    <input type="text" id="searchInput" class="search-box w-full" placeholder="Cari nama, kode pelanggan, atau nomor HP...">
+                    <input type="text" id="searchInput" class="search-box w-full"
+                        placeholder="Cari nama, kode pelanggan, atau nomor HP...">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -205,7 +232,7 @@
                 <h2 class="text-lg font-semibold">Daftar Langganan PPPoE</h2>
                 <div id="paginationInfo" class="text-sm text-gray-600"></div>
             </div>
-            
+
             <div class="table-container">
                 <table>
                     <thead>
@@ -225,7 +252,7 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <div class="pagination" id="pagination">
                 <!-- Pagination will be loaded here -->
             </div>
@@ -252,7 +279,7 @@
         const itemsPerPage = 10;
 
         // Load subscriptions on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadSubscriptions();
             loadStatistics();
         });
@@ -261,7 +288,7 @@
             try {
                 const response = await fetch('/api/pppoe/activation/stats');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     document.getElementById('totalSubscriptions').textContent = data.stats.total || 0;
                     document.getElementById('activeSubscriptions').textContent = data.stats.active || 0;
@@ -276,15 +303,15 @@
         async function loadSubscriptions(page = 1) {
             const search = document.getElementById('searchInput').value;
             const status = document.getElementById('statusFilter').value;
-            
+
             try {
                 let url = `/api/pppoe/activation/subscriptions?page=${page}&limit=${itemsPerPage}`;
                 if (search) url += `&search=${encodeURIComponent(search)}`;
                 if (status) url += `&status=${encodeURIComponent(status)}`;
-                
+
                 const response = await fetch(url);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     renderSubscriptions(data.data);
                     renderPagination(data.pagination);
@@ -300,22 +327,22 @@
         function renderSubscriptions(subscriptions) {
             const tbody = document.getElementById('subscriptionsTableBody');
             tbody.innerHTML = '';
-            
+
             if (!subscriptions || subscriptions.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">Tidak ada data ditemukan</td></tr>';
                 return;
             }
-            
+
             subscriptions.forEach(sub => {
                 const row = document.createElement('tr');
-                
+
                 // Format currency
                 const price = new Intl.NumberFormat('id-ID').format(sub.price || 0);
-                
+
                 // Format dates
                 const activationDate = sub.activation_date ? new Date(sub.activation_date).toLocaleDateString('id-ID') : '-';
                 const nextBlockDate = sub.next_block_date ? new Date(sub.next_block_date).toLocaleDateString('id-ID') : '-';
-                
+
                 // Status badge
                 let statusBadge = '<span class="status-inactive">Tidak Aktif</span>';
                 if (sub.status === 'active') {
@@ -323,7 +350,7 @@
                 } else if (sub.status === 'suspended') {
                     statusBadge = '<span class="status-suspended">Ditangguhkan</span>';
                 }
-                
+
                 row.innerHTML = `
                     <td>${sub.customer_name || '-'}</td>
                     <td>${sub.customer_code || '-'}</td>
@@ -333,24 +360,30 @@
                     <td>${activationDate}</td>
                     <td>${nextBlockDate}</td>
                     <td>
-                        ${sub.status === 'inactive' ? 
-                            `<button onclick="activateSubscription(${sub.subscription_id})" class="btn btn-success">
-                                <i class="fas fa-play mr-1"></i>Aktifkan
-                            </button>` : 
-                            sub.status === 'active' ?
+                        ${sub.status === 'inactive' ?
+                        `<div class="flex flex-col gap-2">
+                             <button onclick="activateSubscription(${sub.subscription_id})" class="btn btn-success">
+                                <i class="fas fa-play mr-1"></i>Aktifkan Sekarang
+                             </button>
+                             <button onclick="sendActivationInvoice(${sub.subscription_id})" class="btn ${sub.unpaid_invoice_id ? 'btn-warning' : 'btn-primary'}">
+                                <i class="fab fa-whatsapp mr-1"></i>${sub.unpaid_invoice_id ? 'Kirim Ulang Tagihan' : 'Kirim Tagihan Aktivasi'}
+                             </button>
+                             ${sub.unpaid_invoice_id ? `<div class="text-xs text-orange-600 font-medium">Tagihan: ${sub.unpaid_invoice_number}<br>Rp ${new Intl.NumberFormat('id-ID').format(sub.unpaid_invoice_total)} (MENUNGGU)</div>` : ''}
+                         </div>` :
+                        sub.status === 'active' ?
                             `<button onclick="deactivateSubscription(${sub.subscription_id})" class="btn btn-danger">
                                 <i class="fas fa-stop mr-1"></i>Nonaktifkan
                             </button>` :
                             `<button onclick="activateSubscription(${sub.subscription_id})" class="btn btn-success">
                                 <i class="fas fa-play mr-1"></i>Aktifkan Lagi
                             </button>`
-                        }
-                        <button onclick="showActivationLogs(${sub.customer_id})" class="btn btn-primary">
+                    }
+                        <button onclick="showActivationLogs(${sub.customer_id})" class="btn btn-primary mt-2">
                             <i class="fas fa-history mr-1"></i>Riwayat
                         </button>
                     </td>
                 `;
-                
+
                 tbody.appendChild(row);
             });
         }
@@ -358,33 +391,33 @@
         function renderPagination(pagination) {
             const paginationDiv = document.getElementById('pagination');
             const infoDiv = document.getElementById('paginationInfo');
-            
+
             if (!pagination) return;
-            
+
             infoDiv.textContent = `Halaman ${pagination.page} dari ${pagination.totalPages} (${pagination.total} total)`;
-            
+
             let paginationHTML = '';
-            
+
             // Previous button
             if (pagination.page > 1) {
                 paginationHTML += `<button onclick="loadSubscriptions(${pagination.page - 1})" class="btn btn-primary">Previous</button>`;
             }
-            
+
             // Page numbers
             const startPage = Math.max(1, pagination.page - 2);
             const endPage = Math.min(pagination.totalPages, pagination.page + 2);
-            
+
             for (let i = startPage; i <= endPage; i++) {
-                paginationHTML += i === pagination.page ? 
-                    `<span class="pagination-btn current">${i}</span>` : 
+                paginationHTML += i === pagination.page ?
+                    `<span class="pagination-btn current">${i}</span>` :
                     `<button onclick="loadSubscriptions(${i})" class="btn btn-primary">${i}</button>`;
             }
-            
+
             // Next button
             if (pagination.page < pagination.totalPages) {
                 paginationHTML += `<button onclick="loadSubscriptions(${pagination.page + 1})" class="btn btn-primary">Next</button>`;
             }
-            
+
             paginationDiv.innerHTML = paginationHTML;
         }
 
@@ -406,9 +439,9 @@
                             'Content-Type': 'application/json'
                         }
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         Swal.fire('Berhasil', data.message, 'success');
                         loadSubscriptions(currentPage);
@@ -420,6 +453,39 @@
                     console.error('Error activating subscription:', error);
                     Swal.fire('Error', 'Gagal mengaktifkan langganan', 'error');
                 }
+            }
+        }
+
+        async function sendActivationInvoice(subscriptionId) {
+            try {
+                // Show loading
+                Swal.fire({
+                    title: 'Mengirim Tagihan...',
+                    text: 'Mohon tunggu sejenak',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const response = await fetch(`/api/pppoe/activation/subscriptions/${subscriptionId}/send-invoice`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire('Berhasil', 'Tagihan aktivasi telah dikirim ke WhatsApp pelanggan.', 'success');
+                    loadSubscriptions(currentPage);
+                } else {
+                    Swal.fire('Gagal', data.message || 'Gagal mengirim tagihan', 'error');
+                }
+            } catch (error) {
+                console.error('Error sending invoice:', error);
+                Swal.fire('Error', 'Terjadi kesalahan saat menghubungi server', 'error');
             }
         }
 
@@ -452,9 +518,9 @@
                         },
                         body: JSON.stringify({ reason: reason.trim() })
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         Swal.fire('Berhasil', data.message, 'success');
                         loadSubscriptions(currentPage);
@@ -481,15 +547,15 @@
 
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch('/api/pppoe/activation/run-auto-blocking', {
+                    const response = await fetch('/api/pppoe/activation/auto-blocking', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         }
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         Swal.fire('Berhasil', data.message, 'success');
                         loadSubscriptions(currentPage);
@@ -508,10 +574,10 @@
             try {
                 const response = await fetch(`/api/pppoe/activation/customers/${customerId}/logs`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     let logsHTML = '';
-                    
+
                     if (data.data && data.data.length > 0) {
                         data.data.forEach(log => {
                             const createdAt = new Date(log.created_at).toLocaleString('id-ID');
@@ -523,11 +589,10 @@
                                             <div class="text-sm text-gray-600">${log.description || '-'}</div>
                                             <div class="text-xs text-gray-500">oleh ${log.performed_by_name || 'Sistem'} pada ${createdAt}</div>
                                         </div>
-                                        <span class="text-xs px-2 py-1 rounded ${
-                                            log.action.toLowerCase().includes('activate') ? 'bg-green-100 text-green-800' : 
-                                            log.action.toLowerCase().includes('deactivate') ? 'bg-red-100 text-red-800' : 
-                                            'bg-blue-100 text-blue-800'
-                                        }">
+                                        <span class="text-xs px-2 py-1 rounded ${log.action.toLowerCase().includes('activate') ? 'bg-green-100 text-green-800' :
+                                    log.action.toLowerCase().includes('deactivate') ? 'bg-red-100 text-red-800' :
+                                        'bg-blue-100 text-blue-800'
+                                }">
                                             ${log.action}
                                         </span>
                                     </div>
@@ -537,7 +602,7 @@
                     } else {
                         logsHTML = '<div class="p-4 text-center text-gray-500">Tidak ada riwayat aktivasi</div>';
                     }
-                    
+
                     document.getElementById('logsContent').innerHTML = logsHTML;
                     document.getElementById('logsModal').classList.remove('hidden');
                 } else {
@@ -554,15 +619,16 @@
         }
 
         // Event listeners for search and filter
-        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+        document.getElementById('searchInput').addEventListener('keyup', function (e) {
             if (e.key === 'Enter') {
                 loadSubscriptions(1);
             }
         });
 
-        document.getElementById('statusFilter').addEventListener('change', function() {
+        document.getElementById('statusFilter').addEventListener('change', function () {
             loadSubscriptions(1);
         });
     </script>
 </body>
+
 </html>

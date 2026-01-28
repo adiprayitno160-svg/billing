@@ -16,10 +16,10 @@ export class PaymentService {
      */
     static async recordPayment(paymentData: PaymentData): Promise<number> {
         const connection = await databasePool.getConnection();
-        
+
         try {
             await connection.beginTransaction();
-            
+
             // Insert payment
             const paymentQuery = `
                 INSERT INTO payments (
@@ -27,7 +27,7 @@ export class PaymentService {
                     gateway_transaction_id, gateway_status, notes
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
             `;
-            
+
             const [paymentResult] = await connection.execute(paymentQuery, [
                 paymentData.invoice_id,
                 paymentData.payment_method,
@@ -37,21 +37,21 @@ export class PaymentService {
                 paymentData.gateway_status,
                 paymentData.notes
             ]);
-            
+
             const paymentId = (paymentResult as any).insertId;
-            
+
             // Update invoice payment status
             await this.updateInvoicePaymentStatus(paymentData.invoice_id);
-            
+
             await connection.commit();
-            
+
             // Track late payment (async, don't wait)
             this.trackLatePayment(paymentData.invoice_id, paymentId).catch(error => {
                 console.error('[PaymentService] Error tracking late payment:', error);
             });
-            
+
             return paymentId;
-            
+
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -70,25 +70,25 @@ export class PaymentService {
             FROM payments 
             WHERE invoice_id = ?
         `;
-        
+
         const [paymentResult] = await databasePool.execute(paymentQuery, [invoiceId]);
         const totalPaid = parseFloat(((paymentResult as any[])[0] as any).total_paid);
-        
+
         // Get invoice details
         const invoiceQuery = `
             SELECT total_amount, due_date, status
             FROM invoices 
             WHERE id = ?
         `;
-        
+
         const [invoiceResult] = await databasePool.execute(invoiceQuery, [invoiceId]);
         const invoice = (invoiceResult as any[])[0];
-        
+
         const totalAmount = parseFloat(invoice.total_amount || 0);
         const remainingAmount = totalAmount - totalPaid;
-        
+
         let newStatus = invoice.status || 'draft';
-        
+
         if (totalPaid >= totalAmount) {
             newStatus = 'paid';
         } else if (totalPaid > 0) {
@@ -101,40 +101,73 @@ export class PaymentService {
                 newStatus = 'overdue';
             }
         }
-        
+
         // Update invoice
         const updateQuery = `
             UPDATE invoices 
-            SET paid_amount = ?, remaining_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            SET paid_amount = ?, 
+                remaining_amount = ?, 
+                status = ?, 
+                last_payment_date = CASE WHEN ? = 'paid' THEN CURRENT_TIMESTAMP ELSE last_payment_date END,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
-        
-        await databasePool.execute(updateQuery, [totalPaid, remainingAmount, newStatus, invoiceId]);
+
+        await databasePool.execute(updateQuery, [totalPaid, remainingAmount, newStatus, newStatus, invoiceId]);
+
+        // Handle Overpayment (Excess balance)
+        if (totalPaid > totalAmount) {
+            const excess = totalPaid - totalAmount;
+            const customerId = invoice.customer_id;
+
+            // Add excess to customer balance
+            await databasePool.execute(
+                "UPDATE customers SET balance = balance + ? WHERE id = ?",
+                [excess, customerId]
+            );
+
+            // Log the balance addition
+            console.log(`[PaymentService] Customer ${customerId} overpaid by ${excess}. Balance updated.`);
+
+            // Send notification about overpayment/balance
+            const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+            await UnifiedNotificationService.queueNotification({
+                customer_id: customerId,
+                notification_type: 'payment_received', // Use payment_received or create a new one
+                variables: {
+                    amount: totalPaid,
+                    excess_amount: excess,
+                    new_balance: 0, // Will be fetched in template or updated later
+                    invoice_number: invoice.invoice_number || 'Multiple',
+                    notes: `Kelebihan pembayaran Rp ${excess} telah dimasukkan ke saldo Anda.`
+                }
+            }).catch(err => console.error('Failed to notify overpayment:', err));
+        }
     }
 
     /**
      * Handle pembayaran parsial dan kekurangan
      */
-    static async handlePartialPayment(invoiceId: number, paymentAmount: number, paymentMethod: string, notes?: string): Promise<{paymentId: number, carryOverAmount?: number}> {
+    static async handlePartialPayment(invoiceId: number, paymentAmount: number, paymentMethod: string, notes?: string): Promise<{ paymentId: number, carryOverAmount?: number }> {
         const connection = await databasePool.getConnection();
-        
+
         try {
             await connection.beginTransaction();
-            
+
             // Get invoice details
             const invoiceQuery = `
                 SELECT total_amount, paid_amount, remaining_amount, customer_id, period
                 FROM invoices 
                 WHERE id = ?
             `;
-            
+
             const [invoiceResult] = await connection.execute(invoiceQuery, [invoiceId]);
             const invoice = (invoiceResult as any[])[0];
-            
+
             const totalAmount = parseFloat(invoice.total_amount || 0);
             const currentPaid = parseFloat(invoice.paid_amount || 0);
             const remainingAmount = parseFloat(invoice.remaining_amount);
-            
+
             // Catat pembayaran
             const paymentData: PaymentData = {
                 invoice_id: invoiceId,
@@ -142,21 +175,21 @@ export class PaymentService {
                 amount: paymentAmount,
                 notes: notes
             };
-            
+
             const paymentId = await this.recordPayment(paymentData);
-            
+
             let carryOverAmount = 0;
-            
+
             // Jika pembayaran kurang dari total, buat invoice untuk bulan depan
             if (paymentAmount < remainingAmount) {
                 carryOverAmount = remainingAmount - paymentAmount;
-                
+
                 // Generate periode bulan depan
                 const currentPeriod = invoice.period;
                 const [year, month] = currentPeriod.split('-');
                 const nextMonth = new Date(parseInt(year), parseInt(month), 10);
                 const nextPeriod = `${nextMonth.getFullYear()}-${(nextMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-                
+
                 // Buat invoice untuk kekurangan
                 const carryOverInvoiceData = {
                     customer_id: invoice.customer_id,
@@ -166,22 +199,22 @@ export class PaymentService {
                     total_amount: carryOverAmount,
                     notes: `Kekurangan dari periode ${currentPeriod}`
                 };
-                
+
                 const carryOverItems = [{
                     description: `Kekurangan periode ${currentPeriod}`,
                     quantity: 1,
                     unit_price: carryOverAmount,
                     total_price: carryOverAmount
                 }];
-                
+
                 // Import InvoiceService untuk membuat invoice
                 const { InvoiceService } = await import('./invoiceService');
                 await InvoiceService.createInvoice(carryOverInvoiceData as any, carryOverItems);
             }
-            
+
             await connection.commit();
             return { paymentId, carryOverAmount };
-            
+
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -201,7 +234,7 @@ export class PaymentService {
             WHERE p.invoice_id = ?
             ORDER BY p.payment_date DESC
         `;
-        
+
         const [result] = await databasePool.execute(query, [invoiceId]);
         return result as any[];
     }
@@ -216,15 +249,15 @@ export class PaymentService {
             SET gateway_status = ?, amount = ?, updated_at = CURRENT_TIMESTAMP
             WHERE gateway_transaction_id = ?
         `;
-        
+
         await databasePool.execute(query, [status, amount, transactionId]);
-        
+
         // Update invoice status
         const paymentQuery = `
             SELECT invoice_id FROM payments 
             WHERE gateway_transaction_id = ?
         `;
-        
+
         const [paymentResult] = await databasePool.execute(paymentQuery, [transactionId]);
         if ((paymentResult as any[]).length > 0) {
             await this.updateInvoicePaymentStatus(((paymentResult as any[])[0] as any).invoice_id);
@@ -256,7 +289,7 @@ export class PaymentService {
         try {
             const { page, limit, filters } = options;
             const offset = (page - 1) * limit;
-            
+
             let whereClause = 'WHERE 1=1';
             const params: any[] = [];
 
@@ -291,9 +324,9 @@ export class PaymentService {
                 JOIN customers c ON i.customer_id = c.id
                 ${whereClause}
             `;
-            
-        const [countResult] = await databasePool.execute(countQuery, params);
-        const totalItems = parseInt((countResult as any)[0]?.total || 0);
+
+            const [countResult] = await databasePool.execute(countQuery, params);
+            const totalItems = parseInt((countResult as any)[0]?.total || 0);
 
             // Get payments with pagination
             const paymentsQuery = `
@@ -316,9 +349,9 @@ export class PaymentService {
                 ORDER BY p.payment_date DESC
                 LIMIT ? OFFSET ?
             `;
-            
-        const paymentsParams = [...params, parseInt(limit.toString()), parseInt(offset.toString())];
-        const [payments] = await databasePool.execute(paymentsQuery, paymentsParams);
+
+            const paymentsParams = [...params, parseInt(limit.toString()), parseInt(offset.toString())];
+            const [payments] = await databasePool.execute(paymentsQuery, paymentsParams);
 
             const totalPages = Math.ceil(totalItems / limit) || 1;
             const startIndex = totalItems > 0 ? offset + 1 : 0;
@@ -350,7 +383,7 @@ export class PaymentService {
         failed_count: number;
     }> {
         const today = new Date().toISOString().split('T')[0];
-        
+
         const statsQuery = `
             SELECT 
                 COALESCE(SUM(amount), 0) as total_payments,
@@ -359,9 +392,9 @@ export class PaymentService {
                 COUNT(CASE WHEN gateway_status = 'failed' THEN 1 END) as failed_count
             FROM payments
         `;
-        
+
         const [result] = await databasePool.execute(statsQuery, [today]);
-        
+
         const stats = (result as any)[0];
         return {
             total_payments: parseFloat(stats.total_payments) || 0,

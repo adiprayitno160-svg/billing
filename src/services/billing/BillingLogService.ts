@@ -1,5 +1,3 @@
-/**
- * BillingLogService - Comprehensive logging system for billing
  * Logs to both file and database with automatic anomaly detection
  */
 import * as fs from 'fs';
