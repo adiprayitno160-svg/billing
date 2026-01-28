@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { databasePool } from '../../db/pool';
-import { AIAnomalyDetectionService } from '../ai/AIAnomalyDetectionService';
+import { AIAnomalyDetectionService } from './AIAnomalyDetectionService';
 
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
 export type LogType = 'system' | 'auth' | 'billing' | 'payment' | 'network' | 'customer';
