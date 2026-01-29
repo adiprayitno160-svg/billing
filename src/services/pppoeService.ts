@@ -573,9 +573,9 @@ export async function updatePackage(id: number, data: {
 	burst_threshold_tx?: string;
 	burst_time_rx?: string;
 	burst_time_tx?: string;
-	price_7_days?: number;  // ADDED for prepaid
-	price_14_days?: number; // ADDED for prepaid
-	price_30_days?: number; // ADDED for prepaid
+	price_7_days?: number;
+	price_14_days?: number;
+	price_30_days?: number;
 	is_enabled_7_days?: number;
 	is_enabled_14_days?: number;
 	is_enabled_30_days?: number;
@@ -656,113 +656,83 @@ export async function updatePackage(id: number, data: {
 			id
 		]);
 
-		// ALWAYS SYNC FULL PROFILE SETTINGS ON UPDATE
+		// --- MIKROTIK SYNC LOGIC ---
+		const finalMaxClients = (data.max_clients !== undefined) ? data.max_clients : (currentPackage.max_clients || 1);
+
 		try {
 			const config = await getMikrotikConfig();
-			if (config && newProfileId) {
-				const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [newProfileId]);
-				const profile = (profRows as any)[0];
-				if (profile) {
-					const { findPppProfileIdByName, updatePppProfile } = await import('./mikrotikService');
-					const mikrotikId = await findPppProfileIdByName(config, profile.name);
-					if (mikrotikId) {
-						const updateData: any = {
-							'parent-queue': finalMaxClients > 1 ? newPackageName : 'none',
-							'rate-limit-rx': data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx || '10M',
-							'rate-limit-tx': data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx || '10M',
-							'burst-limit-rx': data.burst_limit_rx !== undefined ? data.burst_limit_rx : currentPackage.burst_limit_rx || '',
-							'burst-limit-tx': data.burst_limit_tx !== undefined ? data.burst_limit_tx : currentPackage.burst_limit_tx || '',
-							'burst-threshold-rx': data.burst_threshold_rx !== undefined ? data.burst_threshold_rx : currentPackage.burst_threshold_rx || '',
-							'burst-threshold-tx': data.burst_threshold_tx !== undefined ? data.burst_threshold_tx : currentPackage.burst_threshold_tx || '',
-							'burst-time-rx': data.burst_time_rx !== undefined ? data.burst_time_rx : currentPackage.burst_time_rx || '',
-							'burst-time-tx': data.burst_time_tx !== undefined ? data.burst_time_tx : currentPackage.burst_time_tx || '',
-							'limit-at-rx': data.limit_at_download !== undefined ? data.limit_at_download : currentPackage.limit_at_download || '',
-							'limit-at-tx': data.limit_at_upload !== undefined ? data.limit_at_upload : currentPackage.limit_at_upload || '',
-							'priority': data.priority !== undefined ? data.priority : currentPackage.priority || 8
-						};
+			if (config) {
+				const {
+					createSimpleQueue,
+					updateSimpleQueue,
+					deleteSimpleQueue,
+					findSimpleQueueIdByName,
+					findPppProfileIdByName,
+					updatePppProfile
+				} = await import('./mikrotikService');
 
-						// Recalculate Limit-At if needed
-						if (finalMaxClients > 1 && (!updateData['limit-at-rx'] || !updateData['limit-at-tx'])) {
-							const parseRate = (val: string) => {
-								if (!val) return 0;
-								const num = parseFloat(val);
-								if (val.toLowerCase().includes('k')) return num * 1000;
-								if (val.toLowerCase().includes('m')) return num * 1000000;
-								return num;
-							};
-							const formatRate = (val: number) => {
-								if (val >= 1000000) return `${Math.floor(val / 1000000)}M`;
-								if (val >= 1000) return `${Math.floor(val / 1000)}k`;
-								return `${Math.floor(val)}`;
-							};
-							const rxBytes = parseRate(updateData['rate-limit-rx']);
-							const txBytes = parseRate(updateData['rate-limit-tx']);
-							if (rxBytes > 0) updateData['limit-at-rx'] = formatRate(rxBytes / finalMaxClients);
-							if (txBytes > 0) updateData['limit-at-tx'] = formatRate(txBytes / finalMaxClients);
-						}
+				// 1. MANAGE SHARED PARENT QUEUE (Simple Queue)
+				if (finalMaxClients > 1) {
+					const rateLimitRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
+					const rateLimitTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
+					const parentMaxLimit = `${rateLimitRx || '10M'}/${rateLimitTx || '10M'}`;
 
-						await updatePppProfile(config, mikrotikId, updateData);
-						console.log(`✅ Profile ${profile.name} fully updated for package ${newPackageName}`);
+					const queueData = {
+						name: newPackageName,
+						target: '0.0.0.0/0',
+						maxLimit: parentMaxLimit,
+						limitAt: '0/0',
+						comment: `[BILLING] PPPOE SHARED PARENT: ${newPackageName} (Max: ${finalMaxClients} Clients)`,
+						queue: 'pcq-upload-default/pcq-download-default',
+						priority: '8/8'
+					};
+
+					let existingQueueId = await findSimpleQueueIdByName(config, oldPackageName);
+					if (!existingQueueId && newPackageName !== oldPackageName) {
+						existingQueueId = await findSimpleQueueIdByName(config, newPackageName);
+					}
+
+					if (existingQueueId) {
+						await updateSimpleQueue(config, existingQueueId, queueData);
+						console.log(`✅ Updated Shared Parent Queue: ${newPackageName}`);
+					} else {
+						await createSimpleQueue(config, queueData);
+						console.log(`✅ Created Shared Parent Queue: ${newPackageName}`);
+					}
+				} else {
+					// Clean up if no longer shared
+					const existingQueueId = await findSimpleQueueIdByName(config, oldPackageName);
+					if (existingQueueId) {
+						await deleteSimpleQueue(config, existingQueueId);
+						console.log(`🗑️ Deleted Shared Parent Queue (max_clients=1): ${oldPackageName}`);
 					}
 				}
-			}
-		} catch (e: any) {
-			console.error(`[PPPOE] Full Profile sync failed on update:`, e.message);
-		}
 
-		// Sync to MikroTik if configuration allows
-		try {
-			// Jika ada profile_id (baru atau lama)
-			const targetProfileId = newProfileId || oldProfileId;
-			if (targetProfileId) {
-				const config = await getMikrotikConfig();
-				if (config) {
-					// Get profile name from DB needed to find it in MikroTik
-					const [profileRows] = await conn.execute(
-						'SELECT name FROM pppoe_profiles WHERE id = ?',
-						[targetProfileId]
-					);
-					const profile = Array.isArray(profileRows) && profileRows.length ? profileRows[0] as any : null;
-
-					if (profile && profile.name) {
-						// Find profile in MikroTik
+				// 2. SYNC PPP PROFILE SETTINGS
+				const targetProfileId = newProfileId || oldProfileId;
+				if (targetProfileId) {
+					const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [targetProfileId]);
+					const profile = (profRows as any)[0];
+					if (profile) {
 						const mikrotikId = await findPppProfileIdByName(config, profile.name);
-
 						if (mikrotikId) {
-							const updateData: any = {};
+							const updateData: any = {
+								'parent-queue': finalMaxClients > 1 ? newPackageName : 'none',
+								'rate-limit-rx': data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx || '10M',
+								'rate-limit-tx': data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx || '10M',
+								'burst-limit-rx': data.burst_limit_rx !== undefined ? data.burst_limit_rx : currentPackage.burst_limit_rx || '',
+								'burst-limit-tx': data.burst_limit_tx !== undefined ? data.burst_limit_tx : currentPackage.burst_limit_tx || '',
+								'burst-threshold-rx': data.burst_threshold_rx !== undefined ? data.burst_threshold_rx : currentPackage.burst_threshold_rx || '',
+								'burst-threshold-tx': data.burst_threshold_tx !== undefined ? data.burst_threshold_tx : currentPackage.burst_threshold_tx || '',
+								'burst-time-rx': data.burst_time_rx !== undefined ? data.burst_time_rx : currentPackage.burst_time_rx || '',
+								'burst-time-tx': data.burst_time_tx !== undefined ? data.burst_time_tx : currentPackage.burst_time_tx || '',
+								'limit-at-rx': data.limit_at_download !== undefined ? data.limit_at_download : currentPackage.limit_at_download || '',
+								'limit-at-tx': data.limit_at_upload !== undefined ? data.limit_at_upload : currentPackage.limit_at_upload || '',
+								'priority': data.priority !== undefined ? data.priority : currentPackage.priority || 8
+							};
 
-							// 1. Update Name if Changed
-							if (newPackageName && newPackageName !== oldPackageName) {
-								updateData.name = newPackageName;
-							}
-
-							// 2. Update Rate Limits (Selalu sync rate limit paket ke profile)
-							// Gunakan nilai baru (data) atau fallback ke nilai dari DB paket saat ini
-							updateData['rate-limit-rx'] = data.rate_limit_rx !== undefined ? data.rate_limit_rx : (currentPackage.rate_limit_rx || '0');
-							updateData['rate-limit-tx'] = data.rate_limit_tx !== undefined ? data.rate_limit_tx : (currentPackage.rate_limit_tx || '0');
-
-							updateData['burst-limit-rx'] = data.burst_limit_rx !== undefined ? data.burst_limit_rx : currentPackage.burst_limit_rx;
-							updateData['burst-limit-tx'] = data.burst_limit_tx !== undefined ? data.burst_limit_tx : currentPackage.burst_limit_tx;
-
-							updateData['burst-threshold-rx'] = data.burst_threshold_rx !== undefined ? data.burst_threshold_rx : currentPackage.burst_threshold_rx;
-							updateData['burst-threshold-tx'] = data.burst_threshold_tx !== undefined ? data.burst_threshold_tx : currentPackage.burst_threshold_tx;
-
-							updateData['burst-time-rx'] = data.burst_time_rx !== undefined ? data.burst_time_rx : currentPackage.burst_time_rx;
-							updateData['burst-time-tx'] = data.burst_time_tx !== undefined ? data.burst_time_tx : currentPackage.burst_time_tx;
-
-							// 3. Update Limit-At (Garansi Bandwidth)
-							// AUTO-CALCULATION LOGIC:
-							// If this is a Shared Package (max_clients > 1) AND manual limit-at is NOT provided,
-							// we calculate a default Limit-At = RateLimit / MaxClients to ensure fairness guarantee.
-
-							const currentMaxClients = (data.max_clients !== undefined) ? data.max_clients : (currentPackage.max_clients || 1);
-
-							// Resolving final Limit-At values (Manual Input OR Calculation)
-							let finalLimitAtRx = data.limit_at_download !== undefined ? data.limit_at_download : currentPackage.limit_at_download;
-							let finalLimitAtTx = data.limit_at_upload !== undefined ? data.limit_at_upload : currentPackage.limit_at_upload;
-
-							if (currentMaxClients > 1 && (!finalLimitAtRx || !finalLimitAtTx)) {
-								// Try to calculate from Rate Limit (e.g. "10M")
+							// Auto-calculate limit-at for shared
+							if (finalMaxClients > 1 && (!updateData['limit-at-rx'] || !updateData['limit-at-tx'])) {
 								const parseRate = (val: string) => {
 									if (!val) return 0;
 									const num = parseFloat(val);
@@ -770,51 +740,31 @@ export async function updatePackage(id: number, data: {
 									if (val.toLowerCase().includes('m')) return num * 1000000;
 									return num;
 								};
-
 								const formatRate = (val: number) => {
 									if (val >= 1000000) return `${Math.floor(val / 1000000)}M`;
 									if (val >= 1000) return `${Math.floor(val / 1000)}k`;
 									return `${Math.floor(val)}`;
 								};
-
-								const finalRateRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : (currentPackage.rate_limit_rx || '0');
-								const finalRateTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : (currentPackage.rate_limit_tx || '0');
-
-								if (!finalLimitAtRx) {
-									const rxBytes = parseRate(finalRateRx);
-									if (rxBytes > 0) finalLimitAtRx = formatRate(rxBytes / currentMaxClients);
-								}
-								if (!finalLimitAtTx) {
-									const txBytes = parseRate(finalRateTx);
-									if (txBytes > 0) finalLimitAtTx = formatRate(txBytes / currentMaxClients);
-								}
-								console.log(`💡 Auto-calculated Limit-At for Shared Package: ${finalLimitAtTx}/${finalLimitAtRx} (Rate: ${finalRateTx}/${finalRateRx} / ${currentMaxClients})`);
+								const rxB = parseRate(updateData['rate-limit-rx']);
+								const txB = parseRate(updateData['rate-limit-tx']);
+								if (rxB > 0) updateData['limit-at-rx'] = formatRate(rxB / finalMaxClients);
+								if (txB > 0) updateData['limit-at-tx'] = formatRate(txB / finalMaxClients);
 							}
 
-							updateData['limit-at-rx'] = finalLimitAtRx;
-							updateData['limit-at-tx'] = finalLimitAtTx;
-
-							// Send update to MikroTik
 							await updatePppProfile(config, mikrotikId, updateData);
-							console.log(`✅ Synced package changes to MikroTik Profile "${profile.name}" (ID: ${mikrotikId})`);
-
-							// Jika nama berubah, update juga di DB pppoe_profiles
-							if (updateData.name) {
-								await conn.execute(
-									'UPDATE pppoe_profiles SET name = ? WHERE id = ?',
-									[updateData.name, targetProfileId]
-								);
-							}
-						} else {
-							console.warn(`⚠️ Profile "${profile.name}" not found in MikroTik, cannot sync package changes.`);
+							console.log(`✅ Synced Profile: ${profile.name} (Parent=${updateData['parent-queue']})`);
 						}
 					}
 				}
 			}
-		} catch (syncError: any) {
-			console.error(`⚠️ Gagal sync ke MikroTik: `, syncError.message);
-			// Don't throw - package was updated in DB
+		} catch (e: any) {
+			console.error(`[PPPOE] MikroTik Sync Error (Update):`, e.message);
 		}
+
+		await conn.commit();
+	} catch (error: any) {
+		await conn.rollback();
+		throw error;
 	} finally {
 		conn.release();
 	}
