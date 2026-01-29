@@ -210,7 +210,11 @@
             cancelButtonColor: '#64748b',
             confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal',
-            reverseButtons: true
+            reverseButtons: true,
+            focusCancel: true,
+            heightAuto: false,
+            position: 'center',
+            scrollbarPadding: false
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({
