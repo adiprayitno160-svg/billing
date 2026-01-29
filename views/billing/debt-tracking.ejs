@@ -1,182 +1,188 @@
 ﻿<!-- Export Button -->
 <div class="flex justify-end mb-6">
-    <button onclick="exportDebts()" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+    <button onclick="exportDebts()"
+        class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
         <i class="fas fa-download mr-2"></i>Export
     </button>
 </div>
 
 <!-- Main Content -->
 <div>
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-hand-holding-usd text-red-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Total Hutang</p>
-                            <p id="total-debt" class="text-xl font-bold text-gray-900">Rp 0</p>
-                        </div>
-                    </div>
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-hand-holding-usd text-red-600 text-xl"></i>
                 </div>
-                
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-users text-yellow-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Pelanggan Berhutang</p>
-                            <p id="customers-count" class="text-xl font-bold text-gray-900">0</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-exclamation-triangle text-orange-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Hutang > 30 Hari</p>
-                            <p id="overdue-count" class="text-xl font-bold text-gray-900">0</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-history text-blue-600 text-xl"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm text-gray-600">Lunas Bulan Ini</p>
-                            <p id="resolved-count" class="text-xl font-bold text-gray-900">0</p>
-                        </div>
-                    </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Total Hutang</p>
+                    <p id="total-debt" class="text-xl font-bold text-gray-900">Rp 0</p>
                 </div>
             </div>
+        </div>
 
-            <!-- Filters -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-                <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <option value="">Semua Status</option>
-                            <option value="unpaid">Belum Lunas</option>
-                            <option value="resolved">Sudah Lunas</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Cari Pelanggan</label>
-                        <input type="text" name="search" placeholder="Nama atau telepon" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Hutang</label>
-                        <input type="number" name="min_amount" placeholder="0" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    
-                    <div class="flex items-end space-x-2">
-                        <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                            <i class="fas fa-search mr-2"></i>Filter
-                        </button>
-                        <a href="/billing/debts" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
-                            <i class="fas fa-refresh"></i>
-                        </a>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Debts Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Daftar Hutang</h3>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-users text-yellow-600 text-xl"></i>
                 </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pelanggan</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. Tagihan</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jumlah Hutang</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Umur Hutang</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="debts-tbody" class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                    <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
-                                    <p>Memuat data...</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Pelanggan Berhutang</p>
+                    <p id="customers-count" class="text-xl font-bold text-gray-900">0</p>
                 </div>
             </div>
-</div>
+        </div>
 
-<!-- Resolve Debt Modal -->
-    <div id="resolve-modal" class="hidden fixed inset-0 bg-gray-600  overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Lunasi Hutang</h3>
-                <form id="resolve-form">
-                    <input type="hidden" id="debt-id" name="debt_id">
-                    
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Metode Pembayaran</label>
-                        <select name="payment_method" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                            <option value="">Pilih Metode</option>
-                            <option value="cash">Tunai</option>
-                            <option value="transfer">Transfer</option>
-                            <option value="e-wallet">E-Wallet</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Catatan</label>
-                        <textarea name="notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
-                    </div>
-                    
-                    <div class="flex space-x-3">
-                        <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                            Lunasi
-                        </button>
-                        <button type="button" onclick="closeModal()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-                            Batal
-                        </button>
-                    </div>
-                </form>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-orange-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Hutang > 30 Hari</p>
+                    <p id="overdue-count" class="text-xl font-bold text-gray-900">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-history text-blue-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Lunas Bulan Ini</p>
+                    <p id="resolved-count" class="text-xl font-bold text-gray-900">0</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        async function loadDebts() {
-            try {
-                const response = await fetch('/billing/debts?format=json');
-                const data = await response.json();
-                
-                // Update summary
-                document.getElementById('total-debt').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(data.summary?.total_debt || 0);
-                document.getElementById('customers-count').textContent = data.summary?.customers_count || 0;
-                document.getElementById('overdue-count').textContent = data.summary?.overdue_count || 0;
-                document.getElementById('resolved-count').textContent = data.summary?.resolved_count || 0;
-                
-                const tbody = document.getElementById('debts-tbody');
-                
-                if (!data.debts || data.debts.length === 0) {
-                    tbody.innerHTML = `
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">Semua Status</option>
+                    <option value="unpaid">Belum Lunas</option>
+                    <option value="resolved">Sudah Lunas</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Cari Pelanggan</label>
+                <input type="text" name="search" placeholder="Nama atau telepon"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Hutang</label>
+                <input type="number" name="min_amount" placeholder="0"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="flex items-end space-x-2">
+                <button type="submit"
+                    class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>Filter
+                </button>
+                <a href="/billing/debts"
+                    class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-refresh"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Debts Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Daftar Hutang</h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pelanggan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. Tagihan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jumlah Hutang</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Umur Hutang</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="debts-tbody" class="bg-white divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                            <p>Memuat data...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Resolve Debt Modal -->
+<div id="resolve-modal" class="hidden fixed inset-0 bg-gray-600  overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Lunasi Hutang</h3>
+            <form id="resolve-form">
+                <input type="hidden" id="debt-id" name="debt_id">
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Metode Pembayaran</label>
+                    <select name="payment_method" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Pilih Metode</option>
+                        <option value="cash">Tunai</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="e-wallet">E-Wallet</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Catatan</label>
+                    <textarea name="notes" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Lunasi
+                    </button>
+                    <button type="button" onclick="closeModal()"
+                        class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                        Batal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadDebts() {
+        try {
+            const response = await fetch('/billing/debts?format=json');
+            const data = await response.json();
+
+            // Update summary
+            document.getElementById('total-debt').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(data.summary?.total_debt || 0);
+            document.getElementById('customers-count').textContent = data.summary?.customers_count || 0;
+            document.getElementById('overdue-count').textContent = data.summary?.overdue_count || 0;
+            document.getElementById('resolved-count').textContent = data.summary?.resolved_count || 0;
+
+            const tbody = document.getElementById('debts-tbody');
+
+            if (!data.debts || data.debts.length === 0) {
+                tbody.innerHTML = `
                         <tr>
                             <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                                 <i class="fas fa-inbox text-4xl mb-2"></i>
@@ -184,15 +190,15 @@
                             </td>
                         </tr>
                     `;
-                    return;
-                }
-                
-                tbody.innerHTML = data.debts.map(debt => {
-                    const statusClass = debt.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                    const statusText = debt.status === 'resolved' ? 'Lunas' : 'Belum Lunas';
-                    const daysOld = Math.floor((new Date() - new Date(debt.created_at)) / (1000 * 60 * 60 * 24));
-                    
-                    return `
+                return;
+            }
+
+            tbody.innerHTML = data.debts.map(debt => {
+                const statusClass = debt.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                const statusText = debt.status === 'resolved' ? 'Lunas' : 'Belum Lunas';
+                const daysOld = Math.floor((new Date() - new Date(debt.created_at)) / (1000 * 60 * 60 * 24));
+
+                return `
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">${debt.customer_name}</div>
@@ -227,56 +233,62 @@
                             </td>
                         </tr>
                     `;
-                }).join('');
-                
-            } catch (error) {
-                console.error('Error loading debts:', error);
-            }
-        }
+            }).join('');
 
-        function showResolveModal(debtId) {
-            document.getElementById('debt-id').value = debtId;
-            document.getElementById('resolve-modal').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error loading debts:', error);
         }
+    }
 
-        function closeModal() {
-            document.getElementById('resolve-modal').classList.add('hidden');
-        }
+    function showResolveModal(debtId) {
+        document.getElementById('debt-id').value = debtId;
+        document.getElementById('resolve-modal').classList.remove('hidden');
+    }
 
-        document.getElementById('resolve-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const debtId = document.getElementById('debt-id').value;
-            const formData = new FormData(this);
-            
-            try {
-                const response = await fetch(`/billing/debts/${debtId}/resolve`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        payment_method: formData.get('payment_method'),
-                        notes: formData.get('notes')
-                    })
+    function closeModal() {
+        document.getElementById('resolve-modal').classList.add('hidden');
+    }
+
+    document.getElementById('resolve-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const debtId = document.getElementById('debt-id').value;
+        const formData = new FormData(this);
+
+        try {
+            const response = await fetch(`/billing/debts/${debtId}/resolve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    payment_method: formData.get('payment_method'),
+                    notes: formData.get('notes')
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Hutang berhasil dilunasi!',
+                    timer: 2000,
+                    showConfirmButton: false
                 });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('Hutang berhasil dilunasi!');
-                    closeModal();
-                    loadDebts();
-                } else {
-                    alert('Error: ' + result.message);
-                }
-            } catch (error) {
-                console.error('Error resolving debt:', error);
-                alert('Terjadi kesalahan');
+                closeModal();
+                loadDebts();
+            } else {
+                Swal.fire('Error!', (result.message || 'Gagal melunasi hutang'), 'error');
             }
-        });
-
-        function exportDebts() {
-            window.location.href = '/billing/debts/export';
+        } catch (error) {
+            console.error('Error resolving debt:', error);
+            Swal.fire('Error!', 'Terjadi kesalahan sistem', 'error');
         }
+    });
+
+    function exportDebts() {
+        window.location.href = '/billing/debts/export';
+    }
 
     // Load data on page load
     loadDebts();

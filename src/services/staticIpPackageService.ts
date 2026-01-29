@@ -529,21 +529,15 @@ export async function syncClientQueues(
 	}
 
 	// Calculate Peer IP for marks
-	function ipToInt(ip: string) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0; }
-	function intToIp(int: number) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.'); }
+	// NOTE: For Mangle/Queues, we always want to target the CLIENT IP (ipOnly).
+	// The previous logic swapped it to Gateway IP for /30, which was incorrect for traffic shaping.
 
 	const [ipOnly, prefixStr] = ipAddress.split('/');
-	const prefix = Number(prefixStr || '32');
-	const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-	const networkInt = ipToInt(ipOnly) & mask;
+	// Helper used previously but simplified now
+	function ipToInt(ip: string) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0; }
 
+	// We use the Client IP for Mangle and Queues
 	let peerIp = ipOnly;
-	if (prefix === 30) {
-		const firstHost = networkInt + 1;
-		const secondHost = networkInt + 2;
-		const ipInt = ipToInt(ipOnly);
-		peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-	}
 
 	// Cleanup Queue by IP/PacketMark to be extra safe
 	try {

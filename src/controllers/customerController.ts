@@ -1814,7 +1814,6 @@ export const toggleCustomerStatus = async (req: Request, res: Response) => {
                 );
             }
 
-            // Sync to Mikrotik
             if (customer.connection_type === 'pppoe' && customer.pppoe_username) {
                 try {
                     const config = await getMikrotikConfig();
@@ -1856,6 +1855,58 @@ export const toggleCustomerStatus = async (req: Request, res: Response) => {
                     }
                 } catch (mikrotikError) {
                     console.error('Failed to sync status to Mikrotik:', mikrotikError);
+                }
+            } else if (customer.connection_type === 'static_ip') {
+                // Static IP Isolation Logic
+                try {
+                    const [staticClients] = await conn.query<RowDataPacket[]>(
+                        'SELECT ip_address FROM static_ip_clients WHERE customer_id = ?',
+                        [customerId]
+                    );
+
+                    if (staticClients && staticClients.length > 0) {
+                        const clientIp = staticClients[0].ip_address; // this is Client IP (e.g. .2)
+                        if (clientIp) {
+                            const config = await getMikrotikConfig();
+                            if (config) {
+                                const { findIpAddressId, updateIpAddress } = await import('../services/mikrotikService');
+
+                                let targetIp = clientIp;
+
+                                // Calculate Gateway IP if /30 to isolate the Gateway (Router Interface)
+                                const [ipOnly, prefixStr] = String(clientIp).split('/');
+                                const prefix = Number(prefixStr || '0');
+                                if (prefix === 30) {
+                                    const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                                    const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                                    const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                                    const networkInt = ipToInt(ipOnly) & mask;
+                                    const firstHost = networkInt + 1;
+                                    const secondHost = networkInt + 2;
+                                    const ipInt = ipToInt(ipOnly);
+
+                                    // Gateway is Peer
+                                    const gwIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                                    targetIp = `${gwIp}/${prefix}`;
+                                }
+
+                                // Find ID of the IP on MikroTik
+                                let ipId = await findIpAddressId(config, targetIp);
+                                if (!ipId) ipId = await findIpAddressId(config, targetIp.split('/')[0]);
+
+                                if (ipId) {
+                                    // active -> disabled: false, inactive -> disabled: true
+                                    await updateIpAddress(config, ipId, { disabled: status !== 'active' });
+                                    console.log(`✅ Static IP ${targetIp} status updated to ${status} (Disabled: ${status !== 'active'})`);
+                                } else {
+                                    console.warn(`⚠️ Could not find MikroTik IP for isolation: ${targetIp}`);
+                                }
+                            }
+                        }
+                    }
+                } catch (sipErr) {
+                    console.error('Static IP Isolation Error:', sipErr);
                 }
             }
 

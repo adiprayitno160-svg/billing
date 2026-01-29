@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Sistem Billing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <%- include('../partials/header') %>
+    
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800"><%= title %></h1>
+            <button onclick="location.reload()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
+                <i class="fas fa-sync mr-2"></i> Refresh
+            </button>
+        </div>
+
+        <!-- Alert Messages -->
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="mb-4 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300">
+                <i class="fas fa-check-circle mr-2"></i>
+                <%= typeof success === 'string' ? success : success.join(', ') %>
+            </div>
+        <% } %>
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <%= typeof error === 'string' ? error : error.join(', ') %>
+            </div>
+        <% } %>
+
+        <!-- Stats Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                        <i class="fas fa-users text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Total Pelanggan</p>
+                        <p class="text-2xl font-bold"><%= customers.length %></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                        <i class="fas fa-check-circle text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Boleh Ganti Paket</p>
+                        <p class="text-2xl font-bold"><%= customers.filter(c => c.isValid).length %></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
+                        <i class="fas fa-exclamation-triangle text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Harus Bayar Dulu</p>
+                        <p class="text-2xl font-bold"><%= customers.filter(c => !c.isValid).length %></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-red-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-red-100 text-red-600 mr-4">
+                        <i class="fas fa-file-invoice-dollar text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Total Tertunggak</p>
+                        <p class="text-2xl font-bold">Rp <%= customers.reduce((sum, c) => sum + (c.totalOutstandingAmount || 0), 0).toLocaleString('id-ID') %></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customers Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pelanggan</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paket</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tagihan Tertunggak</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <% customers.forEach(function(customer) { %>
+                        <tr class="<%= !customer.isValid ? 'bg-yellow-50' : 'bg-white' %>">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                                        <%= customer.name.charAt(0).toUpperCase() %>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900"><%= customer.name %></div>
+                                        <div class="text-sm text-gray-500"><%= customer.connection_type.toUpperCase() %> | <%= customer.billing_mode %></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900"><%= customer.phone || '-' %></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900"><%= customer.package_name || '-' %></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <% if (customer.isValid) { %>
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        <i class="fas fa-check mr-1"></i> Boleh Ganti
+                                    </span>
+                                <% } else { %>
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i> Harus Bayar
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">
+                                    <% if (customer.totalOutstandingAmount && customer.totalOutstandingAmount > 0) { %>
+                                        <div>Total: <strong>Rp <%= customer.totalOutstandingAmount.toLocaleString('id-ID') %></strong></div>
+                                        <div>Tagihan: <strong><%= customer.outstandingInvoiceCount %></strong></div>
+                                    <% } else { %>
+                                        <span class="text-green-600">Tidak ada</span>
+                                    <% } %>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    <% if (!customer.isValid) { %>
+                                        <!-- Send Reminder Notification -->
+                                        <a href="/admin/package-change-validation/remind/<%= customer.id %>" 
+                                           onclick="return confirm('Kirim notifikasi WhatsApp pengingat kepada <%= customer.name %>?')"
+                                           class="text-blue-600 hover:text-blue-900">
+                                            <i class="fas fa-paper-plane mr-1"></i> Kirim Pengingat
+                                        </a>
+                                        
+                                        <!-- Force Package Change -->
+                                        <button onclick="showForceChangeModalForCustomer(<%= customer.id %>, '<%= customer.connection_type %>')" 
+                                                class="text-orange-600 hover:text-orange-900">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i> Paksa Ganti
+                                        </button>
+                                    <% } else { %>
+                                        <span class="text-gray-400">-</span>
+                                    <% } %>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Force Package Change Modal -->
+    <div id="forceChangeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-medium text-gray-900">Paksa Perubahan Paket</h3>
+            </div>
+            <form id="forceChangeForm" action="/admin/package-change-validation/force" method="POST">
+                <input type="hidden" id="customerIdInput" name="customerId" value="">
+                <div class="px-6 py-4">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Pelanggan</label>
+                        <input type="text" id="customerNameInput" class="w-full px-3 py-2 border border-gray-300 rounded-md" readonly>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Paket</label>
+                        <select name="packageType" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                            <option value="pppoe">PPPoE</option>
+                            <option value="static_ip">Static IP</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ID Paket Baru</label>
+                        <input type="number" name="newPackageId" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Masukkan ID paket baru" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alasan</label>
+                        <textarea name="reason" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Alasan memaksa perubahan paket" required></textarea>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                        <button type="button" onclick="hideForceChangeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Paksa Ganti
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showForceChangeModal(customerId, customerName, connectionType) {
+            document.getElementById('customerIdInput').value = customerId;
+            document.getElementById('customerNameInput').value = customerName;
+            
+            // Set default package type based on customer's connection type
+            const packageTypeSelect = document.querySelector('#forceChangeForm select[name="packageType"]');
+            if (connectionType.toLowerCase() === 'pppoe') {
+                packageTypeSelect.value = 'pppoe';
+            } else if (connectionType.toLowerCase() === 'static_ip') {
+                packageTypeSelect.value = 'static_ip';
+            }
+            
+            document.getElementById('forceChangeModal').classList.remove('hidden');
+        }
+        
+        function hideForceChangeModal() {
+            document.getElementById('forceChangeModal').classList.add('hidden');
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('forceChangeModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideForceChangeModal();
+            }
+        });
+    </script>
+</body>
+</html>

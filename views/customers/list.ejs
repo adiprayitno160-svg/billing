@@ -497,45 +497,56 @@
 </div>
 
 <script>
-	function deleteCustomer(id, name) {
-		if (confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`)) {
-			fetch(`/customers/${id}`, {
-				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json',
-					'Accept': 'application/json'
-				},
-				credentials: 'same-origin'
-			})
-				.then(async response => {
-					const contentType = response.headers.get('content-type') || '';
-					if (!response.ok) {
-						let errorMessage = `HTTP ${response.status}`;
-						try {
-							if (contentType.includes('application/json')) {
-								const data = await response.json();
-								errorMessage = data.error || JSON.stringify(data);
-							} else {
-								const text = await response.text();
-								errorMessage = text?.slice(0, 500) || errorMessage;
-							}
-						} catch (_) { }
-						throw new Error(errorMessage);
-					}
-					return contentType.includes('application/json') ? response.json() : { success: true };
-				})
-				.then(data => {
-					if (data.success) {
-						alert('Pelanggan berhasil dihapus!');
-						location.reload();
-					} else {
-						alert('Gagal menghapus pelanggan: ' + data.error);
-					}
-				})
-				.catch(error => {
-					console.error('Error:', error);
-					alert('Terjadi kesalahan saat menghapus pelanggan: ' + (error?.message || error));
+	async function deleteCustomer(id, name) {
+		const result = await Swal.fire({
+			title: 'Hapus Pelanggan?',
+			html: `Apakah Anda yakin ingin menghapus pelanggan <b>"${name}"</b>?<br><span class="text-xs text-red-500 mt-2 block">Tindakan ini tidak dapat dibatalkan!</span>`,
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'Ya, Hapus!',
+			cancelButtonText: 'Batal',
+			confirmButtonColor: '#ef4444',
+			cancelButtonColor: '#6b7280',
+			reverseButtons: true
+		});
+
+		if (result.isConfirmed) {
+			Swal.fire({
+				title: 'Menghapus...',
+				allowOutsideClick: false,
+				didOpen: () => {
+					Swal.showLoading();
+				}
+			});
+
+			try {
+				const response = await fetch(`/customers/${id}`, {
+					method: 'DELETE',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json'
+					},
+					credentials: 'same-origin'
 				});
+
+				const data = await response.json();
+
+				if (data.success) {
+					await Swal.fire({
+						icon: 'success',
+						title: 'Terhapus!',
+						text: 'Pelanggan berhasil dihapus.',
+						timer: 1500,
+						showConfirmButton: false
+					});
+					location.reload();
+				} else {
+					Swal.fire('Gagal!', 'Gagal menghapus pelanggan: ' + (data.error || 'Terjadi kesalahan'), 'error');
+				}
+			} catch (error) {
+				console.error('Error:', error);
+				Swal.fire('Error!', 'Terjadi kesalahan saat menghapus pelanggan: ' + (error?.message || error), 'error');
+			}
 		}
 	}
 
@@ -617,50 +628,43 @@
 		closeDeleteModal();
 
 		// Show loading
-		const btn = document.getElementById('bulkDeleteBtn');
-		if (btn) {
-			const originalHtml = btn.innerHTML;
-			btn.innerHTML = '⏳ Menghapus...';
-			btn.disabled = true;
-		}
+		Swal.fire({
+			title: 'Menghapus Masal...',
+			text: `Sedang menghapus ${ids.length} pelanggan terpilih`,
+			allowOutsideClick: false,
+			didOpen: () => {
+				Swal.showLoading();
+			}
+		});
 
-		fetch('/customers/bulk-delete', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-			credentials: 'same-origin',
-			body: JSON.stringify({ ids })
-		})
-			.then(async res => {
-				const contentType = res.headers.get('content-type') || '';
-				if (!res.ok) {
-					let errorMessage = `HTTP ${res.status}`;
-					try {
-						if (contentType.includes('application/json')) {
-							const data = await res.json();
-							errorMessage = data.error || JSON.stringify(data);
-						} else {
-							const text = await res.text();
-							errorMessage = text?.slice(0, 500) || errorMessage;
-						}
-					} catch (_) { }
-					throw new Error(errorMessage);
-				}
-				return contentType.includes('application/json') ? res.json() : { success: false, error: 'Respon tidak valid' };
-			})
-			.then(data => {
-				if (data.success) {
-					const skipped = data.results?.skipped?.length || 0;
-					const deleted = data.results?.deleted?.length || 0;
-					alert(`Hapus massal selesai. Dihapus: ${deleted}, Dilewati: ${skipped}`);
-					location.reload();
-				} else {
-					alert('Gagal melakukan hapus massal: ' + (data.error || 'Tidak diketahui'));
-				}
-			})
-			.catch(err => {
-				console.error('Bulk delete error:', err);
-				alert('Terjadi kesalahan saat hapus massal: ' + (err?.message || err));
+		try {
+			const res = await fetch('/customers/bulk-delete', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+				credentials: 'same-origin',
+				body: JSON.stringify({ ids })
 			});
+
+			const data = await res.json();
+
+			if (data.success) {
+				const skipped = data.results?.skipped?.length || 0;
+				const deleted = data.results?.deleted?.length || 0;
+
+				await Swal.fire({
+					icon: 'success',
+					title: 'Selesai!',
+					text: `Hapus massal berhasil. Dihapus: ${deleted}, Dilewati: ${skipped}`,
+					confirmButtonText: 'Mantap'
+				});
+				location.reload();
+			} else {
+				Swal.fire('Gagal!', (data.error || 'Terjadi kesalahan saat hapus massal'), 'error');
+			}
+		} catch (err) {
+			console.error('Bulk delete error:', err);
+			Swal.fire('Error!', (err?.message || 'Kesalahan sistem'), 'error');
+		}
 	}
 
 	function exportToExcel() {
@@ -1271,9 +1275,17 @@ URL: ${portalUrl}
 Silakan login di portal untuk membeli paket internet.`;
 
 		navigator.clipboard.writeText(text).then(() => {
-			alert('✅ Info portal berhasil dicopy!');
+			Swal.fire({
+				icon: 'success',
+				title: 'Copied!',
+				text: 'Info portal berhasil dicopy ke clipboard.',
+				toast: true,
+				position: 'top-end',
+				timer: 3000,
+				showConfirmButton: false
+			});
 		}).catch(() => {
-			alert('❌ Gagal copy. Silakan copy manual.');
+			Swal.fire('Error', 'Gagal copy. Silakan copy manual.', 'error');
 		});
 	}
 
@@ -1321,9 +1333,6 @@ Terima kasih! 🙏`;
 		// Optimistic UI update
 		if (label) label.textContent = checkbox.checked ? 'Aktif' : 'Nonaktif';
 
-		// Optional: Show toast or indicator
-		// if (typeof showToast === 'function') showToast('Mengupdate status...', 'info');
-
 		fetch(`/customers/${id}/toggle-status`, {
 			method: 'POST',
 			headers: {
@@ -1351,15 +1360,22 @@ Terima kasih! 🙏`;
 			})
 			.then(data => {
 				if (data.success) {
-					// Show success toast if available, or lightweight notification
-					// alert(`Status pelanggan berhasil diubah menjadi ${newStatus === 'active' ? 'Aktif' : 'Nonaktif'}`);
+					Swal.fire({
+						icon: 'success',
+						title: 'Status Diupdate',
+						text: `Pelanggan sekarang ${newStatus === 'active' ? 'Aktif' : 'Nonaktif'}`,
+						toast: true,
+						position: 'top-end',
+						timer: 2000,
+						showConfirmButton: false
+					});
 				} else {
 					throw new Error(data.error || 'Gagal mengubah status');
 				}
 			})
 			.catch(error => {
 				console.error('Error:', error);
-				alert('Gagal mengubah status: ' + error.message);
+				Swal.fire('Gagal!', error.message, 'error');
 				// Revert UI
 				checkbox.checked = originalChecked;
 				if (label) label.textContent = originalLabel;

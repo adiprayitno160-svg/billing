@@ -2638,24 +2638,24 @@ router.post('/customers/new-pppoe', async (req, res) => {
             try {
                 const { getMikrotikConfig } = await import('../services/pppoeService');
                 const config = await getMikrotikConfig();
-                
+
                 if (config && package_id) {
                     const { getPackageById } = await import('../services/pppoeService');
                     const pkg = await getPackageById(Number(package_id));
-                    
+
                     if (pkg && pkg.max_clients && pkg.max_clients > 1) {
                         // This is a shared package, child queues should be created
                         const mikrotikService = await import('../services/mikrotikService');
-                        
+
                         // Create child queues for the customer using the parent queue
                         const downloadQueueName = `${username}_download`;
                         const uploadQueueName = `${username}_upload`;
                         const parentQueueName = pkg.name; // Parent queue name is the package name
-                        
+
                         // Get rate limits from the package
                         const rateLimitRx = pkg.rate_limit_rx || '1M';
                         const rateLimitTx = pkg.rate_limit_tx || '1M';
-                        
+
                         // Create download child queue
                         const downloadQueueData = {
                             name: downloadQueueName,
@@ -2665,7 +2665,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             priority: '8',
                             comment: `[BILLING] Download child queue for PPPoE user ${username}`
                         };
-                        
+
                         // Create upload child queue
                         const uploadQueueData = {
                             name: uploadQueueName,
@@ -2675,11 +2675,11 @@ router.post('/customers/new-pppoe', async (req, res) => {
                             priority: '8',
                             comment: `[BILLING] Upload child queue for PPPoE user ${username}`
                         };
-                        
+
                         console.log('Creating download child queue for PPPoE user:', downloadQueueData);
                         await mikrotikService.createSimpleQueue(config, downloadQueueData);
                         console.log(`✅ Download child queue created for PPPoE user ${username}`);
-                        
+
                         console.log('Creating upload child queue for PPPoE user:', uploadQueueData);
                         await mikrotikService.createSimpleQueue(config, uploadQueueData);
                         console.log(`✅ Upload child queue created for PPPoE user ${username}`);
@@ -3623,12 +3623,78 @@ router.post('/customers/new-static-ip', async (req, res) => {
         if (cfg && pkg) {
             try {
                 // 1) Tambah IP address ke interface
+                // Untuk /30, Input adalah Client IP, kita perlu pasang Gateway IP di MikroTik
                 if (iface) {
-                    await addIpAddress(cfg, {
-                        interface: iface,
-                        address: ip_address,
-                        comment: client_name
-                    });
+                    let mikrotikAddress = ip_address;
+
+                    try {
+                        const [ipOnly, prefixStr] = String(ip_address || '').split('/');
+                        const prefix = Number(prefixStr || '0');
+
+                        // LOGIC: Jika /30, hitung lawan (Gateway) dari IP Client
+                        if (prefix === 30) {
+                            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                            const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                            const networkInt = ipToInt(ipOnly) & mask;
+                            const firstHost = networkInt + 1;
+                            const secondHost = networkInt + 2;
+                            const ipInt = ipToInt(ipOnly);
+
+                            // If input is .2 (Second), Gateway is .1 (First)
+                            // If input is .1 (First), Gateway is .2 (Second)
+                            const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+
+                            mikrotikAddress = `${gatewayIp}/${prefix}`;
+                            console.log(`[Auto-Gateway] Input Client: ${ip_address} -> Gateway MikroTik: ${mikrotikAddress}`);
+                        }
+                    } catch (calcErr) {
+                        console.error('IP Calculation error:', calcErr);
+                    }
+
+                    try {
+                        await addIpAddress(cfg, {
+                            interface: iface,
+                            address: mikrotikAddress,
+                            comment: `Client ${client_name}`
+                        });
+                        console.log(`✅ IP Address ${mikrotikAddress} added to MikroTik`);
+                    } catch (err: any) {
+                        const msg = String(err.message || '');
+                        if (msg.includes('already have') || msg.includes('failure')) {
+                            console.log(`⚠️ IP ${mikrotikAddress} already exists. Updating comment...`);
+                            // Try to find and update comment
+                            try {
+                                const { findIpAddressId, updateIpAddress } = await import('../services/mikrotikService');
+                                const ipId = await findIpAddressId(cfg, mikrotikAddress.split('/')[0]); // Search by IP only usually works or exact check
+                                // findIpAddressId in mikrotikService searches by `?address=` exact match (likely with CIDR in later RouterOS or just IP)
+                                // Let's try searching with and without CIDR if needed, but service usually handles exact string passed.
+                                // mikrotikService.findIpAddressId uses `address=${address}`.
+                                // RouterOS `address` field includes netmask (e.g. 192.168.1.1/30).
+                                // So we pass `mikrotikAddress`.
+
+                                let finalIpId = await findIpAddressId(cfg, mikrotikAddress);
+                                if (!finalIpId) {
+                                    // Try without CIDR if failed
+                                    finalIpId = await findIpAddressId(cfg, mikrotikAddress.split('/')[0]);
+                                }
+
+                                if (finalIpId) {
+                                    await updateIpAddress(cfg, finalIpId, { comment: `Client ${client_name}` });
+                                    console.log(`✅ Updated comment for IP ${mikrotikAddress}`);
+                                } else {
+                                    console.warn(`❌ Could not find IP ${mikrotikAddress} ID to update comment.`);
+                                }
+                            } catch (updErr) {
+                                console.error('Failed to update IP comment:', updErr);
+                            }
+                        } else {
+                            // Real error
+                            console.error('Failed to add IP address:', err);
+                            // Don't throw, proceed to Queue/Mangle (maybe IP setup manually)
+                        }
+                    }
                 }
 
                 // 2) Sync and create Queues using the service

@@ -468,23 +468,56 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
 
             // 2) Tambahkan resource baru sesuai input
             if (iface) {
-                await addIpAddress(cfg, { interface: iface, address: ip_address, comment: `Client ${client_name}` });
+                let mikrotikAddress = ip_address;
+                try {
+                    // Logic: Jika /30 dan input adalah Client IP, maka di Interface MikroTik pasang IP Gateway
+                    const [ipOnly, prefixStr] = String(ip_address).split('/');
+                    const prefix = Number(prefixStr || '0');
+                    if (prefix === 30) {
+                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                        const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                        const networkInt = ipToInt(ipOnly || '0.0.0.0') & mask;
+                        const firstHost = networkInt + 1;
+                        const secondHost = networkInt + 2;
+                        const ipInt = ipToInt(ipOnly || '0.0.0.0');
+
+                        // Gateway is "the other guy"
+                        const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                        mikrotikAddress = `${gatewayIp}/${prefix}`;
+                    }
+                } catch (e) { console.warn('IP Calc Error', e); }
+
+                try {
+                    await addIpAddress(cfg, { interface: iface, address: mikrotikAddress, comment: `Client ${client_name}` });
+                } catch (err: any) {
+                    // Check if exists and update comment
+                    const msg = String(err.message || '');
+                    if (msg.includes('already have') || msg.includes('failure')) {
+                        try {
+                            const { findIpAddressId, updateIpAddress } = await import('../services/mikrotikService');
+                            // Try to find using full address or IP only
+                            let ipId = await findIpAddressId(cfg, mikrotikAddress);
+                            if (!ipId) ipId = await findIpAddressId(cfg, mikrotikAddress.split('/')[0]);
+                            if (ipId) {
+                                await updateIpAddress(cfg, ipId, { comment: `Client ${client_name}` });
+                                console.log(`Updated IP comment for ${mikrotikAddress}`);
+                            }
+                        } catch (ignore) { }
+                    } else {
+                        throw err; // Re-throw critical errors
+                    }
+                }
             }
             {
-                const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-                const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
                 const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
                 const ipOnly: string = ipOnlyRaw || '';
-                const prefix: number = Number(prefixStrRaw || '0');
-                const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
+
+                // For Mangle/Queues, ALWAYS use the Client IP (Input IP)
+                // Do NOT swap for /30.
                 let peerIp = ipOnly;
-                if (prefix === 30) {
-                    const firstHost = networkInt + 1;
-                    const secondHost = networkInt + 2;
-                    const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
-                    peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-                }
+
                 const downloadMark: string = peerIp;
                 const uploadMark: string = `UP-${peerIp}`;
                 await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });

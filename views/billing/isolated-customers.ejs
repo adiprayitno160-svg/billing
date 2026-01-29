@@ -368,14 +368,20 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    alert('✅ Berhasil! Pelanggan telah dibuka blokirnya.');
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: 'Pelanggan telah dibuka blokirnya.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
                     restoreModal.classList.add('hidden');
                     refreshAll();
                 } else {
-                    alert('❌ Gagal: ' + (data.message || 'Terjadi kesalahan'));
+                    Swal.fire('Gagal!', (data.message || 'Terjadi kesalahan'), 'error');
                 }
             } catch (e) {
-                alert('❌ Error: ' + e.message);
+                Swal.fire('Error!', e.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalContent;

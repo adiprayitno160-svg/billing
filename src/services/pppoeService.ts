@@ -367,6 +367,45 @@ export async function createPackage(data: {
 }): Promise<number> {
 	const conn = await databasePool.getConnection();
 	try {
+		// 1. AUTO-CREATE / FIND PROFILE IF NOT PROVIDED
+		if (!data.profile_id) {
+			// Check if profile exists in DB
+			const [existingProfiles] = await conn.execute(
+				'SELECT id FROM pppoe_profiles WHERE name = ?',
+				[data.name]
+			);
+
+			if (Array.isArray(existingProfiles) && existingProfiles.length > 0) {
+				// Use existing profile
+				data.profile_id = (existingProfiles[0] as any).id;
+				console.log(`[PPPoE] Found existing profile for package "${data.name}" (ID: ${data.profile_id})`);
+			} else {
+				// Create new profile in DB
+				const [pResult] = await conn.execute(`
+                    INSERT INTO pppoe_profiles (name, created_at, updated_at) 
+                    VALUES (?, NOW(), NOW())
+                `, [data.name]);
+
+				data.profile_id = (pResult as any).insertId;
+				console.log(`[PPPoE] Created new DB profile for package "${data.name}" (ID: ${data.profile_id})`);
+
+				// Ensure it exists in MikroTik (will be handled by sync logic below or created here)
+				try {
+					const config = await getMikrotikConfig();
+					if (config) {
+						const { createPppProfile, findPppProfileIdByName } = await import('./mikrotikService');
+						const mkId = await findPppProfileIdByName(config, data.name);
+						if (!mkId) {
+							await createPppProfile(config, { name: data.name });
+							console.log(`[PPPoE] Created new MikroTik Profile "${data.name}"`);
+						}
+					}
+				} catch (mkErr: any) {
+					console.error(`[PPPoE] Failed to auto-create MikroTik Profile "${data.name}":`, mkErr.message);
+				}
+			}
+		}
+
 		await conn.beginTransaction();
 
 		// Insert package to database

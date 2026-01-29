@@ -364,7 +364,7 @@
 
         const payment = currentPayments.find(p => p.id === id);
         if (!payment) {
-            alert('Data pembayaran tidak ditemukan.');
+            Swal.fire('Error', 'Data pembayaran tidak ditemukan.', 'error');
             return;
         }
 
@@ -408,7 +408,16 @@
     }
 
     async function resendNotification(paymentId, btn) {
-        if (!confirm('Kirim ulang notifikasi pembayaran via WhatsApp?')) return;
+        const resultConfirm = await Swal.fire({
+            title: 'Kirim Notifikasi?',
+            text: 'Kirim ulang notifikasi pembayaran via WhatsApp?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Kirim',
+            cancelButtonText: 'Batal'
+        });
+
+        if (!resultConfirm.isConfirmed) return;
 
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
@@ -423,14 +432,20 @@
             const result = await response.json();
 
             if (result.success) {
-                alert(result.message);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terkirim!',
+                    text: result.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
             } else {
                 const errorMsg = result.message || 'Gagal mengirim notifikasi. Pastikan WhatsApp terhubung.';
-                alert('Gagal: ' + errorMsg);
+                Swal.fire('Gagal!', errorMsg, 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Terjadi kesalahan koneksi saat mengirim notifikasi. Cek log server.');
+            Swal.fire('Error!', 'Terjadi kesalahan koneksi saat mengirim notifikasi.', 'error');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;

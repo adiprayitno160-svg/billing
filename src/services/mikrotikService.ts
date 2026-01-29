@@ -617,11 +617,12 @@ export async function findIpAddressId(cfg: MikroTikConfig, address: string): Pro
     } catch { return null; }
 }
 
-export async function updateIpAddress(cfg: MikroTikConfig, id: string, data: { comment?: string, interface?: string }): Promise<void> {
+export async function updateIpAddress(cfg: MikroTikConfig, id: string, data: { comment?: string, interface?: string, disabled?: boolean }): Promise<void> {
     try {
         const params = [`=.id=${id}`];
         if (data.comment) params.push(`=comment=${data.comment}`);
         if (data.interface) params.push(`=interface=${data.interface}`);
+        if (data.disabled !== undefined) params.push(`=disabled=${data.disabled ? 'yes' : 'no'}`);
 
         await mikrotikPool.execute(cfg, '/ip/address/set', params);
     } catch { /* ignore */ }
