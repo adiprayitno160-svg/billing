@@ -142,6 +142,17 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
         const network = intToIp(networkInt);
 
+        // CHECK DUPLICATE IP IN DATABASE
+        const checkConn = await databasePool.getConnection();
+        try {
+            const [rows] = await checkConn.query<any[]>('SELECT id FROM static_ip_clients WHERE ip_address = ?', [ip_address]);
+            if (rows.length > 0) {
+                throw new Error(`Data Ganda: IP Address ${ip_address} sudah terdaftar di database!`);
+            }
+        } finally {
+            checkConn.release();
+        }
+
         // STRICT LIMIT CHECK
         if (await isPackageFull(packageId)) {
             throw new Error('Paket Static IP ini sudah penuh (Max Limit tercapai). Tidak dapat menambah client lagi.');
@@ -186,39 +197,56 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
             try {
                 // 1) Handle IP Address (Smart Sync)
                 console.log('Checking if IP address exists in MikroTik...');
-                const existingIpId = await findIpAddressId(cfg, ip_address);
+                let mikrotikAddress = ip_address;
+
+                // LOGIC /30: Address on Router must be Gateway IP
+                try {
+                    const [ipOnly, prefixStr] = String(ip_address).split('/');
+                    const prefix = Number(prefixStr || '0');
+                    if (prefix === 30) {
+                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                        const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                        const networkInt = ipToInt(ipOnly || '0.0.0.0') & mask;
+                        const firstHost = networkInt + 1;
+                        const secondHost = networkInt + 2;
+                        const ipInt = ipToInt(ipOnly || '0.0.0.0');
+
+                        // Gateway is "the other guy"
+                        const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                        mikrotikAddress = `${gatewayIp}/${prefix}`;
+                        console.log(`[Create] Client ${ip_address} -> MikroTik Gateway: ${mikrotikAddress}`);
+                    }
+                } catch (e) { console.warn('IP Calc Error', e); }
+
+                const existingIpId = await findIpAddressId(cfg, mikrotikAddress);
 
                 if (existingIpId) {
-                    console.log(`IP ${ip_address} already exists (ID: ${existingIpId}). Syncing...`);
+                    console.log(`IP ${mikrotikAddress} already exists (ID: ${existingIpId}). Syncing...`);
                     // Update comment ensuring no duplicate error
                     await updateIpAddress(cfg, existingIpId, {
                         comment: `Client ${client_name}`,
                         interface: iface
                     });
                 } else {
-                    console.log('Adding New IP address to MikroTik...');
-                    await addIpAddress(cfg, { interface: iface, address: ip_address, comment: `Client ${client_name}` });
+                    console.log(`Adding New IP address ${mikrotikAddress} to MikroTik...`);
+                    await addIpAddress(cfg, { interface: iface, address: mikrotikAddress, comment: `Client ${client_name}` });
                     console.log('IP address added successfully');
                 }
             } catch (error: any) {
                 console.error('Failed to sync IP address:', error);
-                throw new Error(`Gagal sync IP ke MikroTik: ${error.message}`);
+                // Don't throw fatal error if IP exists, just warn
+                if (!String(error.message).includes('already have')) {
+                    throw new Error(`Gagal sync IP ke MikroTik: ${error.message}`);
+                }
             }
             // 2) Hitung peer dan marks
-            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+            // ALWAYS USE CLIENT IP FOR MARKS/QUEUES
             const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
             const ipOnly: string = ipOnlyRaw || '';
-            const prefix: number = Number(prefixStrRaw || '0');
-            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-            const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
-            let peerIp = ipOnly;
-            if (prefix === 30) {
-                const firstHost = networkInt + 1;
-                const secondHost = networkInt + 2;
-                const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
-                peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-            }
+            const peerIp = ipOnly;
+
             const downloadMark: string = peerIp;
             const uploadMark: string = `UP-${peerIp}`;
             await addMangleRulesForClient(cfg, { peerIp, downloadMark, uploadMark });
