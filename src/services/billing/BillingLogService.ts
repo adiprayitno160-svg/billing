@@ -4,7 +4,7 @@ import { databasePool } from '../../db/pool';
 import { AIAnomalyDetectionService } from './AIAnomalyDetectionService';
 
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
-export type LogType = 'system' | 'auth' | 'billing' | 'payment' | 'network' | 'customer';
+export type LogType = 'system' | 'auth' | 'billing' | 'payment' | 'network' | 'customer' | 'mikrotik' | 'technician';
 
 export interface LogEntry {
     level: LogLevel;
