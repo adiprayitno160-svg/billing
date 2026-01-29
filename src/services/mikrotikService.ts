@@ -156,11 +156,11 @@ export async function updatePppProfile(cfg: MikroTikConfig, id: string, data: an
 function buildRateLimitString(data: any): string | null {
     if (!data['rate-limit-rx']) return null;
 
-    const rx = data['rate-limit-rx'];
+    const rx = data['rate-limit-rx'] || '0';
     const tx = data['rate-limit-tx'] || rx;
     let rl = `${rx}/${tx}`;
 
-    // Check if we have burst or priority or limit-at
+    // Extract all optional parameters
     const brx = data['burst-limit-rx'];
     const btx = data['burst-limit-tx'] || brx;
     const thr_rx = data['burst-threshold-rx'];
@@ -171,18 +171,37 @@ function buildRateLimitString(data: any): string | null {
     const lat_rx = data['limit-at-rx'];
     const lat_tx = data['limit-at-tx'] || lat_rx;
 
-    if (brx || btx || priority || lat_rx) {
-        // If we want priority or limit-at, we MUST provide burst values
-        const b = brx ? `${brx}/${btx}` : '0/0';
-        const t = thr_rx ? `${thr_rx}/${thr_tx}` : '0/0';
-        const tm = time_rx ? `${time_rx}/${time_tx}` : '0s/0s';
+    // Check if any extended parameter is present
+    const hasBurst = (brx && brx !== '0') || (btx && btx !== '0');
+    const hasThreshold = (thr_rx && thr_rx !== '0') || (thr_tx && thr_tx !== '0');
+    const hasTime = (time_rx && time_rx !== '0s') || (time_tx && time_tx !== '0s');
+    const hasPriority = priority !== undefined && priority !== null;
+    const hasLimitAt = (lat_rx && lat_rx !== '0') || (lat_tx && lat_tx !== '0');
 
-        rl += ` ${b} ${t} ${tm}`;
+    // If we have any extended param, we must fill previous ones
+    if (hasBurst || hasThreshold || hasTime || hasPriority || hasLimitAt) {
+        // Burst Limit
+        rl += ` ${brx || '0'}/${btx || '0'}`;
 
-        if (priority || lat_rx) {
+        // Burst Threshold
+        const t_rx = thr_rx || '0';
+        const t_tx = thr_tx || '0';
+        // If burst threshold is missing but burst limit is present, usually threshold should be provided.
+        // But '0/0' is safe.
+        rl += ` ${t_rx}/${t_tx}`;
+
+        // Burst Time
+        const tm_rx = time_rx || '0s';
+        const tm_tx = time_tx || '0s';
+        rl += ` ${tm_rx}/${tm_tx}`;
+
+        // Priority
+        if (hasPriority || hasLimitAt) {
             rl += ` ${priority || '8'}`;
-            if (lat_rx) {
-                rl += ` ${lat_rx}/${lat_tx}`;
+
+            // Limit At (Min Limit)
+            if (hasLimitAt) {
+                rl += ` ${lat_rx || '0'}/${lat_tx || '0'}`;
             }
         }
     }

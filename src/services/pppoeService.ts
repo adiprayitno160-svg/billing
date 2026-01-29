@@ -367,6 +367,8 @@ export async function createPackage(data: {
 }): Promise<number> {
 	const conn = await databasePool.getConnection();
 	try {
+		await conn.beginTransaction(); // START TRANSACTION EARLY
+
 		// 1. AUTO-CREATE / FIND PROFILE IF NOT PROVIDED
 		if (!data.profile_id) {
 			// Check if profile exists in DB
@@ -406,8 +408,6 @@ export async function createPackage(data: {
 			}
 		}
 
-		await conn.beginTransaction();
-
 		// Insert package to database
 		const [result] = await conn.execute(`
 			INSERT INTO pppoe_packages
@@ -426,8 +426,8 @@ export async function createPackage(data: {
 			data.auto_activation || 0,
 			data.status,
 			data.description || null,
-			data.rate_limit_rx || '0',  // Default '0' (unlimited) jika tidak diisi
-			data.rate_limit_tx || '0',  // Default '0' (unlimited) jika tidak diisi
+			data.rate_limit_rx || '0',
+			data.rate_limit_tx || '0',
 			data.burst_limit_rx || null,
 			data.burst_limit_tx || null,
 			data.burst_threshold_rx || null,
@@ -456,22 +456,18 @@ export async function createPackage(data: {
 				if (config) {
 					const { createSimpleQueue, updateSimpleQueue, findSimpleQueueIdByName } = await import('./mikrotikService');
 					// Parent limit is usually the RX/TX limit of the package
-					const parentMaxLimit = `${data.rate_limit_tx || '10M'}/${data.rate_limit_rx || '10M'}`;
-
-					// If using sharing (max_clients > 1), "Limit At" in form usually refers to CLIENT guarantee.
-					// But for Parent Queue, we might want to set LimitAt to total available (or left empty for best effort).
-					// Let's keep Parent Queue simple: MaxLimit = Total Package Speed.
-					// For fairness, we'll let PCQ handle distribution, but we can set LimitAt for User Profiles (see below).
+					// Mikrotik Simple Queue MaxLimit: target-upload/target-download (RX/TX)
+					const parentMaxLimit = `${data.rate_limit_rx || '10M'}/${data.rate_limit_tx || '10M'}`;
 
 					const queueData = {
 						name: data.name,
 						target: '0.0.0.0/0', // Global target for parent
 						maxLimit: parentMaxLimit,
-						// limitAt: parentLimitAt, // Optional: Let Parent be best-effort
+
 						limitAt: '0/0',
 						comment: `[BILLING] PPPOE SHARED PARENT: ${data.name} (Max: ${data.max_clients} Clients)`,
 						queue: 'pcq-upload-default/pcq-download-default', // Use PCQ for fair sharing
-						priority: data.priority || '8/8'
+						priority: `${data.priority || 8}/${data.priority || 8}`
 					};
 
 					// Use findSimpleQueueIdByName for better performance and reliability
@@ -673,7 +669,9 @@ export async function updatePackage(id: number, data: {
 					const rateLimitRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
 					const rateLimitTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
 
-					const parentMaxLimit = `${rateLimitTx || '10M'}/${rateLimitRx || '10M'}`;
+					// Mikrotik Simple Queue MaxLimit: target-upload/target-download
+					// RX = Upload, TX = Download
+					const parentMaxLimit = `${rateLimitRx || '10M'}/${rateLimitTx || '10M'}`;
 
 					const queueData = {
 						name: newPackageName,
