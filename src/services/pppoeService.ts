@@ -465,16 +465,10 @@ export async function createPackage(data: {
 			return `${Math.floor(val)}`;
 		};
 
-		// For shared packages, individual profile limit = total / max_clients
+		// For shared packages, individual profile limit = total (to allow burst if others idle)
+		// We use Parent Queue + PCQ to handle the sharing.
 		let profileRx = data.rate_limit_rx || '10M';
 		let profileTx = data.rate_limit_tx || '10M';
-
-		if (maxClients > 1) {
-			const rxNum = parseRateToNum(profileRx);
-			const txNum = parseRateToNum(profileTx);
-			profileRx = formatRateFromNum(rxNum / maxClients);
-			profileTx = formatRateFromNum(txNum / maxClients);
-		}
 
 		// AUTOMATICALLY MANAGE PARENT QUEUE FOR SHARED PACKAGE
 		if (maxClients > 1) {
@@ -758,16 +752,9 @@ export async function updatePackage(id: number, data: {
 					if (profile) {
 						const mikrotikId = await findPppProfileIdByName(config, profile.name);
 						if (mikrotikId) {
-							// Determine Individual Cap
+							// Individual Cap should be full speed to allow burst within the shared pool
 							let profileRxCap = rateLimitRx || '10M';
 							let profileTxCap = rateLimitTx || '10M';
-
-							if (finalMaxClients > 1) {
-								const rxB = parseRateToNumUpdate(profileRxCap);
-								const txB = parseRateToNumUpdate(profileTxCap);
-								profileRxCap = formatRateFromNumUpdate(rxB / finalMaxClients);
-								profileTxCap = formatRateFromNumUpdate(txB / finalMaxClients);
-							}
 
 							const updateData: any = {
 								'parent-queue': finalMaxClients > 1 ? newPackageName : 'none',
