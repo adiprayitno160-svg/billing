@@ -1,4 +1,5 @@
 ﻿import { mikrotikPool, MikroTikConfig } from './MikroTikConnectionPool';
+export { MikroTikConfig };
 
 export async function testMikrotikConnection(cfg: MikroTikConfig): Promise<{ connected: boolean, error?: string }> {
     try {
