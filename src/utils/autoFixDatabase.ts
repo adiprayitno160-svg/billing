@@ -254,6 +254,38 @@ export async function autoFixWhatsAppTables(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Ensure all columns exist in pppoe_packages
+    const pppoePackageColumns = [
+      { name: 'rate_limit_rx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'rate_limit_tx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'burst_limit_rx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'burst_limit_tx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'burst_threshold_rx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'burst_threshold_tx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'burst_time_rx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'burst_time_tx', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'is_enabled_7_days', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'is_enabled_14_days', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'is_enabled_30_days', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'max_clients', def: 'INT DEFAULT 1' },
+      { name: 'priority', def: 'INT DEFAULT 8' },
+      { name: 'limit_at_upload', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'limit_at_download', def: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'auto_activation', def: 'TINYINT(1) DEFAULT 0' },
+      { name: 'status', def: "ENUM('active', 'inactive') DEFAULT 'active'" },
+      { name: 'price_14_days', def: 'DECIMAL(15,2) DEFAULT 0' }
+    ];
+
+    for (const col of pppoePackageColumns) {
+      const [columns]: any = await pool.query(`SHOW COLUMNS FROM pppoe_packages LIKE '${col.name}'`);
+      if (columns.length === 0) {
+        console.log(`⚠️ [AutoFix] Column '${col.name}' missing in pppoe_packages, adding...`);
+        await pool.query(`ALTER TABLE pppoe_packages ADD COLUMN ${col.name} ${col.def}`);
+        console.log(`✅ [AutoFix] Column '${col.name}' added successfully`);
+      }
+    }
+
+
     // 5. Technician Fee Distributions
     await pool.query(`
       CREATE TABLE IF NOT EXISTS technician_fee_distributions (
