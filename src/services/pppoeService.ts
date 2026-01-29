@@ -1140,7 +1140,9 @@ export async function updateProfile(id: number, data: {
 export async function deleteProfile(id: number): Promise<void> {
 	const conn = await databasePool.getConnection();
 	try {
-		// Check if profile is used by any package
+		await conn.beginTransaction();
+
+		// 1. Check if profile is used by any package
 		const [packages] = await conn.execute(
 			'SELECT COUNT(*) as count FROM pppoe_packages WHERE profile_id = ?',
 			[id]
@@ -1151,7 +1153,33 @@ export async function deleteProfile(id: number): Promise<void> {
 			throw new Error(`Profil tidak dapat dihapus karena masih digunakan oleh ${count} paket`);
 		}
 
-		await conn.execute('DELETE FROM pppoe_profiles WHERE id = ?', [id]);
+		// 2. Get profile name for MikroTik cleanup
+		const [profRows] = await conn.execute('SELECT name FROM pppoe_profiles WHERE id = ?', [id]);
+		const profile = (profRows as any)[0];
+
+		if (profile) {
+			try {
+				const config = await getMikrotikConfig();
+				if (config) {
+					const { findPppProfileIdByName, deletePppProfile } = await import('./mikrotikService');
+					const mkId = await findPppProfileIdByName(config, profile.name);
+					if (mkId) {
+						await deletePppProfile(config, mkId);
+						console.log(`🗑️ Deleted MikroTik Profile: ${profile.name}`);
+					}
+				}
+			} catch (mkErr: any) {
+				console.warn(`⚠️ Gagal hapus profile "${profile.name}" di MikroTik (diabaikan agar DB tetap terhapus):`, mkErr.message);
+			}
+
+			// 3. Delete from DB
+			await conn.execute('DELETE FROM pppoe_profiles WHERE id = ?', [id]);
+		}
+
+		await conn.commit();
+	} catch (err) {
+		await conn.rollback();
+		throw err;
 	} finally {
 		conn.release();
 	}

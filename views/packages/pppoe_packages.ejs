@@ -72,12 +72,13 @@
                                                 class="px-2 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50 inline-block">
                                                 Edit
                                             </a>
-                                            <form method="post" action="/packages/pppoe/packages/<%= pkg.id %>/delete"
-                                                onsubmit="return confirm('Hapus paket ini?');" class="inline">
-                                                <button type="submit"
-                                                    class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50">
-                                                    Hapus
-                                                </button>
+                                            <button type="button"
+                                                onclick="confirmDeletePackage(<%= pkg.id %>, '<%= pkg.name %>')"
+                                                class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50">
+                                                Hapus
+                                            </button>
+                                            <form id="delete-form-<%= pkg.id %>" method="post"
+                                                action="/packages/pppoe/packages/<%= pkg.id %>/delete" class="hidden">
                                             </form>
                                         </td>
                                     </tr>
@@ -265,5 +266,23 @@
         if (openBtn) openBtn.addEventListener('click', show);
         if (closeBtn) closeBtn.addEventListener('click', hide);
         if (cancelBtn) cancelBtn.addEventListener('click', hide);
+
+        window.confirmDeletePackage = function (id, name) {
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                text: "Paket '" + name + "' akan dihapus beserta profil MikroTik terkait jika tidak digunakan paket lain!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('delete-form-' + id).submit();
+                }
+            });
+        };
     })();
 </script>
