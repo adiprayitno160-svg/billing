@@ -251,6 +251,28 @@
                     }
                 }
 
+                function initFormProtection() {
+                    const forms = document.querySelectorAll('form');
+                    forms.forEach(form => {
+                        form.addEventListener('submit', function (e) {
+                            const btn = this.querySelector('button[type="submit"]');
+                            if (btn && !btn.disabled) {
+                                btn.disabled = true;
+                                const originalText = btn.innerHTML;
+                                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...';
+
+                                // Re-enable after 10 seconds just in case server hangs (optional safety)
+                                setTimeout(() => {
+                                    if (btn.disabled) {
+                                        btn.disabled = false;
+                                        btn.innerHTML = originalText;
+                                    }
+                                }, 10000);
+                            }
+                        });
+                    });
+                }
+
                 (function () {
                     const ipInput = document.querySelector('input[name="ip_address"]');
                     const nameInput = document.querySelector('input[name="client_name"]');
@@ -263,16 +285,12 @@
                         const v = (ipInput.value || '').trim();
                         const [ip, prefStr] = v.split('/');
                         const pref = Number(prefStr || '0');
-                        if (!ip || !pref) { if (markEl) markEl.value = ''; return; }
-                        const mask = pref === 0 ? 0 : (0xFFFFFFFF << (32 - pref)) >>> 0;
-                        const net = ipToInt(ip) & mask;
+                        if (!ip) { if (markEl) markEl.value = ''; return; }
+
+                        // FIX: Always use CLIENT IP for Marks/Queues
                         let peer = ip;
-                        if (pref === 30) {
-                            const firstHost = net + 1;
-                            const secondHost = net + 2;
-                            const ipInt = ipToInt(ip);
-                            peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-                        }
+                        // Remove swapped logic for display to match backend
+
                         if (markEl) markEl.value = `Download: ${peer} | Upload: UP-${peer}`;
                         const name = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
                         if (cdEl) cdEl.value = name ? `${name}_DOWNLOAD` : '';
@@ -284,6 +302,8 @@
 
                     // Initialize maps
                     initMaps();
+                    // Initialize Form Protection
+                    initFormProtection();
                 })();
             </script>
 </div>
