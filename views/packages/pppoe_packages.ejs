@@ -27,6 +27,7 @@
                                     <th class="py-2 pr-4">Profil</th>
                                     <th class="py-2 pr-4">Harga</th>
                                     <th class="py-2 pr-4">Speed Limit</th>
+                                    <th class="py-2 pr-4 text-center">Client</th>
                                     <th class="py-2 pr-4">Status</th>
                                     <th class="py-2 pr-4">Aksi</th>
                                 </tr>
@@ -48,6 +49,12 @@
                                                         <% } else { %>
                                                             -
                                                             <% } %>
+                                        </td>
+                                        <td class="py-2 pr-4 text-center">
+                                            <span
+                                                class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold <%= pkg.current_clients >= (pkg.max_clients || 1) && (pkg.max_clients || 1) > 1 ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-blue-100 text-blue-800 border border-blue-200' %>">
+                                                <%= pkg.current_clients || 0 %> / <%= pkg.max_clients || 1 %>
+                                            </span>
                                         </td>
                                         <td class="py-2 pr-4">
                                             <span
