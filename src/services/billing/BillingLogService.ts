@@ -83,11 +83,19 @@ export class BillingLogService {
         }
     }
 
-    static async info(service: string, message: string, context?: any) {
-        await this.log({ level: 'info', type: 'system', service, message, context });
+    static async info(type: LogType, service: string, message: string, context?: any) {
+        await this.log({ level: 'info', type, service, message, context });
     }
 
-    static async error(service: string, message: string, error?: Error, context?: any) {
-        await this.log({ level: 'error', type: 'system', service, message, error, context });
+    static async warning(type: LogType, service: string, message: string, context?: any) {
+        await this.log({ level: 'warning', type, service, message, context });
+    }
+
+    static async error(type: LogType, service: string, message: string, error?: Error, context?: any) {
+        await this.log({ level: 'error', type, service, message, error, context });
+    }
+
+    static async critical(type: LogType, service: string, message: string, error?: Error, context?: any) {
+        await this.log({ level: 'critical', type, service, message, error, context });
     }
 }
