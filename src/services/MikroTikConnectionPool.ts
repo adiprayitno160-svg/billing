@@ -11,7 +11,7 @@ export type MikroTikConfig = {
     port: number;
     username: string;
     password: string;
-    use_tls?: boolean;
+    use_tls: boolean;
 };
 
 interface CacheEntry {

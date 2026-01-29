@@ -1,13 +1,4 @@
-﻿import { RouterOSAPI } from 'routeros-api';
-import { mikrotikPool } from './MikroTikConnectionPool';
-
-export type MikroTikConfig = {
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    use_tls: boolean;
-};
+﻿import { mikrotikPool, MikroTikConfig } from './MikroTikConnectionPool';
 
 export async function testMikrotikConnection(cfg: MikroTikConfig): Promise<{ connected: boolean, error?: string }> {
     try {
