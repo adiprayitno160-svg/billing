@@ -4,7 +4,7 @@ import { databasePool } from '../../db/pool';
 import { AIAnomalyDetectionService } from './AIAnomalyDetectionService';
 
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
-export type LogType = 'system' | 'auth' | 'billing' | 'payment' | 'network' | 'customer' | 'mikrotik' | 'technician' | 'invoice';
+export type LogType = 'system' | 'auth' | 'billing' | 'payment' | 'network' | 'customer' | 'mikrotik' | 'technician' | 'invoice' | 'api' | 'olt' | 'genieacs' | 'ftth' | 'whatsapp';
 
 export interface LogEntry {
     level: LogLevel;
@@ -77,6 +77,59 @@ export class BillingLogService {
             await conn.execute(
                 `UPDATE system_logs SET anomaly_detected = 1, anomaly_type = ?, ai_analysis = ? WHERE id = ?`,
                 [anomaly.type, JSON.stringify(anomaly.analysis), logId]
+            );
+        } finally {
+            conn.release();
+        }
+    }
+
+    static async getLogs(filters: any): Promise<any[]> {
+        const conn = await databasePool.getConnection();
+        try {
+            let query = 'SELECT * FROM system_logs WHERE 1=1';
+            const params: any[] = [];
+
+            if (filters.level) {
+                query += ' AND log_level = ?';
+                params.push(filters.level);
+            }
+            if (filters.type) {
+                query += ' AND log_type = ?';
+                params.push(filters.type);
+            }
+            if (filters.service) {
+                query += ' AND service_name = ?';
+                params.push(filters.service);
+            }
+            if (filters.anomalyOnly) {
+                query += ' AND anomaly_detected = 1';
+            }
+            if (filters.startDate) {
+                query += ' AND created_at >= ?';
+                params.push(filters.startDate);
+            }
+            if (filters.endDate) {
+                query += ' AND created_at <= ?';
+                params.push(filters.endDate);
+            }
+
+            query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+            params.push(filters.limit || 100);
+            params.push(filters.offset || 0);
+
+            const [rows] = await conn.execute(query, params);
+            return rows as any[];
+        } finally {
+            conn.release();
+        }
+    }
+
+    static async resolveAnomaly(id: number, userId: number, resolution: string): Promise<void> {
+        const conn = await databasePool.getConnection();
+        try {
+            await conn.execute(
+                'UPDATE system_logs SET resolved = 1, resolved_at = NOW(), resolved_by = ?, resolution_notes = ? WHERE id = ?',
+                [userId, resolution, id]
             );
         } finally {
             conn.release();
