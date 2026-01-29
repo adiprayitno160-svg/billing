@@ -1371,8 +1371,34 @@ export const deleteCustomer = async (req: Request, res: Response) => {
                             try {
                                 // Delete IP address from MikroTik
                                 if (staticIpClient.ip_address) {
-                                    await removeIpAddress(config, staticIpClient.ip_address);
-                                    console.log(`✅ IP address "${staticIpClient.ip_address}" berhasil dihapus dari MikroTik`);
+                                    let targetIpToDelete = staticIpClient.ip_address;
+
+                                    try {
+                                        // LOGIC: If /30, we must delete the GATEWAY IP (which is on the Router), not the Client IP
+                                        const [ipOnly, prefixStr] = String(staticIpClient.ip_address).split('/');
+                                        const prefix = Number(prefixStr || '0');
+
+                                        if (prefix === 30) {
+                                            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                                            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                                            const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                                            const networkInt = ipToInt(ipOnly) & mask;
+                                            const firstHost = networkInt + 1;
+                                            const secondHost = networkInt + 2;
+                                            const ipInt = ipToInt(ipOnly);
+
+                                            // Gateway is "the other guy"
+                                            const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                                            targetIpToDelete = `${gatewayIp}/${prefix}`;
+                                            console.log(`[Delete] Client IP: ${staticIpClient.ip_address} -> Deleting Gateway IP: ${targetIpToDelete}`);
+                                        }
+                                    } catch (e) {
+                                        console.warn('[Delete] Error calculating gateway IP, trying original:', e);
+                                    }
+
+                                    await removeIpAddress(config, targetIpToDelete);
+                                    console.log(`✅ IP address "${targetIpToDelete}" berhasil dihapus dari MikroTik`);
                                 }
 
                                 // Calculate peer IP and marks for mangle deletion

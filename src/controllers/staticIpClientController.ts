@@ -334,7 +334,31 @@ export async function postStaticIpClientDelete(req: Request, res: Response, next
         if (cfg && client && pkg) {
             // Hapus IP address pada interface jika ada data IP/CIDR
             if (client.ip_address) {
-                await removeIpAddress(cfg, client.ip_address);
+                let targetIpToDelete = client.ip_address;
+                try {
+                    // Logic: Jika /30, hapus Gateway IP (Router Side)
+                    const [ipOnly, prefixStr] = String(client.ip_address).split('/');
+                    const prefix = Number(prefixStr || '0');
+                    if (prefix === 30) {
+                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                        const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                        const networkInt = ipToInt(ipOnly || '0.0.0.0') & mask;
+                        const firstHost = networkInt + 1;
+                        const secondHost = networkInt + 2;
+                        const ipInt = ipToInt(ipOnly || '0.0.0.0');
+
+                        // Gateway is "the other guy"
+                        const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                        targetIpToDelete = `${gatewayIp}/${prefix}`;
+                        console.log(`[Delete StaticClient] Client IP: ${client.ip_address} -> Deleting Gateway IP: ${targetIpToDelete}`);
+                    }
+                } catch (e) {
+                    console.warn('[Delete StaticClient] Error calculating gateway IP', e);
+                }
+
+                await removeIpAddress(cfg, targetIpToDelete);
             }
             // Hitung peer dan marks untuk hapus mangle
             const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
