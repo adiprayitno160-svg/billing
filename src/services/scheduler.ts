@@ -82,6 +82,7 @@ export class SchedulerService {
 
         // Send isolation warnings 3 days before isolation - daily at 09:00
         // ALSO send warnings from 25th-31st of each month (before blocking on 1st)
+        // ALSO send H-1 warnings (1 day before mass isolation date)
         cron.schedule('0 9 * * *', async () => {
             const today = new Date();
             const dayOfMonth = today.getDate();
@@ -118,6 +119,21 @@ export class SchedulerService {
                 console.log(`Isolation warnings sent: ${result.warned} warned, ${result.failed} failed`);
             } catch (error) {
                 console.error('Error sending isolation warnings:', error);
+            }
+
+            // NEW: Send H-1 isolation warnings (1 day before mass isolation date)
+            // This function only runs if tomorrow is the configured isolation date
+            console.log('[H-1 Isolation Warning] Checking if H-1 warnings should be sent...');
+            try {
+                const { IsolationService } = await import('./billing/isolationService');
+                const result = await IsolationService.sendIsolationH1Warnings();
+                if (result.skipped) {
+                    console.log(`[H-1 Isolation Warning] Skipped: ${result.skipped}`);
+                } else {
+                    console.log(`[H-1 Isolation Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
+                }
+            } catch (error) {
+                console.error('[H-1 Isolation Warning] Error:', error);
             }
         }, {
             scheduled: true,

@@ -645,6 +645,209 @@ export class IsolationService {
     }
 
     /**
+     * Send H-1 isolation warnings to customers with unpaid invoices
+     * Sends notifications 1 day before the scheduled mass isolation date
+     * Called daily - only runs if today is exactly H-1 before isolation date
+     * 
+     * Examples:
+     * - If isolation date = 1, H-1 = last day of previous month (30 or 31)
+     * - If isolation date = 10, H-1 = 9th of current month
+     */
+    static async sendIsolationH1Warnings(): Promise<{ warned: number, failed: number, skipped: string }> {
+        const connection = await databasePool.getConnection();
+        let warned = 0;
+        let failed = 0;
+
+        try {
+            const now = new Date();
+            const todayDay = now.getDate();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            // Get previous month period (YYYY-MM) - yang tagihannya akan diisolir
+            const previousMonth = new Date(currentYear, currentMonth - 1, 1);
+            const previousPeriod = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
+
+            // Get base isolation date from settings
+            let baseIsolateDate = 1; // Default isolation date (tanggal 1)
+            try {
+                const [settingsRows] = await connection.query<RowDataPacket[]>(
+                    "SELECT config FROM scheduler_settings WHERE task_name = 'invoice_generation'"
+                );
+
+                if (settingsRows.length > 0 && settingsRows[0].config) {
+                    const config = typeof settingsRows[0].config === 'string'
+                        ? JSON.parse(settingsRows[0].config)
+                        : settingsRows[0].config;
+                    if (config.isolir_date) {
+                        baseIsolateDate = parseInt(config.isolir_date, 10);
+                    }
+                }
+            } catch (err) {
+                console.warn('[H-1 Isolation Warning] Could not fetch isolation date settings, using default:', baseIsolateDate);
+            }
+
+            // Calculate H-1 date
+            // If isolation is on 1st, H-1 is last day of previous month
+            // Otherwise, H-1 is (isolation date - 1) of current month
+            let h1Day: number;
+            let h1Month: number;
+            let h1Year: number;
+
+            if (baseIsolateDate === 1) {
+                // Isolation on 1st → H-1 = last day of current month (before the 1st of next month)
+                // Get last day of current month
+                const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                h1Day = lastDayOfMonth;
+                h1Month = currentMonth;
+                h1Year = currentYear;
+                console.log(`[H-1 Isolation Warning] ℹ️ Isolation on 1st → H-1 = ${h1Day}/${h1Month + 1}/${h1Year} (last day of month)`);
+            } else {
+                // Isolation on Nth → H-1 = (N-1)th of current month
+                h1Day = baseIsolateDate - 1;
+                h1Month = currentMonth;
+                h1Year = currentYear;
+                console.log(`[H-1 Isolation Warning] ℹ️ Isolation on ${baseIsolateDate} → H-1 = ${h1Day}/${h1Month + 1}/${h1Year}`);
+            }
+
+            // Check if today is H-1
+            const isH1Today = (todayDay === h1Day && currentMonth === h1Month && currentYear === h1Year);
+
+            if (!isH1Today) {
+                const skipMsg = `Today (${todayDay}) is not H-1 (${h1Day}). Isolation scheduled on day ${baseIsolateDate}.`;
+                console.log(`[H-1 Isolation Warning] ⏭️ ${skipMsg}`);
+                return { warned: 0, failed: 0, skipped: skipMsg };
+            }
+
+            console.log(`[H-1 Isolation Warning] 🚨 TODAY IS H-1! Tomorrow (${baseIsolateDate}) is ISOLATION DAY! Sending mass warnings...`);
+
+            // Get customers with unpaid invoices from previous month who are NOT yet isolated
+            const query = `
+                SELECT DISTINCT 
+                    c.id, 
+                    c.name, 
+                    c.phone, 
+                    c.customer_code,
+                    c.connection_type,
+                    c.billing_mode,
+                    i.id as invoice_id,
+                    i.invoice_number,
+                    i.total_amount,
+                    i.remaining_amount,
+                    i.due_date,
+                    i.period
+                FROM customers c
+                JOIN invoices i ON c.id = i.customer_id
+                WHERE i.period = ?
+                AND i.status IN ('sent', 'partial', 'overdue', 'draft')
+                AND i.remaining_amount > 0
+                AND c.is_isolated = FALSE
+                AND c.is_deferred = FALSE
+                AND c.status = 'active'
+                AND c.billing_mode = 'postpaid'
+                AND c.phone IS NOT NULL
+                AND c.phone != ''
+                AND NOT EXISTS (
+                    SELECT 1 FROM unified_notifications_queue nq
+                    WHERE nq.customer_id = c.id
+                    AND nq.notification_type = 'isolation_h1_warning'
+                    AND DATE(nq.created_at) = CURDATE()
+                )
+            `;
+
+            const [customers] = await connection.query<RowDataPacket[]>(query, [previousPeriod]);
+
+            console.log(`[H-1 Isolation Warning] Found ${customers.length} customers with unpaid invoices for period ${previousPeriod}`);
+
+            for (const customer of customers) {
+                try {
+                    if (!customer.phone) {
+                        console.log(`[H-1 Isolation Warning] ⚠️ No phone for ${customer.name}, skipping`);
+                        continue;
+                    }
+
+                    const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+
+                    // Format isolation date correctly
+                    // If isolation is on 1st, it's the 1st of NEXT month
+                    // Otherwise, it's the Nth of current month
+                    let isolationDate: Date;
+                    if (baseIsolateDate === 1) {
+                        isolationDate = new Date(currentYear, currentMonth + 1, 1);
+                    } else {
+                        isolationDate = new Date(currentYear, currentMonth, baseIsolateDate);
+                    }
+                    const formattedIsolationDate = isolationDate.toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+
+                    console.log(`[H-1 Isolation Warning] 📱 Sending H-1 warning to ${customer.name} (${customer.connection_type})...`);
+
+                    const notificationIds = await UnifiedNotificationService.queueNotification({
+                        customer_id: customer.id,
+                        invoice_id: customer.invoice_id,
+                        notification_type: 'isolation_warning', // Use existing template
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: customer.name || 'Pelanggan',
+                            customer_code: customer.customer_code || '',
+                            invoice_number: customer.invoice_number || '',
+                            total_amount: parseFloat(customer.total_amount || 0).toLocaleString('id-ID'),
+                            remaining_amount: parseFloat(customer.remaining_amount || 0).toLocaleString('id-ID'),
+                            due_date: customer.due_date ? new Date(customer.due_date).toLocaleDateString('id-ID') : '-',
+                            period: customer.period || previousPeriod,
+                            days_remaining: '1',
+                            isolation_date: formattedIsolationDate,
+                            connection_type: customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'
+                        },
+                        priority: 'high'
+                    });
+
+                    console.log(`[H-1 Isolation Warning] ✅ Queued for ${customer.name} (IDs: ${notificationIds.join(', ')})`);
+
+                    // Mark as H-1 warning sent (prevent duplicate)
+                    await connection.execute(
+                        `INSERT INTO unified_notifications_queue 
+                         (customer_id, notification_type, channel, status, created_at) 
+                         VALUES (?, 'isolation_h1_warning', 'marker', 'sent', NOW())
+                         ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+                        [customer.id]
+                    );
+
+                    warned++;
+                } catch (error: any) {
+                    console.error(`[H-1 Isolation Warning] ❌ Failed for ${customer.name}:`, error.message);
+                    failed++;
+                }
+            }
+
+            // Process notification queue immediately
+            if (warned > 0) {
+                try {
+                    const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                    const result = await UnifiedNotificationService.sendPendingNotifications(50);
+                    console.log(`[H-1 Isolation Warning] 📨 Queue processed: ${result.sent} sent, ${result.failed} failed`);
+                } catch (queueError: any) {
+                    console.warn(`[H-1 Isolation Warning] ⚠️ Queue processing error:`, queueError.message);
+                }
+            }
+
+            console.log(`[H-1 Isolation Warning] Summary: ${warned} warned, ${failed} failed`);
+
+        } catch (error) {
+            console.error('[H-1 Isolation Warning] Error:', error);
+            throw error;
+        } finally {
+            connection.release();
+        }
+
+        return { warned, failed, skipped: '' };
+    }
+
+    /**
      * Auto isolir pelanggan dengan 2x tagihan belum lunas
      * Supports both PPPoE and Static IP customers
      */
@@ -866,11 +1069,11 @@ export class IsolationService {
      * Get isolation history
      */
     static async getIsolationHistory(customerId?: number, limit: number = 50) {
-        let query = 
+        let query =
             'SELECT il.*, c.name as customer_name, c.phone, c.connection_type ' +
             'FROM isolation_logs il ' +
             'JOIN customers c ON il.customer_id = c.id ';
-        
+
         const params: any[] = [];
 
         if (customerId) {

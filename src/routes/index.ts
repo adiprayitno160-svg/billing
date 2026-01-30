@@ -3563,8 +3563,32 @@ router.post('/customers/new-static-ip', async (req, res) => {
             }
         }
 
+        // NEW: Accept IP without CIDR, auto-add /30 if missing
+        let normalizedIp = String(ip_address).trim();
+
+        // Check if IP has CIDR prefix
+        const hasCidr = normalizedIp.includes('/');
+
+        // Validate IP format (with or without CIDR)
+        const ipOnlyRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
         const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
-        if (!cidrRegex.test(ip_address)) throw new Error('Format IP CIDR tidak valid');
+
+        if (!hasCidr) {
+            // IP without CIDR - validate and add /30
+            if (!ipOnlyRegex.test(normalizedIp)) {
+                throw new Error('Format IP tidak valid. Contoh: 192.168.239.2');
+            }
+            normalizedIp = normalizedIp + '/30';
+            console.log(`[Auto-CIDR] IP tanpa prefix -\u003e ditambahkan /30: ${normalizedIp}`);
+        } else {
+            // IP with CIDR - validate full format
+            if (!cidrRegex.test(normalizedIp)) {
+                throw new Error('Format IP CIDR tidak valid. Contoh: 192.168.239.2/30');
+            }
+        }
+
+        // Use normalized IP (with /30) for all subsequent operations
+        const ip_address_with_cidr = normalizedIp;
 
         // Handle both legacy (radio) and new (checkbox) formats
         const is_taxable = (req.body.is_taxable === '1' || ppn_mode === 'plus' || ppn_mode === 'include') ? 1 : 0;
@@ -3577,7 +3601,8 @@ router.post('/customers/new-static-ip', async (req, res) => {
         // Hitung network dari CIDR
         function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
         function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
-        const [ipOnly, prefixStr] = ip_address.split('/');
+        // Use normalized IP (with CIDR) for calculations
+        const [ipOnly, prefixStr] = ip_address_with_cidr.split('/');
         const prefix = Number(prefixStr);
         const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
         const networkInt = ipToInt(ipOnly) & mask;
@@ -3594,7 +3619,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
         }
         const { customerId } = await addClientToPackage(pkgId, {
             client_name,
-            ip_address,
+            ip_address: ip_address_with_cidr, // Store with CIDR
             network,
             interface: iface || null,
             customer_code: customer_code || null,
@@ -3617,7 +3642,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
         console.log('MikroTik config available:', !!cfg);
         console.log('Package found:', !!pkg);
         console.log('Interface:', iface);
-        console.log('IP Address:', ip_address);
+        console.log('IP Address (normalized):', ip_address_with_cidr);
         console.log('Client Name:', client_name);
 
         if (cfg && pkg) {
@@ -3625,10 +3650,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
                 // 1) Tambah IP address ke interface
                 // Untuk /30, Input adalah Client IP, kita perlu pasang Gateway IP di MikroTik
                 if (iface) {
-                    let mikrotikAddress = ip_address;
+                    let mikrotikAddress = ip_address_with_cidr;
 
                     try {
-                        const [ipOnly, prefixStr] = String(ip_address || '').split('/');
+                        const [ipOnly, prefixStr] = String(ip_address_with_cidr || '').split('/');
                         const prefix = Number(prefixStr || '0');
 
                         // LOGIC: Jika /30, hitung lawan (Gateway) dari IP Client
@@ -3647,7 +3672,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                             const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
 
                             mikrotikAddress = `${gatewayIp}/${prefix}`;
-                            console.log(`[Auto-Gateway] Input Client: ${ip_address} -> Gateway MikroTik: ${mikrotikAddress}`);
+                            console.log(`[Auto-Gateway] Input Client: ${ip_address_with_cidr} -> Gateway MikroTik: ${mikrotikAddress}`);
                         }
                     } catch (calcErr) {
                         console.error('IP Calculation error:', calcErr);
@@ -3716,7 +3741,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                     burst_time_upload
                 } = req.body as any;
 
-                await syncClientQueues(customerId, pkgId, ip_address, client_name, {
+                await syncClientQueues(customerId, pkgId, ip_address_with_cidr, client_name, {
                     overrides: {
                         queueDownload: qtype_download,
                         queueUpload: qtype_upload,

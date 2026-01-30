@@ -136,16 +136,23 @@
                                     <div>
                                         <label
                                             class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">IP
-                                            Address <span class="text-red-500">*</span></label>
-                                        <input name="ip_address" required placeholder="192.168.x.x/xx"
+                                            Router Pelanggan <span class="text-red-500">*</span></label>
+                                        <input name="ip_address" id="ip_address_input" required
+                                            placeholder="192.168.239.2"
                                             class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-mono font-bold text-blue-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all" />
+                                        <p class="text-[10px] text-slate-400 mt-1 ml-1">Masukkan IP untuk router
+                                            pelanggan (tanpa /xx)</p>
                                     </div>
                                     <div>
                                         <label
                                             class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Gateway
-                                            (Opsional)</label>
-                                        <input name="gateway_ip" placeholder="192.168.x.1"
-                                            class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-mono text-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all" />
+                                            MikroTik
+                                            <span class="text-green-500 text-[9px]">(Otomatis)</span></label>
+                                        <input name="gateway_ip" id="gateway_ip_input" readonly
+                                            placeholder="Otomatis dihitung..."
+                                            class="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-mono text-green-600 font-bold cursor-not-allowed" />
+                                        <p class="text-[10px] text-slate-400 mt-1 ml-1">Gateway otomatis akan
+                                            ditambahkan ke MikroTik IP Address</p>
                                     </div>
                                 </div>
 
@@ -486,6 +493,83 @@
                     if (odpInput) odpInput.required = true;
                 }
             });
+        }
+
+        // === 2.5. Auto-calculate Gateway from Customer IP ===
+        const ipAddressInput = document.getElementById('ip_address_input');
+        const gatewayInput = document.getElementById('gateway_ip_input');
+
+        if (ipAddressInput && gatewayInput) {
+            const calculateGateway = () => {
+                let ip = ipAddressInput.value.trim();
+
+                // Remove any CIDR prefix if user accidentally entered it
+                if (ip.includes('/')) {
+                    ip = ip.split('/')[0];
+                    ipAddressInput.value = ip; // Clean the input
+                }
+
+                // Validate IP format
+                const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+                const match = ip.match(ipRegex);
+
+                if (!match) {
+                    gatewayInput.value = '';
+                    return;
+                }
+
+                const parts = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
+
+                // Validate each octet
+                if (parts.some(p => p < 0 || p > 255)) {
+                    gatewayInput.value = '';
+                    return;
+                }
+
+                // For /30 subnet, calculate the gateway
+                // Given IP like 192.168.239.2, calculate network address and then gateway (.1)
+                // Network = IP & mask for /30 (255.255.255.252)
+                // For /30: usable hosts are network+1 and network+2
+                // Gateway is typically the first usable (.1), client is the second (.2)
+
+                const ipInt = (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+                const mask30 = 0xFFFFFFFC; // 255.255.255.252
+                const networkInt = ipInt & mask30;
+                const firstHost = networkInt + 1;
+                const secondHost = networkInt + 2;
+
+                // Gateway is the "other" host in the /30 subnet
+                let gatewayInt;
+                if (ipInt === firstHost) {
+                    // Customer IP is .1, so gateway is .2 (unusual but possible)
+                    gatewayInt = secondHost;
+                } else if (ipInt === secondHost) {
+                    // Customer IP is .2, gateway is .1 (typical case)
+                    gatewayInt = firstHost;
+                } else {
+                    // IP is network or broadcast address for /30
+                    gatewayInput.value = 'IP tidak valid untuk /30';
+                    return;
+                }
+
+                // Convert back to dotted notation
+                const gatewayIp = [
+                    (gatewayInt >>> 24) & 255,
+                    (gatewayInt >>> 16) & 255,
+                    (gatewayInt >>> 8) & 255,
+                    gatewayInt & 255
+                ].join('.');
+
+                gatewayInput.value = gatewayIp + '/30';
+            };
+
+            ipAddressInput.addEventListener('input', calculateGateway);
+            ipAddressInput.addEventListener('blur', calculateGateway);
+
+            // Calculate on page load if value exists
+            if (ipAddressInput.value) {
+                calculateGateway();
+            }
         }
 
         // === 3. Maps Integration ===

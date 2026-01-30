@@ -116,10 +116,11 @@ export class InvoiceSchedulerService {
             today.setHours(0, 0, 0, 0);
 
             // =========================================================================
-            // 1. AUTO-SEND DRAFT INVOICES (Starts on 20th, repeats every 3 days)
+            // 1. AUTO-SEND DRAFT INVOICES (Starts on 22nd, repeats every 2 days)
+            //    - Runs on: 22, 24, 26, 28, 30
             // =========================================================================
-            if (currentDay >= 20 && (currentDay - 20) % 3 === 0) {
-                console.log(`📡 [AUTO-SEND] Starting auto-delivery for draft invoices (Day ${currentDay})...`);
+            if (currentDay >= 22 && currentDay % 2 === 0) {
+                console.log(`📡 [AUTO-SEND] Starting auto-delivery for unpaid invoices (Day ${currentDay})...`);
 
                 const [draftInvoices] = await databasePool.query<RowDataPacket[]>(
                     `SELECT i.*, c.name, c.phone 

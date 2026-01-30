@@ -120,12 +120,32 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         if (!client_name) throw new Error('Nama client wajib diisi');
         if (!ip_address) throw new Error('IP address wajib diisi');
 
-        // Validasi format IP CIDR (Improved regex to support simpler inputs)
-        // Allows "192.168.1.1/24" or just "192.168.1.1" (assumed /32 later if needed, but here we just check format)
-        const cidrRegex = /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$/;
-        if (!cidrRegex.test(String(ip_address))) {
-            throw new Error('Format IP tidak valid. Gunakan format CIDR, contoh: 192.168.1.1/30');
+        // NEW: Accept IP without CIDR, auto-add /30 if missing
+        let normalizedIp = String(ip_address).trim();
+
+        // Check if IP has CIDR prefix
+        const hasCidr = normalizedIp.includes('/');
+
+        // Validate IP format (with or without CIDR)
+        const ipOnlyRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:[0-9]|[12][0-9]|3[0-2]))$/;
+
+        if (!hasCidr) {
+            // IP without CIDR - validate and add /30
+            if (!ipOnlyRegex.test(normalizedIp)) {
+                throw new Error('Format IP tidak valid. Contoh: 192.168.239.2');
+            }
+            normalizedIp = normalizedIp + '/30';
+            console.log(`[Auto-CIDR] IP tanpa prefix -> ditambahkan /30: ${normalizedIp}`);
+        } else {
+            // IP with CIDR - validate full format
+            if (!cidrRegex.test(normalizedIp)) {
+                throw new Error('Format IP CIDR tidak valid. Contoh: 192.168.239.2/30');
+            }
         }
+
+        // Use normalized IP (with /30) for all subsequent operations
+        const ip_address_with_cidr = normalizedIp;
 
         // Pastikan interface diisi agar IP dapat ditambahkan ke MikroTik
         if (!iface) {
@@ -135,9 +155,9 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         // Hitung network untuk disimpan
         const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
         const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-        const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
+        const [ipOnlyRaw, prefixStrRaw] = ip_address_with_cidr.split('/');
         const ipOnly: string = ipOnlyRaw || '';
-        const prefix: number = Number(prefixStrRaw || '0');
+        const prefix: number = Number(prefixStrRaw || '30');
         const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
         const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
         const network = intToIp(networkInt);
@@ -145,9 +165,9 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         // CHECK DUPLICATE IP IN DATABASE
         const checkConn = await databasePool.getConnection();
         try {
-            const [rows] = await checkConn.query<any[]>('SELECT id FROM static_ip_clients WHERE ip_address = ?', [ip_address]);
+            const [rows] = await checkConn.query<any[]>('SELECT id FROM static_ip_clients WHERE ip_address = ?', [ip_address_with_cidr]);
             if (rows.length > 0) {
-                throw new Error(`Data Ganda: IP Address ${ip_address} sudah terdaftar di database!`);
+                throw new Error(`Data Ganda: IP Address ${ip_address_with_cidr} sudah terdaftar di database!`);
             }
         } finally {
             checkConn.release();
@@ -160,7 +180,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
 
         const { customerId: newCustomerId } = await addClientToPackage(packageId, {
             client_name,
-            ip_address,
+            ip_address: ip_address_with_cidr,
             network,
             interface: iface || null,
             customer_id: customer_id ? Number(customer_id) : null,
@@ -180,7 +200,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
         console.log('MikroTik config available:', !!cfg);
         console.log('Package found:', !!pkg);
         console.log('Interface:', iface);
-        console.log('IP Address:', ip_address);
+        console.log('IP Address (normalized):', ip_address_with_cidr);
 
         // Cek interface yang tersedia
         if (cfg) {
@@ -197,11 +217,11 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
             try {
                 // 1) Handle IP Address (Smart Sync)
                 console.log('Checking if IP address exists in MikroTik...');
-                let mikrotikAddress = ip_address;
+                let mikrotikAddress = ip_address_with_cidr;
 
                 // LOGIC /30: Address on Router must be Gateway IP
                 try {
-                    const [ipOnly, prefixStr] = String(ip_address).split('/');
+                    const [ipOnly, prefixStr] = String(ip_address_with_cidr).split('/');
                     const prefix = Number(prefixStr || '0');
                     if (prefix === 30) {
                         const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
@@ -216,7 +236,7 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                         // Gateway is "the other guy"
                         const gatewayIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
                         mikrotikAddress = `${gatewayIp}/${prefix}`;
-                        console.log(`[Create] Client ${ip_address} -> MikroTik Gateway: ${mikrotikAddress}`);
+                        console.log(`[Create] Client ${ip_address_with_cidr} -> MikroTik Gateway: ${mikrotikAddress}`);
                     }
                 } catch (e) { console.warn('IP Calc Error', e); }
 
@@ -243,9 +263,9 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
             }
             // 2) Hitung peer dan marks
             // ALWAYS USE CLIENT IP FOR MARKS/QUEUES
-            const [ipOnlyRaw, prefixStrRaw] = String(ip_address).split('/');
-            const ipOnly: string = ipOnlyRaw || '';
-            const peerIp = ipOnly;
+            const [ipOnlyRaw2, prefixStrRaw2] = String(ip_address_with_cidr).split('/');
+            const ipOnly2: string = ipOnlyRaw2 || '';
+            const peerIp = ipOnly2;
 
             const downloadMark: string = peerIp;
             const uploadMark: string = `UP-${peerIp}`;
