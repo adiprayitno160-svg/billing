@@ -36,10 +36,8 @@ import { pppoeStatsMiddleware } from './middlewares/pppoeStatsMiddleware';
 dotenv.config({ override: false });
 
 const app = express();
-// AntiGravity: Force 3001 if 3000 is detected (conflict with GenieACS), otherwise respect env
 const rawPort = process.env.PORT ? String(process.env.PORT).trim() : '3001';
-const parsedPort = !isNaN(Number(rawPort)) && Number(rawPort) > 0 ? Number(rawPort) : 3001;
-const port = parsedPort === 3000 ? 3001 : parsedPort;
+const port = !isNaN(Number(rawPort)) && Number(rawPort) > 0 ? Number(rawPort) : 3001;
 
 // CommonJS build: __dirname is available from TS transpilation
 
@@ -427,35 +425,22 @@ async function start() {
 		const monitoringService = new RealtimeMonitoringService(io);
 		monitoringService.start();
 
-		// SMART PORT STARTUP: Try preferred port, if busy increment and retry
-		const preferredPort = port;
-		let actualPort = preferredPort;
+		// Start server on fixed port
+		server.listen(port, '0.0.0.0', () => {
+			console.log(`\n🚀 SERVER SUCCESSFULLY STARTED!`);
+			console.log(`   - Local:    http://localhost:${port}`);
+			console.log(`   - Network:  http://0.0.0.0:${port}`);
+			console.log(`   - Time:     ${new Date().toISOString()}`);
 
-		const startServer = (p: number) => {
-			console.log(`[Startup] Attempting to listen on port ${p}...`);
-			server.listen(p, '0.0.0.0', () => {
-				console.log(`\n🚀 SERVER SUCCESSFULLY STARTED!`);
-				console.log(`   - Local:    http://localhost:${p}`);
-				console.log(`   - Network:  http://0.0.0.0:${p}`);
-				console.log(`   - Time:     ${new Date().toISOString()}`);
-
-				// Signal PM2 that the app is ready (satisfied wait_ready: true)
-				if (process.send) {
-					process.send('ready');
-					console.log(`   - PM2:      Signal 'ready' sent.`);
-				}
-			}).on('error', (err: any) => {
-				if (err.code === 'EADDRINUSE') {
-					console.log(`⚠️ Port ${p} is busy, trying ${p + 1}...`);
-					startServer(p + 1);
-				} else {
-					console.error('❌ CRITICAL: Failed to start server:', err);
-					process.exit(1);
-				}
-			});
-		};
-
-		startServer(preferredPort);
+			// Signal PM2 that the app is ready
+			if (process.send) {
+				process.send('ready');
+				console.log(`   - PM2:      Signal 'ready' sent.`);
+			}
+		}).on('error', (err: any) => {
+			console.error('❌ CRITICAL: Failed to start server:', err);
+			process.exit(1);
+		});
 
 	} catch (err) {
 		console.error('Failed to start server:', err);
