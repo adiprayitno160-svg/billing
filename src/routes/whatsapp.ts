@@ -432,24 +432,24 @@ router.get('/history', async (req: Request, res: Response) => {
         const status = req.query.status as string | undefined;
 
         let query = `
-            SELECT wbm.*, c.name as customer_name 
-            FROM whatsapp_bot_messages wbm
-            LEFT JOIN customers c ON wbm.customer_id = c.id
+            SELECT whatsapp_bot_messages.*, c.name as customer_name 
+            FROM whatsapp_bot_messages
+            LEFT JOIN customers c ON whatsapp_bot_messages.customer_id = c.id
             WHERE 1=1
         `;
         const params: any[] = [];
 
         if (customerId) {
-            query += ' AND wbm.customer_id = ?';
+            query += ' AND whatsapp_bot_messages.customer_id = ?';
             params.push(customerId);
         }
 
         if (status) {
-            query += ' AND wbm.status = ?';
+            query += ' AND whatsapp_bot_messages.status = ?';
             params.push(status);
         }
 
-        query += ' ORDER BY wbm.created_at DESC LIMIT ?';
+        query += ' ORDER BY whatsapp_bot_messages.created_at DESC LIMIT ?';
         params.push(limit);
 
         const [rows] = await databasePool.query<RowDataPacket[]>(query, params);
@@ -667,10 +667,10 @@ router.get('/', async (req: Request, res: Response) => {
 
         // Get recent notifications (History)
         const [history] = await databasePool.query<RowDataPacket[]>(`
-            SELECT wbm.*, c.name as customer_name 
-            FROM whatsapp_bot_messages wbm
-            LEFT JOIN customers c ON wbm.customer_id = c.id
-            ORDER BY wbm.created_at DESC
+            SELECT whatsapp_bot_messages.*, c.name as customer_name 
+            FROM whatsapp_bot_messages
+            LEFT JOIN customers c ON whatsapp_bot_messages.customer_id = c.id
+            ORDER BY whatsapp_bot_messages.created_at DESC
             LIMIT 10
         `);
 

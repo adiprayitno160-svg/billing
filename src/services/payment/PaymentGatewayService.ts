@@ -78,7 +78,7 @@ export class PaymentGatewayService {
    */
   async createPayment(request: PaymentRequest): Promise<PaymentResponse> {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
@@ -285,7 +285,7 @@ export class PaymentGatewayService {
    */
   async getPaymentStatus(transactionId: string): Promise<any> {
     const connection = await pool.getConnection();
-    
+
     try {
       const [rows] = await connection.execute(
         'SELECT * FROM payment_transactions WHERE external_id = ?',
@@ -297,7 +297,7 @@ export class PaymentGatewayService {
       }
 
       const transaction = (rows as any[])[0];
-      
+
       // Ambil status terbaru dari gateway
       let gatewayStatus;
       switch (transaction.gateway_id) {
@@ -336,7 +336,7 @@ export class PaymentGatewayService {
    */
   async processWebhook(gatewayCode: string, payload: any, signature: string): Promise<void> {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
@@ -397,56 +397,93 @@ export class PaymentGatewayService {
           ]
         );
 
-            // Update invoice jika payment berhasil
-            if (webhookData.status === 'completed' || webhookData.status === 'paid') {
-              const [transaction] = await connection.execute(
-                `SELECT pt.invoice_id, pt.amount, p.id as payment_id, i.due_date
+        // Update invoice jika payment berhasil
+        if (webhookData.status === 'completed' || webhookData.status === 'paid') {
+          const [transaction] = await connection.execute(
+            `SELECT pt.invoice_id, pt.amount, p.id as payment_id, i.due_date, i.total_amount
                  FROM payment_transactions pt
                  LEFT JOIN payments p ON pt.invoice_id = p.invoice_id AND p.gateway_transaction_id = pt.external_id
                  LEFT JOIN invoices i ON pt.invoice_id = i.id
                  WHERE pt.external_id = ?`,
-                [webhookData.transactionId]
+            [webhookData.transactionId]
+          );
+
+          if (transaction && (transaction as any[]).length > 0) {
+            const transData = (transaction as any[])[0];
+            const invoiceId = transData.invoice_id;
+            let paymentId = transData.payment_id;
+
+            // Insert payment record if not exists
+            if (!paymentId) {
+              console.log(`[PaymentGateway] Inserting new payment record for ${webhookData.transactionId}`);
+              const [payResult] = await connection.execute(
+                `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, gateway_transaction_id, created_at)
+                   VALUES (?, ?, ?, NOW(), ?, ?, NOW())`,
+                [
+                  invoiceId,
+                  gatewayCode,
+                  transData.amount,
+                  `Payment via ${gatewayCode} (${webhookData.transactionId})`,
+                  webhookData.transactionId
+                ]
               );
+              paymentId = (payResult as any).insertId;
 
-              if (transaction && (transaction as any[]).length > 0) {
-                const transData = (transaction as any[])[0];
-                const invoiceId = transData.invoice_id;
-                
-                // Update invoice status
-                await connection.execute(
-                  'UPDATE invoices SET status = "paid", paid_at = NOW() WHERE id = ?',
-                  [invoiceId]
-                );
+              // Trigger Notification
+              console.log(`[PaymentGateway] Triggering notification for payment ${paymentId}`);
+              const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+              UnifiedNotificationService.notifyPaymentReceived(paymentId).then(() => {
+                console.log(`[PaymentGateway] Notification triggered successfully for payment ${paymentId}`);
+              }).catch((err: any) => {
+                console.error('[PaymentGateway] Error sending notification:', err);
+              });
+            } else {
+              console.log(`[PaymentGateway] Payment record already exists for ${webhookData.transactionId}, ID: ${paymentId}`);
+            }
 
-                // Auto-restore customer if isolated
-                const [custRows] = await connection.execute(
-                  `SELECT c.id, c.is_isolated FROM customers c
+            console.log(`[PaymentGateway] Updating invoice ${invoiceId} to PAID`);
+
+            // Update invoice status and amounts
+            await connection.execute(
+              `UPDATE invoices 
+                   SET status = 'paid', 
+                       paid_at = NOW(),
+                       paid_amount = ABS(total_amount), 
+                       remaining_amount = 0,
+                       updated_at = NOW()
+                   WHERE id = ?`,
+              [invoiceId]
+            );
+
+            // Auto-restore customer if isolated
+            const [custRows] = await connection.execute(
+              `SELECT c.id, c.is_isolated FROM customers c
                    JOIN invoices i ON i.customer_id = c.id
                    WHERE i.id = ?`,
-                  [invoiceId]
-                );
-                if (custRows && (custRows as any[]).length > 0) {
-                  const customer = (custRows as any[])[0];
-                  if (customer.is_isolated) {
-                    await connection.execute('UPDATE customers SET is_isolated = FALSE WHERE id = ?', [customer.id]);
-                    await connection.execute(
-                      `INSERT INTO isolation_logs (customer_id, action, reason, created_at)
+              [invoiceId]
+            );
+            if (custRows && (custRows as any[]).length > 0) {
+              const customer = (custRows as any[])[0];
+              if (customer.is_isolated) {
+                await connection.execute('UPDATE customers SET is_isolated = FALSE WHERE id = ?', [customer.id]);
+                await connection.execute(
+                  `INSERT INTO isolation_logs (customer_id, action, reason, created_at)
                        VALUES (?, 'restore', 'Auto restore after payment (webhook)', NOW())`,
-                      [customer.id]
-                    );
-                  }
-                }
-
-                // Track late payment (async, don't wait)
-                if (transData.payment_id && transData.due_date && webhookData.paidAt) {
-                  const { LatePaymentTrackingService } = await import('../billing/LatePaymentTrackingService');
-                  const paymentDate = new Date(webhookData.paidAt);
-                  const dueDate = new Date(transData.due_date);
-                  LatePaymentTrackingService.trackPayment(invoiceId, transData.payment_id, paymentDate, dueDate)
-                    .catch(err => console.error('[PaymentGatewayService] Error tracking late payment:', err));
-                }
+                  [customer.id]
+                );
               }
             }
+
+            // Track late payment (async, don't wait)
+            if (transData.payment_id && transData.due_date && webhookData.paidAt) {
+              const { LatePaymentTrackingService } = await import('../billing/LatePaymentTrackingService');
+              const paymentDate = new Date(webhookData.paidAt);
+              const dueDate = new Date(transData.due_date);
+              LatePaymentTrackingService.trackPayment(invoiceId, transData.payment_id, paymentDate, dueDate)
+                .catch(err => console.error('[PaymentGatewayService] Error tracking late payment:', err));
+            }
+          }
+        }
       }
 
       // Mark webhook as processed
@@ -470,7 +507,7 @@ export class PaymentGatewayService {
    */
   async getPaymentMethods(gatewayCode?: string): Promise<any[]> {
     const connection = await pool.getConnection();
-    
+
     try {
       let query = `
         SELECT pm.*, pg.name as gateway_name, pg.code as gateway_code
@@ -478,7 +515,7 @@ export class PaymentGatewayService {
         JOIN payment_gateways pg ON pm.gateway_id = pg.id
         WHERE pm.is_active = TRUE AND pg.is_active = TRUE
       `;
-      
+
       const params: any[] = [];
       if (gatewayCode) {
         query += ' AND pg.code = ?';
@@ -498,7 +535,7 @@ export class PaymentGatewayService {
    */
   async getTransactionHistory(customerId?: number, status?: string, limit = 50, offset = 0): Promise<any[]> {
     const connection = await pool.getConnection();
-    
+
     try {
       let query = `
         SELECT pt.*, pg.name as gateway_name, pm.method_name,
@@ -509,19 +546,19 @@ export class PaymentGatewayService {
         LEFT JOIN customers c ON pt.customer_id = c.id
         WHERE 1=1
       `;
-      
+
       const params: any[] = [];
-      
+
       if (customerId) {
         query += ' AND pt.customer_id = ?';
         params.push(customerId);
       }
-      
+
       if (status) {
         query += ' AND pt.status = ?';
         params.push(status);
       }
-      
+
       query += ` ORDER BY pt.created_at DESC LIMIT ${parseInt(limit.toString())} OFFSET ${parseInt(offset.toString())}`;
 
       const [rows] = await connection.execute(query, params);

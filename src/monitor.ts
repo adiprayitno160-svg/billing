@@ -6,6 +6,17 @@ const app = express();
 const port = 3002;
 const MAIN_APP_URL = 'http://localhost:3001';
 
+app.get('/whatsapp', (req, res) => {
+    // Redirect to main app (port 3001)
+    const host = req.get('host'); // e.g. 192.168.239.154:3002
+    if (host) {
+        const domain = host.split(':')[0];
+        res.redirect(`http://${domain}:3001/whatsapp`);
+    } else {
+        res.redirect('http://localhost:3001/whatsapp');
+    }
+});
+
 app.get('/', async (req, res) => {
     let mainAppStatus = 'UNKNOWN';
     let responseTime = 0;

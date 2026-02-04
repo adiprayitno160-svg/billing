@@ -4,8 +4,8 @@ import { RowDataPacket } from 'mysql2';
 
 async function checkSchema() {
     try {
-        const [rows] = await databasePool.query<RowDataPacket[]>('DESCRIBE whatsapp_bot_messages');
-        console.log(rows.map((r: any) => r.Field).join(', '));
+        const [rows] = await databasePool.query<RowDataPacket[]>('DESCRIBE customers');
+        console.log('Customers Columns: ', rows.map((r: any) => r.Field).join(', '));
         process.exit(0);
     } catch (error) {
         console.error('Error:', error);
