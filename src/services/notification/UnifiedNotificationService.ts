@@ -223,7 +223,6 @@ export class UnifiedNotificationService {
         await whatsappService.waitForReady(5000); // Try waiting briefly
       } catch (e) {
         console.log(`[UnifiedNotification] ⏳ WhatsApp still not ready. Skipping queue processing this turn.`);
-        connection.release();
         return { sent: 0, failed: 0, skipped: 0 };
       }
     }
@@ -254,12 +253,19 @@ export class UnifiedNotificationService {
                LIMIT ?`;
       params.push(limit);
 
+      const [[{ dbNow }]] = await connection.query<RowDataPacket[]>('SELECT NOW() as dbNow');
+      const [[{ totalPending }]] = await connection.query<RowDataPacket[]>('SELECT COUNT(*) as totalPending FROM unified_notifications_queue WHERE status = "pending"');
+
+      console.log(`[UnifiedNotification] 🕒 DB Time: ${dbNow}, Total Pending: ${totalPending}`);
+
+      const [rawPending] = await connection.query<RowDataPacket[]>('SELECT id, status, scheduled_for, NOW() as current_db_now FROM unified_notifications_queue WHERE status = "pending" LIMIT 5');
+      console.log(`[UnifiedNotification] 🔍 Raw Pending Debug:`, JSON.stringify(rawPending));
+
       const [notifications] = await connection.query<RowDataPacket[]>(query, params);
 
-      console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
+      console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process (with scheduled filter)`);
 
       if (notifications.length === 0) {
-        // console.log(`[UnifiedNotification] ℹ️ No pending notifications to process`);
         return { sent: 0, failed: 0, skipped: 0 };
       }
 
