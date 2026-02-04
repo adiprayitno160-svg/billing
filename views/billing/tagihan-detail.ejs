@@ -486,6 +486,13 @@
                                                 <i class="fas fa-ban mr-2"></i>Batalkan Tagihan
                                             </button>
                                             <% } %>
+
+                                                <% if (invoice.status !=='paid' && invoice.status !=='cancelled' ) { %>
+                                                    <button onclick="showDowntimeDiscountModal()"
+                                                        class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-bold mt-2">
+                                                        <i class="fas fa-clock mr-2"></i>Diskon Gangguan
+                                                    </button>
+                                                    <% } %>
                     </div>
                 </div>
             </div>
@@ -716,6 +723,41 @@
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
+        }
+    }
+
+    function showDowntimeDiscountModal() {
+        const days = prompt('Masukkan jumlah hari gangguan (misal: 1, 2, ...):');
+        if (days === null || days.trim() === '') return;
+
+        const numDays = parseInt(days);
+        if (isNaN(numDays) || numDays <= 0) {
+            alert('Jumlah hari harus berupa angka positif.');
+            return;
+        }
+
+        if (confirm(`Terapkan diskon kompensasi untuk ${numDays} hari gangguan?\n\nSistem akan menghitung otomatis: (Subtotal / 30) * ${numDays} hari.`)) {
+            fetch('/billing/tagihan/apply-downtime-discount', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    invoiceId: '<%= invoice.id %>',
+                    downtimeDays: numDays
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        location.reload();
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('❌ Terjadi kesalahan saat menerapkan diskon.');
+                });
         }
     }
 </script>
