@@ -757,6 +757,7 @@ export class UnifiedNotificationService {
    * Send payment received notification
    */
   static async notifyPaymentReceived(paymentId: number, sendImmediately: boolean = true): Promise<void> {
+    console.log(`[UnifiedNotification] 🔔 notifyPaymentReceived called for paymentId: ${paymentId}, sendImmediately: ${sendImmediately}`);
     const connection = await databasePool.getConnection();
 
     try {

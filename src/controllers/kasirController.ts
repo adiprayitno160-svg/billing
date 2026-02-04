@@ -1693,6 +1693,18 @@ export class KasirController {
 
             await conn.commit();
 
+            // Send notification (Fire and forget)
+            if (paymentId) {
+                try {
+                    const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
+                        console.error('Background notification error in kasir verification:', e)
+                    );
+                } catch (e) {
+                    console.warn('Failed to initiate unified notification in kasir:', e);
+                }
+            }
+
             res.json({
                 success: true,
                 message: 'Pembayaran berhasil diverifikasi dan disetujui',
@@ -1728,7 +1740,25 @@ export class KasirController {
                     WHERE id = ?
                 `, [req.user!.id, reason || 'Bukti pembayaran tidak valid', id]);
 
-                // TODO: Send WhatsApp notification to customer about rejection
+                // Send WhatsApp notification to customer about rejection
+                const [verificRows] = await conn.query<RowDataPacket[]>(
+                    'SELECT mpv.customer_id, c.phone FROM manual_payment_verifications mpv JOIN customers c ON mpv.customer_id = c.id WHERE mpv.id = ?',
+                    [id]
+                );
+
+                if (verificRows.length > 0 && verificRows[0].phone) {
+                    try {
+                        const { whatsappService } = await import('../services/whatsapp');
+                        await whatsappService.sendMessage(
+                            verificRows[0].phone,
+                            `❌ *VERIFIKASI PEMBAYARAN DITOLAK*\n\n` +
+                            `Alasan: ${reason || 'Bukti pembayaran tidak valid / tidak terbaca.'}\n\n` +
+                            `Silakan kirim ulang bukti transfer yang valid atau hubungi Customer Service.`
+                        );
+                    } catch (notifErr) {
+                        console.error('Failed to send rejection notification:', notifErr);
+                    }
+                }
 
                 res.json({
                     success: true,
