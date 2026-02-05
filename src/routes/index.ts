@@ -3526,12 +3526,19 @@ router.post('/customers/new-static-ip', async (req, res) => {
     try {
         // Anti Double-Submit Lock (Server Side)
         if (req.body.client_name) {
-            processLockKey = String(req.body.client_name).trim().toLowerCase();
+            // Aggressive Normalization: Remove all non-alphanumeric characters
+            processLockKey = String(req.body.client_name).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+            console.log(`[DEBUG] Request static-ip: "${req.body.client_name}" -> Key: "${processLockKey}"`);
+
             if (processingStaticIpLimits.has(processLockKey)) {
                 console.warn(`[DoubleSubmit] Blocked duplicate request for: ${processLockKey}`);
-                throw new Error(`Permintaan untuk "${req.body.client_name}" sedang diproses. Mohon tunggu, jangan klik tombol berkali-kali.`);
+                throw new Error(`Permintaan ganda terdeteksi untuk "${req.body.client_name}". Sistem sedang memproses permintaan pertama.`);
             }
             processingStaticIpLimits.add(processLockKey);
+
+            // Artificial Delay to ensure lock is effective against race conditions
+            await new Promise(resolve => setTimeout(resolve, 800));
         }
 
         console.log('=== NEW STATIC IP CLIENT REQUEST ===');
@@ -3592,8 +3599,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
         // PREVENT DUPLICATE NAME (Double Submit Protection Backend)
         const connVal = await databasePool.getConnection();
         try {
+            // Aggressive DB Check: Remove spaces from DB name and Input name for comparison
+            // This catches "Mbak Endras" vs "Mbak  Endras" vs "MbakEndras"
             const [existingNameRows] = await connVal.execute(
-                'SELECT id, name FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+                "SELECT id, name FROM customers WHERE REPLACE(name, ' ', '') LIKE REPLACE(?, ' ', '')",
                 [client_name.trim()]
             );
 
