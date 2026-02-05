@@ -17,6 +17,31 @@
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 	<!-- SweetAlert2 -->
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<style>
+		/* CRITICAL: Force SweetAlert2 to be centered and fixed */
+		div:where(.swal2-container) {
+			display: grid !important;
+			place-items: center !important;
+			position: fixed !important;
+			inset: 0 !important;
+			z-index: 999999 !important;
+			background-color: rgba(0, 0, 0, 0.4) !important;
+			overflow-y: auto !important;
+			padding: 10px !important;
+		}
+
+		div:where(.swal2-popup) {
+			margin: auto !important;
+			font-size: 0.9rem !important;
+			display: grid !important;
+			/* Ensure content flows */
+		}
+
+		body.swal2-shown {
+			overflow: hidden !important;
+			/* Prevent body scroll */
+		}
+	</style>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
 		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
@@ -497,7 +522,7 @@
 </head>
 
 <body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased"
-	data-auto-logout="<%= (typeof autoLogoutEnabled === 'undefined' || autoLogoutEnabled === true) %>">
+	data-auto-logout="<%= (typeof autoLogoutEnabled !== 'undefined' ? autoLogoutEnabled : false) %>">
 	<!-- CRITICAL: Remove all onclick attributes before sidebar is rendered -->
 	<script>
 		// Intercept and remove onclick before DOM is fully parsed
@@ -758,8 +783,8 @@
 			}
 
 			let idleTime = 0;
-			const IDLE_TIMEOUT = 5; // 5 minutes
-			const WARNING_TIME = 4; // Show warning at 4 minutes
+			const IDLE_TIMEOUT = 30; // 30 minutes
+			const WARNING_TIME = 25; // Show warning at 25 minutes
 			const LOGOUT_URL = '/logout';
 
 			// Don't log out if already on login page
@@ -797,11 +822,11 @@
 			document.addEventListener('mousedown', resetIdleTime);
 			document.addEventListener('keydown', resetIdleTime);
 
-			// Check idle time every 30 seconds
+			// Check idle time every 1 minute
 			setInterval(function () {
-				idleTime += 0.5; // Increment by 0.5 minutes (30 seconds)
+				idleTime += 1; // Increment by 1 minute
 
-				// Show warning at 9 minutes (1 minute before logout)
+				// Show warning at 25 minutes
 				if (idleTime >= WARNING_TIME && idleTime < IDLE_TIMEOUT) {
 					// Only show if warning doesn't already exist
 					if (!document.getElementById('idleWarning')) {
@@ -836,14 +861,14 @@
 					}
 				}
 
-				// Logout after 10 minutes
+				// Logout after 30 minutes
 				if (idleTime >= IDLE_TIMEOUT) {
-					console.log('Auto-logout due to inactivity (10 minutes)...');
+					console.log('Auto-logout due to inactivity (30 minutes)...');
 					// Force logout - redirect to admin login page with timeout parameter
 					// Session will be destroyed on login page when timeout=1 is detected
 					window.location.href = '/login?timeout=1';
 				}
-			}, 30000); // Check every 30 seconds
+			}, 60000); // Check every 1 minute
 		})();
 	</script>
 
