@@ -3576,6 +3576,22 @@ router.post('/customers/new-static-ip', async (req, res) => {
             }
         }
 
+        // PREVENT DUPLICATE NAME (Double Submit Protection Backend)
+        const connVal = await databasePool.getConnection();
+        try {
+            const [existingNameRows] = await connVal.execute(
+                'SELECT id, name FROM customers WHERE name = ?',
+                [client_name.trim()]
+            );
+
+            if (Array.isArray(existingNameRows) && existingNameRows.length > 0) {
+                const existing = (existingNameRows as any)[0];
+                throw new Error(`Pelanggan dengan nama "${client_name}" sudah terdaftar (ID: ${existing.id}). \nJika ini pelanggan berbeda, gunakan nama yang lebih spesifik.`);
+            }
+        } finally {
+            connVal.release();
+        }
+
         // NEW: Accept IP without CIDR, auto-add /30 if missing
         let normalizedIp = String(ip_address).trim();
 
