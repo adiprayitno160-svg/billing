@@ -89,6 +89,7 @@ class PaymentVerificationService {
      * Verify postpaid payment (invoice payment)
      */
     static async verifyPostpaidPayment(customerId, media, transferAmount, extractedData) {
+        var _a, _b, _c;
         try {
             // Find unpaid invoices
             const [invoices] = await pool_1.databasePool.query(`SELECT * FROM invoices
@@ -109,7 +110,7 @@ class PaymentVerificationService {
                 const remaining = parseFloat(invoice.remaining_amount.toString());
                 const diff = Math.abs(transferAmount - remaining);
                 // Check if amount matches remaining or total
-                if (diff <= 1000) { // Allow 1000 rupiah tolerance
+                if (diff <= 2000) { // Allow 2000 rupiah tolerance
                     if (diff < minDiff) {
                         minDiff = diff;
                         bestMatch = invoice;
@@ -119,7 +120,7 @@ class PaymentVerificationService {
                     // Check if matches total amount
                     const total = parseFloat(invoice.total_amount.toString());
                     const totalDiff = Math.abs(transferAmount - total);
-                    if (totalDiff <= 1000 && totalDiff < minDiff) {
+                    if (totalDiff <= 2000 && totalDiff < minDiff) {
                         minDiff = totalDiff;
                         bestMatch = invoice;
                     }
@@ -143,7 +144,7 @@ class PaymentVerificationService {
                     const geminiResult = await GeminiService_1.GeminiService.analyzePaymentProof(imageBuffer, expectedAmount, undefined, 'invoice');
                     if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
                         // Check if it's a technical error
-                        const isTechnicalError = geminiResult.validation?.riskReasons?.some(r => r.includes('Gemini analysis failed') ||
+                        const isTechnicalError = (_b = (_a = geminiResult.validation) === null || _a === void 0 ? void 0 : _a.riskReasons) === null || _b === void 0 ? void 0 : _b.some(r => r.includes('Gemini analysis failed') ||
                             r.includes('API_KEY') ||
                             r.includes('API key') ||
                             r.includes('FetchError'));
@@ -153,7 +154,7 @@ class PaymentVerificationService {
                             // For now, let's allow it but maybe limit confidence
                         }
                         // If it's a clear fraud/mismatch, reject
-                        else if (geminiResult.validation?.riskLevel === 'high') {
+                        else if (((_c = geminiResult.validation) === null || _c === void 0 ? void 0 : _c.riskLevel) === 'high') {
                             return {
                                 success: false,
                                 error: `Verifikasi AI mendeteksi risiko tinggi: ${geminiResult.validation.riskReasons.join(', ')}`
@@ -198,6 +199,7 @@ class PaymentVerificationService {
      * Verify prepaid payment (Top-up with unique code)
      */
     static async verifyPrepaidPayment(customerId, media, transferAmount, extractedData) {
+        var _a;
         try {
             console.log(`[PaymentVerification] Verifying prepaid payment for customer ${customerId}, amount: ${transferAmount}`);
             // Find pending payment request by unique code (last 3 digits)
@@ -254,7 +256,7 @@ class PaymentVerificationService {
                 try {
                     const geminiResult = await GeminiService_1.GeminiService.analyzePaymentProof(imageBuffer, expectedAmount, undefined, 'prepaid');
                     if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
-                        if (geminiResult.validation?.riskLevel === 'high') {
+                        if (((_a = geminiResult.validation) === null || _a === void 0 ? void 0 : _a.riskLevel) === 'high') {
                             return {
                                 success: false,
                                 error: `Verifikasi AI mendeteksi risiko tinggi: ${geminiResult.validation.riskReasons.join(', ')}`
@@ -298,6 +300,7 @@ class PaymentVerificationService {
      * Record invoice payment
      */
     static async recordInvoicePayment(invoiceId, customerId, amount, paymentMethod, notes, paymentDate) {
+        var _a;
         const connection = await pool_1.databasePool.getConnection();
         try {
             await connection.beginTransaction();
@@ -307,7 +310,7 @@ class PaymentVerificationService {
                 throw new Error('Invoice tidak ditemukan');
             }
             const invoice = invoices[0];
-            const currentPaid = parseFloat(invoice.paid_amount?.toString() || '0');
+            const currentPaid = parseFloat(((_a = invoice.paid_amount) === null || _a === void 0 ? void 0 : _a.toString()) || '0');
             const totalAmount = parseFloat(invoice.total_amount.toString());
             const newPaid = currentPaid + amount;
             const newRemaining = totalAmount - newPaid;

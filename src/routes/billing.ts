@@ -135,6 +135,9 @@ router.post('/tagihan/generate-bulk', invoiceController.generateBulkInvoices.bin
 // Emergency Cleanup Route
 router.post('/tagihan/force-cleanup', invoiceController.forceCleanupPeriod.bind(invoiceController));
 
+// Apply downtime discount
+router.post('/tagihan/apply-downtime-discount', invoiceController.applyDowntimeDiscount.bind(invoiceController));
+
 // Bulk delete invoices
 router.post('/tagihan/bulk-delete', async (req, res) => {
     try {

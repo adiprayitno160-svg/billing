@@ -48,6 +48,9 @@ router.get('/sla/analysis/:customerId', (req, res) => controller.getCustomerSLAA
 // Monitoring AI page
 router.get('/ai', (req, res) => controller.getAIAnalyticsPage(req, res));
 
+// Network Map page
+router.get('/maps', (req, res) => controller.getNetworkMapsPage(req, res));
+
 // Usage monitoring
 router.get('/usage/:customerId/graph', (req, res) => controller.getBandwidthTrend(req, res));
 

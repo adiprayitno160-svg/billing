@@ -46,6 +46,7 @@ class AdvancedPaymentVerificationService {
      * Main entry point - Smart payment verification with multi-stage processing
      */
     static async verifyPaymentAdvanced(imageBuffer, customerId, options) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
         const startTime = Date.now();
         console.log(`[AdvancedAI] 🚀 Starting advanced verification for customer ${customerId}`);
         try {
@@ -62,14 +63,14 @@ class AdvancedPaymentVerificationService {
                         riskLevel: 'high',
                         riskScore: 80,
                         fraudIndicators: [],
-                        isPaymentProof: extractionResult.details?.isPaymentProof
+                        isPaymentProof: (_a = extractionResult.details) === null || _a === void 0 ? void 0 : _a.isPaymentProof
                     }
                 };
             }
             // Stage 2: Match with invoices
             console.log('[AdvancedAI] Stage 2: Matching with invoices...');
-            const matchResult = await this.stageMatching(customerId, extractionResult.details.amount, options?.invoiceId);
-            if (!matchResult.passed && !options?.bypassAmountCheck) {
+            const matchResult = await this.stageMatching(customerId, extractionResult.details.amount, options === null || options === void 0 ? void 0 : options.invoiceId);
+            if (!matchResult.passed && !(options === null || options === void 0 ? void 0 : options.bypassAmountCheck)) {
                 return {
                     success: false,
                     stage: 'matching',
@@ -88,9 +89,9 @@ class AdvancedPaymentVerificationService {
             const validationResult = await this.stageValidation(imageBuffer, matchResult.details.invoice, extractionResult.details);
             // NEW: Anti-Fraud Stage - Reference Number & Date Verification
             console.log('[AdvancedAI] Anti-Fraud Stage: Checking reference & time...');
-            const refNumber = validationResult.details?.referenceNumber || extractionResult.details?.referenceNumber;
+            const refNumber = ((_b = validationResult.details) === null || _b === void 0 ? void 0 : _b.referenceNumber) || ((_c = extractionResult.details) === null || _c === void 0 ? void 0 : _c.referenceNumber);
             const isDuplicate = refNumber ? await this.checkReferenceNumber(refNumber) : false;
-            const isTimeValid = await this.verifyDateTime(validationResult.details?.date, validationResult.details?.time);
+            const isTimeValid = await this.verifyDateTime((_d = validationResult.details) === null || _d === void 0 ? void 0 : _d.date, (_e = validationResult.details) === null || _e === void 0 ? void 0 : _e.time);
             if (isDuplicate) {
                 return {
                     success: false,
@@ -109,7 +110,7 @@ class AdvancedPaymentVerificationService {
             }
             // Stage 4: Determine approval
             console.log('[AdvancedAI] Stage 4: Determining approval...');
-            const approvalResult = await this.stageApproval(validationResult, matchResult.details, extractionResult.details, options?.forceManualReview || false);
+            const approvalResult = await this.stageApproval(validationResult, matchResult.details, extractionResult.details, (options === null || options === void 0 ? void 0 : options.forceManualReview) || false);
             // Stage 5: Execute actions if auto-approved
             let actions = {
                 paymentRecorded: false,
@@ -126,21 +127,21 @@ class AdvancedPaymentVerificationService {
                 success: approvalResult.autoApprove,
                 stage: approvalResult.autoApprove ? 'complete' : 'approval',
                 data: {
-                    invoiceId: matchResult.details.invoice?.id,
-                    invoiceNumber: matchResult.details.invoice?.invoice_number,
+                    invoiceId: (_f = matchResult.details.invoice) === null || _f === void 0 ? void 0 : _f.id,
+                    invoiceNumber: (_g = matchResult.details.invoice) === null || _g === void 0 ? void 0 : _g.invoice_number,
                     customerId: customerId,
-                    expectedAmount: matchResult.details.invoice?.remaining_amount,
+                    expectedAmount: (_h = matchResult.details.invoice) === null || _h === void 0 ? void 0 : _h.remaining_amount,
                     extractedAmount: extractionResult.details.amount,
                     amountMatch: matchResult.details.matchType,
                     confidence: approvalResult.confidence,
                     riskLevel: validationResult.details.riskLevel,
                     riskScore: validationResult.details.riskScore,
                     autoApproved: approvalResult.autoApprove,
-                    isPaymentProof: validationResult.details?.isPaymentProof ?? extractionResult.details?.isPaymentProof,
+                    isPaymentProof: (_k = (_j = validationResult.details) === null || _j === void 0 ? void 0 : _j.isPaymentProof) !== null && _k !== void 0 ? _k : (_l = extractionResult.details) === null || _l === void 0 ? void 0 : _l.isPaymentProof,
                     referenceNumber: refNumber,
-                    date: validationResult.details?.date || extractionResult.details?.date,
-                    time: validationResult.details?.time || extractionResult.details?.time,
-                    bank: validationResult.details?.bank || extractionResult.details?.bank,
+                    date: ((_m = validationResult.details) === null || _m === void 0 ? void 0 : _m.date) || ((_o = extractionResult.details) === null || _o === void 0 ? void 0 : _o.date),
+                    time: ((_p = validationResult.details) === null || _p === void 0 ? void 0 : _p.time) || ((_q = extractionResult.details) === null || _q === void 0 ? void 0 : _q.time),
+                    bank: ((_r = validationResult.details) === null || _r === void 0 ? void 0 : _r.bank) || ((_s = extractionResult.details) === null || _s === void 0 ? void 0 : _s.bank),
                     fraudIndicators: validationResult.details.fraudIndicators || [],
                     reasoning: approvalResult.reasoning
                 },
@@ -364,8 +365,8 @@ PENTING:
                 const total = parseFloat(invoice.total_amount.toString());
                 const diff = Math.abs(extractedAmount - remaining);
                 const totalDiff = Math.abs(extractedAmount - total);
-                // Exact match (within 500 rupiah)
-                if (diff <= 500) {
+                // Exact match or very close (within 2000 rupiah - tolerance for admin fees/random numbers)
+                if (diff <= 2000) {
                     bestMatch = invoice;
                     matchType = 'exact';
                     matchConfidence = 100;
@@ -381,7 +382,7 @@ PENTING:
                     }
                 }
                 // Check total amount match (for full payment after partial)
-                if (totalDiff <= 500) {
+                if (totalDiff <= 2000) {
                     if (!bestMatch || matchConfidence < 85) {
                         bestMatch = invoice;
                         matchType = 'close';
@@ -441,6 +442,7 @@ PENTING:
      * Stage 3: Validate payment proof with fraud detection
      */
     static async stageValidation(imageBuffer, invoice, extractedData) {
+        var _a;
         try {
             const geminiEnabled = await GeminiService_1.GeminiService.isEnabled();
             if (!geminiEnabled) {
@@ -459,7 +461,7 @@ PENTING:
             }
             // Get customer name for validation
             const expectedAmount = invoice ? parseFloat(invoice.remaining_amount.toString()) : undefined;
-            const customerName = invoice?.customer_name;
+            const customerName = invoice === null || invoice === void 0 ? void 0 : invoice.customer_name;
             // Fetch company name for recipient verification
             let expectedRecipientName = 'Provider Internet';
             try {
@@ -471,9 +473,9 @@ PENTING:
             catch (ignore) { }
             // Full Gemini validation
             // Check if this is a time-critical transaction (e.g. PPPoE / Prepaid)
-            const isPrepaid = invoice?.invoice_number?.startsWith('INV') || true; // Default to strict 
+            const isPrepaid = ((_a = invoice === null || invoice === void 0 ? void 0 : invoice.invoice_number) === null || _a === void 0 ? void 0 : _a.startsWith('INV')) || true; // Default to strict 
             const validationResult = await GeminiService_1.GeminiService.analyzePaymentProof(imageBuffer, expectedAmount, undefined, // bank
-            customerName, invoice?.invoice_number, expectedRecipientName, isPrepaid);
+            customerName, invoice === null || invoice === void 0 ? void 0 : invoice.invoice_number, expectedRecipientName, isPrepaid);
             const riskLevel = validationResult.validation.riskLevel;
             const riskScore = this.calculateRiskScore(validationResult);
             const fraudIndicators = validationResult.fraudIndicators || [];
@@ -555,7 +557,7 @@ PENTING:
         }
         // Get AI settings
         const settings = await AISettingsService_1.AISettingsService.getSettings();
-        if (!settings?.auto_approve_enabled) {
+        if (!(settings === null || settings === void 0 ? void 0 : settings.auto_approve_enabled)) {
             return {
                 autoApprove: false,
                 confidence: validationResult.confidence,
@@ -672,43 +674,61 @@ PENTING:
      * Stage 5: Execute auto-approve actions
      */
     static async executeAutoApproveActions(customerId, invoice, paymentAmount, validationDetails) {
+        var _a, _b, _c, _d;
         const connection = await pool_1.databasePool.getConnection();
         let paymentRecorded = false;
         let isolationRemoved = false;
         let notificationSent = false;
         try {
             await connection.beginTransaction();
+            // Get customer billing mode
+            const [customerRows] = await connection.query('SELECT billing_mode, account_balance FROM customers WHERE id = ?', [customerId]);
+            const billingMode = ((_a = customerRows[0]) === null || _a === void 0 ? void 0 : _a.billing_mode) || 'postpaid';
             // Record payment
-            const currentPaid = parseFloat(invoice.paid_amount?.toString() || '0');
+            const currentPaid = parseFloat(((_b = invoice.paid_amount) === null || _b === void 0 ? void 0 : _b.toString()) || '0');
             const totalAmount = parseFloat(invoice.total_amount.toString());
-            const remainingAmount = parseFloat(invoice.remaining_amount.toString());
-            const effectivePayment = Math.min(paymentAmount, remainingAmount);
-            const newPaid = currentPaid + effectivePayment;
-            const newRemaining = totalAmount - newPaid;
-            const isFullPayment = newRemaining <= 0;
+            const remainingBefore = parseFloat(invoice.remaining_amount.toString());
+            let excessAmount = 0;
+            if (paymentAmount > remainingBefore) {
+                excessAmount = paymentAmount - remainingBefore;
+            }
+            const newPaid = currentPaid + paymentAmount;
+            const newRemaining = Math.max(0, totalAmount - newPaid);
+            const isFullPayment = newRemaining <= 100; // Tolerance for rounding
             // Insert payment record
             const refNumber = validationDetails.referenceNumber || 'AI-AUTO';
-            await connection.query(`INSERT INTO payments (invoice_id, payment_method, amount, payment_date, reference_number, notes, created_at)
-                 VALUES (?, 'transfer', ?, NOW(), ?, ?, NOW())`, [invoice.id, effectivePayment, refNumber, `Auto-verified by AI (confidence: ${validationDetails.riskScore}%)`]);
+            const [paymentResult] = await connection.query(`INSERT INTO payments (invoice_id, payment_method, amount, payment_date, reference_number, notes, created_at)
+                 VALUES (?, 'transfer', ?, NOW(), ?, ?, NOW())`, [invoice.id, paymentAmount, refNumber, `Auto-verified by AI (confidence: ${validationDetails.riskScore}%)${excessAmount > 0 ? ` - Kelebihan Rp ${excessAmount}` : ''}`]);
+            const paymentId = paymentResult.insertId;
+            // Handle Overpayment (Deposit to Balance) - ONLY for non-postpaid customers
+            if (excessAmount > 0 && billingMode !== 'postpaid') {
+                await connection.query('UPDATE customers SET account_balance = COALESCE(account_balance, 0) + ? WHERE id = ?', [excessAmount, customerId]);
+                await connection.query(`
+                    INSERT INTO customer_balance_logs (
+                        customer_id, type, amount, description, reference_id, created_at
+                    ) VALUES (?, 'credit', ?, ?, ?, NOW())
+                `, [customerId, excessAmount, `Kelebihan pembayaran (AI auto) invoice ${invoice.invoice_number}`, invoice.id.toString()]);
+                console.log(`[AdvancedAI] 💰 Credited ${excessAmount} to balance (Mode: ${billingMode})`);
+            }
             // Update invoice status
             const newStatus = isFullPayment ? 'paid' : 'partial';
             await connection.query(`UPDATE invoices 
                  SET paid_amount = ?, remaining_amount = ?, status = ?, 
                      last_payment_date = NOW(), paid_at = CASE WHEN ? = 'paid' THEN NOW() ELSE paid_at END,
                      updated_at = NOW()
-                 WHERE id = ?`, [newPaid, Math.max(0, newRemaining), newStatus, newStatus, invoice.id]);
+                 WHERE id = ?`, [newPaid, newRemaining, newStatus, newStatus, invoice.id]);
             paymentRecorded = true;
-            console.log(`[AdvancedAI] ✅ Payment recorded: Rp ${effectivePayment.toLocaleString('id-ID')}`);
+            console.log(`[AdvancedAI] ✅ Payment recorded: Rp ${paymentAmount.toLocaleString('id-ID')}`);
             // Check if customer should be un-isolated
             if (isFullPayment) {
                 // Check for other unpaid invoices
                 const [unpaidCheck] = await connection.query(`SELECT COUNT(*) as count FROM invoices 
                      WHERE customer_id = ? AND id != ? AND status != 'paid' AND remaining_amount > 0`, [customerId, invoice.id]);
-                const hasOtherUnpaid = unpaidCheck[0]?.count > 0;
+                const hasOtherUnpaid = ((_c = unpaidCheck[0]) === null || _c === void 0 ? void 0 : _c.count) > 0;
                 if (!hasOtherUnpaid) {
                     // Remove isolation
                     const [customerCheck] = await connection.query('SELECT is_isolated, connection_type FROM customers WHERE id = ?', [customerId]);
-                    if (customerCheck[0]?.is_isolated) {
+                    if ((_d = customerCheck[0]) === null || _d === void 0 ? void 0 : _d.is_isolated) {
                         // Import and use IsolationService
                         const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../billing/isolationService')));
                         const restoreResult = await IsolationService.isolateCustomer({
@@ -725,32 +745,22 @@ PENTING:
                 }
             }
             await connection.commit();
-            // Send notification
-            try {
-                const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
-                await UnifiedNotificationService.queueNotification({
-                    customer_id: customerId,
-                    invoice_id: invoice.id,
-                    notification_type: 'payment_receipt', // Use existing type
-                    channels: ['whatsapp'],
-                    variables: {
-                        invoice_number: invoice.invoice_number,
-                        amount: effectivePayment.toLocaleString('id-ID'),
-                        status: isFullPayment ? 'LUNAS' : 'SEBAGIAN',
-                        method: 'AI Auto-Verification'
-                    },
-                    priority: 'high'
-                });
-                notificationSent = true;
-                console.log(`[AdvancedAI] ✅ Notification queued`);
-            }
-            catch (notifError) {
-                console.warn('[AdvancedAI] Notification failed:', notifError);
+            // Send notification (Fire and forget)
+            if (paymentId) {
+                try {
+                    const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e => console.error('[AdvancedAI] Background notification error:', e));
+                    notificationSent = true;
+                    console.log(`[AdvancedAI] ✅ Notification queued via Unified Service`);
+                }
+                catch (notifError) {
+                    console.warn('[AdvancedAI] Notification failed:', notifError);
+                }
             }
             // Log successful verification
             await this.logVerificationAttempt(customerId, 'success', 'Auto-approved and processed', {
                 invoiceId: invoice.id,
-                amount: effectivePayment,
+                amount: paymentAmount,
                 riskScore: validationDetails.riskScore
             });
         }
@@ -799,11 +809,11 @@ PENTING:
             const [result] = await pool_1.databasePool.query(query, params);
             const stats = result[0];
             return {
-                total: stats?.total || 0,
-                autoApproved: stats?.auto_approved || 0,
-                manualReview: stats?.manual_review || 0,
-                rejected: stats?.rejected || 0,
-                avgConfidence: stats?.avg_confidence || 0,
+                total: (stats === null || stats === void 0 ? void 0 : stats.total) || 0,
+                autoApproved: (stats === null || stats === void 0 ? void 0 : stats.auto_approved) || 0,
+                manualReview: (stats === null || stats === void 0 ? void 0 : stats.manual_review) || 0,
+                rejected: (stats === null || stats === void 0 ? void 0 : stats.rejected) || 0,
+                avgConfidence: (stats === null || stats === void 0 ? void 0 : stats.avg_confidence) || 0,
                 avgProcessingTime: 0 // Would need to track this separately
             };
         }

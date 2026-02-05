@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
 import { PaymentGatewayService } from '../../services/payment/PaymentGatewayService';
+import { DiscountService } from '../../services/billing/discountService';
 
 export class BillingPaymentController {
   private billingPaymentService: BillingPaymentIntegration;
@@ -334,7 +335,6 @@ export class BillingPaymentController {
         return;
       }
 
-      const { DiscountService } = await import('../../services/billing/discountService');
       const result = await DiscountService.applyMarketingDiscount(parseInt(invoiceId), code, userId);
 
       res.json(result);

@@ -45,8 +45,8 @@ class TechnicianController {
         try {
             // Use req.user which is set by isAuthenticated middleware
             const user = req.user;
-            const userId = user?.id;
-            const userRole = user?.role;
+            const userId = user === null || user === void 0 ? void 0 : user.id;
+            const userRole = user === null || user === void 0 ? void 0 : user.role;
             // Get stats
             const isTeknisi = userRole === 'teknisi';
             const statsQuery = `
@@ -80,11 +80,12 @@ class TechnicianController {
     }
     // Get Jobs List (AJAX)
     static async getJobs(req, res) {
+        var _a, _b;
         try {
             // Default limit 10 rows per user request
             const { status, limit = 10 } = req.query;
-            const userId = req.user?.id;
-            const userRole = req.user?.role;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+            const userRole = (_b = req.user) === null || _b === void 0 ? void 0 : _b.role;
             let query = `
                 SELECT j.*, c.name as customer_name, c.phone as customer_phone, u.full_name as technician_name
                 FROM technician_jobs j
@@ -113,9 +114,10 @@ class TechnicianController {
     }
     // Get Job History
     static async getJobHistory(req, res) {
+        var _a, _b;
         try {
-            const userId = req.user?.id;
-            const userRole = req.user?.role;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+            const userRole = (_b = req.user) === null || _b === void 0 ? void 0 : _b.role;
             let query = `
                 SELECT j.*, c.name as customer_name, c.phone as customer_phone, u.full_name as technician_name
                 FROM technician_jobs j
@@ -157,9 +159,10 @@ class TechnicianController {
     }
     // API: Save Job from Dashboard
     static async apiSaveJob(req, res) {
+        var _a;
         try {
             const { title, description, customer_id, priority, coordinates, address, job_type_id, fee } = req.body;
-            const userId = req.user?.id;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
             const ticket = await TechnicianController.createJob({
                 title,
                 description,
@@ -235,9 +238,10 @@ Untuk mengambil, balas:
     }
     // Accept Job
     static async acceptJob(req, res) {
+        var _a;
         try {
             const { id } = req.body;
-            const userId = req.user?.id;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
             // Check if job is pending
             const [jobs] = await pool_1.databasePool.query("SELECT * FROM technician_jobs WHERE id = ?", [id]);
             if (jobs.length === 0)
@@ -254,9 +258,10 @@ Untuk mengambil, balas:
     }
     // Decline Job (Technician rejects)
     static async declineJob(req, res) {
+        var _a;
         try {
             const { id, reason } = req.body;
-            const userId = req.user?.id;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
             // NOTE: Currently, we don't have a specific 'declined' status or 'declined_by' tracking per tech.
             // If a tech declines, does it disappear for them? or go back to pool?
             // Ideally, we might want to log who declined it so they don't see it again, 
@@ -301,9 +306,10 @@ Untuk mengambil, balas:
     }
     // Complete Job
     static async completeJob(req, res) {
+        var _a;
         try {
             const { id, notes } = req.body;
-            const userId = req.user?.id;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
             const file = req.file; // From Multer
             let proofPath = null;
             if (file) {
@@ -357,10 +363,11 @@ Untuk mengambil, balas:
     }
     // View Job Detail
     static async getJobDetail(req, res) {
+        var _a, _b;
         try {
             const { id } = req.params;
-            const userId = req.user?.id;
-            const userRole = req.user?.role;
+            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+            const userRole = (_b = req.user) === null || _b === void 0 ? void 0 : _b.role;
             const [jobs] = await pool_1.databasePool.query(`
                 SELECT j.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address, u.full_name as technician_name
                 FROM technician_jobs j

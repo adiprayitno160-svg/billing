@@ -51,7 +51,7 @@ interface NetworkHealth {
 }
 
 export class MonitoringAnalyticsService {
-    
+
     /**
      * Get total bandwidth statistics for today
      */
@@ -66,10 +66,10 @@ export class MonitoringAnalyticsService {
                 FROM bandwidth_logs
                 WHERE DATE(timestamp) = CURDATE()
             `;
-            
+
             const [rows] = await databasePool.query<RowDataPacket[]>(query);
             const stats = rows[0];
-            
+
             return {
                 total_bytes: stats.total_bytes || 0,
                 total_gb: (stats.total_bytes || 0) / (1024 * 1024 * 1024),
@@ -77,8 +77,8 @@ export class MonitoringAnalyticsService {
                 bytes_in: stats.bytes_in || 0,
                 bytes_out: stats.bytes_out || 0,
                 customer_count: stats.customer_count || 0,
-                avg_bandwidth_per_customer: stats.customer_count > 0 
-                    ? (stats.total_bytes || 0) / stats.customer_count 
+                avg_bandwidth_per_customer: stats.customer_count > 0
+                    ? (stats.total_bytes || 0) / stats.customer_count
                     : 0
             };
         } catch (error) {
@@ -86,7 +86,7 @@ export class MonitoringAnalyticsService {
             return this.getEmptyBandwidthStats();
         }
     }
-    
+
     /**
      * Get total bandwidth for last N days
      */
@@ -104,9 +104,9 @@ export class MonitoringAnalyticsService {
                 GROUP BY DATE(timestamp)
                 ORDER BY date DESC
             `;
-            
+
             const [rows] = await databasePool.query<RowDataPacket[]>(query, [days]);
-            
+
             return rows.map(row => ({
                 date: row.date,
                 total_bytes: row.total_bytes || 0,
@@ -120,7 +120,7 @@ export class MonitoringAnalyticsService {
             return [];
         }
     }
-    
+
     /**
      * Get top N customers by bandwidth usage
      */
@@ -144,9 +144,9 @@ export class MonitoringAnalyticsService {
                 ORDER BY total_bytes DESC
                 LIMIT ?
             `;
-            
+
             const [rows] = await databasePool.query<RowDataPacket[]>(query, [days, limit]);
-            
+
             return rows.map(row => ({
                 customer_id: row.customer_id,
                 customer_name: row.customer_name,
@@ -162,7 +162,7 @@ export class MonitoringAnalyticsService {
             return [];
         }
     }
-    
+
     /**
      * Get network health overview
      */
@@ -176,7 +176,7 @@ export class MonitoringAnalyticsService {
                 FROM customers c
                 WHERE c.connection_type IN ('pppoe', 'static_ip')
             `);
-            
+
             // Get online status from recent logs
             const [onlineStats] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
@@ -185,7 +185,7 @@ export class MonitoringAnalyticsService {
                 WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
                     AND status = 'online'
             `);
-            
+
             // Get degraded customers (high latency or packet loss)
             const [degradedStats] = await databasePool.query<RowDataPacket[]>(`
                 SELECT COUNT(DISTINCT customer_id) as degraded_count
@@ -196,7 +196,7 @@ export class MonitoringAnalyticsService {
                         OR (packet_loss_percent IS NOT NULL AND packet_loss_percent > 5)
                     )
             `);
-            
+
             // Get average latency
             const [latencyStats] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
@@ -207,7 +207,7 @@ export class MonitoringAnalyticsService {
                     AND status = 'online'
                     AND response_time_ms IS NOT NULL
             `);
-            
+
             // Get uptime percentage (24h)
             const [uptimeStats] = await databasePool.query<RowDataPacket[]>(`
                 SELECT 
@@ -216,16 +216,16 @@ export class MonitoringAnalyticsService {
                 FROM connection_logs
                 WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
             `);
-            
+
             const totalCustomers = customerStats[0]?.total_customers || 0;
             const onlineCustomers = onlineStats[0]?.online_count || 0;
             const degradedCustomers = degradedStats[0]?.degraded_count || 0;
             const offlineCustomers = totalCustomers - onlineCustomers;
-            
+
             const totalChecks = uptimeStats[0]?.total_checks || 0;
             const onlineChecks = uptimeStats[0]?.online_checks || 0;
             const uptimePercentage = totalChecks > 0 ? (onlineChecks / totalChecks) * 100 : 100;
-            
+
             return {
                 total_customers: totalCustomers,
                 online_customers: onlineCustomers,
@@ -248,7 +248,7 @@ export class MonitoringAnalyticsService {
             };
         }
     }
-    
+
     /**
      * Get bandwidth by area/ODC
      */
@@ -263,14 +263,14 @@ export class MonitoringAnalyticsService {
                     SUM(bl.bytes_out) as bytes_out
                 FROM bandwidth_logs bl
                 JOIN customers c ON bl.customer_id = c.id
-                LEFT JOIN odc_list odc ON c.odc_id = odc.id
+                LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
                 WHERE bl.timestamp >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
                 GROUP BY odc.id, odc.name
                 ORDER BY total_bytes DESC
             `;
-            
+
             const [rows] = await databasePool.query<RowDataPacket[]>(query, [days]);
-            
+
             return rows.map(row => ({
                 area_name: row.area_name,
                 customer_count: row.customer_count || 0,
@@ -284,7 +284,7 @@ export class MonitoringAnalyticsService {
             return [];
         }
     }
-    
+
     /**
      * Get bandwidth summary (current hour, today, week, month)
      */
@@ -293,13 +293,13 @@ export class MonitoringAnalyticsService {
             const today = await this.getTodayBandwidthStats();
             const weekTrend = await this.getBandwidthTrend(7);
             const monthTrend = await this.getBandwidthTrend(30);
-            
+
             // Calculate week total
             const weekTotal = weekTrend.reduce((sum, day) => sum + day.total_bytes, 0);
-            
+
             // Calculate month total
             const monthTotal = monthTrend.reduce((sum, day) => sum + day.total_bytes, 0);
-            
+
             return {
                 today: today,
                 week: {
@@ -324,7 +324,7 @@ export class MonitoringAnalyticsService {
             };
         }
     }
-    
+
     /**
      * Helper: Get empty bandwidth stats
      */

@@ -13,7 +13,8 @@ export class InvoiceController {
             const limit = parseInt(req.query.limit as string) || 20;
             const status = req.query.status as string || '';
             const search = req.query.search as string || '';
-            const period = req.query.period as string || '';
+            // Default to current month if no period specified, to keep view clean as per user request
+            const period = (req.query.period as string) || new Date().toISOString().slice(0, 7);
             const odc_id = req.query.odc_id as string || '';
 
             const offset = (page - 1) * limit;
@@ -23,8 +24,13 @@ export class InvoiceController {
             const queryParams: any[] = [];
 
             if (status) {
-                whereConditions.push('i.status = ?');
-                queryParams.push(status);
+                if (status !== 'all') {
+                    whereConditions.push('i.status = ?');
+                    queryParams.push(status);
+                }
+            } else {
+                // Default: Hide 'paid' invoices as per user request to keep view clean
+                whereConditions.push("i.status != 'paid'");
             }
 
             if (period) {
@@ -1457,6 +1463,42 @@ Terima kasih telah berlangganan! 🙏`;
             });
         } catch (error: any) {
             console.error('Error bulk sending WhatsApp:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * Apply downtime discount based on days
+     */
+    async applyDowntimeDiscount(req: Request, res: Response): Promise<void> {
+        try {
+            const { invoiceId, downtimeDays } = req.body;
+            const appliedBy = (req as any).user?.id || 1;
+
+            if (!invoiceId) {
+                res.status(400).json({ success: false, message: 'ID tagihan tidak valid' });
+                return;
+            }
+
+            if (downtimeDays === undefined || downtimeDays === null || isNaN(parseInt(downtimeDays))) {
+                res.status(400).json({ success: false, message: 'Jumlah hari gangguan tidak valid' });
+                return;
+            }
+
+            const { DiscountService } = await import('../../services/billing/discountService');
+            const discountId = await DiscountService.applyDowntimeDiscount(
+                parseInt(invoiceId),
+                parseInt(downtimeDays),
+                appliedBy
+            );
+
+            res.json({
+                success: true,
+                message: `Diskon gangguan ${downtimeDays} hari berhasil diterapkan.`,
+                discountId
+            });
+        } catch (error: any) {
+            console.error('Error applying downtime discount:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     }

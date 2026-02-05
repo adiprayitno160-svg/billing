@@ -47,9 +47,10 @@ class UnifiedNotificationService {
      * Queue notification for sending
      */
     static async queueNotification(data) {
+        var _a;
         // Basic validation for broadcast type
         if (data.notification_type === 'broadcast') {
-            if (!data.variables?.custom_message) {
+            if (!((_a = data.variables) === null || _a === void 0 ? void 0 : _a.custom_message)) {
                 console.warn('[UnifiedNotification] Broadcast missing custom_message');
                 // We still allow it to queue, but logic might fail if template expects it.
             }
@@ -75,12 +76,7 @@ class UnifiedNotificationService {
             }
             const customer = customerRows[0];
             // Prepare variables with customer info
-            const allVariables = {
-                customer_name: customer.name || 'Pelanggan',
-                customer_phone: customer.phone || '',
-                customer_email: customer.email || '',
-                ...data.variables
-            };
+            const allVariables = Object.assign({ customer_name: customer.name || 'Pelanggan', customer_phone: customer.phone || '', customer_email: customer.email || '' }, data.variables);
             // Process each channel
             for (const channel of channels) {
                 // Get template for this notification type and channel
@@ -154,7 +150,7 @@ class UnifiedNotificationService {
      * Send pending notifications
      */
     static async sendPendingNotifications(limit = 50, specificIds) {
-        console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit}, specific: ${specificIds?.length || 0})...`);
+        console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit}, specific: ${(specificIds === null || specificIds === void 0 ? void 0 : specificIds.length) || 0})...`);
         const connection = await pool_1.databasePool.getConnection();
         // Check WhatsApp status first to prevent mass failures
         const waStatus = whatsapp_1.whatsappService.getStatus();
@@ -165,7 +161,6 @@ class UnifiedNotificationService {
             }
             catch (e) {
                 console.log(`[UnifiedNotification] ⏳ WhatsApp still not ready. Skipping queue processing this turn.`);
-                connection.release();
                 return { sent: 0, failed: 0, skipped: 0 };
             }
         }
@@ -173,7 +168,15 @@ class UnifiedNotificationService {
         let failed = 0;
         let skipped = 0;
         try {
-            // Build query
+            // 1. First, cleanup any stuck processing notifications (those that have been in processing status for > 15 mins)
+            // This handles cases where a worker crashed or was restarted mid-process
+            await connection.query(`UPDATE unified_notifications_queue 
+         SET status = 'pending', 
+             error_message = 'Process timed out or worker restarted',
+             updated_at = NOW() 
+         WHERE status = 'processing' 
+         AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)`);
+            // Build query for pending notifications
             let query = `SELECT * FROM unified_notifications_queue 
                    WHERE status = 'pending' 
                    AND (scheduled_for IS NULL OR scheduled_for <= NOW())`;
@@ -194,7 +197,6 @@ class UnifiedNotificationService {
             const [notifications] = await connection.query(query, params);
             console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
             if (notifications.length === 0) {
-                // console.log(`[UnifiedNotification] ℹ️ No pending notifications to process`);
                 return { sent: 0, failed: 0, skipped: 0 };
             }
             // Mark these notifications as 'processing' to prevent race conditions with Cron/Other threads
@@ -253,7 +255,8 @@ class UnifiedNotificationService {
                         errorMessage.includes('QR code') ||
                         errorMessage.includes('Session conflict') ||
                         errorMessage.includes('Stream Errored') ||
-                        errorMessage.includes('Connection Closed');
+                        errorMessage.includes('Connection Closed') ||
+                        errorMessage.includes('Timeout'); // Added Timeout as per instruction snippet
                     console.error(`[UnifiedNotification] ❌ Error processing notification ID: ${notif.id}:`, {
                         error: errorMessage,
                         stack: error.stack,
@@ -267,8 +270,9 @@ class UnifiedNotificationService {
                         // This prevents "Failed" status when WA is down
                         console.log(`[UnifiedNotification] ⏳ Connection error for ID ${notif.id}. Preserving retry count. Rescheduling...`);
                         await connection.query(`UPDATE unified_notifications_queue 
-                SET scheduled_for = DATE_ADD(NOW(), INTERVAL 5 MINUTE), status = 'pending'
-                WHERE id = ?`, [notif.id]);
+                SET scheduled_for = DATE_ADD(NOW(), INTERVAL 5 MINUTE), status = 'pending', error_message = ?
+                WHERE id = ?`, [`Connection issue: ${errorMessage}`, notif.id]);
+                        skipped++; // Mark as skipped for this run, will be re-queued
                     }
                     else {
                         // Normal error (invalid number, template error, etc) - Increment retry
@@ -352,13 +356,24 @@ class UnifiedNotificationService {
                 try {
                     let whatsappResult;
                     if (notification.attachment_path) {
-                        whatsappResult = await waClient.sendDocument(recipient, notification.attachment_path, undefined, fullMessage);
+                        // Verify file exists
+                        const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+                        if (fs.existsSync(notification.attachment_path)) {
+                            console.log(`[UnifiedNotification] 📄 Sending PDF attachment with caption: ${notification.attachment_path}`);
+                            // Send document with the full message as caption
+                            whatsappResult = await waClient.sendDocument(recipient, notification.attachment_path, `Invois-${notification.invoice_id || 'Tagihan'}.pdf`, fullMessage // Use the full message as caption
+                            );
+                        }
+                        else {
+                            console.warn(`[UnifiedNotification] ⚠️ Attachment path provided but file not found: ${notification.attachment_path}. Sending text only.`);
+                            whatsappResult = await waClient.sendMessage(recipient, fullMessage);
+                        }
                     }
                     else {
                         whatsappResult = await waClient.sendMessage(recipient, fullMessage);
                     }
                     console.log(`[UnifiedNotification] ✅ WhatsApp sent successfully to ${customer.phone}`, {
-                        messageId: whatsappResult?.messageId || 'unknown',
+                        messageId: (whatsappResult === null || whatsappResult === void 0 ? void 0 : whatsappResult.messageId) || 'unknown',
                         notification_id: notification.id
                     });
                 }
@@ -446,13 +461,30 @@ class UnifiedNotificationService {
                     bank_name: bank.bankName,
                     bank_account_number: bank.accountNumber,
                     bank_account_name: bank.accountName,
-                    bank_list: bank.bankListText
+                    bank_list: bank.bankListText,
+                    notes: invoice.notes || ''
                 },
+                attachment_path: await this.generateInvoicePdf(invoiceId),
                 send_immediately: sendImmediately
             });
         }
         finally {
             connection.release();
+        }
+    }
+    /**
+     * Helper to generate invoice PDF
+     */
+    static async generateInvoicePdf(invoiceId) {
+        try {
+            const { InvoicePdfService } = await Promise.resolve().then(() => __importStar(require('../invoice/InvoicePdfService')));
+            const attachmentPath = await InvoicePdfService.generateInvoicePdf(invoiceId);
+            console.log(`[UnifiedNotification] 📄 Generated PDF for invoice ${invoiceId}: ${attachmentPath}`);
+            return attachmentPath;
+        }
+        catch (pdfError) {
+            console.error(`[UnifiedNotification] ❌ Failed to generate PDF for invoice:`, pdfError);
+            return undefined;
         }
     }
     /**
@@ -486,7 +518,8 @@ class UnifiedNotificationService {
                     bank_name: bank.bankName,
                     bank_account_number: bank.accountNumber,
                     bank_account_name: bank.accountName,
-                    bank_list: bank.bankListText
+                    bank_list: bank.bankListText,
+                    notes: invoice.notes || ''
                 }
             });
         }
@@ -522,7 +555,8 @@ class UnifiedNotificationService {
                     bank_name: bank.bankName,
                     bank_account_number: bank.accountNumber,
                     bank_account_name: bank.accountName,
-                    bank_list: bank.bankListText
+                    bank_list: bank.bankListText,
+                    notes: invoice.notes || ''
                 }
             });
         }
@@ -581,10 +615,11 @@ class UnifiedNotificationService {
      * Send payment received notification
      */
     static async notifyPaymentReceived(paymentId, sendImmediately = true) {
+        console.log(`[UnifiedNotification] 🔔 notifyPaymentReceived called for paymentId: ${paymentId}, sendImmediately: ${sendImmediately}`);
         const connection = await pool_1.databasePool.getConnection();
         try {
             const { getBillingMonth } = await Promise.resolve().then(() => __importStar(require('../../utils/periodHelper')));
-            const [paymentRows] = await connection.query(`SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount, i.period, i.due_date,
+            const [paymentRows] = await connection.query(`SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount, i.period, i.due_date, i.notes as invoice_notes,
                 c.name as customer_name, c.customer_code
          FROM payments p
          JOIN invoices i ON p.invoice_id = i.id
@@ -630,7 +665,9 @@ class UnifiedNotificationService {
                     payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
                     payment_date: NotificationTemplateService_1.NotificationTemplateService.formatDate(paymentDate),
                     due_date: payment.due_date ? NotificationTemplateService_1.NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
-                    notes: payment.notes || ''
+                    payment_notes: payment.notes || '',
+                    invoice_notes: payment.invoice_notes || '',
+                    notes: (payment.notes ? `Pesan: ${payment.notes}` : '') + (payment.notes && payment.invoice_notes ? '\n' : '') + (payment.invoice_notes ? `Keterangan: ${payment.invoice_notes}` : '')
                 },
                 send_immediately: sendImmediately // Urgent: Payment receipt
             });

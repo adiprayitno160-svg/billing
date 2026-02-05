@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.db = exports.databasePool = void 0;
 exports.checkDatabaseConnection = checkDatabaseConnection;
@@ -44,11 +45,11 @@ const mysql = __importStar(require("mysql2/promise"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 // Don't override environment variables from PM2/system
 dotenv.config({ override: false });
-const databaseHost = process.env.DB_HOST ?? 'localhost';
-const databasePort = Number(process.env.DB_PORT ?? 3306);
-const databaseUser = process.env.DB_USER ?? 'root';
-const databasePassword = process.env.DB_PASSWORD ?? '';
-const databaseName = process.env.DB_NAME ?? 'billing';
+const databaseHost = (_a = process.env.DB_HOST) !== null && _a !== void 0 ? _a : 'localhost';
+const databasePort = Number((_b = process.env.DB_PORT) !== null && _b !== void 0 ? _b : 3306);
+const databaseUser = (_c = process.env.DB_USER) !== null && _c !== void 0 ? _c : 'root';
+const databasePassword = (_d = process.env.DB_PASSWORD) !== null && _d !== void 0 ? _d : '';
+const databaseName = (_e = process.env.DB_NAME) !== null && _e !== void 0 ? _e : 'billing';
 exports.databasePool = mysql.createPool({
     host: databaseHost,
     port: databasePort,
@@ -571,6 +572,28 @@ async function ensureInitialSchema() {
 			INDEX idx_status (status),
 			CONSTRAINT fk_invoice_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+        // Create subscriptions table for PPPoE and Static IP packages
+        await conn.query(`CREATE TABLE IF NOT EXISTS subscriptions (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			package_id INT NOT NULL,
+			package_name VARCHAR(191) NOT NULL,
+			price DECIMAL(12,2) DEFAULT 0,
+			start_date DATE NOT NULL,
+			end_date DATE NULL,
+			status ENUM('active','inactive','suspended') DEFAULT 'active',
+			activation_date DATE NULL,
+			is_activated BOOLEAN DEFAULT FALSE,
+			next_block_date DATE NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_package_id (package_id),
+			INDEX idx_status (status),
+			INDEX idx_activation_date (activation_date),
+			INDEX idx_next_block_date (next_block_date),
+			CONSTRAINT fk_subscription_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
         // Create unified_notifications_queue table for all notification types
         await conn.query(`CREATE TABLE IF NOT EXISTS unified_notifications_queue (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -839,9 +862,81 @@ async function ensureInitialSchema() {
 			('show_offline_customers', 'true', 'Show offline customers on map'),
 			('refresh_interval', '30', 'Refresh interval in seconds for map updates')
 		`);
+        // Create customer_wa_lids table for WhatsApp LID mapping
+        await conn.query(`CREATE TABLE IF NOT EXISTS customer_wa_lids (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			lid VARCHAR(255) NOT NULL UNIQUE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_lid (lid),
+			CONSTRAINT fk_customer_wa_lid FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+        // Create manual_payment_verifications table
+        await conn.query(`CREATE TABLE IF NOT EXISTS manual_payment_verifications (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+			image_data LONGTEXT,
+			image_mimetype VARCHAR(50),
+			extracted_amount DECIMAL(15, 2),
+			expected_amount DECIMAL(15, 2),
+			reason TEXT,
+            notes TEXT,
+            invoice_id INT,
+            verified_by INT,
+            verified_at DATETIME,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_customer (customer_id),
+			INDEX idx_status (status),
+            INDEX idx_verified_by (verified_by),
+            CONSTRAINT fk_mpv_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+        // Ensure manual_payment_verifications has new columns (if table existed before)
+        try {
+            await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN verified_by INT NULL`);
+            await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN verified_at DATETIME NULL`);
+            await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN invoice_id INT NULL`);
+            await addCol(`ALTER TABLE manual_payment_verifications ADD COLUMN notes TEXT NULL`);
+        }
+        catch (e) { /* Ignore if exists */ }
         // Add last_online and is_online to customers if not exists
         await addCol(`ALTER TABLE customers ADD COLUMN last_online TIMESTAMP NULL AFTER status`);
         await addCol(`ALTER TABLE customers ADD COLUMN is_online BOOLEAN DEFAULT TRUE AFTER last_online`);
+        // Create isolation_logs table if it doesn't exist
+        await conn.query(`CREATE TABLE IF NOT EXISTS isolation_logs (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			action ENUM('isolate', 'restore') NOT NULL,
+			reason TEXT,
+			performed_by INT NULL,
+			mikrotik_username VARCHAR(255) NULL,
+			mikrotik_response TEXT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_action (action),
+			INDEX idx_created_at (created_at),
+			CONSTRAINT fk_isolation_logs_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+        // Create activation_logs table for PPPoE activation/deactivation logs
+        await conn.query(`CREATE TABLE IF NOT EXISTS activation_logs (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			subscription_id INT NOT NULL,
+			action ENUM('activate', 'deactivate') NOT NULL,
+			reason TEXT,
+			performed_by INT NULL,
+			mikrotik_response TEXT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_subscription_id (subscription_id),
+			INDEX idx_action (action),
+			INDEX idx_created_at (created_at),
+			CONSTRAINT fk_activation_logs_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+			CONSTRAINT fk_activation_logs_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     }
     finally {
         conn.release();

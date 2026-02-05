@@ -173,7 +173,8 @@ export class CustomerNotificationService {
           notification_type: 'customer_created',
           channels: ['whatsapp'],
           variables: variables,
-          priority: 'normal'
+          priority: 'normal',
+          send_immediately: true // Trigger immediate send without blocking
         });
 
         if (!notificationIds || notificationIds.length === 0) {
@@ -192,16 +193,12 @@ export class CustomerNotificationService {
           recipient: phoneToUse
         });
 
-        // Try to send immediately (process queue)
-        try {
-          const result = await UnifiedNotificationService.sendPendingNotifications(10);
-          console.log(`[CustomerNotification] 📨 Processed queue: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped`);
-        } catch (queueError: any) {
+        // Try to send immediately (process queue) - NOT AWAITED anymore
+        UnifiedNotificationService.sendPendingNotifications(10).catch(queueError => {
           console.warn(`[CustomerNotification] ⚠️ Queue processing error (non-critical):`, queueError.message);
-          // Non-critical, notification is already queued
-        }
+        });
 
-        return { success: true, message: 'Welcome notification queued and processed successfully' };
+        return { success: true, message: 'Welcome notification queued for delivery' };
       } catch (error: any) {
         const errorMessage = error.message || 'Failed to queue notification';
         console.error('[CustomerNotification] ❌ UnifiedNotificationService error:', {

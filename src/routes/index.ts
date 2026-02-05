@@ -67,6 +67,7 @@ import addressListRoutes from './addressList';
 import billingRoutes from './billing';
 import accountingRoutes from './accounting';
 import monitoringRoutes from './monitoring';
+import networkMonitoringRoutes from './networkMonitoring';
 import slaRoutes from './sla';
 import maintenanceRoutes from './maintenance';
 import settingsRoutes from './settings';
@@ -632,6 +633,7 @@ console.log('[ROUTE REGISTRATION] Accounting routes registered successfully');
 
 
 // Monitoring routes
+router.use('/monitoring', networkMonitoringRoutes);
 router.use('/monitoring', monitoringRoutes);
 
 // SLA Monitoring routes (submenu of monitoring)
@@ -2266,6 +2268,17 @@ router.post('/customers/new-pppoe', async (req, res) => {
             if (Array.isArray(existingCodeRows) && existingCodeRows.length > 0) {
                 const existingCustomer = (existingCodeRows as any)[0];
                 throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
+            }
+
+            // Check if pppoe_username already exists (prevent duplicates from double-submit)
+            const [existingUsernameRows] = await conn.execute(
+                'SELECT id, name FROM customers WHERE pppoe_username = ?',
+                [username.trim()]
+            );
+
+            if (Array.isArray(existingUsernameRows) && existingUsernameRows.length > 0) {
+                const existingCustomer = (existingUsernameRows as any)[0];
+                throw new Error(`Username PPPoE "${username}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
             }
 
             // Determine billing mode and expiry date

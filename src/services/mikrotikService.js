@@ -81,15 +81,16 @@ async function testMikrotikConnection(cfg) {
     }
     catch (error) {
         console.error('Γ¥î Connection failed:', error instanceof Error ? error.message : String(error));
-        return { connected: false, error: error?.message || 'Gagal terhubung' };
+        return { connected: false, error: (error === null || error === void 0 ? void 0 : error.message) || 'Gagal terhubung' };
     }
 }
 async function getMikrotikInfo(cfg) {
+    var _a;
     try {
         const identity = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/system/identity/print', [], 'identity', 60000);
         const resource = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/system/resource/print', [], 'resource', 60000);
-        const id = identity?.[0]?.['name'];
-        const res = resource?.[0] || {};
+        const id = (_a = identity === null || identity === void 0 ? void 0 : identity[0]) === null || _a === void 0 ? void 0 : _a['name'];
+        const res = (resource === null || resource === void 0 ? void 0 : resource[0]) || {};
         return {
             identity: id,
             version: res['version'],
@@ -197,10 +198,10 @@ async function updatePppProfile(cfg, id, data) {
 function buildRateLimitString(data) {
     if (!data['rate-limit-rx'])
         return null;
-    const rx = data['rate-limit-rx'];
+    const rx = data['rate-limit-rx'] || '0';
     const tx = data['rate-limit-tx'] || rx;
     let rl = `${rx}/${tx}`;
-    // Check if we have burst or priority or limit-at
+    // Extract all optional parameters
     const brx = data['burst-limit-rx'];
     const btx = data['burst-limit-tx'] || brx;
     const thr_rx = data['burst-threshold-rx'];
@@ -210,27 +211,44 @@ function buildRateLimitString(data) {
     const priority = data['priority'];
     const lat_rx = data['limit-at-rx'];
     const lat_tx = data['limit-at-tx'] || lat_rx;
-    if (brx || btx || priority || lat_rx) {
-        // If we want priority or limit-at, we MUST provide burst values
-        const b = brx ? `${brx}/${btx}` : '0/0';
-        const t = thr_rx ? `${thr_rx}/${thr_tx}` : '0/0';
-        const tm = time_rx ? `${time_rx}/${time_tx}` : '0s/0s';
-        rl += ` ${b} ${t} ${tm}`;
-        if (priority || lat_rx) {
+    // Check if any extended parameter is present
+    const hasBurst = (brx && brx !== '0') || (btx && btx !== '0');
+    const hasThreshold = (thr_rx && thr_rx !== '0') || (thr_tx && thr_tx !== '0');
+    const hasTime = (time_rx && time_rx !== '0s') || (time_tx && time_tx !== '0s');
+    const hasPriority = priority !== undefined && priority !== null;
+    const hasLimitAt = (lat_rx && lat_rx !== '0') || (lat_tx && lat_tx !== '0');
+    // If we have any extended param, we must fill previous ones
+    if (hasBurst || hasThreshold || hasTime || hasPriority || hasLimitAt) {
+        // Burst Limit
+        rl += ` ${brx || '0'}/${btx || '0'}`;
+        // Burst Threshold
+        const t_rx = thr_rx || '0';
+        const t_tx = thr_tx || '0';
+        // If burst threshold is missing but burst limit is present, usually threshold should be provided.
+        // But '0/0' is safe.
+        rl += ` ${t_rx}/${t_tx}`;
+        // Burst Time
+        const tm_rx = time_rx || '0s';
+        const tm_tx = time_tx || '0s';
+        rl += ` ${tm_rx}/${tm_tx}`;
+        // Priority
+        if (hasPriority || hasLimitAt) {
             rl += ` ${priority || '8'}`;
-            if (lat_rx) {
-                rl += ` ${lat_rx}/${lat_tx}`;
+            // Limit At (Min Limit)
+            if (hasLimitAt) {
+                rl += ` ${lat_rx || '0'}/${lat_tx || '0'}`;
             }
         }
     }
     return rl;
 }
 async function findPppProfileIdByName(cfg, name) {
+    var _a;
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/profile/print', [`?name=${name}`], `profile_id:${name}`, 3600000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }
@@ -254,14 +272,14 @@ async function getInterfaces(cfg) {
             txError: r['tx-error'], disabled: r['disabled'], running: r['running'], comment: r['comment']
         }));
     }
-    catch {
+    catch (_a) {
         return [];
     }
 }
 async function getInterfaceTraffic(cfg, interfaceName) {
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/interface/print', [`?name=${interfaceName}`], `traffic:${interfaceName}`, 5000);
-        const iface = res?.[0] || {};
+        const iface = (res === null || res === void 0 ? void 0 : res[0]) || {};
         return {
             rxByte: parseInt(iface['rx-byte'] || '0'), txByte: parseInt(iface['tx-byte'] || '0'),
             rxPacket: parseInt(iface['rx-packet'] || '0'), txPacket: parseInt(iface['tx-packet'] || '0'),
@@ -269,7 +287,7 @@ async function getInterfaceTraffic(cfg, interfaceName) {
             rxError: parseInt(iface['rx-error'] || '0'), txError: parseInt(iface['tx-error'] || '0')
         };
     }
-    catch {
+    catch (_a) {
         return { rxByte: 0, txByte: 0, rxPacket: 0, txPacket: 0, rxDrop: 0, txDrop: 0, rxError: 0, txError: 0 };
     }
 }
@@ -278,7 +296,7 @@ async function getPppoeActiveConnections(cfg) {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [], 'active_connections', 60000);
         return Array.isArray(res) ? res : [];
     }
-    catch {
+    catch (_a) {
         return [];
     }
 }
@@ -293,11 +311,12 @@ async function getPppoeSecrets(cfg) {
     }
 }
 async function findPppoeSecretIdByName(cfg, name) {
+    var _a;
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/secret/print', [`?name=${name}`], `secret_id:${name}`, 3600000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }
@@ -305,7 +324,7 @@ async function createPppoeSecret(cfg, data) {
     try {
         const params = [];
         // Default service to pppoe if not provided
-        const secretData = { service: 'pppoe', ...data };
+        const secretData = Object.assign({ service: 'pppoe' }, data);
         for (const [k, v] of Object.entries(secretData)) {
             if (v !== undefined && v !== null && v !== '')
                 params.push(`=${k}=${v}`);
@@ -324,7 +343,7 @@ async function updatePppoeSecret(cfg, username, data) {
             throw new Error('Secret not found');
         const params = [`=.id=${id}`];
         // Ensure service is pppoe if being updated (optional but keeps it consistent)
-        const secretData = { service: 'pppoe', ...data };
+        const secretData = Object.assign({ service: 'pppoe' }, data);
         for (const [k, v] of Object.entries(secretData)) {
             if (v !== undefined && v !== null && v !== '')
                 params.push(`=${k}=${v}`);
@@ -351,9 +370,9 @@ async function deletePppoeSecret(cfg, username) {
 async function getSystemResources(cfg) {
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/system/resource/print', [], 'resource', 60000);
-        return res?.[0] || {};
+        return (res === null || res === void 0 ? void 0 : res[0]) || {};
     }
-    catch {
+    catch (_a) {
         return {};
     }
 }
@@ -362,7 +381,7 @@ async function getPppoeServerStats(cfg) {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [], 'active_connections', 60000);
         return Array.isArray(res) ? res : [];
     }
-    catch {
+    catch (_a) {
         return [];
     }
 }
@@ -371,7 +390,7 @@ async function getSimpleQueues(cfg) {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/queue/simple/print', [], 'simple_queues', 30000);
         return Array.isArray(res) ? res : [];
     }
-    catch {
+    catch (_a) {
         return [];
     }
 }
@@ -441,11 +460,12 @@ async function deleteSimpleQueue(cfg, id) {
     }
 }
 async function findSimpleQueueIdByName(cfg, name) {
+    var _a;
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/queue/simple/print', [`?name=${name}`], `sq_name:${name}`, 5000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }
@@ -454,7 +474,7 @@ async function getQueueTrees(cfg) {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/queue/tree/print', [], 'queue_trees', 30000);
         return Array.isArray(res) ? res : [];
     }
-    catch {
+    catch (_a) {
         return [];
     }
 }
@@ -630,7 +650,7 @@ async function removeIpAddress(cfg, address) {
             }
         }
     }
-    catch { /* ignore */ }
+    catch ( /* ignore */_a) { /* ignore */ }
 }
 async function deleteClientQueuesByClientName(cfg, clientName) {
     try {
@@ -640,7 +660,7 @@ async function deleteClientQueuesByClientName(cfg, clientName) {
             await deleteQueueTree(cfg, t['.id']);
         }
     }
-    catch { /* ignore */ }
+    catch ( /* ignore */_a) { /* ignore */ }
 }
 async function createClientQueues(cfg, data) {
     // This seems to be a composite function, let's implement it based on typical usage
@@ -658,17 +678,18 @@ async function getSystemHealth(cfg) {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/system/health/print', [], 'health', 60000);
         return Array.isArray(res) ? res : [];
     }
-    catch {
+    catch (_a) {
         return [];
     }
 }
 async function findIpAddressId(cfg, address) {
+    var _a;
     try {
         // Search by address exactly
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ip/address/print', [`?address=${address}`], `ip_addr_check:${address}`, 1000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }
@@ -679,34 +700,39 @@ async function updateIpAddress(cfg, id, data) {
             params.push(`=comment=${data.comment}`);
         if (data.interface)
             params.push(`=interface=${data.interface}`);
+        if (data.disabled !== undefined)
+            params.push(`=disabled=${data.disabled ? 'yes' : 'no'}`);
         await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ip/address/set', params);
     }
-    catch { /* ignore */ }
+    catch ( /* ignore */_a) { /* ignore */ }
 }
 async function findQueueTreeIdByName(cfg, name) {
+    var _a;
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/queue/tree/print', [`?name=${name}`], `qt_name:${name}`, 5000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }
 async function findMangleIdByComment(cfg, comment) {
+    var _a;
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ip/firewall/mangle/print', [`?comment=${comment}`], `mangle_chk:${comment}`, 1000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }
 async function findQueueTreeIdByPacketMark(cfg, packetMark) {
+    var _a;
     try {
         const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/queue/tree/print', [`?packet-mark=${packetMark}`], `qt_mark:${packetMark}`, 5000);
-        return res?.[0]?.['.id'] || null;
+        return ((_a = res === null || res === void 0 ? void 0 : res[0]) === null || _a === void 0 ? void 0 : _a['.id']) || null;
     }
-    catch {
+    catch (_b) {
         return null;
     }
 }

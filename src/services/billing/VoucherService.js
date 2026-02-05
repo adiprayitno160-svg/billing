@@ -158,12 +158,13 @@ class VoucherService {
      * Create new voucher
      */
     static async createVoucher(voucherData) {
+        var _a;
         try {
             const [result] = await pool_1.databasePool.query(`INSERT INTO vouchers 
                 (code, name, description, discount_type, discount_value, min_purchase, 
                  valid_from, valid_until, usage_limit, customer_type, status, created_by) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-                voucherData.code?.toUpperCase(),
+                (_a = voucherData.code) === null || _a === void 0 ? void 0 : _a.toUpperCase(),
                 voucherData.name,
                 voucherData.description || null,
                 voucherData.discount_type,

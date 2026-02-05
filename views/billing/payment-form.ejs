@@ -174,63 +174,99 @@
 
             <!-- Invoice Summary Quick View -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i
-                            class="fas fa-file-invoice"></i></div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Tagihan</p>
-                        <p class="font-black text-slate-800">Rp <%= new
-                                Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
-                        </p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center"><i
-                            class="fas fa-check-circle"></i></div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sudah Bayar</p>
-                        <p class="font-black text-emerald-600">Rp <%= new
-                                Intl.NumberFormat('id-ID').format(invoice.paid_amount || 0) %>
-                        </p>
-                    </div>
-                </div>
-                <div
-                    class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 highlight-border">
-                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i
-                            class="fas fa-clock"></i></div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sisa Tagihan</p>
-                        <p class="font-black text-rose-600 text-lg">Rp <%= new
-                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %>
-                        </p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center"><i
-                            class="fas fa-calendar-alt"></i></div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jatuh Tempo</p>
-                        <p class="font-black text-slate-800">
-                            <%= invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID',
-                                {day: '2-digit' , month: 'short' }) : '-' %>
-                        </p>
-                    </div>
-                </div>
-
-                <% if (totalDebt> invoice.remaining_amount) { %>
-                    <div
-                        class="bg-rose-50 p-5 rounded-2xl shadow-sm border border-rose-100 flex items-center gap-4 highlight-border">
-                        <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
+                <% const originalTotal=parseFloat(invoice.total_amount) + parseFloat(invoice.discount_amount || 0);
+                    const existingDiscount=parseFloat(invoice.discount_amount || 0); %>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                        <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i
+                                class="fas fa-file-invoice"></i></div>
                         <div>
-                            <p class="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Total Tunggakan</p>
-                            <p class="font-black text-rose-700 text-lg">Rp <%= new
-                                    Intl.NumberFormat('id-ID').format(totalDebt) %>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Sebelum
+                                Diskon</p>
+                            <p class="font-black text-slate-800">Rp <%= new
+                                    Intl.NumberFormat('id-ID').format(originalTotal) %>
                             </p>
                         </div>
                     </div>
-                    <% } %>
+
+                    <% if (existingDiscount> 0) { %>
+                        <div
+                            class="bg-amber-50 p-5 rounded-2xl shadow-sm border border-amber-100 flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-percent"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Diskon
+                                    Terpasang</p>
+                                <p class="font-black text-amber-600">- Rp <%= new
+                                        Intl.NumberFormat('id-ID').format(existingDiscount) %>
+                                </p>
+                            </div>
+                        </div>
+                        <% } else { %>
+                            <div
+                                class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                                <div
+                                    class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sudah
+                                        Bayar</p>
+                                    <p class="font-black text-emerald-600">Rp <%= new
+                                            Intl.NumberFormat('id-ID').format(invoice.paid_amount || 0) %>
+                                    </p>
+                                </div>
+                            </div>
+                            <% } %>
+
+                                <div
+                                    class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 highlight-border">
+                                    <div
+                                        class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sisa
+                                            Tagihan</p>
+                                        <p class="font-black text-rose-600 text-lg">Rp <%= new
+                                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                                    <div
+                                        class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jatuh
+                                            Tempo</p>
+                                        <p class="font-black text-slate-800">
+                                            <%= invoice.due_date ? new
+                                                Date(invoice.due_date).toLocaleDateString('id-ID', {day: '2-digit' ,
+                                                month: 'short' }) : '-' %>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <% if (totalDebt> invoice.remaining_amount) { %>
+                                    <div
+                                        class="bg-rose-50 p-5 rounded-2xl shadow-sm border border-rose-100 flex items-center gap-4 highlight-border col-span-full">
+                                        <div
+                                            class="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-bold text-rose-400 uppercase tracking-widest">
+                                                Total Seluruh Tunggakan Pelanggan</p>
+                                            <p class="font-black text-rose-700 text-lg">Rp <%= new
+                                                    Intl.NumberFormat('id-ID').format(totalDebt) %>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <% } %>
             </div>
 
             <!-- Payment Form Body -->
@@ -263,7 +299,7 @@
                             Opsi Pembayaran</label>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="payment-type-card relative group border-2 border-slate-100 rounded-2xl p-6 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all duration-300"
-                                data-type="full">
+                                data-type="full" onclick="selectPaymentType('full')">
                                 <input type="radio" name="payment_type" value="full" id="type-full" class="hidden">
                                 <div class="text-center">
                                     <div
@@ -279,7 +315,7 @@
                             </div>
 
                             <div class="payment-type-card relative group border-2 border-slate-100 rounded-2xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300"
-                                data-type="partial">
+                                data-type="partial" onclick="selectPaymentType('partial')">
                                 <input type="radio" name="payment_type" value="partial" id="type-partial"
                                     class="hidden">
                                 <div class="text-center">
@@ -295,7 +331,7 @@
                             </div>
 
                             <div class="payment-type-card relative group border-2 border-slate-100 rounded-2xl p-6 cursor-pointer hover:border-amber-400 hover:bg-amber-50/30 transition-all duration-300"
-                                data-type="debt">
+                                data-type="debt" onclick="selectPaymentType('debt')">
                                 <input type="radio" name="payment_type" value="debt" id="type-debt" class="hidden">
                                 <div class="text-center">
                                     <div
@@ -503,16 +539,39 @@
                                             class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                                             <option value="fixed">Nominal (Rp)</option>
                                             <option value="percentage">Persentase (%)</option>
+                                            <option value="downtime">Kompensasi Gangguan (Hari)</option>
                                         </select>
+                                        <div class="mt-1 text-right">
+                                            <button type="button" onclick="activateDowntimeMode()"
+                                                class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                                <i class="fas fa-bolt mr-1"></i>Input Kompensasi Gangguan?
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="space-y-2">
+
+                                    <!-- Field Nominal/Persen -->
+                                    <div class="space-y-2" id="manual-value-field">
                                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                             Nilai</p>
                                         <input type="number" id="discount_value" name="discount_value"
                                             class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold"
                                             placeholder="0">
                                     </div>
+
+                                    <!-- Field Hari Gangguan (Hidden by default) -->
+                                    <div class="space-y-2 hidden" id="downtime-days-field">
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                            Lama Gangguan</p>
+                                        <div class="relative">
+                                            <input type="number" id="downtime_days"
+                                                class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold pr-16"
+                                                placeholder="0" min="1" max="30">
+                                            <span
+                                                class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">Hari</span>
+                                        </div>
+                                    </div>
                                 </div>
+                                <p class="text-xs text-blue-500 font-bold ml-1 hidden mb-2" id="daily-rate-info"></p>
                                 <div class="space-y-2">
                                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         Keterangan Alasan</p>
@@ -554,13 +613,25 @@
                                         <span class="font-black text-xl" id="calc-subtotal">Rp 0</span>
                                     </div>
 
+                                    <div id="calc-existing-discount-row"
+                                        class="hidden flex justify-between items-center text-amber-400 bg-amber-400/5 px-5 py-4 rounded-2xl border border-amber-400/20">
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="text-[10px] font-black uppercase tracking-widest opacity-60">Prev.
+                                                Discount</span>
+                                            <span class="text-xs font-bold">Terpasang Di Invoice</span>
+                                        </div>
+                                        <span class="font-black text-lg" id="calc-existing-discount">- Rp 0</span>
+                                    </div>
+
                                     <div id="calc-discount-row"
                                         class="hidden flex justify-between items-center text-emerald-400 bg-emerald-400/5 px-5 py-4 rounded-2xl border border-emerald-400/20">
                                         <div class="flex flex-col">
                                             <span
-                                                class="text-[10px] font-black uppercase tracking-widest opacity-60">Potongan</span>
+                                                class="text-[10px] font-black uppercase tracking-widest opacity-60">Add.
+                                                Discount</span>
                                             <span class="text-xs font-bold" id="calc-discount-label">Total
-                                                Diskon</span>
+                                                Diskon Baru</span>
                                         </div>
                                         <span class="font-black text-lg" id="calc-discount">- Rp 0</span>
                                     </div>
@@ -619,46 +690,163 @@
         // Constants
         let selectedType = null;
         const invoiceId = <%= invoice.id %>;
+        const invoiceTotalAmount = <%= invoice.total_amount %>;
+        const invoiceDiscountAmount = <%= invoice.discount_amount || 0 %>;
         const remainingAmount = <%= invoice.remaining_amount %>;
         let currentDiscount = 0;
         let finalAmount = remainingAmount;
+
+        // Auto-fill SLA Discount into Manual Discount Fields on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            const slaDiscountInput = document.getElementById('sla-discount-amount');
+            const slaDiscountVal = parseFloat(slaDiscountInput ? slaDiscountInput.value : 0) || 0;
+            const discountToggle = document.getElementById('discount-toggle');
+            const discountValueInput = document.getElementById('discount_value');
+            const discountTypeSelect = document.getElementById('discount_type');
+            const discountReasonInput = document.getElementById('discount_reason');
+            const discountFields = document.getElementById('discount-fields');
+
+            // Only apply if there is an SLA discount AND it hasn't been fully applied to the invoice yet
+            // Check if invoice.discount_amount is less than calculated SLA, or if user wants all SLA purely in manual
+            // Based on request: "should go to pay discount", implying manual field population.
+            // We'll calculate the *additional* SLA needed.
+            // Using helper from previous code or logic:
+            const invoiceDiscount = parseFloat('<%= invoice.discount_amount || 0 %>');
+            const additionalSLA = Math.max(0, slaDiscountVal - invoiceDiscount);
+
+            if (additionalSLA > 0) {
+                if (discountToggle) discountToggle.checked = true;
+                if (discountFields) discountFields.classList.remove('hidden');
+                if (discountTypeSelect) discountTypeSelect.value = 'fixed';
+                if (discountValueInput) discountValueInput.value = additionalSLA;
+                if (discountReasonInput) discountReasonInput.value = 'Kompensasi Gangguan (Auto-SLA)';
+
+                // Trigger calculation update
+                updateCalculation();
+            }
+        });
 
         // Format currency
         function formatRupiah(number) {
             return new Intl.NumberFormat('id-ID').format(Math.round(number));
         }
 
-        // Calculate discount
+        // Calculate Manual Discount
         function calculateDiscount() {
-            let totalDiscount = 0;
+            const toggle = document.getElementById('discount-toggle');
+            if (!toggle || !toggle.checked) return 0;
 
-            // 1. SLA Discount (Auto-applied)
-            const slaDiscountAmountInput = document.getElementById('sla-discount-amount');
-            if (slaDiscountAmountInput) {
-                totalDiscount += parseFloat(slaDiscountAmountInput.value) || 0;
+            const typeSelect = document.getElementById('discount_type');
+            const type = typeSelect ? typeSelect.value : 'fixed';
+            const valueInput = document.getElementById('discount_value');
+            const daysInput = document.getElementById('downtime_days');
+
+            // Handle Downtime Case logic
+            if (type === 'downtime') {
+                const days = parseFloat(daysInput && daysInput.value) || 0;
+                // Rate per day = Total / 30
+                const dailyRate = invoiceTotalAmount / 30;
+                const discount = Math.round(dailyRate * days);
+
+                // Update hidden Value Input (for submission) if needed
+                if (valueInput) valueInput.value = discount;
+
+                return discount;
             }
 
-            // 2. Manual Discount (Optional)
-            const discountToggle = document.getElementById('discount-toggle');
-            if (discountToggle && discountToggle.checked) {
-                const discountType = document.getElementById('discount_type').value;
-                const discountValueInput = document.getElementById('discount_value');
-                const discountValue = parseFloat(discountValueInput ? discountValueInput.value : 0) || 0;
+            const value = parseFloat(valueInput ? valueInput.value : 0) || 0;
 
-                let baseAmount = remainingAmount;
-                if (selectedType === 'partial') {
-                    const partialAmountInput = document.getElementById('payment_amount');
-                    baseAmount = parseFloat(partialAmountInput ? partialAmountInput.value : 0) || 0;
-                }
+            let baseAmount = remainingAmount;
+            if (typeof selectedType !== 'undefined' && selectedType === 'partial') {
+                const partialAmountInput = document.getElementById('payment_amount');
+                baseAmount = parseFloat(partialAmountInput ? partialAmountInput.value : 0) || 0;
+            }
 
-                if (discountType === 'percentage') {
-                    totalDiscount += (baseAmount * discountValue) / 100;
+            if (type === 'fixed') {
+                return value;
+            } else if (type === 'percentage') {
+                return (baseAmount * value) / 100;
+            }
+            return 0;
+        }
+
+        // Setup UI for Discount options
+        function setupDiscountUI() {
+            const typeSelect = document.getElementById('discount_type');
+            const valueField = document.getElementById('manual-value-field');
+            const daysField = document.getElementById('downtime-days-field');
+            const daysInput = document.getElementById('downtime_days');
+            const valueInput = document.getElementById('discount_value');
+            const rateInfo = document.getElementById('daily-rate-info');
+            const reasonInput = document.getElementById('discount_reason');
+
+            if (!typeSelect) return;
+
+            function updateUI() {
+                const type = typeSelect.value;
+                if (type === 'downtime') {
+                    if (valueField) valueField.classList.add('hidden');
+                    if (daysField) daysField.classList.remove('hidden');
+                    if (rateInfo) rateInfo.classList.remove('hidden');
+
+                    const dailyRate = Math.round(invoiceTotalAmount / 30);
+                    if (rateInfo) rateInfo.textContent = `Rate: Rp ${formatRupiah(dailyRate)} / hari (Estimasi 30 hari)`;
+
+                    // UX Improvement: Default to 1 day if empty so user sees effect immediately
+                    if (daysInput && !daysInput.value) {
+                        daysInput.value = 1;
+                    }
+
+                    calculateDowntime();
                 } else {
-                    totalDiscount += Math.min(discountValue, baseAmount);
+                    if (valueField) valueField.classList.remove('hidden');
+                    if (daysField) daysField.classList.add('hidden');
+                    if (rateInfo) rateInfo.classList.add('hidden');
+
+                    if (reasonInput && reasonInput.value.includes('Kompensasi Gangguan')) {
+                        reasonInput.value = '';
+                    }
+
+                    // Clear days input when switching away to reset state
+                    if (daysInput) daysInput.value = '';
                 }
+                updateCalculation();
             }
 
-            return totalDiscount;
+            function calculateDowntime() {
+                const days = parseFloat(daysInput.value) || 0;
+                const dailyRate = invoiceTotalAmount / 30;
+                const discount = Math.round(dailyRate * days); // Consistent rounding
+
+                if (valueInput) valueInput.value = discount;
+
+                if (reasonInput) {
+                    if (days > 0) {
+                        reasonInput.value = `Kompensasi Gangguan ${days} Hari`;
+                    } else {
+                        reasonInput.value = '';
+                    }
+                }
+                updateCalculation();
+            }
+
+            typeSelect.addEventListener('change', updateUI);
+            if (daysInput) daysInput.addEventListener('input', calculateDowntime);
+
+            // Initial call if type is already selected (e.g. browser cache)
+            if (typeSelect.value === 'downtime') updateUI();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            setupDiscountUI();
+        });
+
+        // Helper to check if any NEW SLA is remaining (for display labels only)
+        function calculateAdditionalSLA() {
+            // Since we pushed SLA into manual discount, this helper might be redundant for calculation
+            // but useful for labels.
+            // If manual discount is active and equals the SLA amount, we can consider it "SLA".
+            return 0; // Simplified for now to rely on manual discount
         }
 
         // Update calculation display
@@ -667,6 +855,8 @@
 
             const calcDisplay = document.getElementById('calculation-display');
             const calcSubtotal = document.getElementById('calc-subtotal');
+            const calcExistingDiscountRow = document.getElementById('calc-existing-discount-row');
+            const calcExistingDiscount = document.getElementById('calc-existing-discount');
             const calcDiscountRow = document.getElementById('calc-discount-row');
             const calcDiscount = document.getElementById('calc-discount');
             const calcDiscountLabel = document.getElementById('calc-discount-label');
@@ -676,28 +866,41 @@
             const calcOverpaymentRow = document.getElementById('calc-overpayment-row');
             const calcOverpayment = document.getElementById('calc-overpayment');
 
-            let subtotal = remainingAmount;
+            // Subtotal shown is the original amount (before existing discount)
+            let subtotal = invoiceTotalAmount + invoiceDiscountAmount;
 
             if (selectedType === 'partial') {
                 const paymentAmountInput = document.getElementById('payment_amount');
                 subtotal = parseFloat(paymentAmountInput ? paymentAmountInput.value : 0) || 0;
-            } else if (selectedType === 'debt') {
-                subtotal = remainingAmount;
             }
 
-            // Calculate discount
+            // Calculate additional discount
             currentDiscount = calculateDiscount();
-            finalAmount = Math.max(0, subtotal - currentDiscount);
+
+            // Adjust calculation based on type
+            if (selectedType === 'full' || selectedType === 'debt') {
+                finalAmount = Math.max(0, remainingAmount - currentDiscount);
+            } else {
+                finalAmount = Math.max(0, subtotal - currentDiscount);
+            }
 
             // Update display
             if (calcSubtotal) calcSubtotal.textContent = 'Rp ' + formatRupiah(subtotal);
             if (calcTotal) calcTotal.textContent = 'Rp ' + formatRupiah(finalAmount);
 
-            // Check for overpayment
-            const remainingToPay = remainingAmount - calculateDiscountOnlySLA();
+            // Show existing discount if any
+            if (invoiceDiscountAmount > 0 && selectedType !== 'partial') {
+                if (calcExistingDiscount) calcExistingDiscount.textContent = '- Rp ' + formatRupiah(invoiceDiscountAmount);
+                if (calcExistingDiscountRow) calcExistingDiscountRow.classList.remove('hidden');
+            } else {
+                if (calcExistingDiscountRow) calcExistingDiscountRow.classList.add('hidden');
+            }
 
-            if (selectedType === 'partial' && finalAmount > (remainingAmount - calculateDiscountOnlySLA())) {
-                const overpayment = finalAmount - (remainingAmount - calculateDiscountOnlySLA());
+            // Check for overpayment / remaining
+            const maxToPay = remainingAmount - calculateAdditionalSLA();
+
+            if (selectedType === 'partial' && finalAmount > maxToPay) {
+                const overpayment = finalAmount - maxToPay;
                 if (calcOverpayment) calcOverpayment.textContent = 'Rp ' + formatRupiah(overpayment);
                 if (calcOverpaymentRow) calcOverpaymentRow.classList.remove('hidden');
                 if (calcRemainingRow) calcRemainingRow.classList.add('hidden');
@@ -721,8 +924,7 @@
             // Show/hide discount row
             if (currentDiscount > 0) {
                 let labels = [];
-                const slaInput = document.getElementById('sla-discount-amount');
-                if (slaInput && parseFloat(slaInput.value) > 0) labels.push('SLA');
+                if (calculateAdditionalSLA() > 0) labels.push('Add. SLA');
                 const manualToggle = document.getElementById('discount-toggle');
                 if (manualToggle && manualToggle.checked) labels.push('Manual');
 
@@ -734,6 +936,15 @@
             }
 
             if (calcDisplay) calcDisplay.classList.remove('hidden');
+        }
+
+        function calculateAdditionalSLA() {
+            const slaInput = document.getElementById('sla-discount-amount');
+            if (slaInput) {
+                const calculatedSla = parseFloat(slaInput.value) || 0;
+                return Math.max(0, calculatedSla - invoiceDiscountAmount);
+            }
+            return 0;
         }
 
         function calculateDiscountOnlySLA() {
@@ -790,17 +1001,26 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Auto-select 'full' payment type by default
+            selectPaymentType('full');
+
             document.querySelectorAll('.payment-type-card').forEach(card => {
                 card.addEventListener('click', () => selectPaymentType(card.dataset.type));
             });
 
             const discountToggle = document.getElementById('discount-toggle');
             if (discountToggle) {
+                const fields = document.getElementById('discount-fields');
+
                 discountToggle.addEventListener('change', function () {
-                    const fields = document.getElementById('discount-fields');
                     if (fields) fields.classList.toggle('hidden', !this.checked);
                     updateCalculation();
                 });
+
+                // Sync on load (in case browser cached the checked state)
+                if (discountToggle.checked && fields) {
+                    fields.classList.remove('hidden');
+                }
             }
 
             ['discount_type', 'discount_value', 'payment_amount'].forEach(id => {
@@ -909,6 +1129,17 @@
                 }
             });
         });
+
+        // Shortcut to activate downtime mode
+        function activateDowntimeMode() {
+            const typeSelect = document.getElementById('discount_type');
+            if (typeSelect) {
+                typeSelect.value = 'downtime';
+                // Trigger change event manually
+                const event = new Event('change');
+                typeSelect.dispatchEvent(event);
+            }
+        }
     </script>
 </body>
 

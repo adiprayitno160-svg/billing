@@ -62,7 +62,7 @@ function sanitizeTime(value) {
     return s;
 }
 async function preValidateQueueCreation(data) {
-    const sanitizedData = { ...data };
+    const sanitizedData = Object.assign({}, data);
     // Auto-fix queue type if present in creation data
     if (sanitizedData.queue) {
         sanitizedData.queue = await validateQueueType(sanitizedData.queue);

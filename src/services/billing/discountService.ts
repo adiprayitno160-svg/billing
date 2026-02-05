@@ -126,6 +126,56 @@ export class DiscountService {
     }
 
     /**
+     * Apply downtime/disturbance discount
+     * Formula: (Subtotal / 30) * downtime_days
+     */
+    static async applyDowntimeDiscount(invoiceId: number, downtimeDays: number, appliedBy: number): Promise<number> {
+        const connection = await databasePool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            // Get invoice subtotal
+            const [invoiceRows] = await connection.execute(
+                'SELECT subtotal, customer_id FROM invoices WHERE id = ?',
+                [invoiceId]
+            );
+            const invoice = (invoiceRows as any)[0];
+
+            if (!invoice) {
+                throw new Error('Invoice not found');
+            }
+
+            // Formula: (Subtotal / 30) * downtimeDays
+            const dailyRate = invoice.subtotal / 30;
+            const discountAmount = Math.round(dailyRate * downtimeDays);
+            const reason = `Kompensasi gangguan selama ${downtimeDays} hari`;
+
+            // Insert discount record
+            const [discountResult] = await connection.execute(`
+                INSERT INTO discounts (
+                    invoice_id, discount_type, discount_value, 
+                    reason, applied_by, created_at
+                ) VALUES (?, 'sla', ?, ?, ?, NOW())
+            `, [invoiceId, discountAmount, reason, appliedBy]);
+
+            const discountId = (discountResult as any).insertId;
+
+            // Update invoice totals
+            await this.updateInvoiceTotals(invoiceId);
+
+            await connection.commit();
+            return discountId;
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
      * Update invoice totals after discount
      */
     private static async updateInvoiceTotals(invoiceId: number): Promise<void> {
@@ -143,12 +193,18 @@ export class DiscountService {
             const totalDiscount = parseFloat((discountResult as any)[0].total_discount);
 
             // Get invoice details
-            const invoiceQuery = `SELECT subtotal, paid_amount FROM invoices WHERE id = ?`;
+            const invoiceQuery = `SELECT subtotal, paid_amount, ppn_amount, device_fee FROM invoices WHERE id = ?`;
             const [invoiceResult] = await connection.execute(invoiceQuery, [invoiceId]);
             const invoice = (invoiceResult as any)[0];
 
-            const newTotalAmount = Math.max(0, (invoice.subtotal || 0) - totalDiscount);
-            const newRemainingAmount = Math.max(0, newTotalAmount - (invoice.paid_amount || 0));
+            const subtotal = parseFloat(invoice.subtotal || 0);
+            const ppn = parseFloat(invoice.ppn_amount || 0);
+            const deviceFee = parseFloat(invoice.device_fee || 0);
+            const paid = parseFloat(invoice.paid_amount || 0);
+
+            // Calculate new total: (Subtotal + PPN + DeviceFee) - Discount
+            const newTotalAmount = Math.max(0, (subtotal + ppn + deviceFee) - totalDiscount);
+            const newRemainingAmount = Math.max(0, newTotalAmount - paid);
 
             // Update invoice
             const updateQuery = `

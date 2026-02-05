@@ -56,7 +56,7 @@ export class IncidentAIService {
                     c.connection_type
                 FROM sla_incidents si
                 JOIN customers c ON si.customer_id = c.id
-                LEFT JOIN odc_list odc ON c.odc_id = odc.id
+                LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
                 WHERE si.id = ?
             `, [incidentId]);
 
@@ -110,7 +110,7 @@ export class IncidentAIService {
             SELECT COUNT(DISTINCT si.customer_id) as count
             FROM sla_incidents si
             JOIN customers c ON si.customer_id = c.id
-            LEFT JOIN odc_list odc ON c.odc_id = odc.id
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
             WHERE si.status = 'ongoing'
                 AND si.incident_type = 'downtime'
                 AND TIMESTAMPDIFF(MINUTE, si.start_time, NOW()) <= 120
@@ -170,7 +170,7 @@ export class IncidentAIService {
             SELECT COUNT(DISTINCT si.customer_id) as count
             FROM sla_incidents si
             JOIN customers c ON si.customer_id = c.id
-            LEFT JOIN odc_list odc ON c.odc_id = odc.id
+            LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
             WHERE si.status = 'ongoing'
                 AND si.incident_type = 'downtime'
                 AND TIMESTAMPDIFF(MINUTE, si.start_time, NOW()) <= 60

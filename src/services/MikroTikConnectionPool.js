@@ -92,6 +92,7 @@ class MikroTikPoolManager {
         }
     }
     async execute(config, command, params = [], cacheKey, cacheTTL) {
+        var _a, _b;
         const fullCacheKey = cacheKey ? `${this.getConnectionKey(config)}:${cacheKey}` : null;
         // Check cache
         if (fullCacheKey) {
@@ -117,7 +118,7 @@ class MikroTikPoolManager {
             return result;
         }
         catch (error) {
-            if (error.message?.includes('closed') || error.message?.includes('timeout')) {
+            if (((_a = error.message) === null || _a === void 0 ? void 0 : _a.includes('closed')) || ((_b = error.message) === null || _b === void 0 ? void 0 : _b.includes('timeout'))) {
                 conn.isConnected = false;
                 await conn.connect();
                 if (conn.api)

@@ -110,12 +110,13 @@ class GenieacsService {
      * Extract normalized device info
      */
     extractDeviceInfo(device) {
+        var _a, _b, _c;
         if (!device)
             return {};
         const id = device._id;
-        const serialNumber = device._deviceId?._SerialNumber;
-        const manufacturer = device._deviceId?._Manufacturer;
-        const productClass = device._deviceId?._ProductClass;
+        const serialNumber = (_a = device._deviceId) === null || _a === void 0 ? void 0 : _a._SerialNumber;
+        const manufacturer = (_b = device._deviceId) === null || _b === void 0 ? void 0 : _b._Manufacturer;
+        const productClass = (_c = device._deviceId) === null || _c === void 0 ? void 0 : _c._ProductClass;
         // IP Address (Try WANIPP or WANPPP)
         let ipAddress = '-';
         const wanIp = this.getDeviceParameter(device, 'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress');

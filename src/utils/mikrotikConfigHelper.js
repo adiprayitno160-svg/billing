@@ -57,7 +57,7 @@ async function getMikrotikConfig() {
             if (Array.isArray(rows) && rows.length > 0) {
                 const settings = rows[0];
                 // Validate required fields
-                if (settings?.host && settings?.username && settings?.password) {
+                if ((settings === null || settings === void 0 ? void 0 : settings.host) && (settings === null || settings === void 0 ? void 0 : settings.username) && (settings === null || settings === void 0 ? void 0 : settings.password)) {
                     const port = Number(settings.api_port || settings.port || 8728) || 8728;
                     return {
                         host: String(settings.host),

@@ -43,7 +43,7 @@ class GeminiService {
         }
         // Get settings for model name
         const settings = await AISettingsService_1.AISettingsService.getSettings();
-        const modelName = settings?.model || 'gemini-flash-latest';
+        const modelName = (settings === null || settings === void 0 ? void 0 : settings.model) || 'gemini-flash-latest';
         try {
             this.genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
             this.model = this.genAI.getGenerativeModel({ model: modelName });
@@ -96,10 +96,7 @@ class GeminiService {
             console.log('✅ Gemini analysis completed');
             // Parse Gemini response
             const analysisResult = this.parseGeminiResponse(text, expectedAmount, expectedBank);
-            return {
-                ...analysisResult,
-                rawResponse: text
-            };
+            return Object.assign(Object.assign({}, analysisResult), { rawResponse: text });
         }
         catch (error) {
             console.error('Error in Gemini analysis:', error);
@@ -133,6 +130,7 @@ class GeminiService {
      * Parse Gemini response to structured data
      */
     static parseGeminiResponse(responseText, expectedAmount, expectedBank) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         try {
             // Extract JSON from response (might have markdown code blocks)
             let jsonText = responseText.trim();
@@ -143,32 +141,32 @@ class GeminiService {
             const parsed = JSON.parse(jsonText);
             // Validate and normalize data
             // Support both old format (riskLevel in validation) and new format (riskLevel at root)
-            const riskLevel = parsed.riskLevel || parsed.validation?.riskLevel || 'high';
+            const riskLevel = parsed.riskLevel || ((_a = parsed.validation) === null || _a === void 0 ? void 0 : _a.riskLevel) || 'high';
             const riskScore = parsed.riskScore || 0;
             const fraudIndicators = parsed.fraudIndicators || [];
             const result = {
                 isValid: parsed.isValid === true,
                 confidence: Math.min(100, Math.max(0, parsed.confidence || 0)),
                 extractedData: {
-                    amount: parsed.extractedData?.amount ? parseFloat(parsed.extractedData.amount) : undefined,
-                    date: parsed.extractedData?.date,
-                    time: parsed.extractedData?.time,
-                    bank: parsed.extractedData?.bank,
-                    accountNumber: parsed.extractedData?.accountNumber,
-                    accountHolder: parsed.extractedData?.accountHolder,
-                    referenceNumber: parsed.extractedData?.referenceNumber,
-                    transferMethod: parsed.extractedData?.transferMethod
+                    amount: ((_b = parsed.extractedData) === null || _b === void 0 ? void 0 : _b.amount) ? parseFloat(parsed.extractedData.amount) : undefined,
+                    date: (_c = parsed.extractedData) === null || _c === void 0 ? void 0 : _c.date,
+                    time: (_d = parsed.extractedData) === null || _d === void 0 ? void 0 : _d.time,
+                    bank: (_e = parsed.extractedData) === null || _e === void 0 ? void 0 : _e.bank,
+                    accountNumber: (_f = parsed.extractedData) === null || _f === void 0 ? void 0 : _f.accountNumber,
+                    accountHolder: (_g = parsed.extractedData) === null || _g === void 0 ? void 0 : _g.accountHolder,
+                    referenceNumber: (_h = parsed.extractedData) === null || _h === void 0 ? void 0 : _h.referenceNumber,
+                    transferMethod: (_j = parsed.extractedData) === null || _j === void 0 ? void 0 : _j.transferMethod
                 },
                 validation: {
-                    isPaymentProof: parsed.validation?.isPaymentProof === true,
-                    isRecent: parsed.validation?.isRecent === true,
-                    amountMatches: parsed.validation?.amountMatches === true,
-                    bankMatches: parsed.validation?.bankMatches === true,
-                    isExactMatch: parsed.validation?.isExactMatch === true,
+                    isPaymentProof: ((_k = parsed.validation) === null || _k === void 0 ? void 0 : _k.isPaymentProof) === true,
+                    isRecent: ((_l = parsed.validation) === null || _l === void 0 ? void 0 : _l.isRecent) === true,
+                    amountMatches: ((_m = parsed.validation) === null || _m === void 0 ? void 0 : _m.amountMatches) === true,
+                    bankMatches: ((_o = parsed.validation) === null || _o === void 0 ? void 0 : _o.bankMatches) === true,
+                    isExactMatch: ((_p = parsed.validation) === null || _p === void 0 ? void 0 : _p.isExactMatch) === true,
                     riskLevel: ['low', 'medium', 'high', 'critical'].includes(riskLevel)
                         ? riskLevel
                         : 'high',
-                    riskReasons: Array.isArray(parsed.validation?.riskReasons)
+                    riskReasons: Array.isArray((_q = parsed.validation) === null || _q === void 0 ? void 0 : _q.riskReasons)
                         ? parsed.validation.riskReasons
                         : (fraudIndicators.length > 0
                             ? fraudIndicators.map((ind) => ind.description || ind).filter(Boolean)
@@ -191,10 +189,10 @@ class GeminiService {
             // Additional validation (STRICT)
             if (expectedAmount && result.extractedData.amount) {
                 const amountDiff = Math.abs(result.extractedData.amount - expectedAmount);
-                const tolerance = 100; // Almost exact match (e.g., Rp 150.000 vs Rp 150.045)
+                const tolerance = 2000; // Tolerance for admin fees/random numbers (Rp 0 - 2000)
                 result.validation.amountMatches = amountDiff <= tolerance;
-                // Set isExactMatch for very close matches
-                result.validation.isExactMatch = amountDiff <= 10;
+                // Set isExactMatch for matches within tolerance
+                result.validation.isExactMatch = amountDiff <= 2000;
             }
             if (expectedBank && result.extractedData.bank) {
                 result.validation.bankMatches = result.extractedData.bank

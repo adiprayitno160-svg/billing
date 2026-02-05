@@ -7,10 +7,7 @@ class WhatsAppSessionService {
         return sessions[phone] || null;
     }
     static async setSession(phone, data) {
-        sessions[phone] = {
-            ...data,
-            lastInteraction: Date.now()
-        };
+        sessions[phone] = Object.assign(Object.assign({}, data), { lastInteraction: Date.now() });
     }
     static async clearSession(phone) {
         delete sessions[phone];
@@ -19,7 +16,7 @@ class WhatsAppSessionService {
         if (!sessions[phone]) {
             sessions[phone] = { step: '', data: {}, lastInteraction: Date.now() };
         }
-        sessions[phone] = { ...sessions[phone], ...updates, lastInteraction: Date.now() };
+        sessions[phone] = Object.assign(Object.assign(Object.assign({}, sessions[phone]), updates), { lastInteraction: Date.now() });
     }
 }
 exports.WhatsAppSessionService = WhatsAppSessionService;

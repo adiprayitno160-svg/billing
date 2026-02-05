@@ -98,13 +98,21 @@
 <div class="glass-panel rounded-2xl shadow-lg p-6 mb-6">
     <form method="GET">
         <div class="flex flex-wrap items-end gap-4">
+            <!-- Period Filter -->
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Periode</label>
+                <input type="month" name="period" value="<%= filters.period %>"
+                    class="w-full px-4 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:bg-white/80">
+            </div>
             <!-- Status Filter -->
             <div class="flex-1 min-w-[180px]">
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
                 <div class="relative">
                     <select name="status"
                         class="w-full pl-4 pr-10 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none backdrop-blur-sm transition-all duration-300 hover:bg-white/80">
-                        <option value="">Semua Status</option>
+                        <option value="">Aktif (Belum Lunas)</option>
+                        <option value="all" <%=filters.status==='all' ? 'selected' : '' %>>Semua (Arsip Lengkap)
+                        </option>
                         <option value="draft" <%=filters.status==='draft' ? 'selected' : '' %>>Draft</option>
                         <option value="sent" <%=filters.status==='sent' ? 'selected' : '' %>>Terkirim</option>
                         <option value="partial" <%=filters.status==='partial' ? 'selected' : '' %>>Dibayar Sebagian
@@ -305,82 +313,80 @@
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <div
                                     class="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                    <!-- Detail -->
+                                    <!-- Detail (Always Visible) -->
                                     <button data-action="detail" data-invoice-id="<%= invoice.id %>"
                                         class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all"
                                         title="Detail">
                                         <i class="fas fa-eye"></i>
                                     </button>
 
-                                    <!-- Janji Bayar -->
-                                    <button data-action="promise" data-invoice-id="<%= invoice.id %>"
-                                        data-invoice-date="<%= invoice.due_date %>"
-                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 transition-all"
-                                        title="Janji Bayar">
-                                        <i class="fas fa-calendar-alt"></i>
-                                    </button>
+                                    <!-- Print (Always Visible) -->
+                                    <div class="relative inline-block">
+                                        <button data-action="print" data-invoice-id="<%= invoice.id %>"
+                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-purple-600 hover:bg-purple-100 hover:text-purple-700 transition-all"
+                                            title="Print">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+                                        <!-- Print Menu Dropdown -->
+                                        <div id="printMenu-<%= invoice.id %>"
+                                            class="hidden absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5">
+                                            <a href="/billing/tagihan/<%= invoice.id %>/print" target="_blank"
+                                                class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-gray-100">
+                                                <i class="fas fa-file-pdf mr-3 text-red-500"></i>Print A4
+                                            </a>
+                                            <a href="/billing/tagihan/<%= invoice.id %>/print-thermal" target="_blank"
+                                                class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                                <i class="fas fa-receipt mr-3 text-gray-500"></i>Print Thermal
+                                            </a>
+                                        </div>
+                                    </div>
 
-                                    <!-- WhatsApp -->
                                     <% if (invoice.status !=='paid' ) { %>
+                                        <!-- Janji Bayar -->
+                                        <button data-action="promise" data-invoice-id="<%= invoice.id %>"
+                                            data-invoice-date="<%= invoice.due_date %>"
+                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 transition-all"
+                                            title="Janji Bayar">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </button>
+
+                                        <!-- WhatsApp -->
                                         <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
                                             class="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all"
                                             title="Kirim WhatsApp">
                                             <i class="fab fa-whatsapp"></i>
                                         </button>
-                                        <% } %>
 
-                                            <!-- Print -->
-                                            <div class="relative inline-block">
-                                                <button data-action="print" data-invoice-id="<%= invoice.id %>"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-purple-600 hover:bg-purple-100 hover:text-purple-700 transition-all"
-                                                    title="Print">
-                                                    <i class="fas fa-print"></i>
-                                                </button>
-                                                <!-- Print Menu Dropdown -->
-                                                <div id="printMenu-<%= invoice.id %>"
-                                                    class="hidden absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5">
-                                                    <a href="/billing/tagihan/<%= invoice.id %>/print" target="_blank"
-                                                        class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-gray-100">
-                                                        <i class="fas fa-file-pdf mr-3 text-red-500"></i>Print A4
-                                                    </a>
-                                                    <a href="/billing/tagihan/<%= invoice.id %>/print-thermal"
-                                                        target="_blank"
-                                                        class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                                                        <i class="fas fa-receipt mr-3 text-gray-500"></i>Print Thermal
-                                                    </a>
-                                                </div>
-                                            </div>
+                                        <!-- Pay -->
+                                        <% if (invoice.status !=='cancelled' ) { %>
+                                            <button data-action="pay" data-invoice-id="<%= invoice.id %>"
+                                                class="w-8 h-8 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-100 hover:text-green-700 transition-all"
+                                                title="Bayar">
+                                                <i class="fas fa-money-bill-wave"></i>
+                                            </button>
+                                            <% } %>
 
-                                            <!-- Pay -->
-                                            <% if (invoice.status !=='paid' && invoice.status !=='cancelled' ) { %>
-                                                <button data-action="pay" data-invoice-id="<%= invoice.id %>"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-100 hover:text-green-700 transition-all"
-                                                    title="Bayar">
-                                                    <i class="fas fa-money-bill-wave"></i>
-                                                </button>
-                                                <% } %>
-
-                                                    <!-- Isolate/Restore -->
-                                                    <% if (invoice.status==='overdue' || invoice.customer_is_isolated) {
-                                                        %>
-                                                        <button data-action="restore"
+                                                <!-- Isolate/Restore -->
+                                                <% if (invoice.status==='overdue' || invoice.customer_is_isolated) { %>
+                                                    <button data-action="restore"
+                                                        data-customer-id="<%= invoice.customer_id %>"
+                                                        data-customer-name="<%= invoice.customer_name %>"
+                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-all"
+                                                        title="Unisolir">
+                                                        <i class="fas fa-unlock"></i>
+                                                    </button>
+                                                    <% } else { %>
+                                                        <button data-action="isolate"
                                                             data-customer-id="<%= invoice.customer_id %>"
                                                             data-customer-name="<%= invoice.customer_name %>"
-                                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-all"
-                                                            title="Unisolir">
-                                                            <i class="fas fa-unlock"></i>
+                                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 hover:bg-red-100 hover:text-red-700 transition-all"
+                                                            title="Isolir">
+                                                            <i class="fas fa-lock"></i>
                                                         </button>
-                                                        <% } else { %>
-                                                            <button data-action="isolate"
-                                                                data-customer-id="<%= invoice.customer_id %>"
-                                                                data-customer-name="<%= invoice.customer_name %>"
-                                                                class="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 hover:bg-red-100 hover:text-red-700 transition-all"
-                                                                title="Isolir">
-                                                                <i class="fas fa-lock"></i>
-                                                            </button>
+                                                        <% } %>
                                                             <% } %>
 
-                                                                <!-- Delete -->
+                                                                <!-- Delete (Always Visible) -->
                                                                 <button data-action="delete"
                                                                     data-invoice-id="<%= invoice.id %>"
                                                                     data-invoice-number="<%= invoice.invoice_number %>"

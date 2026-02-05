@@ -181,6 +181,14 @@ export class WhatsAppService extends EventEmitter {
       return;
     }
 
+    // PM2 Cluster Mode Check: Only initialize on the first instance
+    // This prevents "Session Conflict (440)" errors when multiple instances try to connect
+    const instanceId = process.env.NODE_APP_INSTANCE || '0';
+    if (instanceId !== '0') {
+      this.log('info', `⏭️ WhatsApp service skipping initialization on non-zero instance (${instanceId})`);
+      return;
+    }
+
     if (this.initPromise) {
       return this.initPromise;
     }
@@ -194,41 +202,46 @@ export class WhatsAppService extends EventEmitter {
       this.emit('initializing');
 
       try {
-        this.log('info', '🔄 Initializing WhatsApp connection...');
+        this.log('info', `🔄 Initializing WhatsApp connection... Path: ${this.AUTH_DIR}`);
 
         // Load auth state
         const { state, saveCreds } = await useMultiFileAuthState(this.AUTH_DIR);
         this.authState = { state, saveCreds };
+
+        // Check if we already have creds
+        if (state.creds && state.creds.registered) {
+          this.log('info', '📂 Found existing credentials in auth directory');
+        } else {
+          this.log('info', '🆕 No existing credentials found, starting fresh session');
+        }
 
         // Get latest version
         const { version, isLatest } = await fetchLatestBaileysVersion();
         this.log('info', `📦 Baileys Version: ${version.join('.')} (Latest: ${isLatest})`);
 
         // Create socket
-        const logger = pino({ level: 'silent' });
+        const logger = pino({ level: 'debug' }); // Increased pino level for debugging
 
         this.sock = makeWASocket({
           version,
           logger: logger as any,
-          printQRInTerminal: true,
+          printQRInTerminal: false,
           auth: {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, logger as any),
           },
-          browser: ['ISP Billing System', 'Chrome', '120.0.0'],
+          browser: ['Windows', 'Chrome', '110.0.5481.178'], // Changed browser string
           generateHighQualityLinkPreview: true,
           defaultQueryTimeoutMs: 60000,
           connectTimeoutMs: 60000,
-          keepAliveIntervalMs: 30000,
-          retryRequestDelayMs: 500,
-          qrTimeout: 60000,
-          markOnlineOnConnect: true,
+          syncFullHistory: false,
+          transactionOpts: { maxCommitRetries: 5, delayBetweenTriesMs: 500 },
         });
 
         // Setup event handlers
         this.setupEventHandlers();
 
-        this.log('info', '✅ Socket created, waiting for connection...');
+        this.log('info', '✅ Socket created, waiting for connection updates...');
 
       } catch (error: any) {
         this.log('error', '❌ Failed to initialize:', error.message);
@@ -301,6 +314,15 @@ export class WhatsAppService extends EventEmitter {
     this.sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
+      // Detailed debug logging for connection state
+      if (connection || qr || lastDisconnect) {
+        this.log('debug', '🔄 Connection Update:', {
+          connection,
+          hasQr: !!qr,
+          errorCode: (lastDisconnect?.error as Boom)?.output?.statusCode
+        });
+      }
+
       // QR Code received
       if (qr) {
         this.log('info', '📱 QR Code received');
@@ -318,6 +340,7 @@ export class WhatsAppService extends EventEmitter {
         }
 
         this.emit('qr', qr, this.qrDataUrl);
+        this.saveStatusToDisk();
 
         // Reject any waiters because we definitely need a QR scan now
         const rejecters = [...this.readyRejecters];
@@ -343,6 +366,7 @@ export class WhatsAppService extends EventEmitter {
         this.isProcessingQueue = false; // Stop queue
 
         this.emit('disconnected', statusCode);
+        this.saveStatusToDisk();
 
         if (statusCode === 440) {
           this.log('error', '⚠️ Session conflict detected (440). Connection replaced. Clearing session and restarting...');
@@ -379,6 +403,7 @@ export class WhatsAppService extends EventEmitter {
           phoneNumber: this.phoneNumber,
           name: this.displayName
         });
+        this.saveStatusToDisk();
 
         // Resolve all waiters
         const resolvers = [...this.readyResolvers];
@@ -803,20 +828,99 @@ export class WhatsAppService extends EventEmitter {
   }
 
   /**
-   * Get service status
+   * Get service status (Cluster aware)
    */
   public getStatus(): WhatsAppStatus {
+    const instanceId = process.env.NODE_APP_INSTANCE || '0';
+
+    // If we are instance 0 (or not in cluster), return our real status
+    if (instanceId === '0') {
+      const status = {
+        ready: this.isConnected,
+        initializing: this.isConnecting,
+        qr: this.qrCode,
+        qrDataUrl: this.qrDataUrl,
+        phoneNumber: this.phoneNumber,
+        name: this.displayName,
+        lastConnected: this.lastConnected,
+        reconnectAttempts: this.reconnectAttempts,
+        messagesSent: this.messagesSent,
+        messagesReceived: this.messagesReceived
+      };
+
+      // Save for other instances to read
+      this.saveStatusToDisk(status);
+      return status;
+    }
+
+    // If we are NOT instance 0, read from disk to avoid flickering
+    return this.readStatusFromDisk();
+  }
+
+  /**
+   * Save current status to disk for cluster sharing
+   */
+  private saveStatusToDisk(status?: WhatsAppStatus): void {
+    try {
+      if (!fs.existsSync(this.LOG_DIR)) {
+        fs.mkdirSync(this.LOG_DIR, { recursive: true });
+      }
+
+      const currentStatus = status || {
+        ready: this.isConnected,
+        initializing: this.isConnecting,
+        qr: this.qrCode,
+        qrDataUrl: this.qrDataUrl,
+        phoneNumber: this.phoneNumber,
+        name: this.displayName,
+        lastConnected: this.lastConnected,
+        reconnectAttempts: this.reconnectAttempts,
+        messagesSent: this.messagesSent,
+        messagesReceived: this.messagesReceived
+      };
+
+      const filePath = path.join(this.LOG_DIR, 'cluster_status.json');
+      fs.writeFileSync(filePath, JSON.stringify({
+        ...currentStatus,
+        _instance: process.env.NODE_APP_INSTANCE || '0',
+        _updatedAt: new Date().toISOString()
+      }, null, 2));
+    } catch (e) {
+      // Quietly fail for status saving
+    }
+  }
+
+  /**
+   * Read status from disk (used by non-zero cluster instances)
+   */
+  private readStatusFromDisk(): WhatsAppStatus {
+    try {
+      const filePath = path.join(this.LOG_DIR, 'cluster_status.json');
+      if (fs.existsSync(filePath)) {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+        // Check if data is not too old (e.g., > 1 minute)
+        const updatedAt = new Date(data._updatedAt);
+        if (Date.now() - updatedAt.getTime() < 60000) {
+          return data;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Default fallback if no valid disk status found
     return {
-      ready: this.isConnected,
-      initializing: this.isConnecting,
-      qr: this.qrCode,
-      qrDataUrl: this.qrDataUrl,
-      phoneNumber: this.phoneNumber,
-      name: this.displayName,
-      lastConnected: this.lastConnected,
-      reconnectAttempts: this.reconnectAttempts,
-      messagesSent: this.messagesSent,
-      messagesReceived: this.messagesReceived
+      ready: false,
+      initializing: false,
+      qr: null,
+      qrDataUrl: null,
+      phoneNumber: null,
+      name: null,
+      lastConnected: null,
+      reconnectAttempts: 0,
+      messagesSent: 0,
+      messagesReceived: 0
     };
   }
 
@@ -889,10 +993,31 @@ export class WhatsAppService extends EventEmitter {
   private async clearSession(): Promise<void> {
     try {
       if (fs.existsSync(this.AUTH_DIR)) {
-        fs.rmSync(this.AUTH_DIR, { recursive: true, force: true });
-        fs.mkdirSync(this.AUTH_DIR, { recursive: true });
+        this.log('info', `🗑️ Clearing session directory: ${this.AUTH_DIR}`);
+
+        // Robust deletion for Windows (handles file locking better)
+        try {
+          fs.rmSync(this.AUTH_DIR, { recursive: true, force: true });
+        } catch (rmError: any) {
+          this.log('warn', `⚠️ Standard deletion failed: ${rmError.message}. Using fallback...`);
+          try {
+            const trashDir = `${this.AUTH_DIR}_trash_${Date.now()}`;
+            fs.renameSync(this.AUTH_DIR, trashDir);
+            // Non-blocking attempt to delete the renamed folder later
+            setTimeout(() => {
+              try { fs.rmSync(trashDir, { recursive: true, force: true }); } catch (e) { }
+            }, 10000);
+          } catch (renameError) {
+            this.log('error', '❌ Completely failed to clear session directory.');
+          }
+        }
+
+        // Ensure directory exists even if deletion was partial
+        if (!fs.existsSync(this.AUTH_DIR)) {
+          fs.mkdirSync(this.AUTH_DIR, { recursive: true });
+        }
       }
-      this.log('info', '✅ Session cleared');
+      this.log('info', '✅ Session cleanup request completed');
     } catch (e: any) {
       this.log('error', 'Failed to clear session:', e.message);
     }

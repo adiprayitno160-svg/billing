@@ -1,0 +1,63 @@
+[dotenv@17.2.3] injecting env (10) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+--- CUSTOMER SEARCH: ADI WIYAHYA ---
+Customers found: 1
+[
+  {
+    "id": 146,
+    "name": "ADI WIYAHYA",
+    "customer_code": "20260123152141",
+    "connection_type": "static_ip",
+    "pppoe_username": null,
+    "is_isolated": 1
+  }
+]
+
+--- RECENT ISOLATION LOGS FOR ADI WIYAHYA (ID: 146) ---
+[
+  {
+    "id": 6,
+    "customer_id": 146,
+    "action": "isolate",
+    "reason": "Keterlambatan pembayaran",
+    "performed_by": "admin",
+    "mikrotik_username": "IP:192.168.238.38 GW:192.168.238.37/30",
+    "mikrotik_response": "[static_ip] Gateway 192.168.238.37/30 disabled (ID: *10F5)",
+    "created_at": "2026-02-04T19:22:16.000Z"
+  }
+]
+
+--- ACTIVE SUBSCRIPTIONS ---
+[
+  {
+    "id": 81,
+    "customer_id": 146,
+    "package_id": 20,
+    "package_name": "Paket 50K",
+    "price": "55000.00",
+    "billing_cycle": "monthly",
+    "start_date": "2026-01-24T00:00:00.000Z",
+    "end_date": null,
+    "status": "active",
+    "created_at": "2026-01-24T09:31:18.000Z",
+    "updated_at": "2026-01-24T09:33:04.000Z",
+    "is_activated": 0,
+    "activation_date": null,
+    "next_block_date": null
+  }
+]
+
+--- MIKROTIK SETTINGS ---
+[
+  {
+    "id": 1,
+    "host": "192.168.5.1",
+    "username": "adii",
+    "is_active": 0
+  },
+  {
+    "id": 2,
+    "host": "192.168.239.25",
+    "username": "adi",
+    "is_active": 1
+  }
+]

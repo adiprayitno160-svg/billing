@@ -88,7 +88,7 @@ class WhatsAppService extends events_1.default {
         this.QUEUE_PROCESS_INTERVAL_MAX = 6000; // 6 seconds max
         this.MAX_QUEUE_SIZE = 500;
         // Paths
-        this.AUTH_DIR = path_1.default.join(process.cwd(), 'whatsapp_auth_v2');
+        this.AUTH_DIR = path_1.default.join(process.cwd(), 'whatsapp_auth_v3');
         this.LOG_DIR = path_1.default.join(process.cwd(), 'logs', 'whatsapp');
         this.ensureDirectories();
         this.log('info', '🚀 WhatsApp Service instantiated');
@@ -149,6 +149,10 @@ class WhatsAppService extends events_1.default {
      * Initialize WhatsApp connection
      */
     async initialize() {
+        if (process.env.DISABLE_WHATSAPP === 'true') {
+            this.log('info', '🚫 WhatsApp service is disabled via DISABLE_WHATSAPP env var.');
+            return;
+        }
         if (this.initPromise) {
             return this.initPromise;
         }
@@ -208,8 +212,11 @@ class WhatsAppService extends events_1.default {
         if (this.isConnected)
             return;
         // Trigger initialization if not already
-        if (!this.sock && !this.isConnecting) {
+        if (!this.sock && !this.isConnecting && process.env.DISABLE_WHATSAPP !== 'true') {
             this.initialize().catch(() => { });
+        }
+        if (process.env.DISABLE_WHATSAPP === 'true') {
+            throw new Error('WhatsApp service is disabled.');
         }
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
@@ -243,10 +250,12 @@ class WhatsAppService extends events_1.default {
             return;
         // Credentials update
         this.sock.ev.on('creds.update', async () => {
-            await this.authState?.saveCreds();
+            var _a;
+            await ((_a = this.authState) === null || _a === void 0 ? void 0 : _a.saveCreds());
         });
         // Connection update
         this.sock.ev.on('connection.update', async (update) => {
+            var _a, _b, _c;
             const { connection, lastDisconnect, qr } = update;
             // QR Code received
             if (qr) {
@@ -273,7 +282,7 @@ class WhatsAppService extends events_1.default {
             }
             // Connection closed
             if (connection === 'close') {
-                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const statusCode = (_b = (_a = lastDisconnect === null || lastDisconnect === void 0 ? void 0 : lastDisconnect.error) === null || _a === void 0 ? void 0 : _a.output) === null || _b === void 0 ? void 0 : _b.statusCode;
                 // Reconnect if not logged out AND not 440 (Conflict/Replaced)
                 // If 440, we MUST clear session because keys are invalid
                 const shouldReconnect = statusCode !== baileys_1.DisconnectReason.loggedOut && statusCode !== 440;
@@ -308,7 +317,7 @@ class WhatsAppService extends events_1.default {
                 this.qrCode = null;
                 this.qrDataUrl = null;
                 // Get user info
-                if (this.sock?.user) {
+                if ((_c = this.sock) === null || _c === void 0 ? void 0 : _c.user) {
                     this.phoneNumber = this.sock.user.id.split(':')[0];
                     this.displayName = this.sock.user.name || null;
                     this.log('info', `📞 Connected as: ${this.displayName} (${this.phoneNumber})`);
@@ -328,10 +337,11 @@ class WhatsAppService extends events_1.default {
         });
         // Message received
         this.sock.ev.on('messages.upsert', async (m) => {
+            var _a, _b;
             if (m.type === 'notify' || m.type === 'append') {
                 for (const msg of m.messages) {
                     // Ignore status updates and broadcasts
-                    if (msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast')) {
+                    if (msg.key.remoteJid === 'status@broadcast' || ((_a = msg.key.remoteJid) === null || _a === void 0 ? void 0 : _a.includes('@broadcast'))) {
                         continue;
                     }
                     if (!msg.key.fromMe && msg.message) {
@@ -341,7 +351,7 @@ class WhatsAppService extends events_1.default {
                         // Filter old messages
                         const msgTimestamp = typeof msg.messageTimestamp === 'number'
                             ? msg.messageTimestamp
-                            : msg.messageTimestamp?.low || Math.floor(Date.now() / 1000);
+                            : ((_b = msg.messageTimestamp) === null || _b === void 0 ? void 0 : _b.low) || Math.floor(Date.now() / 1000);
                         if (Math.floor(Date.now() / 1000) - msgTimestamp > 300) {
                             continue;
                         }
@@ -382,27 +392,28 @@ class WhatsAppService extends events_1.default {
      * Extract text from message (Handles Ephemeral, ViewOnce, etc)
      */
     extractMessageText(msg) {
+        var _a, _b, _c, _d, _e, _f, _g;
         if (!msg.message)
             return null;
         // Unwrap ephemeral/viewOnce messages which Baileys might nest
         const content = (0, baileys_1.getContentType)(msg.message);
         let m = msg.message;
         if (content === 'ephemeralMessage') {
-            m = msg.message.ephemeralMessage?.message || m;
+            m = ((_a = msg.message.ephemeralMessage) === null || _a === void 0 ? void 0 : _a.message) || m;
         }
         else if (content === 'viewOnceMessage') {
-            m = msg.message.viewOnceMessage?.message || m;
+            m = ((_b = msg.message.viewOnceMessage) === null || _b === void 0 ? void 0 : _b.message) || m;
         }
         else if (content === 'documentWithCaptionMessage') {
-            m = msg.message.documentWithCaptionMessage?.message || m;
+            m = ((_c = msg.message.documentWithCaptionMessage) === null || _c === void 0 ? void 0 : _c.message) || m;
         }
         if (!m)
             return null;
         return (m.conversation ||
-            m.extendedTextMessage?.text ||
-            m.imageMessage?.caption ||
-            m.videoMessage?.caption ||
-            m.documentMessage?.caption ||
+            ((_d = m.extendedTextMessage) === null || _d === void 0 ? void 0 : _d.text) ||
+            ((_e = m.imageMessage) === null || _e === void 0 ? void 0 : _e.caption) ||
+            ((_f = m.videoMessage) === null || _f === void 0 ? void 0 : _f.caption) ||
+            ((_g = m.documentMessage) === null || _g === void 0 ? void 0 : _g.caption) ||
             null);
     }
     /**
@@ -560,22 +571,34 @@ class WhatsAppService extends events_1.default {
             const item = this.messageQueue.shift();
             processed++;
             try {
+                if (!this.sock || !this.isConnected) {
+                    this.messageQueue.unshift(item); // Put back
+                    break;
+                }
                 this.log('info', `📨 Processing message ${processed}/${processed + this.messageQueue.length} (${item.id}) to ${item.to}`);
                 // Only check registration if it's the first attempt and NOT a group/LID
                 if (item.retries === 0 && !item.to.includes('@g.us') && !item.to.includes('@lid')) {
-                    // Optional: Skip if already known valid customers to speed up
-                    // For now, keep it but add a fast timeout
-                    const exists = await Promise.race([
-                        this.isRegistered(item.to),
-                        new Promise(resolve => setTimeout(() => resolve(true), 3000)) // 3s timeout
-                    ]);
-                    if (!exists) {
-                        this.log('warn', `🚫 Number ${item.to} is NOT registered. Skipping.`);
-                        item.resolve({ success: false, error: 'Nomor tidak terdaftar di WhatsApp' });
-                        continue;
+                    // Check if number is valid - some numbers might be slow to check
+                    try {
+                        const exists = await Promise.race([
+                            this.isRegistered(item.to),
+                            new Promise(resolve => setTimeout(() => resolve(true), 2000))
+                        ]);
+                        if (!exists) {
+                            this.log('warn', `⚠️ Number ${item.to} is NOT registered on WhatsApp. Skipping.`);
+                            item.resolve({ success: false, error: 'Nomor tidak terdaftar di WhatsApp' });
+                            continue;
+                        }
+                    }
+                    catch (e) {
+                        this.log('debug', `Registration check error for ${item.to}, proceeding anyway`);
                     }
                 }
-                const result = await this.sendMessageDirect(item.to, item.content, item.options);
+                // Add a safety timeout for the actual sending
+                const result = await Promise.race([
+                    this.sendMessageDirect(item.to, item.content, item.options),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Kirim pesan timeout (30 detik)')), 30000))
+                ]);
                 if (result.success) {
                     this.log('info', `✅ Message sent successfully to ${item.to} (ID: ${result.messageId})`);
                     item.resolve(result);
@@ -585,17 +608,21 @@ class WhatsAppService extends events_1.default {
                 }
             }
             catch (error) {
+                const errorMessage = error.message || 'Unknown error';
+                // If connection error, put back and wait
+                if (errorMessage.includes('not connected') || errorMessage.includes('socket') || !this.isConnected) {
+                    this.log('warn', `🔌 Connection error during send, re-queueing ${item.id}`);
+                    this.messageQueue.unshift(item); // Put back at front
+                    break; // Stop processing for now
+                }
                 item.retries++;
-                const errorMessage = error.message || error;
                 this.log('warn', `⚠️ Message ${item.id} to ${item.to} failed. Attempt ${item.retries}/${item.maxRetries}. Error: ${errorMessage}`);
                 if (item.retries < item.maxRetries) {
-                    // Re-queue for retry (put in the end)
                     this.messageQueue.push(item);
-                    // Wait longer before next attempt if it's a connection issue
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 }
                 else {
-                    item.resolve({ success: false, error: `Gagal mengirim setelah ${item.maxRetries} kali: ${errorMessage}` });
+                    item.resolve({ success: false, error: `Gagal mengirim: ${errorMessage}` });
                     this.log('error', `❌ Message ${item.id} permanently failed: ${errorMessage}`);
                 }
             }
@@ -618,6 +645,7 @@ class WhatsAppService extends events_1.default {
      * Send message directly (internal)
      */
     async sendMessageDirect(to, content, options) {
+        var _a;
         if (!this.sock || !this.isConnected) {
             throw new Error('WhatsApp not connected');
         }
@@ -625,20 +653,20 @@ class WhatsAppService extends events_1.default {
             // Ensure JID is correct
             const jid = this.formatPhoneNumber(to);
             // Show typing indicator
-            if (options?.typing !== false) {
+            if ((options === null || options === void 0 ? void 0 : options.typing) !== false) {
                 await this.sock.sendPresenceUpdate('composing', jid);
-                await new Promise(resolve => setTimeout(resolve, options?.typingDuration || 500));
+                await new Promise(resolve => setTimeout(resolve, (options === null || options === void 0 ? void 0 : options.typingDuration) || 500));
             }
             // Send message
             const sent = await this.sock.sendMessage(jid, content, {
-                quoted: options?.quoted
+                quoted: options === null || options === void 0 ? void 0 : options.quoted
             });
             // Clear typing
             await this.sock.sendPresenceUpdate('paused', jid);
             this.messagesSent++;
             return {
                 success: true,
-                messageId: sent?.key?.id || undefined,
+                messageId: ((_a = sent === null || sent === void 0 ? void 0 : sent.key) === null || _a === void 0 ? void 0 : _a.id) || undefined,
                 timestamp: Date.now()
             };
         }
@@ -660,8 +688,8 @@ class WhatsAppService extends events_1.default {
             // Clean phone number (digits only)
             const cleaned = phone.replace(/\D/g, '');
             const [result] = await this.sock.onWhatsApp(cleaned);
-            this.log('debug', `🔍 Registration check for ${cleaned}: ${result?.exists || false}`);
-            return result?.exists || false;
+            this.log('debug', `🔍 Registration check for ${cleaned}: ${(result === null || result === void 0 ? void 0 : result.exists) || false}`);
+            return (result === null || result === void 0 ? void 0 : result.exists) || false;
         }
         catch (e) {
             this.log('warn', `⚠️ Registration check failed for ${phone}: ${e.message}`);

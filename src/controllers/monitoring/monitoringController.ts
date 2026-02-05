@@ -1014,7 +1014,7 @@ export class MonitoringController {
                     odc.name as area
                 FROM sla_incidents si
                 JOIN customers c ON si.customer_id = c.id
-                LEFT JOIN odc_list odc ON c.odc_id = odc.id
+                LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
                 WHERE si.status IN ('ongoing', 'resolved')
                 ORDER BY si.start_time DESC
                 LIMIT 50
@@ -1027,9 +1027,25 @@ export class MonitoringController {
             });
         } catch (error) {
             console.error('Error loading AI Analytics page:', error);
+        }
+    }
+
+    /**
+     * GET /monitoring/maps
+     * Network Maps page
+     */
+    async getNetworkMapsPage(req: Request, res: Response): Promise<void> {
+        try {
+            res.render('monitoring/modern-network-map', {
+                title: 'Network Map Monitoring',
+                currentPath: '/monitoring/maps',
+                layout: false // Map pages are usually standalone
+            });
+        } catch (error) {
+            console.error('Error loading Network Maps page:', error);
             res.status(500).render('error', {
                 title: 'Error',
-                message: 'Gagal memuat halaman Monitoring AI'
+                message: 'Gagal memuat halaman Network Map'
             });
         }
     }

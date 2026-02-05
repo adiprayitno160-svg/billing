@@ -357,11 +357,18 @@ export class PaymentController {
             const newDiscountTotal = parseFloat(invoice.discount_amount || 0) + discountAmount;
             const newPaidTotal = parseFloat(invoice.paid_amount || 0) + finalPaymentAmount;
 
+            // Calculate new total amount (Subtotal + PPN + DeviceFee - Discount)
+            const subtotal = parseFloat(invoice.subtotal || 0);
+            const ppn = parseFloat(invoice.ppn_amount || 0);
+            const deviceFee = parseFloat(invoice.device_fee || 0);
+            const newTotalAmount = Math.max(0, (subtotal + ppn + deviceFee) - newDiscountTotal);
+
             const updateInvoiceQuery = `
                 UPDATE invoices 
                 SET 
                     paid_amount = ?,
                     discount_amount = ?,
+                    total_amount = ?,
                     remaining_amount = 0,
                     status = 'paid',
                     last_payment_date = ?,
@@ -372,6 +379,7 @@ export class PaymentController {
             await conn.execute(updateInvoiceQuery, [
                 newPaidTotal,
                 newDiscountTotal,
+                newTotalAmount,
                 paymentDateStr,
                 invoice_id
             ]);

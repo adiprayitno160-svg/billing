@@ -13,6 +13,14 @@ async function deploy() {
         });
         console.log('✅ Connected!');
 
+        // 0. Fix permissions (try to claim ownership)
+        console.log('🔧 Fixing permissions...');
+        try {
+            await ssh.execCommand('echo "adi" | sudo -S chown -R adi:adi /var/www/billing', { cwd: '/' });
+        } catch (e) {
+            console.log('⚠️ Could not fix permissions (might need sudo):', e);
+        }
+
         // 1. Find the directory
         console.log('Finding project directory...');
         // Try common paths

@@ -188,10 +188,6 @@ app.use(injectAppVersion);
 // PPPoE Stats middleware - for sidebar
 app.use(pppoeStatsMiddleware);
 
-// Network monitoring routes (public - no auth required)
-import networkMonitoringRoutes from './routes/networkMonitoring';
-app.use('/monitoring', networkMonitoringRoutes);
-
 // Root router
 app.use('/', router);
 
@@ -319,94 +315,12 @@ async function start() {
 			console.error('⚠️ Error ensuring bookkeeping/whatsapp tables (non-critical):', error);
 		}
 
-		// Initialize WiFi management database (auto-create tables)
-		try {
-			console.log('Initializing WiFi management database...');
-			const { WiFiDatabaseSetup } = await import('./services/genieacs/WiFiDatabaseSetup');
-			await WiFiDatabaseSetup.initialize();
-			console.log('✅ WiFi management database initialized');
-		} catch (error) {
-			console.error('⚠️ Error initializing WiFi database (non-critical):', error);
-			// Non-critical, continue startup
-		}
-
-		// Initialize billing scheduler
-		SchedulerService.initialize();
-		console.log('Billing scheduler initialized');
-
-		// Initialize invoice auto-generation scheduler
-		console.log('[Startup] Step 7: Initializing schedulers...');
-		await InvoiceSchedulerService.initialize();
-
-		// Initialize prepaid scheduler (auto-disable expired customers)
-		try {
-			const { PrepaidScheduler } = await import('./services/billing/PrepaidScheduler');
-			PrepaidScheduler.initialize();
-			console.log('✅ Prepaid scheduler initialized');
-		} catch (error) {
-			console.error('⚠️ Error initializing prepaid scheduler (non-critical):', error);
-		}
 
 
-		// Initialize Notification Scheduler
-		const { NotificationScheduler } = await import('./services/notification/NotificationScheduler');
-		const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
-		await ensureNotificationTemplates();
-		NotificationScheduler.initialize();
-		console.log('Notification scheduler initialized');
-
-		// Initialize Backup Scheduler
-		const { BackupScheduler } = await import('./services/backup/BackupScheduler');
-		BackupScheduler.init();
-
-		// Initialize Media Cleanup Service
-		const { MediaCleanupService } = await import('./services/cron/MediaCleanupService');
-		MediaCleanupService.startScheduler(90); // 90 days retention
-
-		// Initialize PPPoE Static IP Monitor (checks every 10 minutes)
-		try {
-			const { pppoeStaticMonitor } = await import('./services/monitoring/PPPoEStaticMonitor');
-			pppoeStaticMonitor.startScheduler();
-			console.log('✅ PPPoE Static IP Monitor initialized');
-		} catch (error) {
-			console.error('⚠️ Error initializing PPPoE Static IP Monitor (non‑critical):', error);
-		}
-
-		// Initialize WhatsApp Auth Cleanup Service (remove old JSON files > 2 weeks)
-		try {
-			const { startWhatsAppCleanupScheduler } = await import('./services/cron/WhatsAppCleanupService');
-			startWhatsAppCleanupScheduler();
-			console.log('✅ WhatsApp Auth Cleanup Scheduler initialized (daily 03:00)');
-		} catch (error) {
-			console.error('⚠️ Error initializing WhatsApp Cleanup Scheduler (non-critical):', error);
-		}
-
-		// Initialize Invoice PDF Cleanup Service (Daily)
-		try {
-			const { InvoiceCleanupService } = await import('./services/cron/InvoiceCleanupService');
-			InvoiceCleanupService.startScheduler();
-			console.log('✅ Invoice PDF Cleanup Scheduler initialized');
-		} catch (error) {
-			console.error('⚠️ Error initializing Invoice Cleanup Scheduler:', error);
-		}
-
-
-		// Initialize New Robust WhatsApp Service
-		if (process.env.DISABLE_WHATSAPP !== 'true') {
-			try {
-				const { whatsappService } = await import('./services/whatsapp');
-				await whatsappService.initialize();
-				console.log('✅ WhatsApp Service (Baileys) initialized');
-			} catch (waError) {
-				console.error('❌ Failed to init WhatsApp:', waError);
-			}
-		}
 		// Initialize default users
 		const authController = new AuthController();
 		await authController.initializeDefaultUsers();
 		console.log('Default users initialized');
-
-		// TELEGRAM REMOVED PERMANENTLY PER USER REQUEST
 
 		// Create HTTP server
 		const server = createServer(app);
@@ -420,10 +334,89 @@ async function start() {
 			}
 		});
 
-		// Initialize Realtime Monitoring Service
-		const { RealtimeMonitoringService } = await import('./services/monitoring/RealtimeMonitoringService');
-		const monitoringService = new RealtimeMonitoringService(io);
-		monitoringService.start();
+		// BACKGROUND SERVICES (Only run on main instance if in PM2 Cluster Mode)
+		const isMainInstance = process.env.NODE_APP_INSTANCE === '0' || !process.env.NODE_APP_INSTANCE;
+
+		if (isMainInstance) {
+			console.log('[Startup] 🛠️ Initializing background services (Main Instance)...');
+
+			// Initialize billing scheduler
+			SchedulerService.initialize();
+			console.log('Billing scheduler initialized');
+
+			// Initialize invoice auto-generation scheduler
+			console.log('[Startup] Step 7: Initializing schedulers...');
+			await InvoiceSchedulerService.initialize();
+
+			// Initialize prepaid scheduler (auto-disable expired customers)
+			try {
+				const { PrepaidScheduler } = await import('./services/billing/PrepaidScheduler');
+				PrepaidScheduler.initialize();
+				console.log('✅ Prepaid scheduler initialized');
+			} catch (error) {
+				console.error('⚠️ Error initializing prepaid scheduler (non-critical):', error);
+			}
+
+			// Initialize Notification Scheduler
+			const { NotificationScheduler } = await import('./services/notification/NotificationScheduler');
+			const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
+			await ensureNotificationTemplates();
+			NotificationScheduler.initialize();
+			console.log('Notification scheduler initialized');
+
+			// Initialize Backup Scheduler
+			const { BackupScheduler } = await import('./services/backup/BackupScheduler');
+			BackupScheduler.init();
+
+			// Initialize Media Cleanup Service
+			const { MediaCleanupService } = await import('./services/cron/MediaCleanupService');
+			MediaCleanupService.startScheduler(90); // 90 days retention
+
+			// Initialize PPPoE Static IP Monitor (checks every 10 minutes)
+			try {
+				const { pppoeStaticMonitor } = await import('./services/monitoring/PPPoEStaticMonitor');
+				pppoeStaticMonitor.startScheduler();
+				console.log('✅ PPPoE Static IP Monitor initialized');
+			} catch (error) {
+				console.error('⚠️ Error initializing PPPoE Static IP Monitor (non‑critical):', error);
+			}
+
+			// Initialize WhatsApp Auth Cleanup Service (remove old JSON files > 2 weeks)
+			try {
+				const { startWhatsAppCleanupScheduler } = await import('./services/cron/WhatsAppCleanupService');
+				startWhatsAppCleanupScheduler();
+				console.log('✅ WhatsApp Auth Cleanup Scheduler initialized (daily 03:00)');
+			} catch (error) {
+				console.error('⚠️ Error initializing WhatsApp Cleanup Scheduler (non-critical):', error);
+			}
+
+			// Initialize Invoice PDF Cleanup Service (Daily)
+			try {
+				const { InvoiceCleanupService } = await import('./services/cron/InvoiceCleanupService');
+				InvoiceCleanupService.startScheduler();
+				console.log('✅ Invoice PDF Cleanup Scheduler initialized');
+			} catch (error) {
+				console.error('⚠️ Error initializing Invoice Cleanup Scheduler:', error);
+			}
+
+			// Initialize New Robust WhatsApp Service
+			if (process.env.DISABLE_WHATSAPP !== 'true') {
+				try {
+					const { whatsappService } = await import('./services/whatsapp');
+					await whatsappService.initialize();
+					console.log('✅ WhatsApp Service (Baileys) initialized');
+				} catch (waError) {
+					console.error('❌ Failed to init WhatsApp:', waError);
+				}
+			}
+
+			// Initialize Realtime Monitoring Service
+			const { RealtimeMonitoringService } = await import('./services/monitoring/RealtimeMonitoringService');
+			const monitoringService = new RealtimeMonitoringService(io);
+			monitoringService.start();
+		} else {
+			console.log(`[Startup] ⏭️ Skipping background services on cluster instance ${process.env.NODE_APP_INSTANCE}`);
+		}
 
 		// Start server on fixed port
 		server.listen(port, '0.0.0.0', () => {

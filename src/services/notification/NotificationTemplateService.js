@@ -17,7 +17,7 @@ class NotificationTemplateService {
                 try {
                     template.variables = JSON.parse(template.variables);
                 }
-                catch {
+                catch (_a) {
                     template.variables = [];
                 }
             }
@@ -42,7 +42,7 @@ class NotificationTemplateService {
                 try {
                     template.variables = JSON.parse(template.variables);
                 }
-                catch {
+                catch (_a) {
                     template.variables = [];
                 }
             }
@@ -80,7 +80,7 @@ class NotificationTemplateService {
                     try {
                         t.variables = JSON.parse(t.variables);
                     }
-                    catch {
+                    catch (_a) {
                         t.variables = [];
                     }
                 }

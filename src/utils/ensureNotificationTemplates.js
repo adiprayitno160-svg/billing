@@ -72,8 +72,8 @@ async function ensureNotificationTemplates() {
                 notification_type: 'payment_received',
                 channel: 'whatsapp',
                 title_template: 'Pembayaran Diterima - {invoice_number}',
-                message_template: '✅ *Pembayaran Diterima*\n\nHalo {customer_name},\n\nTerima kasih! Pembayaran Anda telah kami terima.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Jumlah: Rp {amount}\n• Metode: {payment_method}\n• Tanggal: {payment_date}\n\n💰 *Informasi Saldo:*\n• Digunakan: Rp {balance_used}\n• Saldo Bertambah: Rp {excess_amount}\n• Saldo Akhir: Rp {new_balance}\n\n💡 *Terima Kasih:*\nLayanan internet Anda tetap aktif. Terima kasih atas kerja samanya!\n\nJika ada pertanyaan, silakan hubungi kami.\n\nTerima kasih,\nTim Support',
-                variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'payment_method', 'payment_date', 'balance_used', 'excess_amount', 'new_balance']),
+                message_template: '✅ *Pembayaran Diterima*\n\nHalo {customer_name},\n\nTerima kasih! Pembayaran Anda telah kami terima.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Tagihan: {billing_month}\n• Jumlah: Rp {amount}\n• Metode: {payment_method}\n• Tanggal: {payment_date}\n\n💡 *Terima Kasih:*\nLayanan internet Anda tetap aktif. Terima kasih atas kerja samanya!\n\nJika ada pertanyaan, silakan hubungi kami.\n\nTerima kasih,\nTim Support',
+                variables: JSON.stringify(['customer_name', 'invoice_number', 'billing_month', 'amount', 'payment_method', 'payment_date']),
                 priority: 'normal',
                 is_active: true
             },
@@ -230,6 +230,28 @@ async function ensureNotificationTemplates() {
                 message_template: '🔔 *PENGINGAT TAGIHAN INTERNET*\n\nHalo {customer_name},\n\nJangan lupa, tagihan periode *{period}* sebentar lagi jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Nominal: Rp {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Pembayaran via:*\n{bank_list}\n\nNikmati terus internet lancar tanpa kendala!\n\nTerima kasih,\nTim Support',
                 variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'period', 'bank_list']),
                 priority: 'normal',
+                is_active: true
+            },
+            {
+                template_code: 'service_activated',
+                template_name: 'Layanan Baru Aktif',
+                notification_type: 'service_activated',
+                channel: 'whatsapp',
+                title_template: 'Selamat! Layanan Internet Anda Telah Aktif',
+                message_template: '✅ *Layanan Internet Aktif*\n\nHalo {customer_name},\n\nKabar gembira! Layanan internet PPPoE Anda telah diaktifkan.\n\n📋 *Detail Akun:*\n🆔 Username: {pppoe_username}\n🔑 Password: {pppoe_password}\n📅 Tanggal Aktivasi: {activation_date}\n🗓️ Tagihan Selanjutnya: {next_block_date}\n\n💡 *Tips:*\n• Simpan username & password ini\n• Lakukan pembayaran tepat waktu agar layanan tidak terputus\n• Hubungi kami jika ada kendala\n\nTerima kasih atas dukungannya!\nTim Support',
+                variables: JSON.stringify(['customer_name', 'pppoe_username', 'pppoe_password', 'activation_date', 'next_block_date']),
+                priority: 'high',
+                is_active: true
+            },
+            {
+                template_code: 'payment_reminder',
+                template_name: 'Pengingat Pembayaran (PPPoE)',
+                notification_type: 'payment_reminder',
+                channel: 'whatsapp',
+                title_template: 'Pengingat: Batas Waktu Pembayaran',
+                message_template: '🔔 *PENGINGAT PEMBAYARAN*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet PPPoE Anda akan memasuki masa jatuh tempo.\n\n📋 *Informasi:*\n👤 Pelanggan: {customer_name} ({customer_code})\n🆔 Username: {pppoe_username}\n📅 Batas Akhir: {next_block_date}\n\n⚠️ *Penting:*\nMohon lakukan pembayaran sebelum tanggal *{next_block_date}* agar layanan internet Anda tidak terputus otomatis oleh sistem.\n\n💳 *Metode Pembayaran:*\nSilakan cek invoice terbaru Anda atau hubungi admin.\n\nTerima kasih,\nTim Support',
+                variables: JSON.stringify(['customer_name', 'customer_code', 'pppoe_username', 'next_block_date']),
+                priority: 'high',
                 is_active: true
             },
             {

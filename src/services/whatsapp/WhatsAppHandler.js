@@ -85,6 +85,7 @@ class WhatsAppHandler {
         return { phone, isLid, originalJid: remoteJid };
     }
     static async handleIncomingMessage(msg, service) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25;
         try {
             if (!msg.key.remoteJid)
                 return;
@@ -98,31 +99,31 @@ class WhatsAppHandler {
             const { phone: senderPhone, isLid, originalJid: senderJid } = this.resolveSenderIdentity(msg);
             await this.writeLog(`Processing message from Phone: ${senderPhone} (LID: ${isLid})`);
             // Get content safest way
-            const messageContent = msg.message?.conversation ||
-                msg.message?.extendedTextMessage?.text ||
-                msg.message?.imageMessage?.caption ||
-                msg.message?.ephemeralMessage?.message?.extendedTextMessage?.text ||
-                msg.message?.ephemeralMessage?.message?.conversation ||
+            const messageContent = ((_a = msg.message) === null || _a === void 0 ? void 0 : _a.conversation) ||
+                ((_c = (_b = msg.message) === null || _b === void 0 ? void 0 : _b.extendedTextMessage) === null || _c === void 0 ? void 0 : _c.text) ||
+                ((_e = (_d = msg.message) === null || _d === void 0 ? void 0 : _d.imageMessage) === null || _e === void 0 ? void 0 : _e.caption) ||
+                ((_j = (_h = (_g = (_f = msg.message) === null || _f === void 0 ? void 0 : _f.ephemeralMessage) === null || _g === void 0 ? void 0 : _g.message) === null || _h === void 0 ? void 0 : _h.extendedTextMessage) === null || _j === void 0 ? void 0 : _j.text) ||
+                ((_m = (_l = (_k = msg.message) === null || _k === void 0 ? void 0 : _k.ephemeralMessage) === null || _l === void 0 ? void 0 : _l.message) === null || _m === void 0 ? void 0 : _m.conversation) ||
                 '';
-            if (!messageContent && !msg.message?.imageMessage && !msg.message?.viewOnceMessage) {
+            if (!messageContent && !((_o = msg.message) === null || _o === void 0 ? void 0 : _o.imageMessage) && !((_p = msg.message) === null || _p === void 0 ? void 0 : _p.viewOnceMessage)) {
                 // await this.writeLog('Message content empty (and not straightforward image)');
             }
             const cleanText = messageContent.toLowerCase().trim();
             const keyword = cleanText.replace(/[^a-z0-9]/g, '');
             // Handle location message specifically
-            const isLocation = !!(msg.message?.locationMessage || msg.message?.ephemeralMessage?.message?.locationMessage);
-            const locationData = isLocation ? (msg.message?.locationMessage || msg.message?.ephemeralMessage?.message?.locationMessage) : null;
+            const isLocation = !!(((_q = msg.message) === null || _q === void 0 ? void 0 : _q.locationMessage) || ((_t = (_s = (_r = msg.message) === null || _r === void 0 ? void 0 : _r.ephemeralMessage) === null || _s === void 0 ? void 0 : _s.message) === null || _t === void 0 ? void 0 : _t.locationMessage));
+            const locationData = isLocation ? (((_u = msg.message) === null || _u === void 0 ? void 0 : _u.locationMessage) || ((_x = (_w = (_v = msg.message) === null || _v === void 0 ? void 0 : _v.ephemeralMessage) === null || _w === void 0 ? void 0 : _w.message) === null || _x === void 0 ? void 0 : _x.locationMessage)) : null;
             // Handle Media (Image) - Check for nested types
             const msgContent = msg.message;
-            let isImage = !!(msgContent?.imageMessage ||
-                msgContent?.viewOnceMessage?.message?.imageMessage ||
-                msgContent?.viewOnceMessageV2?.message?.imageMessage ||
-                msgContent?.viewOnceMessageV2Extension?.message?.imageMessage || // Add this missing type
-                msgContent?.ephemeralMessage?.message?.imageMessage ||
-                msgContent?.documentWithCaptionMessage?.message?.imageMessage ||
-                msgContent?.buttonsMessage?.imageMessage || // Add buttons message support
-                msgContent?.templateMessage?.hydratedFourRowTemplate?.imageMessage || // Add template message support
-                msgContent?.interactiveMessage?.header?.imageMessage // Add interactive message support
+            let isImage = !!((msgContent === null || msgContent === void 0 ? void 0 : msgContent.imageMessage) ||
+                ((_z = (_y = msgContent === null || msgContent === void 0 ? void 0 : msgContent.viewOnceMessage) === null || _y === void 0 ? void 0 : _y.message) === null || _z === void 0 ? void 0 : _z.imageMessage) ||
+                ((_1 = (_0 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.viewOnceMessageV2) === null || _0 === void 0 ? void 0 : _0.message) === null || _1 === void 0 ? void 0 : _1.imageMessage) ||
+                ((_3 = (_2 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.viewOnceMessageV2Extension) === null || _2 === void 0 ? void 0 : _2.message) === null || _3 === void 0 ? void 0 : _3.imageMessage) || // Add this missing type
+                ((_5 = (_4 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.ephemeralMessage) === null || _4 === void 0 ? void 0 : _4.message) === null || _5 === void 0 ? void 0 : _5.imageMessage) ||
+                ((_7 = (_6 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.documentWithCaptionMessage) === null || _6 === void 0 ? void 0 : _6.message) === null || _7 === void 0 ? void 0 : _7.imageMessage) ||
+                ((_8 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.buttonsMessage) === null || _8 === void 0 ? void 0 : _8.imageMessage) || // Add buttons message support
+                ((_10 = (_9 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.templateMessage) === null || _9 === void 0 ? void 0 : _9.hydratedFourRowTemplate) === null || _10 === void 0 ? void 0 : _10.imageMessage) || // Add template message support
+                ((_12 = (_11 = msgContent === null || msgContent === void 0 ? void 0 : msgContent.interactiveMessage) === null || _11 === void 0 ? void 0 : _11.header) === null || _12 === void 0 ? void 0 : _12.imageMessage) // Add interactive message support
             );
             console.log(`[DEBUG] Image detection: isImage=${isImage}`);
             if (msgContent) {
@@ -133,7 +134,7 @@ class WhatsAppHandler {
                 });
             }
             // Check for Document Message that is actually an image
-            if (!isImage && msgContent?.documentMessage) {
+            if (!isImage && (msgContent === null || msgContent === void 0 ? void 0 : msgContent.documentMessage)) {
                 const mime = msgContent.documentMessage.mimetype || '';
                 if (mime.startsWith('image/')) {
                     isImage = true;
@@ -185,9 +186,9 @@ class WhatsAppHandler {
                     await this.writeLog(`Image downloaded. Size: ${buffer.length} bytes. Starting AI Verification...`);
                     // Use Advanced Payment Verification
                     const result = await AdvancedPaymentVerificationService_1.AdvancedPaymentVerificationService.verifyPaymentAdvanced(buffer, customer.id);
-                    await this.writeLog(`AI Result: Success=${result.success}, Auto=${result.data?.autoApproved}`);
-                    if (result.success && result.data?.autoApproved) {
-                        const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
+                    await this.writeLog(`AI Result: Success=${result.success}, Auto=${(_13 = result.data) === null || _13 === void 0 ? void 0 : _13.autoApproved}`);
+                    if (result.success && ((_14 = result.data) === null || _14 === void 0 ? void 0 : _14.autoApproved)) {
+                        const amountStr = (_15 = result.data.extractedAmount) === null || _15 === void 0 ? void 0 : _15.toLocaleString('id-ID');
                         const invStr = result.data.invoiceNumber || 'Tagihan';
                         await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉`);
                         if (result.data.invoiceId) {
@@ -204,8 +205,8 @@ class WhatsAppHandler {
                     else {
                         // Manual Review
                         let reason = result.error || 'Bukti tidak dapat dibaca otomatis.';
-                        if (result.data?.amountMatch === 'mismatch' && result.data?.expectedAmount) {
-                            reason = `Nominal terbaca (Rp ${result.data.extractedAmount?.toLocaleString('id-ID')}) tidak sesuai dengan tagihan (Rp ${result.data.expectedAmount.toLocaleString('id-ID')}).`;
+                        if (((_16 = result.data) === null || _16 === void 0 ? void 0 : _16.amountMatch) === 'mismatch' && ((_17 = result.data) === null || _17 === void 0 ? void 0 : _17.expectedAmount)) {
+                            reason = `Nominal terbaca (Rp ${(_18 = result.data.extractedAmount) === null || _18 === void 0 ? void 0 : _18.toLocaleString('id-ID')}) tidak sesuai dengan tagihan (Rp ${result.data.expectedAmount.toLocaleString('id-ID')}).`;
                         }
                         else if (result.data && result.data.confidence > 50) {
                             reason = 'Menunggu verifikasi admin (Manual Review).';
@@ -213,8 +214,8 @@ class WhatsAppHandler {
                         // Save Manual Verification
                         try {
                             const imageBase64 = buffer.toString('base64');
-                            const extractedAmount = result.data?.extractedAmount || 0;
-                            const expectedAmount = result.data?.expectedAmount || 0;
+                            const extractedAmount = ((_19 = result.data) === null || _19 === void 0 ? void 0 : _19.extractedAmount) || 0;
+                            const expectedAmount = ((_20 = result.data) === null || _20 === void 0 ? void 0 : _20.expectedAmount) || 0;
                             await pool_1.databasePool.query(`INSERT INTO manual_payment_verifications (customer_id, status, image_data, image_mimetype, extracted_amount, expected_amount, reason, created_at) VALUES (?, 'pending', ?, 'image/jpeg', ?, ?, ?, NOW())`, [customer.id, imageBase64, extractedAmount, expectedAmount, reason]);
                             // Broadcast to Admin
                             const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
@@ -396,10 +397,10 @@ Ketik *Menu* untuk memulai.`);
                         reuploadRequest: sock.updateMediaMessage
                     });
                     const result = await AdvancedPaymentVerificationService_1.AdvancedPaymentVerificationService.verifyPaymentAdvanced(buffer, customer.id);
-                    console.log(`[WhatsApp] 🤖 AI Verification result for ${customer.name}: success=${result.success}, autoApproved=${result.data?.autoApproved}, stage=${result.stage}`);
-                    if (result.success && result.data?.autoApproved) {
+                    console.log(`[WhatsApp] 🤖 AI Verification result for ${customer.name}: success=${result.success}, autoApproved=${(_21 = result.data) === null || _21 === void 0 ? void 0 : _21.autoApproved}, stage=${result.stage}`);
+                    if (result.success && ((_22 = result.data) === null || _22 === void 0 ? void 0 : _22.autoApproved)) {
                         // Auto Approved
-                        const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
+                        const amountStr = (_23 = result.data.extractedAmount) === null || _23 === void 0 ? void 0 : _23.toLocaleString('id-ID');
                         const invStr = result.data.invoiceNumber || 'Tagihan';
                         // 1. Send Text Confirmation
                         await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*
@@ -431,8 +432,8 @@ _Invoice lunas dilampirkan dibawah ini..._`);
                         // SAVE TO MANUAL VERIFICATION TABLE
                         try {
                             const imageBase64 = buffer.toString('base64');
-                            const extractedAmount = result.data?.extractedAmount || 0;
-                            const expectedAmount = result.data?.expectedAmount || 0;
+                            const extractedAmount = ((_24 = result.data) === null || _24 === void 0 ? void 0 : _24.extractedAmount) || 0;
+                            const expectedAmount = ((_25 = result.data) === null || _25 === void 0 ? void 0 : _25.expectedAmount) || 0;
                             await pool_1.databasePool.query(`INSERT INTO manual_payment_verifications 
                                  (customer_id, status, image_data, image_mimetype, extracted_amount, expected_amount, reason, created_at)
                                  VALUES (?, 'pending', ?, 'image/jpeg', ?, ?, ?, NOW())`, [customer.id, imageBase64, extractedAmount, expectedAmount, reason]);
@@ -456,7 +457,7 @@ Data Anda telah diteruskan ke Admin untuk pengecekan manual. Mohon tunggu konfir
                 }
                 catch (err) {
                     console.error('Image processing error:', err);
-                    const errorMessage = err?.message || String(err);
+                    const errorMessage = (err === null || err === void 0 ? void 0 : err.message) || String(err);
                     if (errorMessage.includes('not enabled') || errorMessage.includes('API key')) {
                         await service.sendMessage(senderJid, 'Fitur verifikasi otomatis belum diaktifkan oleh Admin. Mohon tunggu verifikasi manual.');
                     }
@@ -646,7 +647,7 @@ Ketik *YA* untuk konfirmasi.`;
                         const { getMikrotikConfig } = await Promise.resolve().then(() => __importStar(require('../../utils/mikrotikConfigHelper')));
                         const { RouterOSAPI } = await Promise.resolve().then(() => __importStar(require('node-routeros')));
                         const config = await getMikrotikConfig();
-                        const configWithTls = config ? { ...config, use_tls: config.use_tls || false } : null;
+                        const configWithTls = config ? Object.assign(Object.assign({}, config), { use_tls: config.use_tls || false }) : null;
                         if (configWithTls) {
                             const api = new RouterOSAPI({
                                 host: configWithTls.host,
@@ -992,7 +993,7 @@ _Jam Operasional: 08:00 - 17:00_`);
         }
         switch (session.step) {
             case 'name':
-                await WhatsAppSessionService_1.WhatsAppSessionService.updateSession(phone, { step: 'phone', data: { ...session.data, name: text } });
+                await WhatsAppSessionService_1.WhatsAppSessionService.updateSession(phone, { step: 'phone', data: Object.assign(Object.assign({}, session.data), { name: text }) });
                 await service.sendMessage(jid, `Halo *${text}*! Silakan masukkan *Nomor HP* Anda yang aktif (WA):\n\nContoh: 08123456789\n\n_Nomor ini digunakan tim teknisi untuk menghubungi Anda._`);
                 break;
             case 'phone':
@@ -1002,11 +1003,11 @@ _Jam Operasional: 08:00 - 17:00_`);
                     await service.sendMessage(jid, '⚠️ Nomor HP tidak valid. Mohon masukkan nomor yang benar (9-15 digit).');
                     return;
                 }
-                await WhatsAppSessionService_1.WhatsAppSessionService.updateSession(phone, { step: 'address', data: { ...session.data, phone: cleanPhone } });
+                await WhatsAppSessionService_1.WhatsAppSessionService.updateSession(phone, { step: 'address', data: Object.assign(Object.assign({}, session.data), { phone: cleanPhone }) });
                 await service.sendMessage(jid, 'Terima kasih. Sekarang masukkan *Alamat Lengkap* lokasi pemasangan (termasuk RT/RW/Dusun):');
                 break;
             case 'address':
-                await WhatsAppSessionService_1.WhatsAppSessionService.updateSession(phone, { step: 'location', data: { ...session.data, address: text } });
+                await WhatsAppSessionService_1.WhatsAppSessionService.updateSession(phone, { step: 'location', data: Object.assign(Object.assign({}, session.data), { address: text }) });
                 await service.sendMessage(jid, 'Terakhir, mohon kirimkan *Lokasi (Share Location)* Anda saat ini agar teknisi kami mudah menemukan lokasi pemasangan.\n\n(Klik ikon klip kertas/tambah 📎 -> Lokasi/Location -> Kirim lokasi saat ini 📍)');
                 break;
             case 'location':
@@ -1014,11 +1015,7 @@ _Jam Operasional: 08:00 - 17:00_`);
                     await service.sendMessage(jid, 'Mohon kirimkan format *Lokasi (Maps)*, bukan teks.\nAtau ketik *Batal* untuk membatalkan.');
                     return;
                 }
-                const userData = {
-                    ...session.data,
-                    latitude: location.degreesLatitude,
-                    longitude: location.degreesLongitude
-                };
+                const userData = Object.assign(Object.assign({}, session.data), { latitude: location.degreesLatitude, longitude: location.degreesLongitude });
                 try {
                     // Save to registration_requests table
                     await pool_1.databasePool.query('INSERT INTO registration_requests (name, address, phone, latitude, longitude, status) VALUES (?, ?, ?, ?, ?, ?)', [userData.name, userData.address, userData.phone, userData.latitude, userData.longitude, 'pending']);
@@ -1124,6 +1121,7 @@ Atau hubungi Admin untuk bantuan lebih lanjut.`);
      * Process payment image for OCR verification
      */
     static async processPaymentImage(buffer, customer, service, senderJid) {
+        var _a;
         try {
             console.log(`[WhatsAppHandler] 🤖 Processing payment image for customer: ${customer.name}`);
             // Import payment verification service
@@ -1138,7 +1136,7 @@ Atau hubungi Admin untuk bantuan lebih lanjut.`);
             if (result.success) {
                 await service.sendMessage(senderJid, `✅ *VERIFIKASI BERHASIL!*
                 
-Pembayaran sebesar *Rp ${result.amount?.toLocaleString('id-ID')}* telah berhasil diverifikasi.
+Pembayaran sebesar *Rp ${(_a = result.amount) === null || _a === void 0 ? void 0 : _a.toLocaleString('id-ID')}* telah berhasil diverifikasi.
                 
 Status: *${result.invoiceStatus}*
 Nomor Invoice: *${result.invoiceNumber}*

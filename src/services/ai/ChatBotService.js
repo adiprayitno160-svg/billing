@@ -15,7 +15,7 @@ class ChatBotService {
         if (!apiKey)
             throw new Error('API Key missing (Check .env or DB Settings)');
         const settings = await AISettingsService_1.AISettingsService.getSettings();
-        const modelName = settings?.model || "gemini-1.5-flash"; // Fallback to 1.5-flash
+        const modelName = (settings === null || settings === void 0 ? void 0 : settings.model) || "gemini-1.5-flash"; // Fallback to 1.5-flash
         console.log(`[ChatBot] Initializing with model: ${modelName}`);
         this.genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({ model: modelName });

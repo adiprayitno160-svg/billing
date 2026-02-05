@@ -232,7 +232,18 @@ export class UnifiedNotificationService {
     let skipped = 0;
 
     try {
-      // Build query
+      // 1. First, cleanup any stuck processing notifications (those that have been in processing status for > 15 mins)
+      // This handles cases where a worker crashed or was restarted mid-process
+      await connection.query(
+        `UPDATE unified_notifications_queue 
+         SET status = 'pending', 
+             error_message = 'Process timed out or worker restarted',
+             updated_at = NOW() 
+         WHERE status = 'processing' 
+         AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)`
+      );
+
+      // Build query for pending notifications
       let query = `SELECT * FROM unified_notifications_queue 
                    WHERE status = 'pending' 
                    AND (scheduled_for IS NULL OR scheduled_for <= NOW())`;
@@ -253,17 +264,9 @@ export class UnifiedNotificationService {
                LIMIT ?`;
       params.push(limit);
 
-      const [[{ dbNow }]] = await connection.query<RowDataPacket[]>('SELECT NOW() as dbNow');
-      const [[{ totalPending }]] = await connection.query<RowDataPacket[]>('SELECT COUNT(*) as totalPending FROM unified_notifications_queue WHERE status = "pending"');
-
-      console.log(`[UnifiedNotification] 🕒 DB Time: ${dbNow}, Total Pending: ${totalPending}`);
-
-      const [rawPending] = await connection.query<RowDataPacket[]>('SELECT id, status, scheduled_for, NOW() as current_db_now FROM unified_notifications_queue WHERE status = "pending" LIMIT 5');
-      console.log(`[UnifiedNotification] 🔍 Raw Pending Debug:`, JSON.stringify(rawPending));
-
       const [notifications] = await connection.query<RowDataPacket[]>(query, params);
 
-      console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process (with scheduled filter)`);
+      console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
 
       if (notifications.length === 0) {
         return { sent: 0, failed: 0, skipped: 0 };
@@ -344,7 +347,8 @@ export class UnifiedNotificationService {
             errorMessage.includes('QR code') ||
             errorMessage.includes('Session conflict') ||
             errorMessage.includes('Stream Errored') ||
-            errorMessage.includes('Connection Closed');
+            errorMessage.includes('Connection Closed') ||
+            errorMessage.includes('Timeout'); // Added Timeout as per instruction snippet
 
           console.error(`[UnifiedNotification] ❌ Error processing notification ID: ${notif.id}:`, {
             error: errorMessage,
@@ -361,10 +365,11 @@ export class UnifiedNotificationService {
             console.log(`[UnifiedNotification] ⏳ Connection error for ID ${notif.id}. Preserving retry count. Rescheduling...`);
             await connection.query(
               `UPDATE unified_notifications_queue 
-                SET scheduled_for = DATE_ADD(NOW(), INTERVAL 5 MINUTE), status = 'pending'
+                SET scheduled_for = DATE_ADD(NOW(), INTERVAL 5 MINUTE), status = 'pending', error_message = ?
                 WHERE id = ?`,
-              [notif.id]
+              [`Connection issue: ${errorMessage}`, notif.id]
             );
+            skipped++; // Mark as skipped for this run, will be re-queued
           } else {
             // Normal error (invalid number, template error, etc) - Increment retry
             const retryCount = (notif.retry_count || 0) + 1;
