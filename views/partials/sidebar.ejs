@@ -1114,12 +1114,18 @@
 
             newToggle.addEventListener('click', function (e) {
                 e.preventDefault();
+                e.stopPropagation(); // Stop bubbling
+                console.log('Sidebar menu clicked:', this.getAttribute('data-menu'));
+
                 const menuName = this.getAttribute('data-menu');
                 if (menuName) {
                     toggleSidebarMenu(menuName);
                 }
             });
         });
+
+        // Expose to window for debugging/fallback
+        window.toggleSidebarMenu = toggleSidebarMenu;
 
         // Open active menu automatically
         if (currentPath.includes('/customers')) toggleSidebarMenu('customers');
