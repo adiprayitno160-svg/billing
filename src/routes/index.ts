@@ -3518,9 +3518,22 @@ router.post('/packages/static-ip/clients/:id/edit', postStaticIpClientUpdate);
 router.post('/packages/static-ip/clients/:id/delete', postStaticIpClientDelete);
 // Note: Route umum /customers/edit-static-ip/:id juga menghandle update
 
+const processingStaticIpLimits = new Set<string>();
+
 router.post('/customers/new-static-ip', async (req, res) => {
+    let processLockKey: string | null = null;
     console.log('=== ROUTE HIT: POST /customers/new-static-ip ===');
     try {
+        // Anti Double-Submit Lock (Server Side)
+        if (req.body.client_name) {
+            processLockKey = String(req.body.client_name).trim().toLowerCase();
+            if (processingStaticIpLimits.has(processLockKey)) {
+                console.warn(`[DoubleSubmit] Blocked duplicate request for: ${processLockKey}`);
+                throw new Error(`Permintaan untuk "${req.body.client_name}" sedang diproses. Mohon tunggu, jangan klik tombol berkali-kali.`);
+            }
+            processingStaticIpLimits.add(processLockKey);
+        }
+
         console.log('=== NEW STATIC IP CLIENT REQUEST ===');
         console.log('Request body:', req.body);
         const {
@@ -3580,7 +3593,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
         const connVal = await databasePool.getConnection();
         try {
             const [existingNameRows] = await connVal.execute(
-                'SELECT id, name FROM customers WHERE name = ?',
+                'SELECT id, name FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
                 [client_name.trim()]
             );
 
@@ -3937,8 +3950,10 @@ router.post('/customers/new-static-ip', async (req, res) => {
             }
         }
 
+        if (processLockKey) processingStaticIpLimits.delete(processLockKey);
         res.redirect('/customers/list?success=static_ip_customer_created');
     } catch (e) {
+        if (processLockKey) processingStaticIpLimits.delete(processLockKey);
         console.error('Error creating static IP client:', e);
         const packages = await listStaticIpPackages();
         const cfg = await getMikrotikConfig();
