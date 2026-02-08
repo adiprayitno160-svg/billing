@@ -81,7 +81,7 @@ export class CompensationService {
                     await UnifiedNotificationService.queueNotification({
                         customer_id: request.customerId,
                         notification_type: 'broadcast', // Reuse broadcast or specific type
-                        channel: 'whatsapp',
+                        channels: ['whatsapp'],
                         variables: {
                             customer_name: subscription.name,
                             custom_message: `Mohon maaf atas gangguan layanan Anda. \n\nKami telah menambahkan kompensasi sebesar *Rp ${compensationAmount.toLocaleString('id-ID')}* (${request.days} hari) ke saldo akun Anda. Potongan ini akan otomatis digunakan pada tagihan berikutnya.\n\nTerima kasih atas pengertiannya.`
