@@ -87,7 +87,15 @@ export class NotificationScheduler {
       }
     });
 
-
+    // Auto-retry failed notifications every hour (only those with retry_count < max_retries)
+    cron.schedule('0 * * * *', async () => {
+      try {
+        console.log('[NotificationScheduler] 🔄 Auto-retrying failed notifications...');
+        await this.retryFailedNotifications();
+      } catch (error) {
+        console.error('[NotificationScheduler] Error retrying failed notifications:', error);
+      }
+    });
 
     console.log('✅ Notification scheduler initialized');
   }
@@ -192,6 +200,35 @@ export class NotificationScheduler {
       this.cronJob.stop();
       this.cronJob = null;
       console.log('Notification scheduler stopped');
+    }
+  }
+
+  /**
+   * Retry failed notifications that haven't exceeded max retries
+   */
+  private static async retryFailedNotifications(): Promise<void> {
+    const connection = await databasePool.getConnection();
+    try {
+      // Reset failed notifications where retry_count < max_retries
+      // Only retry those that have a valid customer_id (skip orphaned notifications)
+      const [result] = await connection.query<any>(
+        `UPDATE unified_notifications_queue 
+         SET status = 'pending', 
+             retry_count = retry_count + 1,
+             error_message = CONCAT(IFNULL(error_message, ''), ' [Auto-retry at ', NOW(), ']'),
+             updated_at = NOW()
+         WHERE status = 'failed' 
+         AND retry_count < max_retries
+         AND customer_id IS NOT NULL`
+      );
+
+      if (result.affectedRows > 0) {
+        console.log(`[NotificationScheduler] ✅ Reset ${result.affectedRows} failed notifications for retry`);
+      }
+    } catch (error) {
+      console.error('[NotificationScheduler] ❌ Failed to retry notifications:', error);
+    } finally {
+      connection.release();
     }
   }
 
