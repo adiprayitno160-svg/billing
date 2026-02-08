@@ -215,17 +215,9 @@ export class UnifiedNotificationService {
 
     const connection = await databasePool.getConnection();
 
-    // Check WhatsApp status first to prevent mass failures
-    const waStatus = whatsappService.getStatus();
-    if (!waStatus.ready) {
-      console.log(`[UnifiedNotification] ⚠️ WhatsApp not ready (Reconnecting: ${waStatus.reconnectAttempts}). Pausing queue processing.`);
-      try {
-        await whatsappService.waitForReady(5000); // Try waiting briefly
-      } catch (e) {
-        console.log(`[UnifiedNotification] ⏳ WhatsApp still not ready. Skipping queue processing this turn.`);
-        return { sent: 0, failed: 0, skipped: 0 };
-      }
-    }
+    // WhatsApp status check removed to allow per-item handling
+    // This prevents the entire queue from being blocked if WA is reconnecting
+    // Individual sendNotification calls will handle the wait/retry logic
 
     let sent = 0;
     let failed = 0;
@@ -444,8 +436,8 @@ export class UnifiedNotificationService {
         if (!whatsappStatus.ready) {
           console.warn(`[UnifiedNotification] ⚠️ WhatsApp not ready, waiting for connection...`);
           try {
-            // Wait up to 15 seconds for WhatsApp to become ready
-            await whatsappService.waitForReady(15000);
+            // Wait up to 5 seconds for WhatsApp to become ready
+            await whatsappService.waitForReady(5000);
             console.log(`[UnifiedNotification] ✅ WhatsApp is now ready.`);
           } catch (err: any) {
             console.error(`[UnifiedNotification] ❌ WhatsApp wait failed: ${err.message}`);
