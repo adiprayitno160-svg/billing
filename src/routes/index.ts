@@ -116,7 +116,8 @@ import {
     // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
     testMikrotikAddressLists,
     getActivePppoeConnections,
-    viewRegistrationRequests
+    viewRegistrationRequests,
+    addCompensation
 } from '../controllers/customerController';
 import { GenieacsService } from '../services/genieacs/GenieacsService';
 import {
@@ -1875,6 +1876,7 @@ router.get('/customers/', getCustomerList);
 router.get('/customers', getCustomerList);
 router.get('/customers/export', exportCustomersToExcel);
 router.get('/customers/template', getImportTemplate);
+router.post('/customers/:id/compensation', addCompensation);
 
 // Test import route - INLINE (tidak pakai controller terpisah)
 router.get('/test-import', (req, res) => {

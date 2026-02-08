@@ -379,7 +379,19 @@ export class InvoiceService {
                             ppnAmount = Math.round(taxBase * (ppnRate / 100));
                         }
 
-                        const totalAmount = subtotal + deviceFee + ppnAmount + carryOverAmount;
+                        let compensationTotal = 0;
+                        let compensations: any[] = [];
+                        try {
+                            const [compRows] = await databasePool.query<RowDataPacket[]>(`
+                                SELECT id, duration_days, amount, notes 
+                                FROM customer_compensations 
+                                WHERE customer_id = ? AND status = 'pending'
+                            `, [subscription.customer_id]);
+                            compensations = compRows as any[];
+                            compensationTotal = compensations.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
+                        } catch (e) { console.error('Error fetching compensations:', e); }
+
+                        const totalAmount = Math.max(0, subtotal + deviceFee + ppnAmount + carryOverAmount - compensationTotal);
 
                         // Apply balance deduction
                         let accountBalance = parseFloat(subscription.account_balance || 0);
@@ -399,7 +411,7 @@ export class InvoiceService {
                             device_fee: deviceFee,
                             total_amount: totalAmount,
                             paid_amount: amountFromBalance,
-                            discount_amount: 0,
+                            discount_amount: compensationTotal,
                             notes: carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : undefined
                         };
 
@@ -418,8 +430,30 @@ export class InvoiceService {
                             items.push({ description: `Sisa Hutang Bulan Sebelumnya - ${period}`, quantity: 1, unit_price: carryOverAmount, total_price: carryOverAmount });
                         }
 
+                        // Add compensation line items
+                        if (compensations.length > 0) {
+                            for (const comp of compensations) {
+                                items.push({
+                                    description: `Restitusi Gangguan (${comp.duration_days} Hari) - ${comp.notes || ''}`,
+                                    quantity: 1,
+                                    unit_price: -parseFloat(comp.amount),
+                                    total_price: -parseFloat(comp.amount)
+                                });
+                            }
+                        }
+
                         const invoiceId = await this.createInvoice(invoiceData, items);
                         invoiceIds.push(invoiceId);
+
+                        // Update status compensations to applied
+                        if (compensations.length > 0) {
+                            const compIds = compensations.map(c => c.id);
+                            await databasePool.query(`
+                                UPDATE customer_compensations 
+                                SET status = 'applied', applied_invoice_id = ?, applied_at = NOW() 
+                                WHERE id IN (?)
+                            `, [invoiceId, compIds]);
+                        }
 
                         // Finalize balance and carry over
                         if (amountFromBalance > 0) {

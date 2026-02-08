@@ -17,7 +17,139 @@ export interface CompensationRequest {
 
 export class CompensationService {
     /**
-     * Apply compensation to a customer
+     * Register a new compensation request (Restitution)
+     * Handles logic for immediate application to current invoice OR pending for next invoice
+     */
+    static async registerCompensation(request: CompensationRequest): Promise<void> {
+        const connection = await databasePool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            // 1. Get active subscription to calculate daily rate
+            const [subscriptionRows] = await connection.query<RowDataPacket[]>(
+                `SELECT s.*, c.billing_mode, c.name, c.phone 
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 WHERE s.customer_id = ? AND s.status = 'active'`,
+                [request.customerId]
+            );
+
+            let dailyRate = 0;
+            let compensationAmount = 0;
+
+            if (subscriptionRows.length > 0) {
+                const subscription = subscriptionRows[0];
+                dailyRate = parseFloat(subscription.price) / 30;
+                compensationAmount = Math.ceil(dailyRate * request.days);
+            } else {
+                // Fallback: Get last invoice amount
+                const [lastInvoice] = await connection.query<RowDataPacket[]>(
+                    `SELECT total_amount FROM invoices WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1`,
+                    [request.customerId]
+                );
+
+                const baseAmount = lastInvoice.length > 0 ? parseFloat(lastInvoice[0].total_amount) : 150000;
+                dailyRate = baseAmount / 30;
+                compensationAmount = Math.ceil(dailyRate * request.days);
+            }
+
+            // 2. Check Date Logic
+            const today = new Date();
+            const currentDay = today.getDate();
+            const currentMonth = today.getMonth() + 1;
+            const currentYear = today.getFullYear();
+            const currentPeriod = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+
+            let appliedInvoiceId: number | null = null;
+            let status = 'pending';
+
+            // If before 10th, try to apply to CURRENT month's invoice
+            if (currentDay <= 10) {
+                const [invoiceRows] = await connection.query<RowDataPacket[]>(
+                    `SELECT id, total_amount, remaining_amount, status 
+                     FROM invoices 
+                     WHERE customer_id = ? AND period = ? AND status IN ('sent', 'partial', 'draft')`,
+                    [request.customerId, currentPeriod]
+                );
+
+                if (invoiceRows.length > 0) {
+                    const invoice = invoiceRows[0];
+                    appliedInvoiceId = invoice.id;
+                    status = 'applied';
+
+                    // Apply directly to invoice
+                    await this.applyToInvoice(connection, invoice.id, compensationAmount, request.days, request.reason);
+                }
+            }
+
+            // 3. Save Record
+            await connection.query(
+                `INSERT INTO customer_compensations (
+                    customer_id, duration_days, amount, notes, status, applied_invoice_id, created_by, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+                [
+                    request.customerId,
+                    request.days,
+                    compensationAmount,
+                    request.reason,
+                    status,
+                    appliedInvoiceId,
+                    request.adminId || null
+                ]
+            );
+
+            await connection.commit();
+
+            // Notify if applied immediately
+            // if (status === 'applied') { ... }
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Helper to apply compensation directly to an existing invoice
+     */
+    private static async applyToInvoice(connection: any, invoiceId: number, amount: number, days: number, reason: string): Promise<void> {
+        // Add invoice item (negative value)
+        // Note: Invoice items usually sum up to total. If we add negative item, total decreases.
+        await connection.query(
+            `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price)
+             VALUES (?, ?, 1, ?, ?)`,
+            [
+                invoiceId,
+                `Kompensasi Gangguan (${days} Hari) - ${reason}`,
+                -amount,
+                -amount
+            ]
+        );
+
+        // Update Invoice Totals
+        // Reduce remaining_amount and total_amount
+        await connection.query(
+            `UPDATE invoices 
+             SET total_amount = total_amount - ?,
+                 remaining_amount = GREATEST(0, remaining_amount - ?)
+             WHERE id = ?`,
+            [amount, amount, invoiceId]
+        );
+
+        // Check if fully paid after reduction (if remaining became 0)
+        await connection.query(
+            `UPDATE invoices 
+             SET status = CASE WHEN remaining_amount <= 0 THEN 'paid' ELSE status END
+             WHERE id = ?`,
+            [invoiceId]
+        );
+    }
+
+    /**
+     * Apply compensation to a customer (Legacy/Balance Credit method)
      * This extends the current subscription period or adds a credit/discount to the next invoice
      */
     static async applyCompensation(request: CompensationRequest): Promise<void> {

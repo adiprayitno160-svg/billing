@@ -437,6 +437,21 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
             invoices = [];
         }
 
+        // Get customer compensations
+        let compensations: RowDataPacket[] = [];
+        try {
+            const [compResult] = await databasePool.query<RowDataPacket[]>(
+                `SELECT * FROM customer_compensations 
+                 WHERE customer_id = ? 
+                 ORDER BY created_at DESC`,
+                [customerId]
+            );
+            compensations = Array.isArray(compResult) ? compResult : [];
+        } catch (compError) {
+            console.error('Error fetching compensations:', compError);
+            compensations = [];
+        }
+
         // Get technician jobs history
         let technicianJobs: RowDataPacket[] = [];
         try {
@@ -505,6 +520,7 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
                 static_ip_package: customer.connection_type === 'static_ip' ? packageData : null
             },
             invoices: invoices || [],
+            compensations: compensations || [],
             technicianJobs: technicianJobs || [],
             deviceDetails,
             currentPath: `/customers/${customerId}`
@@ -2178,5 +2194,44 @@ export const viewRegistrationRequests = async (req: Request, res: Response) => {
         console.error('Error viewing registration requests:', error);
         req.flash('error', 'Gagal memuat halaman permintaan registrasi.');
         res.redirect('/customers/list');
+    }
+};
+
+/**
+ * Add compensation (restitution) for customer
+ */
+export const addCompensation = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) return res.redirect('/customers/list');
+
+    try {
+        const { days, reason } = req.body;
+
+        if (!days || !reason) {
+            req.flash('error', 'Semua field harus diisi');
+            return res.redirect(`/customers/${id}`);
+        }
+
+        const { CompensationService } = await import('../services/billing/CompensationService');
+
+        await CompensationService.registerCompensation({
+            customerId: parseInt(id),
+            days: parseInt(days),
+            reason: reason,
+            adminId: (req as any).user?.id,
+            adminName: (req as any).user?.username
+        });
+
+        // Notification
+        // TODO: Implement 'compensation_applied' notification type
+        console.log(`[Compensation] Restitution registered for customer ${id}`);
+
+        req.flash('success', 'Restitusi berhasil didaftarkan');
+        res.redirect(`/customers/${id}`);
+
+    } catch (error: any) {
+        console.error('Error adding compensation:', error);
+        req.flash('error', 'Gagal menambahkan restitusi: ' + error.message);
+        res.redirect(`/customers/${id}`);
     }
 };
