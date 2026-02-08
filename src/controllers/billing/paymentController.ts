@@ -339,11 +339,15 @@ export class PaymentController {
                 if (manualDiscountAmount > 0) {
                     // Check if not included in SLA (to avoid double counting if logic changes)
                     // Here we assume total discount = sla + manual
+                    const discountType = (manualDiscountType === 'downtime' || manualDiscountType === 'fixed' || manualDiscountType === 'percentage')
+                        ? manualDiscountType
+                        : 'manual';
+
                     await conn.execute(`
                         INSERT INTO discounts (
                             invoice_id, discount_type, amount, reason, created_at
-                        ) VALUES (?, 'manual', ?, ?, NOW())
-                    `, [invoice_id, manualDiscountAmount, discountReason || 'Diskon Manual']);
+                        ) VALUES (?, ?, ?, ?, NOW())
+                    `, [invoice_id, discountType, manualDiscountAmount, discountReason || 'Diskon Manual']);
                 }
             }
 
@@ -554,11 +558,15 @@ export class PaymentController {
 
                 // Manual Discount
                 if (manualDiscountAmount > 0) {
+                    const discountType = (req.body.manual_discount_type === 'downtime' || req.body.manual_discount_type === 'fixed' || req.body.manual_discount_type === 'percentage')
+                        ? req.body.manual_discount_type
+                        : 'manual';
+
                     await conn.execute(`
                         INSERT INTO discounts (
                             invoice_id, discount_type, amount, reason, created_at
-                        ) VALUES (?, 'manual', ?, ?, NOW())
-                    `, [invoice_id, manualDiscountAmount, discountReason || 'Diskon Manual']);
+                        ) VALUES (?, ?, ?, ?, NOW())
+                    `, [invoice_id, discountType, manualDiscountAmount, discountReason || 'Diskon Manual']);
                 }
             }
 
