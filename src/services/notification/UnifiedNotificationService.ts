@@ -235,6 +235,16 @@ export class UnifiedNotificationService {
          AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)`
       );
 
+      // 1b. Cleanup very old pending notifications (expired)
+      await connection.query(
+        `UPDATE unified_notifications_queue 
+         SET status = 'failed', 
+             error_message = 'Notification expired (older than 14 days)',
+             updated_at = NOW() 
+         WHERE status = 'pending' 
+         AND (created_at < DATE_SUB(NOW(), INTERVAL 14 DAY))`
+      );
+
       // Build query for pending notifications
       let query = `SELECT * FROM unified_notifications_queue 
                    WHERE status = 'pending' 
@@ -578,6 +588,11 @@ export class UnifiedNotificationService {
         variables: {
           invoice_number: invoice.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+          subtotal: NotificationTemplateService.formatCurrency(parseFloat(invoice.subtotal || 0)),
+          discount_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0)),
+          billing_summary: `Subtotal: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.subtotal || 0))}\n` +
+            (parseFloat(invoice.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0))}\n` : '') +
+            `Total: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount))}`,
           due_date: NotificationTemplateService.formatDate(dueDate),
           period: invoice.period,
           bank_name: bank.bankName,
@@ -642,6 +657,13 @@ export class UnifiedNotificationService {
         variables: {
           invoice_number: invoice.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+          total_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+          remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+          subtotal: NotificationTemplateService.formatCurrency(parseFloat(invoice.subtotal || 0)),
+          discount_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0)),
+          billing_summary: `Total Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount))}\n` +
+            (parseFloat(invoice.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0))}\n` : '') +
+            `Sisa per tanggal hari ini: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount))}`,
           due_date: NotificationTemplateService.formatDate(dueDate),
           days_overdue: daysOverdue,
           bank_name: bank.bankName,
@@ -767,7 +789,7 @@ export class UnifiedNotificationService {
       const { getBillingMonth } = await import('../../utils/periodHelper');
 
       const [paymentRows] = await connection.query<RowDataPacket[]>(
-        `SELECT p.*, i.invoice_number, i.customer_id, i.total_amount, i.remaining_amount, i.period, i.due_date, i.notes as invoice_notes,
+        `SELECT p.*, i.invoice_number, i.customer_id, i.subtotal, i.discount_amount, i.total_amount, i.remaining_amount, i.period, i.due_date, i.notes as invoice_notes,
                 c.name as customer_name, c.customer_code
          FROM payments p
          JOIN invoices i ON p.invoice_id = i.id
@@ -815,6 +837,12 @@ export class UnifiedNotificationService {
           billing_month: billingMonth,
           amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
           paid_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
+          subtotal: NotificationTemplateService.formatCurrency(parseFloat(payment.subtotal || 0)),
+          discount_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0)),
+          billing_summary: `Total Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount))}\n` +
+            (parseFloat(payment.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0))}\n` : '') +
+            `Jumlah Bayar: ${NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
+            `Sisa Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(payment.remaining_amount))}`,
           total_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount)),
           remaining_amount: NotificationTemplateService.formatCurrency(remainingAmount),
           payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
