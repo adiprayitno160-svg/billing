@@ -35,8 +35,19 @@
                             <tbody>
                                 <% (packages || []).forEach(function(pkg){ %>
                                     <tr class="border-t border-slate-100">
-                                        <td class="py-2 pr-4 font-medium">
-                                            <%= pkg.name %>
+                                        <td class="py-2 pr-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-medium">
+                                                    <%= pkg.name %>
+                                                </span>
+                                                <% if ((pkg.max_clients || 1)> 1) { %>
+                                                    <span
+                                                        class="px-1.5 py-0.5 text-[10px] rounded bg-purple-100 text-purple-700 border border-purple-200 font-bold"
+                                                        title="Shared Bandwidth: <%= pkg.max_clients %> pelanggan share <%= pkg.rate_limit_rx || '?' %>">
+                                                        SHARE
+                                                    </span>
+                                                    <% } %>
+                                            </div>
                                         </td>
                                         <td class="py-2 pr-4">
                                             <%= pkg.profile_name || '-' %>
@@ -45,16 +56,37 @@
                                         </td>
                                         <td class="py-2 pr-4">
                                             <% if (pkg.rate_limit_rx && pkg.rate_limit_tx) { %>
-                                                <%= pkg.rate_limit_rx %>/<%= pkg.rate_limit_tx %> Mbps
-                                                        <% } else { %>
-                                                            -
-                                                            <% } %>
+                                                <div class="flex flex-col">
+                                                    <span>
+                                                        <%= pkg.rate_limit_rx %>/<%= pkg.rate_limit_tx %>
+                                                    </span>
+                                                    <% if ((pkg.max_clients || 1)> 1) { %>
+                                                        <span class="text-[10px] text-slate-500">
+                                                            Min: <%- (pkg.limit_at_download ||
+                                                                Math.floor(parseInt(pkg.rate_limit_rx) /
+                                                                pkg.max_clients) + 'M' ) %>/<%- (pkg.limit_at_upload ||
+                                                                    Math.floor(parseInt(pkg.rate_limit_tx) /
+                                                                    pkg.max_clients) + 'M' ) %>
+                                                        </span>
+                                                        <% } %>
+                                                </div>
+                                                <% } else { %>
+                                                    -
+                                                    <% } %>
                                         </td>
                                         <td class="py-2 pr-4 text-center">
-                                            <span
-                                                class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold <%= pkg.current_clients >= (pkg.max_clients || 1) && (pkg.max_clients || 1) > 1 ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-blue-100 text-blue-800 border border-blue-200' %>">
-                                                <%= pkg.current_clients || 0 %> / <%= pkg.max_clients || 1 %>
-                                            </span>
+                                            <% if ((pkg.max_clients || 1)> 1) { %>
+                                                <span
+                                                    class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold <%= pkg.current_clients >= pkg.max_clients ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-purple-100 text-purple-800 border border-purple-200' %>"
+                                                    title="<%= pkg.current_clients || 0 %> dari <%= pkg.max_clients %> slot terisi">
+                                                    <%= pkg.current_clients || 0 %>/<%= pkg.max_clients %>
+                                                </span>
+                                                <% } else { %>
+                                                    <span
+                                                        class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                                        <%= pkg.current_clients || 0 %>/∞
+                                                    </span>
+                                                    <% } %>
                                         </td>
                                         <td class="py-2 pr-4">
                                             <span

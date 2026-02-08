@@ -238,19 +238,32 @@
                         <div class="flex items-center gap-2 mb-4">
                             <h3 class="text-lg font-semibold text-slate-800">Shared Bandwidth & Priority</h3>
                             <span
-                                class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">NEW</span>
+                                class="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full">SHARE</span>
                         </div>
+
+                        <!-- Info Box -->
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-purple-800">
+                                <strong>💡 Cara Kerja Shared Bandwidth:</strong><br>
+                                • Set <strong>Max Clients > 1</strong> untuk mengaktifkan mode share<br>
+                                • Contoh: 15M share 10 pelanggan = masing-masing dapat <strong>minimal 1.5M</strong>,
+                                maksimal 15M jika yang lain idle<br>
+                                • Sistem otomatis membuat Parent Queue (Simple Queue) di MikroTik untuk membatasi total
+                                bandwidth
+                            </p>
+                        </div>
+
                         <div
-                            class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-2">
                                     Max Clients (Sharing)
                                 </label>
-                                <input name="max_clients" type="number" min="1" value="1"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                <input id="max_clients" name="max_clients" type="number" min="1" value="1"
+                                    onchange="updateSharedPreview()"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="Contoh: 10" />
-                                <p class="text-[10px] text-slate-500 mt-1">Gunakan > 1 untuk sistem shared speed (Parent
-                                    Queue)</p>
+                                <p class="text-[10px] text-slate-500 mt-1">1 = Dedicated, >1 = Shared</p>
                             </div>
 
                             <div>
@@ -258,7 +271,7 @@
                                     Priority (1-8)
                                 </label>
                                 <input name="priority" type="number" min="1" max="8" value="8"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="8 (Lowest)" />
                                 <p class="text-[10px] text-slate-500 mt-1">1 (Highest) - 8 (Lowest)</p>
                             </div>
@@ -267,21 +280,32 @@
                                 <label class="block text-sm font-medium text-slate-700 mb-2">
                                     Limit At Download
                                 </label>
-                                <input name="limit_at_download" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 5M" />
-                                <p class="text-[10px] text-slate-500 mt-1">Garansi bandwidth minimal (Download)</p>
+                                <input id="limit_at_download" name="limit_at_download" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Auto (kosongkan)" />
+                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-2">
                                     Limit At Upload
                                 </label>
-                                <input name="limit_at_upload" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 1M" />
-                                <p class="text-[10px] text-slate-500 mt-1">Garansi bandwidth minimal (Upload)</p>
+                                <input id="limit_at_upload" name="limit_at_upload" type="text"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Auto (kosongkan)" />
+                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
                             </div>
+                        </div>
+
+                        <!-- Shared Preview -->
+                        <div id="shared_preview" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <p class="text-sm text-green-800 font-medium">📊 Preview Bandwidth Sharing:</p>
+                            <ul class="text-xs text-green-700 mt-1 ml-4">
+                                <li>• Total Bandwidth: <strong id="preview_total">-</strong></li>
+                                <li>• Max Clients: <strong id="preview_clients">-</strong></li>
+                                <li>• Minimum per Client: <strong id="preview_min">-</strong></li>
+                                <li>• Maximum per Client (jika idle): <strong id="preview_max">-</strong></li>
+                            </ul>
                         </div>
                     </div>
 
@@ -519,5 +543,49 @@
             // Note: On create page everything defaults to disabled/unchecked, so no extra init needed.
             // On edit page we will need to check checkboxes based on values.
         });
+
+        // Add event listeners for shared preview
+        const rateRxInput = document.getElementById('rate_limit_rx');
+        const rateTxInput = document.getElementById('rate_limit_tx');
+        const maxClientsInput = document.getElementById('max_clients');
+
+        if (rateRxInput) rateRxInput.addEventListener('input', updateSharedPreview);
+        if (rateTxInput) rateTxInput.addEventListener('input', updateSharedPreview);
+        if (maxClientsInput) maxClientsInput.addEventListener('input', updateSharedPreview);
     });
+
+    // Update Shared Bandwidth Preview
+    function updateSharedPreview() {
+        const maxClients = parseInt(document.getElementById('max_clients')?.value) || 1;
+        const rateRx = document.getElementById('rate_limit_rx')?.value || '';
+        const rateTx = document.getElementById('rate_limit_tx')?.value || '';
+        const previewDiv = document.getElementById('shared_preview');
+
+        if (!previewDiv) return;
+
+        if (maxClients > 1 && (rateRx || rateTx)) {
+            previewDiv.classList.remove('hidden');
+
+            // Parse rate values
+            function parseRate(val) {
+                if (!val) return 0;
+                const num = parseFloat(val);
+                if (val.toLowerCase().includes('g')) return num * 1000;
+                if (val.toLowerCase().includes('k')) return num / 1000;
+                return num;
+            }
+
+            const rxNum = parseRate(rateRx);
+            const txNum = parseRate(rateTx);
+            const minRx = rxNum > 0 ? (rxNum / maxClients).toFixed(1) : '?';
+            const minTx = txNum > 0 ? (txNum / maxClients).toFixed(1) : '?';
+
+            document.getElementById('preview_total').textContent = `${rateRx || '?'} / ${rateTx || '?'}`;
+            document.getElementById('preview_clients').textContent = maxClients;
+            document.getElementById('preview_min').textContent = `${minRx}M / ${minTx}M`;
+            document.getElementById('preview_max').textContent = `${rateRx || '?'} / ${rateTx || '?'}`;
+        } else {
+            previewDiv.classList.add('hidden');
+        }
+    }
 </script>

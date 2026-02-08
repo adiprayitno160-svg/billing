@@ -111,21 +111,38 @@
                     <div class="border-t border-slate-200 pt-6">
                         <div class="flex items-center gap-2 mb-4">
                             <h3 class="text-lg font-semibold text-slate-800">Shared Bandwidth & Priority</h3>
-                            <span
-                                class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">NEW</span>
+                            <% if ((package.max_clients || 1)> 1) { %>
+                                <span
+                                    class="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full">SHARE
+                                    AKTIF</span>
+                                <% } else { %>
+                                    <span
+                                        class="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full">DEDICATED</span>
+                                    <% } %>
                         </div>
+
+                        <!-- Info Box -->
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-purple-800">
+                                <strong>💡 Cara Kerja Shared Bandwidth:</strong><br>
+                                • Set <strong>Max Clients > 1</strong> untuk mengaktifkan mode share<br>
+                                • Contoh: 15M share 10 pelanggan = masing-masing dapat <strong>minimal 1.5M</strong>,
+                                maksimal 15M jika yang lain idle<br>
+                                • Sistem otomatis membuat Parent Queue (Simple Queue) di MikroTik
+                            </p>
+                        </div>
+
                         <div
-                            class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-2">
                                     Max Clients (Sharing)
                                 </label>
                                 <input name="max_clients" type="number" min="1"
                                     value="<%= (typeof package.max_clients !== 'undefined' && package.max_clients !== null) ? package.max_clients : 1 %>"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="Contoh: 10" />
-                                <p class="text-[10px] text-slate-500 mt-1">Gunakan > 1 untuk sistem shared speed (Parent
-                                    Queue)</p>
+                                <p class="text-[10px] text-slate-500 mt-1">1 = Dedicated, >1 = Shared</p>
                             </div>
 
                             <div>
@@ -134,7 +151,7 @@
                                 </label>
                                 <input name="priority" type="number" min="1" max="8"
                                     value="<%= package.priority || 8 %>"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="8 (Lowest)" />
                                 <p class="text-[10px] text-slate-500 mt-1">1 (Highest) - 8 (Lowest)</p>
                             </div>
@@ -145,9 +162,9 @@
                                 </label>
                                 <input name="limit_at_download" type="text"
                                     value="<%= package.limit_at_download || '' %>"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 5M" />
-                                <p class="text-[10px] text-slate-500 mt-1">Garansi bandwidth minimal (Download)</p>
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Auto (kosongkan)" />
+                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
                             </div>
 
                             <div>
@@ -155,11 +172,33 @@
                                     Limit At Upload
                                 </label>
                                 <input name="limit_at_upload" type="text" value="<%= package.limit_at_upload || '' %>"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 1M" />
-                                <p class="text-[10px] text-slate-500 mt-1">Garansi bandwidth minimal (Upload)</p>
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Auto (kosongkan)" />
+                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
                             </div>
                         </div>
+
+                        <% if ((package.max_clients || 1)> 1) { %>
+                            <!-- Current Shared Status -->
+                            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800 font-medium">📊 Status Sharing Aktif:</p>
+                                <ul class="text-xs text-green-700 mt-1 ml-4">
+                                    <li>• Total Bandwidth: <strong>
+                                            <%= package.rate_limit_rx || '?' %> / <%= package.rate_limit_tx || '?' %>
+                                        </strong></li>
+                                    <li>• Max Clients: <strong>
+                                            <%= package.max_clients %>
+                                        </strong></li>
+                                    <li>• Current Clients: <strong>
+                                            <%= package.current_clients || 0 %>
+                                        </strong></li>
+                                    <li>• Limit At (Min per user): <strong>
+                                            <%= package.limit_at_download || 'Auto' %> / <%= package.limit_at_upload
+                                                    || 'Auto' %>
+                                        </strong></li>
+                                </ul>
+                            </div>
+                            <% } %>
                     </div>
 
                     <!-- Prepaid Pricing Configuration -->
