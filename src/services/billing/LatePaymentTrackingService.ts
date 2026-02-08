@@ -340,7 +340,10 @@ export class LatePaymentTrackingService {
           lt.*,
           i.invoice_number,
           i.period,
-          p.amount,
+          i.total_amount as invoice_total,
+          i.discount_amount as invoice_discount,
+          (i.total_amount + COALESCE(i.discount_amount, 0)) as invoice_original_amount,
+          p.amount as payment_amount,
           p.payment_method
          FROM customer_late_payment_tracking lt
          JOIN invoices i ON lt.invoice_id = i.id
