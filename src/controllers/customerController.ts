@@ -54,12 +54,23 @@ export const getCustomerList = async (req: Request, res: Response) => {
                 s.price as subscription_price,
                 sip.name as static_ip_package_name
             FROM customers c
-            LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
-            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
+            LEFT JOIN (
+                SELECT customer_id, package_name, price 
+                FROM subscriptions 
+                WHERE status = 'active'
+                GROUP BY customer_id
+            ) s ON c.id = s.customer_id
+            LEFT JOIN (
+                SELECT customer_id, package_id 
+                FROM static_ip_clients 
+                GROUP BY customer_id
+            ) sic ON c.id = sic.customer_id
             LEFT JOIN static_ip_packages sip ON sic.package_id = sip.id
             ${whereClause}
+            GROUP BY c.id
             ORDER BY c.created_at DESC
             LIMIT ? OFFSET ?
+
         `;
 
         queryParams.push(limit, offset);

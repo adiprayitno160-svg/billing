@@ -86,6 +86,7 @@ apiRouter.get('/analyze', (req, res) => {
 });
 
 apiRouter.post('/retry/:id', (req, res) => templateController.retryNotification(req, res));
+apiRouter.post('/retry-all-failed', (req, res) => templateController.retryAllFailed(req, res));
 apiRouter.post('/clear-old-queue', (req, res) => templateController.clearOldQueue(req, res));
 
 // Ensure templates exist (utility endpoint)

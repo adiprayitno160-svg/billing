@@ -3817,61 +3817,8 @@ router.post('/customers/new-static-ip', async (req, res) => {
             }
         }
 
-        // Create subscription if package_id is present (Always link package)
-        // Fix: Previously required enableBilling, causing package to be lost if billing disabled
-        const enableBilling = enable_billing === '1' || enable_billing === 'on';
-        if (package_id) {
-            try {
-                const pkg = await getStaticIpPackageById(pkgId);
-
-                if (pkg) {
-                    const registrationDate = new Date();
-                    const startDate = registrationDate.toISOString().slice(0, 10);
-                    const endDate = new Date(registrationDate);
-                    endDate.setDate(endDate.getDate() + (pkg.duration_days || 30));
-                    const endDateStr = endDate.toISOString().slice(0, 10);
-
-                    // Get database connection for subscription
-                    const conn2 = await databasePool.getConnection();
-                    try {
-                        // Insert subscription
-                        const [subResult] = await conn2.execute(`
-                            INSERT INTO subscriptions (
-                                customer_id, 
-                                package_id,
-                                package_name, 
-                                price, 
-                                start_date, 
-                                end_date, 
-                                status,
-                                created_at,
-                                updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
-                        `, [
-                            customerId,
-                            package_id,
-                            pkg.name,
-                            pkg.price,
-                            startDate,
-                            endDateStr
-                        ]);
-
-                        console.log('✅ Subscription created for customer:', customerId);
-                        console.log(`   Package: ${pkg.name}, Price: Rp ${pkg.price}, Start: ${startDate}`);
-                    } finally {
-                        conn2.release();
-                    }
-                } else {
-                    console.warn('⚠️ Package not found for ID:', package_id);
-                }
-            } catch (subError) {
-                console.error('❌ Failed to create subscription:', subError);
-                // Non-critical error - customer created successfully
-            }
-        }
-
-
         console.log('Static IP customer saved successfully');
+
 
         // Send notification to customer and admin (non-blocking)
         console.log('📧 [NOTIFICATION] Starting notification process for customer:', customerId);

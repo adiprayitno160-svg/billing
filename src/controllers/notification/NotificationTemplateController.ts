@@ -1026,4 +1026,32 @@ export class NotificationTemplateController {
       res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  /**
+   * POST /api/notification/retry-all-failed
+   * Retry all failed and skipped notifications
+   */
+  async retryAllFailed(req: Request, res: Response): Promise<any> {
+    try {
+      const connection = await databasePool.getConnection();
+      try {
+        // Reset both failed and skipped notifications to pending
+        const [result] = await connection.query(
+          "UPDATE unified_notifications_queue SET status = 'pending', retry_count = 0, error_message = NULL WHERE status IN ('failed', 'skipped')"
+        );
+        res.json({
+          success: true,
+          message: `Berhasil mereset ${(result as any).affectedRows} notifikasi ke antrian pending`
+        });
+      } finally {
+        connection.release();
+      }
+    } catch (error: any) {
+      console.error('Error retrying all failed notifications:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Gagal mereset semua notifikasi gagal'
+      });
+    }
+  }
 }
