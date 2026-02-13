@@ -57,11 +57,15 @@ interface OfflineAlertCustomer {
 let monitoringCache: {
     pppoeOnlineSessions: Map<string, any>;
     staticIPStatus: Map<number, MonitoringStatus>;
+    odpOfflineCustomers: Map<number, Set<number>>; // ODP ID -> Set of offline customer IDs
+    odpAlertSent: Map<number, boolean>; // ODP ID -> whether mass alert has been sent
     lastRefresh: Date | null;
     refreshInterval: number; // ms
 } = {
     pppoeOnlineSessions: new Map(),
     staticIPStatus: new Map(),
+    odpOfflineCustomers: new Map(),
+    odpAlertSent: new Map(),
     lastRefresh: null,
     refreshInterval: 10000 // Reduced to 10s for better "Live" feel
 };
@@ -584,13 +588,15 @@ export class AdvancedMonitoringService {
     /**
      * Handle customer status transition and trigger AI support if needed
      */
+    private static readonly MASS_OUTAGE_THRESHOLD = 3; // Min offline customers to trigger mass alert
+
     private static async handleStatusTransition(customerId: number, type: string, newStatus: string): Promise<void> {
         try {
             // Check previous status in cache to avoid duplicate notifications
             const previous = monitoringCache.staticIPStatus.get(customerId);
             if (previous && previous.status === newStatus) return;
 
-            // Get full customer info for notification (Updated to include address and ODP name)
+            // Get full customer info for notification (includes address and ODP name)
             const [customers] = await databasePool.query<RowDataPacket[]>(
                 `SELECT 
                     c.id, c.name, c.customer_code, c.phone, c.connection_type, 
@@ -604,6 +610,8 @@ export class AdvancedMonitoringService {
 
             if (customers.length > 0) {
                 const customer = customers[0] as any;
+                const odpId = customer.odp_id;
+                const odpName = customer.odp_name || (odpId ? `ODP-${odpId}` : null);
 
                 // Update Cache immediately
                 monitoringCache.staticIPStatus.set(customerId, {
@@ -613,10 +621,10 @@ export class AdvancedMonitoringService {
                 });
 
                 if (newStatus === 'offline') {
-                    console.log(`[Status-Transition] Customer ${customer.name} is now OFFLINE. Triggering Notifications...`);
+                    console.log(`[Status-Transition] Customer ${customer.name} is now OFFLINE.`);
 
                     // Persistent Update for Offline timestamp
-                    const ipAddress = customer.static_ip || '0.0.0.0'; // Default for PPPoE offline (IP unknown)
+                    const ipAddress = customer.static_ip || '0.0.0.0';
                     await databasePool.query(`
                         INSERT INTO static_ip_ping_status (customer_id, ip_address, status, last_check, last_offline_at)
                         VALUES (?, ?, 'offline', NOW(), NOW())
@@ -626,11 +634,42 @@ export class AdvancedMonitoringService {
                             last_offline_at = CASE WHEN status != 'offline' THEN NOW() ELSE last_offline_at END
                     `, [customerId, ipAddress]);
 
-                    // 1. Notify Customer (AI Troubleshooting)
+                    // 1. Always notify Customer (AI Troubleshooting)
                     await CustomerNotificationService.sendAIAutomatedTroubleshooting(customer, 'offline');
 
-                    // 2. Broadcast to Admins & Operators
-                    await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'offline');
+                    // 2. Mass Outage Detection for ODP
+                    let suppressIndividualAdminAlert = false;
+
+                    if (odpId) {
+                        // Track this customer as offline in their ODP
+                        if (!monitoringCache.odpOfflineCustomers.has(odpId)) {
+                            monitoringCache.odpOfflineCustomers.set(odpId, new Set());
+                        }
+                        monitoringCache.odpOfflineCustomers.get(odpId)!.add(customerId);
+
+                        const offlineCount = monitoringCache.odpOfflineCustomers.get(odpId)!.size;
+
+                        if (offlineCount >= this.MASS_OUTAGE_THRESHOLD) {
+                            // MASS OUTAGE detected - suppress individual alerts
+                            suppressIndividualAdminAlert = true;
+
+                            if (!monitoringCache.odpAlertSent.get(odpId)) {
+                                // First time reaching threshold - send mass alert
+                                console.log(`[Mass-Outage] ODP ${odpName} has ${offlineCount} offline customers. Sending mass alert.`);
+                                await CustomerNotificationService.broadcastInfrastructureIssue(
+                                    odpName!, 'ODP', 'offline', offlineCount
+                                );
+                                monitoringCache.odpAlertSent.set(odpId, true);
+                            } else {
+                                console.log(`[Mass-Outage] ODP ${odpName} already alerted. Suppressing individual alert for ${customer.name}.`);
+                            }
+                        }
+                    }
+
+                    // 3. Send individual admin alert only if NOT a mass outage
+                    if (!suppressIndividualAdminAlert) {
+                        await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'offline');
+                    }
 
                 } else if (newStatus === 'online') {
                     console.log(`[Status-Transition] Customer ${customer.name} is back ONLINE.`);
@@ -639,9 +678,26 @@ export class AdvancedMonitoringService {
                         UPDATE static_ip_ping_status SET status = 'online', last_check = NOW(), last_online_at = NOW() WHERE customer_id = ?
                     `, [customerId]);
 
-                    // Optional: Broadcast recovery to admins? (Usually mostly offline alerts are critical)
-                    // Uncomment if needed:
-                    // await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'online');
+                    // Mass Outage Recovery Detection
+                    if (odpId && monitoringCache.odpOfflineCustomers.has(odpId)) {
+                        monitoringCache.odpOfflineCustomers.get(odpId)!.delete(customerId);
+                        const remainingOffline = monitoringCache.odpOfflineCustomers.get(odpId)!.size;
+
+                        // If ODP was in mass outage and now recovered below threshold
+                        if (remainingOffline < this.MASS_OUTAGE_THRESHOLD && monitoringCache.odpAlertSent.get(odpId)) {
+                            console.log(`[Mass-Outage] ODP ${odpName} recovered. ${remainingOffline} still offline.`);
+                            await CustomerNotificationService.broadcastInfrastructureIssue(
+                                odpName!, 'ODP', 'online', remainingOffline
+                            );
+                            monitoringCache.odpAlertSent.set(odpId, false);
+                        }
+
+                        // Cleanup empty sets
+                        if (remainingOffline === 0) {
+                            monitoringCache.odpOfflineCustomers.delete(odpId);
+                            monitoringCache.odpAlertSent.delete(odpId);
+                        }
+                    }
                 }
             }
         } catch (error) {

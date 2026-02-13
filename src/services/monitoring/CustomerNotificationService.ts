@@ -408,6 +408,51 @@ export class CustomerNotificationService {
             console.error('[Notification] Error broadcasting to admins:', error);
         }
     }
+
+    /**
+     * Broadcast Infrastructure (ODP/ODC) Mass Outage to Admins & Operators
+     * Used when multiple customers in the same ODP go offline simultaneously
+     */
+    async broadcastInfrastructureIssue(
+        locationName: string,
+        type: 'ODP' | 'ODC',
+        status: 'offline' | 'online',
+        affectedCount: number
+    ): Promise<void> {
+        try {
+            const [users] = await databasePool.query<RowDataPacket[]>(
+                `SELECT phone, full_name FROM users 
+                 WHERE role IN ('superadmin', 'admin', 'operator', 'teknisi') 
+                 AND phone IS NOT NULL AND phone != ''`
+            );
+
+            if (users.length === 0) return;
+
+            const isOffline = status === 'offline';
+            const icon = isOffline ? '\ud83d\udea8' : '\u2705';
+            const title = isOffline ? `GANGGUAN MASAL: ${type} DOWN` : `${type} PULIH KEMBALI`;
+
+            const message = `${icon} *${title}*\\n\\n` +
+                `\ud83d\udccd ${type}: *${locationName}*\\n` +
+                `\ud83d\udcc9 Status: ${isOffline ? 'TERPUTUS / DOWN' : 'NORMAL KEMBALI'}\\n` +
+                `\ud83d\udc65 Pelanggan Terdampak: ${affectedCount} orang\\n` +
+                `\u23f0 Waktu: ${new Date().toLocaleString('id-ID')}\\n\\n` +
+                `${isOffline ? '\u26a0\ufe0f Mohon segera dicek oleh tim teknis di lokasi.' : '\ud83c\udf89 Koneksi telah stabil kembali.'}`;
+
+            console.log(`[Notification] Broadcasting ${type} ${status} alert for ${locationName} (${affectedCount} affected)`);
+
+            for (const user of users) {
+                try {
+                    await this.waClient.sendMessage(user.phone, message);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (e) {
+                    console.error(`[Notification] Failed to send infra alert to ${user.full_name}`);
+                }
+            }
+        } catch (error) {
+            console.error('[Notification] Error broadcasting infrastructure alert:', error);
+        }
+    }
 }
 
 export default CustomerNotificationService.getInstance();
