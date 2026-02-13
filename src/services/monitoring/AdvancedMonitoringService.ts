@@ -637,11 +637,11 @@ export class AdvancedMonitoringService {
                     // 1. Always notify Customer (AI Troubleshooting)
                     await CustomerNotificationService.sendAIAutomatedTroubleshooting(customer, 'offline');
 
-                    // 2. Mass Outage Detection for ODP
-                    let suppressIndividualAdminAlert = false;
+                    // 2. Always send individual alert to Admins & Operators
+                    await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'offline');
 
+                    // 3. Additionally: Mass Outage Detection for ODP
                     if (odpId) {
-                        // Track this customer as offline in their ODP
                         if (!monitoringCache.odpOfflineCustomers.has(odpId)) {
                             monitoringCache.odpOfflineCustomers.set(odpId, new Set());
                         }
@@ -649,26 +649,13 @@ export class AdvancedMonitoringService {
 
                         const offlineCount = monitoringCache.odpOfflineCustomers.get(odpId)!.size;
 
-                        if (offlineCount >= this.MASS_OUTAGE_THRESHOLD) {
-                            // MASS OUTAGE detected - suppress individual alerts
-                            suppressIndividualAdminAlert = true;
-
-                            if (!monitoringCache.odpAlertSent.get(odpId)) {
-                                // First time reaching threshold - send mass alert
-                                console.log(`[Mass-Outage] ODP ${odpName} has ${offlineCount} offline customers. Sending mass alert.`);
-                                await CustomerNotificationService.broadcastInfrastructureIssue(
-                                    odpName!, 'ODP', 'offline', offlineCount
-                                );
-                                monitoringCache.odpAlertSent.set(odpId, true);
-                            } else {
-                                console.log(`[Mass-Outage] ODP ${odpName} already alerted. Suppressing individual alert for ${customer.name}.`);
-                            }
+                        if (offlineCount >= this.MASS_OUTAGE_THRESHOLD && !monitoringCache.odpAlertSent.get(odpId)) {
+                            console.log(`[Mass-Outage] ODP ${odpName} has ${offlineCount} offline customers. Sending mass alert.`);
+                            await CustomerNotificationService.broadcastInfrastructureIssue(
+                                odpName!, 'ODP', 'offline', offlineCount
+                            );
+                            monitoringCache.odpAlertSent.set(odpId, true);
                         }
-                    }
-
-                    // 3. Send individual admin alert only if NOT a mass outage
-                    if (!suppressIndividualAdminAlert) {
-                        await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'offline');
                     }
 
                 } else if (newStatus === 'online') {
