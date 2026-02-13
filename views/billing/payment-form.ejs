@@ -570,6 +570,18 @@
                                                 class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">Hari</span>
                                         </div>
                                     </div>
+
+                                    <!-- Date Fields for Downtime -->
+                                    <div class="space-y-2 hidden" id="downtime-dates-field">
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                            Tgl Mulai/Selesai</p>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <input type="date" id="downtime_start"
+                                                class="w-full px-3 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-xs">
+                                            <input type="date" id="downtime_end"
+                                                class="w-full px-3 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-xs">
+                                        </div>
+                                    </div>
                                 </div>
                                 <p class="text-xs text-blue-500 font-bold ml-1 hidden mb-2" id="daily-rate-info"></p>
                                 <div class="space-y-2">
@@ -779,6 +791,9 @@
             const valueInput = document.getElementById('discount_value');
             const rateInfo = document.getElementById('daily-rate-info');
             const reasonInput = document.getElementById('discount_reason');
+            const datesField = document.getElementById('downtime-dates-field');
+            const startInput = document.getElementById('downtime_start');
+            const endInput = document.getElementById('downtime_end');
 
             if (!typeSelect) return;
 
@@ -787,6 +802,7 @@
                 if (type === 'downtime') {
                     if (valueField) valueField.classList.add('hidden');
                     if (daysField) daysField.classList.remove('hidden');
+                    if (datesField) datesField.classList.remove('hidden');
                     if (rateInfo) rateInfo.classList.remove('hidden');
 
                     const dailyRate = Math.round(invoiceTotalAmount / 30);
@@ -822,7 +838,13 @@
 
                 if (reasonInput) {
                     if (days > 0) {
-                        reasonInput.value = `Kompensasi Gangguan ${days} Hari`;
+                        let reason = `Kompensasi Gangguan ${days} Hari`;
+                        if (startInput && startInput.value && endInput && endInput.value) {
+                            const d1 = new Date(startInput.value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                            const d2 = new Date(endInput.value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                            reason += ` [${d1} - ${d2}]`;
+                        }
+                        reasonInput.value = reason;
                     } else {
                         reasonInput.value = '';
                     }
@@ -832,6 +854,8 @@
 
             typeSelect.addEventListener('change', updateUI);
             if (daysInput) daysInput.addEventListener('input', calculateDowntime);
+            if (startInput) startInput.addEventListener('change', calculateDowntime);
+            if (endInput) endInput.addEventListener('change', calculateDowntime);
 
             // Initial call if type is already selected (e.g. browser cache)
             if (typeSelect.value === 'downtime') updateUI();

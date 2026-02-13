@@ -18,14 +18,14 @@ export const databasePool = mysql.createPool({
 	password: databasePassword,
 	database: databaseName,
 	waitForConnections: true,
-	connectionLimit: 30, // Increased for better concurrency with many schedulers
+	connectionLimit: 100, // Increased for better concurrency with many schedulers
 	queueLimit: 0,
 	enableKeepAlive: true,
 	keepAliveInitialDelay: 0,
 	connectTimeout: 30000, // 30 seconds
 	// Connection pool optimization
-	idleTimeout: 30000, // 30 seconds
-	maxIdle: 30 // Synchronized with connectionLimit to prevent constant close/open
+	idleTimeout: 60000, // 60 seconds
+	maxIdle: 100 // Synchronized with connectionLimit to prevent constant close/open
 });
 
 export async function checkDatabaseConnection(): Promise<void> {
@@ -968,6 +968,26 @@ export async function ensureInitialSchema(): Promise<void> {
 			CONSTRAINT fk_activation_logs_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
 			CONSTRAINT fk_activation_logs_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// New table for CustomerNotificationService
+		await conn.query(`CREATE TABLE IF NOT EXISTS customer_notification_events (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			event_type VARCHAR(100) NOT NULL,
+			severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+			message TEXT NOT NULL,
+			details JSON NULL,
+			notified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_event_type (event_type),
+			CONSTRAINT fk_cust_notif_evt_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Ensure new notification preference columns exist in customers
+		await addCol(`ALTER TABLE customers ADD COLUMN notification_enabled TINYINT(1) DEFAULT 1`);
+		await addCol(`ALTER TABLE customers ADD COLUMN notification_cooldown_hours INT DEFAULT 1`);
+		await addCol(`ALTER TABLE customers ADD COLUMN is_isolated TINYINT(1) DEFAULT 0`);
+		await addCol(`ALTER TABLE customers ADD COLUMN isolated_at DATETIME NULL`);
 
 	} finally {
 		conn.release();

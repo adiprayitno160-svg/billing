@@ -292,7 +292,7 @@ export class SLAMonitoringService {
             // Exclude incidents for customers that were isolated (non-payment)
             const query = `
                 UPDATE sla_incidents si
-                JOIN subscriptions s ON si.customer_id = s.customer_id
+                JOIN customers c ON si.customer_id = c.id
                 SET 
                     si.status = 'excluded',
                     si.exclude_reason = 'isolated',
@@ -300,8 +300,8 @@ export class SLAMonitoringService {
                     si.is_counted_in_sla = 0
                 WHERE si.status = 'resolved'
                     AND si.exclude_reason IS NULL
-                    AND s.is_isolated = 1
-                    AND si.start_time >= s.isolated_at
+                    AND c.is_isolated = 1
+                    AND si.start_time >= c.isolated_at
             `;
 
             const [result] = await pool.query<ResultSetHeader>(query);

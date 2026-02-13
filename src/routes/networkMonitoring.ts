@@ -23,4 +23,17 @@ router.post('/api/sync/customers', networkMonitoringController.syncFromCustomers
 router.post('/api/sync/ftth', networkMonitoringController.syncFTTHInfrastructure);
 router.post('/api/sync/links', networkMonitoringController.autoCreateLinks);
 
+// Enhanced network map
+router.get('/public/enhanced-network-map', networkMonitoringController.renderEnhancedNetworkMap);
+
+// API for enhanced monitoring
+router.get('/api/map-customers', networkMonitoringController.getMapCustomers);
+router.get('/api/offline-alerts', networkMonitoringController.getOfflineAlerts);
+router.get('/api/nearby-customers', networkMonitoringController.getNearbyCustomers);
+router.post('/api/refresh-monitoring', networkMonitoringController.refreshMonitoring);
+
+// ODP Problems Dashboard
+router.get('/odp-problems', networkMonitoringController.renderODPProblems);
+router.get('/api/odp-problems', networkMonitoringController.getODPProblemsAPI);
+
 export default router;

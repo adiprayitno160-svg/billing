@@ -70,46 +70,44 @@ export async function addClientToPackage(packageId: number, clientData: {
 
         await conn.beginTransaction();
 
-        // Generate customer code dengan format YYYYMMDDHHMMSS
-        const customerCode = CustomerIdGenerator.generateCustomerId();
+        // Generate customer code
+        const customerCode = clientData.customer_code || CustomerIdGenerator.generateCustomerId();
+        let customerId = clientData.customer_id;
 
-        // Insert ke tabel customers terlebih dahulu
-        console.log('Inserting customer to customers table:', {
-            customerCode,
-            client_name: clientData.client_name,
-            phone: clientData.phone_number || null,
-            address: clientData.address || null,
-            odc_id: clientData.odc_id || null,
-            odp_id: clientData.odp_id || null,
-            latitude: clientData.latitude || null,
-            longitude: clientData.longitude || null
-        });
+        if (!customerId) {
+            // Insert ke tabel customers terlebih dahulu
+            const [customerResult] = await conn.execute(`
+                INSERT INTO customers (
+                    customer_code, name, phone, email, address, odc_id, odp_id,
+                    connection_type, status, latitude, longitude,
+                    created_at, updated_at,
+                    is_taxable, use_device_rental, serial_number, billing_mode
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', ?, ?, NOW(), NOW(), ?, ?, ?, ?)
+            `, [
+                customerCode,
+                clientData.client_name,
+                clientData.phone_number || null,
+                null, // email
+                clientData.address || null,
+                clientData.odc_id || null,
+                clientData.odp_id || null,
+                clientData.latitude || null,
+                clientData.longitude || null,
+                clientData.is_taxable || 0,
+                clientData.use_device_rental || 0,
+                clientData.serial_number || null,
+                clientData.billing_mode || 'postpaid'
+            ]);
 
-        const [customerResult] = await conn.execute(`
-            INSERT INTO customers (
-                customer_code, name, phone, email, address, odc_id, odp_id,
-                connection_type, status, latitude, longitude,
-                created_at, updated_at,
-                is_taxable, use_device_rental, serial_number, billing_mode
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', ?, ?, NOW(), NOW(), ?, ?, ?, ?)
-        `, [
-            customerCode,
-            clientData.client_name,
-            clientData.phone_number || null,
-            null, // email
-            clientData.address || null,
-            clientData.odc_id || null,
-            clientData.odp_id || null,
-            clientData.latitude || null,
-            clientData.longitude || null,
-            clientData.is_taxable || 0,
-            clientData.use_device_rental || 0,
-            clientData.serial_number || null,
-            clientData.billing_mode || 'postpaid'
-        ]);
-
-        const customerId = (customerResult as any).insertId;
-        console.log('Customer inserted with ID:', customerId);
+            customerId = (customerResult as any).insertId;
+        } else {
+            console.log('Using EXISTING customer with ID:', customerId);
+            await conn.execute(`
+                UPDATE customers SET connection_type = 'static_ip', status = 'active', updated_at = NOW() 
+                WHERE id = ?
+            `, [customerId]);
+        }
+        console.log('Customer resolved with ID:', customerId);
 
         // 3. Get Package Details
         const [packageRows] = await conn.execute(
@@ -322,7 +320,7 @@ async function createNewStaticIpConfiguration(config: any, client: any, newPacka
         await mikrotikService.addIpAddress(config, {
             interface: client.interface,
             address: client.ip_address,
-            comment: `Client ${client.client_name}`
+            comment: client.client_name
         });
     }
 

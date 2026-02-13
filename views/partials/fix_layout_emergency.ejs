@@ -1,0 +1,95 @@
+<script>
+    /**
+     * Emergency Layout Fix V2
+     * Aggressively removes stuck overlays and keeps the UI interactive.
+     */
+    (function () {
+        console.log('%c Antigravity Layout Fix V2 Loaded ', 'background: #222; color: #bada55; padding: 5px;');
+
+        function nukeStuckOverlays() {
+            let fixedCount = 0;
+
+            // 1. Target SweetAlert2 containers specifically
+            // The CSS in main.ejs forces display:grid !important on .swal2-container
+            // So we must remove the element if it's not currently showing a valid popup
+            const swalContainers = document.querySelectorAll('.swal2-container');
+            swalContainers.forEach(container => {
+                const popup = container.querySelector('.swal2-popup');
+
+                // Check if popup exists and is visible
+                const isPopupVisible = popup &&
+                    window.getComputedStyle(popup).display !== 'none' &&
+                    window.getComputedStyle(popup).visibility !== 'hidden' &&
+                    !container.classList.contains('swal2-hidden'); // Some versions use this
+
+                // If no visible popup inside, DESTROY the container
+                if (!isPopupVisible) {
+                    console.warn('Antigravity: Removing stuck SweetAlert2 container (Empty/Hidden Popup)');
+                    container.remove();
+                    fixedCount++;
+                }
+            });
+
+            // 2. Clear Body Locks
+            if (document.body.classList.contains('swal2-shown') && fixedCount > 0) {
+                document.body.classList.remove('swal2-shown');
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '';
+                document.body.style.height = '';
+            }
+
+            // 3. Generic Fixed Overlay Scanner
+            // Use a walker to find any element with fixed positioning that covers the screen
+            const allElements = document.querySelectorAll('body > div:not(#sidebar):not(#main-content)');
+            allElements.forEach(el => {
+                if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return;
+
+                const style = window.getComputedStyle(el);
+                if (style.position === 'fixed' && style.zIndex > 1000) {
+                    // Check if covering full screen
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width >= window.innerWidth && rect.height >= window.innerHeight) {
+                        // Check if it's visually blocking (not transparent)
+                        // or if it blocks pointer events
+                        if (style.pointerEvents !== 'none') {
+
+                            // Skip if it seems to be relevant (e.g. has lots of content)
+                            // A stuck overlay usually has empty content or just a spinner
+                            if (el.innerText.trim().length < 50 && !el.querySelector('img')) {
+                                console.warn('Antigravity: Hiding suspicious full-screen overlay', el);
+                                el.style.display = 'none';
+                                el.style.pointerEvents = 'none';
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 4. Force Main Content Interactive
+            const main = document.getElementById('main-content');
+            if (main) {
+                const mainStyle = window.getComputedStyle(main);
+                if (mainStyle.pointerEvents === 'none') {
+                    main.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
+        // Expose for manual trigger
+        window.fixLayout = nukeStuckOverlays;
+
+        // Run aggressively
+        window.addEventListener('load', nukeStuckOverlays);
+
+        // Polling to catch late-spawning zombies
+        const poller = setInterval(nukeStuckOverlays, 1000);
+
+        // Stop polling after 10 seconds to save resources, assume stable
+        setTimeout(() => clearInterval(poller), 10000);
+
+        // Initial run
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            nukeStuckOverlays();
+        }
+    })();
+</script>

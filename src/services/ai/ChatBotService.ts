@@ -23,7 +23,11 @@ export class ChatBotService {
         if (!apiKey) throw new Error('API Key missing (Check .env or DB Settings)');
 
         const settings = await AISettingsService.getSettings();
-        const modelName = settings?.model || "gemini-1.5-flash"; // Fallback to 1.5-flash
+        let modelName = settings?.model || "gemini-1.5-flash";
+
+        // Sanity check for model name (fix common database issues)
+        if (modelName === 'gemini-1.5-pro') modelName = 'gemini-pro';
+        if (modelName.includes('1.5-flash')) modelName = 'gemini-1.5-flash';
 
         console.log(`[ChatBot] Initializing with model: ${modelName}`);
 

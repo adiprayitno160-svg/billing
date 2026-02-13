@@ -70,6 +70,14 @@ export async function getStaticIpClientAdd(req: Request, res: Response, next: Ne
         // Get ODP data with OLT and ODC info
         const conn = await databasePool.getConnection();
         try {
+            // Ambil daftar pelanggan untuk pilihan (Searchable Dropdown)
+            const [customerRows] = await conn.execute(`
+                SELECT id, name, customer_code, phone, address, connection_type 
+                FROM customers 
+                WHERE status = 'active' 
+                ORDER BY name ASC
+            `);
+
             const [odpRows] = await conn.execute(`
                 SELECT 
                     o.id, 
@@ -89,6 +97,7 @@ export async function getStaticIpClientAdd(req: Request, res: Response, next: Ne
                 package: packageData,
                 interfaces,
                 odpData: odpRows,
+                customers: customerRows,
                 error: req.flash('error')
             });
         } finally {
@@ -246,13 +255,13 @@ export async function postStaticIpClientCreate(req: Request, res: Response, next
                     console.log(`IP ${mikrotikAddress} already exists (ID: ${existingIpId}). Syncing...`);
                     // Update comment ensuring no duplicate error
                     await updateIpAddress(cfg, existingIpId, {
-                        comment: `Client ${client_name}`,
+                        comment: client_name,
                         interface: iface
                     });
                 } else {
                     console.log(`Adding New IP address ${mikrotikAddress} to MikroTik...`);
-                    await addIpAddress(cfg, { interface: iface, address: mikrotikAddress, comment: `Client ${client_name}` });
-                    console.log('IP address added successfully');
+                    await addIpAddress(cfg, { interface: iface, address: mikrotikAddress, comment: client_name });
+                    console.log(`IP address ${mikrotikAddress} added successfully with comment: ${client_name}`);
                 }
             } catch (error: any) {
                 console.error('Failed to sync IP address:', error);
@@ -457,6 +466,14 @@ export async function getStaticIpClientEdit(req: Request, res: Response, next: N
         // Get ODP data with OLT and ODC info
         const conn = await databasePool.getConnection();
         try {
+            // Ambil daftar pelanggan untuk pilihan (Searchable Dropdown)
+            const [customerRows] = await conn.execute(`
+                SELECT id, name, customer_code, phone, address, connection_type 
+                FROM customers 
+                WHERE status = 'active' 
+                ORDER BY name ASC
+            `);
+
             const [odpRows] = await conn.execute(`
                 SELECT 
                     o.id, 
@@ -477,6 +494,7 @@ export async function getStaticIpClientEdit(req: Request, res: Response, next: N
                 client,
                 interfaces,
                 odpData: odpRows,
+                customers: customerRows,
                 success: req.flash('success'),
                 error: req.flash('error')
             });
@@ -562,7 +580,7 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
                 } catch (e) { console.warn('IP Calc Error', e); }
 
                 try {
-                    await addIpAddress(cfg, { interface: iface, address: mikrotikAddress, comment: `Client ${client_name}` });
+                    await addIpAddress(cfg, { interface: iface, address: mikrotikAddress, comment: client_name });
                 } catch (err: any) {
                     // Check if exists and update comment
                     const msg = String(err.message || '');
@@ -573,7 +591,7 @@ export async function postStaticIpClientUpdate(req: Request, res: Response, next
                             let ipId = await findIpAddressId(cfg, mikrotikAddress);
                             if (!ipId) ipId = await findIpAddressId(cfg, mikrotikAddress.split('/')[0]);
                             if (ipId) {
-                                await updateIpAddress(cfg, ipId, { comment: `Client ${client_name}` });
+                                await updateIpAddress(cfg, ipId, { comment: client_name });
                                 console.log(`Updated IP comment for ${mikrotikAddress}`);
                             }
                         } catch (ignore) { }

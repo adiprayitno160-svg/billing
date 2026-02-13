@@ -731,37 +731,107 @@
         }
     }
 
-    function showDowntimeDiscountModal() {
-        const days = prompt('Masukkan jumlah hari gangguan (misal: 1, 2, ...):');
-        if (days === null || days.trim() === '') return;
+    async function showDowntimeDiscountModal() {
+        const { value: formValues } = await Swal.fire({
+            title: 'Diskon Kompensasi Gangguan',
+            html: `
+                <div class="space-y-4 text-left p-2">
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tanggal Mulai</label>
+                            <input id="swal-input-start" type="date" class="swal2-input !m-0 !w-full text-sm !rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tanggal Selesai</label>
+                            <input id="swal-input-end" type="date" class="swal2-input !m-0 !w-full text-sm !rounded-xl">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Jumlah Hari Gangguan (Otomatis/Manual)</label>
+                        <input id="swal-input-days" type="number" class="swal2-input !m-0 !w-full !rounded-xl font-bold" placeholder="Hari" min="1" max="31">
+                    </div>
+                    <p class="text-[11px] text-blue-600 font-medium bg-blue-50 p-3 rounded-xl border border-blue-100 italic">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Sistem menghitung: (Subtotal / 30 hari) x Jumlah hari gangguan.
+                    </p>
+                </div>
+            `,
+            didOpen: () => {
+                const startInput = document.getElementById('swal-input-start');
+                const endInput = document.getElementById('swal-input-end');
+                const daysInput = document.getElementById('swal-input-days');
 
-        const numDays = parseInt(days);
-        if (isNaN(numDays) || numDays <= 0) {
-            alert('Jumlah hari harus berupa angka positif.');
-            return;
-        }
+                const calculate = () => {
+                    if (startInput.value && endInput.value) {
+                        const start = new Date(startInput.value);
+                        const end = new Date(endInput.value);
+                        const diffTime = end - start;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
 
-        if (confirm(`Terapkan diskon kompensasi untuk ${numDays} hari gangguan?\n\nSistem akan menghitung otomatis: (Subtotal / 30) * ${numDays} hari.`)) {
+                        if (diffDays > 0) {
+                            daysInput.value = diffDays;
+                        } else {
+                            daysInput.value = '';
+                        }
+                    }
+                };
+
+                startInput.addEventListener('change', calculate);
+                endInput.addEventListener('change', calculate);
+            },
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Terapkan Diskon',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#2563eb',
+            preConfirm: () => {
+                const days = document.getElementById('swal-input-days').value;
+                const start = document.getElementById('swal-input-start').value;
+                const end = document.getElementById('swal-input-end').value;
+
+                if (!days || parseInt(days) <= 0) {
+                    Swal.showValidationMessage('Tentukan tanggal mulai & selesai yang valid');
+                    return false;
+                }
+
+                return {
+                    downtimeDays: parseInt(days),
+                    startDate: start,
+                    endDate: end
+                };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({
+                title: 'Memproses...',
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+                allowOutsideClick: false
+            });
+
             fetch('/billing/tagihan/apply-downtime-discount', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     invoiceId: '<%= invoice.id %>',
-                    downtimeDays: numDays
+                    ...formValues
                 })
             })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('✅ ' + data.message);
-                        location.reload();
+                        Swal.fire('Berhasil!', data.message, 'success').then(() => {
+                            location.reload();
+                        });
                     } else {
-                        alert('❌ ' + data.message);
+                        Swal.fire('Gagal!', data.message, 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('❌ Terjadi kesalahan saat menerapkan diskon.');
+                    Swal.fire('Error!', 'Terjadi kesalahan saat menerapkan diskon.', 'error');
                 });
         }
     }

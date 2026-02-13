@@ -129,7 +129,7 @@ export class DiscountService {
      * Apply downtime/disturbance discount
      * Formula: (Subtotal / 30) * downtime_days
      */
-    static async applyDowntimeDiscount(invoiceId: number, downtimeDays: number, appliedBy: number): Promise<number> {
+    static async applyDowntimeDiscount(invoiceId: number, downtimeDays: number, appliedBy: number, startDate?: string, endDate?: string): Promise<number> {
         const connection = await databasePool.getConnection();
 
         try {
@@ -149,7 +149,13 @@ export class DiscountService {
             // Formula: (Subtotal / 30) * downtimeDays
             const dailyRate = invoice.subtotal / 30;
             const discountAmount = Math.round(dailyRate * downtimeDays);
-            const reason = `Kompensasi gangguan selama ${downtimeDays} hari`;
+
+            let reason = `Kompensasi gangguan selama ${downtimeDays} hari`;
+            if (startDate && endDate) {
+                const d1 = new Date(startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                const d2 = new Date(endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                reason += ` [${d1} - ${d2}]`;
+            }
 
             // Insert discount record
             const [discountResult] = await connection.execute(`

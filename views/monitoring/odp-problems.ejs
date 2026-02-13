@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ODP Health Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-orange: #f97316;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.8));
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        .header-left h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+        }
+
+        .stat-badge span {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-badge strong {
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .btn-refresh {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        /* ODP Card */
+        .odp-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .odp-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .odp-card.critical {
+            border-left: 4px solid var(--accent-red);
+        }
+
+        .odp-card.warning {
+            border-left: 4px solid var(--accent-orange);
+        }
+
+        .card-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+
+        .odp-info h2 {
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .odp-area {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .odp-health {
+            text-align: right;
+        }
+
+        .health-percentage {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-red);
+        }
+
+        .health-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Progress Bar */
+        .health-bar-container {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .health-bar {
+            height: 100%;
+            background: var(--accent-red);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 1s ease;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-item .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Offline List */
+        .offline-list {
+            margin-top: 10px;
+        }
+
+        .offline-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .offline-item:last-child {
+            border-bottom: none;
+        }
+
+        .customer-status {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+
+        .details-toggle {
+            width: 100%;
+            background: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            padding: 8px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .details-toggle:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .details-content {
+            display: none;
+            padding-top: 10px;
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: var(--accent-green);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1><i class="fas fa-network-wired"></i> ODP Health Dashboard</h1>
+                <a href="/monitoring/public/enhanced-network-map" class="btn-back">
+                    <i class="fas fa-arrow-left"></i> Back to Map
+                </a>
+            </div>
+
+            <div class="header-stats">
+                <div class="stat-badge">
+                    <span>Problem ODPs</span>
+                    <strong id="totalProblems">0</strong>
+                </div>
+                <div class="stat-badge">
+                    <span>Total Offline</span>
+                    <strong id="totalOfflineCtx" style="color: var(--accent-red)">0</strong>
+                </div>
+                <button class="btn-refresh" onclick="loadData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </header>
+
+        <div id="odpGrid" class="dashboard-grid">
+            <!-- ODP Cards will be inserted here -->
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <h2>Loading ODP Data...</h2>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            const grid = document.getElementById('odpGrid');
+
+            try {
+                const response = await fetch('/monitoring/api/odp-problems');
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.error);
+
+                const problems = result.data;
+
+                // Update Stats
+                document.getElementById('totalProblems').textContent = problems.length;
+                const totalOffline = problems.reduce((acc, curr) => acc + curr.offline_count, 0);
+                document.getElementById('totalOfflineCtx').textContent = totalOffline;
+
+                // Render Grid
+                if (problems.length === 0) {
+                    grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <h2>All Systems Healthy!</h2>
+                        <p>No ODPs are currently reporting offline customers.</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                grid.innerHTML = problems.map((odp, index) => {
+                    const healthClass = odp.offline_percentage > 50 ? 'critical' : (odp.offline_percentage > 20 ? 'warning' : '');
+                    const maxDisplay = 3;
+
+                    return `
+                <div class="odp-card ${healthClass}">
+                    <div class="card-header">
+                        <div class="odp-info">
+                            <h2>${odp.odp_name}</h2>
+                            <div class="odp-area">
+                                <i class="fas fa-map-marker-alt"></i> ${odp.area}
+                            </div>
+                        </div>
+                        <div class="odp-health">
+                            <div class="health-percentage">${odp.offline_percentage.toFixed(1)}%</div>
+                            <div class="health-label">Offline Rate</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="health-bar-container">
+                            <div class="health-bar" style="width: ${odp.offline_percentage}%"></div>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="value">${odp.total_customers}</div>
+                                <div class="label">Total Subs</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" style="color: var(--accent-red)">${odp.offline_count}</div>
+                                <div class="label">Offline</div>
+                            </div>
+                        </div>
+                        
+                        <div class="offline-list">
+                            ${odp.offline_customers.slice(0, maxDisplay).map(c => `
+                                <div class="offline-item">
+                                    <span>${c.name}</span>
+                                    <span class="customer-status">${c.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        ${odp.offline_customers.length > maxDisplay ? `
+                            <button class="details-toggle" onclick="toggleDetails(this)">
+                                Show ${odp.offline_customers.length - maxDisplay} more...
+                            </button>
+                            <div class="details-content">
+                                ${odp.offline_customers.slice(maxDisplay).map(c => `
+                                    <div class="offline-item">
+                                        <span>${c.name}</span>
+                                        <span class="customer-status">${c.status}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                grid.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle" style="color: var(--accent-red)"></i>
+                    <h2>Error Loading Data</h2>
+                    <p>${error.message}</p>
+                </div>
+            `;
+            }
+        }
+
+        function toggleDetails(btn) {
+            const content = btn.nextElementSibling;
+            content.classList.toggle('show');
+            btn.textContent = content.classList.contains('show') ? 'Show Less' : 'Show More...';
+        }
+
+        // Load initial data
+        loadData();
+
+        // Auto refresh every 60 seconds
+        setInterval(loadData, 60000);
+    </script>
+
+</body>
+
+</html>

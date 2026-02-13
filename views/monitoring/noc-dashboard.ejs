@@ -1,0 +1,671 @@
+<div class="space-y-6">
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <i class="fas fa-brain text-sm"></i>
+                </div>
+                NOC Intelligence Center
+            </h1>
+            <p class="text-gray-500 mt-1">AI-Powered Network Operations & Predictive Monitoring</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span
+                class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-violet-50 to-indigo-50 text-indigo-700 border border-indigo-100">
+                <span class="w-2 h-2 mr-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                NOC Active
+            </span>
+            <span class="text-xs text-gray-400">
+                <i class="fas fa-clock mr-1"></i>
+                Updated: <%= new Date(nocData.last_updated).toLocaleString('id-ID') %>
+            </span>
+            <button onclick="window.location.reload()"
+                class="p-2 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Overall Health Score - Hero Card -->
+    <div
+        class="relative overflow-hidden rounded-2xl bg-gradient-to-br <%= nocData.overall_health >= 90 ? 'from-emerald-500 via-green-600 to-teal-700' : nocData.overall_health >= 75 ? 'from-amber-500 via-yellow-600 to-orange-600' : nocData.overall_health >= 60 ? 'from-orange-500 via-orange-600 to-red-600' : 'from-red-500 via-red-600 to-rose-700' %> shadow-2xl p-6 md:p-8 text-white">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div class="flex items-center gap-6">
+                <!-- Health Score Circle -->
+                <div class="relative w-28 h-28 flex-shrink-0">
+                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="8" />
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="white" stroke-width="8"
+                            stroke-dasharray="<%= Math.round(2 * Math.PI * 42 * nocData.overall_health / 100) %> <%= Math.round(2 * Math.PI * 42) %>"
+                            stroke-linecap="round" class="transition-all duration-1000" />
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span class="text-3xl font-black">
+                            <%= nocData.overall_health %>
+                        </span>
+                        <span class="text-[10px] font-bold tracking-wider opacity-80">/ 100</span>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-white/80 text-sm font-medium mb-1">Network Health Score</p>
+                    <p class="text-4xl font-black">Grade <%= nocData.overall_grade %>
+                    </p>
+                    <p class="text-white/70 text-sm mt-2">
+                        <i class="fas fa-users mr-1"></i>
+                        <%= nocData.total_customers %> pelanggan terpantau
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10">
+                    <p class="text-3xl font-black">
+                        <%= nocData.online_count %>
+                    </p>
+                    <p class="text-xs font-medium text-white/80 mt-1"><i
+                            class="fas fa-circle text-green-300 mr-1 text-[8px]"></i> Online</p>
+                </div>
+                <div class="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10">
+                    <p class="text-3xl font-black">
+                        <%= nocData.offline_count %>
+                    </p>
+                    <p class="text-xs font-medium text-white/80 mt-1"><i
+                            class="fas fa-circle text-red-300 mr-1 text-[8px]"></i> Offline</p>
+                </div>
+                <div class="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10">
+                    <p class="text-3xl font-black">
+                        <%= nocData.degraded_count %>
+                    </p>
+                    <p class="text-xs font-medium text-white/80 mt-1"><i
+                            class="fas fa-circle text-yellow-300 mr-1 text-[8px]"></i> Degraded</p>
+                </div>
+                <div class="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center border border-white/10">
+                    <p class="text-3xl font-black">
+                        <%= nocData.predictive_alerts.length %>
+                    </p>
+                    <p class="text-xs font-medium text-white/80 mt-1"><i class="fas fa-bolt text-amber-300 mr-1"></i>
+                        Alerts</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Decorative Elements -->
+        <div class="absolute -right-20 -top-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+        <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
+        <div class="absolute right-10 bottom-4 opacity-5 text-9xl font-black pointer-events-none">NOC</div>
+    </div>
+
+    <!-- Predictive Alerts Section -->
+    <% if (nocData.predictive_alerts.length> 0) { %>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                    <span
+                        class="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center text-white text-sm">
+                        <i class="fas fa-bolt"></i>
+                    </span>
+                    Predictive Alerts
+                    <span class="ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">
+                        <%= nocData.predictive_alerts.length %>
+                    </span>
+                </h3>
+                <span class="text-xs text-gray-400">AI detects issues before they happen</span>
+            </div>
+            <div class="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                <% nocData.predictive_alerts.forEach(function(alert) { %>
+                    <div class="p-4 md:p-5 hover:bg-gray-50/50 transition-colors">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center <%= alert.severity === 'critical' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600' %>">
+                                <i
+                                    class="fas <%= alert.alert_type === 'latency_spike' ? 'fa-tachometer-alt' : alert.alert_type === 'packet_loss_trend' ? 'fa-exclamation-triangle' : alert.alert_type === 'frequent_disconnects' ? 'fa-unlink' : 'fa-brain' %>"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="font-bold text-gray-900 text-sm">
+                                        <%= alert.customer_name %>
+                                    </span>
+                                    <span
+                                        class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider <%= alert.severity === 'critical' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700' %>">
+                                        <%= alert.severity %>
+                                    </span>
+                                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-medium">
+                                        <%= alert.connection_type.toUpperCase() %>
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-2">
+                                    <%= alert.message %>
+                                </p>
+                                <div class="flex items-center gap-4 text-xs">
+                                    <span class="text-gray-400">
+                                        <i class="fas fa-map-marker-alt mr-1"></i>
+                                        <%= alert.area %>
+                                    </span>
+                                    <span class="text-indigo-600 font-medium">
+                                        <i class="fas fa-percentage mr-1"></i>Confidence: <%= alert.confidence %>%
+                                    </span>
+                                    <% if (alert.predicted_time_to_outage_minutes) { %>
+                                        <span class="text-red-600 font-bold">
+                                            <i class="fas fa-clock mr-1"></i>~<%= alert.predicted_time_to_outage_minutes
+                                                %> min to outage
+                                        </span>
+                                        <% } %>
+                                </div>
+                                <div class="mt-2 p-2 bg-indigo-50 rounded-lg text-xs text-indigo-700">
+                                    <i class="fas fa-lightbulb mr-1"></i> <strong>Rekomendasi:</strong>
+                                    <%= alert.recommended_action %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <% }); %>
+            </div>
+        </div>
+        <% } %>
+
+            <!-- Main Grid: Area Heatmap + Trend + Risk -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Area Health Heatmap (2/3 width) -->
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                            <span
+                                class="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm">
+                                <i class="fas fa-map-marked-alt"></i>
+                            </span>
+                            Area Health Map
+                        </h3>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500"></span> A
+                                (90+)</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-yellow-500"></span> B
+                                (75+)</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-orange-500"></span> C
+                                (60+)</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-500"></span>
+                                D/F</span>
+                        </div>
+                    </div>
+                    <div
+                        class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto custom-scrollbar">
+                        <% nocData.area_health.forEach(function(area) { %>
+                            <div
+                                class="p-4 rounded-xl border transition-all hover:shadow-md cursor-pointer
+                    <%= area.has_cluster_outage ? 'border-red-200 bg-red-50/50 animate-pulse-slow' : area.health_grade === 'A' ? 'border-emerald-100 bg-emerald-50/30' : area.health_grade === 'B' ? 'border-yellow-100 bg-yellow-50/30' : area.health_grade === 'C' ? 'border-orange-100 bg-orange-50/30' : 'border-red-100 bg-red-50/30' %>">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <% if (area.has_cluster_outage) { %>
+                                            <span
+                                                class="px-1.5 py-0.5 bg-red-600 text-white rounded text-[9px] font-black tracking-wider animate-pulse">OUTAGE</span>
+                                            <% } %>
+                                                <span class="font-bold text-sm text-gray-900 truncate">
+                                                    <%= area.odp_name %>
+                                                </span>
+                                    </div>
+                                    <span
+                                        class="px-2 py-0.5 rounded-full text-xs font-black
+                            <%= area.health_grade === 'A' ? 'bg-emerald-100 text-emerald-700' : area.health_grade === 'B' ? 'bg-yellow-100 text-yellow-700' : area.health_grade === 'C' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700' %>">
+                                        <%= area.avg_health_score %>
+                                    </span>
+                                </div>
+                                <p class="text-[10px] text-gray-500 mb-2 truncate"><i class="fas fa-map-pin mr-1"></i>
+                                    <%= area.area %>
+                                </p>
+                                <div class="flex items-center gap-3 text-xs">
+                                    <span class="text-green-600 font-semibold"><i
+                                            class="fas fa-circle text-[6px] align-middle mr-1"></i>
+                                        <%= area.online_count %>
+                                    </span>
+                                    <span class="text-red-600 font-semibold"><i
+                                            class="fas fa-circle text-[6px] align-middle mr-1"></i>
+                                        <%= area.offline_count %>
+                                    </span>
+                                    <span class="text-yellow-600 font-semibold"><i
+                                            class="fas fa-circle text-[6px] align-middle mr-1"></i>
+                                        <%= area.degraded_count %>
+                                    </span>
+                                    <span class="text-gray-400 ml-auto">
+                                        <%= area.total_customers %> total
+                                    </span>
+                                </div>
+                                <!-- Mini Health Bar -->
+                                <div class="mt-2 w-full bg-gray-200 rounded-full h-1.5">
+                                    <div class="h-1.5 rounded-full transition-all duration-500 <%= area.avg_health_score >= 90 ? 'bg-emerald-500' : area.avg_health_score >= 75 ? 'bg-yellow-500' : area.avg_health_score >= 60 ? 'bg-orange-500' : 'bg-red-500' %>"
+                                        style="width: <%= area.avg_health_score %>%"></div>
+                                </div>
+                            </div>
+                            <% }); %>
+
+                                <% if (nocData.area_health.length===0) { %>
+                                    <div class="col-span-2 py-12 text-center text-gray-400">
+                                        <i class="fas fa-map text-3xl mb-3 opacity-30"></i>
+                                        <p class="text-sm">Tidak ada data area</p>
+                                    </div>
+                                    <% } %>
+                    </div>
+                </div>
+
+                <!-- Right Column: Risk + Stats -->
+                <div class="space-y-6">
+                    <!-- Top Risk Customers -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="p-5 border-b border-gray-50">
+                            <h3 class="font-bold text-gray-900 flex items-center gap-2 text-sm">
+                                <span
+                                    class="w-7 h-7 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center text-white text-xs">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </span>
+                                At-Risk Customers
+                            </h3>
+                        </div>
+                        <div class="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+                            <% nocData.top_risk_customers.forEach(function(customer) { %>
+                                <div class="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/50">
+                                    <div
+                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black
+                            <%= customer.health_score < 30 ? 'bg-red-100 text-red-700' : customer.health_score < 50 ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700' %>">
+                                        <%= customer.health_score %>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-semibold text-gray-900 truncate">
+                                            <%= customer.customer_name %>
+                                        </p>
+                                        <p class="text-[10px] text-gray-500">
+                                            <%= customer.area %> · <%= customer.total_incidents_30d %> insiden/30d
+                                        </p>
+                                    </div>
+                                    <span
+                                        class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold
+                            <%= customer.risk_level === 'critical' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700' %>">
+                                        <%= customer.risk_level.toUpperCase() %>
+                                    </span>
+                                </div>
+                                <% }); %>
+
+                                    <% if (nocData.top_risk_customers.length===0) { %>
+                                        <div class="py-8 text-center text-gray-400">
+                                            <i class="fas fa-shield-alt text-2xl mb-2 opacity-30"></i>
+                                            <p class="text-xs">Semua pelanggan aman 🎉</p>
+                                        </div>
+                                        <% } %>
+                        </div>
+                    </div>
+
+                    <!-- PPPoE vs Static IP Split -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2 text-sm mb-4">
+                            <span
+                                class="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white text-xs">
+                                <i class="fas fa-chart-pie"></i>
+                            </span>
+                            Connection Split
+                        </h3>
+                        <div class="space-y-4">
+                            <!-- PPPoE -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-bold text-gray-600">PPPoE</span>
+                                    <span class="text-xs text-blue-600 font-semibold">
+                                        <%= nocData.pppoe_stats.online %>/<%= nocData.pppoe_stats.total %>
+                                    </span>
+                                </div>
+                                <div class="flex gap-1 h-3 rounded-full overflow-hidden bg-gray-100">
+                                    <% let pppoeOnlineW=nocData.pppoe_stats.total> 0 ? (nocData.pppoe_stats.online /
+                                        nocData.pppoe_stats.total * 100) : 0; %>
+                                        <% let pppoeOfflineW=nocData.pppoe_stats.total> 0 ? (nocData.pppoe_stats.offline
+                                            / nocData.pppoe_stats.total * 100) : 0; %>
+                                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-l-full transition-all"
+                                                style="width: <%= pppoeOnlineW %>%"></div>
+                                            <div class="bg-red-400 rounded-r-full transition-all"
+                                                style="width: <%= pppoeOfflineW %>%"></div>
+                                </div>
+                            </div>
+                            <!-- Static IP -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-bold text-gray-600">Static IP</span>
+                                    <span class="text-xs text-purple-600 font-semibold">
+                                        <%= nocData.static_ip_stats.online %>/<%= nocData.static_ip_stats.total %>
+                                    </span>
+                                </div>
+                                <div class="flex gap-1 h-3 rounded-full overflow-hidden bg-gray-100">
+                                    <% let sipOnlineW=nocData.static_ip_stats.total> 0 ? (nocData.static_ip_stats.online
+                                        / nocData.static_ip_stats.total * 100) : 0; %>
+                                        <% let sipOfflineW=nocData.static_ip_stats.total> 0 ?
+                                            (nocData.static_ip_stats.offline / nocData.static_ip_stats.total * 100) : 0;
+                                            %>
+                                            <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-l-full transition-all"
+                                                style="width: <%= sipOnlineW %>%"></div>
+                                            <div class="bg-red-400 rounded-r-full transition-all"
+                                                style="width: <%= sipOfflineW %>%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Digest Card -->
+                    <div
+                        class="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 rounded-2xl shadow-lg p-5 text-white relative overflow-hidden">
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                                    <i class="fas fa-paper-plane text-sm"></i>
+                                </div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-white/80">Daily
+                                    Digest</span>
+                            </div>
+                            <p class="text-sm text-white/90 mb-3">
+                                Kirim ringkasan monitoring harian ke Telegram admin.
+                            </p>
+                            <button onclick="sendDailyDigest()" id="btn-digest"
+                                class="w-full px-4 py-2.5 bg-white/20 backdrop-blur-sm rounded-xl text-sm font-bold hover:bg-white/30 transition-all border border-white/20">
+                                <i class="fas fa-paper-plane mr-2"></i>Kirim Digest Sekarang
+                            </button>
+                        </div>
+                        <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+                        <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Health Scores Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-6 border-b border-gray-50 flex items-center justify-between">
+                    <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                        <span
+                            class="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-lg flex items-center justify-center text-white text-sm">
+                            <i class="fas fa-heartbeat"></i>
+                        </span>
+                        Customer Health Scores
+                        <span class="text-xs font-normal text-gray-400 ml-2">(<%= nocData.customer_scores.length %>
+                                pelanggan)</span>
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="health-search" placeholder="Cari pelanggan..."
+                            class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 w-48">
+                        <select id="health-filter"
+                            class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                            <option value="">Semua Grade</option>
+                            <option value="A">Grade A (90+)</option>
+                            <option value="B">Grade B (75+)</option>
+                            <option value="C">Grade C (60+)</option>
+                            <option value="D">Grade D (40+)</option>
+                            <option value="F">Grade F (&lt;40)</option>
+                        </select>
+                        <select id="risk-filter"
+                            class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                            <option value="">Semua Risk</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="health-table">
+                        <thead>
+                            <tr class="bg-gray-50/80">
+                                <th
+                                    class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Pelanggan</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Score</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Status</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Uptime</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Latency</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Pkt Loss</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Insiden</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Risk</th>
+                                <th
+                                    class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                    Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            <% nocData.customer_scores.sort((a, b)=> a.health_score -
+                                b.health_score).forEach(function(cs) { %>
+                                <tr class="hover:bg-gray-50/50 transition-colors health-row"
+                                    data-name="<%= cs.customer_name.toLowerCase() %>"
+                                    data-grade="<%= cs.health_grade %>" data-risk="<%= cs.risk_level %>">
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black
+                                    <%= cs.health_grade === 'A' ? 'bg-emerald-100 text-emerald-700' : cs.health_grade === 'B' ? 'bg-yellow-100 text-yellow-700' : cs.health_grade === 'C' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700' %>">
+                                                <%= cs.health_grade %>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-900 truncate max-w-[160px]">
+                                                    <%= cs.customer_name %>
+                                                </p>
+                                                <p class="text-[10px] text-gray-400">
+                                                    <%= cs.customer_code %> · <%= cs.connection_type.toUpperCase() %> ·
+                                                            <%= cs.area %>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <div class="inline-flex items-center gap-1">
+                                            <div class="w-10 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                <div class="h-2 rounded-full <%= cs.health_score >= 90 ? 'bg-emerald-500' : cs.health_score >= 75 ? 'bg-yellow-500' : cs.health_score >= 60 ? 'bg-orange-500' : 'bg-red-500' %>"
+                                                    style="width: <%= cs.health_score %>%"></div>
+                                            </div>
+                                            <span class="text-xs font-black text-gray-900">
+                                                <%= cs.health_score %>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span
+                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold
+                                <%= cs.current_status === 'online' ? 'bg-green-100 text-green-700' : cs.current_status === 'offline' ? 'bg-red-100 text-red-700' : cs.current_status === 'degraded' ? 'bg-yellow-100 text-yellow-700' : cs.current_status === 'isolated' ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-500' %>">
+                                            <span
+                                                class="w-1.5 h-1.5 rounded-full mr-1 <%= cs.current_status === 'online' ? 'bg-green-500' : cs.current_status === 'offline' ? 'bg-red-500' : cs.current_status === 'degraded' ? 'bg-yellow-500' : 'bg-gray-400' %>"></span>
+                                            <%= cs.current_status %>
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center text-xs font-semibold text-gray-700">
+                                        <%= cs.uptime_24h %>%
+                                    </td>
+                                    <td
+                                        class="px-4 py-3 text-center text-xs font-semibold <%= cs.avg_latency_ms > 100 ? 'text-red-600' : cs.avg_latency_ms > 50 ? 'text-orange-600' : 'text-gray-700' %>">
+                                        <%= cs.avg_latency_ms %> ms
+                                    </td>
+                                    <td
+                                        class="px-4 py-3 text-center text-xs font-semibold <%= cs.avg_packet_loss > 5 ? 'text-red-600' : cs.avg_packet_loss > 1 ? 'text-orange-600' : 'text-gray-700' %>">
+                                        <%= cs.avg_packet_loss %>%
+                                    </td>
+                                    <td
+                                        class="px-4 py-3 text-center text-xs font-semibold <%= cs.total_incidents_30d > 3 ? 'text-red-600' : cs.total_incidents_30d > 0 ? 'text-orange-600' : 'text-gray-700' %>">
+                                        <%= cs.total_incidents_30d %>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span
+                                            class="px-2 py-0.5 rounded text-[10px] font-bold
+                                <%= cs.risk_level === 'critical' ? 'bg-red-100 text-red-700' : cs.risk_level === 'high' ? 'bg-orange-100 text-orange-700' : cs.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700' %>">
+                                            <%= cs.risk_level %>
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <i
+                                            class="fas <%= cs.trend === 'improving' ? 'fa-arrow-up text-green-500' : cs.trend === 'degrading' ? 'fa-arrow-down text-red-500' : 'fa-minus text-gray-400' %> text-sm"></i>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Incidents -->
+            <% if (nocData.recent_incidents.length> 0) { %>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-50">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                            <span
+                                class="w-8 h-8 bg-gradient-to-br from-rose-500 to-red-600 rounded-lg flex items-center justify-center text-white text-sm">
+                                <i class="fas fa-history"></i>
+                            </span>
+                            Recent Incidents (24 Jam)
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50/80">
+                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase">
+                                        Pelanggan</th>
+                                    <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase">Tipe
+                                    </th>
+                                    <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase">
+                                        Status</th>
+                                    <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase">
+                                        Mulai</th>
+                                    <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase">
+                                        Durasi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <% nocData.recent_incidents.forEach(function(inc) { %>
+                                    <tr class="hover:bg-gray-50/50">
+                                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">
+                                            <%= inc.customer_name %>
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <span
+                                                class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700">
+                                                <%= inc.service_type %>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <span
+                                                class="px-2 py-0.5 rounded text-[10px] font-bold
+                                <%= inc.status === 'ongoing' ? 'bg-red-100 text-red-700' : inc.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' %>">
+                                                <%= inc.status %>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-center text-xs text-gray-600">
+                                            <%= new Date(inc.start_time).toLocaleString('id-ID', { hour: '2-digit' ,
+                                                minute: '2-digit' , day: 'numeric' , month: 'short' }) %>
+                                        </td>
+                                        <td class="px-4 py-3 text-center text-xs font-semibold text-gray-700">
+                                            <%= inc.duration_minutes ? inc.duration_minutes + ' min' : 'Ongoing' %>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <% } %>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+
+    @keyframes pulse-slow {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.85;
+        }
+    }
+
+    .animate-pulse-slow {
+        animation: pulse-slow 3s ease-in-out infinite;
+    }
+</style>
+
+<script>
+    // Table search & filter
+    const searchInput = document.getElementById('health-search');
+    const gradeFilter = document.getElementById('health-filter');
+    const riskFilter = document.getElementById('risk-filter');
+    const rows = document.querySelectorAll('.health-row');
+
+    function filterTable() {
+        const search = searchInput.value.toLowerCase();
+        const grade = gradeFilter.value;
+        const risk = riskFilter.value;
+
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const rowGrade = row.dataset.grade;
+            const rowRisk = row.dataset.risk;
+
+            const matchSearch = !search || name.includes(search);
+            const matchGrade = !grade || rowGrade === grade;
+            const matchRisk = !risk || rowRisk === risk;
+
+            row.style.display = (matchSearch && matchGrade && matchRisk) ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterTable);
+    gradeFilter.addEventListener('change', filterTable);
+    riskFilter.addEventListener('change', filterTable);
+
+    // Send Daily Digest
+    async function sendDailyDigest() {
+        const btn = document.getElementById('btn-digest');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/monitoring/noc/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.success) {
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i>Terkirim!';
+                btn.classList.add('bg-green-500/30');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('bg-green-500/30');
+                    btn.disabled = false;
+                }, 3000);
+            } else {
+                btn.innerHTML = '<i class="fas fa-times mr-2"></i>Gagal: ' + (data.message || 'Error');
+                setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 3000);
+            }
+        } catch (e) {
+            btn.innerHTML = '<i class="fas fa-times mr-2"></i>Error koneksi';
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 3000);
+        }
+    }
+</script>

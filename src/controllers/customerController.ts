@@ -2205,7 +2205,7 @@ export const addCompensation = async (req: Request, res: Response) => {
     if (!id) return res.redirect('/customers/list');
 
     try {
-        const { days, reason } = req.body;
+        const { days, reason, start_date, end_date } = req.body;
 
         if (!days || !reason) {
             req.flash('error', 'Semua field harus diisi');
@@ -2218,6 +2218,8 @@ export const addCompensation = async (req: Request, res: Response) => {
             customerId: parseInt(id),
             days: parseInt(days),
             reason: reason,
+            startDate: start_date,
+            endDate: end_date,
             adminId: (req as any).user?.id,
             adminName: (req as any).user?.username
         });

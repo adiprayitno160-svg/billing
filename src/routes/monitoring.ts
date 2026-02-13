@@ -66,4 +66,9 @@ router.get('/trouble/report', (req, res) => {
 // Manual sync route
 router.post('/sync', (req, res) => controller.syncManually(req, res));
 
+// ============ NOC INTELLIGENCE CENTER ============
+router.get('/noc', (req, res) => controller.getNocDashboard(req, res));
+router.get('/noc/api/data', (req, res) => controller.getNocDashboardApi(req, res));
+router.post('/noc/digest', (req, res) => controller.sendNocDailyDigest(req, res));
+
 export default router;

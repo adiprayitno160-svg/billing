@@ -1,1556 +1,1156 @@
 ﻿<style>
-    /* Prevent horizontal overflow */
-    body {
-        overflow-x: hidden;
+    .glass-card {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
     }
 
-    .table-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    .glass-header {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.4);
     }
 
-    /* Make buttons more responsive */
-    button[data-action] {
-        min-width: auto !important;
-        flex-shrink: 0;
+    .btn-premium {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Ensure main content doesn't overflow */
-    main {
-        max-width: 100%;
-        overflow-x: hidden;
+    .btn-premium:hover {
+        transform: translateY(-2px);
     }
 
-    /* Bulk items visibility */
-    .bulk-delete-hidden {
-        display: none !important;
+    .btn-premium:active {
+        transform: scale(0.95);
     }
 
-    .bulk-delete-visible {
-        display: inline-flex !important;
+    .badge-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
 
-    /* Button gradients */
-    .bg-wa-gradient {
-        background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    /* Custom Scrollbar for list */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.03);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+    }
+
+    @keyframes pulse-soft {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.7;
+        }
+    }
+
+    .animate-pulse-soft {
+        animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 </style>
 
-<!-- Action Buttons Section -->
-<div class="glass-panel shadow-lg rounded-2xl mb-6 p-6 overflow-x-auto">
-    <div class="flex flex-nowrap md:flex-wrap gap-4 items-center min-w-max md:min-w-0">
-        <!-- Generate Tagihan -->
-        <button type="button" id="btnGenerateTagihan" data-action="generate-invoice"
-            class="inline-flex items-center bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-file-invoice mr-2 text-lg"></i>Generate
-        </button>
-
-        <!-- Print Area ODC -->
-        <button type="button" id="btnPrintODC" onclick="showOdcPrintModal()"
-            class="inline-flex items-center bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-cyan-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-map-marked-alt mr-2 text-lg"></i>Print Area
-        </button>
-
-        <div class="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
-
-        <!-- Kirim Masal (Pindah ke samping Export sesuai permintaan) -->
-        <button type="button" id="btnBulkSendWA" data-action="bulk-send-wa"
-            class="inline-flex items-center bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300 transform hover:-translate-y-0.5"
-            title="Kirim tagihan terpilih ke antrian WhatsApp">
-            <i class="fab fa-whatsapp mr-2 text-xl"></i>Kirim Masal (<span id="selectedSendWACount">0</span>)
-        </button>
-
-        <!-- Export PDF -->
-        <button type="button" id="btnExportPDF" data-action="export-pdf"
-            class="inline-flex items-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
-            <i class="fas fa-file-pdf mr-2 text-lg"></i>Export PDF
-        </button>
-
-        <div class="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
-
-        <!-- Bulk Actions (Hanya muncul jika ada yang dipilih) -->
-        <div class="flex items-center gap-3">
-            <button type="button" id="btnBulkReminder" data-action="bulk-reminder"
-                class="bulk-reminder-hidden inline-flex items-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all transform hover:-translate-y-0.5"
-                title="Kirim pengingat untuk tagihan terpilih">
-                <i class="fas fa-bell mr-2"></i>Remind (<span id="selectedReminderCount">0</span>)
-            </button>
-
-            <button type="button" id="bulkDeleteBtn" data-action="bulk-delete"
-                class="bulk-delete-hidden inline-flex items-center bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all transform hover:-translate-y-0.5">
-                <i class="fas fa-trash-alt mr-2"></i>Hapus (<span id="selectedCount">0</span>)
-            </button>
-
-            <button type="button" id="btnPrintSelected" data-action="print-selected"
-                class="bulk-print-hidden inline-flex items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all transform hover:-translate-y-0.5">
-                <i class="fas fa-check-double mr-2"></i>Print (<span id="selectedPrintCount">0</span>)
-            </button>
+<div class="space-y-6 animate-fadeIn pb-20">
+    <!-- Header Block -->
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm">
+        <div>
+            <nav class="flex mb-2" aria-label="Breadcrumb">
+                <ol
+                    class="inline-flex items-center space-x-1 md:space-x-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <li class="inline-flex items-center">
+                        <a href="/dashboard" class="hover:text-blue-600 transition-colors">DASHBOARD</a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-[8px] mx-1"></i>
+                            <span class="text-slate-600">BILLING</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                    <i class="fas fa-file-invoice text-lg"></i>
+                </div>
+                TAGIHAN BULANAN
+            </h1>
+            <p class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tighter">Kelola invoice dan penagihan
+                pelanggan bulanan</p>
         </div>
 
-        <button type="button" id="btnPrintAll" data-action="print-all"
-            class="inline-flex items-center bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all">
-            <i class="fas fa-print mr-2"></i>Print Semua
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" id="btnGenerateTagihan" data-action="generate-invoice"
+                class="btn-premium inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-blue-200">
+                <i class="fas fa-magic mr-2"></i>Generate
+            </button>
+            <button type="button" id="btnPrintODC" onclick="showOdcPrintModal()"
+                class="btn-premium inline-flex items-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-slate-200">
+                <i class="fas fa-print mr-2"></i>Print Area
+            </button>
+            <a href="/billing/verification"
+                class="btn-premium inline-flex items-center bg-white border border-slate-200 text-slate-700 px-5 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-sm hover:bg-slate-50 relative">
+                <i class="fas fa-check-double mr-2 text-blue-600"></i>Verifikasi
+                <% if (typeof stats !=='undefined' && stats.pendingPaymentVerifications> 0) { %>
+                    <span
+                        class="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-bounce">
+                        <%= stats.pendingPaymentVerifications %>
+                    </span>
+                    <% } %>
+            </a>
+        </div>
     </div>
-</div>
 
-<!-- Filters -->
-<div class="glass-panel rounded-2xl shadow-lg p-6 mb-6">
-    <form method="GET">
-        <div class="flex flex-wrap items-end gap-4">
-            <!-- Period Filter -->
-            <div class="flex-1 min-w-[150px]">
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Periode</label>
+    <!-- Bulk Action Float Bar (Visible only when selected) -->
+    <div id="bulkActionFloat"
+        class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] scale-90 opacity-0 pointer-events-none transition-all duration-300">
+        <div
+            class="bg-slate-900/90 backdrop-blur-xl text-white px-6 py-4 rounded-3xl shadow-2xl border border-white/10 flex items-center gap-6">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Terpilih</span>
+                <span class="text-xl font-black text-blue-400"><span id="selectedCountFloat">0</span> <span
+                        class="text-xs text-slate-300 font-bold uppercase ml-1">Invoice</span></span>
+            </div>
+            <div class="h-10 w-px bg-white/10"></div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="btnBulkSendWA" data-action="bulk-send-wa"
+                    class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <span class="text-[8px] font-bold uppercase">WA</span>
+                </button>
+                <button type="button" id="btnBulkReminder" data-action="bulk-reminder"
+                    class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <span class="text-[8px] font-bold uppercase">Remind</span>
+                </button>
+                <button type="button" id="btnPrintSelected" data-action="print-selected"
+                    class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
+                        <i class="fas fa-print"></i>
+                    </div>
+                    <span class="text-[8px] font-bold uppercase">Print</span>
+                </button>
+                <button type="button" id="bulkDeleteBtn" data-action="bulk-delete"
+                    class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-10 h-10 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center group-hover:bg-red-500 group-hover:text-white transition-all">
+                        <i class="fas fa-trash-alt"></i>
+                    </div>
+                    <span class="text-[8px] font-bold uppercase">Hapus</span>
+                </button>
+            </div>
+            <button type="button" onclick="deselectAllInvoices()"
+                class="ml-4 text-slate-400 hover:text-white transition-colors">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters Block -->
+    <div class="bg-white/40 backdrop-blur-md rounded-[2rem] p-6 border border-white/20 shadow-sm">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <div>
+                <label
+                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Periode</label>
                 <input type="month" name="period" value="<%= filters.period %>"
-                    class="w-full px-4 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:bg-white/80">
+                    class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-bold text-slate-700">
             </div>
-            <!-- Status Filter -->
-            <div class="flex-1 min-w-[180px]">
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
-                <div class="relative">
-                    <select name="status"
-                        class="w-full pl-4 pr-10 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none backdrop-blur-sm transition-all duration-300 hover:bg-white/80">
-                        <option value="">Aktif (Belum Lunas)</option>
-                        <option value="all" <%=filters.status==='all' ? 'selected' : '' %>>Semua (Arsip Lengkap)
-                        </option>
-                        <option value="draft" <%=filters.status==='draft' ? 'selected' : '' %>>Draft</option>
-                        <option value="sent" <%=filters.status==='sent' ? 'selected' : '' %>>Terkirim</option>
-                        <option value="partial" <%=filters.status==='partial' ? 'selected' : '' %>>Dibayar Sebagian
-                        </option>
-                        <option value="paid" <%=filters.status==='paid' ? 'selected' : '' %>>Lunas</option>
-                        <option value="overdue" <%=filters.status==='overdue' ? 'selected' : '' %>>Jatuh Tempo</option>
-                        <option value="cancelled" <%=filters.status==='cancelled' ? 'selected' : '' %>>Dibatalkan
-                        </option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Status
+                    Pembayaran</label>
+                <select name="status"
+                    class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-bold text-slate-700 appearance-none">
+                    <option value="">AKTIF (BELUM LUNAS)</option>
+                    <option value="all" <%=filters.status==='all' ? 'selected' : '' %>>SEMUA DATA</option>
+                    <option value="draft" <%=filters.status==='draft' ? 'selected' : '' %>>DRAFT</option>
+                    <option value="sent" <%=filters.status==='sent' ? 'selected' : '' %>>TERKIRIM</option>
+                    <option value="partial" <%=filters.status==='partial' ? 'selected' : '' %>>PARTIAL</option>
+                    <option value="paid" <%=filters.status==='paid' ? 'selected' : '' %>>LUNAS</option>
+                    <option value="overdue" <%=filters.status==='overdue' ? 'selected' : '' %>>JATUH TEMPO</option>
+                    <option value="cancelled" <%=filters.status==='cancelled' ? 'selected' : '' %>>DIBATALKAN</option>
+                </select>
             </div>
-
-            <!-- Isolir Filter -->
-            <div class="flex-1 min-w-[180px]">
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pelanggan
-                    Isolir</label>
-                <div class="relative">
-                    <select name="hide_isolated"
-                        class="w-full pl-4 pr-10 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none backdrop-blur-sm transition-all duration-300 hover:bg-white/80">
-                        <option value="">Tampilkan Semua</option>
-                        <option value="1" <%=filters.hide_isolated==='1' || filters.hide_isolated===true ? 'selected'
-                            : '' %>>🚫 Sembunyikan Isolir</option>
-                        <option value="only" <%=filters.hide_isolated==='only' ? 'selected' : '' %>>⚠️ Hanya Isolir
-                        </option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Area
+                    ODC</label>
+                <select name="odc_id"
+                    class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-bold text-slate-700 appearance-none">
+                    <option value="">SEMUA AREA</option>
+                    <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
+                        <% odcList.forEach(function(odc) { %>
+                            <option value="<%= odc.id %>" <%=filters.odc_id==odc.id ? 'selected' : '' %>><%= odc.name %>
+                            </option>
+                            <% }); %>
+                                <% } %>
+                </select>
             </div>
-
-            <!-- ODC Filter -->
-            <div class="flex-1 min-w-[180px]">
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Area ODC</label>
-                <div class="relative">
-                    <select name="odc_id"
-                        class="w-full pl-4 pr-10 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none backdrop-blur-sm transition-all duration-300 hover:bg-white/80">
-                        <option value="">Semua ODC</option>
-                        <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
-                            <% odcList.forEach(function(odc) { %>
-                                <option value="<%= odc.id %>" <%=filters.odc_id==odc.id ? 'selected' : '' %>><%=
-                                        odc.name %>
-                                </option>
-                                <% }); %>
-                                    <% } %>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
-                </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Filter
+                    Lanjut</label>
+                <select name="hide_isolated"
+                    class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-bold text-slate-700 appearance-none">
+                    <option value="">TAMPILKAN SEMUA</option>
+                    <option value="1" <%=filters.hide_isolated==='1' || filters.hide_isolated===true ? 'selected' : ''
+                        %>>SEMBUNYIKAN ISOLIR</option>
+                    <option value="only" <%=filters.hide_isolated==='only' ? 'selected' : '' %>>HANYA ISOLIR</option>
+                </select>
             </div>
-
-            <!-- Search Input -->
-            <div class="flex-1 min-w-[250px]">
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cari</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-search text-gray-400"></i>
-                    </div>
-                    <input type="text" name="search" value="<%= filters.search %>"
-                        placeholder="Nama, telepon, atau nomor tagihan..."
-                        class="w-full pl-10 pr-4 py-2.5 text-sm bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm transition-all duration-300 hover:bg-white/80">
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
             <div class="flex gap-2">
                 <button type="submit"
-                    class="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 transition-all duration-300 text-sm font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5">
-                    Filter
+                    class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest py-3 px-6 rounded-2xl transition-all shadow-lg active:scale-95">
+                    Terapkan
                 </button>
                 <a href="/billing/tagihan"
-                    class="bg-white text-gray-700 border border-gray-200 px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-all duration-300 text-center text-sm font-bold shadow-sm hover:shadow-md hover:-translate-y-0.5">
-                    Reset
+                    class="bg-white border border-slate-200 text-slate-500 hover:text-slate-700 font-black text-[11px] uppercase tracking-widest py-3 px-4 rounded-2xl transition-all shadow-sm active:scale-95 flex items-center justify-center">
+                    <i class="fas fa-sync-alt"></i>
                 </a>
             </div>
-        </div>
-    </form>
-</div>
+        </form>
+    </div>
 
-<!-- Invoices Table -->
-<!-- Invoices Table -->
-<div class="glass-panel rounded-2xl shadow-xl overflow-hidden border border-white/20 relative z-0">
-    <div class="px-6 py-5 border-b border-gray-200/50 bg-white/40 backdrop-blur-md flex justify-between items-center">
-        <div>
-            <h3 class="text-lg font-bold text-gray-900 tracking-tight">Daftar Tagihan</h3>
-            <p class="text-xs font-medium text-gray-500 mt-0.5">Total <%= pagination.totalCount %> tagihan</p>
+    <!-- Search & List Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="relative flex-1 max-w-md">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i class="fas fa-search text-slate-300"></i>
+            </div>
+            <form action="/billing/tagihan" method="GET">
+                <input type="text" name="search" value="<%= filters.search %>"
+                    placeholder="Cari nama, invoice, atau telepon..."
+                    class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-700 shadow-sm">
+            </form>
         </div>
-        <div class="flex items-center gap-2">
-            <span class="inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span class="text-xs text-gray-500 font-medium">Live Data</span>
+        <div class="flex items-center gap-4 text-slate-500 font-bold text-xs uppercase tracking-tighter">
+            <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+                <span>Total: <%= pagination.totalCount %></span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                <span>Page: <%= pagination.currentPage %>/<%= pagination.totalPages %></span>
+            </div>
         </div>
     </div>
 
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left">
-            <thead>
-                <tr
-                    class="bg-gradient-to-r from-gray-50/80 to-slate-50/80 border-b border-gray-200/60 text-xs uppercase tracking-wider font-bold text-gray-600 font-mono">
-                    <th class="px-6 py-4 w-12 text-center">
-                        <input type="checkbox" id="selectAll"
-                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shadow-sm transition-all duration-200">
-                    </th>
-                    <th class="px-6 py-4">No. Tagihan</th>
-                    <th class="px-6 py-4">Pelanggan</th>
-                    <th class="px-6 py-4">Area ODC</th>
-                    <th class="px-6 py-4 text-right">Jumlah</th>
-                    <th class="px-6 py-4 text-center">Status</th>
-                    <th class="px-6 py-4">Tanggal</th>
-                    <th class="px-6 py-4">Jatuh Tempo</th>
-                    <th class="px-6 py-4 text-center">Aksi</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 bg-white/30 backdrop-blur-sm">
-                <% if (invoices && invoices.length> 0) { %>
-                    <% invoices.forEach(function(invoice) { %>
-                        <tr class="hover:bg-blue-50/40 transition-colors duration-200 group">
-                            <td class="px-6 py-4 text-center">
-                                <input type="checkbox"
-                                    class="invoice-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500 shadow-sm cursor-pointer transition-all duration-200 transform hover:scale-110"
-                                    value="<%= invoice.id %>">
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded border border-slate-200 group-hover:bg-white group-hover:border-blue-200 transition-colors">
-                                    <%= invoice.invoice_number %>
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
-                                    <%= invoice.customer_name %>
-                                </div>
-                                <div class="text-xs text-gray-500 font-mono mt-0.5">
-                                    <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
-                                        class="flex items-center gap-1 hover:text-emerald-600 transition-colors"
-                                        title="Kirim WA Langsung">
-                                        <i class="fas fa-phone-alt text-[10px]"></i>
-                                        <%= invoice.customer_phone %>
-                                    </button>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <% if (invoice.odc_name) { %>
-                                    <div class="flex flex-col">
-                                        <div class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                                            <i class="fas fa-building text-cyan-600"></i>
-                                            <%= invoice.odc_name %>
+    <!-- Data Display Section -->
+    <div class="relative">
+        <!-- Desktop Table View -->
+        <div
+            class="hidden md:block bg-white/50 backdrop-blur-md rounded-[2rem] border border-white/30 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr
+                            class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                            <th class="px-6 py-5 w-12">
+                                <input type="checkbox" id="selectAll"
+                                    class="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer">
+                            </th>
+                            <th class="px-6 py-5">Tagihan & Area</th>
+                            <th class="px-6 py-5">Pelanggan</th>
+                            <th class="px-6 py-5">Jumlah</th>
+                            <th class="px-6 py-5 text-center">Status</th>
+                            <th class="px-6 py-5">Waktu</th>
+                            <th class="px-6 py-5 text-right pr-8">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        <% if (invoices && invoices.length> 0) { %>
+                            <% invoices.forEach(function(invoice) { %>
+                                <tr class="group hover:bg-white/80 transition-all duration-300">
+                                    <td class="px-6 py-4">
+                                        <input type="checkbox"
+                                            class="invoice-checkbox w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
+                                            value="<%= invoice.id %>">
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="font-black text-slate-700 text-sm tracking-tighter group-hover:text-blue-600 transition-colors">
+                                                <%= invoice.invoice_number %>
+                                            </span>
+                                            <span class="text-[10px] font-black text-slate-400 flex items-center gap-1">
+                                                <i class="fas fa-map-marker-alt text-[8px]"></i>
+                                                <%= invoice.odc_name || 'NO AREA' %>
+                                            </span>
                                         </div>
-                                        <span class="text-[10px] text-gray-400 pl-4">
-                                            <%= invoice.odc_location || '-' %>
-                                        </span>
-                                    </div>
-                                    <% } else { %>
-                                        <span class="text-xs text-gray-400 italic flex items-center gap-1">
-                                            <i class="fas fa-ban text-gray-300"></i> No ODC
-                                        </span>
-                                        <% } %>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right">
-                                <div class="font-bold text-gray-900 font-mono tracking-tight">
-                                    Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                <% let statusClass='' ; let statusIcon='' ; let statusText='' ; switch(invoice.status) {
-                                    case 'paid' : statusClass='bg-green-100 text-green-700 border border-green-200' ;
-                                    statusIcon='fa-check-circle' ; statusText='Lunas' ; break; case 'draft' :
-                                    statusClass='bg-gray-100 text-gray-700 border border-gray-200' ;
-                                    statusIcon='fa-pencil-alt' ; statusText='Draft' ; break; case 'sent' :
-                                    statusClass='bg-blue-100 text-blue-700 border border-blue-200' ;
-                                    statusIcon='fa-paper-plane' ; statusText='Terkirim' ; break; case 'partial' :
-                                    statusClass='bg-amber-100 text-amber-700 border border-amber-200' ;
-                                    statusIcon='fa-adjust' ; statusText='Partial' ; break; case 'overdue' :
-                                    statusClass='bg-red-100 text-red-700 border border-red-200' ;
-                                    statusIcon='fa-exclamation-circle' ; statusText='Telat' ; break; case 'cancelled' :
-                                    statusClass='bg-slate-100 text-slate-500 border border-slate-200 decoration-line-through'
-                                    ; statusIcon='fa-times-circle' ; statusText='Batal' ; break; default:
-                                    statusClass='bg-gray-100 text-gray-600' ; statusIcon='fa-question-circle' ;
-                                    statusText=invoice.status; } %>
-                                    <span
-                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide rounded-full shadow-sm <%= statusClass %>">
-                                        <i class="fas <%= statusIcon %> text-[10px]"></i>
-                                        <%= statusText %>
-                                    </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 font-medium">
-                                <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: '2-digit' ,
-                                    month: 'short' , year: 'numeric' }) %>
-                            </td>
-                            <td
-                                class="px-6 py-4 whitespace-nowrap text-xs font-medium <%= new Date(invoice.due_date) < new Date() && invoice.status !== 'paid' ? 'text-red-600 font-bold' : 'text-gray-500' %>">
-                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {day: '2-digit' ,
-                                    month: 'short' , year: 'numeric' }) %>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                <div
-                                    class="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                    <!-- Detail (Always Visible) -->
-                                    <button data-action="detail" data-invoice-id="<%= invoice.id %>"
-                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all"
-                                        title="Detail">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-
-                                    <!-- Print (Always Visible) -->
-                                    <div class="relative inline-block">
-                                        <button data-action="print" data-invoice-id="<%= invoice.id %>"
-                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-purple-600 hover:bg-purple-100 hover:text-purple-700 transition-all"
-                                            title="Print">
-                                            <i class="fas fa-print"></i>
-                                        </button>
-                                        <!-- Print Menu Dropdown -->
-                                        <div id="printMenu-<%= invoice.id %>"
-                                            class="hidden absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5">
-                                            <a href="/billing/tagihan/<%= invoice.id %>/print" target="_blank"
-                                                class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-gray-100">
-                                                <i class="fas fa-file-pdf mr-3 text-red-500"></i>Print A4
-                                            </a>
-                                            <a href="/billing/tagihan/<%= invoice.id %>/print-thermal" target="_blank"
-                                                class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                                                <i class="fas fa-receipt mr-3 text-gray-500"></i>Print Thermal
-                                            </a>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs shadow-inner">
+                                                <%= invoice.customer_name ? invoice.customer_name.charAt(0) : '?' %>
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="font-bold text-slate-700">
+                                                    <%= invoice.customer_name %>
+                                                </span>
+                                                <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
+                                                    class="text-[10px] font-black text-slate-400 hover:text-emerald-500 flex items-center gap-1 transition-colors uppercase">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                    <%= invoice.customer_phone %>
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="font-black text-slate-900 tracking-tighter">
+                                            Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <% let sClass='bg-slate-100 text-slate-500' ; let sLabel=invoice.status; if
+                                            (invoice.status==='paid' ) { sClass='bg-emerald-50 text-emerald-600' ;
+                                            sLabel='LUNAS' ; } else if (invoice.status==='overdue' ) {
+                                            sClass='bg-rose-50 text-rose-600' ; sLabel='EXPIRED' ; } else if
+                                            (invoice.status==='sent' ) { sClass='bg-blue-50 text-blue-600' ;
+                                            sLabel='SENT' ; } else if (invoice.status==='partial' ) {
+                                            sClass='bg-amber-50 text-amber-600' ; sLabel='PARTIAL' ; } else if
+                                            (invoice.status==='draft' ) { sClass='bg-slate-100 text-slate-500' ;
+                                            sLabel='DRAFT' ; } else if (invoice.status==='cancelled' ) {
+                                            sClass='bg-slate-200 text-slate-400 line-through' ; sLabel='BATAL' ; } %>
+                                            <span class="badge-status <%= sClass %>">
+                                                <%= sLabel %>
+                                            </span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">TAGIHAN:
+                                                <%= new Date(invoice.created_at).toLocaleDateString('id-ID',
+                                                    {day: '2-digit' , month: 'short' }) %>
+                                            </span>
+                                            <span
+                                                class="text-[10px] font-black <%= new Date(invoice.due_date) < new Date() && invoice.status !== 'paid' ? 'text-red-500' : 'text-slate-400' %> uppercase tracking-tighter">EXPIRED:
+                                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID',
+                                                    {day: '2-digit' , month: 'short' , year: 'numeric' }) %>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-right pr-6">
+                                        <div
+                                            class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                                            <button data-action="detail" data-invoice-id="<%= invoice.id %>"
+                                                class="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                title="View"><i class="fas fa-eye text-xs"></i></button>
+                                            <button data-action="print" data-invoice-id="<%= invoice.id %>"
+                                                class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-all shadow-sm"
+                                                title="Print"><i class="fas fa-print text-xs"></i></button>
 
-                                    <% if (invoice.status !=='paid' ) { %>
-                                        <!-- Janji Bayar -->
-                                        <button data-action="promise" data-invoice-id="<%= invoice.id %>"
-                                            data-invoice-date="<%= invoice.due_date %>"
-                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 transition-all"
-                                            title="Janji Bayar">
-                                            <i class="fas fa-calendar-alt"></i>
-                                        </button>
+                                            <% if (invoice.status !=='paid' ) { %>
+                                                <button data-action="pay" data-invoice-id="<%= invoice.id %>"
+                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                    title="Pay"><i class="fas fa-wallet text-xs"></i></button>
 
-                                        <!-- WhatsApp -->
-                                        <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
-                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all"
-                                            title="Kirim WhatsApp">
-                                            <i class="fab fa-whatsapp"></i>
-                                        </button>
-
-                                        <!-- Pay -->
-                                        <% if (invoice.status !=='cancelled' ) { %>
-                                            <button data-action="pay" data-invoice-id="<%= invoice.id %>"
-                                                class="w-8 h-8 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-100 hover:text-green-700 transition-all"
-                                                title="Bayar">
-                                                <i class="fas fa-money-bill-wave"></i>
-                                            </button>
-                                            <% } %>
-
-                                                <!-- Isolate/Restore -->
-                                                <% if (invoice.status==='overdue' || invoice.customer_is_isolated) { %>
+                                                <% if (invoice.customer_is_isolated) { %>
                                                     <button data-action="restore"
                                                         data-customer-id="<%= invoice.customer_id %>"
                                                         data-customer-name="<%= invoice.customer_name %>"
-                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-all"
-                                                        title="Unisolir">
-                                                        <i class="fas fa-unlock"></i>
-                                                    </button>
+                                                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                                                        title="Unisolate"><i class="fas fa-unlock text-xs"></i></button>
                                                     <% } else { %>
                                                         <button data-action="isolate"
                                                             data-customer-id="<%= invoice.customer_id %>"
                                                             data-customer-name="<%= invoice.customer_name %>"
-                                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 hover:bg-red-100 hover:text-red-700 transition-all"
-                                                            title="Isolir">
-                                                            <i class="fas fa-lock"></i>
-                                                        </button>
+                                                            class="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                                                            title="Isolate"><i class="fas fa-lock text-xs"></i></button>
                                                         <% } %>
                                                             <% } %>
 
-                                                                <!-- Delete (Always Visible) -->
                                                                 <button data-action="delete"
                                                                     data-invoice-id="<%= invoice.id %>"
                                                                     data-invoice-number="<%= invoice.invoice_number %>"
-                                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-600 transition-all"
-                                                                    title="Hapus">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <% }); %>
-                            <% } else { %>
-                                <tr>
-                                    <td colspan="9" class="px-6 py-16 text-center text-gray-400">
-                                        <div class="flex flex-col items-center justify-center">
-                                            <div
-                                                class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 text-gray-300">
-                                                <i class="fas fa-inbox text-3xl"></i>
-                                            </div>
-                                            <p class="font-medium text-gray-500">Tidak ada tagihan ditemukan</p>
-                                            <p class="text-xs mt-1">Coba sesuaikan filter pencarian anda.</p>
+                                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                                    title="Delete"><i
+                                                                        class="fas fa-trash-alt text-xs"></i></button>
                                         </div>
                                     </td>
                                 </tr>
-                                <% } %>
-            </tbody>
-        </table>
+                                <% }); %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="7" class="px-6 py-20 text-center">
+                                                <div class="flex flex-col items-center gap-4">
+                                                    <div
+                                                        class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+                                                        <i class="fas fa-file-invoice text-4xl"></i>
+                                                    </div>
+                                                    <div class="flex flex-col">
+                                                        <span
+                                                            class="font-black text-slate-400 uppercase tracking-widest">Data
+                                                            Kosong</span>
+                                                        <span class="text-xs text-slate-300 font-bold">Tidak ada tagihan
+                                                            yang ditemukan</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Layout -->
+        <div class="md:hidden space-y-4">
+            <% if (invoices && invoices.length> 0) { %>
+                <div
+                    class="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mb-2">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pilih Semua</span>
+                    <input type="checkbox" id="selectAllMobile"
+                        class="w-6 h-6 rounded-lg border-slate-300 text-blue-600">
+                </div>
+                <% invoices.forEach(function(invoice) { %>
+                    <div
+                        class="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4">
+                            <input type="checkbox"
+                                class="invoice-checkbox w-6 h-6 rounded-lg border-slate-300 text-blue-600"
+                                value="<%= invoice.id %>">
+                        </div>
+
+                        <div class="flex items-center gap-4 mb-4">
+                            <div
+                                class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 shadow-inner">
+                                <%= invoice.customer_name ? invoice.customer_name.charAt(0) : '?' %>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-slate-800 leading-none mb-1">
+                                    <%= invoice.customer_name %>
+                                </span>
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                    <%= invoice.invoice_number %> • <%= invoice.odc_name || 'NO AREA' %>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-5">
+                            <div class="bg-slate-50 p-3 rounded-2xl">
+                                <span class="block text-[8px] font-black text-slate-400 uppercase mb-1">Total
+                                    Tagihan</span>
+                                <span class="text-sm font-black text-slate-900 tracking-tighter">Rp <%= new
+                                        Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-2xl flex flex-col justify-center items-center">
+                                <span class="block text-[8px] font-black text-slate-400 uppercase mb-1">Status</span>
+                                <% let sClass='bg-slate-200 text-slate-500' ; let sLabel=invoice.status; if
+                                    (invoice.status==='paid' ) { sClass='bg-emerald-500 text-white' ; sLabel='LUNAS' ; }
+                                    else if (invoice.status==='overdue' ) { sClass='bg-rose-500 text-white' ;
+                                    sLabel='EXPIRED' ; } else if (invoice.status==='sent' ) {
+                                    sClass='bg-blue-500 text-white' ; sLabel='SENT' ; } %>
+                                    <span
+                                        class="text-[9px] font-black px-3 py-1 rounded-full <%= sClass %> shadow-sm uppercase">
+                                        <%= sLabel %>
+                                    </span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-50">
+                            <div class="flex flex-col">
+                                <span class="text-[8px] font-black text-slate-400 uppercase">Jatuh Tempo</span>
+                                <span class="text-[10px] font-bold text-slate-700">
+                                    <%= new Date(invoice.due_date).toLocaleDateString('id-ID') %>
+                                </span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button data-action="detail" data-invoice-id="<%= invoice.id %>"
+                                    class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-sm active:scale-90 transition-all"><i
+                                        class="fas fa-eye"></i></button>
+                                <button data-action="pay" data-invoice-id="<%= invoice.id %>"
+                                    class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-sm active:scale-90 transition-all"><i
+                                        class="fas fa-wallet"></i></button>
+                                <div class="relative">
+                                    <button onclick="this.nextElementSibling.classList.toggle('hidden')"
+                                        class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold shadow-sm active:scale-90 transition-all"><i
+                                            class="fas fa-ellipsis-v"></i></button>
+                                    <div
+                                        class="hidden absolute right-0 bottom-full mb-2 w-40 bg-slate-900 text-white rounded-2xl shadow-2xl p-2 z-50 border border-white/10">
+                                        <button data-action="print" data-invoice-id="<%= invoice.id %>"
+                                            class="w-full text-left px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 rounded-xl transition-all"><i
+                                                class="fas fa-print mr-2"></i> Print</button>
+                                        <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
+                                            class="w-full text-left px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 rounded-xl transition-all"><i
+                                                class="fab fa-whatsapp mr-2"></i> WhatsApp</button>
+                                        <button data-action="delete" data-invoice-id="<%= invoice.id %>"
+                                            class="w-full text-left px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 rounded-xl text-red-400"><i
+                                                class="fas fa-trash mr-2"></i> Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <% }); %>
+                        <% } else { %>
+                            <div
+                                class="bg-white p-12 rounded-[2rem] flex flex-col items-center justify-center text-center">
+                                <div
+                                    class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
+                                    <i class="fas fa-file-invoice text-3xl"></i>
+                                </div>
+                                <span
+                                    class="text-xs font-black text-slate-400 uppercase tracking-widest tracking-tighter">Belum
+                                    ada tagihan</span>
+                            </div>
+                            <% } %>
+        </div>
     </div>
 </div>
 
 <!-- Pagination -->
-<!-- Pagination -->
 <% if (pagination.totalPages> 1) { %>
     <div
-        class="glass-panel px-4 py-4 flex items-center justify-between mt-6 rounded-xl shadow-lg border border-white/20">
-        <div class="flex-1 flex justify-between sm:hidden">
+        class="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm">
+        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Showing <span class="text-slate-800">
+                <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>
+            </span>
+            to <span class="text-slate-800">
+                <%= Math.min(pagination.currentPage * pagination.limit, pagination.totalCount) %>
+            </span>
+            of <span class="text-slate-800">
+                <%= pagination.totalCount %>
+            </span> results
+        </div>
+
+        <nav class="flex items-center gap-1">
             <% if (pagination.currentPage> 1) { %>
-                <a href="?page=<%= pagination.currentPage - 1 %>"
-                    class="relative inline-flex items-center px-4 py-2 border border-blue-200 text-sm font-medium rounded-lg text-blue-700 bg-white hover:bg-blue-50 transition-colors shadow-sm">
-                    Sebelumnya
+                <a href="?page=<%= pagination.currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                    <i class="fas fa-chevron-left text-xs"></i>
                 </a>
                 <% } %>
-                    <% if (pagination.currentPage < pagination.totalPages) { %>
-                        <a href="?page=<%= pagination.currentPage + 1 %>"
-                            class="ml-3 relative inline-flex items-center px-4 py-2 border border-blue-200 text-sm font-medium rounded-lg text-blue-700 bg-white hover:bg-blue-50 transition-colors shadow-sm">
-                            Selanjutnya
-                        </a>
-                        <% } %>
-        </div>
-        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-                <p class="text-sm text-gray-700 font-medium">
-                    Menampilkan <span class="font-bold text-blue-700">
-                        <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>
-                    </span>
-                    sampai <span class="font-bold text-blue-700">
-                        <%= Math.min(pagination.currentPage * pagination.limit, pagination.totalCount) %>
-                    </span>
-                    dari <span class="font-bold text-blue-700">
-                        <%= pagination.totalCount %>
-                    </span> hasil
-                </p>
-            </div>
-            <div>
-                <nav class="relative z-0 inline-flex rounded-xl shadow-sm -space-x-px bg-white/50 backdrop-blur-sm"
-                    aria-label="Pagination">
-                    <% if (pagination.currentPage> 1) { %>
-                        <a href="?page=<%= pagination.currentPage - 1 %>"
-                            class="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-gray-300 bg-white/60 text-sm font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                        <% } %>
 
-                            <% for (let i=Math.max(1, pagination.currentPage - 2); i <=Math.min(pagination.totalPages,
-                                pagination.currentPage + 2); i++) { %>
-                                <% if (i===pagination.currentPage) { %>
-                                    <span
-                                        class="relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-bold text-blue-600 z-10">
+                    <% let startPage=Math.max(1, pagination.currentPage - 2); let
+                        endPage=Math.min(pagination.totalPages, pagination.currentPage + 2); %>
+
+                        <% for (let i=startPage; i <=endPage; i++) { %>
+                            <% if (i===pagination.currentPage) { %>
+                                <span
+                                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-600 text-white font-black text-xs shadow-lg shadow-blue-200">
+                                    <%= i %>
+                                </span>
+                                <% } else { %>
+                                    <a href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"
+                                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 transition-all font-bold text-xs">
                                         <%= i %>
-                                    </span>
-                                    <% } else { %>
-                                        <a href="?page=<%= i %>"
-                                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white/60 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                                            <%= i %>
-                                        </a>
+                                    </a>
+                                    <% } %>
                                         <% } %>
-                                            <% } %>
 
-                                                <% if (pagination.currentPage < pagination.totalPages) { %>
-                                                    <a href="?page=<%= pagination.currentPage + 1 %>"
-                                                        class="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-gray-300 bg-white/60 text-sm font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                                                        <i class="fas fa-chevron-right"></i>
-                                                    </a>
-                                                    <% } %>
-                </nav>
-            </div>
-        </div>
+                                            <% if (pagination.currentPage < pagination.totalPages) { %>
+                                                <a href="?page=<%= pagination.currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>"
+                                                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                                                    <i class="fas fa-chevron-right text-xs"></i>
+                                                </a>
+                                                <% } %>
+        </nav>
     </div>
     <% } %>
+        </div>
 
-        <!-- Generate Invoice Modal -->
-        <div id="generateInvoiceModal"
-            style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-            <div
-                style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-                <!-- Header -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="font-size: 20px; font-weight: bold; color: #111827; margin: 0;">
-                        <i class="fas fa-file-invoice" style="color: #16a34a; margin-right: 8px;"></i>Generate Tagihan
-                    </h3>
-                    <button id="btnCloseModal" data-action="close-modal"
-                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">
-                        &times;
+        <!-- Modal Container (Overlay) -->
+        <div id="modalOverlay"
+            class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+            <!-- Generate Invoice Modal -->
+            <div id="generateInvoiceModal"
+                class="hidden glass-panel w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+                                <i class="fas fa-magic text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 tracking-tight">GENERATE TAGIHAN</h3>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pembuatan
+                                    invoice otomatis massal</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModals()"
+                            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="generateInvoiceForm" class="space-y-6">
+                        <div>
+                            <label
+                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Periode
+                                Tagihan</label>
+                            <input type="month" id="invoicePeriod" required
+                                class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700">
+                            <p class="text-[9px] font-bold text-slate-400 mt-2 ml-1 uppercase leading-relaxed italic">
+                                *Jatuh tempo & isolir otomatis sesuai grup pelanggan</p>
+                        </div>
+
+                        <div class="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100/50">
+                            <label
+                                class="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Target
+                                Penagihan</label>
+                            <div class="flex p-1 bg-white/50 rounded-2xl border border-blue-50">
+                                <label
+                                    class="flex-1 text-center py-2.5 rounded-xl cursor-pointer transition-all has-[:checked]:bg-blue-600 has-[:checked]:text-white text-[11px] font-black uppercase tracking-widest text-slate-400">
+                                    <input type="radio" name="targetType" value="all" checked class="hidden"
+                                        onchange="toggleCustomerSelect('all')">
+                                    Semua
+                                </label>
+                                <label
+                                    class="flex-1 text-center py-2.5 rounded-xl cursor-pointer transition-all has-[:checked]:bg-blue-600 has-[:checked]:text-white text-[11px] font-black uppercase tracking-widest text-slate-400">
+                                    <input type="radio" name="targetType" value="selected" class="hidden"
+                                        onchange="toggleCustomerSelect('selected')">
+                                    Pilih Manual
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="customerSelectorContainer"
+                            class="hidden bg-slate-50 p-6 rounded-[2rem] border border-slate-100 animate-fadeIn">
+                            <div class="relative mb-4">
+                                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                                <input type="text" id="customerSearch" placeholder="Cari pelanggan..."
+                                    onkeyup="filterCustomers()"
+                                    class="w-full pl-11 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <div id="customerList"
+                                class="max-height-[250px] overflow-y-auto space-y-1 custom-scrollbar pr-2">
+                                <% if (typeof activeCustomers !=='undefined' && activeCustomers) { %>
+                                    <% activeCustomers.forEach(c=> { %>
+                                        <label
+                                            class="customer-item flex items-center gap-3 p-3 rounded-xl hover:bg-white transition-all cursor-pointer group">
+                                            <input type="checkbox" name="customer_ids" value="<%= c.id %>"
+                                                data-name="<%= c.name.toLowerCase() %> <%= (c.customer_code || '').toLowerCase() %>"
+                                                onchange="updateSelectedCount()"
+                                                class="w-5 h-5 rounded-lg border-slate-200 text-blue-600 transition-all">
+                                            <div class="flex flex-col">
+                                                <span class="text-xs font-bold text-slate-700">
+                                                    <%= c.name %>
+                                                </span>
+                                                <span
+                                                    class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                                    <%= c.odc_name || 'NO AREA' %> • <%= c.customer_code || '-' %>
+                                                </span>
+                                            </div>
+                                        </label>
+                                        <% }) %>
+                                            <% } %>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                            <input type="checkbox" id="sendWhatsapp"
+                                class="w-6 h-6 rounded-lg border-emerald-200 text-emerald-600">
+                            <label for="sendWhatsapp"
+                                class="text-[10px] font-black text-emerald-700 uppercase tracking-widest cursor-pointer">Kirim
+                                Notifikasi WhatsApp <span class="text-emerald-500/70">(Antrian Manual)</span></label>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" onclick="closeModals()"
+                                class="flex-1 py-4 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
+                            <button type="submit"
+                                class="flex-[2] py-4 bg-blue-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">Mulai
+                                Generate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Print ODC Modal -->
+            <div id="odcPrintModal"
+                class="hidden glass-panel w-full max-w-xl rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+                                <i class="fas fa-map-marked-alt text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 tracking-tight">PRINT AREA ODC</h3>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cetak tagihan
+                                    per area distribusi</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModals()"
+                            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="relative mb-6">
+                        <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                        <input type="text" id="odcSearchInput" placeholder="Cari nama ODC atau lokasi..."
+                            onkeyup="filterOdcList()"
+                            class="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-500/10">
+                    </div>
+
+                    <div class="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                        <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
+                            <div id="odcListContainer" class="grid grid-cols-1 gap-2">
+                                <% odcList.forEach(function(odc) { %>
+                                    <div class="odc-item group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all"
+                                        data-name="<%= odc.name.toLowerCase() %>"
+                                        data-location="<%= (odc.location || '').toLowerCase() %>">
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">
+                                                <%= odc.name %>
+                                            </span>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span
+                                                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest"><i
+                                                        class="fas fa-map-pin mr-1"></i>
+                                                    <%= odc.location || 'Area' %>
+                                                </span>
+                                                <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                <span
+                                                    class="text-[9px] font-black text-blue-500 uppercase tracking-widest">Aktif</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>"
+                                                target="_blank"
+                                                class="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-900 transition-all shadow-md active:scale-95"
+                                                title="Print A4">
+                                                <i class="fas fa-file-invoice text-xs"></i>
+                                            </a>
+                                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal"
+                                                target="_blank"
+                                                class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                                                title="Print Thermal">
+                                                <i class="fas fa-receipt text-xs"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <% }); %>
+                            </div>
+                            <% } else { %>
+                                <div class="py-20 text-center">
+                                    <i class="fas fa-inbox text-4xl text-slate-100 mb-4"></i>
+                                    <p class="text-xs font-black text-slate-300 uppercase tracking-widest">Tidak ada
+                                        data ODC</p>
+                                </div>
+                                <% } %>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Area: <%=
+                                typeof odcList !=='undefined' ? odcList.length : 0 %></span>
+                        <button onclick="closeModals()"
+                            class="px-8 py-3 bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-lg active:scale-95">Selesai</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Janji Bayar Modal -->
+        <div id="janjiBayarModal"
+            class="hidden glass-panel w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
+            <div class="p-8">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-calendar-alt text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-black text-slate-800 tracking-tight">JANJI BAYAR</h3>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Perpanjang batas
+                                waktu bayar</p>
+                        </div>
+                    </div>
+                    <button onclick="closeModals()"
+                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
 
-                <!-- Form -->
-                <form id="generateInvoiceForm">
-                    <!-- Period Selection -->
-                    <div style="margin-bottom: 20px;">
-                        <div>
-                            <label
-                                style="display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">
-                                Periode Tagihan:
-                            </label>
-                            <input type="month" id="invoicePeriod" required
-                                style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
-                            <p style="margin-top: 6px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                *Jatuh tempo akan diset otomatis sesuai pengaturan scheduler/otomasi.
+                <div class="space-y-6">
+                    <input type="hidden" id="janjiBayarInvoiceId">
+                    <div>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Batas
+                            Waktu Baru</label>
+                        <input type="date" id="janjiBayarDate" required
+                            class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-slate-700">
+                    </div>
+
+                    <div class="p-5 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+                        <div class="flex gap-3">
+                            <i class="fas fa-info-circle text-amber-500 mt-1"></i>
+                            <p class="text-[10px] font-bold text-amber-800 uppercase leading-relaxed tracking-tight">
+                                Status isolir akan otomatis dipulihkan/ditunda hingga tanggal yang disepakati. Pelanggan
+                                akan menerima notifikasi update.
                             </p>
                         </div>
                     </div>
 
-                    <!-- Target Selection -->
-                    <div style="margin-bottom: 16px;">
-                        <label
-                            style="display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">Target:</label>
-                        <div
-                            style="display: flex; gap: 16px; background: #f3f4f6; padding: 4px; border-radius: 8px; display: inline-flex;">
-                            <label
-                                style="display: flex; align-items: center; cursor: pointer; padding: 6px 12px; border-radius: 6px;"
-                                id="lblTargetAll" class="bg-white shadow-sm">
-                                <input type="radio" name="targetType" value="all" checked
-                                    onchange="toggleCustomerSelect('all')" style="margin-right: 6px;">
-                                <span style="font-size: 14px;">Semua Pelanggan</span>
-                            </label>
-                            <label
-                                style="display: flex; align-items: center; cursor: pointer; padding: 6px 12px; border-radius: 6px;"
-                                id="lblTargetSelected">
-                                <input type="radio" name="targetType" value="selected"
-                                    onchange="toggleCustomerSelect('selected')" style="margin-right: 6px;">
-                                <span style="font-size: 14px;">Pilih Manual</span>
-                            </label>
-                        </div>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="closeModals()"
+                            class="flex-1 py-4 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
+                        <button onclick="saveJanjiBayar()"
+                            class="flex-[2] py-4 bg-amber-500 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95">Simpan
+                            Janji</button>
                     </div>
-
-                    <!-- Customer Selector -->
-                    <div id="customerSelectorContainer"
-                        style="display: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; margin-bottom: 16px; background: #f9fafb;">
-                        <input type="text" id="customerSearch" placeholder="Cari nama pelanggan..."
-                            onkeyup="filterCustomers()"
-                            style="width: 100%; padding: 8px 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;">
-
-                        <div
-                            style="margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; color: #6b7280; font-weight: 600;">Daftar Pelanggan
-                                Aktif</span>
-                            <button type="button" onclick="selectAllCustomersFiltered()"
-                                style="font-size: 11px; color: #2563eb; background: none; border: none; cursor: pointer;">Pilih
-                                Tampil</button>
-                        </div>
-
-                        <div id="customerList"
-                            style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; border: 1px solid #e5e7eb; background: white; border-radius: 6px;">
-                            <% if (typeof activeCustomers !=='undefined' && activeCustomers) { %>
-                                <% activeCustomers.forEach(c=> { %>
-                                    <label class="customer-item"
-                                        style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-bottom: 1px solid #f3f4f6;">
-                                        <input type="checkbox" name="customer_ids" value="<%= c.id %>"
-                                            data-name="<%= c.name.toLowerCase() %> <%= (c.customer_code || '').toLowerCase() %>"
-                                            onchange="updateSelectedCount()" style="margin-right: 10px;">
-                                        <div style="flex: 1;">
-                                            <div style="font-size: 13px; font-weight: 500; color: #1f2937;">
-                                                <%= c.name %>
-                                            </div>
-                                            <div style="font-size: 11px; color: #6b7280;">
-                                                <%= c.odc_name || 'No ODC' %> • <%= c.customer_code || '-' %>
-                                            </div>
-                                        </div>
-                                    </label>
-                                    <% }) %>
-                                        <% } else { %>
-                                            <div
-                                                style="padding: 12px; text-align: center; color: #6b7280; font-size: 12px;">
-                                                Data pelanggan tidak tersedia</div>
-                                            <% } %>
-                        </div>
-                        <div style="margin-top: 8px; font-size: 12px; color: #6b7280; text-align: right;">
-                            <span id="selectedCustomerCount">0</span> pelanggan dipilih
-                        </div>
-                    </div>
-
-                    <!-- WhatsApp Option -->
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" id="sendWhatsapp"
-                                style="width: 18px; height: 18px; margin-right: 8px; cursor: pointer;">
-                            <span style="font-size: 14px; color: #374151;">
-                                <i class="fab fa-whatsapp" style="color: #25d366; margin-right: 4px;"></i>
-                                Kirim notifikasi WhatsApp otomatis
-                            </span>
-                        </label>
-                    </div>
-
-                    <!-- Info Box -->
-                    <div
-                        style="background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
-                        <p style="font-size: 12px; color: #1e40af; margin: 0; line-height: 1.5;">
-                            <i class="fas fa-info-circle" style="margin-right: 4px;"></i>
-                            Fitur ini akan meng-generate tagihan untuk pelanggan yang <strong>belum memiliki
-                                tagihan</strong> pada periode yang dipilih.
-                        </p>
-                    </div>
-
-                    <!-- Buttons -->
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                        <button type="button" id="btnCancelModal" data-action="cancel-modal"
-                            style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 8px; font-weight: 500; cursor: pointer;">
-                            Batal
-                        </button>
-                        <button type="submit"
-                            style="padding: 10px 20px; border: none; background: #16a34a; color: white; border-radius: 8px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center;">
-                            <i class="fas fa-check" style="margin-right: 6px;"></i>
-                            Generate
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
-
-        <!-- Print ODC Modal with Search -->
-        <div id="odcPrintModal"
-            style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-            <div
-                style="background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 80vh; display: flex; flex-direction: column;">
-                <!-- Header -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="font-size: 20px; font-weight: bold; color: #111827; margin: 0;">
-                        <i class="fas fa-print" style="color: #0891b2; margin-right: 8px;"></i>Print Tagihan Area ODC
-                    </h3>
-                    <button onclick="closeOdcPrintModal()"
-                        style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">
-                        &times;
-                    </button>
-                </div>
-
-                <!-- Search Box -->
-                <div style="margin-bottom: 16px;">
-                    <div style="position: relative;">
-                        <i class="fas fa-search"
-                            style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
-                        <input type="text" id="odcSearchInput" placeholder="Cari nama ODC atau lokasi..."
-                            onkeyup="filterOdcList()"
-                            style="width: 100%; padding: 10px 12px 10px 36px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
-                    </div>
-                </div>
-
-                <!-- ODC List Container -->
-                <div style="flex: 1; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px;">
-                    <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
-                        <div id="odcListContainer" style="display: grid; gap: 8px;">
-                            <% odcList.forEach(function(odc) { %>
-                                <div class="odc-item" data-name="<%= odc.name.toLowerCase() %>"
-                                    data-location="<%= (odc.location || '').toLowerCase() %>"
-                                    style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #f3f4f6; border-radius: 6px;"
-                                    class="hover:bg-gray-50">
-                                    <div>
-                                        <div style="font-weight: 600; color: #1f2937;">
-                                            <%= odc.name %>
-                                        </div>
-                                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
-                                            <i class="fas fa-map-pin" style="margin-right: 4px;"></i>
-                                            <%= odc.location || 'Lokasi tidak tersedia' %>
-                                        </div>
-                                    </div>
-                                    <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal"
-                                        target="_blank"
-                                        style="display: inline-flex; align-items: center; background-color: #0891b2; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
-                                        <i class="fas fa-print" style="margin-right: 6px;"></i> Print
-                                    </a>
-                                </div>
-                                <% }); %>
-                        </div>
-                        <div id="odcNoResults"
-                            style="display: none; text-align: center; padding: 20px; color: #6b7280;">
-                            <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; color: #d1d5db;"></i>
-                            <p>Tidak ada ODC yang cocok</p>
-                        </div>
-                        <% } else { %>
-                            <div style="text-align: center; padding: 40px; color: #6b7280;">
-                                <i class="fas fa-inbox"
-                                    style="font-size: 32px; margin-bottom: 12px; color: #d1d5db;"></i>
-                                <p>Belum ada data ODC</p>
-                            </div>
-                            <% } %>
-                </div>
-
-                <!-- Footer -->
-                <div
-                    style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 12px; color: #6b7280;">
-                        Total: <%= typeof odcList !=='undefined' ? odcList.length : 0 %> Area
-                    </span>
-                    <button onclick="closeOdcPrintModal()"
-                        style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 14px;">
-                        Tutup
-                    </button>
-                </div>
-            </div>
         </div>
 
         <script>
             /**
-             * TAGIHAN PAGE MANAGER
-             * Consolidates all logic for WhatsApp, Isolation, Payments, and Bulk Actions.
+             * BILLING - TAGIHAN PAGE LOGIC
+             * Refined for Glassmorphism & Enhanced Performance
              */
 
-            // --- CONSTANTS & HELPERS ---
-            const selectAll = document.getElementById('selectAll');
-            const checkboxes = () => document.querySelectorAll('.invoice-checkbox');
-            const checkedCheckboxes = () => document.querySelectorAll('.invoice-checkbox:checked');
+            // --- Selectors ---
+            const selectAllCheck = document.getElementById('selectAll');
+            const getCheckboxes = () => document.querySelectorAll('.invoice-checkbox');
+            const getChecked = () => document.querySelectorAll('.invoice-checkbox:checked');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const floatBar = document.getElementById('bulkActionFloat');
 
-            // --- INITIALIZATION ---
+            // --- Initialization ---
             document.addEventListener('DOMContentLoaded', () => {
-                console.log('🚀 Tagihan Page Manager Initialized');
-                updateBulkUI();
+                console.log('💎 Premium Billing Logic Initialized');
 
-                // Set default month for generate modal
-                const now = new Date();
-                const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                const periodInput = document.getElementById('invoicePeriod');
-                if (periodInput && !periodInput.value) {
-                    periodInput.value = currentMonth;
+                // Auto-set current month if empty
+                const periodInp = document.getElementById('invoicePeriod');
+                if (periodInp && !periodInp.value) {
+                    const now = new Date();
+                    periodInp.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                 }
 
-                // Period change listener
-                if (periodInput) {
-                    periodInput.addEventListener('change', checkExistingInvoices);
-                }
+                // Initialize Selection UI
+                updateSelectionUI();
             });
 
-            // --- UI STATE UPDATERS ---
-            function updateBulkUI() {
-                const count = checkedCheckboxes().length;
+            // --- Selection & Bulk Logic ---
+            function updateSelectionUI() {
+                const checked = getChecked();
+                const count = checked.length;
+                const total = getCheckboxes().length;
 
-                // Update Badge Counts
-                const badges = {
-                    'selectedCount': count,
-                    'selectedPrintCount': count,
-                    'selectedReminderCount': count,
-                    'selectedSendWACount': count
-                };
+                // Update Count Display
+                const countBadge = document.getElementById('selectedCountFloat');
+                if (countBadge) countBadge.textContent = count;
 
-                for (const [id, val] of Object.entries(badges)) {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = val;
+                // Toggle Floating Bar
+                if (floatBar) {
+                    if (count > 0) {
+                        floatBar.classList.remove('scale-90', 'opacity-0', 'pointer-events-none');
+                        floatBar.classList.add('scale-100', 'opacity-100', 'pointer-events-auto');
+                    } else {
+                        floatBar.classList.remove('scale-100', 'opacity-100', 'pointer-events-auto');
+                        floatBar.classList.add('scale-90', 'opacity-0', 'pointer-events-none');
+                    }
                 }
 
-                // Toggle visibility of bulk items
-                const bulkItems = document.querySelectorAll('.bulk-delete-hidden, .bulk-print-hidden, .bulk-reminder-hidden');
-                if (count > 0) {
-                    bulkItems.forEach(el => {
-                        el.classList.add('bulk-delete-visible');
-                        el.classList.remove('bulk-delete-hidden');
-                    });
-                } else {
-                    bulkItems.forEach(el => {
-                        el.classList.remove('bulk-delete-visible');
-                        el.classList.add('bulk-delete-hidden', 'bulk-print-hidden', 'bulk-reminder-hidden');
-                    });
-                }
-
-                // Update Select All Checkbox state
-                if (selectAll) {
-                    const total = checkboxes().length;
-                    selectAll.checked = total > 0 && count === total;
-                    selectAll.indeterminate = count > 0 && count < total;
+                // Parent SelectAll Checkbox State
+                if (selectAllCheck) {
+                    selectAllCheck.checked = count > 0 && count === total;
+                    selectAllCheck.indeterminate = count > 0 && count < total;
                 }
             }
 
-            // --- ACTION HANDLERS ---
+            function deselectAllInvoices() {
+                getCheckboxes().forEach(cb => cb.checked = false);
+                if (selectAllCheck) selectAllCheck.checked = false;
+                updateSelectionUI();
+            }
 
-            // 1. WhatsApp Actions
-            async function sendInvoiceWA(id, btn) {
-                const res = await Swal.fire({
-                    title: 'Kirim WhatsApp?',
-                    text: "Kirim rincian tagihan ini langsung ke nomor pelanggan?",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Kirim Sekarang',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#10b981',
-                    cancelButtonColor: '#6b7280'
-                });
+            // --- Modal Management ---
+            function openModal(modalId) {
+                if (!modalOverlay) return;
 
-                if (!res.isConfirmed) return;
+                // Hide all modals first
+                modalOverlay.querySelectorAll('.glass-panel').forEach(m => m.classList.add('hidden'));
 
-                const originalInner = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                // Show specific modal
+                const target = document.getElementById(modalId);
+                if (target) {
+                    target.classList.remove('hidden');
+                    modalOverlay.classList.remove('hidden');
+                    modalOverlay.classList.add('flex');
+                    document.body.style.overflow = 'hidden'; // Prevent scroll
+                }
+            }
+
+            function closeModals() {
+                if (!modalOverlay) return;
+                modalOverlay.classList.add('hidden');
+                modalOverlay.classList.remove('flex');
+                document.body.style.overflow = '';
+            }
+
+            // Close on overlay click (if exactly overlay)
+            modalOverlay?.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModals();
+            });
+
+            // --- Action Functions ---
+
+            // Generate Invoice Logic
+            async function checkExistingInvoices() {
+                const period = document.getElementById('invoicePeriod').value;
+                if (!period) return;
 
                 try {
-                    const response = await fetch(`/billing/tagihan/${id}/send-whatsapp`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    const data = await response.json();
-
+                    const res = await fetch(`/billing/tagihan/check-duplicates?period=${period}`);
+                    const data = await res.json();
                     if (data.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil!',
-                            text: data.message,
-                            toast: true,
-                            position: 'top-end',
-                            timer: 3000,
-                            showConfirmButton: false
+                        const existingIds = new Set(data.customerIds);
+                        const items = document.querySelectorAll('.customer-item');
+                        let hiddenCount = 0;
+
+                        items.forEach(item => {
+                            const cb = item.querySelector('input');
+                            const cid = parseInt(cb.value);
+                            if (existingIds.has(cid)) {
+                                item.classList.add('hidden');
+                                cb.checked = false;
+                                hiddenCount++;
+                            } else {
+                                item.classList.remove('hidden');
+                            }
                         });
-                    } else {
-                        Swal.fire('Gagal', data.message, 'error');
+                        updateSelectedCount();
                     }
-                } catch (e) {
-                    Swal.fire('Error', 'Gagal menghubungi server.', 'error');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = originalInner;
-                }
+                } catch (e) { console.error('Duplicate check failed', e); }
             }
 
-            async function processBulkWA(ids) {
-                const btn = document.getElementById('btnBulkSendWA');
-                const originalText = btn ? btn.innerHTML : '';
-
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
-                }
-
-                try {
-                    const response = await fetch('/billing/tagihan/bulk-send-whatsapp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ invoice_ids: ids })
-                    });
-                    const data = await response.json();
-
-                    Swal.fire({
-                        title: 'Antrean Dimulai',
-                        text: data.message || 'Tagihan masuk dalam antrean pengiriman masal.',
-                        icon: 'success'
-                    }).then(() => location.reload());
-                } catch (e) {
-                    Swal.fire('Error', 'Gagal memproses pengiriman masal.', 'error');
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = originalText;
-                    }
-                }
-            }
-
-            async function bulkSendReminder() {
-                const selected = Array.from(checkedCheckboxes()).map(cb => cb.value);
-                if (selected.length === 0) return;
-
-                const res = await Swal.fire({
-                    title: 'Kirim Pengingat?',
-                    text: `Kirim pengingat WhatsApp ke ${selected.length} pelanggan terpilih?`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Kirim'
-                });
-
-                if (!res.isConfirmed) return;
-
-                Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-                try {
-                    const response = await fetch('/billing/tagihan/bulk-reminder', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ invoiceIds: selected })
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        Swal.fire('Sukses', data.message, 'success');
-                    } else {
-                        Swal.fire('Gagal', data.message, 'error');
-                    }
-                } catch (e) {
-                    Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-                }
-            }
-
-            // 2. Isolation / Restore
-            async function toggleIsolation(customerId, customerName, action) {
-                const isIsolate = action === 'isolate';
-                const actionLabel = isIsolate ? 'Isolir' : 'Pulihkan';
-
-                const res = await Swal.fire({
-                    title: `${actionLabel} Pelanggan?`,
-                    html: `Yakin ingin ${actionLabel.toLowerCase()} akses internet <b>${customerName}</b>?<br><br><small class="text-gray-500">Tindakan ini akan mempengaruhi status di MikroTik.</small>`,
-                    icon: isIsolate ? 'warning' : 'info',
-                    showCancelButton: true,
-                    confirmButtonText: `Ya, ${actionLabel}!`,
-                    confirmButtonColor: isIsolate ? '#ef4444' : '#10b981',
-                    cancelButtonText: 'Batal'
-                });
-
-                if (!res.isConfirmed) return;
-
-                const { value: reason } = await Swal.fire({
-                    title: 'Alasan ' + actionLabel,
-                    input: 'text',
-                    inputValue: isIsolate ? 'Keterlambatan pembayaran' : 'Pembayaran telah diterima',
-                    inputPlaceholder: 'Masukkan alasan...',
-                    showCancelButton: true,
-                    confirmButtonText: 'Submit'
-                });
-
-                if (reason === undefined) return;
-
-                Swal.showLoading();
-                try {
-                    const endpoint = isIsolate ? '/billing/customer/isolate' : '/billing/customer/restore';
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ customerId, reason })
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        Swal.fire('Sukses', `Pelanggan berhasil ${isIsolate ? 'diisolir' : 'dipulihkan'}.`, 'success')
-                            .then(() => location.reload());
-                    } else {
-                        Swal.fire('Gagal', data.message, 'error');
-                    }
-                } catch (e) {
-                    Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-                }
-            }
-
-            // 3. Invoice Actions (Single & Bulk Delete)
-            async function deleteInvoice(id, number) {
-                const res = await Swal.fire({
-                    title: 'Hapus Tagihan?',
-                    html: `Hapus permanent tagihan <b>${number}</b>?<br><br><span class="text-red-600 text-xs font-bold">⚠️ PERINGATAN: Data pembayaran terkait juga akan terhapus!</span>`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Hapus!',
-                    confirmButtonColor: '#ef4444',
-                    cancelButtonText: 'Batal'
-                });
-
-                if (!res.isConfirmed) return;
-
-                try {
-                    const response = await fetch(`/billing/tagihan/${id}`, { method: 'DELETE' });
-                    const data = await response.json();
-                    if (data.success) {
-                        Swal.fire('Terhapus', data.message, 'success').then(() => location.reload());
-                    } else {
-                        Swal.fire('Gagal', data.message, 'error');
-                    }
-                } catch (e) {
-                    Swal.fire('Error', 'Penghapusan gagal.', 'error');
-                }
-            }
-
-            async function bulkDeleteInvoices() {
-                const ids = Array.from(checkedCheckboxes()).map(cb => cb.value);
-                if (ids.length === 0) return;
-
-                const res = await Swal.fire({
-                    title: `Hapus ${ids.length} Tagihan?`,
-                    text: "Tindakan ini tidak dapat dibatalkan!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Hapus Masal',
-                    confirmButtonColor: '#ef4444'
-                });
-
-                if (!res.isConfirmed) return;
-
-                Swal.showLoading();
-                try {
-                    const response = await fetch('/billing/tagihan/bulk-delete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ invoiceIds: ids })
-                    });
-                    const data = await response.json();
-                    Swal.fire('Selesai', `Berhasil: ${data.deleted}, Gagal: ${data.failed}`, 'success').then(() => location.reload());
-                } catch (e) {
-                    Swal.fire('Error', 'Gagal memproses penghapusan masal.', 'error');
-                }
-            }
-
-            // 4. Modal Functions (Janji Bayar)
-            window.openJanjiBayarModal = function (id, currentDueDate) {
-                document.getElementById('janjiBayarInvoiceId').value = id;
-                const inputDate = document.getElementById('janjiBayarDate');
-                if (currentDueDate) {
-                    const date = new Date(currentDueDate);
-                    if (!isNaN(date)) inputDate.value = date.toISOString().split('T')[0];
-                }
-                document.getElementById('janjiBayarModal').style.display = 'block';
-            };
-
-            window.closeJanjiBayarModal = function () {
-                document.getElementById('janjiBayarModal').style.display = 'none';
-            };
-
-            window.saveJanjiBayar = async function () {
-                const id = document.getElementById('janjiBayarInvoiceId').value;
-                const date = document.getElementById('janjiBayarDate').value;
-
-                if (!date) return Swal.fire('Peringatan', 'Harap pilih tanggal!', 'warning');
-
-                const res = await Swal.fire({
-                    title: 'Simpan Janji Bayar?',
-                    text: `Jatuh tempo akan diubah ke ${new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Simpan'
-                });
-
-                if (!res.isConfirmed) return;
-
-                try {
-                    const response = await fetch(`/billing/tagihan/${id}/due-date`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ due_date: date })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        Swal.fire('Berhasil', 'Janji bayar telah disimpan.', 'success').then(() => location.reload());
-                    } else {
-                        Swal.fire('Gagal', data.message, 'error');
-                    }
-                } catch (e) {
-                    Swal.fire('Error', 'Kesalahan sistem.', 'error');
-                }
-            };
-
-            // 5. Generate Modal Functions
-            window.showGenerateInvoiceModal = function () {
-                const modal = document.getElementById('generateInvoiceModal');
-                if (modal) modal.style.display = 'flex';
-
-                const now = new Date();
-                const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-                const periodInput = document.getElementById('invoicePeriod');
-                if (periodInput) {
-                    if (!periodInput.value) periodInput.value = currentMonth;
-                    checkExistingInvoices();
-                }
-            };
-
-            window.closeGenerateInvoiceModal = function () {
-                const modal = document.getElementById('generateInvoiceModal');
-                if (modal) modal.style.display = 'none';
-            };
-
-            window.toggleCustomerSelect = function (type) {
+            window.toggleCustomerSelect = (type) => {
                 const container = document.getElementById('customerSelectorContainer');
-                const lblAll = document.getElementById('lblTargetAll');
-                const lblSel = document.getElementById('lblTargetSelected');
-
                 if (type === 'selected') {
-                    container.style.display = 'block';
-                    if (lblSel) lblSel.classList.add('bg-white', 'shadow-sm');
-                    if (lblAll) lblAll.classList.remove('bg-white', 'shadow-sm');
+                    container?.classList.remove('hidden');
+                    checkExistingInvoices(); // Refresh when opening
                 } else {
-                    container.style.display = 'none';
-                    if (lblAll) lblAll.classList.add('bg-white', 'shadow-sm');
-                    if (lblSel) lblSel.classList.remove('bg-white', 'shadow-sm');
+                    container?.classList.add('hidden');
                 }
             };
 
-            window.filterCustomers = function () {
-                const search = document.getElementById('customerSearch').value.toLowerCase();
-                const items = document.querySelectorAll('.customer-item');
-                items.forEach(item => {
-                    const name = item.getAttribute('data-name').toLowerCase();
-                    const alreadyHas = item.classList.contains('already-generated');
-
-                    if (alreadyHas) {
-                        item.style.display = 'none';
-                    } else {
-                        item.style.display = name.includes(search) ? 'flex' : 'none';
-                    }
+            window.filterCustomers = () => {
+                const q = document.getElementById('customerSearch').value.toLowerCase();
+                document.querySelectorAll('.customer-item').forEach(item => {
+                    const name = item.dataset.name || "";
+                    if (item.classList.contains('hidden') && !q) return; // Keep hidden by duplicate check
+                    item.style.display = name.includes(q) ? 'flex' : 'none';
                 });
             };
 
-            window.selectAllCustomersFiltered = function () {
-                const items = document.querySelectorAll('.customer-item');
-                items.forEach(item => {
-                    if (item.style.display !== 'none') {
-                        const cb = item.querySelector('input');
-                        if (cb) cb.checked = true;
-                    }
-                });
-                updateSelectedCount();
-            };
-
-            window.updateSelectedCount = function () {
+            window.updateSelectedCount = () => {
                 const count = document.querySelectorAll('input[name="customer_ids"]:checked').length;
                 const el = document.getElementById('selectedCustomerCount');
                 if (el) el.textContent = count;
             };
 
-            // Dynamic duplicate check
-            let existingInvoicesCustomerIds = [];
-            async function checkExistingInvoices() {
-                const period = document.getElementById('invoicePeriod').value;
-                if (!period) return;
+            // Bulk Actions Implementation
+            async function bulkAction(action) {
+                const selected = Array.from(getChecked()).map(cb => cb.value);
+                if (selected.length === 0) return;
 
-                try {
-                    const response = await fetch(`/billing/tagihan/check-duplicates?period=${period}`);
-                    const data = await response.json();
+                let config = {
+                    'bulk-delete': { title: 'Hapus Masal?', text: `Hapus permanent ${selected.length} tagihan?`, icon: 'warning', color: '#ef4444', url: '/billing/tagihan/bulk-delete', method: 'POST', bodyKey: 'invoiceIds' },
+                    'bulk-send-wa': { title: 'Kirim WA Masal?', text: `Antrean untuk ${selected.length} pelanggan terpilih?`, icon: 'question', color: '#10b981', url: '/billing/tagihan/bulk-send-whatsapp', method: 'POST', bodyKey: 'invoice_ids' },
+                    'bulk-reminder': { title: 'Kirim Pengingat?', text: `Kirim pengingat tempo ke ${selected.length} orang?`, icon: 'info', color: '#f59e0b', url: '/billing/tagihan/bulk-reminder', method: 'POST', bodyKey: 'invoiceIds' }
+                }[action];
 
-                    if (data.success) {
-                        existingInvoicesCustomerIds = data.customerIds;
-                        updateCustomerListVisibility();
-                    }
-                } catch (error) {
-                    console.error('Error checking existing invoices:', error);
-                }
-            }
+                if (!config) return;
 
-            function updateCustomerListVisibility() {
-                const container = document.getElementById('customerList');
-                if (!container) return;
-
-                const items = container.querySelectorAll('.customer-item');
-                const search = document.getElementById('customerSearch')?.value.toLowerCase() || "";
-
-                items.forEach(item => {
-                    const cb = item.querySelector('input');
-                    if (!cb) return;
-
-                    const customerId = parseInt(cb.value);
-                    const name = item.getAttribute('data-name').toLowerCase();
-                    const alreadyHas = existingInvoicesCustomerIds.includes(customerId);
-
-                    if (alreadyHas) {
-                        item.style.display = 'none';
-                        item.classList.add('already-generated');
-                        cb.checked = false;
-                    } else if (name.includes(search)) {
-                        item.style.display = 'flex';
-                        item.classList.remove('already-generated');
-                    } else {
-                        item.style.display = 'none';
-                        item.classList.remove('already-generated');
-                    }
-                });
-
-                updateSelectedCount();
-            }
-
-            // Generate Logic
-            async function generateInvoicesFromForm() {
-                const period = document.getElementById('invoicePeriod').value;
-                const sendWA = document.getElementById('sendWhatsapp').checked;
-                const targetType = document.querySelector('input[name="targetType"]:checked').value;
-
-                let customerIds = null;
-                if (targetType === 'selected') {
-                    customerIds = Array.from(document.querySelectorAll('input[name="customer_ids"]:checked')).map(cb => cb.value);
-                    if (customerIds.length === 0) return Swal.fire('Error', 'Pilih minimal satu pelanggan!', 'error');
-                }
-
-                const res = await Swal.fire({
-                    title: 'Generate Tagihan?',
-                    text: `Periode: ${period}. Ingin melanjutkan?`,
-                    icon: 'question',
+                const confirm = await Swal.fire({
+                    title: config.title,
+                    text: config.text,
+                    icon: config.icon,
                     showCancelButton: true,
-                    confirmButtonText: 'Ya, Generate'
+                    confirmButtonColor: config.color,
+                    confirmButtonText: 'Ya, Lanjutkan'
                 });
 
-                if (!res.isConfirmed) return;
+                if (!confirm.isConfirmed) return;
 
                 Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 try {
-                    const response = await fetch('/billing/tagihan/generate-bulk', {
-                        method: 'POST',
+                    const res = await fetch(config.url, {
+                        method: config.method,
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            period,
-                            customer_ids: customerIds,
-                            send_whatsapp: sendWA
-                        })
+                        body: JSON.stringify({ [config.bodyKey]: selected })
                     });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        Swal.fire('Sukses', data.message, 'success').then(() => location.reload());
+                    const data = await res.json();
+                    if (data.success || data.deleted !== undefined) {
+                        Swal.fire('Berhasil', data.message || 'Proses selesai.', 'success').then(() => location.reload());
                     } else {
-                        Swal.fire('Gagal', data.message, 'error');
+                        Swal.fire('Gagal', data.message || 'Terjadi kesalahan.', 'error');
                     }
-                } catch (e) {
-                    Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-                }
+                } catch (e) { Swal.fire('Error', 'Sistem gagal merespon.', 'error'); }
             }
 
-            // 6. Print & Export Functions
-            function printAllInvoices() {
-                const params = new URLSearchParams(window.location.search);
-                window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
-            }
+            // --- Event Listeners ---
 
-            function printSelectedInvoices() {
-                const selected = Array.from(checkedCheckboxes()).map(cb => cb.value);
-                if (selected.length === 0) return;
-
-                const params = new URLSearchParams();
-                selected.forEach(id => params.append('ids[]', id));
-                window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
-            }
-
-            function exportPDF() {
-                const params = new URLSearchParams(window.location.search);
-                window.open('/billing/tagihan/export/pdf?' + params.toString(), '_blank');
-            }
-
-            function showOdcPrintModal() {
-                const modal = document.getElementById('odcPrintModal');
-                if (modal) modal.style.display = 'flex';
-            }
-
-            function closeOdcPrintModal() {
-                const modal = document.getElementById('odcPrintModal');
-                if (modal) modal.style.display = 'none';
-            }
-
-            // --- EVENT DELEGATION ---
-            document.addEventListener('click', function (e) {
-                // 1. Action Buttons
-                const btn = e.target.closest('[data-action]');
-                if (btn) {
-                    const action = btn.dataset.action;
-                    const id = btn.dataset.invoiceId;
-                    const number = btn.dataset.invoiceNumber;
-                    const customerId = btn.dataset.customerId;
-                    const customerName = btn.dataset.customerName;
-
-                    switch (action) {
-                        case 'detail':
-                            window.location.href = `/billing/tagihan/${id}`;
-                            break;
-                        case 'pay':
-                            window.location.href = `/billing/tagihan/${id}/pay`;
-                            break;
-                        case 'promise':
-                            openJanjiBayarModal(id, btn.dataset.invoiceDate);
-                            break;
-                        case 'send-wanew':
-                            sendInvoiceWA(id, btn);
-                            break;
-                        case 'print':
-                            // Toggle dropdown
-                            const menu = document.getElementById(`printMenu-${id}`);
-                            if (menu) {
-                                document.querySelectorAll('[id^="printMenu-"]').forEach(m => {
-                                    if (m !== menu) m.classList.add('hidden');
-                                });
-                                menu.classList.toggle('hidden');
-                                e.stopPropagation();
-                            }
-                            break;
-                        case 'isolate':
-                            toggleIsolation(customerId, customerName, 'isolate');
-                            break;
-                        case 'restore':
-                            toggleIsolation(customerId, customerName, 'restore');
-                            break;
-                        case 'delete':
-                            deleteInvoice(id, number);
-                            break;
-                        case 'bulk-delete':
-                            bulkDeleteInvoices();
-                            break;
-                        case 'bulk-reminder':
-                            bulkSendReminder();
-                            break;
-                        case 'bulk-send-wa':
-                            const selectedIdsWA = Array.from(checkedCheckboxes()).map(cb => cb.value);
-                            if (selectedIdsWA.length === 0) {
-                                Swal.fire('Info', 'Pilih minimal satu tagihan!', 'info');
-                            } else {
-                                processBulkWA(selectedIdsWA);
-                            }
-                            break;
-                        case 'print-all':
-                            printAllInvoices();
-                            break;
-                        case 'print-selected':
-                            printSelectedInvoices();
-                            break;
-                        case 'export-pdf':
-                            exportPDF();
-                            break;
-                        case 'open-generate-modal':
-                        case 'generate-invoice':
-                            showGenerateInvoiceModal();
-                            break;
-                        case 'close-modal':
-                            closeGenerateInvoiceModal();
-                            break;
-                    }
-                }
-
-                // 2. Hide print menus on outside click
-                if (!e.target.closest('[data-action="print"]')) {
-                    document.querySelectorAll('[id^="printMenu-"]').forEach(m => m.classList.add('hidden'));
-                }
+            // Select All Checkbox
+            selectAllCheck?.addEventListener('change', (e) => {
+                getCheckboxes().forEach(cb => cb.checked = e.target.checked);
+                updateSelectionUI();
             });
 
-            // 3. Selection Handlers
-            if (selectAll) {
-                selectAll.addEventListener('change', function () {
-                    checkboxes().forEach(cb => cb.checked = this.checked);
-                    updateBulkUI();
-                });
-            }
-
+            // Individual Checkboxes (Delegated)
             document.addEventListener('change', (e) => {
                 if (e.target.classList.contains('invoice-checkbox')) {
-                    updateBulkUI();
+                    updateSelectionUI();
                 }
             });
 
-            // 4. Form Handlers
-            const genForm = document.getElementById('generateInvoiceForm');
-            if (genForm) {
-                genForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    generateInvoicesFromForm();
-                });
-            }
+            // Global Action Clicks
+            document.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
 
-            // Expose global functions needed by HTML attributes
-            window.showOdcPrintModal = showOdcPrintModal;
-            window.closeOdcPrintModal = closeOdcPrintModal;
-            window.showGenerateInvoiceModal = showGenerateInvoiceModal;
-            window.closeGenerateInvoiceModal = closeGenerateInvoiceModal;
-            window.toggleCustomerSelect = toggleCustomerSelect;
-            window.filterCustomers = filterCustomers;
-            window.selectAllCustomersFiltered = selectAllCustomersFiltered;
-            window.updateSelectedCount = updateSelectedCount;
-            window.saveJanjiBayar = saveJanjiBayar;
-            window.openJanjiBayarModal = openJanjiBayarModal;
-            window.closeJanjiBayarModal = closeJanjiBayarModal;
+                const action = btn.dataset.action;
+                const id = btn.dataset.invoiceId;
+                const customerId = btn.dataset.customerId;
+                const customerName = btn.dataset.customerName;
 
-        </script>
+                switch (action) {
+                    case 'generate-invoice': openModal('generateInvoiceModal'); break;
+                    case 'open-odc-print': openModal('odcPrintModal'); break;
+                    case 'detail': location.href = `/billing/tagihan/${id}`; break;
+                    case 'pay': location.href = `/billing/tagihan/${id}/pay`; break;
 
+                    case 'promise':
+                        document.getElementById('janjiBayarInvoiceId').value = id;
+                        const dateVal = btn.dataset.invoiceDate ? new Date(btn.dataset.invoiceDate).toISOString().split('T')[0] : '';
+                        document.getElementById('janjiBayarDate').value = dateVal;
+                        openModal('janjiBayarModal');
+                        break;
 
-        <!-- ODC Print Modal -->
-        <div id="odcPrintModal"
-            style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-            <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl transform transition-all">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-                        <i class="fas fa-print text-blue-600"></i> Print Tagihan Area ODC
-                    </h3>
-                    <button onclick="closeOdcPrintModal()" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-
-                <form action="/billing/tagihan/print-all" target="_blank" method="GET">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Pilih Area ODC</label>
-                            <select name="odc_id" required
-                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all bg-gray-50">
-                                <option value="">Semua ODC</option>
-                                <% if (typeof odcList !=='undefined' && odcList) { %>
-                                    <% odcList.forEach(odc=> { %>
-                                        <option value="<%= odc.id %>">
-                                            <%= odc.name %>
-                                        </option>
-                                        <% }) %>
-                                            <% } %>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Format Print</label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="format" value="thermal" checked class="hidden peer">
-                                    <div
-                                        class="peer-checked:bg-blue-600 peer-checked:text-white bg-gray-100 p-4 rounded-xl text-center font-bold text-sm transition-all hover:bg-gray-200">
-                                        <i class="fas fa-receipt mb-1 block"></i> Thermal (58mm)
-                                    </div>
-                                </label>
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="format" value="a4" class="hidden peer">
-                                    <div
-                                        class="peer-checked:bg-blue-600 peer-checked:text-white bg-gray-100 p-4 rounded-xl text-center font-bold text-sm transition-all hover:bg-gray-200">
-                                        <i class="fas fa-file-invoice mb-1 block"></i> Kertas A4
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-8">
-                        <button type="submit"
-                            class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
-                            <i class="fas fa-print"></i> Mulai Print Area
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <script>
-            // Logic to check existing invoices and hide customers in Generate Modal
-            async function checkExistingInvoices() {
-                const periodInput = document.getElementById('invoicePeriod');
-                const period = periodInput.value;
-                if (!period) return;
-
-                console.log('Checking existing invoices for period:', period);
-
-                try {
-                    // Fetch existing invoices for the period
-                    // We can reuse the main list API or a dedicated one. 
-                    // For efficiency, let's assume we can get a list of customer_ids who have invoices.
-                    // Or, simpler: We loop through the checkboxes and check against a new API endpoint or the current table if loaded (but table is paginated).
-                    // So we need an API.
-
-                    // Let's use a quick fetch to a new helper endpoint or existing listing with high limit?
-                    // Better: Create a specialized generic search or just fetch all invoices for period (lightweight: id, customer_id)
-                    const response = await fetch(`/api/billing/invoices/check-period?period=${period}`);
-                    if (!response.ok) throw new Error('Failed to check invoices');
-
-                    const data = await response.json();
-                    const existingCustomerIds = new Set(data.map(inv => inv.customer_id));
-
-                    // Now filter the checkboxes in the modal
-                    const checkboxes = document.querySelectorAll('#customerList input[type="checkbox"]');
-                    let hiddenCount = 0;
-
-                    checkboxes.forEach(cb => {
-                        const customerId = parseInt(cb.value);
-                        const label = cb.closest('label');
-
-                        if (existingCustomerIds.has(customerId)) {
-                            // Hide this customer
-                            if (label) label.style.display = 'none';
-                            cb.disabled = true; // Disable to fail-safe
-                            cb.checked = false; // Uncheck if previously checked
-                            hiddenCount++;
-                        } else {
-                            // Show
-                            if (label) label.style.display = 'flex';
-                            cb.disabled = false;
+                    case 'send-wanew':
+                        const ok = await Swal.fire({ title: 'Kirim WhatsApp?', text: "Kirim rincian tagihan via WA?", icon: 'question', showCancelButton: true });
+                        if (ok.isConfirmed) {
+                            btn.disabled = true;
+                            const res = await fetch(`/billing/tagihan/${id}/send-whatsapp`, { method: 'POST' });
+                            const data = await res.json();
+                            Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
+                            btn.disabled = false;
                         }
-                    });
+                        break;
 
-                    console.log(`Hidden ${hiddenCount} customers who already have invoices.`);
+                    case 'isolate':
+                    case 'restore':
+                        const label = action === 'isolate' ? 'Isolir' : 'Pulihkan';
+                        const { value: reason } = await Swal.fire({
+                            title: `${label} Pelanggan?`,
+                            text: `Alasan untuk ${customerName}:`,
+                            input: 'text',
+                            inputValue: action === 'isolate' ? 'Tunggakan pembayaran' : 'Sudah bayar',
+                            showCancelButton: true
+                        });
+                        if (reason) {
+                            const res = await fetch(`/billing/customer/${action}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ customerId, reason })
+                            });
+                            const d = await res.json();
+                            if (d.success) location.reload();
+                            else Swal.fire('Gagal', d.message, 'error');
+                        }
+                        break;
 
-                    // Update stats or show message if needed
-                    const container = document.getElementById('customerSelectorContainer');
-                    const infoMsg = document.getElementById('gen-invoice-info-msg');
+                    case 'delete':
+                        const del = await Swal.fire({ title: 'Hapus Tagihan?', text: 'Data tidak bisa dikembalikan!', icon: 'warning', showCancelButton: true });
+                        if (del.isConfirmed) {
+                            const res = await fetch(`/billing/tagihan/${id}`, { method: 'DELETE' });
+                            const d = await res.json();
+                            if (d.success) location.reload();
+                        }
+                        break;
 
-                    if (!infoMsg) {
-                        const msgDiv = document.createElement('div');
-                        msgDiv.id = 'gen-invoice-info-msg';
-                        msgDiv.style.fontSize = '12px';
-                        msgDiv.style.color = '#dc2626';
-                        msgDiv.style.marginTop = '8px';
-                        msgDiv.style.fontStyle = 'italic';
-                        container.appendChild(msgDiv);
-                    }
+                    case 'bulk-delete':
+                    case 'bulk-send-wa':
+                    case 'bulk-reminder':
+                        bulkAction(action);
+                        break;
 
-                    if (hiddenCount > 0) {
-                        document.getElementById('gen-invoice-info-msg').textContent = `${hiddenCount} pelanggan disembunyikan karena sudah memiliki tagihan periode ini.`;
-                    } else {
-                        document.getElementById('gen-invoice-info-msg').textContent = '';
-                    }
-
-                    // Trigger count update
-                    updateSelectedCount();
-
-                } catch (error) {
-                    console.error('Error checking existing invoices:', error);
+                    case 'print-selected':
+                        const ids = Array.from(getChecked()).map(cb => cb.value);
+                        const params = new URLSearchParams();
+                        ids.forEach(id => params.append('ids[]', id));
+                        window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
+                        break;
                 }
-            }
+            });
+
+            // Form Submissions
+            document.getElementById('generateInvoiceForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const period = document.getElementById('invoicePeriod').value;
+                const sendWA = document.getElementById('sendWhatsapp').checked;
+                const targetType = document.querySelector('input[name="targetType"]:checked').value;
+                const customerIds = targetType === 'selected' ? Array.from(document.querySelectorAll('input[name="customer_ids"]:checked')).map(cb => cb.value) : null;
+
+                Swal.fire({ title: 'Generating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const res = await fetch('/billing/tagihan/generate-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ period, customer_ids: customerIds, send_whatsapp: sendWA })
+                });
+                const d = await res.json();
+                if (d.success) Swal.fire('Sukses', d.message, 'success').then(() => location.reload());
+                else Swal.fire('Gagal', d.message, 'error');
+            });
+
+            // Janji Bayar Logic
+            window.saveJanjiBayar = async () => {
+                const id = document.getElementById('janjiBayarInvoiceId').value;
+                const date = document.getElementById('janjiBayarDate').value;
+                if (!date) return;
+
+                const res = await fetch(`/billing/tagihan/${id}/due-date`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ due_date: date })
+                });
+                const d = await res.json();
+                if (d.success) location.reload();
+                else Swal.fire('Gagal', d.message, 'error');
+            };
+
+            // Filter ODC Modal
+            window.filterOdcList = () => {
+                const q = document.getElementById('odcSearchInput').value.toLowerCase();
+                document.querySelectorAll('.odc-item').forEach(item => {
+                    const name = item.dataset.name.toLowerCase();
+                    const loc = item.dataset.location.toLowerCase();
+                    item.style.display = (name.includes(q) || loc.includes(q)) ? 'flex' : 'none';
+                });
+            };
+
+            window.closeModals = closeModals;
         </script>
-
-        <!-- Janji Bayar Modal -->
-        <div id="janjiBayarModal" style="display: none;"
-            class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full" style="z-index: 9999;">
-            <div class="relative top-20 mx-auto p-6 border w-full max-w-md shadow-2xl rounded-2xl bg-white">
-                <!-- Header -->
-                <div class="text-center">
-                    <div
-                        class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg mb-4">
-                        <i class="fas fa-calendar-check text-white text-2xl"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold text-gray-900 mb-2">Janji Bayar</h3>
-                    <p class="text-sm text-gray-600 mb-6 px-4">
-                        Ubah tanggal jatuh tempo invoice. Sistem tidak akan melakukan isolir sebelum tanggal yang
-                        ditentukan.
-                    </p>
-                </div>
-
-                <!-- Form -->
-                <div class="space-y-4">
-                    <input type="hidden" id="janjiBayarInvoiceId">
-
-                    <div>
-                        <label for="janjiBayarDate" class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-calendar text-indigo-600 mr-2"></i>Tanggal Janji Bayar
-                        </label>
-                        <input type="date" id="janjiBayarDate" required
-                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-lg">
-                    </div>
-
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-info-circle text-yellow-600"></i>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-yellow-800">
-                                    <strong>Catatan:</strong> Pelanggan akan menerima notifikasi WhatsApp tentang
-                                    perpanjangan jatuh tempo ini.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Buttons -->
-                <div class="mt-6 space-y-3">
-                    <button type="button" onclick="saveJanjiBayar()"
-                        class="w-full px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all transform hover:-translate-y-0.5">
-                        <i class="fas fa-save mr-2"></i>Simpan Janji Bayar
-                    </button>
-                    <button type="button" onclick="closeJanjiBayarModal()"
-                        class="w-full px-6 py-3 bg-gray-200 text-gray-700 text-base font-medium rounded-xl hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all">
-                        <i class="fas fa-times mr-2"></i>Batal
-                    </button>
-                </div>
-            </div>
-        </div>

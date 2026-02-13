@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Monitoring - Live Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        /* Map Container */
+        #map {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+        }
+
+        /* Floating Header */
+        .header {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 12px 24px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .header-time {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .header-time span {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            position: fixed;
+            top: 90px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 1000;
+            min-width: 260px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stats-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.875rem;
+            color: #cbd5e1;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+
+        .stat-icon.online {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .stat-icon.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .stat-icon.isolated {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+        }
+
+        .stat-icon.total {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .control-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+
+        .control-btn.danger {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+        }
+
+        /* Offline Alert Panel */
+        .alert-panel {
+            position: fixed;
+            top: 90px;
+            right: 20px;
+            max-width: 360px;
+            max-height: calc(100vh - 120px);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+            overflow: hidden;
+        }
+
+        .alert-panel.active {
+            display: block;
+        }
+
+        .alert-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+            border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .alert-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ef4444;
+        }
+
+        .alert-count {
+            background: #ef4444;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .alert-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .alert-item {
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .alert-item:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateX(4px);
+        }
+
+        .alert-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .alert-customer-name {
+            font-weight: 600;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }
+
+        .alert-customer-code {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .alert-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        .alert-type-badge.pppoe {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .alert-type-badge.static_ip {
+            background: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+        }
+
+        /* Audio Control */
+        .audio-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            padding: 12px 20px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .audio-toggle {
+            width: 42px;
+            height: 24px;
+            background: #374151;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .audio-toggle.active {
+            background: #22c55e;
+        }
+
+        .audio-toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s ease;
+        }
+
+        .audio-toggle.active::after {
+            transform: translateX(18px);
+        }
+
+        .audio-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        /* Custom Leaflet Popup */
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0;
+        }
+
+        .custom-popup .leaflet-popup-content {
+            margin: 0;
+            min-width: 260px;
+        }
+
+        .custom-popup .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.98);
+        }
+
+        .popup-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .popup-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }
+
+        .popup-code {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .popup-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .popup-status.online {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .popup-status.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .popup-status.isolated {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+        }
+
+        .popup-body {
+            padding: 12px 16px;
+        }
+
+        .popup-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8125rem;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+
+        .popup-info i {
+            width: 16px;
+            color: #64748b;
+        }
+
+        .popup-actions {
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 8px;
+        }
+
+        .popup-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .popup-btn.primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .popup-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .popup-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+        }
+
+        .popup-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Custom Marker Styles */
+        .custom-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .custom-marker:hover {
+            transform: scale(1.2);
+        }
+
+        .custom-marker.online {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .custom-marker.offline {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        .custom-marker.isolated {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* Cluster Marker Styles */
+        .marker-cluster-small,
+        .marker-cluster-medium,
+        .marker-cluster-large {
+            background: rgba(59, 130, 246, 0.2) !important;
+            border: 3px solid #3b82f6 !important;
+        }
+
+        .marker-cluster-small div,
+        .marker-cluster-medium div,
+        .marker-cluster-large div {
+            background: #3b82f6 !important;
+            color: white !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 600 !important;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.9);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(59, 130, 246, 0.2);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            max-width: 360px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 9999;
+            transform: translateX(400px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-left: 4px solid #22c55e;
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .toast.warning {
+            border-left: 4px solid #f59e0b;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Memuat peta monitoring...</div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Floating Header -->
+    <div class="header">
+        <span class="header-title">
+            <i class="fas fa-satellite-dish"></i>
+            Network Monitoring
+        </span>
+        <div class="header-divider"></div>
+        <div class="header-time">
+            <span id="currentTime">--:--:--</span>
+            | Refresh: <span id="lastRefresh">-</span>
+        </div>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="stats-panel">
+        <div class="stats-title">
+            <i class="fas fa-chart-pie"></i>
+            Overview Status
+        </div>
+        <div class="stat-row">
+            <div class="stat-label">
+                <div class="stat-icon total"><i class="fas fa-users"></i></div>
+                Total Pelanggan
+            </div>
+            <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <div class="stat-row">
+            <div class="stat-label">
+                <div class="stat-icon online"><i class="fas fa-check-circle"></i></div>
+                Online
+            </div>
+            <div class="stat-value" id="statOnline" style="color: #22c55e;">0</div>
+        </div>
+        <div class="stat-row">
+            <div class="stat-label">
+                <div class="stat-icon offline"><i class="fas fa-times-circle"></i></div>
+                Offline
+            </div>
+            <div class="stat-value" id="statOffline" style="color: #ef4444;">0</div>
+        </div>
+        <div class="stat-row">
+            <div class="stat-label">
+                <div class="stat-icon isolated"><i class="fas fa-ban"></i></div>
+                Isolir
+            </div>
+            <div class="stat-value" id="statIsolated" style="color: #f97316;">0</div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <button class="control-btn" onclick="refreshData()" title="Refresh Data">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        <button class="control-btn" onclick="toggleAlertPanel()" id="alertToggle" title="Toggle Alert Panel">
+            <i class="fas fa-bell"></i>
+        </button>
+        <button class="control-btn" onclick="toggleHeatMap()" id="heatMapToggle" title="Toggle Heat Map">
+            <i class="fas fa-fire"></i>
+        </button>
+        <button class="control-btn" onclick="fitAllMarkers()" title="Show All">
+            <i class="fas fa-expand-arrows-alt"></i>
+        </button>
+        <button class="control-btn" onclick="flyToOffline()" title="Go to Nearest Offline">
+            <i class="fas fa-location-arrow"></i>
+        </button>
+        <a href="/monitoring/odp-problems" class="control-btn" title="ODP Problems Dashboard">
+            <i class="fas fa-network-wired"></i>
+        </a>
+    </div>
+
+    <!-- Offline Alert Panel -->
+    <div class="alert-panel" id="alertPanel">
+        <div class="alert-header">
+            <h3><i class="fas fa-exclamation-triangle"></i> Offline Alerts</h3>
+            <span class="alert-count" id="alertCount">0</span>
+        </div>
+        <div class="alert-list" id="alertList">
+            <!-- Alert items will be populated here -->
+        </div>
+    </div>
+
+    <!-- Audio Control -->
+    <div class="audio-control">
+        <span class="audio-label">
+            <i class="fas fa-volume-up"></i>
+            Alarm Offline
+        </span>
+        <div class="audio-toggle" id="audioToggle" onclick="toggleAudio()"></div>
+    </div>
+
+    <!-- Audio Element for Notifications -->
+    <audio id="alertSound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <!-- Leaflet Heat -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+
+    <script>
+        // Initial Data from Server (Instant Load disabled for reliability)
+        const initialMapData = null;
+
+        // State
+        let map;
+        let markerClusterGroup;
+        let heatLayer = null;
+        let isHeatMapEnabled = false;
+        let allCustomers = [];
+        let offlineAlerts = [];
+        let isAudioEnabled = false;
+        let audioInterval = null;
+        let refreshInterval = null;
+        let connectionLayerGroup = null;
+
+        // Default center (Magelang, Indonesia)
+        const DEFAULT_CENTER = [-7.4700, 110.2177];
+        const DEFAULT_ZOOM = 13;
+
+        // Manual Refresh Wrapper
+        function refreshData() {
+            loadMapData(false);
+        }
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map', {
+                center: DEFAULT_CENTER,
+                zoom: DEFAULT_ZOOM,
+                zoomControl: false
+            });
+
+            // Add tile layer (Dark theme)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Add zoom control to bottom right
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // Initialize marker cluster group
+            markerClusterGroup = L.markerClusterGroup({
+                showCoverageOnHover: false,
+                maxClusterRadius: 60,
+                spiderfyOnMaxZoom: true,
+                disableClusteringAtZoom: 17,
+                iconCreateFunction: function (cluster) {
+                    const childCount = cluster.getChildCount();
+                    let size = 'small';
+                    if (childCount > 50) size = 'large';
+                    else if (childCount > 10) size = 'medium';
+
+                    return L.divIcon({
+                        html: '<div>' + childCount + '</div>',
+                        className: 'marker-cluster marker-cluster-' + size,
+                        iconSize: L.point(40, 40)
+                    });
+                }
+            });
+
+            map.addLayer(markerClusterGroup);
+
+            // Layer for connection lines
+            connectionLayerGroup = L.layerGroup().addTo(map);
+
+            // Check for initial data (INSTANT LOAD & AUTO FIT)
+            if (initialMapData) {
+                console.log('Using initial map data');
+                // Use processMapData if defined, or define logic inline for now then refactor?
+                // I will define processMapData later, but I must ensure it exists before initMap runs.
+                // Wait, processMapData is hoisting? Function declarations are hoisted. YES.
+                processMapData(initialMapData);
+
+                // Auto fit bounds immediately
+                if (allCustomers.length > 0) {
+                    setTimeout(() => {
+                        try {
+                            const bounds = markerClusterGroup.getBounds();
+                            if (bounds.isValid()) {
+                                map.fitBounds(bounds, { padding: [50, 50] });
+                            }
+                        } catch (e) { console.error("Fit bounds error", e); }
+                    }, 100);
+                }
+                // Hide loading immediately
+                document.getElementById('loadingOverlay').style.display = 'none';
+            } else {
+                // Load data via fetch (Fallback)
+                loadMapData(false);
+            }
+
+            // Update time display
+            updateTime();
+            setInterval(updateTime, 1000);
+
+            // Auto refresh every 60 seconds (Silent)
+            refreshInterval = setInterval(() => loadMapData(true), 60000);
+
+            // Hide loading if used fetch (delayed)
+            if (!initialMapData) {
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        // Toggle Heat Map
+        function toggleHeatMap() {
+            isHeatMapEnabled = !isHeatMapEnabled;
+            const btn = document.getElementById('heatMapToggle');
+
+            if (isHeatMapEnabled) {
+                btn.classList.add('active');
+                renderHeatMap();
+            } else {
+                btn.classList.remove('active');
+                if (heatLayer) {
+                    map.removeLayer(heatLayer);
+                    heatLayer = null;
+                }
+            }
+        }
+
+        // Render Heat Map
+        function renderHeatMap() {
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+            }
+
+            // Filter only offline customers for the heatmap
+            const heatPoints = allCustomers
+                .filter(c => c.status === 'offline' && c.latitude && c.longitude)
+                .map(c => [c.latitude, c.longitude, 1.0]); // 1.0 is intensity
+
+            if (heatPoints.length > 0) {
+                heatLayer = L.heatLayer(heatPoints, {
+                    radius: 25,
+                    blur: 15,
+                    maxZoom: 17,
+                    gradient: {
+                        0.4: 'blue',
+                        0.6: 'cyan',
+                        0.7: 'lime',
+                        0.8: 'yellow',
+                        1.0: 'red'
+                    }
+                }).addTo(map);
+            } else {
+                if (isHeatMapEnabled) showToast('Tidak ada data offline untuk Heat Map', 'warning');
+            }
+        }
+
+        let isFirstLoad = true;
+
+        // Process Map Data (Common Logic)
+        function processMapData(data) {
+            if (!data || !data.customers) return;
+
+            allCustomers = data.customers;
+            updateStats(data.stats);
+
+            if (isHeatMapEnabled) {
+                renderHeatMap();
+            }
+
+            renderMarkers(allCustomers);
+            renderConnections(allCustomers);
+            updateOfflineAlerts(allCustomers);
+
+            // Auto-focus on markers during initial load
+            if (isFirstLoad && allCustomers.length > 0) {
+                const bounds = markerClusterGroup.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                }
+                isFirstLoad = false;
+            }
+
+            document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString('id-ID');
+        }
+
+        // Load map data
+        async function loadMapData(isAutoRefresh = false) {
+            try {
+                // Show loading indicator only if manual refresh
+                if (!isAutoRefresh) {
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                } else {
+                    // Update refresh icon to spin for feedback
+                    const uniqueBtn = document.querySelector('button[onclick="refreshData()"] i');
+                    if (uniqueBtn) uniqueBtn.classList.add('fa-spin');
+                }
+
+                const response = await fetch('/monitoring/api/map-customers');
+                const data = await response.json();
+
+                if (data.success) {
+                    processMapData(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading map data:', error);
+                if (!isAutoRefresh) showToast('Gagal memuat data', 'error');
+            } finally {
+                if (!isAutoRefresh) {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                } else {
+                    const uniqueBtn = document.querySelector('button[onclick="refreshData()"] i');
+                    if (uniqueBtn) uniqueBtn.classList.remove('fa-spin');
+                }
+            }
+        }
+
+        // Update statistics
+        function updateStats(stats) {
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statOnline').textContent = stats.online;
+            document.getElementById('statOffline').textContent = stats.offline;
+            document.getElementById('statIsolated').textContent = stats.isolated;
+        }
+
+        // Map to cache marker instances
+        const markersMap = new Map();
+
+        // Optimized Render Markers
+        function renderMarkers(customers) {
+            const currentIds = new Set();
+            let hasChanges = false;
+
+            customers.forEach(customer => {
+                if (!customer.latitude || !customer.longitude) return;
+
+                const id = customer.id;
+                currentIds.add(id);
+
+                const newStatus = customer.status;
+                const newLat = parseFloat(customer.latitude);
+                const newLng = parseFloat(customer.longitude);
+
+                if (markersMap.has(id)) {
+                    // Update existing marker
+                    const markerData = markersMap.get(id);
+                    const marker = markerData.marker;
+
+                    // Only redraw icon if status changed
+                    if (markerData.status !== newStatus) {
+                        const newIcon = L.divIcon({
+                            className: `custom-marker ${newStatus}`,
+                            html: getMarkerIcon(customer.connection_type),
+                            iconSize: [36, 36],
+                            iconAnchor: [18, 36],
+                            popupAnchor: [0, -36]
+                        });
+                        marker.setIcon(newIcon);
+                        markerData.status = newStatus;
+
+                        // Update popup as well
+                        const popupContent = createPopupContent(customer);
+                        marker.setPopupContent(popupContent);
+                        hasChanges = true;
+                    }
+
+                    // Only move if position changed
+                    if (markerData.lat !== newLat || markerData.lng !== newLng) {
+                        marker.setLatLng([newLat, newLng]);
+                        markerData.lat = newLat;
+                        markerData.lng = newLng;
+                        hasChanges = true;
+                    }
+
+                } else {
+                    // Create new marker
+                    const icon = L.divIcon({
+                        className: `custom-marker ${newStatus}`,
+                        html: getMarkerIcon(customer.connection_type),
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 36],
+                        popupAnchor: [0, -36]
+                    });
+
+                    const marker = L.marker([newLat, newLng], { icon: icon });
+                    marker.bindPopup(createPopupContent(customer), {
+                        className: 'custom-popup',
+                        maxWidth: 300
+                    });
+
+                    markerClusterGroup.addLayer(marker);
+
+                    // Cache it
+                    markersMap.set(id, {
+                        marker,
+                        status: newStatus,
+                        lat: newLat,
+                        lng: newLng
+                    });
+
+                    hasChanges = true;
+                }
+            });
+
+            // Remove markers that are no longer in the list
+            for (const [id, markerData] of markersMap) {
+                if (!currentIds.has(id)) {
+                    markerClusterGroup.removeLayer(markerData.marker);
+                    markersMap.delete(id);
+                    hasChanges = true;
+                }
+            }
+        }
+
+        // Optimized Connection Lines with Canvas Renderer
+        const lineRenderer = L.canvas({ padding: 0.5 });
+
+        function renderConnections(customers) {
+            if (!connectionLayerGroup) return;
+            connectionLayerGroup.clearLayers();
+
+            // Skip rendering lines if zoomed out too far for better performance
+            if (map.getZoom() < 12) return;
+
+            customers.forEach(customer => {
+                // Draw lines for ANY customer that has ODP links (PPPoE or Static IP)
+                if (customer.odp_latitude && customer.odp_longitude && customer.latitude && customer.longitude) {
+                    const status = customer.status;
+                    let color = '#3b82f6'; // Default Blue
+                    let weight = 1;
+                    let opacity = 0.5;
+
+                    if (status === 'offline') {
+                        color = '#ef4444'; // Red
+                        weight = 2;
+                        opacity = 0.8;
+                    } else if (status === 'isolated') {
+                        color = '#f97316'; // Orange
+                    } else {
+                        color = '#22c55e'; // Green
+                    }
+
+                    const latlngs = [
+                        [parseFloat(customer.odp_latitude), parseFloat(customer.odp_longitude)],
+                        [parseFloat(customer.latitude), parseFloat(customer.longitude)]
+                    ];
+
+                    L.polyline(latlngs, {
+                        color: color,
+                        weight: weight,
+                        opacity: opacity,
+                        smoothFactor: 1.5,
+                        renderer: lineRenderer,
+                        interactive: false // Lines don't need to be clickable for performance
+                    }).addTo(connectionLayerGroup);
+                }
+            });
+        }
+
+        // Get marker icon based on type
+        function getMarkerIcon(type) {
+            if (type === 'pppoe') return '<i class="fas fa-user"></i>';
+            if (type === 'static_ip') return '<i class="fas fa-server"></i>';
+            return '<i class="fas fa-question"></i>';
+        }
+
+        // Create popup HTML
+        function createPopupContent(customer) {
+            const statusLabel = customer.status.charAt(0).toUpperCase() + customer.status.slice(1);
+            let technicalInfo = '';
+
+            if (customer.connection_type === 'pppoe') {
+                technicalInfo = `
+                    <div class="popup-info">
+                        <i class="fas fa-id-card"></i> PPPoE: <b>${customer.pppoe_username || '-'}</b>
+                    </div>
+                `;
+            } else if (customer.connection_type === 'static_ip') {
+                technicalInfo = `
+                    <div class="popup-info">
+                        <i class="fas fa-server"></i> Static IP: <b>${customer.static_ip || '-'}</b>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="popup-header">
+                    <div class="popup-name">${customer.name}</div>
+                    <div class="popup-code">${customer.customer_code}</div>
+                    <div class="popup-status ${customer.status}">
+                        <i class="fas fa-circle"></i> ${statusLabel}
+                    </div>
+                </div>
+                <div class="popup-body">
+                    <div class="popup-info">
+                        <i class="fas fa-map-marker-alt"></i> Area: ${customer.area || 'Unknown'}
+                    </div>
+                    ${customer.odp_name ? `
+                    <div class="popup-info">
+                        <i class="fas fa-box"></i> ODP: ${customer.odp_name}
+                    </div>` : ''}
+                    ${technicalInfo}
+                    ${customer.package_name ? `
+                    <div class="popup-info">
+                        <i class="fas fa-tachometer-alt"></i> Paket: ${customer.package_name}
+                    </div>` : ''}
+                </div>
+                <div class="popup-actions">
+                    <button class="popup-btn primary" onclick="viewCustomer('${customer.id}')">
+                        Detail Pelanggan
+                    </button>
+                    ${customer.phone ? `
+                    <a href="https://wa.me/${formatPhone(customer.phone)}" target="_blank" class="popup-btn secondary" style="text-align:center; text-decoration:none; display:block; margin-top:5px;">
+                        <i class="fab fa-whatsapp"></i> Chat WhatsApp
+                    </a>` : ''}
+                </div>
+            `;
+        }
+
+        // Helper to format phone number
+        function formatPhone(phone) {
+            if (!phone) return '';
+            let p = phone.replace(/\D/g, '');
+            if (p.startsWith('0')) return '62' + p.slice(1);
+            if (p.startsWith('8')) return '62' + p;
+            return p;
+        }
+
+        // Update offline alert panel and trigger sound
+        function updateOfflineAlerts(customers) {
+            // Filter offline AND not isolated
+            offlineAlerts = customers.filter(c => c.status === 'offline' && !c.is_isolated);
+
+            const alertList = document.getElementById('alertList');
+            const alertCount = document.getElementById('alertCount');
+
+            alertCount.textContent = offlineAlerts.length;
+            alertList.innerHTML = '';
+
+            if (offlineAlerts.length === 0) {
+                alertList.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8;">Tidak ada pelanggan offline</div>';
+                stopAlertSound();
+                return;
+            }
+
+            offlineAlerts.forEach(customer => {
+                const item = document.createElement('div');
+                item.className = 'alert-item';
+                item.onclick = () => flyToCustomer(customer.latitude, customer.longitude);
+
+                item.innerHTML = `
+                    <div class="alert-customer-name">${customer.name}</div>
+                    <div class="alert-customer-code">${customer.customer_code}</div>
+                    <div class="alert-type-badge ${customer.connection_type}">
+                        ${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">
+                        <i class="fas fa-map-marker-alt"></i> ${customer.area || '-'}
+                    </div>
+                `;
+
+                alertList.appendChild(item);
+            });
+        }
+
+        // Audio Control Logic
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const toggle = document.getElementById('audioToggle');
+            const label = document.querySelector('.audio-label');
+
+            if (isAudioEnabled) {
+                toggle.classList.add('active');
+                label.style.color = '#22c55e';
+
+                // Start Interval
+                if (offlineAlerts.length > 0) playAlertSound();
+
+                audioInterval = setInterval(() => {
+                    if (offlineAlerts.length > 0) {
+                        playAlertSound();
+                    }
+                }, 60000); // Repeat every 1 minute
+
+                showToast('Alarm suara diaktifkan', 'success');
+            } else {
+                toggle.classList.remove('active');
+                label.style.color = '#94a3b8';
+
+                // Stop Interval
+                if (audioInterval) clearInterval(audioInterval);
+                audioInterval = null;
+                stopAlertSound();
+
+                showToast('Alarm suara dinonaktifkan', 'warning');
+            }
+        }
+
+        function playAlertSound() {
+            const audio = document.getElementById('alertSound');
+            audio.play().catch(e => console.log('Audio play failed (interaction needed):', e));
+        }
+
+        function stopAlertSound() {
+            const audio = document.getElementById('alertSound');
+            audio.pause();
+            audio.currentTime = 0;
+        }
+
+        // UI Interactions
+        function toggleAlertPanel() {
+            const panel = document.getElementById('alertPanel');
+            const btn = document.getElementById('alertToggle');
+
+            panel.classList.toggle('active');
+            btn.classList.toggle('active');
+        }
+
+        function fitAllMarkers() {
+            if (markerClusterGroup.getBounds().isValid()) {
+                map.fitBounds(markerClusterGroup.getBounds(), { padding: [50, 50] });
+            }
+        }
+
+        function flyToOffline() {
+            if (offlineAlerts.length > 0) {
+                // Find nearest or just the first one
+                // Simple implementation: cycle through or go to first
+                const target = offlineAlerts[0];
+                if (target.latitude && target.longitude) {
+                    flyToCustomer(target.latitude, target.longitude);
+                    showToast(`Menuju ke ${target.name}`, 'warning');
+                }
+            } else {
+                showToast('Tidak ada pelanggan offline', 'success');
+            }
+        }
+
+        function flyToCustomer(lat, lng) {
+            map.flyTo([lat, lng], 18, {
+                duration: 1.5
+            });
+        }
+
+        function viewCustomer(id) {
+            window.open(`/customers/${id}`, '_blank');
+        }
+
+        function checkConnection(id) {
+            // Implement simple ping check via API if needed
+            showToast('Memeriksa koneksi...', 'info');
+        }
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('id-ID');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Trigger reflow
+            toast.offsetHeight;
+
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Start
+        initMap();
+    </script>
+</body>
+
+</html>

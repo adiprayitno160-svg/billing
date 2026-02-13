@@ -1199,4 +1199,75 @@ export class MonitoringController {
             });
         }
     }
+
+    // ==================== NOC INTELLIGENCE CENTER ====================
+
+    /**
+     * GET /monitoring/noc
+     * Render NOC Intelligence Dashboard page
+     */
+    async getNocDashboard(req: Request, res: Response): Promise<void> {
+        try {
+            const NocIntelligenceService = (await import('../../services/monitoring/NocIntelligenceService')).default;
+            const nocData = await NocIntelligenceService.getNocDashboardData();
+
+            res.render('monitoring/noc-dashboard', {
+                title: 'NOC Intelligence Center',
+                currentPath: '/monitoring/noc',
+                nocData,
+                fullWidth: true,
+                layout: 'layouts/main'
+            });
+        } catch (error) {
+            console.error('[MonitoringController] Error loading NOC dashboard:', error);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Gagal memuat NOC Dashboard: ' + (error instanceof Error ? error.message : String(error))
+            });
+        }
+    }
+
+    /**
+     * GET /monitoring/noc/api/data
+     * API endpoint - returns NOC dashboard data as JSON (for auto-refresh)
+     */
+    async getNocDashboardApi(req: Request, res: Response): Promise<void> {
+        try {
+            const NocIntelligenceService = (await import('../../services/monitoring/NocIntelligenceService')).default;
+            const nocData = await NocIntelligenceService.getNocDashboardData();
+
+            res.json({
+                success: true,
+                data: nocData
+            });
+        } catch (error) {
+            console.error('[MonitoringController] Error fetching NOC API data:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    /**
+     * POST /monitoring/noc/digest
+     * Trigger daily digest send via Telegram
+     */
+    async sendNocDailyDigest(req: Request, res: Response): Promise<void> {
+        try {
+            const NocIntelligenceService = (await import('../../services/monitoring/NocIntelligenceService')).default;
+            const success = await NocIntelligenceService.sendDailyDigestTelegram();
+
+            res.json({
+                success,
+                message: success ? 'Daily digest berhasil dikirim ke Telegram' : 'Gagal mengirim daily digest'
+            });
+        } catch (error) {
+            console.error('[MonitoringController] Error sending daily digest:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
 }

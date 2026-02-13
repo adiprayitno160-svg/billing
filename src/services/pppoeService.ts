@@ -53,10 +53,12 @@ export type PppoePackage = {
 };
 
 export async function getMikrotikConfig(): Promise<MikroTikConfig | null> {
-	const conn = await databasePool.getConnection();
+	// console.log('[getMikrotikConfig] Requesting config...');
 	try {
-		const [rows] = await conn.execute('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
+		const [rows] = await databasePool.query('SELECT * FROM mikrotik_settings ORDER BY id DESC LIMIT 1');
 		const settings = Array.isArray(rows) && rows.length ? rows[0] as any : null;
+
+		// console.log('[getMikrotikConfig] Config found:', !!settings);
 		if (!settings) return null;
 
 		return {
@@ -66,8 +68,9 @@ export async function getMikrotikConfig(): Promise<MikroTikConfig | null> {
 			password: settings.password,
 			use_tls: Boolean(settings.use_tls)
 		};
-	} finally {
-		conn.release();
+	} catch (error) {
+		console.error('[getMikrotikConfig] Error:', error);
+		return null;
 	}
 }
 

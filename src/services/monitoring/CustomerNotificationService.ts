@@ -9,10 +9,11 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { whatsappService, WhatsAppService } from '../whatsapp/WhatsAppService';
+import { ChatBotService } from '../ai/ChatBotService';
 
 interface NotificationEvent {
     customer_id: number;
-    event_type: 'offline' | 'timeout' | 'error' | 'recovered' | 'degraded';
+    event_type: 'offline' | 'timeout' | 'error' | 'recovered' | 'degraded' | string;
     severity: 'low' | 'medium' | 'high' | 'critical';
     message: string;
     details?: any;
@@ -138,6 +139,71 @@ export class CustomerNotificationService {
 
         } catch (error) {
             console.error(`[Notification] Failed to send notification to ${customer.name}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Send AI-Generated Automated Troubleshooting Notification
+     */
+    async sendAIAutomatedTroubleshooting(customer: CustomerInfo, eventType: string): Promise<boolean> {
+        try {
+            if (!customer.phone) return false;
+
+            // Check cooldown to prevent spamming the customer
+            const shouldNotify = await this.shouldSendNotification(customer.id, `ai_troubleshoot_${eventType}`);
+            if (!shouldNotify) return false;
+
+            console.log(`[AI-Notification] Generating AI troubleshooting for ${customer.name}...`);
+
+            // AI Prompt Construction
+            const prompt = `
+                Pelanggan ISP kami atas nama: ${customer.name}
+                Status: Terdeteksi Terputus (Offline/Timeout)
+                Layanan: ${customer.connection_type.toUpperCase()}
+                
+                Instruksi:
+                Pesan ini harus ramah, empati, dan profesional seperti assisten AI ISP.
+                1. Ucapkan salam dan informasikan bahwa sistem monitoring kami mendeteksi masalah koneksi di lokasi pelanggan.
+                2. Berikan langkah penanggulangan awal:
+                   - Periksa lampu indikator pada modem/router (ONT).
+                   - Cek apakah kabel terpasang dengan kuat.
+                   - Langkah Penting: Matikan modem selama 30 detik, lalu nyalakan kembali (Restart).
+                3. Informasikan bahwa tim teknis akan memantau koneksi dalam 5-10 menit.
+                4. Jika masih mati, informasikan bahwa tiket perbaikan akan otomatis diteruskan ke tim lapangan.
+                5. Gunakan format WhatsApp yang bagus (Bold, Emoji).
+                6. Bahasa: Indonesia yang sopan.
+            `.trim();
+
+            let aiMessage = '';
+            try {
+                aiMessage = await ChatBotService.ask(prompt, { status: 'automated_alert' });
+            } catch (error) {
+                // Fallback if AI fails
+                aiMessage = `⚠️ *DETEKSI GANGGUAN KONEKSI*\n\n` +
+                    `Halo Kak ${customer.name},\n` +
+                    `Sistem monitoring kami mendeteksi koneksi Anda sedang offline.\n\n` +
+                    `*Penanggulangan Awal:*\n` +
+                    `1. Pastikan kabel power modem terpasang.\n` +
+                    `2. Coba matikan modem selama 30 detik lalu nyalakan kembali.\n\n` +
+                    `Tim teknik kami sedang memantau. Jika dalam 10 menit masih terkendala, teknisi akan segera meluncur ke lokasi.`;
+            }
+
+            // Send via WhatsApp
+            await this.waClient.sendMessage(customer.phone, aiMessage);
+
+            // Log event
+            await this.logNotificationEvent({
+                customer_id: customer.id,
+                event_type: `ai_troubleshoot_${eventType}`,
+                severity: 'high',
+                message: aiMessage,
+                notified_at: new Date()
+            });
+
+            return true;
+        } catch (error) {
+            console.error('[AI-Notification] Failed to send AI advice:', error);
             return false;
         }
     }

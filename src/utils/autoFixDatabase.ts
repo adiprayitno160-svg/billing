@@ -383,7 +383,9 @@ export async function autoFixCustomerColumns(): Promise<void> {
       { name: 'awaiting_customer_response', def: 'TINYINT(1) DEFAULT 0' },
       { name: 'customer_response_received', def: 'TINYINT(1) DEFAULT 0' },
       { name: 'last_ping_check', def: 'DATETIME DEFAULT NULL' },
-      { name: 'balance', def: 'DECIMAL(15,2) DEFAULT 0.00' }
+      { name: 'balance', def: 'DECIMAL(15,2) DEFAULT 0.00' },
+      { name: 'notification_enabled', def: 'TINYINT(1) DEFAULT 1' },
+      { name: 'notification_cooldown_hours', def: 'INT DEFAULT 1' }
     ];
 
     for (const col of monitoringColumns) {
@@ -396,6 +398,22 @@ export async function autoFixCustomerColumns(): Promise<void> {
         console.log(`✅ [AutoFix] Column '${col.name}' exists`);
       }
     }
+
+    // Create customer_notification_events table if missing
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customer_notification_events (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        event_type VARCHAR(50) NOT NULL,
+        severity VARCHAR(50) DEFAULT 'medium',
+        message TEXT,
+        notified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_customer (customer_id),
+        INDEX idx_event_type (event_type),
+        INDEX idx_notified_at (notified_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('✅ [AutoFix] customer_notification_events table ensured');
 
   } catch (error: any) {
     console.error('❌ [AutoFix] Error checking customer columns:', error);

@@ -108,6 +108,32 @@ export class PaymentController {
                 queryParams.push(date_to);
             }
 
+            // Default to current month if no dates specified
+            if (!date_from && !date_to) {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+                const formatDate = (d: Date) => {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+
+                const defaultFrom = formatDate(firstDay);
+                const defaultTo = formatDate(lastDay);
+
+                whereConditions.push('DATE(p.payment_date) >= ?');
+                queryParams.push(defaultFrom);
+                whereConditions.push('DATE(p.payment_date) <= ?');
+                queryParams.push(defaultTo);
+
+                // Set for filters object in view
+                (req.query as any).date_from = defaultFrom;
+                (req.query as any).date_to = defaultTo;
+            }
+
             const whereClause = whereConditions.length > 0
                 ? 'WHERE ' + whereConditions.join(' AND ')
                 : '';
@@ -126,10 +152,7 @@ export class PaymentController {
                     i.total_amount as invoice_total,
                     i.paid_amount as invoice_paid,
                     i.remaining_amount as invoice_remaining,
-                    CASE 
-                        WHEN mpv.id IS NOT NULL THEN CONCAT('/billing/verification/image/', mpv.id)
-                        ELSE NULL 
-                    END as proof_image
+                    NULL as proof_image
                 FROM payments p
                 LEFT JOIN invoices i ON p.invoice_id = i.id
                 LEFT JOIN customers c ON i.customer_id = c.id
@@ -197,7 +220,7 @@ export class PaymentController {
             }
 
             // Otherwise render view
-            res.render('billing/payments', {
+            res.render('billing/payment-history', {
                 title: 'Riwayat Pembayaran',
                 payments,
                 stats,

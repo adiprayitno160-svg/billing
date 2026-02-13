@@ -383,6 +383,17 @@ router.get('/customers/registration-requests', isAuthenticated, viewRegistration
 router.get('/api/interface-stats', getInterfaceStats);
 router.get('/api/mikrotik/info', getMikrotikInfoApi);
 
+// API endpoint for real-time monitoring stats
+router.get('/api/dashboard/trouble-customers', async (req: Request, res: Response) => {
+    try {
+        const { getTroubleCustomers } = await import('../controllers/dashboardController');
+        const customers = await getTroubleCustomers();
+        res.json({ success: true, customers });
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // API endpoint for offline PPPoE customers dashboard alert
 router.get('/api/dashboard/offline-customers', async (req: Request, res: Response) => {
     try {

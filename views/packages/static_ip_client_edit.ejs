@@ -1,150 +1,384 @@
-﻿<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Edit Client Paket: <%= package.name %>
-        </h2>
+﻿<div class="max-w-5xl mx-auto space-y-6">
+    <!-- Breadcrumb & Title -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <nav class="flex text-sm text-slate-500 mb-2" aria-label="Breadcrumb">
+                <ol class="list-none p-0 inline-flex">
+                    <li class="flex items-center">
+                        <a href="/packages/static-ip" class="hover:text-blue-600 transition-colors">Paket Static IP</a>
+                        <i class="fas fa-chevron-right mx-2 text-[10px]"></i>
+                    </li>
+                    <li class="flex items-center">
+                        <a href="/packages/static-ip/<%= package.id %>/clients"
+                            class="hover:text-blue-600 transition-colors">Clients</a>
+                        <i class="fas fa-chevron-right mx-2 text-[10px]"></i>
+                    </li>
+                    <li class="text-blue-600 font-semibold">Edit Client</li>
+                </ol>
+            </nav>
+            <h2 class="text-2xl font-bold text-slate-800 uppercase tracking-tight">Edit Client</h2>
+            <p class="text-slate-500 text-sm">Update data untuk client: <span class="font-bold text-blue-600">
+                    <%= client.client_name %>
+                </span></p>
+        </div>
         <a href="/packages/static-ip/<%= package.id %>/clients"
-            class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">← Kembali</a>
+            class="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-medium text-sm hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
+            <i class="fas fa-arrow-left"></i>
+            Kembali
+        </a>
     </div>
+
     <% if (error && error.length> 0) { %>
-        <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
-            <%= error[0] %>
+        <div
+            class="animate-shake p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl flex items-center gap-3 shadow-sm">
+            <i class="fas fa-exclamation-circle text-xl"></i>
+            <p class="font-medium text-sm">
+                <%= error[0] %>
+            </p>
         </div>
         <% } %>
+
             <% if (success && success.length> 0) { %>
-                <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
-                    <%= success[0] %>
+                <div
+                    class="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl flex items-center gap-3 shadow-sm">
+                    <i class="fas fa-check-circle text-xl"></i>
+                    <p class="font-medium text-sm">
+                        <%= success[0] %>
+                    </p>
                 </div>
                 <% } %>
 
                     <form method="post" action="/packages/static-ip/<%= package.id %>/clients/<%= client.id %>/edit"
-                        class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Client *</label>
-                            <input name="client_name" value="<%= client.client_name %>" required
-                                placeholder="Contoh: Client A"
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                            <p class="text-xs text-slate-500 mt-1">Nama untuk mengidentifikasi client</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">IP Address *</label>
-                            <input name="ip_address" value="<%= client.ip_address %>" required
-                                placeholder="192.168.1.1/30"
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                            <p class="text-xs text-slate-500 mt-1">IP address yang akan digunakan client</p>
-                        </div>
+                        id="main-client-form">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                        <!-- Informasi Kontak -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📞
-                                Informasi Kontak</h3>
-                        </div>
+                            <!-- Left Column: Primary Data -->
+                            <div class="lg:col-span-2 space-y-6">
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
-                            <textarea name="address" placeholder="Alamat lengkap pelanggan"
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                rows="3"><%= client.address || '' %></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Nomor Telepon</label>
-                            <input name="phone_number" value="<%= client.phone_number || '' %>"
-                                placeholder="08123456789"
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        </div>
+                                <!-- Section 1: Customer Link -->
+                                <div
+                                    class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                    <div class="p-5 border-b border-slate-50 bg-blue-50/30 flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                                            <i class="fas fa-link"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-800 leading-tight">Link Akun Pelanggan</h3>
+                                            <p class="text-[10px] text-blue-600 font-bold uppercase tracking-wider">
+                                                Tautan ke Data Billing</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-bold text-slate-700 mb-2">Pilih/Ganti
+                                                Pelanggan Billing</label>
+                                            <div class="relative group">
+                                                <select id="customer_selector" onchange="selectCustomer(this.value)"
+                                                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all appearance-none cursor-pointer">
+                                                    <option value="">-- Tanpa Tautan Pelanggan --</option>
+                                                    <% (customers || []).forEach(function(cust) { %>
+                                                        <option value="<%= cust.id %>" <%=(client.customer_id==cust.id)
+                                                            ? 'selected' : '' %>
+                                                            data-name="<%= cust.name %>"
+                                                                data-phone="<%= cust.phone %>"
+                                                                    data-address="<%= cust.address %>">
+                                                                        <%= cust.name %> (<%= cust.customer_code %>)
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                                <div
+                                                    class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                                    <i class="fas fa-search"></i>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" name="customer_id" id="customer_id_input"
+                                                value="<%= client.customer_id || '' %>" />
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- Koordinat & Maps -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">📍
-                                Koordinat & Maps</h3>
-                        </div>
+                                <!-- Section 2: Basic Identity -->
+                                <div
+                                    class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                    <div class="p-5 border-b border-slate-50 flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-white shadow-lg shadow-slate-200">
+                                            <i class="fas fa-user-tag"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-800 leading-tight">Informasi Dasar</h3>
+                                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                Identitas & IP Client</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="block text-sm font-bold text-slate-700 mb-2">Nama Client <span
+                                                    class="text-rose-500">*</span></label>
+                                            <input name="client_name" id="client_name_input"
+                                                value="<%= client.client_name %>" required
+                                                placeholder="Contoh: Budi Santoso"
+                                                class="w-full rounded-2xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-bold text-slate-700 mb-2">IP Address <span
+                                                    class="text-rose-500">*</span></label>
+                                            <div class="relative">
+                                                <input name="ip_address" value="<%= client.ip_address %>" required
+                                                    placeholder="192.168.239.x"
+                                                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 font-mono transition-all" />
+                                                <div
+                                                    class="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">
+                                                    /30</div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="md:col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                                            <div class="flex items-center gap-3 mb-2">
+                                                <i class="fas fa-shield-alt text-indigo-600"></i>
+                                                <span
+                                                    class="text-xs font-bold text-indigo-700 uppercase tracking-widest">Preview
+                                                    MikroTik</span>
+                                            </div>
+                                            <input id="editPacketMarkPreview" readonly
+                                                class="w-full bg-transparent border-none p-0 text-sm font-mono text-indigo-800 focus:ring-0 cursor-default"
+                                                value="Preview mangle marks..." />
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <div class="sm:col-span-2">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Koordinat (Latitude,
-                                Longitude)</label>
-                            <div class="flex gap-2">
-                                <input id="coordinates"
-                                    value="<%= client.latitude && client.longitude ? client.latitude + ', ' + client.longitude : '' %>"
-                                    placeholder="-6.xxxx, 106.xxxx"
-                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" />
-                                <button type="button" id="btnGetLocation"
-                                    class="px-3 py-2 bg-slate-100 border border-slate-300 rounded text-slate-600 hover:bg-slate-200 transition-colors">📍</button>
+                                <!-- Section 3: Contact & Location -->
+                                <div
+                                    class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                    <div class="p-5 border-b border-slate-50 flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-100">
+                                            <i class="fas fa-map-marked-alt"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-800 leading-tight">Kontak & Lokasi</h3>
+                                            <p class="text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                                                Alamat & Koordinat GPS</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 space-y-6">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div class="md:col-span-2">
+                                                <label class="block text-sm font-bold text-slate-700 mb-2">Alamat
+                                                    Lengkap</label>
+                                                <textarea name="address" id="address_input"
+                                                    placeholder="Jln. Melati No. 45, RT 02/03..."
+                                                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all"
+                                                    rows="3"><%= client.address || '' %></textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-bold text-slate-700 mb-2">Nomor
+                                                    Telepon</label>
+                                                <div class="relative">
+                                                    <input name="phone_number" id="phone_input"
+                                                        value="<%= client.phone_number || '' %>"
+                                                        placeholder="0812xxxxxx"
+                                                        class="w-full rounded-2xl border border-slate-200 pl-10 pr-4 py-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all" />
+                                                    <div
+                                                        class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                                        <i class="fas fa-phone-alt"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-bold text-slate-700 mb-2">Koordinat
+                                                    GPS</label>
+                                                <div class="flex gap-2">
+                                                    <div class="relative flex-1">
+                                                        <input id="coordinates"
+                                                            value="<%= client.latitude && client.longitude ? client.latitude + ', ' + client.longitude : '' %>"
+                                                            placeholder="-6.xxxx, 106.xxxx"
+                                                            class="w-full rounded-2xl border border-slate-200 pl-10 pr-4 py-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 font-mono text-sm transition-all" />
+                                                        <div
+                                                            class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                                            <i class="fas fa-crosshairs"></i>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" id="btnGetLocation"
+                                                        class="px-4 py-3 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 shadow-md shadow-amber-100 transition-all active:scale-95">
+                                                        <i class="fas fa-location-arrow"></i>
+                                                    </button>
+                                                </div>
+                                                <input name="latitude" type="hidden"
+                                                    value="<%= client.latitude || '' %>" />
+                                                <input name="longitude" type="hidden"
+                                                    value="<%= client.longitude || '' %>" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <input name="latitude" type="hidden" value="<%= client.latitude || '' %>" />
-                            <input name="longitude" type="hidden" value="<%= client.longitude || '' %>" />
-                            <p class="text-[10px] text-slate-500 mt-1">Format: -6.xxxx, 106.xxxx atau klik ikon pin</p>
-                        </div>
 
+                            <!-- Right Column: Infrastructure & Meta -->
+                            <div class="space-y-6">
+                                <!-- Section 4: Infrastructure -->
+                                <div
+                                    class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                    <div class="p-5 border-b border-slate-50 bg-emerald-50/30 flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-100">
+                                            <i class="fas fa-network-wired"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-800 leading-tight">FTTH Infrastruktur</h3>
+                                            <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                                                OLT, ODC & ODP</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 space-y-4">
+                                        <div>
+                                            <label
+                                                class="block text-xs font-black text-slate-400 uppercase mb-2 tracking-tighter">Pilih
+                                                ODP *</label>
+                                            <select name="odp_id" required onchange="updateOLTODC()"
+                                                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 bg-slate-50 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 transition-all">
+                                                <option value="">-- Pilih ODP --</option>
+                                                <% (odpData || []).forEach(o=> { %>
+                                                    <option value="<%= o.id %>" <%=(client.odp_id==o.id) ? 'selected'
+                                                        : '' %>><%= o.odp_name %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label
+                                                    class="block text-[9px] font-black text-slate-400 uppercase mb-1">OLT</label>
+                                                <input name="olt_display" readonly
+                                                    class="w-full rounded-lg border border-slate-100 px-3 py-2 bg-slate-100 text-xs text-slate-500 font-bold"
+                                                    value="<%= client.olt_name || '-' %>" />
+                                                <input name="olt_id" type="hidden" value="<%= client.olt_id || '' %>" />
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-[9px] font-black text-slate-400 uppercase mb-1">ODC</label>
+                                                <input name="odc_display" readonly
+                                                    class="w-full rounded-lg border border-slate-100 px-3 py-2 bg-slate-100 text-xs text-slate-500 font-bold"
+                                                    value="<%= client.odc_name || '-' %>" />
+                                                <input name="odc_id" type="hidden" value="<%= client.odc_id || '' %>" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- OLT, ODC, ODP -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">🏗️
-                                Infrastruktur FTTH</h3>
-                        </div>
+                                <!-- Section 5: MikroTik Config -->
+                                <div
+                                    class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                    <div class="p-5 border-b border-slate-50 bg-purple-50/30 flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-100">
+                                            <i class="fas fa-microchip"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-800 leading-tight">MikroTik Router</h3>
+                                            <p class="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                                                Interface Konfigurasi</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 space-y-4">
+                                        <div>
+                                            <label
+                                                class="block text-xs font-black text-slate-400 uppercase mb-2 tracking-tighter">Interface
+                                                *</label>
+                                            <select name="interface" required
+                                                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 bg-slate-50 focus:ring-4 focus:ring-purple-100 focus:border-purple-400 transition-all">
+                                                <option value="">-- Pilih Interface --</option>
+                                                <% (interfaces || []).forEach(f=> { %>
+                                                    <option value="<%= f.name %>" <%=(client.interface===f.name)
+                                                        ? 'selected' : '' %>><%= f.name %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">OLT (View Only)</label>
-                            <input name="olt_display" readonly
-                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
-                                value="<%= client.olt_name || '' %>" placeholder="Akan muncul setelah memilih ODP" />
-                            <input name="olt_id" type="hidden" value="<%= client.olt_id || '' %>" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">ODC (View Only)</label>
-                            <input name="odc_display" readonly
-                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50"
-                                value="<%= client.odc_name || '' %>" placeholder="Akan muncul setelah memilih ODP" />
-                            <input name="odc_id" type="hidden" value="<%= client.odc_id || '' %>" />
-                        </div>
+                                <!-- Section 6: Package Info (Mini Widget) -->
+                                <div
+                                    class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i class="fas fa-info-circle opacity-50"></i>
+                                        <span
+                                            class="text-[10px] font-bold uppercase tracking-widest text-indigo-100">Info
+                                            Layanan</span>
+                                    </div>
+                                    <div class="space-y-3 font-medium">
+                                        <div
+                                            class="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                                            <span class="text-indigo-200 text-xs">Paket</span>
+                                            <span>
+                                                <%= package.name %>
+                                            </span>
+                                        </div>
+                                        <div
+                                            class="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                                            <span class="text-indigo-200 text-xs">Download</span>
+                                            <span>
+                                                <%= package.max_limit_download %>
+                                            </span>
+                                        </div>
+                                        <div
+                                            class="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                                            <span class="text-indigo-200 text-xs">Upload</span>
+                                            <span>
+                                                <%= package.max_limit_upload %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                        <div class="sm:col-span-2">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">ODP *</label>
-                            <select name="odp_id" required
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onchange="updateOLTODC()">
-                                <option value="">Pilih ODP</option>
-                                <% (odpData || []).forEach(function(odp){ %>
-                                    <option value="<%= odp.id %>" <%=client.odp_id==odp.id ? 'selected' : '' %>><%=
-                                            odp.odp_name %>
-                                    </option>
-                                    <% }) %>
-                            </select>
-                            <p class="text-xs text-slate-500 mt-1">Pilih ODP untuk mengisi OLT dan ODC secara otomatis
-                            </p>
-                        </div>
-
-                        <!-- Interface MikroTik -->
-                        <div class="sm:col-span-2">
-                            <h3 class="text-md font-medium text-slate-700 mb-3 border-b border-slate-200 pb-2">🔧
-                                Konfigurasi MikroTik</h3>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Interface MikroTik *</label>
-                            <select name="interface" required
-                                class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Pilih Interface --</option>
-                                <% (interfaces || []).forEach(function(ifc){ %>
-                                    <option value="<%= ifc.name %>" <%=client.interface===ifc.name ? 'selected' : '' %>>
-                                        <%= ifc.name %>
-                                    </option>
-                                    <% }) %>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Packet Mark (preview)</label>
-                            <input id="editPacketMarkPreview" readonly
-                                class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-50" />
-                        </div>
-
-                        <div class="sm:col-span-2 flex justify-end gap-3">
-                            <a href="/packages/static-ip/<%= package.id %>/clients"
-                                class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
-                            <button type="submit"
-                                class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+                            <!-- Actions -->
+                            <div
+                                class="lg:col-span-3 flex items-center justify-between p-6 bg-slate-100/50 rounded-3xl border border-slate-200/50 mt-4">
+                                <p class="text-xs text-slate-500 hidden sm:block">Perubahan akan langsung disinkronisasi
+                                    ke database dan MikroTik.</p>
+                                <div class="flex gap-3 w-full sm:w-auto">
+                                    <a href="/packages/static-ip/<%= package.id %>/clients"
+                                        class="flex-1 sm:flex-none text-center px-8 py-3 rounded-2xl bg-white border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
+                                        Batal
+                                    </a>
+                                    <button type="submit"
+                                        class="flex-1 sm:flex-none px-12 py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 transform">
+                                        Simpan Perubahan
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </form>
 
                     <script>
+                        function selectCustomer(id) {
+                            const selector = document.getElementById('customer_selector');
+                            const nameInput = document.getElementById('client_name_input');
+                            const phoneInput = document.getElementById('phone_input');
+                            const addressInput = document.getElementById('address_input');
+                            const customerIdInput = document.getElementById('customer_id_input');
+
+                            if (!id) {
+                                customerIdInput.value = '';
+                                return;
+                            }
+
+                            const option = selector.options[selector.selectedIndex];
+                            const name = option.getAttribute('data-name');
+                            const phone = option.getAttribute('data-phone');
+                            const address = option.getAttribute('data-address');
+
+                            if (nameInput) nameInput.value = name || '';
+                            if (phoneInput) phoneInput.value = (phone && phone !== 'null') ? phone : '';
+                            if (addressInput) addressInput.value = (address && address !== 'null') ? address : '';
+                            if (customerIdInput) customerIdInput.value = id;
+
+                            if (window.globalUpdate) window.globalUpdate();
+                        }
+
                         // Data ODP untuk lookup OLT/ODC
                         const odpData = <% - JSON.stringify(odpData || []) %>;
 
@@ -159,14 +393,14 @@
                             if (selectedOdpId) {
                                 const odp = odpData.find(o => o.id == selectedOdpId);
                                 if (odp) {
-                                    oltDisplay.value = odp.olt_name || '';
-                                    odcDisplay.value = odp.odc_name || '';
+                                    oltDisplay.value = odp.olt_name || '-';
+                                    odcDisplay.value = odp.odc_name || '-';
                                     oltIdInput.value = odp.olt_id || '';
                                     odcIdInput.value = odp.odc_id || '';
                                 }
                             } else {
-                                oltDisplay.value = '';
-                                odcDisplay.value = '';
+                                oltDisplay.value = '-';
+                                odcDisplay.value = '-';
                                 oltIdInput.value = '';
                                 odcIdInput.value = '';
                             }
@@ -192,50 +426,73 @@
                             if (btnGet) {
                                 btnGet.addEventListener('click', () => {
                                     if ("geolocation" in navigator) {
-                                        btnGet.textContent = '...';
+                                        const originalContent = btnGet.innerHTML;
+                                        btnGet.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                                         navigator.geolocation.getCurrentPosition(pos => {
                                             const { latitude, longitude } = pos.coords;
                                             latInput.value = latitude.toFixed(6);
                                             lngInput.value = longitude.toFixed(6);
                                             coordInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                                            btnGet.textContent = '📍';
+                                            btnGet.innerHTML = originalContent;
+
+                                            // Visual feedback
+                                            btnGet.classList.remove('bg-amber-500');
+                                            btnGet.classList.add('bg-emerald-500');
+                                            setTimeout(() => {
+                                                btnGet.classList.remove('bg-emerald-500');
+                                                btnGet.classList.add('bg-amber-500');
+                                            }, 2000);
                                         }, err => {
                                             alert('Gagal mendapatkan lokasi: ' + err.message);
-                                            btnGet.textContent = '📍';
-                                        });
+                                            btnGet.innerHTML = originalContent;
+                                        }, { timeout: 10000 });
                                     }
                                 });
                             }
                         }
+
+                        function initFormProtection() {
+                            const form = document.getElementById('main-client-form');
+                            if (!form) return;
+                            form.addEventListener('submit', function (e) {
+                                const btn = this.querySelector('button[type="submit"]');
+                                if (btn && !btn.disabled) {
+                                    btn.disabled = true;
+                                    btn.classList.add('opacity-70', 'cursor-not-allowed');
+                                    btn.innerHTML = '<i class="fas fa-save fa-spin mr-2"></i> Manyimpan...';
+                                }
+                            });
+                        }
+
                         (function () {
                             const ipInput = document.querySelector('input[name="ip_address"]');
                             const preview = document.getElementById('editPacketMarkPreview');
-                            function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
-                            function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
+
                             function update() {
                                 const v = (ipInput.value || '').trim();
-                                const [ip, prefStr] = v.split('/');
-                                const pref = Number(prefStr || '0');
-                                if (!ip || !pref) { if (preview) preview.value = ''; return; }
-                                const mask = pref === 0 ? 0 : (0xFFFFFFFF << (32 - pref)) >>> 0;
-                                const net = ipToInt(ip) & mask;
-                                let peer = ip;
-                                if (pref === 30) {
-                                    const firstHost = net + 1;
-                                    const secondHost = net + 2;
-                                    const ipInt = ipToInt(ip);
-                                    peer = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
+                                const [ip] = v.split('/');
+                                if (!ip) {
+                                    if (preview) preview.value = 'Masukkan IP...';
+                                    return;
                                 }
-                                preview.value = `Download: ${peer} | Upload: UP-${peer}`;
+
+                                // Always use Client IP for Mangle/Queue preview
+                                let peer = ip;
+                                if (preview) preview.value = `Download: ${peer} | Upload: UP-${peer} (Marks)`;
                             }
+
                             if (ipInput) ipInput.addEventListener('input', update);
+                            const nameInput = document.getElementById('client_name_input');
+                            if (nameInput) nameInput.addEventListener('input', update);
+                            window.globalUpdate = update;
                             update();
 
-                            // Initialize maps
+                            // Initialize features
                             initMaps();
+                            initFormProtection();
 
-                            // Initialize OLT/ODC display on page load
-                            updateOLTODC();
+                            // Trigger OLT/ODC display on load in case it was already set
+                            setTimeout(updateOLTODC, 100);
                         })();
                     </script>
 </div>

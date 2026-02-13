@@ -28,7 +28,8 @@ let schemaCache: {
 
 // function getRecentAlerts() removed to clean logs
 
-async function getTroubleCustomers(): Promise<any[]> {
+
+export async function getTroubleCustomers(): Promise<any[]> {
 	try {
 		// Query Maintenance Schedules
 		let maintenance: any[] = [];
@@ -61,29 +62,46 @@ async function getTroubleCustomers(): Promise<any[]> {
 
 		// Query Network Devices (Unified PPPoE & Static IP Monitoring)
 		// Shows Offline first, then Online (limit 50 total)
-		const [devices] = await databasePool.query(`
-            SELECT 
-                c.id, c.name, c.customer_code, c.pppoe_username, c.status as customer_status, c.connection_type,
-                NULL as maintenance_status,
-                CONCAT(UCASE(LEFT(d.status, 1)), SUBSTRING(d.status, 2)) as issue_type, -- Online/Offline
-                d.last_seen as trouble_since,
-                'monitoring' as trouble_type,
-                d.status as device_status
-            FROM network_devices d
-            JOIN customers c ON d.customer_id = c.id
-            WHERE d.device_type = 'customer'
-              AND c.status = 'active'
-            ORDER BY 
-                CASE WHEN d.status = 'offline' THEN 1 ELSE 2 END ASC,
-                d.last_seen DESC
-            LIMIT 50
-        `) as any[];
+		// Query Network Devices using AdvancedMonitoringService
+		const { AdvancedMonitoringService } = await import('../services/monitoring/AdvancedMonitoringService');
+		const monitoringData = await AdvancedMonitoringService.getAllCustomersWithStatus(false);
+
+		const monitoringMap = new Map();
+		monitoringData.customers.forEach((c: any) => monitoringMap.set(c.id, c));
+
+		// Map Maintenance with live status
+		const maintenanceMapped = maintenance.map((m: any) => {
+			const live = monitoringMap.get(m.id);
+			return {
+				...m,
+				device_status: live ? live.status : 'unknown',
+				last_offline_at: live ? live.last_offline_at : null,
+				last_check: live ? live.last_check : null
+			};
+		});
+
+		// Map Monitoring Devices
+		const devices = monitoringData.customers
+			.filter((c: any) => c.status === 'offline' || c.status === 'degraded' || c.status === 'isolated')
+			.map((c: any) => ({
+				id: c.id,
+				name: c.name,
+				customer_code: c.customer_code,
+				pppoe_username: c.pppoe_username,
+				customer_status: c.status === 'isolated' ? 'suspended' : 'active',
+				connection_type: c.connection_type,
+				maintenance_status: null,
+				issue_type: c.status === 'offline' ? 'Offline' : (c.status === 'isolated' ? 'Isolir' : 'Degraded'),
+				trouble_since: c.status === 'offline' ? (c.last_offline_at || c.last_check || new Date()) : null,
+				trouble_type: 'monitoring',
+				device_status: c.status,
+				phone: c.phone
+			}));
 
 		// Combine
-		// Maintenance takes precedence
 		const result = [
-			...(Array.isArray(maintenance) ? maintenance : []),
-			...(Array.isArray(devices) ? devices : [])
+			...maintenanceMapped,
+			...devices
 		];
 
 		// Unique by ID (Maintenance details override monitoring if duplicate)
@@ -91,14 +109,17 @@ async function getTroubleCustomers(): Promise<any[]> {
 		result.forEach(r => {
 			if (!unique.has(r.id)) {
 				unique.set(r.id, r);
+			} else if (r.trouble_type === 'maintenance') {
+				// Maintenance record has more priority info, but preserve device_status
+				const existing = unique.get(r.id);
+				unique.set(r.id, { ...r, device_status: r.device_status || existing.device_status });
 			}
 		});
 
 		return Array.from(unique.values()).sort((a, b) => {
-			// Sorot Priority: Maintenance > Offline > Online
 			const getScore = (item: any) => {
-				if (item.trouble_type === 'maintenance') return 1;
-				if (item.device_status === 'offline') return 2;
+				if (item.device_status === 'offline') return 1;
+				if (item.trouble_type === 'maintenance') return 2;
 				return 3;
 			};
 			return getScore(a) - getScore(b);
@@ -149,7 +170,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			troubleCustomersP,
 			latePaymentHighRiskP,
 			latePaymentWarning4P,
-			verifyingJobsP
+			verifyingJobsP,
+			pendingPaymentsP
 		] = await Promise.all([
 			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -181,7 +203,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 					return result;
 				} catch { return [[{ cnt: 0 }]]; }
 			})(),
-			databasePool.query("SELECT j.*, c.name as customer_name, c.customer_code FROM technician_jobs j LEFT JOIN customers c ON j.customer_id = c.id WHERE j.status = 'verifying' ORDER BY j.created_at DESC")
+			databasePool.query("SELECT j.*, c.name as customer_name, c.customer_code FROM technician_jobs j LEFT JOIN customers c ON j.customer_id = c.id WHERE j.status = 'verifying' ORDER BY j.created_at DESC"),
+			databasePool.query("SELECT v.*, c.name as customer_name, c.customer_code FROM manual_payment_verifications v LEFT JOIN customers c ON v.customer_id = c.id WHERE v.status = 'pending' ORDER BY v.created_at DESC LIMIT 5")
 		]);
 
 		const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -202,7 +225,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		const recentAlerts: any[] = []; // Forced empty
 		const latePaymentHighRisk = (latePaymentHighRiskP[0] as any)[0]?.cnt ?? 0;
 		const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
-		const verifyingJobs = Array.isArray(verifyingJobsP) ? (verifyingJobsP[0] as any[]) : [];
+		const verifyingJobs = Array.isArray(verifyingJobsP[0]) ? (verifyingJobsP[0] as any[]) : [];
+		const pendingPaymentVerifications = (pendingPaymentsP[0] as any)[0]?.cnt ?? 0;
 
 		const labels = getLastNDatesLabels(7);
 		const pointsMap: Record<string, number> = Object.create(null);
@@ -262,13 +286,15 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				newRequests,
 				oltCount,
 				odcCount,
-				odpCount
+				odpCount,
+				pendingPaymentVerifications: Array.isArray(pendingPaymentsP[0]) ? (pendingPaymentsP[0] as any[]).length : 0
 			},
 			latePaymentStats: {
 				highRisk: latePaymentHighRisk,
 				warning4: latePaymentWarning4
 			},
 			verifyingJobs,
+			pendingPaymentVerifications: Array.isArray(pendingPaymentsP[0]) ? (pendingPaymentsP[0] as any[]) : [],
 			recentRequests,
 			troubleCustomers,
 			recentAlerts,

@@ -1472,7 +1472,7 @@ Terima kasih telah berlangganan! 🙏`;
      */
     async applyDowntimeDiscount(req: Request, res: Response): Promise<void> {
         try {
-            const { invoiceId, downtimeDays } = req.body;
+            const { invoiceId, downtimeDays, startDate, endDate } = req.body;
             const appliedBy = (req as any).user?.id || 1;
 
             if (!invoiceId) {
@@ -1489,7 +1489,9 @@ Terima kasih telah berlangganan! 🙏`;
             const discountId = await DiscountService.applyDowntimeDiscount(
                 parseInt(invoiceId),
                 parseInt(downtimeDays),
-                appliedBy
+                appliedBy,
+                startDate,
+                endDate
             );
 
             res.json({

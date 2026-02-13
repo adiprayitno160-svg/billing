@@ -11,6 +11,8 @@ export interface CompensationRequest {
     customerId: number;
     days: number; // Number of days to compensate
     reason: string;
+    startDate?: string;
+    endDate?: string;
     adminId?: number;
     adminName?: string;
 }
@@ -79,18 +81,20 @@ export class CompensationService {
                     status = 'applied';
 
                     // Apply directly to invoice
-                    await this.applyToInvoice(connection, invoice.id, compensationAmount, request.days, request.reason);
+                    await this.applyToInvoice(connection, invoice.id, compensationAmount, request.days, request.reason, request.startDate, request.endDate);
                 }
             }
 
             // 3. Save Record
             await connection.query(
                 `INSERT INTO customer_compensations (
-                    customer_id, duration_days, amount, notes, status, applied_invoice_id, created_by, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+                    customer_id, duration_days, start_date, end_date, amount, notes, status, applied_invoice_id, created_by, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
                 [
                     request.customerId,
                     request.days,
+                    request.startDate || null,
+                    request.endDate || null,
                     compensationAmount,
                     request.reason,
                     status,
@@ -115,15 +119,21 @@ export class CompensationService {
     /**
      * Helper to apply compensation directly to an existing invoice
      */
-    private static async applyToInvoice(connection: any, invoiceId: number, amount: number, days: number, reason: string): Promise<void> {
+    private static async applyToInvoice(connection: any, invoiceId: number, amount: number, days: number, reason: string, startDate?: string, endDate?: string): Promise<void> {
+        // Format description with dates if available
+        let description = `Kompensasi Gangguan (${days} Hari)`;
+        if (startDate && endDate) {
+            description += ` [${new Date(startDate).toLocaleDateString('id-ID')} - ${new Date(endDate).toLocaleDateString('id-ID')}]`;
+        }
+        description += ` - ${reason}`;
+
         // Add invoice item (negative value)
-        // Note: Invoice items usually sum up to total. If we add negative item, total decreases.
         await connection.query(
             `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total_price)
              VALUES (?, ?, 1, ?, ?)`,
             [
                 invoiceId,
-                `Kompensasi Gangguan (${days} Hari) - ${reason}`,
+                description,
                 -amount,
                 -amount
             ]

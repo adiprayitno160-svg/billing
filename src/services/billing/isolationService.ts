@@ -69,7 +69,7 @@ export class IsolationService {
                 }
 
                 await mikrotikPool.execute(config, '/ppp/secret/set', [
-                    `.id=${targetSecret['.id']}`,
+                    `=.id=${targetSecret['.id']}`,
                     `=disabled=${disabled}`
                 ]);
 
@@ -77,7 +77,7 @@ export class IsolationService {
                     const activeSessions = await mikrotikPool.execute(config, '/ppp/active/print', [`?name=${targetSecret.name}`]);
                     if (Array.isArray(activeSessions)) {
                         for (const session of activeSessions) {
-                            await mikrotikPool.execute(config, '/ppp/active/remove', [`.id=${session['.id']}`]);
+                            await mikrotikPool.execute(config, '/ppp/active/remove', [`=.id=${session['.id']}`]);
                         }
                     }
                 }
@@ -297,42 +297,566 @@ export class IsolationService {
      * Placeholder methods for other functionalities 
      * (Re-implemented minimally to keep file compiling)
      */
+    /**
+     * Send isolation warnings to customers who will be isolated soon
+     */
     static async sendIsolationWarnings(daysBefore: number = 3): Promise<{ warned: number, failed: number }> {
-        return { warned: 0, failed: 0 };
+        const connection = await databasePool.getConnection();
+        let warned = 0;
+        let failed = 0;
+
+        try {
+            const warningDate = new Date();
+            warningDate.setDate(warningDate.getDate() + daysBefore);
+            const warningDateStr = warningDate.toISOString().split('T')[0];
+
+            const query = `
+                SELECT DISTINCT 
+                    c.id, c.name, c.phone, c.customer_code,
+                    i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date
+                FROM customers c
+                JOIN invoices i ON c.id = i.customer_id
+                WHERE i.status IN ('sent', 'partial', 'overdue')
+                AND i.remaining_amount > 0
+                AND c.is_isolated = FALSE
+                AND c.status = 'active'
+                AND DATE(i.due_date) = ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM unified_notifications_queue nq
+                    WHERE nq.customer_id = c.id
+                    AND nq.notification_type = 'isolation_warning'
+                    AND DATE(nq.created_at) = CURDATE()
+                )
+            `;
+
+            const [customers] = await connection.query<RowDataPacket[]>(query, [warningDateStr]);
+
+            for (const customer of customers) {
+                try {
+                    await UnifiedNotificationService.queueNotification({
+                        customer_id: customer.id,
+                        invoice_id: customer.invoice_id,
+                        notification_type: 'isolation_warning',
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: customer.name,
+                            invoice_number: customer.invoice_number,
+                            remaining_amount: parseFloat(customer.remaining_amount).toLocaleString('id-ID'),
+                            due_date: new Date(customer.due_date).toLocaleDateString('id-ID'),
+                            days_remaining: daysBefore.toString()
+                        },
+                        priority: 'high'
+                    });
+                    warned++;
+                } catch (e) {
+                    console.error(`Failed to warn customer ${customer.id}:`, e);
+                    failed++;
+                }
+            }
+        } finally {
+            connection.release();
+        }
+        return { warned, failed };
     }
+
+    /**
+     * Send pre-block warnings (warning about block on the 1st)
+     */
     static async sendPreBlockWarnings(): Promise<{ warned: number, failed: number }> {
-        return { warned: 0, failed: 0 };
+        const connection = await databasePool.getConnection();
+        let warned = 0;
+        let failed = 0;
+
+        try {
+            const now = new Date();
+            const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const blockingDate = nextMonth.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            const query = `
+                SELECT DISTINCT 
+                    c.id, c.name, c.phone, c.customer_code,
+                    i.id as invoice_id, i.invoice_number, i.remaining_amount
+                FROM customers c
+                JOIN invoices i ON c.id = i.customer_id
+                WHERE i.period = ?
+                AND i.status IN ('sent', 'partial', 'overdue')
+                AND i.remaining_amount > 0
+                AND c.is_isolated = FALSE
+                AND c.status = 'active'
+                AND NOT EXISTS (
+                    SELECT 1 FROM unified_notifications_queue nq
+                    WHERE nq.customer_id = c.id
+                    AND nq.notification_type = 'pre_block_warning'
+                    AND DATE(nq.created_at) = CURDATE()
+                )
+            `;
+
+            const [customers] = await connection.query<RowDataPacket[]>(query, [currentPeriod]);
+
+            for (const customer of customers) {
+                try {
+                    const daysUntilBlock = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    await UnifiedNotificationService.queueNotification({
+                        customer_id: customer.id,
+                        invoice_id: customer.invoice_id,
+                        notification_type: 'pre_block_warning',
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: customer.name,
+                            customer_code: customer.customer_code,
+                            remaining_amount: parseFloat(customer.remaining_amount).toLocaleString('id-ID'),
+                            blocking_date: blockingDate,
+                            days_until_block: daysUntilBlock.toString()
+                        },
+                        priority: 'high'
+                    });
+                    warned++;
+                } catch (e) {
+                    console.error(`Failed to pre-block warn customer ${customer.id}:`, e);
+                    failed++;
+                }
+            }
+        } finally {
+            connection.release();
+        }
+        return { warned, failed };
     }
-    static async sendIsolationH1Warnings(): Promise<{ warned: number, failed: number, skipped: string }> {
-        return { warned: 0, failed: 0, skipped: '' };
+
+    /**
+     * Send H-1 isolation warnings (1 day before mass isolation date)
+     */
+    static async sendIsolationH1Warnings(): Promise<{ warned: number, failed: number, skipped?: string }> {
+        const connection = await databasePool.getConnection();
+        let warned = 0;
+        let failed = 0;
+
+        try {
+            const now = new Date();
+            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            const tomorrowDay = tomorrow.getDate();
+
+            // Get isolation date from settings
+            let isolateDate = 1;
+            try {
+                const [settings] = await databasePool.query<RowDataPacket[]>(
+                    "SELECT config FROM scheduler_settings WHERE task_name = 'auto_isolation'"
+                );
+                if (settings.length > 0 && settings[0].config) {
+                    const config = typeof settings[0].config === 'string' ? JSON.parse(settings[0].config) : settings[0].config;
+                    if (config.isolir_date) isolateDate = config.isolir_date;
+                }
+            } catch (e) { console.warn('Could not fetch isolir_date', e); }
+
+            // Only run if tomorrow is the isolation date
+            if (tomorrowDay !== isolateDate) {
+                return { warned: 0, failed: 0, skipped: `Tomorrow (${tomorrowDay}) is not the isolation date (${isolateDate})` };
+            }
+
+            const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const prevPeriod = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+            const isolirDateDisplay = tomorrow.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            const query = `
+                SELECT DISTINCT 
+                    c.id, c.name, c.phone, c.customer_code,
+                    i.id as invoice_id, i.invoice_number, i.remaining_amount
+                FROM customers c
+                JOIN invoices i ON c.id = i.customer_id
+                WHERE i.period = ?
+                AND i.status != 'paid'
+                AND c.is_isolated = FALSE
+                AND c.is_deferred = FALSE
+                AND c.status = 'active'
+                AND NOT EXISTS (
+                    SELECT 1 FROM unified_notifications_queue nq
+                    WHERE nq.customer_id = c.id
+                    AND nq.notification_type = 'isolation_h1_warning'
+                    AND DATE(nq.created_at) = CURDATE()
+                )
+            `;
+
+            const [customers] = await connection.query<RowDataPacket[]>(query, [prevPeriod]);
+
+            for (const customer of customers) {
+                try {
+                    await UnifiedNotificationService.queueNotification({
+                        customer_id: customer.id,
+                        invoice_id: customer.invoice_id,
+                        notification_type: 'isolation_h1_warning' as any,
+                        channels: ['whatsapp'],
+                        variables: {
+                            customer_name: customer.name,
+                            customer_code: customer.customer_code,
+                            remaining_amount: parseFloat(customer.remaining_amount).toLocaleString('id-ID'),
+                            isolir_date: isolirDateDisplay
+                        },
+                        priority: 'high'
+                    });
+                    warned++;
+                } catch (e) {
+                    console.error(`Failed to H1 warn customer ${customer.id}:`, e);
+                    failed++;
+                }
+            }
+        } finally {
+            connection.release();
+        }
+        return { warned, failed };
     }
+
+    /**
+     * Auto isolate customers with 1 or more unpaid/overdue invoices.
+     * Excludes: partial invoices, deferred customers, and customers with active payment deferments.
+     */
     static async autoIsolateOverdueCustomers(): Promise<{ isolated: number, failed: number }> {
-        return { isolated: 0, failed: 0 };
+        const query = `
+            SELECT c.id, c.name, COUNT(i.id) as unpaid_count
+            FROM customers c
+            JOIN invoices i ON c.id = i.customer_id
+            WHERE i.status NOT IN ('paid', 'partial')
+            AND i.due_date < CURDATE()
+            AND c.is_isolated = FALSE
+            AND c.is_deferred = FALSE
+            AND c.status = 'active'
+            AND NOT EXISTS (
+                SELECT 1 FROM payment_deferments pd 
+                WHERE pd.customer_id = c.id 
+                AND pd.status IN ('pending', 'approved') 
+                AND pd.deferred_until_date >= CURDATE()
+            )
+            GROUP BY c.id
+            HAVING unpaid_count >= 1
+        `;
+
+        const [customers] = await databasePool.execute<RowDataPacket[]>(query);
+        let isolated = 0;
+        let failed = 0;
+
+        for (const customer of customers) {
+            try {
+                const success = await this.isolateCustomer({
+                    customer_id: customer.id,
+                    action: 'isolate',
+                    reason: `Auto Lock system: Terdeteksi ${customer.unpaid_count} tagihan belum lunas`,
+                    performed_by: 'system'
+                });
+                if (success) isolated++; else failed++;
+            } catch (error) {
+                console.error(`Failed to isolate customer ${customer.id}:`, error);
+                failed++;
+            }
+        }
+        return { isolated, failed };
     }
+
+    /**
+     * Auto isolate customers with previous month unpaid invoices (on configured date)
+     */
     static async autoIsolatePreviousMonthUnpaid(): Promise<{ isolated: number, failed: number }> {
-        return { isolated: 0, failed: 0 };
+        const now = new Date();
+        const currentDay = now.getDate();
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevPeriod = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+
+        // Get isolation date from settings
+        let isolateDate = 1;
+        try {
+            const [settings] = await databasePool.query<RowDataPacket[]>(
+                "SELECT config FROM scheduler_settings WHERE task_name = 'auto_isolation'"
+            );
+            if (settings.length > 0 && settings[0].config) {
+                const config = typeof settings[0].config === 'string' ? JSON.parse(settings[0].config) : settings[0].config;
+                if (config.isolir_date) isolateDate = config.isolir_date;
+            }
+        } catch (e) { console.warn('Could not fetch isolir_date, defaulting to 1', e); }
+
+        if (currentDay < isolateDate) return { isolated: 0, failed: 0 };
+
+        const query = `
+            SELECT DISTINCT c.id, c.name
+            FROM customers c
+            JOIN invoices i ON c.id = i.customer_id
+            WHERE i.period = ?
+            AND i.status NOT IN ('paid', 'partial')
+            AND (i.due_date IS NULL OR i.due_date < CURDATE())
+            AND c.is_isolated = FALSE
+            AND c.is_deferred = FALSE
+            AND c.status = 'active'
+            AND NOT EXISTS (
+                SELECT 1 FROM payment_deferments pd 
+                WHERE pd.customer_id = c.id 
+                AND pd.status IN ('pending', 'approved') 
+                AND pd.deferred_until_date >= CURDATE()
+            )
+        `;
+
+        const [customers] = await databasePool.execute<RowDataPacket[]>(query, [prevPeriod]);
+        let isolated = 0;
+        let failed = 0;
+
+        for (const customer of customers) {
+            try {
+                const success = await this.isolateCustomer({
+                    customer_id: customer.id,
+                    action: 'isolate',
+                    reason: `Auto isolation: Tagihan bulan ${prevPeriod} belum lunas.`,
+                    performed_by: 'system'
+                });
+                if (success) isolated++; else failed++;
+            } catch (error) {
+                console.error(`Failed to isolate customer ${customer.id}:`, error);
+                failed++;
+            }
+        }
+        return { isolated, failed };
     }
+
+    /**
+     * Auto isolate customers whose payment deferment (janji bayar) has expired.
+     * When deferred_until_date has passed and invoice is still unpaid, isolate them.
+     */
+    static async autoIsolateDeferredExpired(): Promise<{ isolated: number, failed: number }> {
+        const query = `
+            SELECT DISTINCT c.id, c.name, pd.deferred_until_date
+            FROM customers c
+            JOIN payment_deferments pd ON pd.customer_id = c.id
+            JOIN invoices i ON c.id = i.customer_id
+            WHERE pd.status IN ('pending', 'approved')
+            AND pd.deferred_until_date < CURDATE()
+            AND i.status NOT IN ('paid')
+            AND c.is_isolated = FALSE
+            AND c.status = 'active'
+        `;
+
+        const [customers] = await databasePool.execute<RowDataPacket[]>(query);
+        let isolated = 0;
+        let failed = 0;
+
+        for (const customer of customers) {
+            try {
+                // Update deferment status to 'completed' since date has passed
+                await databasePool.execute(
+                    `UPDATE payment_deferments SET status = 'completed' WHERE customer_id = ? AND status IN ('pending', 'approved') AND deferred_until_date < CURDATE()`,
+                    [customer.id]
+                );
+
+                // Reset is_deferred flag
+                await databasePool.execute(
+                    'UPDATE customers SET is_deferred = FALSE WHERE id = ?',
+                    [customer.id]
+                );
+
+                const success = await this.isolateCustomer({
+                    customer_id: customer.id,
+                    action: 'isolate',
+                    reason: `Auto isolasi: Janji bayar (${new Date(customer.deferred_until_date).toLocaleDateString('id-ID')}) sudah lewat dan tagihan belum lunas.`,
+                    performed_by: 'system'
+                });
+                if (success) isolated++; else failed++;
+            } catch (error) {
+                console.error(`Failed to isolate deferred customer ${customer.id}:`, error);
+                failed++;
+            }
+        }
+        return { isolated, failed };
+    }
+
+    /**
+     * Auto restore customers who have paid all invoices
+     */
     static async autoRestorePaidCustomers(): Promise<{ restored: number, failed: number }> {
-        return { restored: 0, failed: 0 };
+        const query = `
+            SELECT id, name FROM customers 
+            WHERE is_isolated = TRUE 
+            AND status = 'active'
+            AND NOT EXISTS (
+                SELECT 1 FROM invoices WHERE customer_id = customers.id AND status != 'paid'
+            )
+        `;
+
+        const [customers] = await databasePool.execute<RowDataPacket[]>(query);
+        let restored = 0;
+        let failed = 0;
+
+        for (const customer of customers) {
+            try {
+                const success = await this.isolateCustomer({
+                    customer_id: customer.id,
+                    action: 'restore',
+                    reason: 'Auto restore: Semua tagihan telah lunas.',
+                    performed_by: 'system'
+                });
+                if (success) restored++; else failed++;
+            } catch (error) {
+                console.error(`Failed to restore customer ${customer.id}:`, error);
+                failed++;
+            }
+        }
+        return { restored, failed };
     }
+
     static async getIsolationHistory(customerId?: number, limit: number = 50) {
-        const [result] = await databasePool.query('SELECT * FROM isolation_logs ORDER BY created_at DESC LIMIT ?', [limit]);
+        let query = 'SELECT il.*, c.name as customer_name FROM isolation_logs il JOIN customers c ON il.customer_id = c.id';
+        const params: any[] = [];
+        if (customerId) {
+            query += ' WHERE il.customer_id = ?';
+            params.push(customerId);
+        }
+        query += ' ORDER BY il.created_at DESC LIMIT ?';
+        params.push(limit);
+        const [result] = await databasePool.query(query, params);
         return result;
     }
+
     static async getIsolatedCustomers() {
-        const [result] = await databasePool.execute('SELECT * FROM customers WHERE is_isolated = TRUE');
+        const [result] = await databasePool.execute('SELECT c.*, il.reason, il.created_at as isolated_at FROM customers c JOIN isolation_logs il ON c.id = il.customer_id WHERE c.is_isolated = TRUE AND il.action = "isolate" ORDER BY il.created_at DESC');
         return result;
     }
+
     static async bulkIsolateByOdc(odcId: number, reason: string): Promise<{ isolated: number, failed: number }> {
-        return { isolated: 0, failed: 0 };
+        const [customers] = await databasePool.execute<RowDataPacket[]>(
+            'SELECT id FROM customers WHERE odc_id = ? AND is_isolated = FALSE AND status = "active"',
+            [odcId]
+        );
+        let isolated = 0;
+        let failed = 0;
+        for (const customer of customers) {
+            try {
+                const success = await this.isolateCustomer({ customer_id: customer.id, action: 'isolate', reason, performed_by: 'admin' });
+                if (success) isolated++; else failed++;
+            } catch (e) { failed++; }
+        }
+        return { isolated, failed };
     }
+
     static async manualIsolate(customerId: number, action: 'isolate' | 'restore', reason: string, performedBy: string): Promise<boolean> {
         return await this.isolateCustomer({ customer_id: customerId, action, reason, performed_by: performedBy });
     }
+
     static async autoDeleteBlockedCustomers(): Promise<{ deleted: number, failed: number }> {
-        return { deleted: 0, failed: 0 };
+        const connection = await databasePool.getConnection();
+        let deleted = 0;
+        let failed = 0;
+        try {
+            const query = `
+                SELECT c.id, c.name, c.connection_type, MAX(il.created_at) as last_isolation_date
+                FROM customers c
+                JOIN isolation_logs il ON c.id = il.customer_id
+                WHERE c.is_isolated = 1
+                AND c.status != 'deleted'
+                AND il.action = 'isolate'
+                GROUP BY c.id
+                HAVING last_isolation_date < DATE_SUB(NOW(), INTERVAL 7 DAY)
+            `;
+            const [customers] = await connection.query<RowDataPacket[]>(query);
+            console.log(`[AutoDelete] Found ${customers.length} customers blocked > 7 days`);
+            for (const customer of customers) {
+                try {
+                    await connection.beginTransaction();
+                    // Soft delete customer
+                    await connection.query('UPDATE customers SET status = "deleted", deleted_at = NOW() WHERE id = ?', [customer.id]);
+                    // Terminate subscription
+                    await connection.query('UPDATE subscriptions SET status = "terminated", end_date = NOW() WHERE customer_id = ? AND status = "active"', [customer.id]);
+                    // Log action
+                    await connection.query(`
+                        INSERT INTO customer_logs (customer_id, action, description, created_by, created_at)
+                        VALUES (?, 'auto_delete', ?, 0, NOW())
+                    `, [customer.id, `Auto deleted after 7 days of isolation (${customer.connection_type})`]);
+                    await connection.commit();
+                    // Send notification
+                    try {
+                        await UnifiedNotificationService.queueNotification({
+                            customer_id: customer.id,
+                            notification_type: 'customer_deleted',
+                            channels: ['whatsapp'],
+                            variables: {
+                                customer_name: customer.name,
+                                reason: 'Tidak ada pembayaran setelah 7 hari isolir.'
+                            },
+                            priority: 'normal'
+                        });
+                    }
+                    catch (e) {
+                        console.error('Failed to send delete notification:', e);
+                    }
+                    deleted++;
+                    console.log(`[AutoDelete] Soft deleted customer ${customer.name} (${customer.id}, ${customer.connection_type})`);
+                }
+                catch (err) {
+                    await connection.rollback();
+                    console.error(`[AutoDelete] Failed to delete customer ${customer.id}:`, err);
+                    failed++;
+                }
+            }
+            return { deleted, failed };
+        }
+        catch (error) {
+            console.error('[AutoDelete] Error in auto delete process:', error);
+            throw error;
+        }
+        finally {
+            connection.release();
+        }
     }
+
     static async getStatistics() {
-        return { total_isolated: 0, pppoe_isolated: 0, static_ip_isolated: 0, isolated_today: 0, restored_today: 0 };
+        const [result]: any = await databasePool.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM customers WHERE is_isolated = TRUE) as total_isolated,
+                (SELECT COUNT(*) FROM customers WHERE is_isolated = TRUE AND connection_type = 'pppoe') as pppoe_isolated,
+                (SELECT COUNT(*) FROM customers WHERE is_isolated = TRUE AND connection_type = 'static_ip') as static_ip_isolated,
+                (SELECT COUNT(*) FROM isolation_logs WHERE action = 'isolate' AND DATE(created_at) = CURDATE()) as isolated_today,
+                (SELECT COUNT(*) FROM isolation_logs WHERE action = 'restore' AND DATE(created_at) = CURDATE()) as restored_today
+        `);
+        return result[0];
+    }
+
+    /**
+     * Startup Catch-Up Isolation
+     * Dijalankan saat server start/restart untuk menangkap customer yang
+     * seharusnya sudah terisolir tapi terlewat (misal server down saat jadwal cron).
+     * Menggabungkan logika autoIsolateOverdueCustomers + autoIsolatePreviousMonthUnpaid.
+     */
+    static async startupCatchUpIsolation(): Promise<{ isolated: number, failed: number, skipped: number }> {
+        console.log('[Startup Catch-Up] 🔍 Checking for customers that should be isolated...');
+
+        let totalIsolated = 0;
+        let totalFailed = 0;
+        let totalSkipped = 0;
+
+        try {
+            // 1. Isolir customer yang punya invoice overdue (>= 1 invoice yang due_date sudah lewat)
+            console.log('[Startup Catch-Up] Step 1: Checking overdue invoices (>= 1, exclude partial/deferred)...');
+            const overdueResult = await this.autoIsolateOverdueCustomers();
+            totalIsolated += overdueResult.isolated;
+            totalFailed += overdueResult.failed;
+            console.log(`[Startup Catch-Up] Step 1 done: ${overdueResult.isolated} isolated, ${overdueResult.failed} failed`);
+
+            // 2. Isolir customer yang punya tagihan bulan sebelumnya belum lunas
+            console.log('[Startup Catch-Up] Step 2: Checking previous month unpaid...');
+            const prevMonthResult = await this.autoIsolatePreviousMonthUnpaid();
+            totalIsolated += prevMonthResult.isolated;
+            totalFailed += prevMonthResult.failed;
+            console.log(`[Startup Catch-Up] Step 2 done: ${prevMonthResult.isolated} isolated, ${prevMonthResult.failed} failed`);
+
+            // 3. Isolir customer yang janji bayar sudah lewat (deferred expired)
+            console.log('[Startup Catch-Up] Step 3: Checking expired payment deferments...');
+            const deferredResult = await this.autoIsolateDeferredExpired();
+            totalIsolated += deferredResult.isolated;
+            totalFailed += deferredResult.failed;
+            console.log(`[Startup Catch-Up] Step 3 done: ${deferredResult.isolated} isolated, ${deferredResult.failed} failed`);
+
+            // 4. Auto-restore customer yang sudah bayar semua (jaga konsistensi)
+            console.log('[Startup Catch-Up] Step 4: Checking paid customers for auto-restore...');
+            const restoreResult = await this.autoRestorePaidCustomers();
+            console.log(`[Startup Catch-Up] Step 4 done: ${restoreResult.restored} restored, ${restoreResult.failed} failed`);
+
+            console.log(`[Startup Catch-Up] ✅ Complete: ${totalIsolated} isolated, ${totalFailed} failed, ${restoreResult.restored} restored`);
+        } catch (error) {
+            console.error('[Startup Catch-Up] ❌ Error during catch-up isolation:', error);
+        }
+
+        return { isolated: totalIsolated, failed: totalFailed, skipped: totalSkipped };
     }
 }

@@ -176,6 +176,7 @@ export class WhatsAppService extends EventEmitter {
    * Initialize WhatsApp connection
    */
   public async initialize(): Promise<void> {
+    console.trace('[WhatsApp] Initialize called (TRACE):');
     if (process.env.DISABLE_WHATSAPP === 'true') {
       this.log('info', '🚫 WhatsApp service is disabled via DISABLE_WHATSAPP env var.');
       return;
@@ -1034,11 +1035,4 @@ export class WhatsAppService extends EventEmitter {
 // Export singleton instance
 export const whatsappService = WhatsAppService.getInstance();
 
-// Auto-initialize on module load
-if (process.env.DISABLE_WHATSAPP !== 'true') {
-  whatsappService.initialize().catch(err => {
-    console.error('[WhatsApp] Failed to auto-initialize:', err.message);
-  });
-} else {
-  console.log('[WhatsApp] Auto-initialization disabled (DISABLE_WHATSAPP=true)');
-}
+export default whatsappService;

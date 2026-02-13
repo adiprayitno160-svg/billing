@@ -297,7 +297,14 @@ async function start() {
 		await BillingLogService.initialize();
 		const anomalyDetector = new AIAnomalyDetectionService();
 		await anomalyDetector.initialize();
-		console.log('✅ Logging system initialized');
+		const isMainInstanceEarly = process.env.NODE_APP_INSTANCE === '0' || !process.env.NODE_APP_INSTANCE;
+		if (isMainInstanceEarly) {
+			console.log('[Startup] 🚀 Starting Monitoring Scheduler (Prioritized)...');
+			const { monitoringScheduler } = await import('./schedulers/monitoringScheduler');
+			monitoringScheduler.start();
+		} else {
+			console.log('[Startup] Skipping Monitoring Scheduler on non-main instance');
+		}
 
 
 
@@ -326,7 +333,9 @@ async function start() {
 		const server = createServer(app);
 
 		// Initialize Socket.IO
+		console.log('[Startup] Importing Socket.IO...');
 		const { Server } = await import('socket.io');
+		console.log('[Startup] Initializing Socket.IO...');
 		const io = new Server(server, {
 			cors: {
 				origin: "*", // Adjust for production security
@@ -335,7 +344,9 @@ async function start() {
 		});
 
 		// BACKGROUND SERVICES (Only run on main instance if in PM2 Cluster Mode)
+		console.log(`[Startup] NODE_APP_INSTANCE: ${process.env.NODE_APP_INSTANCE}`);
 		const isMainInstance = process.env.NODE_APP_INSTANCE === '0' || !process.env.NODE_APP_INSTANCE;
+		console.log(`[Startup] isMainInstance: ${isMainInstance}`);
 
 		if (isMainInstance) {
 			console.log('[Startup] 🛠️ Initializing background services (Main Instance)...');
@@ -343,6 +354,19 @@ async function start() {
 			// Initialize billing scheduler
 			SchedulerService.initialize();
 			console.log('Billing scheduler initialized');
+
+			// Startup Catch-Up: Isolir customer yang terlewat saat server down
+			// Delay 30 detik agar semua service siap (WhatsApp, MikroTik, dll)
+			setTimeout(async () => {
+				try {
+					console.log('[Startup] 🔄 Running catch-up isolation check...');
+					const { IsolationService } = await import('./services/billing/isolationService');
+					const result = await IsolationService.startupCatchUpIsolation();
+					console.log(`[Startup] ✅ Catch-up isolation done: ${result.isolated} isolated, ${result.failed} failed`);
+				} catch (error) {
+					console.error('[Startup] ❌ Error in catch-up isolation:', error);
+				}
+			}, 30000); // 30 detik delay
 
 			// Initialize invoice auto-generation scheduler
 			console.log('[Startup] Step 7: Initializing schedulers...');
@@ -411,9 +435,15 @@ async function start() {
 			}
 
 			// Initialize Realtime Monitoring Service
-			const { RealtimeMonitoringService } = await import('./services/monitoring/RealtimeMonitoringService');
-			const monitoringService = new RealtimeMonitoringService(io);
-			monitoringService.start();
+			// const { RealtimeMonitoringService } = await import('./services/monitoring/RealtimeMonitoringService');
+			// const monitoringService = new RealtimeMonitoringService(io);
+			// monitoringService.start();
+
+			// Initialize Monitoring Scheduler (Crucial for Static IP & Data Collection)
+			// console.log('[Startup] 🚀 Starting Monitoring Scheduler...');
+			// const { monitoringScheduler } = await import('./schedulers/monitoringScheduler');
+			// monitoringScheduler.start(); // Wait for explicit start if needed, or let it run
+			// monitoringScheduler.start();
 		} else {
 			console.log(`[Startup] ⏭️ Skipping background services on cluster instance ${process.env.NODE_APP_INSTANCE}`);
 		}
