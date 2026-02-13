@@ -31,6 +31,7 @@ interface CustomerInfo {
     odc_id?: number;
     odp_id?: number;
     address?: string;
+    odp_name?: string;
 }
 
 export class CustomerNotificationService {
@@ -360,6 +361,51 @@ export class CustomerNotificationService {
             console.log(`[Notification] Escalation sent to ${admins.length} admins`);
         } catch (error) {
             console.error('[Notification] Error sending escalation:', error);
+        }
+    }
+
+    /**
+     * Broadcast customer status change to Admins & Operators
+     */
+    async broadcastCustomerStatusToAdmins(
+        customer: CustomerInfo,
+        status: 'offline' | 'online'
+    ): Promise<void> {
+        try {
+            // Get admins/operators with phone numbers
+            // Covering all possible admin/operator roles
+            const [users] = await databasePool.query<RowDataPacket[]>(
+                `SELECT phone, full_name, role FROM users 
+                 WHERE role IN ('superadmin', 'admin', 'operator', 'teknisi') 
+                 AND phone IS NOT NULL AND phone != ''`
+            );
+
+            if (users.length === 0) return;
+
+            const icon = status === 'offline' ? '🔴' : '🟢';
+            const title = status === 'offline' ? 'ALERT: PELANGGAN OFFLINE' : 'INFO: PELANGGAN ONLINE';
+
+            const message = `${icon} *${title}*\n\n` +
+                `👤 Nama: *${customer.name}*\n` +
+                `🏠 Alamat: ${customer.address || '-'}\n` +
+                `📦 ODP: ${customer.odp_name || '-'}\n` +
+                `🆔 ID: ${customer.customer_code}\n` +
+                `📡 Layanan: ${customer.connection_type.toUpperCase()}\n` +
+                `⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
+
+            console.log(`[Notification] Broadcasting ${status} alert for ${customer.name} to ${users.length} admins`);
+
+            for (const user of users) {
+                try {
+                    await this.waClient.sendMessage(user.phone, message);
+                    // Small delay to prevent rate limits
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (e) {
+                    console.error(`Failed to send to admin ${user.full_name}:`, e);
+                }
+            }
+        } catch (error) {
+            console.error('[Notification] Error broadcasting to admins:', error);
         }
     }
 }

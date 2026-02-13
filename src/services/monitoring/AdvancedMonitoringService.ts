@@ -590,10 +590,15 @@ export class AdvancedMonitoringService {
             const previous = monitoringCache.staticIPStatus.get(customerId);
             if (previous && previous.status === newStatus) return;
 
-            // Get full customer info for notification
+            // Get full customer info for notification (Updated to include address and ODP name)
             const [customers] = await databasePool.query<RowDataPacket[]>(
-                `SELECT id, name, customer_code, phone, connection_type, pppoe_username, static_ip 
-                 FROM customers WHERE id = ?`,
+                `SELECT 
+                    c.id, c.name, c.customer_code, c.phone, c.connection_type, 
+                    c.pppoe_username, c.static_ip, c.address, c.odp_id,
+                    odp.name as odp_name
+                 FROM customers c
+                 LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+                 WHERE c.id = ?`,
                 [customerId]
             );
 
@@ -608,7 +613,7 @@ export class AdvancedMonitoringService {
                 });
 
                 if (newStatus === 'offline') {
-                    console.log(`[Status-Transition] Customer ${customer.name} is now OFFLINE. Triggering AI Support...`);
+                    console.log(`[Status-Transition] Customer ${customer.name} is now OFFLINE. Triggering Notifications...`);
 
                     // Persistent Update for Offline timestamp
                     const ipAddress = customer.static_ip || '0.0.0.0'; // Default for PPPoE offline (IP unknown)
@@ -621,13 +626,22 @@ export class AdvancedMonitoringService {
                             last_offline_at = CASE WHEN status != 'offline' THEN NOW() ELSE last_offline_at END
                     `, [customerId, ipAddress]);
 
-                    // Trigger AI troubleshooting via WhatsApp
+                    // 1. Notify Customer (AI Troubleshooting)
                     await CustomerNotificationService.sendAIAutomatedTroubleshooting(customer, 'offline');
+
+                    // 2. Broadcast to Admins & Operators
+                    await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'offline');
+
                 } else if (newStatus === 'online') {
                     console.log(`[Status-Transition] Customer ${customer.name} is back ONLINE.`);
+
                     await databasePool.query(`
                         UPDATE static_ip_ping_status SET status = 'online', last_check = NOW(), last_online_at = NOW() WHERE customer_id = ?
                     `, [customerId]);
+
+                    // Optional: Broadcast recovery to admins? (Usually mostly offline alerts are critical)
+                    // Uncomment if needed:
+                    // await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'online');
                 }
             }
         } catch (error) {
