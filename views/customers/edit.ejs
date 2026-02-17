@@ -264,13 +264,18 @@
                                     <select name="static_ip_package"
                                         class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 bg-white font-bold text-slate-800 focus:ring-4 focus:ring-green-50 focus:border-green-300 transition-all outline-none text-sm appearance-none cursor-pointer">
                                         <option value="">-- Pilih Paket --</option>
-                                        <% if (typeof packages !=='undefined' && packages) { packages.forEach(pkg=> { %>
-                                            <option value="<%= pkg.id %>"
-                                                <%=(String(customer.package_id)===String(pkg.id) ||
-                                                String(customer.static_ip_package_id)===String(pkg.id)) ? 'selected'
-                                                : '' %>>
-                                                <%= pkg.name %> (<%= pkg.current_clients || 0 %>/<%= pkg.max_clients ||
-                                                            1 %> plg) — Rp <%= pkg.price.toLocaleString('id-ID') %>
+                                        <% if (typeof packages !=='undefined' && packages) { packages.forEach(pkg=> {
+                                            const isSelected = (String(customer.package_id) === String(pkg.id) ||
+                                            String(customer.static_ip_package_id) === String(pkg.id));
+                                            const isFull = pkg.is_full && !isSelected;
+                                            %>
+                                            <option value="<%= pkg.id %>" <%=isSelected ? 'selected' : '' %>
+                                                <%= isFull ? 'disabled' : '' %>>
+                                                    <%= pkg.name %> - <%= pkg.max_limit_download %>/<%=
+                                                                pkg.max_limit_upload %>
+                                                                (<%= new Intl.NumberFormat('id-ID', { style: 'currency'
+                                                                    , currency: 'IDR' }).format(pkg.price) %>)
+                                                                    <%= isFull ? '(Penuh)' : '' %>
                                             </option>
                                             <% }); } %>
                                     </select>
