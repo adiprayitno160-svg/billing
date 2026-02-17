@@ -20,14 +20,20 @@ app.get('/whatsapp', (req, res) => {
 app.get('/', async (req, res) => {
     let mainAppStatus = 'UNKNOWN';
     let responseTime = 0;
+    let errorDetail = '';
 
     try {
         const start = Date.now();
-        await axios.get(MAIN_APP_URL);
+        // Use the lightweight health-check endpoint
+        await axios.get(`${MAIN_APP_URL}/api/health-check`, { timeout: 5000 });
         responseTime = Date.now() - start;
         mainAppStatus = 'ONLINE';
-    } catch (error) {
+    } catch (error: any) {
         mainAppStatus = 'OFFLINE';
+        errorDetail = error.message;
+        if (error.code === 'ECONNABORTED') {
+            errorDetail = 'Timeout (5s) - Server busy?';
+        }
     }
 
     const html = `
@@ -43,6 +49,7 @@ app.get('/', async (req, res) => {
             .online { color: green; }
             .offline { color: red; }
             .metric { margin: 10px 0; color: #666; }
+            .error { color: red; font-size: 12px; margin-top: 5px; }
         </style>
     </head>
     <body>
@@ -51,7 +58,9 @@ app.get('/', async (req, res) => {
             <div class="status ${mainAppStatus.toLowerCase()}">
                 Main App (Port 3001): ${mainAppStatus}
             </div>
+            ${mainAppStatus === 'OFFLINE' ? `<div class="error">Error: ${errorDetail}</div>` : ''}
             <div class="metric">Response Time: ${responseTime}ms</div>
+            <div class="metric">Endpoint: /api/health-check</div>
             <div class="metric">Last Checked: ${new Date().toLocaleString()}</div>
             <div class="metric">Monitor running on Port 3002</div>
         </div>

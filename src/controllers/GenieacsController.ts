@@ -178,7 +178,9 @@ export class GenieacsController {
                     currentPage: page,
                     totalPages,
                     totalCount,
-                    limit
+                    limit,
+                    hasPrev: page > 1,
+                    hasNext: page < totalPages
                 }
             });
         } catch (error: any) {
@@ -335,6 +337,34 @@ export class GenieacsController {
                 return res.status(500).json({ success: false, message: error.message });
             }
             req.flash('error', `Gagal refresh device: ${error.message}`);
+            res.redirect('/genieacs/devices');
+        }
+    }
+
+    /**
+     * Refresh WiFi Info
+     */
+    static async refreshWiFi(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const genieacs = await GenieacsService.getInstanceFromDb();
+            const result = await genieacs.refreshWiFi(id);
+
+            if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+                return res.json(result);
+            }
+
+            if (result.success) {
+                req.flash('success', 'Perintah Refresh WiFi terkiri!');
+            } else {
+                req.flash('error', `Gagal Refresh WiFi: ${result.message}`);
+            }
+            res.redirect(`/genieacs/devices/${encodeURIComponent(id)}`);
+        } catch (error: any) {
+            if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+                return res.status(500).json({ success: false, message: error.message });
+            }
+            req.flash('error', `Error: ${error.message}`);
             res.redirect('/genieacs/devices');
         }
     }

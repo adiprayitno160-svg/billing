@@ -37,6 +37,7 @@ interface CustomerInfo {
 export class CustomerNotificationService {
     private static instance: CustomerNotificationService;
     private waClient: WhatsAppService;
+    private adminBroadcastCooldowns: Map<string, number> = new Map();
 
     private constructor() {
         this.waClient = whatsappService;
@@ -88,12 +89,14 @@ export class CustomerNotificationService {
                     break;
 
                 case 'timeout':
-                    message = `⏰ *PERINGATAN TIMEOUT KONEKSI*\n\n` +
-                        `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
-                        `Koneksi Anda mengalami *TIMEOUT* berkepanjangan.\n\n` +
-                        `Tim kami sedang mengecek penyebabnya.`;
-                    severity = 'medium';
-                    break;
+                    // message = `⏰ *PERINGATAN TIMEOUT KONEKSI*\n\n` +
+                    //     `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
+                    //     `Koneksi Anda mengalami *TIMEOUT* berkepanjangan.\n\n` +
+                    //     `Tim kami sedang mengecek penyebabnya.`;
+                    // severity = 'medium';
+                    console.log(`[Notification] Timeout notification disabled for ${customer.name}`);
+                    return false;
+                // break;
 
                 case 'error':
                     message = `🔧 *DETEKSI ERROR KONEKSI*\n\n` +
@@ -104,14 +107,16 @@ export class CustomerNotificationService {
                     break;
 
                 case 'degraded':
-                    message = `📉 *PERINGATAN KUALITAS KONEKSI*\n\n` +
-                        `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
-                        `Kualitas koneksi Anda sedang *DEGRADED* (lambat).\n\n` +
-                        `Latency: ${details?.latency || '-'}ms\n` +
-                        `Packet Loss: ${details?.packetLoss || '-'}%\n\n` +
-                        `Tim kami memantau situasi ini.`;
-                    severity = 'low';
-                    break;
+                    // message = `📉 *PERINGATAN KUALITAS KONEKSI*\n\n` +
+                    //     `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
+                    //     `Kualitas koneksi Anda sedang *DEGRADED* (lambat).\n\n` +
+                    //     `Latency: ${details?.latency || '-'}ms\n` +
+                    //     `Packet Loss: ${details?.packetLoss || '-'}%\n\n` +
+                    //     `Tim kami memantau situasi ini.`;
+                    // severity = 'low';
+                    console.log(`[Notification] Degraded quality notification disabled for ${customer.name}`);
+                    return false;
+                // break;
 
                 case 'recovered':
                     message = `✅ *KONEKSI TELAH PULIH*\n\n` +
@@ -372,8 +377,18 @@ export class CustomerNotificationService {
         status: 'offline' | 'online'
     ): Promise<void> {
         try {
+            // Cooldown logic to prevent spamming admins (e.g., max once per 15 minutes for the same change)
+            const cooldownKey = `${customer.id}_${status}`;
+            const lastSent = this.adminBroadcastCooldowns.get(cooldownKey) || 0;
+            const now = Date.now();
+            const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+            if (now - lastSent < COOLDOWN_MS) {
+                console.log(`[Notification] Admin broadcast suppressed for ${customer.name} (cooldown)`);
+                return;
+            }
+
             // Get admins/operators with phone numbers
-            // Covering all possible admin/operator roles
             const [users] = await databasePool.query<RowDataPacket[]>(
                 `SELECT phone, full_name, role FROM users 
                  WHERE role IN ('superadmin', 'admin', 'operator', 'teknisi') 
@@ -391,19 +406,21 @@ export class CustomerNotificationService {
                 `📦 ODP: ${customer.odp_name || '-'}\n` +
                 `🆔 ID: ${customer.customer_code}\n` +
                 `📡 Layanan: ${customer.connection_type.toUpperCase()}\n` +
-                `⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
+                `⏰ Waktu: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
 
             console.log(`[Notification] Broadcasting ${status} alert for ${customer.name} to ${users.length} admins`);
 
             for (const user of users) {
                 try {
                     await this.waClient.sendMessage(user.phone, message);
-                    // Small delay to prevent rate limits
-                    await new Promise(resolve => setTimeout(resolve, 500));
                 } catch (e) {
                     console.error(`Failed to send to admin ${user.full_name}:`, e);
                 }
             }
+
+            // Update cooldown timestamp
+            this.adminBroadcastCooldowns.set(cooldownKey, now);
+
         } catch (error) {
             console.error('[Notification] Error broadcasting to admins:', error);
         }

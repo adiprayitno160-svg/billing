@@ -51,6 +51,7 @@ export type StaticIpClient = {
 	status: 'active' | 'inactive';
 	created_at: Date;
 	updated_at: Date;
+	interface?: string;
 };
 
 export async function getMikrotikConfig(): Promise<MikroTikConfig | null> {

@@ -154,11 +154,17 @@
                                     untuk isolir otomatis.</p>
                             </div>
                             <div>
-                                <label class="block text-m font-semibold text-green-800 mb-1">Interface</label>
+                                <label class="block text-sm font-semibold text-green-800 mb-1">Interface</label>
                                 <input id="inputInterfaceDisplay" readonly
                                     class="w-full rounded-lg border border-cyan-300 px-4 py-2.5 bg-cyan-50 font-mono text-cyan-700 cursor-not-allowed"
                                     placeholder="Auto dari MikroTik" />
                                 <p class="text-xs text-cyan-600 mt-1">Interface MikroTik</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-green-800 mb-1">Tanggal Aktivasi</label>
+                                <input type="date" name="activationDate" id="inputActivationDate"
+                                    class="w-full rounded-lg border border-amber-300 px-4 py-2.5 bg-white font-medium text-slate-800 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200" />
+                                <p class="text-xs text-amber-600 mt-1">Blokir otomatis di tanggal sama bulan depan.</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 gap-4 mt-4">
@@ -278,6 +284,13 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         let candidatesData = [];
+
+        // Set Default Date to Today
+        const dateInput = document.getElementById('inputActivationDate');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
 
         // Load Candidates from MikroTik
         function loadCandidates() {
@@ -426,7 +439,8 @@
                 packageId: pkgVal,
                 gatewayIp: document.getElementById('inputGatewayIp').value,
                 gatewayIpId: document.getElementById('inputGatewayIpId').value,
-                interface: document.getElementById('inputInterface').value
+                interface: document.getElementById('inputInterface').value,
+                activationDate: document.getElementById('inputActivationDate').value
             });
 
             const btn = document.getElementById('btnSave');

@@ -112,6 +112,27 @@
                         </div>
 
 
+
+                        <div class="mt-8 pt-6 border-t border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-900 mb-3 text-purple-700">
+                                <i class="fas fa-truck-loading"></i> Migrasi Server (Full Backup)
+                            </h3>
+                            <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                                <p class="text-xs text-purple-800 mb-3">
+                                    Fitur ini akan membackup <strong>Database + Source Code + Uploads</strong> menjadi
+                                    satu file arsip (.tar.gz).
+                                    Gunakan file ini untuk memindahkan aplikasi ke komputer/server lain.
+                                </p>
+                                <form action="/settings/backup/run-full" method="POST"
+                                    onsubmit="return confirm('Proses ini memerlukan waktu beberapa saat. Lanjutkan?');">
+                                    <button type="submit"
+                                        class="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 shadow-sm">
+                                        <i class="fas fa-file-archive"></i> Download Full System Backup
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
                         <div class="mt-8 pt-6 border-t border-gray-100">
                             <h3 class="text-sm font-semibold text-gray-900 mb-3">Restore Database (Upload SQL)</h3>
                             <form id="restoreForm" class="space-y-4">
@@ -259,29 +280,49 @@
                                     // Limit to 10 latest files to prevent lag
                                     const recentFiles = files.slice(0, 10);
 
-                                    container.innerHTML = recentFiles.map(file => `
-                                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
-                                            <div class="overflow-hidden">
-                                                <div class="text-xs font-medium text-gray-700 truncate">${file.filename}</div>
-                                                <div class="text-[10px] text-gray-500">${new Date(file.createdAt).toLocaleString()} - ${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                                    container.innerHTML = recentFiles.map(file => {
+                                        const isArchive = file.filename.endsWith('.tar.gz') || file.filename.endsWith('.zip');
+                                        const iconClass = isArchive ? 'fa-file-archive text-purple-600' : 'fa-database text-blue-600';
+                                        const typeLabel = isArchive ? 'FULL BACKUP' : 'DATABASE';
+                                        const badgeClass = isArchive ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+
+                                        return `
+                                        <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition">
+                                            <div class="flex items-center gap-3 overflow-hidden">
+                                                <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-50 rounded-lg">
+                                                    <i class="fas ${iconClass} text-xl"></i>
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-sm font-medium text-gray-900 truncate">${file.filename}</span>
+                                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium ${badgeClass}">${typeLabel}</span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500 mt-0.5">
+                                                        <i class="far fa-clock text-gray-400 mr-1"></i> ${new Date(file.createdAt).toLocaleString()} 
+                                                        <span class="mx-1">•</span> 
+                                                        <i class="fas fa-weight-hanging text-gray-400 mr-1"></i> ${(file.size / 1024 / 1024).toFixed(2)} MB
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex items-center gap-2 pl-2 border-l border-gray-100 ml-2">
+                                                ${!isArchive ? `
                                                 <form action="/settings/backup/restore/${file.filename}" method="POST" onsubmit="return confirm('PERINGATAN: Restore akan menimpa database saat ini. Lanjutkan?')">
-                                                    <button type="submit" class="text-indigo-600 hover:text-indigo-800 p-1" title="Restore Database">
-                                                       <i class="fas fa-history text-sm"></i>
+                                                    <button type="submit" class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Restore Database">
+                                                       <i class="fas fa-history"></i>
                                                     </button>
                                                 </form>
-                                                <a href="/settings/backup/download/${file.filename}" class="text-blue-600 hover:text-blue-800 p-1" title="Download Backup">
-                                                    <i class="fas fa-download text-sm"></i>
+                                                ` : ''}
+                                                <a href="/settings/backup/download/${file.filename}" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Download">
+                                                    <i class="fas fa-download"></i>
                                                 </a>
                                                 <form action="/settings/backup/delete/${file.filename}" method="POST" onsubmit="return confirm('Hapus file backup ini?')">
-                                                    <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="Hapus Backup">
-                                                       <i class="fas fa-trash text-sm"></i>
+                                                    <button type="submit" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus">
+                                                       <i class="fas fa-trash"></i>
                                                     </button>
                                                 </form>
                                             </div>
                                         </div>
-                                    `).join('');
+                                    `}).join('');
 
                                     if (files.length > 10) {
                                         container.innerHTML += `<div class="text-center text-xs text-gray-500 mt-2">... dan ${files.length - 10} file lainnya (tampilkan via File Explorer)</div>`;

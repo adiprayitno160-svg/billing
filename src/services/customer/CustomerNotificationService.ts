@@ -13,6 +13,7 @@ import alertRoutingService from '../alertRoutingService';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 import { NotificationTemplateService } from '../notification/NotificationTemplateService';
 import { calculateCustomerIP } from '../../utils/ipHelper';
+import { WhatsAppSessionService } from '../../services/whatsapp/WhatsAppSessionService';
 
 export interface NewCustomerData {
   customerId: number;
@@ -34,40 +35,35 @@ export class CustomerNotificationService {
   private async ensureTemplateExists(): Promise<boolean> {
     try {
       // 1. Check if template exists by type and channel (active only)
-      let template = await NotificationTemplateService.getTemplate('customer_created', 'whatsapp');
-      if (template) return true;
+      console.log('[CustomerNotification] Checking/Updating template to latest design...');
 
-      console.log('[CustomerNotification] Active template customer_created not found, checking by code...');
-
-      // 2. Check if template exists by code (regardless of status/type/channel)
+      const template = await NotificationTemplateService.getTemplate('customer_created', 'whatsapp');
       const existingByCode = await NotificationTemplateService.getTemplateByCode('customer_created');
 
-      if (existingByCode) {
-        console.log('[CustomerNotification] Template found by code. Updating/Activating...');
-        // Update to correct type/channel and activate it
-        await NotificationTemplateService.updateTemplate('customer_created', {
-          notification_type: 'customer_created',
-          channel: 'whatsapp',
-          is_active: true
-        });
-        return true;
-      }
-
-      // 3. Create new template since it doesn't exist at all
-      console.log('[CustomerNotification] Creating new template: customer_created');
-      const templateId = await NotificationTemplateService.createTemplate({
+      // 3. Create or update template to ensure latest design
+      const templateData = {
         template_code: 'customer_created',
         template_name: 'Pelanggan Baru',
         notification_type: 'customer_created',
         channel: 'whatsapp',
-        title_template: 'Selamat Datang - {customer_code}',
-        message_template: '🎉 *Selamat Datang!*\n\nHalo {customer_name},\n\nTerima kasih telah bergabung dengan layanan internet kami!\n\n📋 *Informasi Akun Anda:*\n🆔 Kode Pelanggan: {customer_code}\n🔌 Tipe Koneksi: {connection_type}{package_info}{pppoe_info}{ip_info}\n\n⚠️ *Koreksi Data:*\nJika nama Anda salah, silakan ketik */edit* untuk menggantinya dengan benar.\n\n💡 *Tips:*\n• Simpan informasi ini dengan aman\n• Hubungi kami jika ada pertanyaan\n• Nikmati layanan internet Anda!\n\nTerima kasih,\nTim Support',
-        variables: ['customer_name', 'customer_code', 'connection_type', 'package_info', 'pppoe_info', 'ip_info'],
+        title_template: 'Konfirmasi Data Pelanggan Baru - {customer_code}',
+        message_template: '✨ *LAYANAN INTERNET AKTIF* ✨\n\nHalo *{customer_name}*,\n\nSelamat! Koneksi internet Anda telah aktif dan siap digunakan. Terima kasih telah memilih layanan kami.\n\n📅 *JADWAL LAYANAN:*\n━━━━━━━━━━━━━━━\n🚀 *Aktivasi:* {activation_date}\n🔒 *Prediksi Isolir:* {isolation_date} (Oleh Asisten AI)\n\n📋 *DATA REGISTRASI:*\n━━━━━━━━━━━━━━━\n👤 *Nama:* {customer_name}\n🏠 *Alamat:* {address}\n🆔 *ID Pelanggan:* {customer_code}\n🔌 *Koneksi:* {connection_type}\n{package_info}{pppoe_info}{ip_info}\n━━━━━━━━━━━━━━━\n\n⚠️ *VERIFIKASI DATA:*\nMohon periksa data di atas. Apakah Nama & Alamat sudah sesuai?\n\n✅ Balas *BENAR* jika sudah sesuai.\n❌ Balas *SALAH* jika ada data yang perlu diperbaiki.',
+        variables: ['customer_name', 'customer_code', 'connection_type', 'address', 'package_info', 'pppoe_info', 'ip_info', 'activation_date', 'isolation_date'],
         is_active: true,
-        priority: 'normal'
-      });
+        priority: 'normal' as 'normal' | 'low' | 'high'
+      };
 
-      console.log(`[CustomerNotification] ✅ Created template customer_created (ID: ${templateId})`);
+      if (template) {
+        console.log('[CustomerNotification] Updating existing template to latest design...');
+        await NotificationTemplateService.updateTemplate('customer_created', templateData);
+      } else if (existingByCode) {
+        console.log('[CustomerNotification] Activating and updating template found by code...');
+        await NotificationTemplateService.updateTemplate('customer_created', templateData);
+      } else {
+        console.log('[CustomerNotification] Creating new template: customer_created');
+        const templateId = await NotificationTemplateService.createTemplate(templateData);
+        console.log(`[CustomerNotification] ✅ Created template customer_created (ID: ${templateId})`);
+      }
       return true;
     } catch (error: any) {
       console.error('[CustomerNotification] Error ensuring template exists:', error);
@@ -145,14 +141,29 @@ export class CustomerNotificationService {
         }
       }
 
+      // Format address for display
+      const addressDisplay = customerData.address || customer.address || 'Belum diisi';
+
+      // Calculate dates
+      const activationDate = new Date();
+      const isolationDate = new Date();
+      isolationDate.setDate(activationDate.getDate() + 30);
+
+      const formatDateShort = (date: Date) => {
+        return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      };
+
       // Prepare variables
       const variables = {
         customer_name: customerData.customerName || customer.name || 'Pelanggan',
         customer_code: customerData.customerCode || customer.customer_code || '',
         connection_type: connectionTypeText,
+        address: addressDisplay,
         package_info: packageInfo,
         pppoe_info: pppoeInfo,
-        ip_info: ipInfo
+        ip_info: ipInfo,
+        activation_date: formatDateShort(activationDate),
+        isolation_date: formatDateShort(isolationDate)
       };
 
       console.log(`[CustomerNotification] 📝 Variables prepared:`, {
@@ -193,10 +204,26 @@ export class CustomerNotificationService {
           recipient: phoneToUse
         });
 
-        // Try to send immediately (process queue) - NOT AWAITED anymore
-        UnifiedNotificationService.sendPendingNotifications(10).catch(queueError => {
-          console.warn(`[CustomerNotification] ⚠️ Queue processing error (non-critical):`, queueError.message);
-        });
+        // Initialize Bot Session for Confirmation
+        try {
+          const cleanPhone = phoneToUse.replace(/\D/g, '');
+          let formattedPhone = cleanPhone;
+          if (cleanPhone.startsWith('0')) formattedPhone = '62' + cleanPhone.substring(1);
+
+          console.log(`[CustomerNotification] 🤖 Initializing bot session for ${formattedPhone}...`);
+
+          await WhatsAppSessionService.setSession(formattedPhone, {
+            step: 'waiting_welcome_confirmation',
+            data: {
+              customerId: customerData.customerId,
+              customerName: variables.customer_name,
+              customerAddress: variables.address
+            },
+            lastInteraction: Date.now()
+          });
+        } catch (sessionErr) {
+          console.error('[CustomerNotification] Failed to set bot session:', sessionErr);
+        }
 
         return { success: true, message: 'Welcome notification queued for delivery' };
       } catch (error: any) {

@@ -151,9 +151,9 @@
                                     <% } else { %>
                                         <% devices.forEach((device, index)=> { %>
                                             <tr class="hover:bg-blue-50/50 transition device-row"
-                                                data-serial="<%= device.serialNumber.toLowerCase() %>"
-                                                data-manufacturer="<%= device.manufacturer.toLowerCase() %>"
-                                                data-model="<%= (typeof device.model === 'string' ? device.model : JSON.stringify(device.model)).toLowerCase() %>"
+                                                data-serial="<%= (device.serialNumber || 'unknown').toLowerCase() %>"
+                                                data-manufacturer="<%= (device.manufacturer || 'unknown').toLowerCase() %>"
+                                                data-model="<%= (typeof device.model === 'string' ? device.model : (device.model ? JSON.stringify(device.model) : 'unknown')).toLowerCase() %>"
                                                 data-online="<%= device.isOnline %>">
 
                                                 <!-- Pelanggan -->

@@ -33,14 +33,14 @@ export class InvoiceService {
         const month = period.split('-')[1];
 
         const query = `
-            SELECT COUNT(*) as count 
+            SELECT MAX(CAST(SUBSTRING_INDEX(invoice_number, '/', -1) AS UNSIGNED)) as max_seq
             FROM invoices 
             WHERE invoice_number LIKE ?
         `;
 
         const pattern = `INV/${year}/${month}/%`;
-        const [result] = await databasePool.query(query, [pattern]);
-        const count = parseInt((result as any)[0].count) + 1;
+        const [result] = await databasePool.query<RowDataPacket[]>(query, [pattern]);
+        const count = ((result[0] as any).max_seq || 0) + 1;
 
         return `INV/${year}/${month}/${count.toString().padStart(4, '0')}`;
     }

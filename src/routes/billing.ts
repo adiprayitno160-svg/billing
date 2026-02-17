@@ -243,6 +243,95 @@ router.post('/tagihan/bulk-reminder', async (req, res) => {
     }
 });
 
+// Print invoices for customers WITHOUT ODC/ODP assignment
+router.get('/tagihan/print-no-odc', async (req, res) => {
+    try {
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+        try {
+            const { period, format } = req.query;
+
+            // Build query for invoices where customer has NO odc_id
+            let invoicesQuery = `
+                SELECT 
+                    i.id,
+                    i.invoice_number,
+                    i.customer_id,
+                    i.period,
+                    i.due_date,
+                    i.subtotal,
+                    i.discount_amount,
+                    i.total_amount,
+                    i.paid_amount,
+                    i.status,
+                    i.created_at,
+                    c.name as customer_name,
+                    c.phone as customer_phone,
+                    c.address as customer_address,
+                    c.customer_code
+                FROM invoices i
+                INNER JOIN customers c ON i.customer_id = c.id
+                WHERE (c.odc_id IS NULL OR c.odc_id = 0)
+                AND i.status IN ('sent', 'partial', 'overdue')
+            `;
+
+            const queryParams: any[] = [];
+
+            if (period) {
+                invoicesQuery += ' AND i.period = ?';
+                queryParams.push(period);
+            }
+
+            invoicesQuery += ' ORDER BY c.name ASC';
+
+            const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
+
+            // Get invoice items and discount details for each invoice
+            for (const invoice of invoices) {
+                const [items] = await conn.query(
+                    'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
+                    [invoice.id]
+                ) as any;
+                invoice.items = items || [];
+
+                if (invoice.discount_amount && invoice.discount_amount > 0) {
+                    const [discountInfo] = await conn.query(
+                        `SELECT reason, discount_type FROM discounts WHERE invoice_id = ? ORDER BY created_at DESC LIMIT 1`,
+                        [invoice.id]
+                    ) as any;
+                    if (discountInfo && discountInfo.length > 0) {
+                        invoice.discount_reason = discountInfo[0].reason || null;
+                        invoice.sla_type = discountInfo[0].discount_type === 'sla' ? 'SLA Compensation' : null;
+                    }
+                }
+            }
+
+            // Virtual ODC object for the template
+            const virtualOdc = {
+                id: 0,
+                name: 'Tanpa ODC/ODP',
+                location: 'Belum Ditugaskan'
+            };
+
+            const viewName = format === 'a4' || format === 'list'
+                ? 'billing/tagihan-print-odc-a4'
+                : 'billing/tagihan-print-odc';
+
+            res.render(viewName, {
+                title: `Print Tagihan - Tanpa ODC/ODP`,
+                odc: virtualOdc,
+                invoices,
+                period: period || 'Semua Periode',
+                format: format || 'thermal'
+            });
+        } finally {
+            conn.release();
+        }
+    } catch (error) {
+        console.error('Error loading no-ODC print:', error);
+        res.status(500).send('Error loading invoices without ODC');
+    }
+});
+
 // Print invoices by ODC area
 router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
     try {

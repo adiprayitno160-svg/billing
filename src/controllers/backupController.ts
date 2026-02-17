@@ -97,6 +97,27 @@ export class BackupController {
         }
     }
 
+    static async runFullBackup(req: Request, res: Response) {
+        try {
+            // Increase timeout for this request if possible, or run async
+            // Use standard node timeout?
+            const backupService = new DatabaseBackupService();
+
+            // This might take a while, depending on project size.
+            // Ideally we'd run this background, but for simplicity we await it.
+            const archivePath = await backupService.fullSystemBackup();
+            const fileName = path.basename(archivePath);
+
+            req.flash('success', `Full System Backup Berhasil! File: ${fileName}. Siap didownload.`);
+            res.redirect('/settings/backup');
+        } catch (error: any) {
+            console.error('Full Backup Error:', error);
+            req.flash('error', 'Full Backup Gagal: ' + error.message);
+            res.redirect('/settings/backup');
+        }
+    }
+
+
     static async listBackups(req: Request, res: Response) {
         try {
             const backupDir = path.join(process.cwd(), 'storage', 'backups');
@@ -108,7 +129,7 @@ export class BackupController {
 
             const fileStats = await Promise.all(
                 files
-                    .filter(f => f.endsWith('.sql'))
+                    .filter(f => f.endsWith('.sql') || f.endsWith('.tar.gz') || f.endsWith('.zip'))
                     .map(async f => {
                         const stats = await fs.promises.stat(path.join(backupDir, f));
                         return {

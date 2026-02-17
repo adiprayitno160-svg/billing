@@ -1199,44 +1199,44 @@
 									<tr class="hover:bg-slate-50/80 transition-colors group/row">
 										<td class="px-6 py-5">
 											<div class="flex flex-col">
-												<span class="text-sm font-bold text-slate-900 group-hover/row:text-blue-600 transition-colors">\${customer.name}</span>
-												<span class="text-xs font-medium text-slate-500 mt-0.5">\${customer.customer_code || '-'} • \${customer.pppoe_username || '-'}</span>
+												<span class="text-sm font-bold text-slate-900 group-hover/row:text-blue-600 transition-colors">${customer.name}</span>
+												<span class="text-xs font-medium text-slate-500 mt-0.5">${customer.customer_code || '-'} • ${customer.pppoe_username || '-'}</span>
 											</div>
 										</td>
 										<td class="px-6 py-5">
-											<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold \${customer.connection_type === 'pppoe' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}">
-												\${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
+											<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${customer.connection_type === 'pppoe' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}">
+												${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
 											</span>
 										</td>
 										<td class="px-6 py-5">
-											\${customer.device_status === 'online' ? 
-												\`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-green-50 text-green-700 border border-green-200"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>ONLINE</span>\` :
-												(customer.device_status === 'offline' ? 
-													\`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-red-50 text-red-700 border border-red-200 animate-pulse"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>OFFLINE</span>\` :
-													(customer.device_status === 'degraded' ? 
-														\`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>DEGRADED</span>\` :
-														(customer.device_status === 'isolated' ? 
-															\`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-slate-50 text-slate-700 border border-slate-200"><span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>ISOLIR</span>\` :
-															\`<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">\${customer.issue_type || '-'}</span>\`
-														)
-													)
-												)
-											}
+											${customer.device_status === 'online' ?
+								`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-green-50 text-green-700 border border-green-200"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>ONLINE</span>` :
+								(customer.device_status === 'offline' ?
+									`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-red-50 text-red-700 border border-red-200 animate-pulse"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>OFFLINE</span>` :
+									(customer.device_status === 'degraded' ?
+										`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>DEGRADED</span>` :
+										(customer.device_status === 'isolated' ?
+											`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-slate-50 text-slate-700 border border-slate-200"><span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>ISOLIR</span>` :
+											`<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">${customer.issue_type || '-'}</span>`
+										)
+									)
+								)
+							}
 										</td>
 										<td class="px-6 py-5">
-											\${customer.maintenance_status === 'in_progress' ? 
-												'<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🛠️ DIPROSES</span>' :
-												(customer.maintenance_status === 'scheduled' ? '<span class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">TERJADWAL</span>' : '<span class="text-xs text-slate-400 font-medium">-</span>')
-											}
+											${customer.maintenance_status === 'in_progress' ?
+								'<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🛠️ DIPROSES</span>' :
+								(customer.maintenance_status === 'scheduled' ? '<span class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">TERJADWAL</span>' : '<span class="text-xs text-slate-400 font-medium">-</span>')
+							}
 										</td>
 										<td class="px-6 py-5">
 											<div class="flex flex-col">
-												<span class="text-sm font-black text-slate-700 trouble-duration" data-since="\${troubleSinceRaw}">Calculating...</span>
-												<span class="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 tracking-wider">Sejak \${troubleSinceFormatted}</span>
+												<span class="text-sm font-black text-slate-700 trouble-duration" data-since="${troubleSinceRaw}">Calculating...</span>
+												<span class="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 tracking-wider">Sejak ${troubleSinceFormatted}</span>
 											</div>
 										</td>
 										<td class="px-6 py-5 text-right">
-											<button onclick="window.open('https://wa.me/\${customer.phone}?text=Halo \${customer.name}, kami mendeteksi adanya gangguan pada koneksi internet Anda.', '_blank')" 
+											<button onclick="window.open('https://wa.me/${customer.phone}?text=Halo ${customer.name}, kami mendeteksi adanya gangguan pada koneksi internet Anda.', '_blank')" 
 													class="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all duration-300 shadow-sm border border-green-100">
 												<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
 													<path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.103 2.202-.546c.942.512 1.97.781 3.104.781 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.767-5.766zm3.303 8.303c-.113.193-.652.332-.897.354-.245.022-.501.033-.746.033s-.486-.011-.73-.033c-.244-.022-.784-.161-.897-.354-.424-.725-.85-1.45-1.274-2.174-.113-.193-.113-.448 0-.642.424-.725.85-1.45 1.274-2.174.113-.193.368-.193.481 0l1.274 2.174c.113.193.113.448 0 .642l-1.274 2.174z"/>

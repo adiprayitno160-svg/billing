@@ -81,13 +81,19 @@ export class PaymentController {
             const date_from = req.query.date_from as string || '';
             const date_to = req.query.date_to as string || '';
             const format = req.query.format as string || '';
+            const search = req.query.search as string || '';
+            const whereConditions: string[] = [];
+            const queryParams: any[] = [];
+
+            if (search) {
+                whereConditions.push('(c.name LIKE ? OR i.invoice_number LIKE ? OR p.reference_number LIKE ?)');
+                const searchParam = `%${search}%`;
+                queryParams.push(searchParam, searchParam, searchParam);
+            }
 
             const offset = (page - 1) * limit;
 
             // Build query conditions
-            const whereConditions: string[] = [];
-            const queryParams: any[] = [];
-
             if (customer_id) {
                 whereConditions.push('i.customer_id = ?');
                 queryParams.push(customer_id);
@@ -109,7 +115,7 @@ export class PaymentController {
             }
 
             // Default to current month if no dates specified
-            if (!date_from && !date_to) {
+            if (!date_from && !date_to && !search && !customer_id) {
                 const now = new Date();
                 const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
                 const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -140,37 +146,39 @@ export class PaymentController {
 
             // Get payments
             const paymentsQuery = `
-                SELECT 
-                    p.*,
-                    c.name as customer_name,
-                    c.customer_code,
-                    c.phone as customer_phone,
-                    i.invoice_number,
-                    i.period,
-                    i.customer_id,
-                    i.status as invoice_status,
-                    i.total_amount as invoice_total,
-                    i.paid_amount as invoice_paid,
-                    i.remaining_amount as invoice_remaining,
-                    NULL as proof_image
-                FROM payments p
-                LEFT JOIN invoices i ON p.invoice_id = i.id
-                LEFT JOIN customers c ON i.customer_id = c.id
-                LEFT JOIN manual_payment_verifications mpv ON p.invoice_id = mpv.invoice_id 
-                    AND mpv.status = 'approved' 
-                    AND (mpv.extracted_amount = p.amount OR mpv.expected_amount = p.amount)
-                ${whereClause}
-                GROUP BY p.id
-                ORDER BY p.payment_date DESC, p.created_at DESC
-                LIMIT ? OFFSET ?
-            `;
+            SELECT 
+                p.*,
+                c.name as customer_name,
+                c.customer_code,
+                c.phone as customer_phone,
+                c.connection_type,
+                o.name as odc_name,
+                i.invoice_number,
+                i.period,
+                i.customer_id,
+                i.status as invoice_status,
+                i.total_amount as invoice_total,
+                i.paid_amount as invoice_paid,
+                i.remaining_amount as invoice_remaining,
+                (SELECT image_data FROM manual_payment_verifications 
+                 WHERE invoice_id = p.invoice_id AND (status = 'approved' OR status = 'pending') 
+                 LIMIT 1) as proof_image
+            FROM payments p
+            LEFT JOIN invoices i ON p.invoice_id = i.id
+            LEFT JOIN customers c ON i.customer_id = c.id
+            LEFT JOIN ftth_odc o ON c.odc_id = o.id
+            ${whereClause}
+            ORDER BY p.payment_date DESC, p.id DESC
+            LIMIT ? OFFSET ?
+        `;
 
             const countQuery = `
-                SELECT COUNT(*) AS total
-                FROM payments p
-                LEFT JOIN invoices i ON p.invoice_id = i.id
-                ${whereClause}
-            `;
+            SELECT COUNT(*) AS total
+            FROM payments p
+            LEFT JOIN invoices i ON p.invoice_id = i.id
+            LEFT JOIN customers c ON i.customer_id = c.id
+            ${whereClause}
+        `;
 
             const [paymentsResult, countResult] = await Promise.all([
                 databasePool.query(paymentsQuery, [...queryParams, limit, offset]),
@@ -183,19 +191,20 @@ export class PaymentController {
 
             // Get statistics
             const statsQuery = `
-                SELECT 
-                    COUNT(*) as total_payments,
-                    SUM(amount) as total_amount,
-                    SUM(CASE WHEN payment_method = 'cash' THEN amount ELSE 0 END) as cash_amount,
-                    SUM(CASE WHEN payment_method = 'transfer' THEN amount ELSE 0 END) as transfer_amount,
-                    SUM(CASE WHEN payment_method = 'gateway' THEN amount ELSE 0 END) as gateway_amount
-                FROM payments
-                LEFT JOIN invoices i ON payments.invoice_id = i.id
-                ${whereClause}
-            `;
+            SELECT 
+                COUNT(*) as total_payments,
+                SUM(p.amount) as total_amount,
+                SUM(CASE WHEN p.payment_method = 'cash' THEN p.amount ELSE 0 END) as cash_amount,
+                SUM(CASE WHEN p.payment_method = 'transfer' THEN p.amount ELSE 0 END) as transfer_amount,
+                SUM(CASE WHEN p.payment_method = 'gateway' THEN p.amount ELSE 0 END) as gateway_amount
+            FROM payments p
+            LEFT JOIN invoices i ON p.invoice_id = i.id
+            LEFT JOIN customers c ON i.customer_id = c.id
+            ${whereClause}
+        `;
 
             const [statsResult] = await databasePool.query(statsQuery, queryParams);
-            const stats = (statsResult as RowDataPacket[])[0];
+            const stats = (statsResult as any)[0];
 
             // Return JSON if format=json
             if (format === 'json') {

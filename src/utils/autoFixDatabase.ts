@@ -187,6 +187,18 @@ export async function autoFixWhatsAppTables(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Ensure created_at exists in whatsapp_sessions
+    try {
+      const [colRows]: any = await pool.query("SHOW COLUMNS FROM whatsapp_sessions LIKE 'created_at'");
+      if (colRows.length === 0) {
+        console.log('⚠️ [AutoFix] Column created_at missing in whatsapp_sessions, adding...');
+        await pool.query('ALTER TABLE whatsapp_sessions ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER temp_data');
+        console.log('✅ [AutoFix] Column created_at added to whatsapp_sessions');
+      }
+    } catch (e) {
+      console.warn('⚠️ [AutoFix] Failed to add created_at to whatsapp_sessions:', e);
+    }
+
     // 2. Pending Registrations
     await pool.query(`
       CREATE TABLE IF NOT EXISTS pending_registrations (

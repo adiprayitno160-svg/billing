@@ -3,6 +3,7 @@ import { UnifiedNotificationService } from '../notification/UnifiedNotificationS
 import { RowDataPacket } from 'mysql2';
 import { mikrotikPool } from '../MikroTikConnectionPool';
 import { getMikrotikConfig } from '../../utils/mikrotikConfigHelper';
+import { NotificationTemplateService } from '../notification/NotificationTemplateService';
 
 export interface IsolationData {
     customer_id: number;
@@ -11,6 +12,18 @@ export interface IsolationData {
     performed_by?: string;
 }
 
+const ISOLATION_SYSTEM_TEMPLATE = {
+    template_code: 'service_blocked_system',
+    template_name: 'Isolir Otomatis by AI',
+    notification_type: 'service_blocked_system',
+    channel: 'whatsapp',
+    title_template: '🚨 LAYANAN TERBLOKIR OTOMATIS',
+    message_template: '🚨 *PEMBERITAHUAN ISOLIR OTOMATIS* 🚨\n\nHalo *{customer_name}*,\n\nMohon maaf, layanan internet Anda telah *DIBLOKIR OTOMATIS* oleh *{performed_by}* karena adanya tagihan yang melewati batas jatuh tempo.\n\n📝 *DETAIL:* \n━━━━━━━━━━━━━━━\n👤 Nama: {customer_name}\n📦 Alasan: {reason}\n{details}\n━━━━━━━━━━━━━━━\n\n💡 *SOLUSI:* \nSegera lakukan pembayaran tagihan Anda. Layanan akan otomatis aktif kembali dalam hitungan menit setelah pembayaran diverifikasi oleh sistem.\n\nKetik *Menu* untuk cek tagihan atau bantuan lainnya.',
+    variables: ['customer_name', 'reason', 'details', 'performed_by'],
+    is_active: true,
+    priority: 'high'
+};
+
 interface MikrotikIsolateResult {
     success: boolean;
     method: 'pppoe' | 'static_ip' | 'none';
@@ -18,6 +31,21 @@ interface MikrotikIsolateResult {
 }
 
 export class IsolationService {
+    /**
+     * Ensure system isolation template exists
+     */
+    private static async ensureIsolationTemplateExists(): Promise<void> {
+        try {
+            const template = await NotificationTemplateService.getTemplate('service_blocked_system', 'whatsapp');
+            if (!template) {
+                console.log('[Isolation] Creating default system isolation template...');
+                await NotificationTemplateService.createTemplate(ISOLATION_SYSTEM_TEMPLATE as any);
+            }
+        } catch (e) {
+            console.error('[Isolation] Failed to ensure template exists:', e);
+        }
+    }
+
     /**
      * Execute MikroTik isolation based on customer connection type
      */
@@ -272,12 +300,25 @@ export class IsolationService {
             // Notification
             if (customer.phone) {
                 try {
-                    const notifyType = isolationData.action === 'isolate' ? 'service_blocked' : 'service_unblocked';
+                    await this.ensureIsolationTemplateExists();
+
+                    let notifyType: 'service_blocked' | 'service_unblocked' | 'service_blocked_system' = isolationData.action === 'isolate' ? 'service_blocked' : 'service_unblocked';
+
+                    // Specific type for system auto-isolation
+                    if (isolationData.action === 'isolate' && isolationData.performed_by === 'system') {
+                        notifyType = 'service_blocked_system';
+                    }
+
                     await UnifiedNotificationService.queueNotification({
                         customer_id: customer.id,
                         notification_type: notifyType,
                         channels: ['whatsapp'],
-                        variables: { customer_name: customer.name, reason: isolationData.reason, details: `Kode: ${customer.customer_code}` },
+                        variables: {
+                            customer_name: customer.name,
+                            reason: isolationData.reason,
+                            details: `Kode: ${customer.customer_code}`,
+                            performed_by: isolationData.performed_by === 'system' ? 'Asisten AI' : 'Admin'
+                        },
                         priority: isolationData.action === 'isolate' ? 'high' : 'normal'
                     });
                 } catch (e) { console.error('Notification failed', e); }

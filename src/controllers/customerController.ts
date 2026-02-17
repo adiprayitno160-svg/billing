@@ -354,9 +354,15 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
         const query = `
             SELECT 
                 c.*,
+                sic.ip_address as static_ip_address,
+                sic.interface as static_ip_interface,
                 s.package_name as postpaid_package_name,
                 s.price as subscription_price,
                 s.package_id as subscription_package_id,
+                sp.name as static_ip_package_name,
+                sp.price as static_ip_package_price,
+                sp.max_limit_download,
+                sp.max_limit_upload,
                 pp.name as pppoe_package_name,
                 pp.rate_limit_rx,
                 pp.rate_limit_tx,
@@ -2235,5 +2241,67 @@ export const addCompensation = async (req: Request, res: Response) => {
         console.error('Error adding compensation:', error);
         req.flash('error', 'Gagal menambahkan restitusi: ' + error.message);
         res.redirect(`/customers/${id}`);
+    }
+};
+
+/**
+ * Manually trigger welcome notification with optional data override
+ */
+export const sendWelcomeNotificationManual = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { phone, name, address } = req.body;
+
+        console.log(`[ManualWelcome] Request for ID: ${id}`, { phone, name, address });
+
+        const customerId = parseInt(id);
+        if (!customerId || isNaN(customerId)) {
+            return res.status(400).json({ success: false, error: 'ID Pelanggan tidak valid' });
+        }
+
+        // Get current customer data
+        const [rows] = await databasePool.query<RowDataPacket[]>(
+            'SELECT * FROM customers WHERE id = ?',
+            [customerId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Pelanggan tidak ditemukan' });
+        }
+
+        const customer = rows[0];
+
+        // Import service dynamically
+        const { default: CustomerNotificationService } = await import('../services/customer/CustomerNotificationService');
+
+        // Trigger notification
+        const result = await CustomerNotificationService.sendWelcomeNotification({
+            customerId: customer.id,
+            customerName: name || customer.name,
+            customerCode: customer.customer_code,
+            phone: phone || customer.phone,
+            connectionType: customer.connection_type,
+            address: address || customer.address,
+            packageName: customer.connection_type === 'pppoe' ? customer.pppoe_username : (customer.ip_address || '')
+        });
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Notifikasi selamat datang telah antre untuk dikirim.'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.message || 'Gagal mengirim notifikasi'
+            });
+        }
+
+    } catch (error: any) {
+        console.error('[ManualWelcome] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Terjadi kesalahan sistem'
+        });
     }
 };

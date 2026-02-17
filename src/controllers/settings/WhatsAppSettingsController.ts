@@ -199,38 +199,31 @@ export class WhatsAppSettingsController {
             return;
         }
 
-        // Wait for QR code to be generated (up to 15 seconds)
-        console.log('⏳ Waiting for QR code generation...');
+        // Wait for QR code to be generated (up to 5 seconds - let frontend poll for the rest)
+        console.log('⏳ Waiting for QR code generation (short wait)...');
         let attempts = 0;
         let qrCode = waClient.qrCode;
-        const maxAttempts = 90; // 45 seconds (90 * 500ms)
+        const maxAttempts = 10; // 5 seconds (10 * 500ms)
         while (!qrCode && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 500));
             qrCode = waClient.qrCode;
             attempts++;
-
-            if (attempts % 5 === 0) {
-                console.log(`⏳ Still waiting for QR code... (${attempts}/${maxAttempts})`);
-            }
         }
 
         const status = waClient.getStatus();
-
-        const qrCodeUrl = qrCode
-            ? `/whatsapp/qr-image`
-            : null;
+        const qrCodeUrl = qrCode ? `/whatsapp/qr-image` : null;
 
         if (qrCode) {
             console.log('✅ QR code generated successfully');
         } else {
-            console.warn('⚠️ QR code not generated yet, but client might still be initializing');
+            console.log('ℹ️ QR code generation pending, frontend will poll status (this is normal)');
         }
 
         res.json({
             success: true,
             message: qrCode
-                ? 'QR code berhasil di-generate. Silakan scan dengan WhatsApp Anda.'
-                : 'QR code sedang di-generate. Silakan refresh halaman dalam beberapa detik atau tunggu hingga QR code muncul.',
+                ? 'QR code berhasil di-generate. Silakan scan.'
+                : 'Proses restart dimulai. QR code akan muncul dalam beberapa detik...',
             data: {
                 qrCode: qrCode || null,
                 qrCodeUrl,

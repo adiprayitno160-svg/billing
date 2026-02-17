@@ -138,7 +138,21 @@ export class GenieacsService {
             params.projection = projection.join(',');
         } else {
             // Default projection useful for listing
-            params.projection = '_id,_deviceId,_lastInform,_registered,_tags,VirtualParameters.pppoeUsername,VirtualParameters.pppoePassword,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower,InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower,InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID,InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations,InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower,InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower,VirtualParameters.RXPower,VirtualParameters.TXPower,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower,InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower';
+            params.projection = [
+                '_id', '_deviceId', '_lastInform', '_registered', '_tags',
+                'VirtualParameters.wifi_password',
+                'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Password',
+                'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.RxOpticalPower',
+                'InternetGatewayDevice.WANDevice.1.X_HW_OpticalInfo.TxOpticalPower',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.TotalAssociations',
+                'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower',
+                'InternetGatewayDevice.WANDevice.1.X_HUAWEI_OpticalInfo.TxOpticalPower',
+                'VirtualParameters.RXPower', 'VirtualParameters.TXPower',
+                'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.RXPower',
+                'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_GponInterafceConfig.TXPower',
+                'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.X_HUAWEI_OpticalInfo.RxOpticalPower'
+            ].join(',');
         }
 
         const response = await this.client.get('/devices/', { params });
@@ -602,12 +616,48 @@ export class GenieacsService {
             'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5.SSID'  // Sometimes on index 5 for 5GHz
         ]);
         const password = findValue([
+            'VirtualParameters.wifi_password',
             'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.KeyPassphrase',
             'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase',
             'Device.WiFi.AccessPoint.1.Security.KeyPassphrase',
-            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.WPA.KeyPassphrase'
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.WPA.KeyPassphrase',
+
+            // Vendor Specific (Huawei/ZTE)
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_HW_KeyPassphrase',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_HW_WLANKey',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.X_ZTE-COM_WLANKey',
+            'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.PreSharedKey'
         ]);
         return { ssid, password };
+    }
+
+    /**
+     * Refresh WiFi Specific Parameters
+     */
+    async refreshWiFi(deviceId: string): Promise<{ success: boolean; taskId?: string; message: string }> {
+        try {
+            const encodedId = encodeURIComponent(deviceId);
+
+            // Default paths to refresh
+            const objectNames = [
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1',
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.5', // 5GHz
+                'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1',
+                'Device.WiFi.AccessPoint.1.Security'
+            ];
+
+            // Send refreshObject task for each path
+            // Note: In newer GenieACS, we can might need separate tasks or use getParameterValues
+            // Let's use refreshObject on the parent commonly used
+            const response = await this.client.post(`/devices/${encodedId}/tasks?connection_request`, {
+                name: 'refreshObject',
+                objectName: 'InternetGatewayDevice.LANDevice.1.WLANConfiguration'
+            });
+
+            return { success: true, taskId: response.data._id, message: 'Refresh WiFi dikirim' };
+        } catch (error: any) {
+            return { success: false, message: error.message };
+        }
     }
 
 

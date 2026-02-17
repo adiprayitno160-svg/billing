@@ -173,12 +173,12 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			verifyingJobsP,
 			pendingPaymentsP
 		] = await Promise.all([
-			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active' AND is_isolated=0"),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
 			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='inactive'"),
-			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='suspended'"),
-			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='pppoe'"),
-			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='static_ip'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE is_isolated=1 AND status='active'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='pppoe' AND status='active'"),
+			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE connection_type='static_ip' AND status='active'"),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_packages'),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_profiles'),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM pppoe_new_requests WHERE created_at >= (CURDATE() - INTERVAL 7 DAY)'),

@@ -111,6 +111,7 @@ import {
     getCustomerDetail,
     getCustomerEdit,
     updateCustomer,
+    sendWelcomeNotificationManual,
     syncAllCustomersToGenieacs,
     // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
     // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
@@ -2779,8 +2780,8 @@ router.post('/customers/new-pppoe', async (req, res) => {
                                 customer_id: customerId,
                                 subscription_id: sub.id,
                                 period: currentPeriod,
-                                // Due date: 1 day after registration
-                                due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+                                // Due date: 30 days after registration (1-month deadline)
+                                due_date: new Date(Date.now() + (30 * 86400000)).toISOString().slice(0, 10),
                                 subtotal: subPrice,
                                 device_fee: deviceFee,
                                 discount_amount: 0,
@@ -3831,6 +3832,85 @@ router.post('/customers/new-static-ip', async (req, res) => {
         }
 
         console.log('Static IP customer saved successfully');
+
+        // Generate first invoice if billing is enabled
+        if (enable_billing !== '0' && package_id) {
+            try {
+                const { InvoiceService } = await import('../services/billing/invoiceService');
+                const { SettingsService } = await import('../services/SettingsService');
+
+                const autoGenFirstInvoice = await SettingsService.getBoolean('auto_generate_first_invoice');
+                if (autoGenFirstInvoice) {
+                    console.log('🧾 Auto generating first invoice for Static IP customer...');
+
+                    // Get latest subscription
+                    const [subs] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT id, price, package_name FROM subscriptions WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+                        [customerId]
+                    );
+
+                    if (subs.length > 0) {
+                        const sub = subs[0];
+                        const currentPeriod = new Date().toISOString().slice(0, 7);
+                        const subPrice = parseFloat(sub.price);
+
+                        // Fees calculations
+                        const deviceRentalEnabled = await SettingsService.getBoolean('device_rental_enabled');
+                        const globalDeviceRentalFee = await SettingsService.getNumber('device_rental_fee');
+                        const ppnEnabled = await SettingsService.getBoolean('ppn_enabled');
+                        const globalPpnRate = ppnEnabled ? await SettingsService.getNumber('ppn_rate') : 0;
+
+                        let deviceFee = 0;
+                        if (use_device_rental && deviceRentalEnabled) {
+                            deviceFee = globalDeviceRentalFee;
+                        }
+
+                        let ppnAmount = 0;
+                        if (is_taxable) {
+                            ppnAmount = (subPrice + deviceFee) * (globalPpnRate / 100);
+                        }
+
+                        const totalAmount = subPrice + deviceFee + ppnAmount;
+
+                        const invoiceData = {
+                            customer_id: customerId,
+                            subscription_id: sub.id,
+                            period: currentPeriod,
+                            // Due date: 30 days after registration (1-month deadline)
+                            due_date: new Date(Date.now() + (30 * 86400000)).toISOString().slice(0, 10),
+                            subtotal: subPrice,
+                            device_fee: deviceFee,
+                            ppn_rate: is_taxable ? globalPpnRate : 0,
+                            ppn_amount: ppnAmount,
+                            total_amount: totalAmount,
+                            status: 'sent',
+                            notes: 'Tagihan otomatis untuk pelanggan baru (Static IP)'
+                        };
+
+                        const items = [{
+                            description: `Paket ${sub.package_name} - ${currentPeriod}`,
+                            quantity: 1,
+                            unit_price: subPrice,
+                            total_price: subPrice
+                        }];
+
+                        if (deviceFee > 0) {
+                            items.push({
+                                description: `Sewa Perangkat - ${currentPeriod}`,
+                                quantity: 1,
+                                unit_price: deviceFee,
+                                total_price: deviceFee
+                            });
+                        }
+
+                        await InvoiceService.createInvoice(invoiceData, items);
+                        console.log(`✅ First invoice generated for Static IP customer ${customerId}`);
+                    }
+                }
+            } catch (err) {
+                console.error('❌ Failed to generate first invoice for Static IP:', err);
+            }
+        }
 
 
         // Send notification to customer and admin (non-blocking)
@@ -7042,6 +7122,7 @@ router.delete('/customers/:id', authMiddleware.requireAuth.bind(authMiddleware),
 router.post('/customers/:id', updateCustomer);
 router.put('/customers/:id', updateCustomer);
 router.patch('/customers/:id', updateCustomer);
+router.post('/customers/:id/welcome-notification', sendWelcomeNotificationManual);
 router.get('/customers/:id', (req, res, next) => {
     console.log('[ROUTE] GET /customers/:id - Customer ID:', req.params.id);
     getCustomerDetail(req, res);

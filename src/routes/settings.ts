@@ -75,6 +75,7 @@ router.post('/backup/config', BackupController.saveConfig);
 router.post('/backup/upload-key', upload.single('keyFile'), BackupController.uploadKey);
 router.post('/backup/run', BackupController.runBackup);
 router.post('/backup/run-local', BackupController.runLocalBackup);
+router.post('/backup/run-full', BackupController.runFullBackup);
 router.get('/backup/list', BackupController.listBackups);
 router.get('/backup/download/:filename', BackupController.downloadBackup);
 router.post('/backup/restore/:filename', BackupController.restoreBackup);

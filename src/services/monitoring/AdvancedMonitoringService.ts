@@ -384,7 +384,7 @@ export class AdvancedMonitoringService {
                 FROM static_ip_ping_status
             `) as [RowDataPacket[], any];
 
-            monitoringCache.staticIPStatus.clear();
+            // Instead of clearing, we update the existing map to preserve history for transition detection
             staticIPStatus.forEach((status: any) => {
                 monitoringCache.staticIPStatus.set(status.customer_id, {
                     customer_id: status.customer_id,
@@ -393,7 +393,7 @@ export class AdvancedMonitoringService {
                     response_time_ms: status.response_time_ms
                 });
             });
-            console.log(`[AdvancedMonitoringService] Cached ${staticIPStatus.length} Static IP statuses`);
+            console.log(`[AdvancedMonitoringService] Updated ${staticIPStatus.length} Static IP statuses in cache`);
 
             monitoringCache.lastRefresh = new Date();
         } catch (error) {
@@ -464,6 +464,25 @@ export class AdvancedMonitoringService {
         };
 
         try {
+            // First Priority: Initialize cache from DB if empty to prevent false notifications on restart
+            if (monitoringCache.staticIPStatus.size === 0) {
+                console.log('[AMS] Initializing cache from database...');
+                const [dbStatuses] = await databasePool.query(`
+                    SELECT customer_id, status, last_check, response_time_ms 
+                    FROM static_ip_ping_status
+                `) as [RowDataPacket[], any];
+
+                dbStatuses.forEach((s: any) => {
+                    monitoringCache.staticIPStatus.set(s.customer_id, {
+                        customer_id: s.customer_id,
+                        status: s.status || 'unknown',
+                        last_check: s.last_check,
+                        response_time_ms: s.response_time_ms
+                    });
+                });
+                console.log(`[AMS] Cache initialized with ${dbStatuses.length} customer statuses.`);
+            }
+
             const mikrotikConfig = await getMikrotikConfig();
 
             if (mikrotikConfig) {
@@ -531,16 +550,9 @@ export class AdvancedMonitoringService {
                             last_offline_at = CASE WHEN ? = 'offline' AND status != 'offline' THEN NOW() ELSE last_offline_at END
                     `, [customer.id, customer.static_ip, status, status, status, status, status]);
 
-                    monitoringCache.staticIPStatus.set(customer.id, {
-                        customer_id: customer.id,
-                        status: status,
-                        last_check: new Date()
-                    });
-
-                    // Trigger AI Notification if status changed to offline
-                    if (status === 'offline') {
-                        await this.handleStatusTransition(customer.id, 'static_ip', status);
-                    }
+                    // Centralized status management
+                    // checking previous status logic is handled inside handleStatusTransition
+                    await this.handleStatusTransition(customer.id, 'static_ip', status);
                 }
                 result.static_ip_checked = staticIPCustomers.length;
             }
@@ -659,11 +671,30 @@ export class AdvancedMonitoringService {
                     }
 
                 } else if (newStatus === 'online') {
-                    console.log(`[Status-Transition] Customer ${customer.name} is back ONLINE.`);
+                    // Start of 'online' logic - Only notify if previously offline
+                    const wasOffline = previous && previous.status === 'offline';
 
-                    await databasePool.query(`
-                        UPDATE static_ip_ping_status SET status = 'online', last_check = NOW(), last_online_at = NOW() WHERE customer_id = ?
-                    `, [customerId]);
+                    if (!wasOffline) {
+                        // If previous status was unknown, undefined, or 'online', do NOT notify 'online'.
+                        // This prevents spam on restart/init.
+                        console.log(`[Status-Transition] Customer ${customer.name} detected ONLINE (Initial/Unknown -> Online). Notification suppressed.`);
+                    } else {
+                        console.log(`[Status-Transition] Customer ${customer.name} is back ONLINE (Recovered).`);
+
+                        await databasePool.query(`
+                            UPDATE static_ip_ping_status SET status = 'online', last_check = NOW(), last_online_at = NOW() WHERE customer_id = ?
+                        `, [customerId]);
+
+                        // Notify Admins & Operators that customer is back online
+                        await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'online');
+
+                        // Notify Customer (Recovered)
+                        await CustomerNotificationService.sendTroubleNotification(
+                            customer, 'recovered'
+                        );
+                    }
+
+                    // Mass Outage Recovery Detection (Always run logic to clean up ODP state)
 
                     // Mass Outage Recovery Detection
                     if (odpId && monitoringCache.odpOfflineCustomers.has(odpId)) {

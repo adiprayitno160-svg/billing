@@ -1,273 +1,449 @@
-﻿<div class="space-y-6">
-    <!-- Header & Actions -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Riwayat Pembayaran (v2)</h1>
-            <p class="text-sm text-gray-500">Semua transaksi pembayaran pelanggan</p>
+﻿<div class="space-y-6 max-w-[1600px] mx-auto pb-10">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fadeInUp">
+        <div class="relative">
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+                <span class="block gradient-text">Riwayat Pembayaran</span>
+            </h1>
+            <p class="mt-2 text-lg text-slate-500 font-medium flex items-center gap-2">
+                <i class="fas fa-receipt text-blue-500"></i>
+                Rekapitulasi transaksi keuangan layanan internet
+            </p>
+            <div class="absolute -left-4 top-0 w-1 h-full bg-blue-600 rounded-full hidden md:block"></div>
         </div>
-        <div class="flex gap-3">
+
+        <div class="flex flex-wrap items-center gap-3">
             <button onclick="exportPayments()"
-                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm text-sm font-medium">
-                <i class="fas fa-download mr-2"></i>Export Excel
+                class="btn-premium group flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 hover:shadow-emerald-200/50 shadow-lg shadow-emerald-100 transition-all font-semibold text-sm">
+                <div
+                    class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <span>Export Report</span>
             </button>
+            <a href="/billing/dashboard"
+                class="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all font-semibold text-sm shadow-sm">
+                <i class="fas fa-arrow-left text-slate-400"></i>
+                <span>Kembali</span>
+            </a>
         </div>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
+    <!-- Stats Dashboard -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Revenue Card -->
+        <div
+            class="card-glass group relative overflow-hidden rounded-2xl p-6 transition-all duration-500 hover:scale-[1.02]">
+            <div
+                class="absolute top-0 right-0 -m-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all">
+            </div>
+            <div class="flex items-center gap-4">
+                <div
+                    class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200/50 group-hover:rotate-6 transition-transform">
+                    <i class="fas fa-money-bill-wave text-white text-2xl"></i>
+                </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-600">Total Pembayaran</p>
-                    <p id="total-amount" class="text-2xl font-bold text-gray-900">Rp 0</p>
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Pendapatan</p>
+                    <h3 id="total-amount" class="text-2xl font-black text-slate-900 mt-1 tabular-nums">Rp 0</h3>
                 </div>
-                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
-                </div>
+            </div>
+            <div
+                class="mt-4 flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
+                <i class="fas fa-arrow-up mr-1"></i> Bulan Ini
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
+        <!-- Total Transactions Card -->
+        <div
+            class="card-glass group relative overflow-hidden rounded-2xl p-6 transition-all duration-500 hover:scale-[1.02]">
+            <div
+                class="absolute top-0 right-0 -m-4 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-violet-500/20 transition-all">
+            </div>
+            <div class="flex items-center gap-4">
+                <div
+                    class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-200/50 group-hover:rotate-6 transition-transform">
+                    <i class="fas fa-receipt text-white text-2xl"></i>
+                </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-600">Jumlah Transaksi</p>
-                    <p id="total-count" class="text-2xl font-bold text-gray-900">0</p>
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Transaksi</p>
+                    <h3 id="total-count" class="text-2xl font-black text-slate-900 mt-1 tabular-nums">0</h3>
                 </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-receipt text-blue-600 text-xl"></i>
-                </div>
+            </div>
+            <div
+                class="mt-4 flex items-center text-xs font-semibold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg w-fit">
+                <i class="fas fa-check-double mr-1"></i> Verified
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
+        <!-- Average Card -->
+        <div
+            class="card-glass group relative overflow-hidden rounded-2xl p-6 transition-all duration-500 hover:scale-[1.02]">
+            <div
+                class="absolute top-0 right-0 -m-4 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all">
+            </div>
+            <div class="flex items-center gap-4">
+                <div
+                    class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200/50 group-hover:rotate-6 transition-transform">
+                    <i class="fas fa-chart-line text-white text-2xl"></i>
+                </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-600">Rata-rata</p>
-                    <p id="avg-amount" class="text-2xl font-bold text-gray-900">Rp 0</p>
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Rata-rata ARPU</p>
+                    <h3 id="avg-amount" class="text-2xl font-black text-slate-900 mt-1 tabular-nums">Rp 0</h3>
                 </div>
-                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-chart-line text-yellow-600 text-xl"></i>
-                </div>
+            </div>
+            <div
+                class="mt-4 flex items-center text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg w-fit">
+                <i class="fas fa-users mr-1"></i> Per Pelanggan
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
+        <!-- Cash Revenue Card -->
+        <div
+            class="card-glass group relative overflow-hidden rounded-2xl p-6 transition-all duration-500 hover:scale-[1.02]">
+            <div
+                class="absolute top-0 right-0 -m-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all">
+            </div>
+            <div class="flex items-center gap-4">
+                <div
+                    class="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200/50 group-hover:rotate-6 transition-transform">
+                    <i class="fas fa-hand-holding-usd text-white text-2xl"></i>
+                </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-600">Tunai</p>
-                    <p id="cash-amount" class="text-2xl font-bold text-gray-900">Rp 0</p>
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Pendapatan Tunai</p>
+                    <h3 id="cash-amount" class="text-2xl font-black text-slate-900 mt-1 tabular-nums">Rp 0</h3>
                 </div>
-                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-calendar-day text-purple-600 text-xl"></i>
-                </div>
+            </div>
+            <div
+                class="mt-4 flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
+                <i class="fas fa-store mr-1"></i> Penagihan Langsung
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <!-- Filters & Search Bar -->
+    <div class="card-glass rounded-2xl p-6 shadow-xl border border-white/50 animate-fadeInUp"
+        style="animation-delay: 0.2s">
+        <form id="filter-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Search -->
+            <div class="lg:col-span-2">
+                <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Pencarian
+                    Cepat</label>
+                <div class="relative group">
+                    <input type="text" name="search" id="search-input"
+                        placeholder="Nama pelanggan, No. Tagihan, atau Referensi..."
+                        class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none font-medium text-slate-700">
+                    <div
+                        class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <i class="fas fa-search"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Method -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Metode Pembayaran</label>
-                <select name="method"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <label
+                    class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Metode</label>
+                <select name="method" id="method-select"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none font-medium text-slate-700 appearance-none cursor-pointer">
                     <option value="">Semua Metode</option>
-                    <option value="cash">Tunai</option>
-                    <option value="transfer">Transfer</option>
-                    <option value="e-wallet">E-Wallet</option>
-                    <option value="gateway">Payment Gateway</option>
+                    <option value="cash">💵 Tunai</option>
+                    <option value="transfer">🏛️ Bank Transfer</option>
+                    <option value="e-wallet">📱 E-Wallet</option>
+                    <option value="gateway">🌐 Payment Gateway</option>
                 </select>
             </div>
 
+            <!-- Date Range Select -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Mulai</label>
-                <input type="date" name="start_date"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Rentang
+                    Tanggal</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="date" name="start_date" id="start-date"
+                        class="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700">
+                    <input type="date" name="end_date" id="end-date"
+                        class="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700">
+                </div>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Akhir</label>
-                <input type="date" name="end_date"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-
+            <!-- Action Buttons -->
             <div class="flex items-end gap-2">
                 <button type="submit"
-                    class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-                    <i class="fas fa-search mr-2"></i>Filter
+                    class="flex-1 btn-premium bg-blue-600 text-white h-[50px] rounded-xl hover:bg-blue-700 hover:shadow-blue-200/50 shadow-lg shadow-blue-100 transition-all font-bold flex items-center justify-center gap-2">
+                    <i class="fas fa-filter"></i>
+                    <span>Terapkan</span>
                 </button>
-                <a href="/billing/payments"
-                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors shadow-sm">
-                    <i class="fas fa-sync-alt"></i>
-                </a>
+                <button type="button" onclick="resetFilters()"
+                    class="w-[50px] h-[50px] bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 hover:text-slate-700 transition-all flex items-center justify-center">
+                    <i class="fas fa-undo"></i>
+                </button>
             </div>
         </form>
     </div>
 
-    <!-- Payments Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-            <h3 class="text-lg font-semibold text-gray-900">Daftar Transaksi</h3>
+    <!-- Table Section -->
+    <div class="card-glass rounded-2xl shadow-2xl border border-white/50 overflow-hidden animate-fadeInUp"
+        style="animation-delay: 0.3s">
+        <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white/50">
+            <h3 class="font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <span class="w-2 h-6 bg-blue-600 rounded-full"></span>
+                Daftar Transaksi Terakhir
+            </h3>
+            <div class="flex items-center gap-2">
+                <span id="result-count"
+                    class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold tabular-nums">0
+                    records</span>
+                <button onclick="loadPayments()" class="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                    title="Reload Data">
+                    <i class="fas fa-sync-alt animate-spin-hover"></i>
+                </button>
+            </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tanggal</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.
-                            Tagihan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Pelanggan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Jumlah</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Metode</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Bukti</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi
-                        </th>
+        <div class="overflow-x-auto relative min-h-[400px]">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr
+                        class="bg-slate-50/50 text-slate-500 text-[11px] font-black uppercase tracking-[0.2em] border-b border-slate-100">
+                        <th class="px-6 py-4">Waktu Transaksi</th>
+                        <th class="px-6 py-4">Informasi Tagihan</th>
+                        <th class="px-6 py-4">Pelanggan</th>
+                        <th class="px-6 py-4">Nominal</th>
+                        <th class="px-6 py-4">Metode & ODC</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4 text-right">Opsi</th>
                     </tr>
                 </thead>
-                <tbody id="payments-tbody" class="bg-white divide-y divide-gray-200">
+                <tbody id="payments-tbody" class="divide-y divide-slate-100">
+                    <!-- Loading State -->
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                            <i class="fas fa-spinner fa-spin text-3xl mb-2 text-blue-500"></i>
-                            <p>Memuat data...</p>
+                        <td colspan="7" class="px-6 py-20 text-center">
+                            <div class="flex flex-col items-center justify-center space-y-4">
+                                <div class="relative w-16 h-16">
+                                    <div class="absolute inset-0 rounded-full bg-blue-100 animate-ping"></div>
+                                    <div
+                                        class="absolute inset-0 rounded-full bg-blue-600 flex items-center justify-center">
+                                        <i class="fas fa-circle-notch fa-spin text-white text-2xl"></i>
+                                    </div>
+                                </div>
+                                <p class="text-slate-500 font-bold tracking-widest animate-pulse">MEMUAT DATA
+                                    KEUANGAN...</p>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination -->
+        <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+            <div class="text-sm text-slate-500 font-medium" id="pagination-info">
+                Menampilkan <span class="font-bold text-slate-900" id="page-start">0</span> - <span
+                    class="font-bold text-slate-900" id="page-end">0</span> dari <span class="font-bold text-slate-900"
+                    id="total-records">0</span>
+            </div>
+            <div class="flex items-center gap-2" id="pagination-controls">
+                <!-- Will be populated by JS -->
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Payment Detail Modal -->
-<div id="payment-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog"
+<!-- Enhanced Detail Modal -->
+<div id="payment-modal" class="fixed inset-0 z-[10000] overflow-y-auto hidden animate-fadeIn" role="dialog"
     aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
-            onclick="closePaymentModal()"></div>
+    <div class="flex items-center justify-center min-h-screen px-4 py-8 text-center sm:block sm:p-0">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onclick="closePaymentModal()">
+        </div>
 
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
 
-        <!-- Modal panel -->
+        <!-- Modal Content -->
         <div
-            class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
+            class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl w-full">
+            <!-- Modal Header -->
+            <div class="relative px-6 py-8 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
+                <button onclick="closePaymentModal()"
+                    class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="flex items-center gap-4">
                     <div
-                        class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <i class="fas fa-receipt text-blue-600"></i>
+                        class="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-lg flex items-center justify-center text-3xl shadow-inner">
+                        <i class="fas fa-receipt"></i>
                     </div>
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Detail Pembayaran</h3>
-                        <div class="mt-4 space-y-3">
-                            <div class="flex justify-between border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Tanggal</span>
-                                <span class="text-sm font-medium text-gray-900" id="modal-date">-</span>
-                            </div>
-                            <div class="flex justify-between border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Nomor Tagihan</span>
-                                <a href="#" id="modal-invoice-link"
-                                    class="text-sm font-medium text-blue-600 hover:underline">-</a>
-                            </div>
-                            <div class="flex justify-between border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Pelanggan</span>
-                                <span class="text-sm font-medium text-gray-900" id="modal-customer">-</span>
-                            </div>
-                            <div class="flex justify-between border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Metode</span>
-                                <span class="text-sm font-medium text-gray-900" id="modal-method">-</span>
-                            </div>
-                            <div class="flex justify-between border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Jumlah</span>
-                                <span class="text-sm font-bold text-green-600" id="modal-amount">-</span>
-                            </div>
-                            <div class="flex justify-between border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Referensi</span>
-                                <span class="text-sm text-gray-900" id="modal-reference">-</span>
-                            </div>
-                            <div class="flex flex-col gap-1 border-b border-gray-100 pb-2">
-                                <span class="text-sm text-gray-500">Catatan</span>
-                                <span class="text-sm text-gray-700 italic" id="modal-notes">-</span>
-                            </div>
-                            <div id="modal-proof-container" class="mt-3 hidden">
-                                <span class="text-sm text-gray-500 block mb-2">Bukti Pembayaran</span>
-                                <img id="modal-proof-image" src="" alt="Bukti Pembayaran"
-                                    class="w-full rounded-lg border border-gray-200">
-                            </div>
+                    <div>
+                        <h3 class="text-2xl font-black tracking-tight" id="modal-title">Struk Pembayaran</h3>
+                        <p class="text-blue-100 font-medium" id="modal-invoice-number">INV-2024-001</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="px-8 py-8 space-y-6">
+                <!-- Main Info Grid -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Transaksi</p>
+                        <p class="text-sm font-bold text-slate-900" id="modal-date">-</p>
+                    </div>
+                    <div class="space-y-1 text-right">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Bayar</p>
+                        <p class="text-sm font-bold text-slate-900" id="modal-method">-</p>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-slate-500 font-medium">Nama Pelanggan</span>
+                        <span class="text-sm font-black text-slate-900" id="modal-customer">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-slate-500 font-medium">ID Pelanggan</span>
+                        <span class="text-sm font-black text-slate-900" id="modal-customer-code">-</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t border-slate-200">
+                        <span class="text-lg font-black text-slate-800">TOTAL BAYAR</span>
+                        <span class="text-xl font-black text-emerald-600 tabular-nums" id="modal-amount">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Secondary Info -->
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nomor Referensi</p>
+                        <p class="text-sm font-medium text-slate-700 font-mono bg-slate-100 px-3 py-2 rounded-lg border border-slate-200"
+                            id="modal-reference">-</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Diterima Sebagai</p>
+                        <p id="modal-invoice-status-badge" class="w-fit"></p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catatan Transaksi</p>
+                        <p class="text-sm text-slate-600 italic bg-slate-50 p-3 rounded-lg border-l-4 border-blue-500"
+                            id="modal-notes">-</p>
+                    </div>
+                </div>
+
+                <!-- Proof Image -->
+                <div id="modal-proof-container" class="space-y-2 pt-4 hidden">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bukti Transfer /
+                        Screenshoot</p>
+                    <div class="relative group cursor-pointer"
+                        onclick="window.open(document.getElementById('modal-proof-image').src, '_blank')">
+                        <img id="modal-proof-image" src="" alt="Bukti"
+                            class="w-full h-auto max-h-[300px] object-contain rounded-2xl border-2 border-slate-100 shadow-lg">
+                        <div
+                            class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all rounded-2xl">
+                            <i class="fas fa-expand text-white text-3xl"></i>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+
+            <!-- Modal Footer -->
+            <div class="px-8 py-6 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3 sm:flex-row-reverse">
                 <a id="modal-view-invoice-btn" href="#"
-                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                    Lihat Invoice
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-black text-sm rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+                    <i class="fas fa-file-invoice"></i>
+                    LIHAT INVOICE ASLI
                 </a>
-                <button type="button" onclick="closePaymentModal()"
-                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                    Tutup
+                <button onclick="closePaymentModal()"
+                    class="flex-1 sm:flex-none px-6 py-3 bg-white text-slate-700 border border-slate-200 font-bold text-sm rounded-xl hover:bg-slate-100 transition-all">
+                    TUTUP STRUK
                 </button>
             </div>
         </div>
     </div>
 </div>
-</div>
+
+<style>
+    .gradient-text {
+        background: linear-gradient(to right, #2563eb, #7c3aed, #db2777);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .animate-spin-hover:hover {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    .card-glass {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+</style>
 
 <script>
     let currentPayments = [];
+    let currentPage = 1;
 
-    async function loadPayments() {
+    async function loadPayments(page = 1) {
+        currentPage = page;
+        const tbody = document.getElementById('payments-tbody');
+
         try {
-            // Get query parameters from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const queryStr = urlParams.toString() ? '?' + urlParams.toString() : '';
+            const formData = new FormData(document.getElementById('filter-form'));
+            const params = new URLSearchParams();
+            params.append('page', page);
+            params.append('limit', 15);
+            params.append('format', 'json');
 
-            // Set form values from URL params
-            const methodSelect = document.querySelector('select[name="method"]');
-            if (methodSelect && urlParams.get('method')) methodSelect.value = urlParams.get('method');
+            if (document.getElementById('search-input').value) params.append('search', document.getElementById('search-input').value);
+            if (document.getElementById('method-select').value) params.append('payment_method', document.getElementById('method-select').value);
+            if (document.getElementById('start-date').value) params.append('date_from', document.getElementById('start-date').value);
+            if (document.getElementById('end-date').value) params.append('date_to', document.getElementById('end-date').value);
 
-            const startDateInput = document.querySelector('input[name="start_date"]');
-            if (startDateInput && urlParams.get('start_date')) startDateInput.value = urlParams.get('start_date');
-
-            const endDateInput = document.querySelector('input[name="end_date"]');
-            if (endDateInput && urlParams.get('end_date')) endDateInput.value = urlParams.get('end_date');
-
-            const response = await fetch('/billing/payments' + queryStr + (queryStr ? '&' : '?') + 'format=json');
+            const response = await fetch(`/billing/payments?${params.toString()}`);
             const data = await response.json();
+
+            if (!data.success) throw new Error(data.message);
+
             currentPayments = data.payments || [];
+            updateSummary(data.stats);
+            updatePaginationLinks(data.pagination);
 
-            const tbody = document.getElementById('payments-tbody');
-
-            // Update summary cards
-            if (data.stats) {
-                const totalAmount = parseFloat(data.stats.total_amount || 0);
-                const totalPayments = parseInt(data.stats.total_payments || 0);
-                const avgAmount = totalPayments > 0 ? totalAmount / totalPayments : 0;
-                const cashAmount = parseFloat(data.stats.cash_amount || 0);
-
-                document.getElementById('total-amount').textContent =
-                    'Rp ' + new Intl.NumberFormat('id-ID').format(totalAmount);
-                document.getElementById('total-count').textContent = totalPayments;
-                document.getElementById('avg-amount').textContent =
-                    'Rp ' + new Intl.NumberFormat('id-ID').format(avgAmount);
-                document.getElementById('cash-amount').textContent =
-                    'Rp ' + new Intl.NumberFormat('id-ID').format(cashAmount);
-            }
-
-            if (!data.payments || data.payments.length === 0) {
+            if (currentPayments.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                            <div class="flex flex-col items-center justify-center">
-                                <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i>
-                                <p>Belum ada data pembayaran</p>
+                        <td colspan="7" class="px-6 py-24 text-center">
+                            <div class="flex flex-col items-center justify-center space-y-3">
+                                <i class="fas fa-folder-open text-5xl text-slate-200"></i>
+                                <p class="text-slate-400 font-black tracking-widest text-sm uppercase">TIDAK ADA DATA TRANSAKSI</p>
+                                <p class="text-slate-400 text-xs">Coba sesuaikan filter atau kata kunci pencarian Anda</p>
                             </div>
                         </td>
                     </tr>
@@ -275,127 +451,174 @@
                 return;
             }
 
-            tbody.innerHTML = data.payments.map(payment => {
-                // Determine payment status based on invoice status
-                let statusClass = 'bg-green-100 text-green-800 border border-green-200';
-                let statusText = 'Lunas';
-
-                if (payment.invoice_status === 'paid') {
-                    statusClass = 'bg-green-100 text-green-800 border border-green-200';
-                    statusText = 'Lunas';
-                } else if (payment.invoice_status === 'partial') {
-                    statusClass = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-                    statusText = 'Cicilan';
-                } else if (payment.invoice_status === 'overdue' || payment.invoice_status === 'debt') {
-                    statusClass = 'bg-red-100 text-red-800 border border-red-200';
-                    statusText = 'Hutang';
-                } else if (payment.invoice_status === 'unpaid') {
-                    statusClass = 'bg-gray-100 text-gray-800 border border-gray-200';
-                    statusText = 'Belum Lunas';
-                }
+            tbody.innerHTML = currentPayments.map((p, idx) => {
+                const date = new Date(p.payment_date);
+                const statusBadge = getStatusBadge(p.invoice_status);
+                const methodLabel = getMethodLabel(p.payment_method);
 
                 return `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            ${new Date(payment.payment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    <tr class="hover:bg-blue-50/50 transition-all duration-300 group">
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-slate-900">${date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                            <a href="/billing/tagihan/${payment.invoice_id}" class="hover:underline">${payment.invoice_number || '-'}</a>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <a href="/billing/tagihan/${p.invoice_id}" class="text-sm font-black text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1">
+                                    ${p.invoice_number}
+                                    <i class="fas fa-external-link-alt text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                </a>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">Periode: ${p.period}</span>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${payment.customer_name || '-'}</div>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">
+                                    ${p.customer_name ? p.customer_name.charAt(0).toUpperCase() : '?'}
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-slate-900 truncate max-w-[150px]">${p.customer_name}</span>
+                                    <span class="text-[10px] text-slate-400 font-mono">${p.customer_code}</span>
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                            Rp ${new Intl.NumberFormat('id-ID').format(parseFloat(payment.amount || 0))}
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-slate-900 tabular-nums">Rp ${new Intl.NumberFormat('id-ID').format(p.amount)}</span>
+                                ${p.invoice_remaining > 0 ? `<span class="text-[9px] font-bold text-amber-500 uppercase">Sisa: Rp ${new Intl.NumberFormat('id-ID').format(p.invoice_remaining)}</span>` : '<span class="text-[9px] font-bold text-emerald-500 uppercase">Pelunasan</span>'}
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            ${formatPaymentMethod(payment.payment_method)}
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col gap-1">
+                                <div class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                                    ${methodLabel}
+                                </div>
+                                <div class="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                    <i class="fas fa-network-wired text-slate-300"></i> ${p.odc_name || 'No Area'}
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            ${payment.proof_image ?
-                        `<a href="${payment.proof_image}" target="_blank" class="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1">
-                                    <i class="fas fa-image"></i> Lihat
-                                 </a>` :
-                        '<span class="text-gray-400">-</span>'
-                    }
+                        <td class="px-6 py-4">
+                            ${statusBadge}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
-                                ${statusText}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="resendNotification(${payment.id}, this)" class="text-gray-400 hover:text-green-600 transition-colors mr-2" title="Kirim Ulang Notifikasi WA">
-                                <i class="fab fa-whatsapp text-lg"></i>
-                            </button>
-                            <button onclick="viewPayment(${payment.id}, ${payment.invoice_id})" class="text-gray-400 hover:text-blue-600 transition-colors" title="Lihat Detail Invoice">
-                                <i class="fas fa-eye text-lg"></i>
-                            </button>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="resendNotification(${p.id}, this)" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center" title="Resend WA">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button onclick="viewPayment(${p.id})" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center" title="Detail">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
             }).join('');
 
         } catch (error) {
-            console.error('Error loading payments:', error);
-            document.getElementById('payments-tbody').innerHTML = `
-                <tr>
-                    <td colspan="7" class="px-6 py-12 text-center text-red-500">
-                        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
-                        <p>Gagal memuat data pembayaran</p>
-                    </td>
-                </tr>
-            `;
+            console.error(error);
+            tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-20 text-center text-red-500 font-bold uppercase tracking-widest">Error: ${error.message}</td></tr>`;
         }
     }
 
-    function formatPaymentMethod(method) {
-        const methods = {
-            'cash': '<span class="inline-flex items-center gap-1"><i class="fas fa-money-bill text-green-500"></i> Tunai</span>',
-            'transfer': '<span class="inline-flex items-center gap-1"><i class="fas fa-university text-blue-500"></i> Bank</span>',
-            'e-wallet': '<span class="inline-flex items-center gap-1"><i class="fas fa-wallet text-purple-500"></i> E-Wallet</span>',
-            'gateway': '<span class="inline-flex items-center gap-1"><i class="fas fa-globe text-cyan-500"></i> Gateway</span>'
+    function updateSummary(stats) {
+        if (!stats) return;
+
+        const totalAmount = parseFloat(stats.total_amount || 0);
+        const totalCount = parseInt(stats.total_payments || 0);
+        const cashAmount = parseFloat(stats.cash_amount || 0);
+        const avg = totalCount > 0 ? totalAmount / totalCount : 0;
+
+        document.getElementById('total-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(totalAmount);
+        document.getElementById('total-count').textContent = totalCount;
+        document.getElementById('avg-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(avg);
+        document.getElementById('cash-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(cashAmount);
+        document.getElementById('result-count').textContent = `${totalCount} records`;
+    }
+
+    function updatePaginationLinks(pagination) {
+        if (!pagination) return;
+
+        const { currentPage, totalPages, totalCount, limit } = pagination;
+
+        document.getElementById('total-records').textContent = totalCount;
+        document.getElementById('page-start').textContent = totalCount > 0 ? (currentPage - 1) * limit + 1 : 0;
+        document.getElementById('page-end').textContent = Math.min(currentPage * limit, totalCount);
+
+        const container = document.getElementById('pagination-controls');
+        let html = '';
+
+        // Prev
+        html += `<button onclick="loadPayments(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
+            <i class="fas fa-chevron-left text-xs"></i>
+        </button>`;
+
+        // Pages (Simplified)
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            html += `<button onclick="loadPayments(${i})" class="w-9 h-9 flex items-center justify-center rounded-lg ${i === currentPage ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold'} text-xs">
+                ${i}
+            </button>`;
+        }
+
+        // Next
+        html += `<button onclick="loadPayments(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
+            <i class="fas fa-chevron-right text-xs"></i>
+        </button>`;
+
+        container.innerHTML = html;
+    }
+
+    function getStatusBadge(status) {
+        const config = {
+            'paid': { label: 'LUNAS', cls: 'bg-emerald-100 text-emerald-800' },
+            'partial': { label: 'ANGSURAN', cls: 'bg-amber-100 text-amber-800' },
+            'unpaid': { label: 'PENDING', cls: 'bg-slate-100 text-slate-600' },
+            'overdue': { label: 'HUTANG', cls: 'bg-red-100 text-red-700' }
         };
-        return methods[method] || method;
+        const s = config[status] || { label: status.toUpperCase(), cls: 'bg-gray-100 text-gray-700' };
+        return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${s.cls}">${s.label}</span>`;
     }
 
-    function viewPayment(id, invoiceId) {
-        if (!currentPayments.length) return;
+    function getMethodLabel(method) {
+        const icons = {
+            'cash': '<i class="fas fa-money-bill-alt text-emerald-500"></i> Tunai',
+            'transfer': '<i class="fas fa-university text-blue-500"></i> Bank Transfer',
+            'gateway': '<i class="fas fa-globe-asia text-indigo-500"></i> Gateway',
+            'e-wallet': '<i class="fas fa-wallet text-pink-500"></i> E-Wallet'
+        };
+        return icons[method] || method;
+    }
 
-        const payment = currentPayments.find(p => p.id === id);
-        if (!payment) {
-            Swal.fire('Error', 'Data pembayaran tidak ditemukan.', 'error');
-            return;
-        }
+    function viewPayment(id) {
+        const p = currentPayments.find(p => p.id === id);
+        if (!p) return;
 
-        // Populate modal
-        document.getElementById('modal-date').textContent = new Date(payment.payment_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const date = new Date(p.payment_date);
+        document.getElementById('modal-title').textContent = 'Detail Pembayaran';
+        document.getElementById('modal-invoice-number').textContent = p.invoice_number;
+        document.getElementById('modal-date').textContent = `${date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - ${date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`;
+        document.getElementById('modal-method').innerHTML = getMethodLabel(p.payment_method);
+        document.getElementById('modal-customer').textContent = p.customer_name;
+        document.getElementById('modal-customer-code').textContent = p.customer_code;
+        document.getElementById('modal-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(p.amount);
+        document.getElementById('modal-reference').textContent = p.reference_number || 'TIDAK TERSEDIA';
+        document.getElementById('modal-notes').textContent = p.notes || '-';
+        document.getElementById('modal-view-invoice-btn').href = `/billing/tagihan/${p.invoice_id}`;
 
-        const invoiceLink = document.getElementById('modal-invoice-link');
-        invoiceLink.textContent = payment.invoice_number || '-';
-        invoiceLink.href = `/billing/tagihan/${payment.invoice_id}`;
+        document.getElementById('modal-invoice-status-badge').innerHTML = getStatusBadge(p.invoice_status);
 
-        document.getElementById('modal-customer').textContent = payment.customer_name || '-';
-        document.getElementById('modal-method').innerHTML = formatPaymentMethod(payment.payment_method);
-        document.getElementById('modal-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(parseFloat(payment.amount || 0));
-        document.getElementById('modal-reference').textContent = payment.reference_number || '-';
-        document.getElementById('modal-notes').textContent = payment.notes || '-';
-
-        // Proof image
         const proofContainer = document.getElementById('modal-proof-container');
-        const proofImage = document.getElementById('modal-proof-image');
+        const img = document.getElementById('modal-proof-image');
 
-        if (payment.proof_image) {
-            proofImage.src = payment.proof_image;
+        if (p.proof_image) {
+            img.src = p.proof_image.startsWith('data:') ? p.proof_image : p.proof_image;
             proofContainer.classList.remove('hidden');
         } else {
             proofContainer.classList.add('hidden');
         }
 
-        // View invoice button
-        document.getElementById('modal-view-invoice-btn').href = `/billing/tagihan/${payment.invoice_id}`;
-
-        // Show modal
         document.getElementById('payment-modal').classList.remove('hidden');
     }
 
@@ -403,55 +626,57 @@
         document.getElementById('payment-modal').classList.add('hidden');
     }
 
-    function exportPayments() {
-        window.location.href = '/billing/payments/export';
+    function resetFilters() {
+        document.getElementById('filter-form').reset();
+        loadPayments(1);
     }
 
-    async function resendNotification(paymentId, btn) {
-        const resultConfirm = await Swal.fire({
-            title: 'Kirim Notifikasi?',
-            text: 'Kirim ulang notifikasi pembayaran via WhatsApp?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Kirim',
-            cancelButtonText: 'Batal'
-        });
-
-        if (!resultConfirm.isConfirmed) return;
-
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+    async function resendNotification(id, btn) {
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
         btn.disabled = true;
 
         try {
-            const response = await fetch(`/billing/payments/${paymentId}/resend-notification`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+            const resp = await fetch(`/billing/payments/${id}/resend-notification`, { method: 'POST' });
+            const data = await resp.json();
+
+            Swal.fire({
+                icon: data.success ? 'success' : 'error',
+                title: data.success ? 'Terkirim!' : 'Gagal!',
+                text: data.message,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
             });
-
-            const result = await response.json();
-
-            if (result.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Terkirim!',
-                    text: result.message,
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            } else {
-                const errorMsg = result.message || 'Gagal mengirim notifikasi. Pastikan WhatsApp terhubung.';
-                Swal.fire('Gagal!', errorMsg, 'error');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            Swal.fire('Error!', 'Terjadi kesalahan koneksi saat mengirim notifikasi.', 'error');
+        } catch (e) {
+            Swal.fire('Error', 'Gagal kirim WhatsApp: ' + e.message, 'error');
         } finally {
-            btn.innerHTML = originalHtml;
+            btn.innerHTML = original;
             btn.disabled = false;
         }
     }
 
-    // Load payments on page load
-    loadPayments();
+    function exportPayments() {
+        const params = new URLSearchParams();
+        if (document.getElementById('method-select').value) params.append('payment_method', document.getElementById('method-select').value);
+        if (document.getElementById('start-date').value) params.append('date_from', document.getElementById('start-date').value);
+        if (document.getElementById('end-date').value) params.append('date_to', document.getElementById('end-date').value);
+        window.location.href = `/billing/payments/export?${params.toString()}`;
+    }
+
+    // Initialize
+    document.getElementById('filter-form').onsubmit = (e) => {
+        e.preventDefault();
+        loadPayments(1);
+    };
+
+    // Debounced search
+    let searchTimer;
+    document.getElementById('search-input').oninput = () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadPayments(1), 500);
+    };
+
+    window.onload = () => loadPayments(1);
 </script>

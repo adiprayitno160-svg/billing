@@ -1367,23 +1367,25 @@ export class NetworkMonitoringService {
                                 const wasOnlinePreviously = previousStates.get(cust.id) === 'online';
 
                                 if (!isOnline) {
-                                    // New offline event - send trouble notification
-                                    await notificationService.sendTroubleNotification(
-                                        {
-                                            id: cust.id,
-                                            name: cust.name,
-                                            customer_code: cust.customer_code,
-                                            phone: cust.phone,
-                                            connection_type: cust.connection_type,
-                                            pppoe_username: cust.pppoe_username,
-                                            ip_address: cust.ip_address,
-                                            odc_id: cust.odc_id,
-                                            odp_id: cust.odp_id,
-                                            address: cust.address
-                                        },
-                                        'offline'
-                                    );
-                                } else if (wasOnlinePreviously) {
+                                    // ONLY send offline notification if they were previously online (Transition)
+                                    if (wasOnlinePreviously) {
+                                        await notificationService.sendTroubleNotification(
+                                            {
+                                                id: cust.id,
+                                                name: cust.name,
+                                                customer_code: cust.customer_code,
+                                                phone: cust.phone,
+                                                connection_type: cust.connection_type,
+                                                pppoe_username: cust.pppoe_username,
+                                                ip_address: cust.ip_address,
+                                                odc_id: cust.odc_id,
+                                                odp_id: cust.odp_id,
+                                                address: cust.address
+                                            },
+                                            'offline'
+                                        );
+                                    }
+                                } else if (!wasOnlinePreviously) {
                                     // Recovery event - customer came back online
                                     await notificationService.sendTroubleNotification(
                                         {
@@ -1400,6 +1402,21 @@ export class NetworkMonitoringService {
                                         },
                                         'recovered'
                                     );
+
+                                    // Also notify admins
+                                    await notificationService.broadcastCustomerStatusToAdmins(
+                                        {
+                                            id: cust.id,
+                                            name: cust.name,
+                                            customer_code: cust.customer_code,
+                                            phone: cust.phone || '',
+                                            connection_type: cust.connection_type,
+                                            pppoe_username: cust.pppoe_username,
+                                            address: cust.address,
+                                            odp_name: cust.odp_name
+                                        },
+                                        'online'
+                                    );
                                 }
                             }
                         }
@@ -1407,7 +1424,6 @@ export class NetworkMonitoringService {
                         // Update customer states for next comparison
                         await this.updateCustomerStates(rows as any[], onlineUsernames);
                     }
-
                 }
             } catch (e) {
                 console.error('Error fetching Mikrotik active sessions for trouble customers:', e);
@@ -1483,6 +1499,15 @@ export class NetworkMonitoringService {
      */
     private static async getPreviousCustomerStates(): Promise<Map<number, string>> {
         try {
+            // Create table if not exists
+            await databasePool.query(`
+                CREATE TABLE IF NOT EXISTS customer_current_states (
+                    customer_id INT PRIMARY KEY,
+                    status VARCHAR(20),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+            `);
+
             const [states] = await databasePool.query<RowDataPacket[]>(
                 `SELECT customer_id, status FROM customer_current_states`
             );
@@ -1504,16 +1529,7 @@ export class NetworkMonitoringService {
      */
     private static async updateCustomerStates(customers: any[], onlineUsernames: Set<string>): Promise<void> {
         try {
-            // Create temporary table if not exists
-            await databasePool.query(`
-                CREATE TABLE IF NOT EXISTS customer_current_states (
-                    customer_id INT PRIMARY KEY,
-                    status VARCHAR(20),
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )
-            `);
-
-            // Update states for all customers
+            // Update states for all customers in the report
             for (const customer of customers) {
                 const status = customer.pppoe_username && onlineUsernames.has(customer.pppoe_username)
                     ? 'online'
@@ -1595,6 +1611,7 @@ export class NetworkMonitoringService {
             `);
 
             for (const customer of degradedCustomers as any[]) {
+                /*
                 await notificationService.sendTroubleNotification(
                     {
                         id: customer.id,
@@ -1609,6 +1626,8 @@ export class NetworkMonitoringService {
                         packetLoss: customer.packet_loss_percent
                     }
                 );
+                */
+                console.log(`[Monitoring] Degraded performance detected for ${customer.name}, but notification is disabled.`);
             }
 
         } catch (error) {

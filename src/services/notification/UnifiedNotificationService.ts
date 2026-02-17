@@ -24,6 +24,7 @@ export type NotificationType =
   | 'service_restored'
   | 'service_suspended'
   | 'service_blocked'
+  | 'service_blocked_system'
   | 'service_unblocked'
   | 'customer_created'
   | 'customer_deleted'
@@ -224,12 +225,23 @@ export class UnifiedNotificationService {
     let skipped = 0;
 
     try {
+      // 0. Ensure worker_id column exists for better isolation (Internal Auto-fix)
+      try {
+        const [cols]: any = await connection.query("SHOW COLUMNS FROM unified_notifications_queue LIKE 'worker_id'");
+        if (cols.length === 0) {
+          await connection.query("ALTER TABLE unified_notifications_queue ADD COLUMN worker_id VARCHAR(50) DEFAULT NULL AFTER status");
+        }
+      } catch (e) { /* ignore */ }
+
+      // Generate a unique ID for this worker run
+      const runId = `worker_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
       // 1. First, cleanup any stuck processing notifications (those that have been in processing status for > 15 mins)
-      // This handles cases where a worker crashed or was restarted mid-process
       await connection.query(
         `UPDATE unified_notifications_queue 
          SET status = 'pending', 
              error_message = 'Process timed out or worker restarted',
+             worker_id = NULL,
              updated_at = NOW() 
          WHERE status = 'processing' 
          AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)`
@@ -245,45 +257,89 @@ export class UnifiedNotificationService {
          AND (created_at < DATE_SUB(NOW(), INTERVAL 14 DAY))`
       );
 
-      // Build query for pending notifications
-      let query = `SELECT * FROM unified_notifications_queue 
-                   WHERE status = 'pending' 
-                   AND (scheduled_for IS NULL OR scheduled_for <= NOW())`;
-      const params: any[] = [];
+      // 2. ATOMIC BATCH GRAB - Use SELECT ... FOR UPDATE SKIP LOCKED if possible, 
+      // otherwise use an UPDATE then SELECT approach.
+      let notifications: any[] = [];
 
-      if (specificIds && specificIds.length > 0) {
-        query += ` AND id IN (?)`;
-        params.push(specificIds);
+      try {
+        // Try the modern MySQL 8.0+ way
+        await connection.beginTransaction();
+
+        let selectQuery = `
+          SELECT id FROM unified_notifications_queue 
+          WHERE status = 'pending' 
+          AND (scheduled_for IS NULL OR scheduled_for <= NOW())
+        `;
+        const selectParams: any[] = [];
+
+        if (specificIds && specificIds.length > 0) {
+          selectQuery += ` AND id IN (?)`;
+          selectParams.push(specificIds);
+        }
+
+        selectQuery += ` ORDER BY 
+          CASE priority 
+            WHEN 'high' THEN 1 
+            WHEN 'normal' THEN 2 
+            WHEN 'low' THEN 3 
+          END,
+          created_at ASC
+          LIMIT ? FOR UPDATE SKIP LOCKED`;
+        selectParams.push(limit);
+
+        const [rows] = await connection.query<RowDataPacket[]>(selectQuery, selectParams);
+        const idsToProcess = rows.map(r => r.id);
+
+        if (idsToProcess.length > 0) {
+          await connection.query(
+            `UPDATE unified_notifications_queue 
+             SET status = 'processing', worker_id = ?, updated_at = NOW() 
+             WHERE id IN (?)`,
+            [runId, idsToProcess]
+          );
+
+          await connection.commit();
+
+          // Now fetch the full rows for the items we just claimed
+          const [fullNotifs] = await connection.query<RowDataPacket[]>(
+            `SELECT * FROM unified_notifications_queue WHERE worker_id = ?`,
+            [runId]
+          );
+          notifications = fullNotifs;
+        } else {
+          await connection.rollback();
+        }
+      } catch (err) {
+        // Fallback for older MySQL or other errors
+        if (connection.beginTransaction) await connection.rollback().catch(() => { });
+        console.warn('[UnifiedNotification] ⚠️ SKIP LOCKED failed or transaction error, using fallback:', err.message);
+
+        // Manual marking approach
+        await connection.query(
+          `UPDATE unified_notifications_queue 
+           SET status = 'processing', worker_id = ?, updated_at = NOW() 
+           WHERE status = 'pending' 
+           AND (scheduled_for IS NULL OR scheduled_for <= NOW())
+           ORDER BY created_at ASC
+           LIMIT ?`,
+          [runId, limit]
+        );
+
+        const [fullNotifs] = await connection.query<RowDataPacket[]>(
+          `SELECT * FROM unified_notifications_queue WHERE worker_id = ?`,
+          [runId]
+        );
+        notifications = fullNotifs;
       }
 
-      query += ` ORDER BY 
-                 CASE priority 
-                   WHEN 'high' THEN 1 
-                   WHEN 'normal' THEN 2 
-                   WHEN 'low' THEN 3 
-                 END,
-                 created_at ASC
-               LIMIT ?`;
-      params.push(limit);
-
-      const [notifications] = await connection.query<RowDataPacket[]>(query, params);
-
-      console.log(`[UnifiedNotification] 📋 Found ${notifications.length} pending notifications to process`);
+      console.log(`[UnifiedNotification] 📋 Claimed ${notifications.length} notifications with worker_id: ${runId}`);
 
       if (notifications.length === 0) {
         return { sent: 0, failed: 0, skipped: 0 };
       }
 
-      // Mark these notifications as 'processing' to prevent race conditions with Cron/Other threads
-      const processingIds = notifications.map(n => n.id);
-      if (processingIds.length > 0) {
-        await connection.query(
-          `UPDATE unified_notifications_queue SET status = 'processing' WHERE id IN (?)`,
-          [processingIds]
-        );
-      }
-
       for (const notif of notifications) {
+
         console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
           customer_id: notif.customer_id,
           notification_type: notif.notification_type,
@@ -806,54 +862,61 @@ export class UnifiedNotificationService {
       const paymentDate = new Date(payment.payment_date);
       const remainingAmount = parseFloat(payment.remaining_amount || '0');
 
-      // Determine notification type
-      const notificationType = remainingAmount > 0 ? 'payment_partial' : 'payment_received';
+      // Determine notification type with tolerance (e.g. 100 rupiah)
+      const isPaid = remainingAmount <= 100;
+      const notificationType = isPaid ? 'payment_received' : 'payment_partial';
 
       // Generate PDF if full payment
       let attachmentPath = undefined;
-      if (remainingAmount <= 0) {
+      if (isPaid) {
         try {
           const { InvoicePdfService } = await import('../invoice/InvoicePdfService');
           attachmentPath = await InvoicePdfService.generateInvoicePdf(payment.invoice_id);
           console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
         } catch (pdfError) {
           console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
+          // Continue without attachment
         }
       }
 
       // Format billing month
       const billingMonth = getBillingMonth(payment.period, paymentDate, payment.due_date);
 
-      await this.queueNotification({
-        customer_id: payment.customer_id,
-        invoice_id: payment.invoice_id,
-        payment_id: paymentId,
-        notification_type: notificationType as NotificationType,
-        attachment_path: attachmentPath,
-        variables: {
-          customer_name: payment.customer_name,
-          customer_code: payment.customer_code,
-          invoice_number: payment.invoice_number,
-          billing_month: billingMonth,
-          amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
-          paid_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
-          subtotal: NotificationTemplateService.formatCurrency(parseFloat(payment.subtotal || 0)),
-          discount_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0)),
-          billing_summary: `Total Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount))}\n` +
-            (parseFloat(payment.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0))}\n` : '') +
-            `Jumlah Bayar: ${NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
-            `Sisa Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(payment.remaining_amount))}`,
-          total_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount)),
-          remaining_amount: NotificationTemplateService.formatCurrency(remainingAmount),
-          payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
-          payment_date: NotificationTemplateService.formatDate(paymentDate),
-          due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
-          payment_notes: payment.notes || '',
-          invoice_notes: payment.invoice_notes || '',
-          notes: (payment.notes ? `Pesan: ${payment.notes}` : '') + (payment.notes && payment.invoice_notes ? '\n' : '') + (payment.invoice_notes ? `Keterangan: ${payment.invoice_notes}` : '')
-        },
-        send_immediately: sendImmediately // Urgent: Payment receipt
-      });
+      try {
+        await this.queueNotification({
+          customer_id: payment.customer_id,
+          invoice_id: payment.invoice_id,
+          payment_id: paymentId,
+          notification_type: notificationType as NotificationType,
+          attachment_path: attachmentPath,
+          variables: {
+            customer_name: payment.customer_name,
+            customer_code: payment.customer_code,
+            invoice_number: payment.invoice_number,
+            billing_month: billingMonth,
+            amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
+            paid_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
+            subtotal: NotificationTemplateService.formatCurrency(parseFloat(payment.subtotal || 0)),
+            discount_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0)),
+            billing_summary: `Total Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount))}\n` +
+              (parseFloat(payment.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0))}\n` : '') +
+              `Jumlah Bayar: ${NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
+              `Sisa Tagihan: ${NotificationTemplateService.formatCurrency(isPaid ? 0 : parseFloat(payment.remaining_amount))}`,
+            total_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount)),
+            remaining_amount: NotificationTemplateService.formatCurrency(isPaid ? 0 : remainingAmount),
+            payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
+            payment_date: NotificationTemplateService.formatDate(paymentDate),
+            due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',
+            payment_notes: payment.notes || '',
+            invoice_notes: payment.invoice_notes || '',
+            notes: (payment.notes ? `Pesan: ${payment.notes}` : '') + (payment.notes && payment.invoice_notes ? '\n' : '') + (payment.invoice_notes ? `Keterangan: ${payment.invoice_notes}` : '')
+          },
+          send_immediately: sendImmediately // Urgent: Payment receipt
+        });
+      } catch (queueError) {
+        console.error(`[UnifiedNotification] ❌ Failed to queue payment notification for payment ${paymentId}:`, queueError);
+        // Don't throw here to avoid crashing the payment flow, just log it.
+      }
     } finally {
       connection.release();
     }

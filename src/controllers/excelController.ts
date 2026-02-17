@@ -44,12 +44,12 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
             ORDER BY c.created_at DESC
         `;
-        
+
         const [customers] = await databasePool.execute(query);
-        
+
         // Create workbook
         const wb = XLSX.utils.book_new();
-        
+
         // Prepare data for Excel
         const excelData = (customers as any[]).map(customer => ({
             'Kode Pelanggan': customer.customer_code,
@@ -69,23 +69,23 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
             'Tanggal Dibuat': customer.created_at,
             'Tanggal Diupdate': customer.updated_at
         }));
-        
+
         // Create worksheet
         const ws = XLSX.utils.json_to_sheet(excelData);
-        
+
         // Add worksheet to workbook
         XLSX.utils.book_append_sheet(wb, ws, 'Data Pelanggan');
-        
+
         // Generate buffer
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-        
+
         // Set headers for download
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="data_pelanggan.xlsx"');
         res.setHeader('Content-Length', buffer.length);
-        
+
         res.send(buffer);
-        
+
     } catch (error) {
         console.error('Error exporting customers:', error);
         res.status(500).json({ error: 'Gagal mengexport data pelanggan' });
@@ -96,7 +96,7 @@ export const exportCustomersToExcel = async (req: Request, res: Response) => {
 export const getImportTemplate = async (req: Request, res: Response) => {
     try {
         console.log('📄 Generating import template...');
-        
+
         // Create template data - exactly 3 columns as required
         const templateData = [
             {
@@ -115,38 +115,38 @@ export const getImportTemplate = async (req: Request, res: Response) => {
                 'Alamat': 'Jl. Melati No. 78, Surabaya'
             }
         ];
-        
+
         // Create workbook
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(templateData);
-        
+
         // Set column widths for better readability
         ws['!cols'] = [
             { wch: 25 },  // Nama
             { wch: 18 },  // Telepon
             { wch: 40 }   // Alamat
         ];
-        
+
         // Add worksheet to workbook
         XLSX.utils.book_append_sheet(wb, ws, 'Data Pelanggan');
-        
+
         // Generate buffer
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-        
+
         console.log('✅ Template generated, size:', buffer.length, 'bytes');
-        
+
         // Set headers for download
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template_import_pelanggan.xlsx"');
         res.setHeader('Content-Length', buffer.length);
-        
+
         res.send(buffer);
-        
+
     } catch (error) {
         console.error('❌ Error creating template:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            error: 'Gagal membuat template' 
+            error: 'Gagal membuat template'
         });
     }
 };
@@ -155,45 +155,45 @@ export const getImportTemplate = async (req: Request, res: Response) => {
 export const importCustomersFromExcel = async (req: Request, res: Response) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: 'File Excel tidak ditemukan' 
+                error: 'File Excel tidak ditemukan'
             });
         }
-        
+
         console.log('📂 Processing Excel file:', req.file.originalname);
-        
+
         // Read Excel file from memory buffer (multer.memoryStorage)
         const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: 'Sheet tidak ditemukan pada file Excel' 
+                error: 'Sheet tidak ditemukan pada file Excel'
             });
         }
         const worksheet = workbook.Sheets[sheetName];
         if (!worksheet) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: 'Worksheet tidak ditemukan' 
+                error: 'Worksheet tidak ditemukan'
             });
         }
         const data = XLSX.utils.sheet_to_json(worksheet);
-        
+
         console.log(`📊 Found ${data.length} rows to import`);
-        
+
         if (data.length === 0) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                error: 'File Excel kosong atau tidak ada data untuk diimport' 
+                error: 'File Excel kosong atau tidak ada data untuk diimport'
             });
         }
-        
+
         // Debug: Log first row to see column names
         console.log('🔍 First row columns:', Object.keys(data[0] || {}));
         console.log('🔍 First row data:', data[0]);
-        
+
         const results = {
             success: 0,
             failed: 0,
@@ -213,16 +213,16 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
         const matchKey = (rowObj: any, candidates: string[]): any => {
             const keys = Object.keys(rowObj);
             const normMap: Record<string, string> = {};
-            
+
             // Build normalized map
             for (const k of keys) {
                 normMap[normalizeKey(k)] = k;
             }
-            
+
             console.log('🔍 Available columns:', keys);
             console.log('🔍 Normalized map:', normMap);
             console.log('🔍 Looking for:', candidates);
-            
+
             // Exact match first
             for (const c of candidates) {
                 const nc = normalizeKey(c);
@@ -231,7 +231,7 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     return rowObj[normMap[nc]];
                 }
             }
-            
+
             // Fuzzy includes
             const wanted = candidates.map(c => normalizeKey(c));
             for (const [nk, orig] of Object.entries(normMap)) {
@@ -240,7 +240,7 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                     return rowObj[orig];
                 }
             }
-            
+
             console.log('❌ No match found for:', candidates);
             return '';
         };
@@ -251,11 +251,28 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
 
             try {
                 // Read using normalized key matching
-                const name = (matchKey(row, ['Nama','Name']) ?? '').toString().trim();
-                const phone = (matchKey(row, ['Telepon','Phone','No HP','HP','No Telepon','Nomor Telepon','No. Telepon','No Telp','Telp','Tlp']) ?? '').toString().trim();
-                const address = (matchKey(row, ['Alamat','Address']) ?? '').toString().trim();
-                
-                console.log(`📋 Row ${rowNumber}: Nama="${name}", Telepon="${phone}", Alamat="${address}"`);
+                const name = (matchKey(row, ['Nama', 'Name']) ?? '').toString().trim();
+                const phone = (matchKey(row, ['Telepon', 'Phone', 'No HP', 'HP', 'No Telepon', 'Nomor Telepon', 'No. Telepon', 'No Telp', 'Telp', 'Tlp']) ?? '').toString().trim();
+                const address = (matchKey(row, ['Alamat', 'Address']) ?? '').toString().trim();
+                const activationDateStr = (matchKey(row, ['Tanggal Aktif', 'Activation Date', 'Aktif', 'Start Date']) ?? '').toString().trim();
+
+                let activationDate: any = null;
+                if (activationDateStr && activationDateStr !== '') {
+                    // Cek jika numeric (serial date Excel)
+                    if (!isNaN(Number(activationDateStr)) && Number(activationDateStr) > 40000) {
+                        const date = new Date((Number(activationDateStr) - 25569) * 86400 * 1000);
+                        activationDate = date.toISOString().slice(0, 19).replace('T', ' ');
+                    } else {
+                        const date = new Date(activationDateStr);
+                        if (!isNaN(date.getTime())) {
+                            activationDate = date.toISOString().slice(0, 19).replace('T', ' ');
+                        }
+                    }
+                }
+
+                const finalActivationDate = activationDate || null; // Will use NOW() in SQL if null
+
+                console.log(`📋 Row ${rowNumber}: Nama="${name}", Telepon="${phone}", Alamat="${address}", Aktif="${finalActivationDate || 'NOW'}"`);
 
                 // Validation with better error messages
                 if (!name || name === '' || name === 'undefined') {
@@ -294,12 +311,12 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
                 let inserted = false;
                 let retries = 0;
                 const maxRetries = 5;
-                
+
                 while (!inserted && retries < maxRetries) {
                     try {
                         // Generate customer_code dengan format YYYYMMDDHHMMSSMMM
                         const customerCode = CustomerIdGenerator.generateCustomerId();
-                        
+
                         // Generate email dengan unique timestamp
                         const emailLocal = name.toLowerCase().replace(/[^a-z0-9]+/g, '').substring(0, 20);
                         const email = (emailLocal || 'customer') + Date.now() + '_' + i + '@local.id';
@@ -308,25 +325,29 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
 
                         // Insert - customer_code dengan format YYYYMMDDHHMMSSMMM
                         const insertQuery = `
-                            INSERT INTO customers (name, phone, email, address, customer_code, connection_type, status, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', NOW(), NOW())
+                            INSERT INTO customers (
+                                name, phone, email, address, customer_code, 
+                                connection_type, status, billing_mode, created_at, updated_at, expiry_date
+                            ) VALUES (?, ?, ?, ?, ?, 'pppoe', 'inactive', 'prepaid', COALESCE(?, NOW()), NOW(), DATE_ADD(COALESCE(?, NOW()), INTERVAL 1 MONTH))
                         `;
-                        
+
                         await databasePool.execute(insertQuery, [
-                            name, 
-                            cleanPhone, 
-                            email, 
+                            name,
+                            cleanPhone,
+                            email,
                             address || '',
-                            customerCode
+                            customerCode,
+                            finalActivationDate,
+                            finalActivationDate
                         ]);
-                        
+
                         results.success++;
                         console.log(`   ✅ SUCCESS: Row ${rowNumber} imported!`);
                         inserted = true;
-                        
+
                     } catch (dbError: any) {
                         const errorMsg = dbError?.message || String(dbError);
-                        
+
                         // Jika error duplicate customer_code, retry dengan delay
                         if (errorMsg.includes('Duplicate entry') && errorMsg.includes('customer_code')) {
                             retries++;
@@ -357,7 +378,7 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
         }
 
         console.log(`📈 Import complete: Success=${results.success}, Failed=${results.failed}`);
-        
+
         // Add helpful message if all rows failed
         let message = `Import selesai. Berhasil: ${results.success}, Gagal: ${results.failed}`;
         if (results.success === 0 && results.failed > 0) {
@@ -375,13 +396,13 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
             totalRows: data.length,
             firstRowColumns: Object.keys(data[0] || {})
         });
-        
+
     } catch (error) {
         console.error('❌ Error importing customers:', error);
         const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan tidak terduga';
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            error: 'Gagal mengimport data pelanggan: ' + errorMessage 
+            error: 'Gagal mengimport data pelanggan: ' + errorMessage
         });
     }
 };
@@ -390,28 +411,28 @@ export const importCustomersFromExcel = async (req: Request, res: Response) => {
 export const processImportedCustomers = async (req: Request, res: Response) => {
     try {
         const { customers } = req.body;
-        
+
         if (!customers || !Array.isArray(customers)) {
             return res.status(400).json({ error: 'Data pelanggan tidak valid' });
         }
-        
+
         const results: { success: number; failed: number; errors: string[] } = {
             success: 0,
             failed: 0,
             errors: []
         };
-        
+
         for (const customerData of customers) {
             try {
                 // Insert customer
                 const customerQuery = `
                     INSERT INTO customers (
                         name, phone, email, address, customer_code, 
-                        connection_type, status, latitude, longitude,
-                        pppoe_username, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                        connection_type, status, billing_mode, latitude, longitude,
+                        pppoe_username, created_at, updated_at, expiry_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'prepaid', ?, ?, ?, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
                 `;
-                
+
                 const [result] = await databasePool.execute(customerQuery, [
                     customerData.name,
                     customerData.phone,
@@ -424,9 +445,9 @@ export const processImportedCustomers = async (req: Request, res: Response) => {
                     customerData.longitude,
                     customerData.pppoe_username
                 ]);
-                
+
                 const customerId = (result as any).insertId;
-                
+
                 // If static IP, insert to static_ip_clients table
                 // Note: gateway column does not exist in static_ip_clients table
                 // package_id and client_name are required (NOT NULL)
@@ -435,7 +456,7 @@ export const processImportedCustomers = async (req: Request, res: Response) => {
                     const packageId = customerData.static_ip_package_id || customerData.package_id;
                     // Get client_name from customerData (gunakan name sebagai fallback)
                     const clientName = customerData.client_name || customerData.name || `Customer_${customerId}`;
-                    
+
                     if (!packageId) {
                         // Jika tidak ada package_id, skip insert dan log warning
                         console.warn(`⚠️ Warning: Static IP customer "${customerData.name || customerId}" (ID: ${customerId}) has no package_id, skipping static_ip_clients insert`);
@@ -447,7 +468,7 @@ export const processImportedCustomers = async (req: Request, res: Response) => {
                                 customer_id, ip_address, interface, package_id, client_name, created_at
                             ) VALUES (?, ?, ?, ?, ?, NOW())
                         `;
-                        
+
                         await databasePool.execute(staticIpQuery, [
                             customerId,
                             customerData.ip_address,
@@ -458,22 +479,22 @@ export const processImportedCustomers = async (req: Request, res: Response) => {
                         console.log(`✅ Static IP client created for customer ${customerId} with package ${packageId}`);
                     }
                 }
-                
+
                 results.success++;
-                
+
             } catch (error) {
                 results.failed++;
                 const message = error instanceof Error ? error.message : String(error);
                 results.errors.push(`${customerData.name}: ${message}`);
             }
         }
-        
+
         res.json({
             success: true,
             message: `Berhasil memproses ${results.success} pelanggan, gagal ${results.failed}`,
             results: results
         });
-        
+
     } catch (error) {
         console.error('Error processing customers:', error);
         res.status(500).json({ error: 'Gagal memproses data pelanggan' });
@@ -493,19 +514,19 @@ export const syncPppoeFromMikrotik = async (req: Request, res: Response) => {
                 comment: 'Customer 1'
             },
             {
-                username: 'user002', 
+                username: 'user002',
                 password: 'password456',
                 profile: 'premium',
                 comment: 'Customer 2'
             }
         ];
-        
+
         res.json({
             success: true,
             message: 'Data PPPOE berhasil di-sync dari MikroTik',
             users: mockPppoeUsers
         });
-        
+
     } catch (error) {
         console.error('Error syncing PPPOE:', error);
         res.status(500).json({ error: 'Gagal sync data PPPOE dari MikroTik' });
@@ -516,7 +537,7 @@ export const syncPppoeFromMikrotik = async (req: Request, res: Response) => {
 export const getCustomerForEdit = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        
+
         const query = `
             SELECT 
                 c.*,
@@ -527,19 +548,19 @@ export const getCustomerForEdit = async (req: Request, res: Response) => {
             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
             WHERE c.id = ?
         `;
-        
+
         const [result] = await databasePool.execute(query, [id]);
         const customer = (result as any)[0];
-        
+
         if (!customer) {
             return res.status(404).json({ error: 'Pelanggan tidak ditemukan' });
         }
-        
+
         res.json({
             success: true,
             customer: customer
         });
-        
+
     } catch (error) {
         console.error('Error getting customer:', error);
         res.status(500).json({ error: 'Gagal mengambil data pelanggan' });

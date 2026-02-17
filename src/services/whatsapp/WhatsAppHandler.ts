@@ -253,6 +253,68 @@ export class WhatsAppHandler {
             // 4. Session Handling
             let session = await WhatsAppSessionService.getSession(senderPhone);
 
+            // ==========================================
+            // WELCOME CONFIRMATION FLOW
+            // ==========================================
+            if (session && session.step === 'waiting_welcome_confirmation') {
+                const response = cleanText;
+
+                if (response === 'benar' || response === 'ya' || response === 'sesuai') {
+                    await service.sendMessage(senderJid, '✅ *Terima Kasih!*\n\nData Anda telah terverifikasi. Selamat menikmati layanan kami!\n\nKetik *Menu* untuk melihat opsi bantuan.');
+                    await WhatsAppSessionService.clearSession(senderPhone);
+                } else if (response === 'salah' || response === 'tidak') {
+                    await service.sendMessage(senderJid, '📝 *Koreksi Data*\n\nSilakan balas pesan ini dengan menuliskan *NAMA LENGKAP* Anda yang benar.');
+                    await WhatsAppSessionService.updateSession(senderPhone, { step: 'waiting_name_correction' });
+                } else {
+                    await service.sendMessage(senderJid, '🤖 Mohon balas dengan ketik *BENAR* atau *SALAH*.');
+                }
+                return;
+            }
+
+            if (session && session.step === 'waiting_name_correction') {
+                const newName = messageContent.trim();
+                if (newName.length < 3) {
+                    await service.sendMessage(senderJid, '⚠️ Nama terlalu pendek. Silakan masukkan nama lengkap yang benar.');
+                    return;
+                }
+
+                // Update session
+                await WhatsAppSessionService.updateSession(senderPhone, {
+                    step: 'waiting_address_correction',
+                    data: { ...session.data, newName }
+                });
+
+                await service.sendMessage(senderJid, `✅ Nama diterima: *${newName}*\n\nSekarang, silakan tuliskan *ALAMAT LENGKAP* pemasangan Anda.`);
+                return;
+            }
+
+            if (session && session.step === 'waiting_address_correction') {
+                const newAddress = messageContent.trim();
+                if (newAddress.length < 5) {
+                    await service.sendMessage(senderJid, '⚠️ Alamat terlalu pendek. Mohon berikan alamat lengkap.');
+                    return;
+                }
+
+                const { newName, customerId } = session.data;
+
+                // UPDATE DATABASE
+                try {
+                    console.log(`[WhatsApp Bot] Updating customer ${customerId}: Name=${newName}, Address=${newAddress}`);
+                    await databasePool.query(
+                        'UPDATE customers SET name = ?, address = ?, updated_at = NOW() WHERE id = ?',
+                        [newName, newAddress, customerId]
+                    );
+
+                    await service.sendMessage(senderJid, `✅ *DATA BERHASIL DIPERBARUI*\n\n👤 Nama: ${newName}\n🏠 Alamat: ${newAddress}\n\nTerima kasih atas konfirmasinya. Data Anda telah kami perbarui.`);
+                    await WhatsAppSessionService.clearSession(senderPhone);
+                } catch (err) {
+                    console.error('[WhatsApp Bot] Failed to update customer:', err);
+                    await service.sendMessage(senderJid, '❌ Maaf, terjadi kesalahan sistem saat menyimpan data. Silakan hubungi admin.');
+                    await WhatsAppSessionService.clearSession(senderPhone);
+                }
+                return;
+            }
+
             // Special handling for session with Location
             if (session && isLocation) {
                 await this.handleRegistration(service, senderJid, senderPhone, '', session, locationData);

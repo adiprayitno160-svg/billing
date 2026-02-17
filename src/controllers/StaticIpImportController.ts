@@ -43,7 +43,12 @@ export class StaticIpImportController {
 
             // Tandai kandidat yang sudah terdaftar di DB (berdasarkan IP)
             const [existingClients] = await databasePool.execute('SELECT ip_address FROM static_ip_clients');
-            const registeredIps = new Set((existingClients as any[]).map(c => c.ip_address));
+
+            // Normalize IPs from DB for comparison (remove CIDR prefixes)
+            const registeredIps = new Set((existingClients as any[]).map(c => {
+                const ip = c.ip_address || '';
+                return ip.includes('/') ? ip.split('/')[0] : ip;
+            }));
 
             const processedCandidates = candidates.map(c => ({
                 ...c,
@@ -104,7 +109,7 @@ export class StaticIpImportController {
             }
 
             // 2. Insert ke tabel static_ip_clients (jika belum ada)
-            const [exist] = await conn.execute('SELECT id FROM static_ip_clients WHERE ip_address = ?', [ipAddress]);
+            const [exist] = await conn.execute("SELECT id FROM static_ip_clients WHERE SUBSTRING_INDEX(ip_address, '/', 1) = ?", [ipAddress]);
             if ((exist as any[]).length > 0) {
                 await conn.execute(`
                     UPDATE static_ip_clients SET 
@@ -165,8 +170,10 @@ export class StaticIpImportController {
 
     // API: Create New Customer & Link (Adopsi)
     async createAndLink(req: Request, res: Response) {
-        const { queueId, mangleId, name, address, ipAddress, packageId, gatewayIp, gatewayIpId, interface: iface } = req.body;
+        const { queueId, mangleId, name, address, ipAddress, packageId, gatewayIp, gatewayIpId, interface: iface, activationDate } = req.body;
         let phone = req.body.phone ? req.body.phone.toString().trim() : '';
+
+        const actDate = activationDate || new Date().toISOString().split('T')[0];
 
         if (!queueId || !ipAddress || !name || !packageId) {
             return res.status(400).json({ success: false, message: 'Data wajib diisi (Nama, IP, Paket)' });
@@ -177,7 +184,7 @@ export class StaticIpImportController {
             await conn.beginTransaction();
 
             // 1. Cek Apakah Customer Sudah Ada (By IP) - UPSERT Logic
-            const [existing] = await conn.execute('SELECT id, customer_code FROM customers WHERE ip_address = ? LIMIT 1', [ipAddress]);
+            const [existing] = await conn.execute("SELECT id, customer_code FROM customers WHERE SUBSTRING_INDEX(ip_address, '/', 1) = ? LIMIT 1", [ipAddress]);
 
             let newCustomerId;
             let customerCode;
@@ -204,10 +211,10 @@ export class StaticIpImportController {
                     INSERT INTO customers (
                         customer_code, name, phone, address, ip_address,
                         gateway_ip, gateway_ip_id, interface,
-                        connection_type, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', NOW(), NOW())
+                        connection_type, status, billing_mode, created_at, updated_at, expiry_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'static_ip', 'active', 'prepaid', ?, NOW(), DATE_ADD(?, INTERVAL 1 MONTH))
                 `, [customerCode, name, phone || null, address || null, ipAddress,
-                    gatewayIp || null, gatewayIpId || null, iface || null]);
+                    gatewayIp || null, gatewayIpId || null, iface || null, actDate, actDate]);
 
                 newCustomerId = (custResult as any).insertId;
                 console.log(`[Import] Customer Created ID: ${newCustomerId}, Code: ${customerCode}`);
@@ -237,7 +244,7 @@ export class StaticIpImportController {
             }
 
             // 4. Upsert Static IP Client
-            const [existingClient] = await conn.execute('SELECT id FROM static_ip_clients WHERE ip_address = ? LIMIT 1', [ipAddress]);
+            const [existingClient] = await conn.execute("SELECT id FROM static_ip_clients WHERE SUBSTRING_INDEX(ip_address, '/', 1) = ? LIMIT 1", [ipAddress]);
 
             if ((existingClient as any[]).length > 0) {
                 await conn.execute(`

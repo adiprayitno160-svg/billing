@@ -15,6 +15,7 @@ router.get('/devices/:id', GenieacsController.deviceDetail);
 // Device actions
 router.post('/devices/:id/reboot', GenieacsController.rebootDevice);
 router.post('/devices/:id/refresh', GenieacsController.refreshDevice);
+router.post('/devices/:id/refresh-wifi', GenieacsController.refreshWiFi);
 router.post('/devices/:id/change-wifi', GenieacsController.changeWiFiCredentials);
 router.post('/devices/:id/change-pppoe', GenieacsController.changePPPoECredentials);
 router.post('/devices/:id/configure-wan', GenieacsController.configureWan);

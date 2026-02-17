@@ -712,6 +712,38 @@
                     </div>
 
                     <div class="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                        <!-- TANPA ODC/ODP - Pelanggan yang belum terdaftar di area -->
+                        <div class="odc-item group flex items-center justify-between p-5 bg-amber-50 border-2 border-amber-200 border-dashed rounded-2xl hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/5 transition-all mb-3"
+                            data-name="tanpa odc odp" data-location="belum ditugaskan">
+                            <div class="flex flex-col">
+                                <span
+                                    class="text-sm font-black text-amber-800 group-hover:text-amber-600 transition-colors flex items-center gap-2">
+                                    <i class="fas fa-exclamation-triangle text-amber-500"></i>
+                                    TANPA ODC / ODP
+                                </span>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                                        <i class="fas fa-user-slash mr-1"></i>
+                                        Pelanggan belum terdaftar di area ODC/ODP
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <a href="/billing/tagihan/print-no-odc?period=<%= filters.period || '' %>&format=a4"
+                                    target="_blank"
+                                    class="w-10 h-10 bg-amber-700 text-white rounded-xl flex items-center justify-center hover:bg-amber-800 transition-all shadow-md active:scale-95"
+                                    title="Print A4">
+                                    <i class="fas fa-file-invoice text-xs"></i>
+                                </a>
+                                <a href="/billing/tagihan/print-no-odc?period=<%= filters.period || '' %>&format=thermal"
+                                    target="_blank"
+                                    class="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center hover:bg-amber-600 transition-all shadow-md active:scale-95"
+                                    title="Print Thermal">
+                                    <i class="fas fa-receipt text-xs"></i>
+                                </a>
+                            </div>
+                        </div>
+
                         <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
                             <div id="odcListContainer" class="grid grid-cols-1 gap-2">
                                 <% odcList.forEach(function(odc) { %>
@@ -735,7 +767,7 @@
                                             </div>
                                         </div>
                                         <div class="flex gap-2">
-                                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>"
+                                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=a4"
                                                 target="_blank"
                                                 class="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-900 transition-all shadow-md active:scale-95"
                                                 title="Print A4">
@@ -762,7 +794,7 @@
 
                     <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Area: <%=
-                                typeof odcList !=='undefined' ? odcList.length : 0 %></span>
+                                typeof odcList !=='undefined' ? odcList.length : 0 %> + 1 (Tanpa ODC)</span>
                         <button onclick="closeModals()"
                             class="px-8 py-3 bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-lg active:scale-95">Selesai</button>
                     </div>
@@ -1102,6 +1134,7 @@
                         const ids = Array.from(getChecked()).map(cb => cb.value);
                         const params = new URLSearchParams();
                         ids.forEach(id => params.append('ids[]', id));
+                        params.append('format', 'thermal');
                         window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
                         break;
                 }
@@ -1142,12 +1175,17 @@
                 else Swal.fire('Gagal', d.message, 'error');
             };
 
+            // Show ODC Print Modal
+            window.showOdcPrintModal = () => {
+                openModal('odcPrintModal');
+            };
+
             // Filter ODC Modal
             window.filterOdcList = () => {
                 const q = document.getElementById('odcSearchInput').value.toLowerCase();
                 document.querySelectorAll('.odc-item').forEach(item => {
-                    const name = item.dataset.name.toLowerCase();
-                    const loc = item.dataset.location.toLowerCase();
+                    const name = (item.dataset.name || '').toLowerCase();
+                    const loc = (item.dataset.location || '').toLowerCase();
                     item.style.display = (name.includes(q) || loc.includes(q)) ? 'flex' : 'none';
                 });
             };
