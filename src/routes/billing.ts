@@ -321,7 +321,8 @@ router.get('/tagihan/print-no-odc', async (req, res) => {
                 odc: virtualOdc,
                 invoices,
                 period: period || 'Semua Periode',
-                format: format || 'thermal'
+                format: format || 'thermal',
+                layout: false
             });
         } finally {
             conn.release();
@@ -421,7 +422,8 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                 odc,
                 invoices,
                 period: period || 'Semua Periode',
-                format: format || 'thermal'
+                format: format || 'thermal',
+                layout: false
             });
         } finally {
             conn.release();
@@ -521,7 +523,8 @@ router.get('/tagihan/print-all', async (req, res) => {
                 title: 'Print Semua Tagihan',
                 invoices,
                 filters: { status, odc_id, search, period },
-                format: format || 'thermal'
+                format: format || 'thermal',
+                layout: false
             });
         } finally {
             conn.release();
@@ -654,7 +657,8 @@ router.get('/tagihan/:id/print', async (req, res) => {
             res.render('billing/tagihan-print', {
                 title: `Print Invoice ${invoice.invoice_number}`,
                 invoice,
-                items
+                items,
+                layout: false
             });
         } finally {
             conn.release();
@@ -700,7 +704,8 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
             res.render('billing/tagihan-print-thermal', {
                 title: `Print Thermal ${invoice.invoice_number}`,
                 invoice,
-                items
+                items,
+                layout: false
             });
         } finally {
             conn.release();

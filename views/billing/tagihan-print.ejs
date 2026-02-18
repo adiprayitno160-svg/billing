@@ -18,6 +18,8 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #e5e7eb;
             color: #1f2937;
+            padding-bottom: 50px;
+            /* Space for buttons on mobile */
         }
 
         /* UTILITIES */
@@ -140,19 +142,21 @@
             display: none;
             background: white;
             width: 48mm;
-            margin: 0 auto;
-            padding: 0;
+            margin: 20px auto;
+            /* Centered on screen */
+            padding: 10px 5px;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 10px;
-            /* Reduced font size */
-            line-height: 1.1;
+            font-size: 11px;
+            /* Slightly readable on screen */
+            line-height: 1.2;
             color: black;
             overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            /* Visual card effect on screen */
         }
 
         .thermal-body {
             width: 100%;
-            padding-bottom: 20px;
             /* Space for tear-off */
         }
 
@@ -170,14 +174,14 @@
 
         .th-line {
             border-top: 1px dashed #000;
-            margin: 2px 0;
+            margin: 5px 0;
             width: 100%;
         }
 
         .th-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .th-item-name {
@@ -186,7 +190,53 @@
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 100%;
-            margin-bottom: 1px;
+            margin-bottom: 2px;
+        }
+
+        /* ==== SCREEN RESPONSIVENESS (MOBILE) ==== */
+        @media screen and (max-width: 600px) {
+            .page-a4 {
+                display: none !important;
+                /* Force hide A4 on mobile screen */
+            }
+
+            .page-thermal {
+                display: block !important;
+                /* Default show Thermal on mobile screen */
+                width: 90% !important;
+                /* Scale to screen width */
+                max-width: 300px;
+                /* Don't get too wide */
+                margin: 20px auto;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            }
+
+            .thermal-body {
+                /* Use larger font for easier reading on phone */
+                font-size: 13px;
+            }
+
+            .no-print {
+                position: fixed;
+                bottom: 0;
+                top: auto;
+                width: 100%;
+                justify-content: space-around;
+                padding: 15px 5px;
+            }
+
+            button {
+                flex-grow: 1;
+                justify-content: center;
+                font-size: 12px;
+                padding: 12px 5px;
+            }
+
+            /* Hide close/A4 buttons on mobile to simplify */
+            .btn-a4,
+            .btn-close {
+                display: none;
+            }
         }
 
         /* ==== PRINT MEDIA QUERIES ==== */
@@ -203,6 +253,7 @@
 
             body {
                 background: white;
+                padding-bottom: 0;
             }
 
             /* A4 Mode Logic */
@@ -230,10 +281,14 @@
             /* Setup body width */
             body.mode-thermal .page-thermal {
                 display: block !important;
-                width: 100%;
+                width: 48mm !important;
+                /* Strict 48mm for printer */
+                max-width: 48mm !important;
                 margin: 0;
                 padding: 0;
                 box-shadow: none;
+                font-size: 10px !important;
+                /* Force small font for print */
                 page-break-inside: avoid;
                 /* Try to prevent breaks */
             }
@@ -246,7 +301,7 @@
     <div class="no-print">
         <button onclick="setMode('a4'); window.print()" class="btn-a4">A4 Print</button>
         <button onclick="setMode('thermal'); window.print()" class="btn-thermal">Browser Print</button>
-        <button onclick="printViaRawBT()" class="btn-bluetooth">RawBT/HP (Recommended)</button>
+        <button onclick="printViaRawBT()" class="btn-bluetooth">RawBT/HP</button>
         <button onclick="window.close()" class="btn-close">Close</button>
     </div>
 
@@ -402,7 +457,10 @@
                 document.getElementById('thermal-content').style.display = 'block';
             } else {
                 document.body.classList.remove('mode-thermal');
-                document.getElementById('view-a4').style.display = 'block';
+                /* Only show A4 if NOT on mobile */
+                if (window.innerWidth > 600) {
+                    document.getElementById('view-a4').style.display = 'block';
+                }
                 document.getElementById('thermal-content').style.display = 'none';
             }
         }
@@ -416,8 +474,12 @@
             window.location.href = 'rawbt:data:text/html;base64,' + base64;
         }
 
-        // Default mobile to thermal
-        if (window.innerWidth < 600) setMode('thermal');
+        // Default mobile layout
+        if (window.innerWidth < 600) {
+            document.body.classList.add('mode-thermal'); // Force thermal styling
+            document.getElementById('view-a4').style.display = 'none';
+            document.getElementById('thermal-content').style.display = 'block';
+        }
     </script>
 </body>
 
