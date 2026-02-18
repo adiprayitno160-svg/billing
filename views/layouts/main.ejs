@@ -814,6 +814,7 @@
 
 			window.closeSidebarMobile = function (e) {
 				if (e) { e.preventDefault(); e.stopPropagation(); }
+				// alert('Closing Sidebar Global'); // Debug
 				console.log('Global closeSidebarMobile called');
 				closeSidebarMobile();
 			};
@@ -823,7 +824,7 @@
 				const { sidebarToggle, overlay } = getElements();
 
 				if (sidebarToggle) {
-					// Remove existing listeners by cloning (nuclear option to ensure clean slate)
+					// Use a more standard approach: remove old listener by replacing element
 					const newToggle = sidebarToggle.cloneNode(true);
 					sidebarToggle.parentNode.replaceChild(newToggle, sidebarToggle);
 
@@ -845,20 +846,7 @@
 					newOverlay.addEventListener('click', closeSidebarMobile);
 				}
 
-				// New: Mobile Close Button Listener
-				const sidebarCloseMobile = document.getElementById('sidebarCloseMobile');
-				if (sidebarCloseMobile) {
-					// Clone to strip old listeners if any
-					const newCloseBtn = sidebarCloseMobile.cloneNode(true);
-					sidebarCloseMobile.parentNode.replaceChild(newCloseBtn, sidebarCloseMobile);
-
-					newCloseBtn.addEventListener('click', (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						console.log('Mobile sidebar close button clicked');
-						closeSidebarMobile();
-					});
-				}
+				// Note: sidebarCloseMobile listener is now handled via onclick attribute
 			}
 
 			// Initialization logic
