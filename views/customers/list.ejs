@@ -43,12 +43,12 @@
 		</div>
 	</div>
 
-	<!-- Stats Summary -->
 	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-		<% let totalVal=typeof pagination !=='undefined' && pagination ? pagination.total : (typeof stats !=='undefined'
-			&& stats ? stats.total : (customers ? customers.length : 0)); let activeVal=typeof stats !=='undefined' &&
-			stats ? stats.active : 0; let inactiveVal=typeof stats !=='undefined' && stats ? stats.inactive : 0; let
-			isolirVal=typeof stats !=='undefined' && stats ? stats.isolir : 0; %>
+		<% let totalVal=0; let activeVal=0; let inactiveVal=0; let isolirVal=0; if (typeof pagination !=='undefined' &&
+			pagination) { totalVal=pagination.total; } else if (typeof stats !=='undefined' && stats) {
+			totalVal=stats.total; } else if (typeof customers !=='undefined' && customers) { totalVal=customers.length;
+			} if (typeof stats !=='undefined' && stats) { activeVal=stats.active; inactiveVal=stats.inactive;
+			isolirVal=stats.isolir; } %>
 			<div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
 				<div class="flex items-center gap-4">
 					<div
