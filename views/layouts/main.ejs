@@ -601,6 +601,14 @@
 					// Button itself captures clicks
 					button.style.pointerEvents = 'auto';
 				});
+
+				// Check for mobile close button explicitly
+				const closeBtn = document.getElementById('sidebarCloseMobile');
+				if (closeBtn) {
+					closeBtn.style.pointerEvents = 'auto';
+					closeBtn.style.cursor = 'pointer';
+					closeBtn.style.zIndex = '10010';
+				}
 			}
 
 			// Run once on load
@@ -704,8 +712,11 @@
 						// Open on mobile
 						console.log('Mobile: Opening sidebar');
 						sidebar.classList.remove('-translate-x-full');
+						sidebar.style.transform = ''; // Clear any inline transform
+						sidebar.style.display = 'block'; // Ensure it's visible
 						if (overlay) {
 							overlay.classList.remove('hidden');
+							overlay.style.display = 'block';
 							// Small delay to allow display block to apply before opacity transition
 							requestAnimationFrame(() => {
 								overlay.classList.add('opacity-100');
@@ -739,11 +750,17 @@
 				const { sidebar, overlay } = getElements();
 				if (!sidebar) return;
 
+				console.log('Forcing sidebar close');
 				sidebar.classList.add('-translate-x-full');
+
+				// Force via direct style to override any conflicts
+				sidebar.style.transform = 'translateX(-100%)';
+
 				if (overlay) {
 					overlay.classList.remove('opacity-100');
 					setTimeout(() => {
 						overlay.classList.add('hidden');
+						overlay.style.display = 'none';
 					}, 300);
 				}
 			}
