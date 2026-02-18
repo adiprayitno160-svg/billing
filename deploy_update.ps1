@@ -44,6 +44,7 @@ $files = @(
     "src\fix_whatsapp_sessions.ts",
     "views\billing\payment-form.ejs",
     "views\billing\payment-history.ejs",
+    "views\billing\tagihan.ejs",
     "views\billing\tagihan-detail.ejs",
     "views\customers\detail.ejs",
     "views\customers\edit.ejs",
