@@ -3,28 +3,28 @@
     <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-6">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
                         <div class="flex items-center space-x-4 mb-2">
                             <a href="/billing/tagihan" class="text-gray-500 hover:text-gray-700">
                                 <i class="fas fa-arrow-left"></i> Kembali
                             </a>
                         </div>
-                        <h1 class="text-3xl font-bold text-gray-900">Detail Tagihan</h1>
-                        <p class="mt-2 text-sm text-gray-600">
+                        <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Detail Tagihan</h1>
+                        <p class="mt-1 text-sm text-gray-600">
                             <%= invoice.invoice_number %>
                         </p>
                     </div>
-                    <div class="flex space-x-3">
+                    <div class="flex flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
                         <!-- Print Dropdown -->
-                        <div class="relative inline-block">
+                        <div class="relative inline-block w-full sm:w-auto">
                             <button onclick="togglePrintDropdown()"
-                                class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                                class="w-full sm:w-auto bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center">
                                 <i class="fas fa-print mr-2"></i>Print
                                 <i class="fas fa-chevron-down ml-2"></i>
                             </button>
                             <div id="printDropdown"
-                                class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                                class="hidden absolute right-0 mt-2 w-full sm:w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                                 <a href="/billing/tagihan/<%= invoice.id %>/print" target="_blank"
                                     class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg border-b">
                                     <i class="fas fa-file-pdf mr-2 text-red-500"></i>Print A4 (PDF)
@@ -38,18 +38,18 @@
 
                         <% if (invoice.status !=='paid' && invoice.status !=='cancelled' ) { %>
                             <a href="/billing/tagihan/<%= invoice.id %>/pay"
-                                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                class="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
                                 <i class="fas fa-money-bill-wave mr-2"></i>Bayar
                             </a>
                             <% } %>
 
                                 <a href="/billing/tagihan"
-                                    class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                                    class="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
                                     <i class="fas fa-arrow-left mr-2"></i>Kembali
                                 </a>
 
                                 <button onclick="deleteInvoice()"
-                                    class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                                    class="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
                                     <i class="fas fa-trash mr-2"></i>Hapus
                                 </button>
                     </div>
