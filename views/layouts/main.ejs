@@ -815,6 +815,21 @@
 
 					newOverlay.addEventListener('click', closeSidebarMobile);
 				}
+
+				// New: Mobile Close Button Listener
+				const sidebarCloseMobile = document.getElementById('sidebarCloseMobile');
+				if (sidebarCloseMobile) {
+					// Clone to strip old listeners if any
+					const newCloseBtn = sidebarCloseMobile.cloneNode(true);
+					sidebarCloseMobile.parentNode.replaceChild(newCloseBtn, sidebarCloseMobile);
+
+					newCloseBtn.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						console.log('Mobile sidebar close button clicked');
+						closeSidebarMobile();
+					});
+				}
 			}
 
 			// Initialization logic
